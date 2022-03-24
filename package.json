@@ -1,0 +1,21 @@
+{
+  "scripts": {
+    "dev": "node-dev main.mjs",
+    "serve": "cross-env NODE_ENV=production node main.mjs",
+    "build:client": "vite build --outDir dist/client",
+    "build:server": "vite build --outDir dist/server --ssr server.jsx"
+  },
+  "devDependencies": {
+    "@types/polka": "^0.5.4",
+    "cross-env": "^7.0.3",
+    "node-dev": "^7.3.0",
+    "vite": "^2.8.6"
+  },
+  "dependencies": {
+    "ajo": "^0.0.2",
+    "navaid": "^1.2.0",
+    "polka": "^0.5.2",
+    "sirv": "^2.0.2",
+    "undom": "^0.4.0"
+  }
+}
