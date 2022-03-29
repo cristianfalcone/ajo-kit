@@ -2,14 +2,14 @@ import { createComponent, consume } from 'ajo'
 
 const isServer = import.meta.env.SSR
 
-const links = [
-  ['/', 'Home', true],
-  ['/about', 'About', false],
-]
-
 Nav.is = 'nav'
 
 function* Nav({ }, host) {
+  const links = [
+    ['/', 'Home', true],
+    ['/about', 'About', false],
+  ]
+
   const isActive = (path, exact) => {
     let active = (isServer ? consume(host, 'path') : location.pathname) || '/'
     return exact ? active === path : active.startsWith(path)

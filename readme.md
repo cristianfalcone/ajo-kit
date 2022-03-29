@@ -1,2 +1,2 @@
 # ajo-kit
-ajo-kit is a JavaScript view library for building user interfaces
+The fastest way to build [ajo](https://github.com/cristianfalcone/ajo) apps

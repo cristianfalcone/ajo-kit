@@ -73,9 +73,9 @@ const buildData = count => {
   return data
 }
 
-const Row = ({ key, selected, item, dispatch }) => {
+const Row = ({ selected, item, dispatch }) => {
   return (
-    <tr class={selected ? "danger" : null} key={key}>
+    <tr class={selected ? "danger" : null} key={item.id + ''}>
       <td class="col-md-1">{item.id}</td>
       <td class="col-md-4">
         <a onclick={() => dispatch('SELECT', item.id)}>{item.label}</a>
@@ -103,8 +103,8 @@ const Button = ({ id, cb, title }) => (
   </div>
 )
 
-const Jumbotron = ({ dispatch }) => (
-  <div class="jumbotron">
+const Jumbotron = ({ ref, dispatch }) => (
+  <div class="jumbotron" ref={ref}>
     <div class="row">
       <div class="col-md-6">
         <h1>ajo keyed</h1>
@@ -185,21 +185,14 @@ export default function* Main() {
     this.update()
   }
 
-  let jumbotron = null
+  const jumbotron = { current: null }
 
   for ({} of this) yield (
     <div class="container">
-      {jumbotron ? <Skip /> : <Jumbotron dispatch={dispatch} ref={el => jumbotron = el} />}
+      {jumbotron.current ? <Skip /> : <Jumbotron dispatch={dispatch} ref={jumbotron} />}
       <table class="table table-hover table-striped test-data">
         <tbody>
-          {data.map((item) =>
-            <Row
-              key={item.id + ''}
-              item={item}
-              selected={selected === item.id}
-              dispatch={dispatch}
-            />
-          )}
+          {data.map((item) => <Row item={item} selected={selected === item.id} dispatch={dispatch} />)}
         </tbody>
       </table>
       <span class="preloadicon glyphicon glyphicon-remove" aria-hidden="true"></span>

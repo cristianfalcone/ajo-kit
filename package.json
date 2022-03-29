@@ -8,14 +8,14 @@
   "devDependencies": {
     "@types/polka": "^0.5.4",
     "cross-env": "^7.0.3",
-    "node-dev": "^7.3.0",
+    "node-dev": "^7.3.1",
     "vite": "^2.8.6"
   },
   "dependencies": {
-    "ajo": "^0.0.2",
+    "ajo": "^0.0.5",
+    "backdom": "^0.0.2",
     "navaid": "^1.2.0",
     "polka": "^0.5.2",
-    "sirv": "^2.0.2",
-    "undom": "^0.4.0"
+    "sirv": "^2.0.2"
   }
 }

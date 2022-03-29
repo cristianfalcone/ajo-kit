@@ -10,7 +10,9 @@ App.is = 'app-root'
 function* App({ path, pages, promises }, host) {
   const router = navaid()
   const ssr = { current: false }
-  let ready, props, getPath = () => isServer ? path : location.pathname
+  const getPath = () => isServer ? path : location.pathname
+  
+  let ready, props
   let Layout = ({ children }) => ssr.current ? <Skip end/> : children
   let Page = () => 'Loading...'
 
