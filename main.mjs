@@ -7,32 +7,36 @@ import sirv from 'sirv'
 const isProd = process.env.NODE_ENV === 'production'
 const app = polka()
 
-let vite, t
+let vite, index
 
 if (isProd) {
-  t = readFileSync(resolve('./dist/client/index.html'), 'utf-8')
+  index = readFileSync(resolve('./dist/client/index.html'), 'utf-8')
   app.use(sirv('./dist/client', { extensions: [] }))
 } else {
   vite = await createServer({ server: { middlewareMode: 'ssr' } })
   app.use(vite.middlewares)
 }
 
-app.use(async (req, res) => {
+app.use(async (req, res, next) => {
   try {
-    const path = req.path
-
-    let template, render
+    const ctx = { req, res, next, meta: [], main: '' }
+    let html, render
 
     if (isProd) {
-      template = t
+      html = index
       render = (await import('./dist/server/server.js')).default.default
     } else {
-      template = readFileSync(resolve('index.html'), 'utf-8')
-      template = await vite.transformIndexHtml(path, template)
+      html = readFileSync(resolve('index.html'), 'utf-8')
+      html = await vite.transformIndexHtml(req.path, html)
       render = (await vite.ssrLoadModule('/server.jsx')).default
     }
 
-    const html = template.replace('<body>', `<body ssr>\n  ${await render(path)}`)
+    await render(ctx)
+
+    html = html
+      .replace('<body>', `<body ssr>`)
+      .replace('<!--ssr-meta-->', ctx.meta.map(m => `<meta name="${m.name}" content="${m.content}">`).join(''))
+      .replace('<!--ssr-main-->', ctx.main)
 
     res.writeHead(200, { 'Content-Type': 'text/html' })
     res.end(html)

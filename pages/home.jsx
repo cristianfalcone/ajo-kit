@@ -1,7 +1,7 @@
 import { consume } from 'ajo'
 
-export default ({ }, host) => {
-  return <>
+export default ({ }, host) =>
+  <>
     <h1>Hello World!</h1>
     <p>
       Welcome to my
@@ -9,4 +9,3 @@ export default ({ }, host) => {
       home page.
     </p>
   </>
-}

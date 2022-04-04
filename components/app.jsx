@@ -7,20 +7,19 @@ const isDev = import.meta.env.DEV
 
 App.is = 'app-root'
 
-function* App({ path, pages, promises }, host) {
+function* App({ pages, http, ctx }, host) {
   const router = navaid()
   const ssr = { current: false }
-  const getPath = () => isServer ? path : location.pathname
-  
+
   let ready, props
-  let Layout = ({ children }) => ssr.current ? <Skip end/> : children
+  let Layout = ({ children }) => ssr.current ? <Skip end /> : children
   let Page = () => 'Loading...'
 
   provide(host, 'router', router)
 
   if (isServer) {
-    provide(host, 'promises', promises)
-    promises.push(new Promise(r => ready = r))
+    provide(host, 'ctx', ctx)
+    ctx.promises.push(new Promise(r => ready = r))
   } else {
     provide(host, 'ssr', ssr)
     ssr.current = document.body.hasAttribute('ssr')
@@ -29,29 +28,37 @@ function* App({ path, pages, promises }, host) {
   for (const [pattern, component] of pages) {
     router.on(pattern, async params => {
       props = params
-      const { layout = 'default', default: page } = await component()
+      const { layout = 'default', default: page, getAsyncProps } = await component()
 
       Layout = (await layouts[layout]()).default
       Page = createComponent(page)
-      provide(host, 'path', getPath())
+
+      if (ssr.current) {
+        const data = document.head.querySelector('meta[name=page-props]')?.content
+        Object.assign(props, JSON.parse(data ? atob(data) : null))
+      } else if (typeof getAsyncProps === 'function') {
+        const data = await getAsyncProps({ http, props })
+        if (isServer) ctx.meta.push({ name: 'page-props', content: Buffer.from(JSON.stringify(data)).toString('base64') })
+        Object.assign(props, data)
+      }
 
       this.update()
 
       if (isServer) {
         ready()
-      } else if (ssr) {
+      } else if (ssr.current) {
         document.body.removeAttribute('ssr')
         ssr.current = false
       }
     })
   }
 
-  isServer ? router.run(path) : router.listen()
+  isServer ? router.run(ctx.req.path) : router.listen()
 
   try {
     for ({} of this) {
       try {
-        yield <Layout><Page is='app-page' key={getPath()} {...props} /></Layout>
+        yield <Layout><Page {...props} is='app-page' key={isServer ? ctx.req.path : location.pathname} /></Layout>
       } catch (e) {
         yield <Layout>
           <app-page>
