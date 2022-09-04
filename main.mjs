@@ -24,7 +24,7 @@ app.use(async (req, res, next) => {
 
 		if (isProd) {
 			html = index
-			render = (await import('./dist/server/server.js')).default.default
+			render = (await import('./dist/server/server.mjs')).default
 		} else {
 			html = readFileSync(resolve('index.html'), 'utf-8')
 			html = await vite.transformIndexHtml(req.path, html)
