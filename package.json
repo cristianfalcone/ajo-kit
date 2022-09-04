@@ -1,22 +1,22 @@
 {
-  "scripts": {
-    "dev": "node-dev main.mjs",
-    "serve": "cross-env NODE_ENV=production node main.mjs",
-    "build:client": "vite build --outDir dist/client",
-    "build:server": "vite build --outDir dist/server --ssr server.jsx"
-  },
-  "devDependencies": {
-    "@types/polka": "^0.5.4",
-    "cross-env": "^7.0.3",
-    "node-dev": "^7.3.1",
-    "vite": "^2.9.1"
-  },
-  "dependencies": {
-    "ajo": "^0.0.6",
-    "backdom": "^0.0.3",
-    "httpie": "^2.0.0-next.13",
-    "navaid": "^1.2.0",
-    "polka": "^0.5.2",
-    "sirv": "^2.0.2"
-  }
+	"scripts": {
+		"dev": "node-dev main.mjs",
+		"serve": "cross-env NODE_ENV=production node main.mjs",
+		"build:client": "vite build --outDir dist/client",
+		"build:server": "vite build --outDir dist/server --ssr server.jsx"
+	},
+	"devDependencies": {
+		"@types/polka": "^0.5.4",
+		"cross-env": "^7.0.3",
+		"node-dev": "^7.4.3",
+		"vite": "^3.0.9"
+	},
+	"dependencies": {
+		"ajo": "^0.0.17",
+		"backdom": "^0.0.6",
+		"httpie": "^2.0.0-next.13",
+		"navaid": "^1.2.0",
+		"polka": "^0.5.2",
+		"sirv": "^2.0.2"
+	}
 }
