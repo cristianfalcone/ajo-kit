@@ -13,7 +13,7 @@
 	},
 	"dependencies": {
 		"ajo": "^0.0.17",
-		"backdom": "^0.0.6",
+		"backdom": "^0.0.7",
 		"httpie": "^2.0.0-next.13",
 		"navaid": "^1.2.0",
 		"polka": "^0.5.2",

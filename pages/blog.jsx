@@ -1,11 +1,13 @@
+import { For } from 'ajo'
+
 export default ({ posts }) =>
-	<ul>
-		{posts.map(post =>
+	<For each={posts} is="ul">
+		{post =>
 			<li>
 				<a href={`/blog/${post.id}`}>{post.title}</a>
 			</li>
-		)}
-	</ul>
+		}
+	</For>
 
 export const getAsyncProps = async ({ http }) => {
 	const posts = await http.get('https://jsonplaceholder.typicode.com/posts').then(res => res.data).catch(() => [])
