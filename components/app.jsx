@@ -59,9 +59,14 @@ const App = host => {
 		</Layout>
 	)
 
-	isServer ? router.run(ctx.req.path) : (router.listen(), cleanup(host, () => router.unlisten()))
+	if (isServer) {
+		router.run(ctx.req.path)
+	} else {
+		router.listen()
+		cleanup(host, () => router.unlisten())
+	}
 
-	return () => <Layout><Page {...props} /></Layout>
+	return () => <Layout><Page {...props} key={isServer ? ctx.req.path : location.pathname} /></Layout>
 }
 
 App.is = 'app-root'

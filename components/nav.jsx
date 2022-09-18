@@ -1,4 +1,4 @@
-import { component, consume } from 'ajo'
+import { component, consume, For } from 'ajo'
 
 const isServer = import.meta.env.SSR
 
@@ -15,15 +15,15 @@ const Nav = host => {
 	}
 
 	return () =>
-		<ul>
-			{links.map(([path, label, exact]) => (
+		<For each={links} is="ul">
+			{([path, label, exact]) =>
 				<li>
 					<a class={isActive(path, exact) ? 'active' : null} href={path}>
 						{label}
 					</a>
 				</li>
-			))}
-		</ul>
+			}
+		</For>
 }
 
 Nav.is = 'nav'

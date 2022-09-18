@@ -1,7 +1,8 @@
 {
+	"type": "module",
 	"scripts": {
-		"dev": "node-dev main.mjs",
-		"serve": "cross-env NODE_ENV=production node main.mjs",
+		"dev": "node main.js",
+		"serve": "cross-env NODE_ENV=production node main.js",
 		"build:client": "vite build --outDir dist/client",
 		"build:server": "vite build --outDir dist/server --ssr server.jsx"
 	},
@@ -9,11 +10,11 @@
 		"@types/polka": "^0.5.4",
 		"cross-env": "^7.0.3",
 		"node-dev": "^7.4.3",
-		"vite": "^3.0.9"
+		"vite": "^3.1.2"
 	},
 	"dependencies": {
-		"ajo": "^0.0.17",
-		"backdom": "^0.0.7",
+		"ajo": "^0.0.19",
+		"backdom": "^0.0.8",
 		"httpie": "^2.0.0-next.13",
 		"navaid": "^1.2.0",
 		"polka": "^0.5.2",
