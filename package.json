@@ -1,23 +1,17 @@
 {
-	"type": "module",
-	"scripts": {
-		"dev": "node main.js",
-		"serve": "cross-env NODE_ENV=production node main.js",
-		"build:client": "vite build --outDir dist/client",
-		"build:server": "vite build --outDir dist/server --ssr server.jsx"
-	},
-	"devDependencies": {
-		"@types/polka": "^0.5.4",
-		"cross-env": "^7.0.3",
-		"node-dev": "^7.4.3",
-		"vite": "^3.1.2"
-	},
-	"dependencies": {
-		"ajo": "^0.0.19",
-		"backdom": "^0.0.8",
-		"httpie": "^2.0.0-next.13",
-		"navaid": "^1.2.0",
-		"polka": "^0.5.2",
-		"sirv": "^2.0.2"
-	}
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@tanstack/query-core": "^5.51.15",
+    "@unocss/reset": "0.61.6",
+    "ajo": "0.1.19",
+    "clsx": "^2.1.1",
+    "navaid": "^1.2.0",
+    "unocss": "0.61.6",
+    "vite": "^5.3.5"
+  }
 }
