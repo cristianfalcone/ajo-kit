@@ -1,7 +1,5 @@
 import clsx from 'clsx'
 import { Children, Component } from 'ajo'
-import { QueryClient } from '@tanstack/query-core'
-import { QueryClientContext } from './constants'
 import { NotFoundError } from '/src/app'
 
 type Props = {
@@ -12,8 +10,6 @@ const isDev = import.meta.env.DEV
 
 export default (function* (props: Props) {
 
-	QueryClientContext(this, new QueryClient())
-
 	while (true) {
 
 		try {
@@ -21,8 +17,6 @@ export default (function* (props: Props) {
 			yield <Layout>{props.children}</Layout>
 
 		} catch (error: unknown) {
-
-			debugger;
 
 			yield (
 				<Layout>

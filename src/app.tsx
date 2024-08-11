@@ -36,7 +36,7 @@ const App: Component = function* () {
 
 		const segments = path.slice(4).split('/') // Remove leading '/src'
 
-		switch (segments.pop()?.split('.')[0] as Type) {
+		switch (segments.pop()?.split('.')[0] as Type) { // Remove file extension and get type
 
 			case 'layout':
 

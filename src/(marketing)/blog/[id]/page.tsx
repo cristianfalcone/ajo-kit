@@ -27,7 +27,7 @@ const Post: Component<Props> = function* (props) {
 		return response.json()
 	}
 
-	const observer = new QueryObserver<Post>(QueryClientContext(this), {
+	const observer = new QueryObserver<Post>(QueryClientContext(), {
 		queryKey: ['post', props.params.id],
 		queryFn: fetchPost,
 	})

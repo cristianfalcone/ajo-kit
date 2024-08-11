@@ -16,7 +16,7 @@ const Blog: Component = function* () {
 		return response.json()
 	}
 
-	const observer = new QueryObserver<Post[]>(QueryClientContext(this), {
+	const observer = new QueryObserver<Post[]>(QueryClientContext(), {
 		queryKey: ['posts'],
 		queryFn: fetchPosts,
 	})
