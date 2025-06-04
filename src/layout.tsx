@@ -1,20 +1,20 @@
 import clsx from 'clsx'
-import { Children, Component } from 'ajo'
 import { NotFoundError } from '/src/app'
-
-type Props = {
-	children: Children,
-}
+import type { Children, Stateful } from 'ajo'
 
 const isDev = import.meta.env.DEV
 
-export default (function* (props: Props) {
+type Args = {
+	children: Children,
+}
+
+export default (function* (args: Args) {
 
 	while (true) {
 
 		try {
 
-			yield <Layout>{props.children}</Layout>
+			yield <Layout>{args.children}</Layout>
 
 		} catch (error: unknown) {
 
@@ -25,14 +25,14 @@ export default (function* (props: Props) {
 			)
 		}
 	}
-}) as Component<Props>
+}) as Stateful<Args>
 
-const Layout = (props: Props) =>
+const Layout = (args: Args) =>
 	<>
 		<Nav />
 		<main>
 			<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-				{props.children}
+				{args.children}
 			</div>
 		</main>
 	</>
@@ -86,28 +86,34 @@ const links: [string, string, boolean?][] = [
 	['/checkout', 'Checkout'],
 ]
 
-const isActive = (path: string, exact?: boolean): boolean => exact ? location.pathname === path : location.pathname.startsWith(path)
+const isActive = (path: string, url: string, exact?: boolean): boolean => exact ? url === path : url.startsWith(path)
 
-const Nav = () =>
-	<nav class="bg-gray-800" memo={location.pathname}>
-		<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-			<div class="flex h-16 items-center justify-between">
-				<div class="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
-					<div class="flex space-x-4">
-						{links.map(([path, label, exact]) => {
-							const active = isActive(path, exact)
-							return (
-								<a
-									href={path as string}
-									class={clsx([active ? 'bg-gray-900 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white', 'rounded-md', 'px-3', 'py-2', 'text-sm', 'font-medium'])}
-									aria-current={active ? 'page' : undefined}
-								>
-									{label}
-								</a>
-							)
-						})}
+const Nav = () => {
+
+	const url = location.pathname
+
+	return (
+		<nav class="bg-gray-800" memo={url}>
+			<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+				<div class="flex h-16 items-center justify-between">
+					<div class="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
+						<div class="flex space-x-4">
+							{links.map(([path, label, exact]) => {
+								const active = isActive(path, url, exact)
+								return (
+									<a
+										href={path as string}
+										class={clsx([active ? 'bg-gray-900 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white', 'rounded-md px-3 py-2 text-sm font-medium'])}
+										aria-current={active ? 'page' : undefined}
+									>
+										{label}
+									</a>
+								)
+							})}
+						</div>
 					</div>
 				</div>
 			</div>
-		</div>
-	</nav>
+		</nav>
+	)
+}

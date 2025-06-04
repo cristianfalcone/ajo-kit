@@ -1,18 +1,17 @@
-import { Component } from 'ajo'
 import { QueryObserver } from '@tanstack/query-core'
 import { QueryClientContext } from '/src/constants'
+import type { Stateful } from 'ajo'
 
 interface Post {
 	id: number
 	title: string
 }
 
-const Blog: Component = function* () {
+const Blog: Stateful = function* () {
 
 	const fetchPosts = async () => {
-
 		const response = await fetch('https://jsonplaceholder.typicode.com/posts')
-
+		if (!response.ok) throw new Error('Something went wrong')
 		return response.json()
 	}
 
@@ -21,46 +20,35 @@ const Blog: Component = function* () {
 		queryFn: fetchPosts,
 	})
 
-	let state = observer.getCurrentResult()
+	this.cleanup(observer.subscribe(() => this.render()))
 
-	const unsubscribe = observer.subscribe(result => {
-		state = result
-		this.render()
-	})
+	while (true) {
 
-	try {
+		const { error, isLoading, data } = observer.getCurrentResult()
 
-		while (true) {
-
-			const { data, error, isLoading } = state
-
-			if (error) {
-				yield <p class="text-red-500">{error.message}</p>
-				continue
-			}
-
-			if (isLoading) {
-				yield <p class="text-gray-500">Loading...</p>
-				continue
-			}
-
-			if (data) {
-				yield (
-					<ul>
-						{data.map((post) => (
-							<li key={post.id}>
-								<a href={`/blog/${post.id}`}>
-									{post.title}
-								</a>
-							</li>
-						))}
-					</ul>
-				)
-			}
+		if (error) {
+			yield <p class="text-red-500">{error.message}</p>
+			continue
 		}
 
-	} finally {
-		unsubscribe()
+		if (isLoading) {
+			yield <p class="text-gray-500">Loading...</p>
+			continue
+		}
+
+		if (data) {
+			yield (
+				<ul>
+					{data.map((post) => (
+						<li key={post.id}>
+							<a href={`/blog/${post.id}`}>
+								{post.title}
+							</a>
+						</li>
+					))}
+				</ul>
+			)
+		}
 	}
 }
 

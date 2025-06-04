@@ -1,21 +1,23 @@
-import { Children, Component } from 'ajo'
 import { QueryClientContext } from '../constants'
 import { QueryClient } from '@tanstack/query-core'
+import type { Children, Stateful } from 'ajo'
 
-type Props = {
+type Args = {
   children: Children
 }
 
-export default (function* (props) {
+export default (function* (args) {
 
-	QueryClientContext(new QueryClient())
+	const client = QueryClientContext(new QueryClient())
+
+  client.setDefaultOptions({ queries: { enabled: !import.meta.env.SSR } })
 
   while (true) yield (
     <>
       <div class="bg-blue-600 p-4 text-white text-2xl">
         Marketing Layout
       </div>
-      {props.children}
+      {args.children}
     </>
   )
-}) as Component<Props>
+}) as Stateful<Args>

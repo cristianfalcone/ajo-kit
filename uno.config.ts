@@ -1,7 +1,8 @@
-import { defineConfig, presetWind } from 'unocss'
+import { defineConfig } from 'unocss'
+import { presetWind } from '@unocss/preset-wind3'
 
 export default defineConfig({
   presets: [
-    presetWind(),
-  ],
+    presetWind()
+  ]
 })

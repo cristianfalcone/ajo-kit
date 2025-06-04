@@ -4,11 +4,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Loading&hellip;</title>
   <!-- ssr:head -->
 </head>
 
 <body class="h-full">
+  <script>
+    document.body.style.display = 'none'
+    document.addEventListener('DOMContentLoaded', () => document.body.style.display = 'block')
+  </script>
   <noscript>
     This web doesn't work without JavaScript enabled.<br>
     Please enable it to continue.
@@ -16,7 +19,7 @@
   <div id="root" class="h-full">
     <!-- ssr:root -->
   </div>
-  <script src="/src/client.tsx" type="module"></script>
+  <script src="/src/client" type="module"></script>
 </body>
 
 </html>

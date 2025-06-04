@@ -1,34 +1,48 @@
-import { Component, Function } from 'ajo'
 import navaid from 'navaid'
+import Spinner from '/src/ui/spinner'
+import type { Params } from 'navaid'
+import type { Component, Stateful } from 'ajo'
 
-type Loader = () => Promise<{ default: Function | Component }>
+type Loader = () => Promise<{ default: Component }>
 
 type Type = 'layout' | 'page'
 
 export class NotFoundError extends Error { }
 
-const App: Component = function* () {
+type Args = {
+	url?: string
+}
 
-	const layouts = new Map<string, Loader>()
+const App: Stateful<Args> = function* (args) {
 
 	const getLayouts = (segments: string[]) => segments
 		.map((_, i) => segments.slice(0, i + 1).join('/'))
 		.filter(p => layouts.has(p))
-		.map(p => layouts.get(p)!().then(m => m.default))
+		.map(p => layouts.get(p)!().then(m => [p, m.default])) as Promise<[string, Component]>[]
 
-	let Page: Function | Component = () => 'Loading...'
+	const handle = async (main: Promise<Component> | Component, segments: string[], params: Params = {}) => {
 
-	const router = navaid('/', async (path: string) => {
+		loading = true
 
-		const Layouts = await Promise.all(getLayouts(path.split('/')))
+		this.render()
 
-		Page = Layouts.reduceRight(
-			(Child, Layout) => () => <Layout><Child /></Layout>,
-			() => { throw new NotFoundError(path) }
+		const [Main, ...layouts] = await Promise.all([main, ...getLayouts(segments)])
+
+		loading = false
+
+		Page = layouts.reduceRight(
+			(Main, [path, Layout]) => () => <Layout key={path} params={params}><Main /></Layout>,
+			() => <Main key={segments.join('/')} params={params} />
 		)
 
 		this.render()
-	})
+	}
+
+	let loading = false, Page: Component = () => null
+
+	const router = navaid('/', path => handle(() => { throw new NotFoundError(path) }, path.split('/')))
+
+	const layouts = new Map<string, Loader>()
 
 	const pages = import.meta.glob('/src/**/{layout,page}.{j,t}s{,x}') as Record<string, Loader>
 
@@ -48,35 +62,29 @@ const App: Component = function* () {
 
 				const pattern = segments
 					.filter(s => !/^\(.*\)$/.test(s)) // filter out route groups
-					.map(s => s.replace(/^\[(.+?)\]$/, (_, p) => p === '...' ? '*' : ':' + p))
+					.map(s => s.replace(/^\[(.+?)\]$/, (_, p) => p === '...' ? '*' : ':' + p)) // transform for navaid
 					.join('/')
 
-				router.on(pattern, async params => {
-
-					const [Child, ...Layouts] = await Promise.all([loader().then(m => m.default), ...getLayouts(segments)])
-
-					Page = Layouts.reduceRight(
-						(Child, Layout) => () => <Layout params={params}><Child /></Layout>,
-						() => <Child key={pattern} params={params} />
-					)
-
-					this.render()
-				})
+				router.on(pattern, params => handle(loader().then(m => m.default), segments, params))
 
 				break
 		}
 	}
 
-	router.listen()
+	args.url ? router.run(args.url) : router.listen()
 
-	try {
+	this.cleanup(() => router.unlisten?.())
 
-		while (true) yield <Page />
-
-	} finally {
-
-		router.unlisten?.()
-	}
+	while (true) yield (
+		<>
+			<Spinner loading={loading} />
+			<div class="h-full" memo={Page}>
+				<Page />
+			</div>
+		</>
+	)
 }
+
+App.attrs = { class: 'h-full' }
 
 export default App

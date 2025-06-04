@@ -1,13 +1,13 @@
-import { Children } from 'ajo'
+import type { Children } from 'ajo'
 
-type Props = {
+type Args = {
 	children: Children
 }
 
-export default (props: Props) =>
+export default (args: Args) =>
 	<>
 		<div class="bg-gray-600 p-4 text-white text-2xl">
 			Blog Layout
 		</div>
-		{props.children}
+		{args.children}
 	</>

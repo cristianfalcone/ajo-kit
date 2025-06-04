@@ -1,8 +1,8 @@
-import { Component } from 'ajo'
 import { QueryObserver } from '@tanstack/query-core'
 import { QueryClientContext } from '/src/constants'
+import type { Stateful } from 'ajo'
 
-type Props = {
+type Args = {
 	params: { id: string }
 }
 
@@ -11,62 +11,49 @@ interface Post {
 	body: string
 }
 
-const Post: Component<Props> = function* (props) {
+const Post: Stateful<Args> = function* (args) {
 
 	const fetchPost = async () => {
 
-		const response = await fetch(`https://jsonplaceholder.typicode.com/posts/${props.params.id}`)
+		const response = await fetch(`https://jsonplaceholder.typicode.com/posts/${args.params.id}`)
 
 		if (!response.ok) {
-
 			if (response.status === 404) throw new Error('Post not found')
-
 			throw new Error('Something went wrong')
 		}
 
 		return response.json()
 	}
 
-	const observer = new QueryObserver<Post>(QueryClientContext(), {
-		queryKey: ['post', props.params.id],
+	const query = new QueryObserver<Post>(QueryClientContext(), {
+		queryKey: ['post', args.params.id],
 		queryFn: fetchPost,
 	})
 
-	let state = observer.getCurrentResult()
+	this.cleanup(query.subscribe(() => this.render()))
 
-	const unsubscribe = observer.subscribe(result => {
-		state = result
-		this.render()
-	})
+	while (true) {
 
-	try {
+		const { error, isLoading, data } = query.getCurrentResult()
 
-		while (true) {
-
-			const { data, error, isLoading } = state
-
-			if (error) {
-				yield <p class="text-red-500">{error.message}</p>
-				continue
-			}
-
-			if (isLoading) {
-				yield <p class="text-gray-500">Loading...</p>
-				continue
-			}
-
-			if (data) {
-				yield (
-					<>
-						<h1>{data.title}</h1>
-						<p set:innerHTML={data.body} skip />
-					</>
-				)
-			}
+		if (error) {
+			yield <p class="text-red-500">{error.message}</p>
+			continue
 		}
 
-	} finally {
-		unsubscribe()
+		if (isLoading) {
+			yield <p class="text-gray-500">Loading...</p>
+			continue
+		}
+
+		if (data) {
+			yield (
+				<>
+					<h1>{data.title}</h1>
+					<p set:innerHTML={data.body} skip />
+				</>
+			)
+		}
 	}
 }
 
