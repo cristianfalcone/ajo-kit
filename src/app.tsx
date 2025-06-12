@@ -3,7 +3,9 @@ import Spinner from '/src/ui/spinner'
 import type { Params } from 'navaid'
 import type { Component, Stateful } from 'ajo'
 
-type Loader = () => Promise<{ default: Component }>
+type Page = Component<{ params: Params }>
+
+type Loader = () => Promise<{ default: Page }>
 
 type Type = 'layout' | 'page'
 
@@ -18,9 +20,9 @@ const App: Stateful<Args> = function* (args) {
 	const getLayouts = (segments: string[]) => segments
 		.map((_, i) => segments.slice(0, i + 1).join('/'))
 		.filter(p => layouts.has(p))
-		.map(p => layouts.get(p)!().then(m => [p, m.default])) as Promise<[string, Component]>[]
+		.map(p => layouts.get(p)!().then(m => [p, m.default])) as Promise<[string, Page]>[]
 
-	const handle = async (main: Promise<Component> | Component, segments: string[], params: Params = {}) => {
+	const handle = async (main: Promise<Page> | Page, segments: string[], params: Params = {}) => {
 
 		loading = true
 
@@ -73,16 +75,20 @@ const App: Stateful<Args> = function* (args) {
 
 	args.url ? router.run(args.url) : router.listen()
 
-	this.cleanup(() => router.unlisten?.())
+	try {
 
-	while (true) yield (
-		<>
-			<Spinner loading={loading} />
-			<div class="h-full" memo={Page}>
-				<Page />
-			</div>
-		</>
-	)
+		while (true) yield (
+			<>
+				<Spinner loading={loading} />
+				<div class="h-full" memo={Page}>
+					<Page />
+				</div>
+			</>
+		)
+
+	} finally {
+		router.unlisten?.()
+	}
 }
 
 App.attrs = { class: 'h-full' }

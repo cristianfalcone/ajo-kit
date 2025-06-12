@@ -30,30 +30,36 @@ const Post: Stateful<Args> = function* (args) {
 		queryFn: fetchPost,
 	})
 
-	this.cleanup(query.subscribe(() => this.render()))
+	const unsubscribe = query.subscribe(() => this.render())
 
-	while (true) {
+	try {
 
-		const { error, isLoading, data } = query.getCurrentResult()
+		while (true) {
 
-		if (error) {
-			yield <p class="text-red-500">{error.message}</p>
-			continue
+			const { error, isLoading, data } = query.getCurrentResult()
+
+			if (error) {
+				yield <p class="text-red-500">{error.message}</p>
+				continue
+			}
+
+			if (isLoading) {
+				yield <p class="text-gray-500">Loading...</p>
+				continue
+			}
+
+			if (data) {
+				yield (
+					<>
+						<h1>{data.title}</h1>
+						<p set:innerHTML={data.body} skip />
+					</>
+				)
+			}
 		}
 
-		if (isLoading) {
-			yield <p class="text-gray-500">Loading...</p>
-			continue
-		}
-
-		if (data) {
-			yield (
-				<>
-					<h1>{data.title}</h1>
-					<p set:innerHTML={data.body} skip />
-				</>
-			)
-		}
+	} finally {
+		unsubscribe()
 	}
 }
 

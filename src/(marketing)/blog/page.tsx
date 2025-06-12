@@ -20,35 +20,41 @@ const Blog: Stateful = function* () {
 		queryFn: fetchPosts,
 	})
 
-	this.cleanup(observer.subscribe(() => this.render()))
+	const unsubscribe = observer.subscribe(() => this.render())
 
-	while (true) {
+	try {
 
-		const { error, isLoading, data } = observer.getCurrentResult()
+		while (true) {
 
-		if (error) {
-			yield <p class="text-red-500">{error.message}</p>
-			continue
+			const { error, isLoading, data } = observer.getCurrentResult()
+
+			if (error) {
+				yield <p class="text-red-500">{error.message}</p>
+				continue
+			}
+
+			if (isLoading) {
+				yield <p class="text-gray-500">Loading...</p>
+				continue
+			}
+
+			if (data) {
+				yield (
+					<ul>
+						{data.map((post) => (
+							<li key={post.id}>
+								<a href={`/blog/${post.id}`}>
+									{post.title}
+								</a>
+							</li>
+						))}
+					</ul>
+				)
+			}
 		}
 
-		if (isLoading) {
-			yield <p class="text-gray-500">Loading...</p>
-			continue
-		}
-
-		if (data) {
-			yield (
-				<ul>
-					{data.map((post) => (
-						<li key={post.id}>
-							<a href={`/blog/${post.id}`}>
-								{post.title}
-							</a>
-						</li>
-					))}
-				</ul>
-			)
-		}
+	} finally {
+		unsubscribe()
 	}
 }
 

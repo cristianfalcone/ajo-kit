@@ -63,7 +63,7 @@ async function createDevServer() {
 
       const { render } = await vite.ssrLoadModule('./src/server.tsx')
 
-      const html = template(await render(url))
+      const html = template(render(url))
 
       res.statusCode = 200
       res.setHeader('Content-Type', 'text/html').end(html)
@@ -102,7 +102,7 @@ async function createProdServer() {
 
       const { originalUrl: url } = req
 
-      const html = template(await render(url))
+      const html = template(render(url))
 
       res.statusCode = 200
       res.setHeader('Content-Type', 'text/html').end(html)
@@ -137,7 +137,7 @@ sade('ajo-kit')
     const server = await createDevServer()
     server.listen(opts.port, () => console.log(`Dev server started at port ${opts.port}`))
   })
-  .command('serve')
+  .command('prod')
   .describe('Start the production server')
   .action(async (opts: ServerOptions) => {
     const server = await createProdServer()

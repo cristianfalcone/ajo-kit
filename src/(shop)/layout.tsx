@@ -24,11 +24,6 @@ const Counter: Stateful = function* () {
 
   while (true) {
 
-    this.effect(() => {
-      console.log('Counter effect')
-      return () => console.log('Counter cleanup')
-    })
-
     yield (
       <button
         type="button"
@@ -36,32 +31,7 @@ const Counter: Stateful = function* () {
         class="whitespace-nowrap rounded-lg bg-gray-700 px-3 py-1 text-sm font-medium tabular-nums text-gray-100 hover:bg-gray-500 hover:text-white"
       >
         {count}
-        <Child />
       </button>
     )
   }
-}
-
-const Child: Stateful = function* () {
-
-  this.effect(() => {
-    console.log('Child effect')
-    return () => console.log('Child cleanup')
-  })
-
-  yield <div>a</div>
-
-  this.effect(() => {
-    console.log('Child effect')
-    return () => console.log('Child cleanup')
-  })
-
-  yield <div>b</div>
-
-  this.effect(() => {
-    console.log('Child effect')
-    return () => console.log('Child cleanup')
-  })
-
-  return <div>c</div>
 }
