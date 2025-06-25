@@ -8,19 +8,19 @@
     "prod": "pnpm build && NODE_ENV=production tsx server.ts prod"
   },
   "dependencies": {
-    "@tanstack/query-core": "5.80.7",
-    "@types/node": "24.0.1",
-    "@unocss/preset-wind3": "66.2.0",
-    "@unocss/reset": "66.2.0",
-    "ajo": "0.1.23",
+    "@tanstack/query-core": "5.81.2",
+    "@types/node": "24.0.4",
+    "@unocss/preset-wind3": "66.3.1",
+    "@unocss/reset": "66.3.1",
+    "ajo": "0.1.25",
     "clsx": "2.1.1",
     "navaid": "1.2.0",
-    "polka": "1.0.0-next.25",
+    "polka": "1.0.0-next.28",
     "sade": "1.8.1",
     "sirv": "3.0.1",
-    "tsx": "4.20.2",
+    "tsx": "4.20.3",
     "typescript": "5.8.3",
-    "unocss": "66.2.0",
-    "vite": "6.3.5"
+    "unocss": "66.3.1",
+    "vite": "7.0.0"
   }
 }
