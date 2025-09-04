@@ -26,7 +26,7 @@ const App: Stateful<Args> = function* (args) {
 
 		loading = true
 
-		this.render()
+		this.next()
 
 		const [Main, ...layouts] = await Promise.all([main, ...getLayouts(segments)])
 
@@ -37,7 +37,7 @@ const App: Stateful<Args> = function* (args) {
 			() => <Main key={segments.join('/')} params={params} />
 		)
 
-		this.render()
+		this.next()
 	}
 
 	let loading = false, Page: Component = () => null

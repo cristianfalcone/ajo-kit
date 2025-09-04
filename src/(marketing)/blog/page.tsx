@@ -20,7 +20,7 @@ const Blog: Stateful = function* () {
 		queryFn: fetchPosts,
 	})
 
-	const unsubscribe = observer.subscribe(() => this.render())
+	const unsubscribe = observer.subscribe(() => this.next())
 
 	try {
 

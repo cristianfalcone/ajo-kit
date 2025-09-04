@@ -30,7 +30,7 @@ const Post: Stateful<Args> = function* (args) {
 		queryFn: fetchPost,
 	})
 
-	const unsubscribe = query.subscribe(() => this.render())
+	const unsubscribe = query.subscribe(() => this.next())
 
 	try {
 
