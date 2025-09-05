@@ -1,7 +1,7 @@
 import navaid from 'navaid'
-import Spinner from '/src/ui/spinner'
 import type { Params } from 'navaid'
 import type { Component, Stateful } from 'ajo'
+import Spinner from '/src/ui/spinner'
 
 type Page = Component<{ params: Params }>
 
@@ -38,6 +38,8 @@ const App: Stateful<Args> = function* (args) {
 		)
 
 		this.next()
+
+		if (typeof window !== 'undefined') requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
 	}
 
 	let loading = false, Page: Component = () => null
@@ -80,7 +82,7 @@ const App: Stateful<Args> = function* (args) {
 		while (true) yield (
 			<>
 				<Spinner loading={loading} />
-				<div class="h-full" memo={Page}>
+				<div class="h-full">
 					<Page />
 				</div>
 			</>

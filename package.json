@@ -8,8 +8,10 @@
     "prod": "pnpm build && NODE_ENV=production tsx server.ts prod"
   },
   "dependencies": {
+    "@iconify-json/lucide": "^1.2.66",
     "@tanstack/query-core": "5.85.9",
     "@types/node": "24.3.0",
+    "@unocss/preset-icons": "^66.5.0",
     "@unocss/preset-wind3": "66.5.0",
     "@unocss/reset": "66.5.0",
     "ajo": "0.1.26",
