@@ -68,7 +68,7 @@ const Wrapper = (args: Args) => (
 		<div class="pointer-events-none absolute inset-0 [background:radial-gradient(circle_at_20%_30%,rgba(99,102,241,.15),transparent_55%),radial-gradient(circle_at_80%_70%,rgba(236,72,153,.12),transparent_55%)]" />
 		<div class="pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-overlay [background-image:linear-gradient(rgba(255,255,255,.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.07)_1px,transparent_1px)]; [background-size:40px_40px]" />
 		<Nav />
-		<main class="flex-1 site-container">
+		<main class="site-container flex-1 flex flex-col">
 			{args.children}
 		</main>
 		<Footer />
@@ -116,14 +116,21 @@ const AppError = ({ error }: { error: Error }) => {
 	)
 }
 
-const links: [string, string, boolean?][] = [
-	['/', 'Home', true],
+type LinkOptions = { exact?: boolean, include?: string[] }
+
+const links: [string, string, LinkOptions?][] = [
+	['/', 'Home', { exact: true }],
 	['/about', 'About'],
 	['/blog', 'Blog'],
-	['/products', 'Shop'],
+	['/products', 'Shop', { include: ['/checkout'] }],
 ]
 
-const isActive = (path: string, url: string, exact?: boolean): boolean => exact ? url === path : url.startsWith(path)
+const isActive = (path: string, url: string, options?: LinkOptions): boolean => {
+	const base = options?.exact ? url === path : url.startsWith(path)
+	if (base) return true
+	if (options?.include?.some(path => url === path || url.startsWith(path))) return true
+	return false
+}
 
 const Nav = () => {
 
@@ -138,8 +145,8 @@ const Nav = () => {
 							<span class="font-semibold tracking-tight text-sm text-slate-900 dark:text-white">ajo<span class="text-indigo-600 dark:text-indigo-400">‑kit</span></span>
 						</a>
 						<div class="flex items-center gap-1">
-							{links.map(([path, label, exact]) => {
-								const active = isActive(path, url, exact)
+							{links.map(([path, label, options]) => {
+								const active = isActive(path, url, options)
 								return (
 									<a
 										key={path}
@@ -167,12 +174,12 @@ const Nav = () => {
 const Footer = () => {
 
 	const year = new Date().getFullYear()
-	
+
 	const { mode, cycle } = ThemeContext()
 
 	return (
 		<footer class="relative z-10 mt-12 border-t border-slate-200/70 dark:border-white/10 bg-slate-50/60 backdrop-blur dark:bg-transparent transition-colors">
-			<div class="site-container py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-600 dark:text-gray-400">
+			<div class="site-container py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600 dark:text-gray-400">
 				<div class="flex items-center gap-2 font-medium tracking-wide">
 					<span class="inline-flex items-center justify-center h-6 w-6 rounded-md bg-indigo-500/10 dark:bg-indigo-500/15 text-pink-500 dark:text-pink-300 text-sm">♥</span>
 					<span class="text-slate-700/90 dark:text-gray-300/90">Made with <span class="text-pink-500 dark:text-pink-400">love</span> · <span class="text-indigo-600 dark:text-indigo-300">ajo‑kit</span></span>
@@ -180,9 +187,8 @@ const Footer = () => {
 				<div class="flex items-center gap-4">
 					<div class="opacity-60 text-slate-500 dark:text-gray-400">© {year} All rights reserved.</div>
 					<button
-						id="theme-toggle"
 						aria-label="Change theme"
-						class="group flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px] font-medium ring-1 ring-slate-300/70 dark:ring-white/15 bg-white/70 hover:bg-white dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-gray-200 transition"
+						class="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium ring-1 ring-slate-300/70 dark:ring-white/15 bg-white/70 hover:bg-white dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-gray-200 transition"
 						set:onclick={cycle}
 					>
 						{mode === 'system' && <span class="i-lucide-monitor w-4 h-4" />}

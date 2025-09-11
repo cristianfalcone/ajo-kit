@@ -17,29 +17,30 @@ type Args = {
 
 const App: Stateful<Args> = function* (args) {
 
-	const getLayouts = (segments: string[]) => segments
-		.map((_, i) => segments.slice(0, i + 1).join('/'))
-		.filter(p => layouts.has(p))
-		.map(p => layouts.get(p)!().then(m => [p, m.default])) as Promise<[string, Page]>[]
-
 	const handle = async (main: Promise<Page> | Page, segments: string[], params: Params = {}) => {
 
 		loading = true
 
 		this.next()
 
-		const [Main, ...layouts] = await Promise.all([main, ...getLayouts(segments)])
+		const [Main, ...rest] = await Promise.all([
+			main,
+			...segments
+				.map((_, i) => segments.slice(0, i + 1).join('/'))
+				.filter(p => layouts.has(p))
+				.map(p => layouts.get(p)!().then(m => [p, m.default]))
+		])
 
 		loading = false
 
-		Page = layouts.reduceRight(
+		Page = rest.reduceRight(
 			(Main, [path, Layout]) => () => <Layout key={path} params={params}><Main /></Layout>,
 			() => <Main key={segments.join('/')} params={params} />
 		)
 
 		this.next()
 
-		if (typeof window !== 'undefined') requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
+		globalThis.requestAnimationFrame?.(() => globalThis.scrollTo?.({ top: 0, behavior: 'smooth' }))
 	}
 
 	let loading = false, Page: Component = () => null

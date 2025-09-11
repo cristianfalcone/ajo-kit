@@ -2,10 +2,11 @@ import clsx from 'clsx'
 import type { Stateful } from 'ajo'
 import { CartContext } from '/src/constants'
 import { Button } from '/src/ui/button'
+import { Image } from '/src/ui/image'
 
 type Args = { params: { id: string } }
 
-interface ProductDetail {
+interface Product {
   id: number
   title: string
   price: number
@@ -20,7 +21,7 @@ interface ProductDetail {
 
 const Page: Stateful<Args, 'article'> = function* (args) {
 
-  let product: ProductDetail | null = null as ProductDetail | null
+  let product: Product | null = null as Product | null
   let loading = true
   let error: string | null = null
   let selected = 0
@@ -62,7 +63,7 @@ const Page: Stateful<Args, 'article'> = function* (args) {
         <>
           <Button href="/products" variant="ghost" size="xs">Back</Button>
           <div class="rounded-md border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-            {error || 'Product unavailable'}
+            {error ?? 'Product unavailable'}
           </div>
         </>
       )
@@ -70,23 +71,23 @@ const Page: Stateful<Args, 'article'> = function* (args) {
       continue
     }
 
-    const existing = cart.items.find(i => i.id === (product as ProductDetail).id)
+    const existing = cart.items.find(i => i.id === (product as Product).id)
     const qty = existing?.qty || 0
 
     yield (
       <>
         <div class="flex items-center justify-between">
           <Button href="/products" variant="ghost" size="xs">Back</Button>
-          <span class="text-[11px] font-medium tracking-wide text-emerald-700 dark:text-emerald-300/85">{product.category}</span>
+          <span class="text-xs font-medium tracking-wide text-emerald-700 dark:text-emerald-300/85">{product.category}</span>
         </div>
         <div class="grid md:grid-cols-2 gap-10 items-start">
           <div class="space-y-4">
-            <div class="aspect-[4/3] overflow-hidden rounded-xl ring-1 ring-slate-200 bg-slate-100 dark:ring-white/10 dark:bg-black/30">
-              <img src={product.images[selected] || product.thumbnail} alt={product.title} class="w-full h-full object-cover" loading="lazy" />
+            <div class="rounded-xl ring-1 ring-slate-200 bg-slate-100 dark:ring-white/10 dark:bg-black/30 overflow-hidden">
+              <Image src={product.images[selected] ?? product.thumbnail} alt={product.title} aspect="4/3" />
             </div>
-            {(product as ProductDetail).images.length > 1 && (
+            {(product as Product).images.length > 1 && (
               <ul class="flex gap-2 overflow-x-auto pb-1">
-                {(product as ProductDetail).images.map((img: string, i: number) => (
+                {(product as Product).images.map((img: string, i: number) => (
                   <li key={i} class="relative">
                     <button
                       class={clsx(
@@ -96,11 +97,11 @@ const Page: Stateful<Args, 'article'> = function* (args) {
                       set:onclick={() => setSelected(i)}
                       aria-current={selected === i ? 'true' : 'false'}
                     >
-                      <img
+                      <Image
                         src={img}
-                        alt={(product as ProductDetail).title + ' thumbnail ' + (i + 1)}
-                        class="w-full h-full object-cover group-hover:opacity-95"
-                        loading="lazy"
+                        alt={(product as Product).title + ' thumbnail ' + (i + 1)}
+                        class="group-hover:opacity-95"
+                        aspect="4/3"
                       />
                     </button>
                   </li>

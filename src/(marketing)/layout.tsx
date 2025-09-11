@@ -17,7 +17,7 @@ const Layout: Stateful<Args, 'section'> = function* (args) {
 
     yield (
       <>
-        <nav class="flex items-center gap-3 text-[11px] font-medium text-indigo-600/70 dark:text-indigo-200/70">
+        <nav class="flex items-center gap-3 text-xs font-medium text-indigo-600/70 dark:text-indigo-200/70">
           <span class="uppercase tracking-wider text-indigo-700/70 dark:text-indigo-300/70">Marketing</span>
           <span class="opacity-30">/</span>
           {[

@@ -26,7 +26,7 @@ export default function Spinner({ loading, duration = 300, label = 'Loading', ov
       {overlay && <div class="absolute inset-0 backdrop-blur-sm bg-white/60 dark:bg-black/40" />}
       <div class="relative px-5 py-4 rounded-xl panel flex flex-col items-center gap-3 shadow-sm dark:shadow-none">
         <SpinnerVisual />
-        <p class="text-[11px] tracking-wide uppercase font-medium text-slate-600/80 dark:text-indigo-200/70" aria-hidden="true">{label}</p>
+        <p class="text-xs tracking-wide uppercase font-medium text-slate-600/80 dark:text-indigo-200/70" aria-hidden="true">{label}</p>
         <span class="sr-only">{label}</span>
       </div>
     </div>

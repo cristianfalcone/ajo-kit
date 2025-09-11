@@ -3,6 +3,7 @@ import { QueryObserver } from '@tanstack/query-core'
 import type { Stateful } from 'ajo'
 import { QueryClientContext } from '/src/constants'
 import { Button } from '/src/ui/button'
+import { Image } from '/src/ui/image'
 
 interface User {
 	username: string
@@ -38,7 +39,7 @@ const Comments: Stateful<{ list: Comment[] }> = function* (args) {
 		<>
 			<button
 				class={clsx(
-					'inline-flex items-center gap-1 font-medium rounded-md transition focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-indigo-400 px-2.5 py-1.5 text-[11px]',
+					'inline-flex items-center gap-1 font-medium rounded-md transition focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-indigo-400 px-2.5 py-1.5 text-xs',
 					args.list.length === 0
 						? 'bg-slate-900/5 text-slate-400 dark:bg-white/5 dark:text-gray-400 cursor-not-allowed'
 						: 'bg-slate-900/10 hover:bg-slate-900/15 text-slate-700 dark:bg-white/10 dark:hover:bg-white/20 dark:text-gray-200'
@@ -54,7 +55,7 @@ const Comments: Stateful<{ list: Comment[] }> = function* (args) {
 						<li key={c.id} class="panel p-4 space-y-1">
 							<div class="flex items-center justify-between">
 								<span class="text-xs font-medium text-indigo-600 dark:text-indigo-300">{c.user?.username ?? 'user'}</span>
-								<span class="text-[10px] text-slate-500 dark:text-gray-400/70">#{c.id}</span>
+								<span class="text-xs text-slate-500 dark:text-gray-400/70">#{c.id}</span>
 							</div>
 							<p class="text-xs leading-relaxed text-slate-600 dark:text-gray-300/80">{c.body}</p>
 						</li>
@@ -149,10 +150,10 @@ const Page: Stateful<Args, 'article'> = function* (args) {
 					<>
 						<div class="flex items-center justify-between">
 							<Button href="/blog" variant="ghost" size="xs">Back</Button>
-							{user && <span class="text-[11px] text-indigo-600/80 dark:text-indigo-300/80">By {user.firstName} {user.lastName}</span>}
+							{user && <span class="text-xs text-indigo-600/80 dark:text-indigo-300/80">By {user.firstName} {user.lastName}</span>}
 						</div>
-						<div class="aspect-[16/9] overflow-hidden rounded-xl">
-							<img src={imageUrl} alt={title} class="w-full h-full object-cover" loading="lazy" />
+						<div class="rounded-xl overflow-hidden">
+							<Image src={imageUrl} alt={title} aspect="16/9" />
 						</div>
 						<header class="space-y-4">
 							<h1 class="text-4xl font-bold tracking-tight leading-tight text-balance text-slate-900 dark:text-white">{title}</h1>
@@ -162,7 +163,7 @@ const Page: Stateful<Args, 'article'> = function* (args) {
 							<p class="text-sm leading-relaxed text-slate-700 dark:text-gray-300/80" set:innerHTML={body} skip />
 						</div>
 						<Comments list={comments} />
-						<footer class="pt-6 border-t border-slate-200 dark:border-white/10 text-[11px] uppercase tracking-wide text-slate-500 dark:text-gray-400/60">Post #{id}</footer>
+						<footer class="pt-6 border-t border-slate-200 dark:border-white/10 text-xs uppercase tracking-wide text-slate-500 dark:text-gray-400/60">Post #{id}</footer>
 					</>
 				)
 			}

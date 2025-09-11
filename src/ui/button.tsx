@@ -19,7 +19,7 @@ const variants: Record<string, string> = {
 
 const sizes: Record<string, string> = {
   sm: 'text-sm px-4 py-2',
-  xs: 'text-[11px] px-2.5 py-1.5',
+  xs: 'text-xs px-2.5 py-1.5',
 }
 
 export const Button = ({ href, children, variant, size, class: className, ...rest }: ButtonProps) => {
