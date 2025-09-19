@@ -126,9 +126,8 @@ const links: [string, string, LinkOptions?][] = [
 ]
 
 const isActive = (path: string, url: string, options?: LinkOptions): boolean => {
-	const base = options?.exact ? url === path : url.startsWith(path)
-	if (base) return true
-	if (options?.include?.some(path => url === path || url.startsWith(path))) return true
+	if (options?.exact ? url === path : url.startsWith(path)) return true
+	if (options?.include?.some(path => url.startsWith(path))) return true
 	return false
 }
 

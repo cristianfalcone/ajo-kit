@@ -356,7 +356,10 @@ src/
   ui/                 # Global UI components
     button.tsx
     modal.tsx
-  
+
+  handler.ts          # /api handler for file-based APIs
+  ware.ts             # Root API middlewares (runs before all /api/**)
+
   blog/
     layout.tsx        # Blog section wrapper
     page.tsx          # /blog route
@@ -365,7 +368,7 @@ src/
     constants.ts      # Blog-specific constants, utilities, types and contexts
     ui/               # Blog-specific UI components
       post-card.tsx
-      
+
   (admin)/            # Route group without URL impact
     layout.tsx        # Admin wrapper (applies to children)
     page.tsx          # /page route (group name excluded from URL)
@@ -375,7 +378,56 @@ src/
     ui/               # Admin-specific UI components
       data-table.tsx
       sidebar.tsx
+
+  users/
+    wares.ts          # Section wares for /api/users/**
+    [id]/
+      handler.ts      # GET /api/users/:id
 ```
+
+### File-Based APIs
+
+The server discovers API files from `src/**/{wares,handler}.{js,ts}` and builds a Polka app that is mounted under `/api`.
+
+- `handler.{js,ts}`: default export is an object mapping HTTP verbs to handlers. Example:
+
+```ts
+// src/ping/handler.ts  -> GET /api/ping
+import type { Request } from 'polka'
+
+export default {
+  get: (_req: Request) => ({ ok: true }),
+}
+```
+
+- `wares.{js,ts}`: default export is a Middleware or an array of Middlewares. Wares compose like layouts from root → leaf and run before the route handler.
+
+```ts
+// src/wares.ts   -> applies to all /api/**
+import type { Request, Response, NextHandler } from 'polka'
+
+export default [
+  function timing(_req: Request, res: Response, next: NextHandler) {
+    const t0 = Date.now()
+    const original = res.writeHead.bind(res) as Response['writeHead']
+    res.writeHead = ((...args) => {
+      try { res.setHeader('x-response-time', `${Date.now() - t0}ms`) } catch {}
+      return original(...args as Parameters<Response['writeHead']>)
+    }) as Response['writeHead']
+    next()
+  },
+]
+```
+
+Path → route rules follow the same convention as pages/layouts:
+- Route groups `(group)` are ignored in the URL.
+- Dynamic `[param]` → `:param`.
+- Catch-all `[...]` → `*`.
+
+Error handling and serialization:
+- Handlers may either write to `res` directly or return a value.
+- If a handler returns a value and `res` has not ended, the server uses `@polka/send` to serialize it (JSON for objects/arrays, text for strings, etc.).
+- The Polka app has an `onError` that sends a 500 (or current error status) with a text message.
 
 ### UI Components Organization
 
@@ -619,6 +671,16 @@ When implementing new features or making changes to this ajo-kit application, fo
 - Use route groups (parentheses) for organization without URL impact
 - Use dynamic segments [param] for variable routes
 
+### Server APIs (Handlers/Wares)
+
+- Add `handler.{js,ts}` under `src/**` for API endpoints. The relative path (without `src/`) defines the route under `/api` using the same rules as pages (route groups, params, catch-all).
+- Default export shape for a handler file:
+  - `{ get?, post?, put?, patch?, delete?, options?, head? }` where each value is `(req, res, next) => unknown | Promise<unknown>`.
+- Add `wares.{js,ts}` under any directory to register Polka middlewares for that subtree. Default export can be a single middleware or an array.
+- Wares compose root → leaf and are applied before the route’s handler.
+- If a handler returns a value (and hasn’t ended the response), it will be sent with `@polka/send`.
+- Prefer Polka types in TypeScript files: `Request`, `Response`, `NextHandler`, `Middleware`.
+
 ### Post-Implementation Verification
 
 - Verify no React patterns or imports are present
@@ -628,6 +690,9 @@ When implementing new features or making changes to this ajo-kit application, fo
 - Ensure proper error handling and cleanup where needed
 - Confirm UI components are in appropriate ui/ folders
 - Test that routes resolve correctly based on filesystem structure
+- Verify API handlers are discovered and reachable at `/api/**`.
+- Confirm section and root wares run and compose in the correct order.
+- Ensure handlers that return objects/strings are serialized as expected by `@polka/send`.
 
 ### When In Doubt
 - Default to simpler primitives over complex abstractions

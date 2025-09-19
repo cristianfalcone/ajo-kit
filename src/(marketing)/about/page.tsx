@@ -6,6 +6,8 @@ const fileIcon = (name: string) => {
 	if (name === 'layout.tsx') return 'i-lucide-layout'
 	if (name.endsWith('.config.ts')) return 'i-lucide-settings-2'
 	if (name === 'server.ts') return 'i-lucide-server'
+	if (name === 'handler.ts') return 'i-lucide-plug-zap'
+	if (name === 'wares.ts') return 'i-lucide-plug'
 	return 'i-lucide-file'
 }
 
@@ -22,7 +24,7 @@ const File = ({ name, kind, note, route }: { name: string, kind: string, note?: 
 				}
 				<div class={clsx(
 					'truncate',
-					['page.tsx', 'layout.tsx'].includes(name) ? 'font-semibold text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'
+					['page.tsx', 'layout.tsx', 'handler.ts', 'wares.ts'].includes(name) ? 'font-semibold text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'
 				)}>
 					{name}
 				</div>
@@ -48,10 +50,54 @@ const files: TreeNode[] = [
 	{
 		content: <File name='src' kind='dir' />,
 		children: [
-			{ content: <File name='layout.tsx' kind='file' note='Root layout: theme, nav, contexts' /> },
-			{ content: <File name='app.tsx' kind='file' note='Client bootstrap / hydration' /> },
-			{ content: <File name='page.tsx' kind='file' note='Landing hero' route='/' /> },
-			{ content: <File name='constants.ts' kind='file' note='Context definitions' /> },
+			{
+				content: <File name='(marketing)' kind='dir' />,
+				children: [
+					{
+						content: <File name='about' kind='dir' />,
+						children: [
+							{ content: <File name='page.tsx' kind='file' note='This page' route='/about' /> },
+						]
+					},
+					{
+						content: <File name='blog' kind='dir' />,
+						children: [
+							{
+								content: <File name='[id]' kind='dir' />,
+								children: [
+									{ content: <File name='page.tsx' kind='file' note='Blog article detail' route='/blog/:id' /> },
+								]
+							},
+							{ content: <File name='page.tsx' kind='file' note='Blog index (data fetch)' route='/blog' /> },
+						]
+					},
+					{ content: <File name='layout.tsx' kind='file' note='Marketing shell' /> },
+				]
+			},
+			{
+				content: <File name='(shop)' kind='dir' />,
+				children: [
+					{
+						content: <File name='checkout' kind='dir' />,
+						children: [
+							{ content: <File name='page.tsx' kind='file' note='Checkout experience' route='/checkout' /> },
+						]
+					},
+					{
+						content: <File name='products' kind='dir' />,
+						children: [
+							{
+								content: <File name='[id]' kind='dir' />,
+								children: [
+									{ content: <File name='page.tsx' kind='file' note='Product detail' route='/products/:id' /> },
+								]
+							},
+							{ content: <File name='page.tsx' kind='file' note='Product list' route='/products' /> },
+						]
+					},
+					{ content: <File name='layout.tsx' kind='file' note='Shop shell + cart banner' /> },
+				]
+			},
 			{
 				content: <File name='ui' kind='dir' />,
 				children: [
@@ -60,59 +106,23 @@ const files: TreeNode[] = [
 					{ content: <File name='tree.tsx' kind='file' note='This tree component' /> },
 				]
 			},
-			{
-				content: <File name='(marketing)' kind='dir' />,
-				children: [
-					{ content: <File name='layout.tsx' kind='file' note='Marketing shell' /> },
-					{
-						content: <File name='blog' kind='dir' />,
-						children: [
-							{ content: <File name='page.tsx' kind='file' note='Blog index (data fetch)' route='/blog' /> },
-							{
-								content: <File name='[id]' kind='dir' />,
-								children: [
-									{ content: <File name='page.tsx' kind='file' note='Blog article detail' route='/blog/:id' /> },
-								]
-							},
-						]
-					},
-					{
-						content: <File name='about' kind='dir' />,
-						children: [
-							{ content: <File name='page.tsx' kind='file' note='This page' route='/about' /> },
-						]
-					},
-				]
-			},
-			{
-				content: <File name='(shop)' kind='dir' />,
-				children: [
-					{ content: <File name='layout.tsx' kind='file' note='Shop shell + cart banner' /> },
-					{
-						content: <File name='products' kind='dir' />,
-						children: [
-							{ content: <File name='page.tsx' kind='file' note='Product list' route='/products' /> },
-							{
-								content: <File name='[id]' kind='dir' />,
-								children: [
-									{ content: <File name='page.tsx' kind='file' note='Product detail' route='/products/:id' /> },
-								]
-							},
-						]
-					},
-					{
-						content: <File name='checkout' kind='dir' />,
-						children: [
-							{ content: <File name='page.tsx' kind='file' note='Checkout experience' route='/checkout' /> },
-						]
-					},
-				]
-			},
+			{ content: <File name='app.tsx' kind='file' note='Main app component (UI router)' /> },
+			{ content: <File name='client.tsx' kind='file' note='Client bootstrap / hydration' /> },
+			{ content: <File name='constants.ts' kind='file' note='Context definitions' /> },
+			{ content: <File name='handler.ts' kind='file' note='Root API handler' route='/api' /> },
+			{ content: <File name='layout.tsx' kind='file' note='Root layout: theme, nav, contexts' /> },
+			{ content: <File name='page.tsx' kind='file' note='Landing page' route='/' /> },
+			{ content: <File name='server.tsx' kind='file' note='Server render / API routes setup' /> },
+			{ content: <File name='wares.ts' kind='file' note='Root API middlewares (all /api/**)' /> },
 		],
 	},
-	{ content: <File name='server.ts' kind='file' note='Entry: SSR rendering' /> },
-	{ content: <File name='vite.config.ts' kind='file' note='Build tooling (ajo JSX inject)' /> },
-	{ content: <File name='uno.config.ts' kind='file' note='Utility / theme config' /> },
+	{ content: <File name='index.html' kind='file' note='Main HTML entry point' /> },
+	{ content: <File name='package.json' kind='file' note='Project metadata and dependencies' /> },
+	{ content: <File name='server.ts' kind='file' note='Entry node.js server app' /> },
+	{ content: <File name='tsconfig.ts' kind='file' note='TypeScript configuration' /> },
+	{ content: <File name='AGENTS.md' kind='file' note='Documentation for AI agents' /> },
+	{ content: <File name='uno.config.ts' kind='file' note='CSS utilities / theme config' /> },
+	{ content: <File name='vite.config.ts' kind='file' note='Build tooling' /> },
 ]
 
 const features = [
@@ -120,21 +130,22 @@ const features = [
 	['i-lucide-cpu', 'SSR Friendly', 'Patterns map directly to server rendering needs without extra ceremony.'],
 	['i-lucide-database', 'Data Simplicity', 'Fetch where you render. Mutate plain objects + call this.next().'],
 	['i-lucide-layout', 'Nested Layouts', 'Folder hierarchy = UI shell composition (marketing, blog, shop groups).'],
-	['i-lucide-box', 'Focused Interactivity', 'Only wire up what needs interaction (cart, theme toggle, product actions).'],
 	['i-lucide-sparkles', 'Theme System', 'Class-based light/dark with persisted tri‑mode cycle & accessible toggle.'],
+	['i-lucide-plug-zap', 'File APIs', 'Filesystem-discovered Polka handlers + middlewares mounted under /api'],
 ]
 
 const stack = [
 	['i-lucide-cog', 'Ajo', 'provides generator-based component model + direct DOM reconciliation.'],
 	['i-lucide-bolt', 'Vite', 'handles fast dev bundling + TS transform with JSX factory injection.'],
-	['i-lucide-wand-2', 'UnoCSS', <>utility engine with <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">presetWind3</code> + icons preset for atomic styling.</>],
+	['i-lucide-wand-2', 'UnoCSS', <>utility engine with <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">presetWind4</code> + icons preset for atomic styling.</>],
+	['i-lucide-plug', 'Polka', 'tiny HTTP server powering file-based APIs and middlewares on /api.'],
 	['i-lucide-moon-star', 'Theme Context', <>persists tri-mode (system/light/dark) using <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">localStorage</code>.</>],
-	['i-lucide-shopping-cart', 'Cart Context', <>mutates a plain object + triggers <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">this.next()</code> for reactive updates.</>],
 	['i-lucide-newspaper', 'Demo Data', 'fetched from public APIs to simulate real flows.']
 ]
 
 const flow = [
 	<>Request hits <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">server.ts</code>; route file graph resolved.</>,
+	<>API calls hit <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">/api</code> via <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">src/server.tsx</code> with filesystem handlers + middlewares.</>,
 	<>Root + nested <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">layout.tsx</code> generators initialize with initial markup immediately.</>,
 	'Page generator yields a skeleton/pass-through state while data fetches.',
 	'Data settles → component advances with richer DOM (no diff illusions: just next yield).',
@@ -159,7 +170,7 @@ const conventions = [
 ]
 
 export default () => (
-	<article class="py-20 space-y-24" memo>
+	<article class="py-20 space-y-24">
 		<header class="text-center space-y-8">
 			<h1 class="text-4xl sm:text-5xl font-bold tracking-tight leading-tight text-slate-900 dark:text-white">
 				Inside <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500">ajo‑kit</span>

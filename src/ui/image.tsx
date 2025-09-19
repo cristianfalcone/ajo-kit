@@ -20,9 +20,9 @@ export const Image: Stateful<Props> = function* (args) {
   })
 
   while (true) {
-  
-  const { src = '', alt = '', class: className, placeholder, aspect = '', ...rest } = args
-  
+
+    const { src = '', alt = '', class: className, placeholder, aspect = '', ...rest } = args
+
     if (src !== current) reset(src)
 
     const imageClasses = clsx(

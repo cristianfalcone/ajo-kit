@@ -61,7 +61,7 @@ const ProductsGrid: Stateful = function* () {
       <>
         {products.map(p => {
           const existing = cart.items.find(i => i.id === p.id)
-          const qty = existing?.qty || 0
+          const qty = existing?.qty ?? 0
           return (
             <div key={p.id} class="panel overflow-hidden flex flex-col group bg-gradient-to-b from-white to-white/90 dark:from-white/[0.04] dark:via-white/[0.03] dark:to-white/[0.015] dark:bg-[linear-gradient(to_bottom,rgba(255,255,255,0.06),rgba(255,255,255,0.02))]">
               <a href={`/products/${p.id}`} class="aspect-[4/3] bg-slate-200/60 dark:bg-black/30 block overflow-hidden relative">

@@ -23,15 +23,25 @@ const sizes: Record<string, string> = {
 }
 
 export const Button = ({ href, children, variant, size, class: className, ...rest }: ButtonProps) => {
+
   const cls = clsx(
-    'inline-flex items-center gap-1 font-medium rounded-md transition focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-indigo-400 disabled:opacity-50 disabled:pointer-events-none',
+    'inline-flex items-center gap-1 font-medium rounded-md transition focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-indigo-400 disabled:opacity-50 disabled:pointer-events-none cursor-pointer shadow-sm',
     variants[variant ?? 'primary'],
     sizes[size ?? (variant === 'primary' ? 'sm' : 'xs')] ?? '',
     className
   )
-  return href
-    ? <a href={href} class={cls} {...rest}>{children}</a>
-    : <button type="button" class={cls} {...rest}>{children}</button>
-}
 
-export default Button
+  if (href) {
+    return (
+      <a href={href} class={cls} {...rest}>
+        {children}
+      </a>
+    )
+  }
+
+  return (
+    <button type="button" class={cls} {...rest}>
+      {children}
+    </button>
+  )
+}

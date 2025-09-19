@@ -72,7 +72,7 @@ const Page: Stateful<Args, 'article'> = function* (args) {
     }
 
     const existing = cart.items.find(i => i.id === (product as Product).id)
-    const qty = existing?.qty || 0
+    const qty = existing?.qty ?? 0
 
     yield (
       <>

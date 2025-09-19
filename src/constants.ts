@@ -42,3 +42,7 @@ export const ThemeContext = context<Theme>({
   set: () => { },
   cycle: () => { },
 })
+
+export const navigate = (to: string) => {
+  globalThis.history?.pushState({}, '', to)
+}

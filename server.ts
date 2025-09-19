@@ -49,6 +49,10 @@ async function createDevServer() {
 
   app.use(vite.middlewares)
 
+  const { create, render } = await vite.ssrLoadModule('./src/server.tsx')
+
+  app.use('/api', await create())
+
   app.use('*', async (req, res) => {
 
     try {
@@ -60,8 +64,6 @@ async function createDevServer() {
       raw = await vite.transformIndexHtml(url, raw)
 
       const template = compile(raw)
-
-      const { render } = await vite.ssrLoadModule('./src/server.tsx')
 
       const html = template(render(url))
 
@@ -92,7 +94,10 @@ async function createProdServer() {
 
   const template = compile(await fs.readFile('./dist/client/index.html', 'utf-8'))
 
-  const { render } = await import('./dist/server/server.js')
+  // @ts-ignore
+  const { render, create } = await import('./dist/server/server.js')
+
+  app.use('/api', await create())
 
   app.use(sirv('./dist/client', { extensions: [] }))
 

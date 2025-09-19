@@ -104,19 +104,22 @@ const Page: Stateful<{}, 'article'> = function* () {
               <li key={post.id}>
                 <a href={`/blog/${post.id}`} class="group flex flex-col h-full rounded-xl bg-slate-900/5 ring-1 ring-slate-200 overflow-hidden hover:ring-indigo-500/40 hover:bg-indigo-500/5 dark:bg-white/5 dark:ring-white/10 dark:hover:ring-indigo-400/40 dark:hover:bg-white/[0.07] transition">
                   <Image
-                    src={post.imageUrl} 
-                    alt={post.title} 
-                    aspect="4/3" 
-                    class="group-hover:scale-105 duration-500" 
+                    src={post.imageUrl}
+                    alt={post.title}
+                    aspect="4/3"
+                    class="group-hover:scale-105 duration-500"
                   />
                   <div class="flex flex-1 flex-col p-5 gap-3">
                     <div class="flex items-center gap-2 flex-wrap">
                       <span class="text-xs uppercase tracking-wider text-indigo-600/70 dark:text-indigo-300/70">Post {post.id}</span>
-                      {post.user && <span class="text-xs text-slate-500 dark:text-gray-400/70">· {post.user.username}</span>}
+                      {post.user && <span class="text-xs text-slate-500 dark:text-gray-400/70">{post.user.username}</span>}
                     </div>
-                    <h2 class="font-medium leading-snug text-sm text-slate-800 group-hover:text-slate-900 dark:text-gray-100 dark:group-hover:text-white line-clamp-2">{post.title}</h2>
-                    <p class="text-xs text-slate-600 dark:text-gray-400/80 line-clamp-3">{post.body}</p>
-                    <span class="mt-auto pt-2 text-xs text-indigo-600/60 group-hover:text-indigo-600 dark:text-indigo-300/60 dark:group-hover:text-indigo-300">Read</span>
+                    <h2 class="font-medium leading-snug text-sm text-slate-800 group-hover:text-slate-900 dark:text-gray-100 dark:group-hover:text-white line-clamp-2">
+                      {post.title}
+                    </h2>
+                    <p class="text-xs text-slate-600 dark:text-gray-400/80 line-clamp-3">
+                      {post.body}
+                    </p>
                   </div>
                 </a>
               </li>

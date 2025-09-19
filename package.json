@@ -8,12 +8,14 @@
     "prod": "pnpm build && NODE_ENV=production tsx server.ts prod"
   },
   "dependencies": {
-    "@iconify-json/lucide": "1.2.67",
-    "@tanstack/query-core": "5.87.4",
-    "@types/node": "24.3.1",
+    "@iconify-json/lucide": "1.2.68",
+    "@polka/parse": "1.0.0-next.28",
+    "@polka/send": "1.0.0-next.28",
+    "@tanstack/query-core": "5.89.0",
+    "@types/node": "24.5.2",
     "@unocss/preset-icons": "66.5.1",
     "@unocss/preset-wind4": "66.5.1",
-    "ajo": "0.1.26",
+    "ajo": "0.1.27",
     "clsx": "2.1.1",
     "navaid": "1.2.0",
     "polka": "1.0.0-next.28",
