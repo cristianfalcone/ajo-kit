@@ -26,7 +26,7 @@ export const Image: Stateful<Props> = function* (args) {
     if (src !== current) reset(src)
 
     const imageClasses = clsx(
-      'w-full h-full object-cover transition-opacity duration-500',
+      'size-full object-cover transition-opacity duration-500',
       loaded ? 'opacity-100' : 'opacity-0',
       className
     )
@@ -55,7 +55,7 @@ export const Image: Stateful<Props> = function* (args) {
         {!loaded && (
           <div class="absolute inset-0 grid place-items-center bg-slate-900/5 dark:bg-white/5 animate-pulse">
             {placeholder ?? (
-              <div class="h-6 w-6 rounded-full border-2 border-indigo-400/30 border-t-indigo-500 dark:border-indigo-300/30 dark:border-t-indigo-300 animate-spin [animation-duration:850ms]" />
+              <div class="size-6 rounded-full border-2 border-indigo-400/30 border-t-indigo-500 dark:border-indigo-300/30 dark:border-t-indigo-300 animate-spin [animation-duration:850ms]" />
             )}
           </div>
         )}

@@ -107,7 +107,7 @@ const Page: Stateful<{}, 'article'> = function* () {
                     src={post.imageUrl}
                     alt={post.title}
                     aspect="4/3"
-                    class="group-hover:scale-105 duration-500"
+                    class="group-hover:scale-105 duration-500 transition-transform"
                   />
                   <div class="flex flex-1 flex-col p-5 gap-3">
                     <div class="flex items-center gap-2 flex-wrap">

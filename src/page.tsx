@@ -41,13 +41,20 @@ export default () => (
         <div class="grid gap-10 lg:gap-14 lg:grid-cols-[minmax(0,1fr)_300px] items-center">
           <div class="space-y-7 max-w-xl">
             <h1 class="text-4xl sm:text-5xl font-bold tracking-tight leading-tight text-slate-900 dark:text-white drop-shadow">
-              Build composable apps with <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500">ajo‑kit</span>
+              Build composable apps with&nbsp;
+              <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500">
+                ajo-kit
+              </span>
             </h1>
             <p class="text-slate-600/90 dark:text-gray-300/85 text-base sm:text-lg leading-relaxed pr-4 max-w-prose">
               A modern starter on top of
-              <span class="inline-flex items-center gap-1 mx-2 px-2 py-0.5 rounded-md bg-indigo-600/10 text-indigo-600 dark:bg-indigo-500/25 dark:text-indigo-200 text-sm">Ajo</span>
+              <span class="inline-flex items-center gap-1 mx-2 px-2 py-0.5 rounded-md bg-indigo-600/10 text-indigo-600 dark:bg-indigo-500/25 dark:text-indigo-200 text-sm">
+                Ajo
+              </span>
               and
-              <span class="inline-flex items-center gap-1 mx-2 px-2 py-0.5 rounded-md bg-pink-500/10 text-pink-600 dark:bg-pink-500/25 dark:text-pink-200 text-sm">Vite</span>
+              <span class="inline-flex items-center gap-1 mx-2 px-2 py-0.5 rounded-md bg-pink-500/10 text-pink-600 dark:bg-pink-500/25 dark:text-pink-200 text-sm">
+                Vite
+              </span>
               <br />
               Lean primitives, nested layouts, simple SSR, no ceremony.
             </p>
@@ -78,8 +85,12 @@ export default () => (
                   <div class={clsx('text-xl', c.icon)} />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <h3 class="font-semibold text-slate-900 dark:text-white text-sm sm:text-base leading-tight">{c.label}</h3>
-                  <p class="mt-0.5 text-xs sm:text-xs text-slate-600/80 dark:text-gray-300/70 line-clamp-2">{c.desc}</p>
+                  <h3 class="font-semibold text-slate-900 dark:text-white text-sm sm:text-base leading-tight">
+                    {c.label}
+                  </h3>
+                  <p class="mt-0.5 text-xs sm:text-xs text-slate-600/80 dark:text-gray-300/70 line-clamp-2">
+                    {c.desc}
+                  </p>
                 </div>
                 <div class="i-lucide-arrow-right text-slate-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition text-sm" />
                 <span class="absolute inset-0 rounded-xl pointer-events-none opacity-0 group-hover:opacity-100 transition bg-gradient-to-br from-indigo-500/15 via-transparent to-transparent dark:from-indigo-400/20" />

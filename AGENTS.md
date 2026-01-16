@@ -4,93 +4,125 @@ AI agent instructions for building applications with Ajo and Ajo-kit. This docum
 
 ## Ajo Framework
 
+Ajo is a micro UI library using JSX and generators. **No React imports**: JSX compiles to Ajo via build config.
+
 ### Component Model
 
 Ajo uses two distinct component types. Stateless components are pure functions that return JSX and can destructure props and access contexts directly. Stateful components are generator functions that yield JSX repeatedly and have an automatic wrapper element.
 
-**Stateless Component Example**
+**Stateless Component**
 
-```javascript
+```typescript
+import type { Children, Stateless } from 'ajo'
 import clsx from 'clsx'
 import { context } from 'ajo/context'
 
-const ThemeContext = context('light')
+const ThemeContext = context<'light' | 'dark'>('light')
 
-const Card = ({ title, content, isActive }) => {
+type CardArgs = { title: string; content: string; isActive?: boolean; children?: Children }
 
-  const theme = ThemeContext()
+const Card: Stateless<CardArgs> = ({ title, content, isActive, children }) => {
+
+  const theme = ThemeContext()  // Read context value (stateless = read only)
 
   return (
     <div class={clsx('p-4 rounded-lg bg-white dark:bg-gray-800', { 'ring-2 ring-blue-500': isActive })}>
       <h3 class="text-lg font-semibold">{title}</h3>
       <p class="mt-2 text-gray-600 dark:text-gray-300">{content}</p>
+      {children}
     </div>
   )
 }
+
+// Usage - everything goes to args:
+<Card title="Hello" isActive>
+  <p>Card content here.</p>
+</Card>
 ```
 
-**Stateful Component Complete Example**
+**Stateful Component**
 
-```javascript
-import { context } from 'ajo/context'
+```typescript
 import type { Stateful } from 'ajo'
+import { context } from 'ajo/context'
+import clsx from 'clsx'
 
-const UserContext = context<{ id: string, name: string } | null>(null)
+type Todo = { id: number; text: string; done: boolean }
+
+const UserContext = context<{ id: string; name: string } | null>(null)
 const FilterContext = context<'all' | 'done'>('all')
 
-const TodoManager: Stateful<{ initialTodos: Array<Todo> }> = function* (args) {
+type TodoManagerArgs = { initialTodos: Todo[]; step?: number }
 
-  // Persistent state - defined once before loop
+const TodoManager: Stateful<TodoManagerArgs, 'section'> = function* (args) {  // Do NOT destructure args here
+
+  // Before loop: persistent state & handlers
+
   let todos = [...args.initialTodos]
-  let filter = 'all'
-  let user = null
+  let filter: 'all' | 'done' = 'all'
+  let inputRef: HTMLInputElement | null = null
 
-  // Persistent methods
-  const addTodo = text => {
-    // this refers to wrapper element with next, throw, return methods
+  // Persistent methods - use this.next() to trigger re-render
+  const addTodo = (text: string) => {
     this.next(() => todos = [...todos, { id: Date.now(), text, done: false }])
   }
 
-  const toggleTodo = id => {
+  // this.next(fn) can access current args
+  const addMultiple = () => this.next(({ step = 1 }) => {
+    for (let i = 0; i < step; i++) todos.push({ id: Date.now() + i, text: `Todo ${i}`, done: false })
+  })
+
+  const toggleTodo = (id: number) => {
     this.next(() => todos = todos.map(t => t.id === id ? { ...t, done: !t.done } : t))
   }
 
-  const changeFilter = newFilter => this.next(() => filter = newFilter)
-  
-  // Optional cleanup wrapper
-  try {
+  const changeFilter = (newFilter: 'all' | 'done') => this.next(() => filter = newFilter)
 
-    // Main render loop
-    while (true) {
+  // this = wrapper element, can add event listeners
+  const handleKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && inputRef?.value) {
+      addTodo(inputRef.value)
+      inputRef.value = ''
+    }
+  }
+  this.addEventListener('keydown', handleKeydown)
 
-      // Optional error boundary
-      try {
+  try {  // Optional: cleanup wrapper
 
-        // Fresh destructuring each render
-        const { initialTodos } = args
+    while (true) {  // Main render loop
+
+      try {  // Optional: error boundary
+
+        // Fresh destructure each render
+        const { step = 1 } = args
 
         // Access context inside loop for current value
-        user = UserContext()
+        const user = UserContext()
 
         // Set context inside loop with current state values
         FilterContext(filter)  // Descendants receive current filter value
 
         // Derived values
-        const filteredTodos = todos.filter(todo => 
+        const filteredTodos = todos.filter(todo =>
           filter === 'all' || (filter === 'done' ? todo.done : !todo.done)
         )
 
         yield (
           <>
             <div class="mb-4 flex gap-2">
-              <button 
-                class={clsx({ 'font-bold': filter === 'all' })}
+              <input
+                ref={el => inputRef = el}
+                placeholder="New todo..."
+                set:oninput={e => this.next()}  // Re-render on input
+              />
+              <button
+                class={clsx('px-2', { 'font-bold': filter === 'all' })}
                 set:onclick={() => changeFilter('all')}
               >
                 All
               </button>
-              <button 
-                class={clsx({ 'font-bold': filter === 'done' })}
+              <button
+                class={clsx('px-2', { 'font-bold': filter === 'done' })}
                 set:onclick={() => changeFilter('done')}
               >
                 Done
@@ -98,8 +130,8 @@ const TodoManager: Stateful<{ initialTodos: Array<Todo> }> = function* (args) {
             </div>
             <ul class="mt-4 space-y-2">
               {filteredTodos.map(todo => (
-                <li key={todo.id} class="flex items-center">
-                  <input 
+                <li key={todo.id} class="flex items-center gap-2">
+                  <input
                     type="checkbox"
                     checked={todo.done}
                     set:onchange={() => toggleTodo(todo.id)}
@@ -108,257 +140,179 @@ const TodoManager: Stateful<{ initialTodos: Array<Todo> }> = function* (args) {
                 </li>
               ))}
             </ul>
-            {/* Child components will receive the current filter value */}
-            <TodoStats />
+            <p memo={[todos.length]}>Total: {todos.length}</p>
+            <footer memo>Static content - rendered once</footer>
           </>
         )
-      } catch (renderError) {
-        // Recover from render errors
-        yield <div class="text-red-500">Error: {renderError.message}</div>
+      } catch (err: unknown) {
+        yield <p class="text-red-500">{err instanceof Error ? err.message : String(err)}</p>
       }
     }
   } finally {
-    // Cleanup on unmount
-    console.log('Component unmounting')
+    this.removeEventListener('keydown', handleKeydown)
   }
 }
+
+TodoManager.is = 'section'                    // Wrapper element (default: div)
+TodoManager.attrs = { class: 'todo-manager' } // Default wrapper attributes
+TodoManager.args = { step: 1 }                // Default args
+
+// Usage - special attrs apply to wrapper, rest goes to args:
+let ref: ThisParameterType<typeof TodoManager> | null = null
+
+<TodoManager
+  initialTodos={[]} step={5}                  // → args
+  attr:id="main" attr:class="my-todos"        // → wrapper attributes (HTML attrs)
+  set:onclick={fn}                            // → wrapper properties (DOM props)
+  key={id}                                    // → wrapper key
+  memo={[id]}                                 // → wrapper memo (array)
+  ref={el => ref = el}                        // → wrapper ref (el is <section> + .next()/.throw()/.return())
+/>
+
+ref?.next()  // Trigger re-render from outside
 ```
 
-### Context Access and Setting
+### Rules Quick Reference
 
-Context values should be both accessed and set inside the while loop of stateful components to ensure fresh values are used and propagated to descendants. Setting context outside the loop would lock the value to the initial state.
+| Topic | Rule |
+|-------|------|
+| **Elements** | Everything becomes HTML attributes. `set:prop` assigns DOM properties instead (`node[prop] = value`) |
+| **Stateless** | Everything goes to `args`. Special attrs like `memo` must be applied to elements inside |
+| **Stateful** | `key`, `memo`, `skip`, `ref`, `set:*` apply to implicit wrapper element. `attr:*` sets wrapper attributes. Rest goes to `args` |
+| **Events** | `set:onclick`, `set:oninput`, etc. Never `onClick` |
+| **Classes** | `class`, never `className`. Must be string, no object/array syntax. Use `clsx()` or template literals |
+| **Styles** | `style` must be string (`style="color: red"`), not object. No special handling |
+| **Args** | Never destructure in generator signature. Use `args` param |
+| **Root JSX** | Use `<>...</>` in stateful to avoid double wrapper |
+| **Re-render** | `this.next()` or `this.next(fn)` where `fn` receives current `args` |
+| **Context** | `context<T>(fallback)` creates context. Stateless: read only. Stateful: read/write inside `while` loop |
+| **Lists** | Always provide unique `key` on elements |
+| **Refs** | `ref={el => ...}` on elements. Receives `null` on unmount. Stateful ref type: `ThisParameterType<typeof Component>` |
+| **Memo** | `memo={[deps]}` array, `memo={value}` single, or just `memo` (never re-render). Skips subtree if unchanged |
+| **Skip** | `skip` excludes children from reconciliation. Use for `set:textContent`/`set:innerHTML` or third-party managed DOM |
+| **Custom wrapper** | Set `.is = 'tagname'` AND TypeScript generic `Stateful<Args, 'tagname'>` for stateful components. Default is `div` |
+| **Default attrs** | `.attrs = { class: '...' }` on stateful component generator function |
+| **Default args** | `.args = { prop: value }` on stateful component generator function |
+| **Cleanup** | `try { while(true) yield ... } finally { cleanup }` |
+| **Error recovery** | `try { ... } catch { yield error UI }` inside loop |
+| **this** | Stateful component wrapper element with `.next()`, `.throw()`, `.return()`. Type: `ThisParameterType<typeof Component>` |
 
-```javascript
-function* ThemeProvider(args) {
+### Special Attributes
 
-  let theme = 'light'
-  let autoMode = false
+**`set:` - DOM properties vs HTML attributes**
 
-  const toggleTheme = () => this.next(() => theme = theme === 'light' ? 'dark' : 'light')
+```typescript
+// HTML Attributes (default) vs DOM Properties (set:)
+<input value="text" />                       // HTML attribute: initial value only
+<input set:value={text} />                   // DOM property: syncs with state
 
+<input type="checkbox" checked />            // HTML attribute: initial state
+<input type="checkbox" set:checked={bool} /> // DOM property: syncs with state
+
+// Events - always use set:
+<input set:oninput={e => handleInput(e)} />
+<button set:onclick={handleClick} />
+
+// Other DOM properties
+<video set:currentTime={0} set:muted />
+<div set:textContent={str} skip />           // DOM property + skip (required!)
+<div set:innerHTML={html} skip />            // DOM property + skip (required!)
+
+// Boolean attributes
+<input type="checkbox" checked disabled />   // checked="" disabled=""
+<button disabled={false} />                  // removes disabled attr
+```
+
+**`memo` - Performance optimization**
+
+```typescript
+<div memo={[a, b]}>{/* re-render when a or b changes (array) */}</div>
+<div memo={count}>{/* re-render when count changes (single value) */}</div>
+<div memo>{/* render once, never update - good for static content */}</div>
+```
+
+**`skip` - Third-party DOM or innerHTML**
+
+```typescript
+// Third-party library manages DOM
+<div skip ref={el => el ? (widget ??= new Library(el)) : widget?.destroy()} />
+
+// innerHTML/textContent (skip required!)
+<div set:innerHTML={html} skip />
+```
+
+**`attr:` - Force wrapper attributes**
+
+```typescript
+// Only for stateful component wrappers
+<MyComponent data={data} attr:id="main" attr:class="wrapper" attr:aria-label="Widget" />
+```
+
+### Anti-patterns
+
+```typescript
+// ❌ React patterns - NEVER use
+import React from 'react'
+className="..."
+onClick={...}
+useState, useEffect, useCallback
+
+// ❌ class/style as object or array
+<div class={{ active: isActive }} />        // won't work
+<div class={['btn', 'primary']} />          // won't work
+<div style={{ color: 'red' }} />            // won't work
+
+// ✅ class/style must be strings
+<div class={clsx('btn', { active: isActive })} />
+<div style="color: red" />
+<div style={`color: ${color}`} />
+
+// ❌ Destructure in generator signature
+function* Bad({ count }) { ... }            // locks to initial values
+
+// ❌ Context outside loop in stateful
+function* Bad(args) {
+  const theme = ThemeContext()              // frozen at mount
+  ThemeContext('dark')                      // only set once
+  while (true) yield ...
+}
+
+// ✅ Context inside loop
+function* Good(args) {
   while (true) {
-
-    // Set context inside loop with current state
-    ThemeContext(theme)
-
-    // Access other contexts
-    const user = UserContext()
-
-    yield (
-      <>
-        <button set:onclick={toggleTheme}>
-          Current theme: {theme}
-        </button>
-        {args.children}
-      </>
-    )
+    ThemeContext(theme)                     // write: updated each render
+    const user = UserContext()              // read: fresh value each render
+    yield ...
   }
 }
-```
 
-### Wrapper Element and Component Instance
+// ❌ Other common mistakes
+{items.map(item => <li>{item}</li>)}        // missing key
+const inc = () => count++                   // without this.next()
+<div set:innerHTML={html} />                // missing skip
 
-Every stateful component renders inside an automatic wrapper element (default `div`). The `this` context inside the generator refers to this wrapper element, which has been augmented with three methods: `next`, `throw`, and `return`. This wrapper element is a real DOM element that can be used for direct DOM access or event attachment.
-
-```javascript
-// Customizing wrapper element
-const List: Stateful<{ items: string[] }, 'ul'> = function* (args) {
-
-  // this is the <ul> element with next, throw, return methods
-  console.log(this.tagName) // "UL"
-
-  while (true) yield (
-    <>
-      {args.items.map(item => <li key={item}>{item}</li>)}
-    </>
-  )
-}
-List.is = 'ul'  // Must set both TypeScript generic AND .is property
-
-// Default attributes on wrapper
-function* Panel() {
-  while (true) yield <>Panel content</>
-}
-Panel.attrs = { 
-  class: 'p-4 bg-gray-100 rounded',
-  'data-component': 'panel' 
-}
-
-// Using the component with both args and wrapper attributes
-<TodoManager 
-  initialTodos={todos}           // Component args (passed to generator)
-  onComplete={handleComplete}    // Component args
-  attr:id="main-todos"           // Force attribute on wrapper element
-  attr:class="custom-wrapper"    // Force attribute on wrapper
-  attr:data-testid="todo-list"   // Force attribute on wrapper
-/>
-```
-
-### Special Attributes Reference
-
-Special attributes control Ajo's reconciliation and DOM management behavior. Each serves a specific purpose in optimizing rendering or enabling third-party integrations.
-
-**`key` - List reconciliation identity**
-
-```javascript
-// Always provide stable unique keys for dynamic lists
-{items.map(item => (
-  <li key={item.id}>{item.text}</li>
-))}
-```
-
-**`ref` - DOM element or component instance access**
-
-```javascript
-function* FocusManager() {
-
-  let inputEl = null
-  
-  const focusInput = () => inputEl?.focus()
-  
-  while (true) yield (
-    <>
-      <input ref={el => inputEl = el} class="px-2 py-1 border" />
-      <button set:onclick={focusInput}>Focus</button>
-    </>
-  )
-}
-```
-
-**`memo` - Performance optimization via dependency checking**
-
-```javascript
-function* DataView({ userId }) {
-
-  let data = null
-
-  const loadData = async () => {
-    const result = await fetch(`/api/data/${userId}`)
-    // Must create new reference for memo to detect change
-    this.next(() => data = result)
-  }
-
-  while (true) yield (
-    <>
-      <header>User: {userId}</header>
-      {/* Only re-renders when data reference changes */}
-      <div memo={[data]}>
-        <ExpensiveChart data={data} />
-      </div>
-    </>
-  )
-}
-```
-
-**`skip` - Exclude children from Ajo reconciliation**
-
-```javascript
-function* ThirdPartyWidget() {
-
-  let widgetInstance = null
-
-  while (true) yield (
-    <div 
-      ref={el => {
-        if (el) {
-          widgetInstance ??= new ExternalLibrary(el)
-        } else {
-          widgetInstance?.destroy()
-          widgetInstance &&= null
-        }
-      }}
-      skip={true}  // Children excluded from Ajo updates
-    >
-      {/* External library manages this DOM subtree */}
-    </div>
-  )
-}
-
-// Use skip when manually setting innerHTML or textContent
-function* RawHtml({ html }) {
-  while (true) yield (
-    <div 
-      set:innerHTML={html}
-      skip={true}
-    />
-  )
-}
-```
-
-**`set:` - Direct DOM property setting**
-
-```javascript
-// Sets properties on DOM elements, not attributes
-<input 
-  value={text}
-  set:oninput={e => handleInput(e)}  // Property, not attribute
-  set:disabled={!isValid}            // Property
-  set:autofocus={true}               // Property
-/>
-```
-
-**`attr:` - Force HTML attributes on stateful wrapper**
-
-```javascript
-// Only applies to stateful component wrappers
-<MyStatefulComponent 
-  data={data}                    // Component arg
-  onUpdate={handler}             // Component arg
-  attr:id="component-1"          // HTML attribute on wrapper
-  attr:class="absolute top-0"    // HTML attribute on wrapper
-  attr:aria-label="Main widget"  // HTML attribute on wrapper
-/>
-```
-
-### Async Operations Pattern
-
-Multiple `this.next()` calls are valid and recommended in async operations to show progress states.
-
-```javascript
-function* DataProcessor() {
-
-  let status = 'idle'
-  let progress = 0
-
-  const process = async () => {
-
-    this.next(() => status = 'loading'; progress = 0)
-    const raw = await fetchData()
-
-    this.next(() => status = 'parsing'; progress = 50)
-    const parsed = await parseData(raw)
-
-    this.next(() => status = 'complete'; progress = 100)
-  }
-
-  while (true) yield (
-    <>
-      <div>Status: {status}</div>
-      <progress class="w-full" value={progress} max="100" />
-    </>
-  )
-}
-DataProcessor.attrs = { class: "p-4" }
+// ✅ Correct
+{items.map(item => <li key={item.id}>{item}</li>)}
+const inc = () => this.next(() => count++)
+<div set:innerHTML={html} skip />
 ```
 
 ## Ajo-kit Application Structure
 
-### File-Based Routing System
+### File-Based Routing
 
-The router maps filesystem structure directly to URL paths by discovering routes from `src/**/{page,layout}.{jsx,tsx}` files. Page files define route endpoints while layout files create nested wrappers that compose hierarchically.
+The router maps filesystem structure directly to URL paths by discovering routes from `src/**/{page,layout}.{jsx,tsx}` files.
 
 ```
 src/
   app.tsx             # Router initialization - DO NOT MODIFY
   layout.tsx          # Root layout wrapping all pages
   page.tsx            # Home route (/)
-  constants.ts        # Application global constants values, utility functions, types, and contexts
+  constants.ts        # Global constants, utility functions, types, and contexts
   ui/                 # Global UI components
-    button.tsx
-    modal.tsx
 
-  handler.ts          # /api handler for file-based APIs
-  ware.ts             # Root API middlewares (runs before all /api/**)
+  handler.ts          # /api root handler
+  wares.ts            # /api root middlewares (runs before all /api/**)
 
   blog/
     layout.tsx        # Blog section wrapper
@@ -367,29 +321,33 @@ src/
       page.tsx        # /blog/:id dynamic route
     constants.ts      # Blog-specific constants, utilities, types and contexts
     ui/               # Blog-specific UI components
-      post-card.tsx
 
   (admin)/            # Route group without URL impact
     layout.tsx        # Admin wrapper (applies to children)
-    page.tsx          # /page route (group name excluded from URL)
+    page.tsx          # / route (group name excluded from URL)
     dashboard/
       page.tsx        # /dashboard route
-    constants.ts      # Admin-specific constants, utilities, types and contexts
-    ui/               # Admin-specific UI components
-      data-table.tsx
-      sidebar.tsx
+    constants.ts
+    ui/
 
   users/
-    wares.ts          # Section wares for /api/users/**
+    wares.ts          # /api/users/** middlewares
     [id]/
-      handler.ts      # GET /api/users/:id
+      handler.ts      # /api/users/:id
 ```
+
+**Route conventions:**
+- `page.tsx` = route endpoint
+- `layout.tsx` = wrapper (nests automatically)
+- `[param]` = dynamic segment → `:param`
+- `(group)` = organization only, excluded from URL
+- `[...]` = catch-all → `*`
 
 ### File-Based APIs
 
-The server discovers API files from `src/**/{wares,handler}.{js,ts}` and builds a Polka app that is mounted under `/api`.
+The server discovers API files from `src/**/{wares,handler}.{js,ts}` and mounts them under `/api`.
 
-- `handler.{js,ts}`: default export is an object mapping HTTP verbs to handlers. Example:
+**handler.ts** - exports object mapping HTTP verbs to handlers:
 
 ```ts
 // src/ping/handler.ts  -> GET /api/ping
@@ -397,210 +355,87 @@ import type { Request } from 'polka'
 
 export default {
   get: (_req: Request) => ({ ok: true }),
+  post: async (req: Request) => { /* ... */ },
 }
 ```
 
-- `wares.{js,ts}`: default export is a Middleware or an array of Middlewares. Wares compose like layouts from root → leaf and run before the route handler.
+**wares.ts** - exports middleware(s), compose root → leaf:
 
 ```ts
-// src/wares.ts   -> applies to all /api/**
+// src/wares.ts -> applies to all /api/**
 import type { Request, Response, NextHandler } from 'polka'
 
-export default [
-  function timing(_req: Request, res: Response, next: NextHandler) {
-    const t0 = Date.now()
-    const original = res.writeHead.bind(res) as Response['writeHead']
-    res.writeHead = ((...args) => {
-      try { res.setHeader('x-response-time', `${Date.now() - t0}ms`) } catch {}
-      return original(...args as Parameters<Response['writeHead']>)
-    }) as Response['writeHead']
-    next()
-  },
-]
-```
-
-Path → route rules follow the same convention as pages/layouts:
-- Route groups `(group)` are ignored in the URL.
-- Dynamic `[param]` → `:param`.
-- Catch-all `[...]` → `*`.
-
-Error handling and serialization:
-- Handlers may either write to `res` directly or return a value.
-- If a handler returns a value and `res` has not ended, the server uses `@polka/send` to serialize it (JSON for objects/arrays, text for strings, etc.).
-- The Polka app has an `onError` that sends a 500 (or current error status) with a text message.
-
-### UI Components Organization
-
-UI components are organized in `ui/` folders at different levels based on their usage scope and sharing requirements. Global components reside in `src/ui/`, while section-specific components are placed in nested `ui/` folders within their respective route directories.
-
-```javascript
-// src/ui/button.tsx - Global UI component
-import clsx from 'clsx'
-
-export const Button = ({ variant = 'primary', children, onClick }) => (
-  <button 
-    class={clsx(`px-4 py-2 rounded`, {
-      'bg-blue-500 text-white': variant === 'primary',
-      'bg-gray-200': variant !== 'primary'
-    })}
-    set:onclick={onClick}
-  >
-    {children}
-  </button>
-)
-
-// src/(admin)/ui/data-table.tsx - Admin-specific component
-import type { Stateful } from 'ajo'
-
-export const DataTable: Stateful<{ data: any[] }, 'table'> = function* (args) {
-
-  let sortColumn = null
-  let sortDirection = 'asc'
-
-  const sort = (column) => this.next(() => {
-    if (sortColumn === column) {
-      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
-    } else {
-      sortColumn = column
-      sortDirection = 'asc'
-    }
-  })
-  
-  while (true) {
-
-    const { data } = args
-    const sortedData = sortColumn 
-      ? [...data].sort((a, b) => {
-          const result = a[sortColumn] > b[sortColumn] ? 1 : -1
-          return sortDirection === 'asc' ? result : -result
-        })
-      : data
-    
-    yield (
-      <>
-        {/* Table implementation */}
-      </>
-    )
-  }
+export default (req: Request, res: Response, next: NextHandler) => {
+  // middleware logic
+  next()
 }
-DataTable.is = 'table'
-DataTable.attrs = { class: "w-full border-collapse" }
+// Or array: export default [middleware1, middleware2]
 ```
 
-### Route Component Contracts
+**Serialization:** If handler returns a value (and hasn't ended response), `@polka/send` serializes it (JSON for objects/arrays, text for strings).
 
-Page components receive router params and define the content for a specific route.
+### Route Components
 
-```javascript
+**Page** - receives `{ params }`:
+
+```typescript
 // src/blog/[id]/page.tsx
 export default function* BlogPost({ params }) {
-
-  const postId = params.id  // From [id] folder name
-
+  const postId = params.id
   let post = null
 
   fetch(`/api/posts/${postId}`)
+    .then(r => r.json())
     .then(data => this.next(() => post = data))
 
   while (true) yield (
     <>
       {post ? (
-        <>
+        <article>
           <h1>{post.title}</h1>
           <div>{post.content}</div>
-        </>
+        </article>
       ) : (
-        <div>Loading post {postId}...</div>
+        <div>Loading...</div>
       )}
     </>
   )
 }
 BlogPost.is = 'article'
-BlogPost.attrs = { class: "prose max-w-4xl" }
+BlogPost.attrs = { class: 'prose max-w-4xl' }
 ```
 
-Layout components receive children and create wrappers that nest automatically based on filesystem hierarchy.
+**Layout** - receives `{ children }`:
 
-```javascript
+```typescript
 // src/blog/layout.tsx
 export default ({ children }) => (
   <div class="min-h-screen bg-gray-50">
     <nav class="bg-white shadow px-4">
       <a href="/blog" class="text-blue-600">All Posts</a>
     </nav>
-    <main class="py-8">
-      {children}
-    </main>
+    <main class="py-8">{children}</main>
   </div>
 )
 ```
 
-### Constants and Context Organization
+**Stateful Layout** - set context inside loop:
 
-The `constants.ts` files hold application constants, type definitions, utility functions and context declarations. Place these files at the appropriate scope level based on usage and sharing requirements.
-
-```javascript
-// src/constants.ts - Global definitions
-import { context } from 'ajo/context'
-
-export const API_URL = import.meta.env.VITE_API_URL
-export const MAX_FILE_SIZE = 5 * 1024 * 1024
-
-export const formatBytes = (bytes: number) => {
-  const units = ['B', 'KB', 'MB', 'GB']
-  let i = 0
-  while (bytes >= 1024 && i < units.length - 1) {
-    bytes /= 1024
-    i++
-  }
-  return `${bytes.toFixed(1)} ${units[i]}`
-}
-
-export type User = {
-  id: string
-  name: string
-  email: string
-}
-
-export const ThemeContext = context<'light' | 'dark'>('light')
-export const AuthContext = context<User | null>(null)
-
-// src/(admin)/constants.ts - Section-specific
-import { context } from 'ajo/context'
-
-export type ViewMode = 'grid' | 'list' | 'compact'
-
-export const AdminContext = context<{
-  viewMode: ViewMode
-  sidebarOpen: boolean
-}>({
-  viewMode: 'grid',
-  sidebarOpen: true
-})
-```
-
-Context values should be set inside the while loop of stateful layout components to ensure descendants receive current state values.
-
-```javascript
+```typescript
 // src/(admin)/layout.tsx
 import { AdminContext } from './constants'
 
 export default function* AdminLayout({ children }) {
-
-  let viewMode = 'grid'
   let sidebarOpen = true
-
-  const toggleSidebar = () => this.next(() => sidebarOpen = !sidebarOpen)
+  const toggle = () => this.next(() => sidebarOpen = !sidebarOpen)
 
   while (true) {
-
-    // Set context inside loop with current state
-    AdminContext({ viewMode, sidebarOpen })
+    AdminContext({ sidebarOpen })  // Set context inside loop!
 
     yield (
       <div class="flex h-screen">
-        <aside class={`bg-gray-900 ${sidebarOpen ? 'w-64' : 'w-16'}`}>
-          <button set:onclick={toggleSidebar}>Toggle</button>
+        <aside class={sidebarOpen ? 'w-64' : 'w-16'}>
+          <button set:onclick={toggle}>Toggle</button>
         </aside>
         <main class="flex-1">{children}</main>
       </div>
@@ -609,93 +444,50 @@ export default function* AdminLayout({ children }) {
 }
 ```
 
+### Constants and Context Organization
+
+Place `constants.ts` files at appropriate scope levels:
+
+```typescript
+// src/constants.ts - Global
+import { context } from 'ajo/context'
+
+export const API_URL = import.meta.env.VITE_API_URL
+
+export type User = { id: string; name: string; email: string }
+
+export const ThemeContext = context<'light' | 'dark'>('light')
+export const AuthContext = context<User | null>(null)
+
+// src/(admin)/constants.ts - Section-specific
+export const AdminContext = context<{ sidebarOpen: boolean }>({ sidebarOpen: true })
+```
+
+## Styling
+
+- UnoCSS with Tailwind-compatible classes (`presetWind4` + `i-lucide-*` icons)
+- `clsx` for conditional class merging
+- Prefer standard utilities, avoid arbitrary values (`[...]`) unless necessary
+- Dark mode variants where color contrast matters
+
 ## Implementation Checklist
 
-When implementing new features or making changes to this ajo-kit application, follow this checklist to ensure correct patterns and avoid common mistakes.
+### Before implementing
+- Route location and grouping strategy
+- Context scope (global vs section `constants.ts`)
+- Check existing `ui/` folders for reusable components
 
-### Pre-Implementation Review
+### Component rules
+- No React imports/patterns
+- Stateful: don't destructure `args`, context inside loop, `<>` root
+- Events: `set:onclick` not `onClick`
+- Lists: unique `key`
+- `skip` with `set:innerHTML`/`set:textContent`
+- `.is`, `.attrs`, `.args` for wrapper customization
 
-- Identify whether new routes are needed and determine appropriate location in filesystem
-- Check if route should be within a group folder for logical organization
-- Determine if new contexts are required and identify proper scope level
-- Identify reusable UI components and plan their location in ui/ folders
-- Review existing components for potential reuse before creating new ones
-
-### Component Implementation
-
-- Don’t import React; JSX is compiled to Ajo via `vite.config.ts`.
-- Use stateless components for presentation without internal state
-- Use stateful generators for components with state management needs
-- Never destructure props in generator function signatures
-- Use fragments as root element in stateful components to avoid double wrappers
-- Access props via args parameter inside while loop for fresh values
-- Set contexts inside while loop when providing state to descendants
-- Place persistent state and methods before while loop
-- Place derived values and computations inside while loop
-- Implement error recovery with try-catch inside while loop when needed
-- Implement cleanup with try-finally wrapping while loop when needed
-
-### Styling
-
-- Use UnoCSS with Tailwind-compatible classes (`presetWind4` classes + `i-lucide-*` icons preset)
-- Use `clsx` for conditional class merging
-- Prefer existing scale and avoid arbitrary value utilities (`class-[...]`) unless a compelling, documented reason (e.g. aspect ratios if no built-in alternative)
-- Use standard utilities (`text-xs`, `text-sm`, `text-base`, `from-indigo-500 via-violet-500 to-fuchsia-500`, etc.)
-- Always provide dark mode variants where color contrast matters
-
-### DOM and Events
-
-- Use `class` attribute, never `className`
-- Use `set:onclick` for event handlers, never `onClick`
-- Provide stable unique `key` attributes for all list items
-- Use `ref` callbacks to access DOM elements or component instances
-- Use `skip={true}` when third-party libraries manage DOM children
-- Use `memo` with new object/array references for optimization of DOM sub-trees
-- Use `attr:` prefix only for stateful component wrapper attributes
-
-### State Management
-
-- Mutate state directly then call `this.next()` to re-render
-- Or use `this.next(cb)` with mutations in callback (better error handling)
-- Create new array/object references when using memo dependencies
-- Use multiple `this.next()` calls in async operations for progress updates
-- Access contexts inside while loop for current values
-- Define contexts in appropriate constants.ts file based on scope
-
-### File Organization
-
-- Place page.tsx files for route endpoints
-- Place layout.tsx files for section wrappers
-- Create ui/ folders at appropriate scope levels
-- Define types and contexts in constants.ts files
-- Use route groups (parentheses) for organization without URL impact
-- Use dynamic segments [param] for variable routes
-
-### Server APIs (Handlers/Wares)
-
-- Add `handler.{js,ts}` under `src/**` for API endpoints. The relative path (without `src/`) defines the route under `/api` using the same rules as pages (route groups, params, catch-all).
-- Default export shape for a handler file:
-  - `{ get?, post?, put?, patch?, delete?, options?, head? }` where each value is `(req, res, next) => unknown | Promise<unknown>`.
-- Add `wares.{js,ts}` under any directory to register Polka middlewares for that subtree. Default export can be a single middleware or an array.
-- Wares compose root → leaf and are applied before the route’s handler.
-- If a handler returns a value (and hasn’t ended the response), it will be sent with `@polka/send`.
-- Prefer Polka types in TypeScript files: `Request`, `Response`, `NextHandler`, `Middleware`.
-
-### Post-Implementation Verification
-
-- Verify no React patterns or imports are present
-- Confirm proper use of Ajo-specific attributes and methods
-- Check that contexts are accessed and set inside while loops
-- Verify memo special attribute dependencies use new references not mutations
-- Ensure proper error handling and cleanup where needed
-- Confirm UI components are in appropriate ui/ folders
-- Test that routes resolve correctly based on filesystem structure
-- Verify API handlers are discovered and reachable at `/api/**`.
-- Confirm section and root wares run and compose in the correct order.
-- Ensure handlers that return objects/strings are serialized as expected by `@polka/send`.
-
-### When In Doubt
-- Default to simpler primitives over complex abstractions
-- Favor explicit clarity and cleverness
-- Keep diffs small for developer-visible conceptual changes
-- Ask for opinions and feedback when unsure
+### After implementing
+- No React patterns present
+- Contexts accessed/set inside `while` loops
+- Routes resolve correctly
+- APIs reachable at `/api/**`
+- Wares compose root → leaf correctly

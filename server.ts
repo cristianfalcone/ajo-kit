@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import { createServer as createHttpServer } from 'node:http'
 import sade from 'sade'
 import polka from 'polka'
 import sirv from 'sirv'
@@ -129,6 +130,12 @@ async function createProdServer() {
   return app
 }
 
+const listen = (handler: any, port: number): Promise<number> => new Promise((resolve, reject) => {
+  createHttpServer(handler)
+    .listen(port, () => resolve(port))
+    .once('error', (e: NodeJS.ErrnoException) => e.code === 'EADDRINUSE' ? resolve(listen(handler, port + 1)) : reject(e))
+})
+
 type ServerOptions = {
   port: number
 }
@@ -139,13 +146,15 @@ sade('ajo-kit')
   .command('dev')
   .describe('Start the development server')
   .action(async (opts: ServerOptions) => {
-    const server = await createDevServer()
-    server.listen(opts.port, () => console.log(`Dev server started at port ${opts.port}`))
+    const app = await createDevServer()
+    const port = await listen(app.handler, opts.port)
+    console.log(`Dev server started at http://localhost:${port}`)
   })
   .command('prod')
   .describe('Start the production server')
   .action(async (opts: ServerOptions) => {
-    const server = await createProdServer()
-    server.listen(opts.port, () => console.log(`Production server started at port ${opts.port}`))
+    const app = await createProdServer()
+    const port = await listen(app.handler, opts.port)
+    console.log(`Production server started at http://localhost:${port}`)
   })
   .parse(process.argv)

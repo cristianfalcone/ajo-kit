@@ -133,7 +133,7 @@ const isActive = (path: string, url: string, options?: LinkOptions): boolean => 
 
 const Nav = () => {
 
-	const url = location.pathname
+	const url = globalThis.location?.pathname ?? '/'
 
 	return (
 		<nav class="sticky top-0 z-40" memo={url}>

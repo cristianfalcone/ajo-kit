@@ -57,7 +57,7 @@ const Layout: Stateful<Args, 'section'> = function* (args) {
 
       CartContext({ items, add, update, remove, count, total })
 
-      const path = typeof location !== 'undefined' ? location.pathname : ''
+      const path = globalThis.location?.pathname ?? ''
 
       yield (
         <>
