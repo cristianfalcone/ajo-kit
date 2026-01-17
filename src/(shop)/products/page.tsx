@@ -1,4 +1,5 @@
-import type { Stateful, Stateless } from 'ajo'
+import type { Stateful } from 'ajo'
+import type { LoadFn } from '/src/app'
 import { CartContext } from '/src/constants'
 import { Button } from '/src/ui/button'
 import { Image } from '/src/ui/image'
@@ -12,50 +13,18 @@ interface Product {
   images: string[]
 }
 
-const ProductsGrid: Stateful = function* () {
+export const load: LoadFn = async () => {
+  const res = await fetch('https://dummyjson.com/products?limit=18')
+  if (!res.ok) throw new Error('Failed to fetch products')
+  const { products } = await res.json()
+  return { products }
+}
 
-  let products: Product[] = []
-  let loading = true
-  let error: string | null = null
-
-  fetch('https://dummyjson.com/products?limit=18')
-    .then(r => {
-      if (!r.ok) throw new Error('Failed products')
-      return r.json()
-    })
-    .then(json => products = json.products)
-    .catch(e => error = e.message)
-    .finally(() => this.next(() => loading = false))
+const ProductsGrid: Stateful<{ products: Product[] }> = function* ({ products }) {
 
   while (true) {
 
     const cart = CartContext()
-
-    if (loading) {
-
-      yield (
-        <>
-          {Array.from({ length: 9 }).map((_, i) => (
-            <div key={i} class="panel overflow-hidden flex flex-col animate-pulse dark:bg-white/[0.04]">
-              <div class="aspect-[4/3] bg-slate-900/5 dark:bg-white/[0.06]" />
-              <div class="p-4 space-y-3">
-                <div class="h-4 w-2/3 bg-slate-900/5 dark:bg-white/[0.07] rounded" />
-                <div class="h-3 w-1/2 bg-slate-900/5 dark:bg-white/[0.07] rounded" />
-              </div>
-            </div>
-          ))}
-        </>
-      )
-
-      continue
-    }
-
-    if (error) {
-
-      yield <div class="text-sm text-red-300">{error}</div>
-
-      continue
-    }
 
     yield (
       <>
@@ -100,14 +69,14 @@ const ProductsGrid: Stateful = function* () {
 
 ProductsGrid.attrs = { class: 'grid gap-5 sm:grid-cols-2 lg:grid-cols-3' }
 
-const Page: Stateless<{ key: string }> = ({ key }) =>
-  <article key={key} class="space-y-8 mb-24">
+const Page = ({ data }: { data: { products: Product[] } }) =>
+  <article class="space-y-8 mb-24">
     <header class="space-y-2">
       <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Products</h2>
       <p class="text-sm text-slate-600 dark:text-gray-300/70">Browse sample inventory from a public API.</p>
     </header>
     <section class="space-y-6">
-      <ProductsGrid />
+      <ProductsGrid products={data.products} />
     </section>
   </article>
 

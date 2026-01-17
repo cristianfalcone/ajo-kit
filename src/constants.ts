@@ -1,7 +1,4 @@
 import { context } from 'ajo/context'
-import type { QueryClient } from '@tanstack/query-core'
-
-export const QueryClientContext = context<QueryClient>()
 
 export interface CartItem {
   id: number | string
@@ -45,4 +42,10 @@ export const ThemeContext = context<Theme>({
 
 export const navigate = (to: string) => {
   globalThis.history?.pushState({}, '', to)
+}
+
+export class NotFoundError extends Error {
+  constructor(path?: string) {
+    super(`Route not found${path ? `: ${path}` : ''}`)
+  }
 }

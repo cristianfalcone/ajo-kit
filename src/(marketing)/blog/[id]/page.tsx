@@ -1,7 +1,6 @@
 import clsx from 'clsx'
-import { QueryObserver } from '@tanstack/query-core'
 import type { Stateful } from 'ajo'
-import { QueryClientContext } from '/src/constants'
+import type { LoaderArgs } from '/src/app'
 import { Button } from '/src/ui/button'
 import { Image } from '/src/ui/image'
 
@@ -27,7 +26,41 @@ interface Post {
 	imageUrl: string
 }
 
-type Args = { params: { id: string } }
+export async function load({ params }: LoaderArgs) {
+	const postRes = await fetch(`https://dummyjson.com/posts/${params.id}`)
+
+	if (!postRes.ok) {
+		if (postRes.status === 404) throw new Error('Post not found')
+		throw new Error('Failed to load post')
+	}
+
+	const post = await postRes.json()
+
+	const [userRes, commentsRes] = await Promise.all([
+		fetch(`https://dummyjson.com/users/${post.userId}`),
+		fetch(`https://dummyjson.com/posts/${post.id}/comments`),
+	])
+
+	if (!userRes.ok || !commentsRes.ok) throw new Error('Failed to load post data')
+
+	const user = await userRes.json()
+	const commentsJson = await commentsRes.json()
+	const comments = commentsJson.comments ?? []
+
+	const fullPost: Post = {
+		...post,
+		user,
+		comments,
+		imageUrl: `https://picsum.photos/seed/ajo-post-${post.id}/1200/700`
+	}
+
+	return { post: fullPost }
+}
+
+type Args = {
+	params: { id: string }
+	data: { post: Post }
+}
 
 const Comments: Stateful<{ list: Comment[] }> = function* (args) {
 
@@ -70,107 +103,28 @@ Comments.attrs = { class: 'space-y-4' }
 
 const Page: Stateful<Args, 'article'> = function* (args) {
 
-	const observer = new QueryObserver<Post>(QueryClientContext(), {
+	const { id, title, body, user, comments, imageUrl } = args.data.post
 
-		queryKey: ['post-query', args.params.id],
-
-		queryFn: async (): Promise<Post> => {
-
-			const postRes = await fetch(`https://dummyjson.com/posts/${args.params.id}`)
-
-			if (!postRes.ok) {
-
-				if (postRes.status === 404) throw new Error('Post not found')
-
-				throw new Error('Failed to load post')
-			}
-
-			const post = await postRes.json()
-
-			const [userRes, commentsRes] = await Promise.all([
-				fetch(`https://dummyjson.com/users/${post.userId}`),
-				fetch(`https://dummyjson.com/posts/${post.id}/comments`),
-			])
-
-			if (!userRes.ok || !commentsRes.ok) throw new Error('Failed to load post data')
-
-			const user = await userRes.json()
-
-			const commentsJson = await commentsRes.json()
-
-			const comments = commentsJson.comments ?? []
-
-			return { ...post, user, comments, imageUrl: `https://picsum.photos/seed/ajo-post-${post.id}/1200/700` }
-		}
-	})
-
-	const unsubscribe = observer.subscribe(() => this.next())
-
-	try {
-
-		while (true) {
-
-			const { error, isLoading, data } = observer.getCurrentResult()
-
-			if (error) {
-
-				yield (
-					<>
-						<Button href="/blog" variant="ghost" size="xs">Back</Button>
-						<div class="rounded-md border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error.message}</div>
-					</>
-				)
-
-				continue
-			}
-
-			if (isLoading) {
-
-				yield (
-					<>
-						<Button href="/blog" variant="ghost" size="xs">Back</Button>
-						<div class="aspect-[16/9] rounded-xl bg-slate-900/5 dark:bg-white/5 animate-pulse" />
-						<div class="space-y-4">
-							<div class="h-8 w-2/3 bg-slate-900/5 dark:bg-white/5 rounded-md animate-pulse" />
-							<div class="h-4 w-full bg-slate-900/5 dark:bg-white/5 rounded animate-pulse" />
-							<div class="h-4 w-11/12 bg-slate-900/5 dark:bg-white/5 rounded animate-pulse" />
-							<div class="h-4 w-10/12 bg-slate-900/5 dark:bg-white/5 rounded animate-pulse" />
-						</div>
-					</>
-				)
-
-				continue
-			}
-
-			if (data) {
-
-				const { id, title, body, user, comments, imageUrl } = data
-
-				yield (
-					<>
-						<div class="flex items-center justify-between">
-							<Button href="/blog" variant="ghost" size="xs">Back</Button>
-							{user && <span class="text-xs text-indigo-600/80 dark:text-indigo-300/80">By {user.firstName} {user.lastName}</span>}
-						</div>
-						<div class="rounded-xl overflow-hidden">
-							<Image src={imageUrl} alt={title} aspect="16/9" />
-						</div>
-						<header class="space-y-4">
-							<h1 class="text-4xl font-bold tracking-tight leading-tight text-balance text-slate-900 dark:text-white">{title}</h1>
-							<p class="text-sm text-slate-600 dark:text-gray-400/80">{body.slice(0, 140)}...</p>
-						</header>
-						<div class="panel p-6 space-y-4">
-							<p class="text-sm leading-relaxed text-slate-700 dark:text-gray-300/80" set:innerHTML={body} skip />
-						</div>
-						<Comments list={comments} />
-						<footer class="pt-6 border-t border-slate-200 dark:border-white/10 text-xs uppercase tracking-wide text-slate-500 dark:text-gray-400/60">Post #{id}</footer>
-					</>
-				)
-			}
-		}
-	} finally {
-		unsubscribe()
-	}
+	while (true) yield (
+		<>
+			<div class="flex items-center justify-between">
+				<Button href="/blog" variant="ghost" size="xs">Back</Button>
+				{user && <span class="text-xs text-indigo-600/80 dark:text-indigo-300/80">By {user.firstName} {user.lastName}</span>}
+			</div>
+			<div class="rounded-xl overflow-hidden">
+				<Image src={imageUrl} alt={title} aspect="16/9" />
+			</div>
+			<header class="space-y-4">
+				<h1 class="text-4xl font-bold tracking-tight leading-tight text-balance text-slate-900 dark:text-white">{title}</h1>
+				<p class="text-sm text-slate-600 dark:text-gray-400/80">{body.slice(0, 140)}...</p>
+			</header>
+			<div class="panel p-6 space-y-4">
+				<p class="text-sm leading-relaxed text-slate-700 dark:text-gray-300/80" set:innerHTML={body} skip />
+			</div>
+			<Comments list={comments} />
+			<footer class="pt-6 border-t border-slate-200 dark:border-white/10 text-xs uppercase tracking-wide text-slate-500 dark:text-gray-400/60">Post #{id}</footer>
+		</>
+	)
 }
 
 Page.is = 'article'

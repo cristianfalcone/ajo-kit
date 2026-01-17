@@ -7,7 +7,9 @@ import { createServer } from 'vite'
 
 const re = /<!--\s*ssr:([A-Za-z0-9_]+)\s*-->/g
 
-function compile(html: string) {
+type TemplateRenderer = (contents: Record<string, string>) => string
+
+function compile(html: string): TemplateRenderer {
 
   const statics: string[] = []
   const markers: string[] = []
@@ -66,10 +68,10 @@ async function createDevServer() {
 
       const template = compile(raw)
 
-      const html = template(render(url))
+      const result = await render(url)
 
-      res.statusCode = 200
-      res.setHeader('Content-Type', 'text/html').end(html)
+      res.statusCode = result.notFound ? 404 : 200
+      res.setHeader('Content-Type', 'text/html').end(template(result))
 
     } catch (e) {
 
@@ -108,10 +110,10 @@ async function createProdServer() {
 
       const { originalUrl: url } = req
 
-      const html = template(render(url))
+      const result = await render(url)
 
-      res.statusCode = 200
-      res.setHeader('Content-Type', 'text/html').end(html)
+      res.statusCode = result.notFound ? 404 : 200
+      res.setHeader('Content-Type', 'text/html').end(template(result))
 
     } catch (e) {
 

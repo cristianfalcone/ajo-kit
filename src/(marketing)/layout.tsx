@@ -1,15 +1,9 @@
 import clsx from 'clsx'
-import { QueryClient } from '@tanstack/query-core'
 import type { Children, Stateful } from 'ajo'
-import { QueryClientContext } from '../constants'
 
 type Args = { children: Children }
 
 const Layout: Stateful<Args, 'section'> = function* (args) {
-
-  const client = QueryClientContext(new QueryClient())
-
-  client.setDefaultOptions({ queries: { enabled: !import.meta.env.SSR } })
 
   while (true) {
 

@@ -1,7 +1,6 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
-import { NotFoundError } from '/src/app'
-import { ThemeContext, ThemeMode } from '/src/constants'
+import { ThemeContext, ThemeMode, NotFoundError } from '/src/constants'
 
 const isDev = import.meta.env.DEV
 
@@ -75,7 +74,7 @@ const Wrapper = (args: Args) => (
 	</>
 )
 
-const AppError = ({ error }: { error: Error }) => {
+export const AppError = ({ error }: { error: Error }) => {
 
 	const isNotFound = error instanceof NotFoundError
 

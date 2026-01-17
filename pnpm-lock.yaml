@@ -17,9 +17,6 @@ importers:
       '@polka/send':
         specifier: 1.0.0-next.28
         version: 1.0.0-next.28
-      '@tanstack/query-core':
-        specifier: 5.90.17
-        version: 5.90.17
       '@types/node':
         specifier: 25.0.9
         version: 25.0.9
@@ -30,8 +27,8 @@ importers:
         specifier: 66.6.0
         version: 66.6.0
       ajo:
-        specifier: 0.1.28
-        version: 0.1.28
+        specifier: file:../ajo
+        version: file:../ajo
       clsx:
         specifier: 2.1.1
         version: 2.1.1
@@ -397,9 +394,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@tanstack/query-core@5.90.17':
-    resolution: {integrity: sha512-hDww+RyyYhjhUfoYQ4es6pbgxY7LNiPWxt4l1nJqhByjndxJ7HIjDxTBtfvMr5HwjYavMrd+ids5g4Rfev3lVQ==}
-
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
@@ -497,8 +491,8 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  ajo@0.1.28:
-    resolution: {integrity: sha512-KSu9aepvqQQf+BIc/LJ6zAu+GaqPw7wEeHtOKJVgUpTxf76PKdPZMNIlytIpROfnvRuHjABtrB297CgOimilyQ==}
+  ajo@file:../ajo:
+    resolution: {directory: ../ajo, type: directory}
 
   cac@6.7.14:
     resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
@@ -1014,8 +1008,6 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.46.2':
     optional: true
 
-  '@tanstack/query-core@5.90.17': {}
-
   '@types/estree@1.0.8': {}
 
   '@types/node@25.0.9':
@@ -1173,7 +1165,7 @@ snapshots:
 
   acorn@8.15.0: {}
 
-  ajo@0.1.28: {}
+  ajo@file:../ajo: {}
 
   cac@6.7.14: {}
 

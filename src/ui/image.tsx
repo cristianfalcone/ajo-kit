@@ -31,7 +31,7 @@ export const Image: Stateful<Props> = function* (args) {
       className
     )
 
-    this.style.aspectRatio = aspect
+    if (!import.meta.env.SSR) this.style.aspectRatio = aspect
 
     yield (
       <>

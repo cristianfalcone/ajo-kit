@@ -3,12 +3,19 @@ import polka from 'polka'
 import type { Request, Response, Middleware, NextHandler } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
-import App from '/src/app'
+import App, { match, routes, resolve, layouts } from './app'
 
-export function render(url: string) {
+export async function render(url: string) {
+
+  const route = match(url, routes)
+
+  const { params, data, Page } = await resolve(url, layouts, route)
+
   return {
     head: r(<title>ajo-kit</title>),
-    root: r(<App url={url} />),
+    data: `<script>window.__SSR__=${JSON.stringify({ url, params, ...data })}</script>`,
+    root: r(<App page={Page} />),
+    notFound: route.notFound,
   }
 }
 
