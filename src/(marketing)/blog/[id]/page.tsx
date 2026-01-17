@@ -27,6 +27,7 @@ interface Post {
 }
 
 export async function load({ params }: LoaderArgs) {
+
 	const postRes = await fetch(`https://dummyjson.com/posts/${params.id}`)
 
 	if (!postRes.ok) {

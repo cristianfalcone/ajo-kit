@@ -16,6 +16,7 @@ interface Post {
 }
 
 export async function load() {
+
 	const [postsRes, usersRes] = await Promise.all([
 		fetch('https://dummyjson.com/posts?limit=18'),
 		fetch('https://dummyjson.com/users?limit=100'),

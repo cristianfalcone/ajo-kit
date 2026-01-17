@@ -1,321 +1,332 @@
-# Ajo LLM Instructions
+# Ajo-kit LLM Instructions
 
-Ajo is a micro UI library using JSX and generators. **No React imports**: JSX compiles to Ajo via build config.
+Ajo-kit is a full-stack metaframework for building web applications with Ajo. It provides file-based routing, SSR, API routes, layouts, and data loading.
 
-## Stateless Component
+**For Ajo UI library syntax (components, JSX, `this.next()`, context, etc.):** See `node_modules/ajo/LLMs.md`
 
-```tsx
-import type { Children, Stateless } from 'ajo'
-import clsx from 'clsx' // optional, for conditional classes
+## Project Structure
 
-type Args = { title: string; active?: boolean; children?: Children }
-
-const Card: Stateless<Args> = ({ title, active, children }) => ( // can destructure args here
-  <div class={clsx('card', { active })}>
-    <h3>{title}</h3>
-    {children}
-  </div>
-)
-
-// Example usage - everything goes to args:
-<Card title="Hello" active>
-  <p>This is a card.</p>
-</Card>
+```
+src/
+├── app.tsx              # Router (DO NOT MODIFY)
+├── server.tsx           # SSR + API setup (DO NOT MODIFY)
+├── client.tsx           # Client hydration (DO NOT MODIFY)
+├── layout.tsx           # Root layout
+├── page.tsx             # Home page (/)
+├── constants.ts         # Global types, contexts, utilities
+├── handler.ts           # Root API handlers
+├── wares.ts             # Root API middlewares
+├── ui/                  # Global reusable components
+├── (marketing)/         # Route group (no URL impact)
+│   ├── layout.tsx       # Section layout
+│   ├── constants.ts     # Section-specific types, contexts
+│   ├── ui/              # Section-specific components
+│   ├── blog/
+│   │   ├── page.tsx     # /blog
+│   │   └── [id]/
+│   │       └── page.tsx # /blog/:id
+│   └── about/
+│       └── page.tsx     # /about
+└── (shop)/
+    └── products/
+        └── [id]/page.tsx # /products/:id
 ```
 
-## Stateful Component
+## File-Based Routing
+
+| File Pattern | URL |
+|--------------|-----|
+| `src/page.tsx` | `/` |
+| `src/blog/page.tsx` | `/blog` |
+| `src/blog/[id]/page.tsx` | `/blog/:id` |
+| `src/blog/[...]/page.tsx` | `/blog/*` (catch-all) |
+| `src/(group)/about/page.tsx` | `/about` (group ignored) |
+
+## Page Component
+
+```tsx
+// src/blog/[id]/page.tsx
+import type { Stateful } from 'ajo'
+
+type Args = { params: { id: string } }
+
+const BlogPost: Stateful<Args, 'article'> = function* (args) {
+  let post: { title: string; content: string } | null = null
+
+  fetch(`/api/posts/${args.params.id}`)
+    .then(r => r.json())
+    .then(data => this.next(() => post = data))
+
+  while (true) yield (
+    <>
+      {post ? (
+        <>
+          <h1>{post.title}</h1>
+          <div>{post.content}</div>
+        </>
+      ) : (
+        <div>Loading...</div>
+      )}
+    </>
+  )
+}
+
+BlogPost.is = 'article'
+BlogPost.attrs = { class: 'prose max-w-4xl' }
+
+export default BlogPost
+```
+
+**With SSR data loader:**
 
 ```tsx
 import type { Stateful } from 'ajo'
+import { NotFoundError, type LoaderArgs } from '../constants'
 
-type Args = { initial: number; step?: number }
+type Args = {
+  params: { id: string }
+  data: { post: { title: string; content: string } }
+}
 
-const Counter: Stateful<Args, 'section'> = function* (args) { // do NOT destructure args here
-
-  // before loop: persistent state & handlers
-
-  let count = args.initial
-  let inputRef: HTMLInputElement | null = null
-
-  const inc = () => this.next(({ step = 1 }) => count += step)
-  const dec = () => this.next(() => count--)
-
-  const handleKeydown = (e: KeyboardEvent) => {
-    if (e.key === 'ArrowUp') inc()
-    else if (e.key === 'ArrowDown' && count > 0) dec()
-  }
-
-  this.addEventListener('keydown', handleKeydown) // this = wrapper element with .next(), .throw(), .return()
-
-  try { // optional: cleanup wrapper
-
-    while (true) { // main render loop
-
-      try { // optional: error boundary
-
-        // fresh destructure each render
-        const { step = 1 } = args
-
-        // derived values
-        const isEven = count % 2 === 0
-
-        yield (
-          <>
-            <input
-              ref={el => inputRef = el}
-              value={count}
-              set:oninput={e => this.next(() => count = +(e.target as HTMLInputElement).value)}
-            />
-            <button set:onclick={inc}>+{step}</button>
-            <button set:onclick={dec} disabled={count <= 0}>-</button>
-            <p memo={isEven}>Even: {isEven ? 'yes' : 'no'}</p>
-            <footer memo>Static content - rendered once</footer>
-            <div skip>{/* third-party managed DOM here */}</div>
-          </>
-        )
-      } catch (err: unknown) {
-        yield <p class="error">{err instanceof Error ? err.message : String(err)}</p>
-      }
-    }
-  } finally {
-    this.removeEventListener('keydown', handleKeydown)
+const BlogPost: Stateful<Args> = function* (args) {
+  while (true) {
+    const { data } = args
+    yield (
+      <>
+        <h1>{data.post.title}</h1>
+        <p>{data.post.content}</p>
+      </>
+    )
   }
 }
 
-Counter.is = 'section'                    // wrapper element (default: div)
-Counter.attrs = { class: 'counter-wrap' } // default wrapper attributes
-Counter.args = { step: 1 }                // default args
+export default BlogPost
 
-// Example usage - special attrs apply to wrapper, rest goes to args:
+export const load = async ({ params }: LoaderArgs) => {
+  const post = await fetchPost(params.id)
+  if (!post) throw new NotFoundError()
+  return { post }
+}
+```
 
-let ref: ThisParameterType<typeof Counter> | null = null
+## Layout Component
 
-<Counter
-  initial={0} step={5}                    // → args
-  attr:id="main" attr:class="my-counter"  // → wrapper attributes (HTML attrs)
-  set:onclick={fn}                        // → wrapper properties (DOM props)
-  key={id}                                // → wrapper key
-  memo={[id]}                             // → wrapper memo (array)
-  memo={id}                               // → wrapper memo (single value)
-  memo                                    // → wrapper memo (render once)
-  ref={el => ref = el}                    // → wrapper ref (el is <section> + .next()/.throw()/.return())
-/>
+**Stateless layout:**
 
-ref?.next()  // trigger re-render from outside
+```tsx
+// src/blog/layout.tsx
+import type { Children, Stateless } from 'ajo'
+
+type Args = { children: Children }
+
+const Layout: Stateless<Args> = ({ children }) => (
+  <div class="min-h-screen bg-gray-50">
+    <nav class="bg-white shadow px-4">
+      <a href="/blog" class="text-blue-600">All Posts</a>
+    </nav>
+    <main class="py-8">{children}</main>
+  </div>
+)
+
+export default Layout
+```
+
+**Stateful layout with context:**
+
+```tsx
+// src/(admin)/layout.tsx
+import type { Children, Stateful } from 'ajo'
+import { AdminContext } from './constants'
+
+type Args = { children: Children }
+
+const AdminLayout: Stateful<Args> = function* (args) {
+  let sidebarOpen = true
+  const toggle = () => this.next(() => sidebarOpen = !sidebarOpen)
+
+  while (true) {
+    AdminContext({ sidebarOpen })  // Set context inside loop!
+
+    yield (
+      <>
+        <aside class={sidebarOpen ? 'w-64' : 'w-16'}>
+          <button set:onclick={toggle}>Toggle</button>
+        </aside>
+        <main class="flex-1">{args.children}</main>
+      </>
+    )
+  }
+}
+
+export default AdminLayout
+```
+
+## API Routes (handler.ts)
+
+```ts
+// src/users/[id]/handler.ts
+import type { Request } from 'polka'
+
+export default {
+  get: (req: Request) => {
+    const { id } = req.params
+    return { id, name: 'John' }  // auto-serialized to JSON
+  },
+
+  post: async (req: Request) => {
+    const body = req.body
+    // create user...
+    return { success: true }
+  },
+
+  del: (req: Request) => {  // 'del' for DELETE
+    return { deleted: true }
+  },
+}
+```
+
+## Middleware (wares.ts)
+
+```ts
+// src/wares.ts (root middleware - applies to all /api/**)
+import type { Request, Response, NextHandler } from 'polka'
+
+export default (req: Request, res: Response, next: NextHandler) => {
+  if (!req.headers.authorization) {
+    res.statusCode = 401
+    return { error: 'Unauthorized' }
+  }
+  next()
+}
+
+// Or array: export default [logger, auth]
+```
+
+Middlewares run root → leaf (ancestors before handlers).
+
+## Constants Organization
+
+Place `constants.ts` at appropriate scope levels:
+
+```tsx
+// src/constants.ts - Global
+import { context } from 'ajo/context'
+
+export class NotFoundError extends Error {}
+
+export type LoaderArgs = { url: URL; params: Record<string, string> }
+export type User = { id: string; name: string; email: string }
+
+export const ThemeContext = context<'light' | 'dark'>('light')
+export const AuthContext = context<User | null>(null)
+
+export const navigate = (to: string) => {
+  history.pushState(null, '', to)
+  dispatchEvent(new PopStateEvent('popstate'))
+}
+
+// src/(admin)/constants.ts - Section-specific
+import { context } from 'ajo/context'
+
+export const AdminContext = context<{ sidebarOpen: boolean }>({ sidebarOpen: true })
 ```
 
 ## Rules
 
 | Topic | Rule |
 |-------|------|
-| **Elements** | Everything becomes HTML attributes. `set:prop` assigns DOM properties instead (`node[prop] = value`) |
-| **Stateless** | Everything goes to `args`. Special attrs like `memo` must be applied to elements inside |
-| **Stateful** | `key`, `memo`, `skip`, `ref`, `set:*` apply to implicit wrapper element. `attr:*` sets wrapper attributes. Rest goes to `args` |
-| **Events** | `set:onclick`, `set:oninput`, etc. Never `onClick` |
-| **Classes** | `class`, never `className`. Must be string, no object/array syntax. Use `clsx()` or template literals |
-| **Styles** | `style` must be string (`style="color: red"`), not object. No special handling |
-| **Args** | Never destructure in generator signature. Use `args` param |
-| **Root JSX** | Use `<>...</>` in stateful to avoid double wrapper |
-| **Re-render** | `this.next()` or `this.next(fn)` where `fn` receives current `args` |
-| **Context** | `context<T>(fallback)` creates context. Stateless: read only. Stateful: read/write inside `while` loop |
-| **Lists** | Always provide unique `key` on elements |
-| **Refs** | `ref={el => ...}` on elements. Receives `null` on unmount. Stateful ref type: `ThisParameterType<typeof Component>` |
-| **Memo** | `memo={[deps]}` array, `memo={value}` single, or just `memo` (never re-render). Skips subtree if unchanged |
-| **Skip** | `skip` excludes children from reconciliation. Use for `set:textContent`/`set:innerHTML` or third-party maneged DOM |
-| **Custom wrapper** | Set `.is = 'tagname'` AND TypeScript generic `Stateful<Args, 'tagname'>` for stateful components. Default is `div` (no need to set) |
-| **Default attrs** | `.attrs = { class: '...' }` on stateful component generator function |
-| **Default args** | `.args = { prop: value }` on stateful component generator function |
-| **Cleanup** | `try { while(true) yield ... } finally { cleanup }` |
-| **Error recovery** | `try { ... } catch { yield error UI }` inside loop |
-| **this** | Stateful component wrapper element with `.next()`, `.throw()`, `.return()`. Type: `ThisParameterType<typeof Component>` |
+| **Pages** | Export `default` component + optional `load` function |
+| **Layouts** | Export `default` component, receives `children` in args |
+| **Loaders** | Async `load({ url, params })`, return data object |
+| **404** | Throw `NotFoundError` in loader |
+| **API handlers** | Export default object with HTTP verbs: `get`, `post`, `put`, `del`, `patch` |
+| **Middleware** | Export default function or array from `wares.ts` |
+| **Route groups** | `(name)/` folders organize code, excluded from URL |
+| **Dynamic segments** | `[param]` for single, `[...]` for catch-all |
+| **Static files** | Place in `public/` directory |
+| **Core files** | Never modify `app.tsx`, `server.tsx`, `client.tsx` |
+| **Constants** | Global in `src/constants.ts`, section-specific in `src/(section)/constants.ts` |
+| **Components** | Global in `src/ui/`, section-specific in `src/(section)/ui/` |
 
-## Common Patterns
+## SSR Data Flow
+
+1. Server runs all `load()` functions in parallel
+2. Data injected into HTML as `window.__SSR__`
+3. Client hydrates, uses cached data (no re-fetch)
+4. Subsequent navigations run loaders client-side
+
+## Styling (UnoCSS)
 
 ```tsx
-import type { Children, Stateful, Stateless } from 'ajo'
-import { context } from 'ajo/context'
+// Tailwind-compatible classes
+<div class="flex items-center gap-4 p-4">
 
-// Async data loading
-type LoaderArgs = { url: string }
+// Icons (Lucide)
+<span class="i-lucide-home" />
+<span class="i-lucide-search w-6 h-6" />
 
-const DataLoader: Stateful<LoaderArgs> = function* (args) {
-
-  let data: unknown = null
-  let error: Error | null = null
-
-  fetch(args.url)
-    .then(r => r.json())
-    .then(d => this.next(() => data = d))
-    .catch(e => this.next(() => error = e))
-
-  while (true) yield (
-    <>
-      {error ? <p>Error: {error.message}</p>
-       : data ? <div>{JSON.stringify(data)}</div>
-       : <p>Loading...</p>}
-    </>
-  )
-}
-
-// List with keys
-type Item = { id: string; text: string }
-
-const List: Stateless<{ items: Item[] }> = ({ items }) => (
-  <ul>
-    {items.map(item => <li key={item.id}>{item.text}</li>)}
-  </ul>
-)
-
-// Conditional rendering
-type ShowArgs = { when: boolean; children: Children }
-
-const Show: Stateless<ShowArgs> = ({ when, children }) => when ? children : null
-
-// Context - create with fallback value
-const ThemeContext = context<'light' | 'dark'>('light')
-const UserContext = context<{ name: string } | null>(null)
-
-// Stateless - read only (call without args)
-const ThemedCard: Stateless<{ title: string }> = ({ title }) => {
-  const theme = ThemeContext()  // reads current value
-  return <div class={`card theme-${theme}`}>{title}</div>
-}
-
-// Stateful - read/write inside while loop
-const ThemeProvider: Stateful<{ children: Children }> = function* (args) {
-
-  let theme: 'light' | 'dark' = 'light'
-
-  const toggle = () => this.next(() => theme = theme === 'light' ? 'dark' : 'light')
-
-  while (true) {
-
-    ThemeContext(theme)  // write: sets value for descendants
-    const user = UserContext()  // read: gets value from ancestor
-
-    yield (
-      <>
-        <button set:onclick={toggle}>Theme: {theme}</button>
-        {user && <span>User: {user.name}</span>}
-        {args.children}
-      </>
-    )
-  }
-}
-
-// Ref typing for stateful components
-let counterRef: ThisParameterType<typeof Counter> | null = null
-<Counter ref={el => counterRef = el} initial={0} />
-// counterRef is <section> element + .next(), .throw(), .return() methods
-counterRef?.next()  // trigger re-render from outside
-
-// memo variations
-<div memo={[a, b]}>{/* re-render when a or b changes */}</div>
-<div memo={count}>{/* re-render when count changes (single value) */}</div>
-<div memo>{/* render once, never update - good for static content */}</div>
-
-// Boolean attributes
-<input type="checkbox" checked disabled />  // checked="" disabled=""
-<button disabled={false} />                 // removes disabled attr
-
-// Attributes vs Properties (HTML-first)
-<input value="text" />                       // HTML attribute: initial value only
-<input set:value={text} />                   // DOM property: syncs with state
-<input type="checkbox" checked />            // HTML attribute: initial state
-<input type="checkbox" set:checked={bool} /> // DOM property: syncs with state
-<video set:currentTime={0} set:muted />      // DOM properties
-<div set:textContent={str} skip />           // DOM property + skip (required!)
-<div set:innerHTML={html} skip />            // DOM property + skip (required!)
-
-// Third-party managed DOM
-let map: MapLibrary | null = null
-<div skip ref={el => el ? (map ??= new MapLibrary(el)) : map?.destroy()} />  // skip lets library control children
+// Custom shortcuts (uno.config.ts)
+<div class="site-container">
+<div class="panel">
 ```
+
+## Development
+
+```bash
+pnpm dev    # Start dev server with hot reload
+pnpm build  # Build for production
+pnpm prod   # Run production server
+```
+
+## Implementation Checklist
+
+**Before implementing:**
+- Route location and grouping strategy
+- Context scope (global vs section `constants.ts`)
+- Check existing `ui/` folders for reusable components
+
+**After implementing:**
+- Routes resolve correctly
+- APIs reachable at `/api/**`
+- Wares compose root → leaf correctly
+- No React patterns present
+- Contexts set inside `while` loops in stateful layouts
 
 ## Anti-patterns
 
 ```tsx
-// ❌ React patterns: NEVER use
-import React from 'react'
-className="..."
-onClick={...}
-useState, useEffect, useCallback
+// ❌ Modifying core files
+// app.tsx, server.tsx, client.tsx are generated - don't edit
 
-// ❌ class/style as object or array: no special handling in Ajo
-<div class={{ active: isActive }} />        // won't work
-<div class={['btn', 'primary']} />          // won't work
-<div style={{ color: 'red' }} />            // won't work
+// ❌ Loader without NotFoundError handling
+export const load = async ({ params }) => {
+  return await fetch(`/api/${params.id}`)  // might return null
+}
 
-// ✅ class/style must be strings
-<div class={`btn ${isActive ? 'active' : ''}`} />
-<div class={clsx('btn', { active: isActive })} />  // use clsx library
-<div style="color: red; font-size: 14px" />
-<div style={`color: ${color}`} />
+// ✅ Handle missing data
+export const load = async ({ params }) => {
+  const data = await fetch(`/api/${params.id}`)
+  if (!data) throw new NotFoundError()
+  return data
+}
 
-// ❌ memo in args but not applied to element - does nothing
-const Bad: Stateless<{ memo: unknown }> = ({ memo }) => (
-  <div>content</div>  // memo arg ignored, no memoization
-)
-
-// ✅ Pass deps in args, apply to root element  
-const Good: Stateless<{ deps?: unknown }> = ({ deps }) => (
-  <div memo={deps}>content</div>  // memoized when deps provided
-)
-// <Good deps={[id]} /> or <Good deps={data} />
-
-// ❌ Destructure in signature - locks to initial values
-function* Bad({ count }) { ... }
-
-// ❌ Context read/write outside loop in stateful - stale values
-function* Bad(args) {
-  const theme = ThemeContext()  // frozen at mount
-  ThemeContext('dark')          // only set once, not updated
+// ❌ Context outside loop in stateful layout
+function* Layout({ children }) {
+  ThemeContext('dark')  // only set once!
   while (true) yield ...
 }
 
-// ✅ Context read/write inside loop in stateful
-function* Good(args) {
-  let theme = 'light'
+// ✅ Context inside loop
+function* Layout({ children }) {
   while (true) {
-    ThemeContext(theme)           // write: updated each render
-    const user = UserContext()    // read: fresh value each render
+    ThemeContext(theme)  // updated each render
     yield ...
   }
 }
 
-// ❌ Missing key in lists
-{items.map(item => <li>{item}</li>)}
+// ❌ Using React Router or other routing libraries
+import { BrowserRouter } from 'react-router-dom'
 
-// ❌ Direct state mutation without next()
-const inc = () => count++  // won't re-render
-
-// ❌ set:textContent/innerHTML without skip: content gets cleared
-<div set:innerHTML={html} />
-
-// ✅ Correct
-const inc = () => this.next(() => count++)
-<div set:innerHTML={html} skip />
+// ✅ Use file-based routing + navigate()
+navigate('/path')
 ```
-
-## Setup
-
-```bash
-npm install ajo
-pnpm add ajo
-yarn add ajo
-```
-
-Configure JSX factory (Vite example):
-
-```ts
-// vite.config.ts
-export default defineConfig({
-  esbuild: {
-    jsxFactory: 'h',
-    jsxFragment: 'Fragment',
-    jsxInject: `import { h, Fragment } from 'ajo'`,
-  },
-})
-```
-
-For other build systems: `jsxFactory: 'h'`, `jsxFragment: 'Fragment'`, auto-import `{ h, Fragment }` from `'ajo'`.
