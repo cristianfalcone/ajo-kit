@@ -1,8 +1,27 @@
 import navaid, { type Params } from 'navaid'
-export type { Params }
 import type { Component, Stateful } from 'ajo'
 import Spinner from '/src/ui/spinner'
 import { NotFoundError, type RouteError } from '/src/constants'
+
+export type { Params }
+
+// Pattern compilation
+const groupRE = /^\(.*\)$/
+const dynamicRE = /^\[(.+?)\]$/
+
+export const toPattern = (segments: string[]) =>
+	segments
+		.filter(s => s && !groupRE.test(s))
+		.map(s => s.replace(dynamicRE, (_, n) => n === '...' ? '*' : `:${n}`))
+		.join('/')
+
+export const toSegments = (path: string) => {
+	const parts = path.slice(4).split('/')
+	parts.pop()
+	return parts
+}
+
+export const getType = (path: string) => path.split('/').pop()?.split('.')[0]
 
 // Types
 export type LoaderArgs = { params: Params; url: string }
@@ -10,25 +29,24 @@ export type Module = { default: Component; load?: (args: LoaderArgs) => Promise<
 export type Loader = () => Promise<Module>
 
 export type Route = {
-	pattern: string
-	segments: string[]
 	loader: Loader
+	pattern?: string
+	segments?: string[]
 	params?: Params
 	error?: RouteError
 }
 
-export interface Data {
+export interface Cache {
 	url: string
 	params: Params
 	page: Record<string, unknown>
 	layout: Record<string, unknown>[]
 }
 
-export const cache = new Map<string, Data>()
+export const cache = new Map<string, Cache>()
 
 export const notFound: Route = {
-	pattern: '*',
-	segments: [''],
+	segments: [''],  // Apply root layout for error boundary
 	loader: async () => ({ default: () => { throw new NotFoundError(globalThis.location?.pathname) } }),
 	error: new NotFoundError(),
 }
@@ -39,20 +57,11 @@ export const routes: Route[] = []
 
 for (const [path, loader] of Object.entries(import.meta.glob('/src/**/{layout,page}.{j,t}s{,x}') as Record<string, Loader>)) {
 
-	const segments = path.slice(4).split('/') // Remove '/src'
-	const type = segments.pop()?.split('.')[0]
+	const segments = toSegments(path)
+	const type = getType(path)
 
-	if (type === 'layout') {
-		layouts.set(segments.join('/'), loader)
-	}
-
-	if (type === 'page') {
-		const pattern = segments
-			.filter(seg => seg && !/^\(.*\)$/.test(seg))
-			.map(seg => seg.replace(/^\[(.+?)\]$/, (_, name) => name === '...' ? '*' : ':' + name))
-			.join('/')
-		routes.push({ pattern, segments, loader })
-	}
+	if (type === 'layout') layouts.set(segments.join('/'), loader)
+	if (type === 'page') routes.push({ pattern: toPattern(segments), segments, loader })
 }
 
 // Resolve route: load modules, execute loaders, compose page
@@ -62,7 +71,7 @@ export async function resolve(
 	route: Route,
 ) {
 
-	const { segments, loader, params = {} } = route
+	const { loader, segments = [], params = {} } = route
 
 	// Check cache (SSR hydration, used once)
 
@@ -77,7 +86,7 @@ export async function resolve(
 
 	// Load page and layout modules in parallel
 
-	const [page, ...layoutEntries] = await Promise.all([
+	const [page, ...entries] = await Promise.all([
 		loader(),
 		...paths.map(path => layouts.get(path)!().then(module => ({ path, module })))
 	])
@@ -86,24 +95,24 @@ export async function resolve(
 
 	const args = { url, params }
 
-	const data: Data = cached ?? {
+	const data: Cache = cached ?? {
 		url,
 		params,
 		page: await page.load?.(args) ?? {},
-		layout: await Promise.all(layoutEntries.map(entry => entry.module.load?.(args) ?? {}))
+		layout: await Promise.all(entries.map(entry => entry.module.load?.(args) ?? {}))
 	}
 
 	// Compose: wrap page in layouts (innermost to outermost)
 
 	const key = paths.join('/')
 
-	const Page = page.default as Component<{ params: Params; data: Data['page'] }>
+	const Page = page.default as Component<{ params: Params; data: Cache['page'] }>
 
 	return {
 		data,
-		Page: layoutEntries.reduceRight<Component>(
+		Page: entries.reduceRight<Component>(
 			(Child, { path, module }, index) => {
-				const Layout = module.default as Component<{ params: Params; data: Data['layout'][number] }>
+				const Layout = module.default as Component<{ params: Params; data: Cache['layout'][number] }>
 				return () => <Layout key={path} params={data.params} data={data.layout[index]}><Child /></Layout>
 			},
 			() => <Page key={key} params={data.params} data={data.page} />
@@ -139,7 +148,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	const router = navaid('/', () => navigate(notFound))
 
 	for (const route of routes) {
-		router.on(route.pattern, params => navigate({ ...route, params }))
+		router.on(route.pattern!, params => navigate({ ...route, params }))
 	}
 
 	router.listen()

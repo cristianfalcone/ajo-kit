@@ -4,7 +4,7 @@ import type { Request, Response, Middleware, NextHandler } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
 import navaid from 'navaid'
-import App, { routes, resolve, layouts, notFound, type Route } from './app'
+import App, { routes, resolve, layouts, notFound, toPattern, toSegments, getType, type Route } from './app'
 
 export async function render(url: string) {
 
@@ -13,7 +13,7 @@ export async function render(url: string) {
   const router = navaid('/', () => match = notFound)
 
   for (const route of routes) {
-    router.on(route.pattern, params => match = { ...route, params })
+    router.on(route.pattern!, params => match = { ...route, params })
   }
 
   router.run(url)
@@ -63,9 +63,9 @@ export async function create() {
 
     if (!handler) continue
 
-    const segments = path.slice(4).split('/')
+    const segments = toSegments(path)
 
-    switch (segments.pop()?.split('.')[0] as Type) {
+    switch (getType(path) as Type) {
       case 'wares': {
         const key = segments.join('/')
         const fns = ((Array.isArray(handler) ? handler : [handler]).filter(fn => typeof fn === 'function')) as Middleware[]
@@ -81,10 +81,7 @@ export async function create() {
 
   for (const { segments, handler } of handlers) {
 
-    const pattern = segments
-      .filter(s => !/^\(.*\)$/.test(s)) // filter out route groups
-      .map(s => s.replace(/^\[(.+?)\]$/, (_, p) => p === '...' ? '*' : ':' + p))
-      .join('/')
+    const pattern = toPattern(segments)
 
     const list = segments
       .map((_, i) => segments.slice(0, i + 1).join('/'))
