@@ -1,10 +1,11 @@
 import { render as r } from 'ajo/html'
+import type { Component } from 'ajo'
 import polka from 'polka'
 import type { Request, Response, Middleware, NextHandler } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
 import navaid from 'navaid'
-import App, { routes, resolve, layouts, notFound, toPattern, toSegments, getType, type Route } from './app'
+import App, { routes, resolve, layouts, notFound, toPattern, toSegments, getType, type Route, type Data } from './app'
 
 export async function render(url: string) {
 
@@ -18,13 +19,17 @@ export async function render(url: string) {
 
   router.run(url)
 
-  const { data, Page } = await resolve(url, layouts, match!)
+  // Iterate through resolve generator to get final state (SSR always waits for data)
+  let result: { Page: Component; data?: Data } | undefined
+  for await (const state of resolve(url, layouts, match!)) {
+    result = state
+  }
 
   return {
     head: r(<title>ajo-kit</title>),
-    data: `<script>window.__SSR__=${JSON.stringify(data)}</script>`,
-    root: r(<App page={Page} />),
-    error: match!.error,
+    data: `<script>window.__SSR__=${JSON.stringify(result!.data)}</script>`,
+    root: r(<App page={result!.Page} />),
+    error: result!.data?.page.error,
   }
 }
 

@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { LoaderArgs } from '/src/app'
+import type { LoaderArgs, PageArgs } from '/src/app'
 import { Button } from '/src/ui/button'
 import { Image } from '/src/ui/image'
 
@@ -58,10 +58,7 @@ export async function load({ params }: LoaderArgs) {
 	return { post: fullPost }
 }
 
-type Args = {
-	params: { id: string }
-	data: { post: Post }
-}
+type Args = PageArgs<{ post: Post }>
 
 const Comments: Stateful<{ list: Comment[] }> = function* (args) {
 
@@ -104,7 +101,7 @@ Comments.attrs = { class: 'space-y-4' }
 
 const Page: Stateful<Args, 'article'> = function* (args) {
 
-	const { id, title, body, user, comments, imageUrl } = args.data.post
+	const { id, title, body, user, comments, imageUrl } = args.data!.post
 
 	while (true) yield (
 		<>

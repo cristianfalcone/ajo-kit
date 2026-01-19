@@ -1,11 +1,11 @@
 import navaid, { type Params } from 'navaid'
-import type { Component, Stateful } from 'ajo'
-import Spinner from '/src/ui/spinner'
-import { NotFoundError, type RouteError } from '/src/constants'
+import type { Children, Component, Stateful } from 'ajo'
+import { NotFoundError, RouteError } from '/src/constants'
 
 export type { Params }
 
 // Pattern compilation
+
 const groupRE = /^\(.*\)$/
 const dynamicRE = /^\[(.+?)\]$/
 
@@ -24,8 +24,30 @@ export const toSegments = (path: string) => {
 export const getType = (path: string) => path.split('/').pop()?.split('.')[0]
 
 // Types
-export type LoaderArgs = { params: Params; url: string }
-export type Module = { default: Component; load?: (args: LoaderArgs) => Promise<Record<string, unknown>> }
+
+export type LoaderArgs = {
+	params: Params
+	url: string
+	parent: () => Promise<Record<string, unknown>>
+}
+
+export type PageArgs<T = Record<string, unknown>> = {
+	params: Params
+	data: T | undefined
+	loading: boolean
+	error: RouteError | undefined
+}
+
+export type LayoutArgs<T = Record<string, unknown>> = PageArgs<T> & {
+	children: Children
+}
+
+export type Module = {
+	default: Component
+	load?: (args: LoaderArgs) => Promise<Record<string, unknown>>
+	defer?: boolean
+}
+
 export type Loader = () => Promise<Module>
 
 export type Route = {
@@ -33,25 +55,27 @@ export type Route = {
 	pattern?: string
 	segments?: string[]
 	params?: Params
-	error?: RouteError
 }
 
-export interface Cache {
+export interface Data {
 	url: string
 	params: Params
-	page: Record<string, unknown>
-	layout: Record<string, unknown>[]
+	page: { data?: Record<string, unknown>; error?: RouteError }
+	layout: Array<{ data?: Record<string, unknown>; error?: RouteError }>
 }
 
-export const cache = new Map<string, Cache>()
+export const cache = new Map<string, Data>()
 
 export const notFound: Route = {
-	segments: [''],  // Apply root layout for error boundary
-	loader: async () => ({ default: () => { throw new NotFoundError(globalThis.location?.pathname) } }),
-	error: new NotFoundError(),
+	segments: [''], // use root layout
+	loader: async () => ({
+		default: () => null,
+		load: async ({ url }: LoaderArgs) => { throw new NotFoundError(`Page not found: ${url}`) }
+	}),
 }
 
 // Build routes from file system
+
 export const layouts = new Map<string, Loader>()
 export const routes: Route[] = []
 
@@ -64,80 +88,153 @@ for (const [path, loader] of Object.entries(import.meta.glob('/src/**/{layout,pa
 	if (type === 'page') routes.push({ pattern: toPattern(segments), segments, loader })
 }
 
-// Resolve route: load modules, execute loaders, compose page
-export async function resolve(
+// Execute load() with parent() support
+
+async function execute(
+	module: Module,
+	args: { url: string; params: Params },
+	ancestors: Array<{ data?: Record<string, unknown>; error?: RouteError }>
+): Promise<{ data?: Record<string, unknown>; error?: RouteError }> {
+
+	if (!module.load) return { data: {} }
+
+	const parent = async () => {
+		const error = ancestors.find(a => a.error)?.error
+		if (error) throw error
+		return ancestors.reduce((merged, a) => ({ ...merged, ...a.data }), {})
+	}
+
+	try {
+		return { data: await module.load({ ...args, parent }) }
+	} catch (error) {
+		return {
+			error: error instanceof RouteError
+				? error
+				: new RouteError(500, error instanceof Error ? error.message : 'Load failed')
+		}
+	}
+}
+
+// Compose component tree
+
+type LoadingData = { url: string; params: Params; loading: true }
+
+function compose(
+	page: Module,
+	entries: Array<{ path: string; module: Module }>,
+	paths: string[],
+	data: Data | LoadingData
+): Component {
+
+	const Page = page.default as Component<PageArgs>
+	const loading = 'loading' in data
+	const error = loading ? undefined : data.page.error
+
+	return entries.reduceRight<Component>(
+		(Child, { path, module }, index) => {
+			const Layout = module.default as Component<LayoutArgs>
+			const result = loading ? undefined : data.layout[index]
+			return () => (
+				<Layout
+					key={path}
+					params={data.params}
+					data={result?.data}
+					loading={loading}
+					error={result?.error ?? error}
+				>
+					<Child />
+				</Layout>
+			)
+		},
+		() => {
+			const result = loading ? undefined : data.page
+			return (
+				<Page
+					key={paths.join('/')}
+					params={data.params}
+					data={result?.data}
+					loading={loading}
+					error={result?.error}
+				/>
+			)
+		}
+	)
+}
+
+// Resolve route: async generator yielding loading then data states
+
+export async function* resolve(
 	url: string,
 	layouts: Map<string, Loader>,
-	route: Route,
-) {
+	route: Route
+): AsyncGenerator<{ Page: Component; data?: Data }> {
 
 	const { loader, segments = [], params = {} } = route
-
-	// Check cache (SSR hydration, used once)
-
-	const cached = cache.get(url)
-	if (cached) cache.delete(url)
 
 	// Find layout paths
 
 	const paths = segments
-		.map((_, index) => segments.slice(0, index + 1).join('/'))
+		.map((_, i) => segments.slice(0, i + 1).join('/'))
 		.filter(path => layouts.has(path))
 
-	// Load page and layout modules in parallel
+	// Load modules in parallel (fast - already bundled)
 
 	const [page, ...entries] = await Promise.all([
 		loader(),
 		...paths.map(path => layouts.get(path)!().then(module => ({ path, module })))
 	])
 
-	// Use cached data or execute load() functions in parallel
+	// Check cache (SSR hydration) - skip loading phase if cached
 
-	const args = { url, params }
+	const cached = cache.get(url)
 
-	const data: Cache = cached ?? await Promise.all([
-		page.load?.(args) ?? {},
-		Promise.all(entries.map(entry => entry.module.load?.(args) ?? {}))
-	]).then(([page, layout]) => ({ url, params, page, layout }))
-
-	const Page = page.default as Component<{ params: Params; data: Cache['page'] }>
-
-	return {
-		data,
-
-		// Compose: wrap page in layouts (innermost to outermost)
-
-		Page: entries.reduceRight<Component>(
-			(Child, { path, module }, index) => {
-				const Layout = module.default as Component<{ params: Params; data: Cache['layout'][number] }>
-				return () => <Layout key={path} params={data.params} data={data.layout[index]}><Child /></Layout>
-			},
-			() => <Page key={paths.join('/')} params={data.params} data={data.page} />
-		)
+	if (cached) {
+		cache.delete(url)
+		yield { Page: compose(page, entries, paths, cached), data: cached }
+		return
 	}
+
+	// First yield: loading state
+
+	yield { Page: compose(page, entries, paths, { url, params, loading: true }) }
+
+	// Execute load functions with parent() support (sequential for cascade)
+
+	const results: Array<{ data?: Record<string, unknown>; error?: RouteError }> = []
+
+	for (const entry of entries) {
+		results.push(await execute(entry.module, { url, params }, results))
+	}
+
+	const data: Data = {
+		url,
+		params,
+		page: await execute(page, { url, params }, results),
+		layout: results
+	}
+
+	// Second yield: data state
+
+	yield { Page: compose(page, entries, paths, data), data }
 }
 
 // App component
+
 const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
-	let loading = false
 	let Page: Component = page ?? (() => null)
 
 	// SSR: page already resolved
-	if (page) return <div class="h-full"><Page /></div>
+
+	if (page) return <Page />
 
 	// Client: set up routing
+
 	const navigate = async (route: Route) => {
 
-		this.next(() => loading = true)
-
-		try {
-			Page = (await resolve(location.pathname, layouts, route)).Page
-		} catch (error) {
-			console.error('Error in routing logic', error)
+		for await (const state of resolve(location.pathname, layouts, route)) {
+			this.next(() => Page = state.Page)
 		}
-
-		this.next(() => loading = false)
 
 		requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
 	}
@@ -151,12 +248,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	router.listen()
 
 	try {
-		while (true) yield (
-			<>
-				<Spinner loading={loading} />
-				<div class="h-full"><Page /></div>
-			</>
-		)
+		while (true) yield <Page />
 	} finally {
 		router.unlisten?.()
 	}

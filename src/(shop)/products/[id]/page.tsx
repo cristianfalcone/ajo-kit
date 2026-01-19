@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { LoaderArgs } from '/src/app'
-import { CartContext } from '/src/constants'
+import type { LoaderArgs, PageArgs } from '/src/app'
+import { CartContext, NotFoundError } from '/src/constants'
 import { Button } from '/src/ui/button'
 import { Image } from '/src/ui/image'
 
@@ -20,19 +20,16 @@ interface Product {
 
 export async function load({ params }: LoaderArgs) {
 	const res = await fetch(`https://dummyjson.com/products/${params.id}`)
-	if (!res.ok) throw new Error('Product not found')
+	if (!res.ok) throw new NotFoundError(`Product with id ${params.id} not found`)
 	const product: Product = await res.json()
 	return { product }
 }
 
-type Args = {
-	params: { id: string }
-	data: { product: Product }
-}
+type Args = PageArgs<{ product: Product }>
 
 const Page: Stateful<Args, 'article'> = function* (args) {
 
-	const { product } = args.data
+	const { product } = args.data!
 	let selected = 0
 
 	const setSelected = (i: number) => this.next(() => selected = i)

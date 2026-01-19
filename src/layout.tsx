@@ -1,16 +1,18 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
+import type { LayoutArgs } from '/src/app'
 import { ThemeContext, ThemeMode, NotFoundError } from '/src/constants'
+import Spinner from '/src/ui/spinner'
 
 const isDev = import.meta.env.DEV
 
-type Args = {
-	children: Children,
-}
+// Root layout handles global loading and error UI
+export const defer = true
 
-const Layout: Stateful<Args> = function* (args: Args) {
+const Layout: Stateful<LayoutArgs> = function* (args) {
 
 	let mode: ThemeMode = globalThis.localStorage?.getItem('theme.v1') as ThemeMode ?? 'system'
+	let previous: Children = args.children
 
 	const apply = (mode: ThemeMode) => {
 
@@ -46,7 +48,26 @@ const Layout: Stateful<Args> = function* (args: Args) {
 
 		ThemeContext({ mode, set, cycle })
 
-		yield <Wrapper>{args.children}</Wrapper>
+		if (args.loading) {
+			// Show spinner overlay, keep previous content visible
+			yield (
+				<>
+					<Spinner loading={true} />
+					<Wrapper>{previous}</Wrapper>
+				</>
+			)
+		} else if (args.error) {
+			// Show error UI
+			yield (
+				<Wrapper>
+					<AppError error={args.error} />
+				</Wrapper>
+			)
+		} else {
+			// Update previous and show new content
+			previous = args.children
+			yield <Wrapper>{args.children}</Wrapper>
+		}
 
 	} catch (error: unknown) {
 
@@ -62,13 +83,13 @@ Layout.attrs = { class: 'min-h-screen flex flex-col bg-white text-slate-800 rela
 
 export default Layout
 
-const Wrapper = (args: Args) => (
+const Wrapper = ({ children }: { children: Children }) => (
 	<>
 		<div class="pointer-events-none absolute inset-0 [background:radial-gradient(circle_at_20%_30%,rgba(99,102,241,.15),transparent_55%),radial-gradient(circle_at_80%_70%,rgba(236,72,153,.12),transparent_55%)]" />
 		<div class="pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-overlay [background-image:linear-gradient(rgba(255,255,255,.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.07)_1px,transparent_1px)]; [background-size:40px_40px]" />
 		<Nav />
 		<main class="site-container flex-1 flex flex-col">
-			{args.children}
+			{children}
 		</main>
 		<Footer />
 	</>
@@ -76,7 +97,8 @@ const Wrapper = (args: Args) => (
 
 export const AppError = ({ error }: { error: Error }) => {
 
-	const isNotFound = error instanceof NotFoundError
+	// Check status property (works after JSON serialization) or instanceof
+	const isNotFound = ('status' in error && (error as any).status === 404) || error instanceof NotFoundError
 
 	return (
 		<div class="mx-auto px-4 py-12 sm:px-6 lg:px-8">
@@ -94,13 +116,11 @@ export const AppError = ({ error }: { error: Error }) => {
 						</div>
 						<div class="ml-3">
 							<h3 class={clsx(['text-sm font-medium', isNotFound ? 'text-yellow-800' : 'text-red-800'])}>
-								{isNotFound ? 'Page Not Found' : 'Something Unexpected Happened'}
+								{error.message}
 							</h3>
 							<div class={clsx(['mt-2 text-sm', isNotFound ? 'text-yellow-700' : 'text-red-700'])}>
 								{isNotFound ? (
-									<>
-										<p>Sorry, we couldn't find the page you're looking for.</p>
-									</>
+									<p>The requested resource could not be found.</p>
 								) : (
 									<pre>
 										{isDev ? error.stack ?? error.message : 'Application Error'}

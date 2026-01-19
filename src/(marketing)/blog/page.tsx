@@ -1,4 +1,5 @@
 import type { Stateful } from 'ajo'
+import type { LoaderArgs, PageArgs } from '/src/app'
 import { Image } from '/src/ui/image'
 
 interface User {
@@ -15,7 +16,7 @@ interface Post {
 	imageUrl: string
 }
 
-export async function load() {
+export async function load({}: LoaderArgs) {
 
 	const [postsRes, usersRes] = await Promise.all([
 		fetch('https://dummyjson.com/posts?limit=18'),
@@ -38,13 +39,11 @@ export async function load() {
 	return { posts }
 }
 
-type Args = {
-	data: { posts: Post[] }
-}
+type Args = PageArgs<{ posts: Post[] }>
 
 const Page: Stateful<Args, 'article'> = function* (args) {
 
-	const { posts } = args.data
+	const { posts } = args.data!
 
 	while (true) yield (
 		<>

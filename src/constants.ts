@@ -47,14 +47,16 @@ export const navigate = (to: string) => {
 // Route errors with HTTP status codes
 
 export class RouteError extends Error {
+  override message: string
   constructor(public status: number, message: string) {
     super(message)
+    this.message = message // Make enumerable for JSON serialization
   }
 }
 
 export class NotFoundError extends RouteError {
-  constructor(path?: string) {
-    super(404, `Route not found${path ? `: ${path}` : ''}`)
+  constructor(message = 'Page not found') {
+    super(404, message)
   }
 }
 
