@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { LoaderArgs } from '/src/app'
+import type { LoaderArgs } from '/src/constants'
 import { CartContext } from '/src/constants'
 import { Button } from '/src/ui/button'
 import { Image } from '/src/ui/image'

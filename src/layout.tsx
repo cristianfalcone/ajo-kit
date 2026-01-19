@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
-import type { LayoutArgs } from '/src/app'
+import type { LayoutArgs } from '/src/constants'
 import { ThemeContext, ThemeMode, NotFoundError } from '/src/constants'
 import Spinner from '/src/ui/spinner'
 

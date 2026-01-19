@@ -1,18 +1,17 @@
-import navaid, { type Params } from 'navaid'
-import type { Children, Component, Stateful } from 'ajo'
+import navaid from 'navaid'
+import type { Component, Stateful } from 'ajo'
 import { NotFoundError, RouteError } from '/src/constants'
-
-export type { Params }
+import type { LoaderArgs, Params, PageArgs, LayoutArgs, ActionState, Server } from '/src/constants'
 
 // Pattern compilation
 
-const groupRE = /^\(.*\)$/
-const dynamicRE = /^\[(.+?)\]$/
+const reGroup = /^\(.*\)$/
+const reDynamic = /^\[(.+?)\]$/
 
 export const toPattern = (segments: string[]) =>
 	segments
-		.filter(s => s && !groupRE.test(s))
-		.map(s => s.replace(dynamicRE, (_, n) => n === '...' ? '*' : `:${n}`))
+		.filter(segment => segment && !reGroup.test(segment))
+		.map(segment => segment.replace(reDynamic, (_, name) => name === '...' ? '*' : `:${name}`))
 		.join('/')
 
 export const toSegments = (path: string) => {
@@ -23,23 +22,68 @@ export const toSegments = (path: string) => {
 
 export const getType = (path: string) => path.split('/').pop()?.split('.')[0]
 
-// Types
+// Form action helper for stateful generator components
 
-export type LoaderArgs = {
-	params: Params
-	url: string
-	parent: () => Promise<Record<string, unknown>>
-}
+export function action<T = unknown>(element: { next: () => void }, name: string): ActionState<T> {
 
-export type PageArgs<T = Record<string, unknown>> = {
-	params: Params
-	data: T | undefined
-	loading: boolean
-	error: RouteError | undefined
-}
+	let controller: AbortController | undefined
 
-export type LayoutArgs<T = Record<string, unknown>> = PageArgs<T> & {
-	children: Children
+	const state: ActionState<T> = {
+		pending: false,
+		data: undefined,
+		error: undefined,
+		handle: () => {},
+		reset: () => {
+			state.data = undefined
+			state.error = undefined
+			element.next()
+		}
+	}
+
+	state.handle = async (event: SubmitEvent) => {
+
+		event.preventDefault()
+
+		// Abort any in-flight request
+		controller?.abort()
+		controller = new AbortController()
+
+		const form = event.target as HTMLFormElement
+		const body = Object.fromEntries(new FormData(form) as unknown as Iterable<[string, string]>)
+
+		state.pending = true
+		state.error = undefined
+		element.next()
+
+		try {
+			const response = await fetch(`?/${name}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+				body: JSON.stringify(body),
+				signal: controller.signal
+			})
+
+			const json = await response.json()
+
+			if (!response.ok) {
+				state.error = json.error ?? 'Action failed'
+			} else if (json.redirect) {
+				location.href = json.redirect
+				return
+			} else {
+				state.data = json as T
+				form.reset()
+			}
+		} catch (error) {
+			if (error instanceof Error && error.name === 'AbortError') return
+			state.error = error instanceof Error ? error.message : 'Action failed'
+		} finally {
+			state.pending = false
+			element.next()
+		}
+	}
+
+	return state
 }
 
 export type Module = {
@@ -99,9 +143,9 @@ async function execute(
 	if (!module.load) return { data: {} }
 
 	const parent = async () => {
-		const error = ancestors.find(a => a.error)?.error
+		const error = ancestors.find(item => item.error)?.error
 		if (error) throw error
-		return ancestors.reduce((merged, a) => ({ ...merged, ...a.data }), {})
+		return ancestors.reduce((merged, item) => ({ ...merged, ...item.data }), {})
 	}
 
 	try {
@@ -166,7 +210,8 @@ function compose(
 export async function* resolve(
 	url: string,
 	layouts: Map<string, Loader>,
-	route: Route
+	route: Route,
+	remote?: Server
 ): AsyncGenerator<{ Page: Component; data?: Data }> {
 
 	const { loader, segments = [], params = {} } = route
@@ -198,19 +243,33 @@ export async function* resolve(
 
 	yield { Page: compose(page, entries, paths, { url, params, loading: true }) }
 
-	// Execute load functions with parent() support (sequential for cascade)
+	// Fetch server data on client navigation
 
-	const results: Array<{ data?: Record<string, unknown>; error?: RouteError }> = []
+	const server: Server = await (async () => {
+		if (remote) return remote
+		if (import.meta.env.SSR) return { page: {}, layout: [] }
+		const response = await fetch(url, { headers: { Accept: 'application/json' } })
+		if (response.ok) return response.json()
+		const { error } = await response.json().catch(reason => ({ error: reason?.message ?? 'Load failed' }))
+		throw new RouteError(response.status, error)
+	})()
 
-	for (const entry of entries) {
-		results.push(await execute(entry.module, { url, params }, results))
+	// Execute load functions with parent() support and merge server data
+
+	const layout: Data['layout'] = []
+
+	for (let i = 0; i < entries.length; i++) {
+		const result = await execute(entries[i].module, { url, params }, layout)
+		layout.push({ data: { ...server.layout[i], ...result.data }, error: result.error })
 	}
+
+	const result = await execute(page, { url, params }, layout)
 
 	const data: Data = {
 		url,
 		params,
-		page: await execute(page, { url, params }, results),
-		layout: results
+		page: { data: { ...server.page, ...result.data }, error: result.error },
+		layout
 	}
 
 	// Second yield: data state

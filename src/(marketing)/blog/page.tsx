@@ -1,5 +1,6 @@
 import type { Stateful } from 'ajo'
-import type { LoaderArgs, PageArgs } from '/src/app'
+import type { LoaderArgs, PageArgs } from '/src/constants'
+import { action } from '/src/app'
 import { Image } from '/src/ui/image'
 
 interface User {
@@ -39,18 +40,56 @@ export async function load({}: LoaderArgs) {
 	return { posts }
 }
 
-type Args = PageArgs<{ posts: Post[] }>
+type Args = PageArgs<{ posts: Post[]; time?: string; source?: string }>
 
 const Page: Stateful<Args, 'article'> = function* (args) {
 
-	const { posts } = args.data!
+	const subscribe = action<{ success: boolean; email: string }>(this, 'subscribe')
 
-	while (true) yield (
-		<>
-			<header class="text-center space-y-4 max-w-3xl mx-auto">
-				<h1 class="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">Latest Posts</h1>
-				<p class="text-sm text-indigo-600/70 dark:text-indigo-200/70">Fresh updates pulled from a public sample API.</p>
-			</header>
+	while (true) {
+
+		const { posts, time, source } = args.data!
+
+		yield (
+			<>
+				<header class="text-center space-y-4 max-w-3xl mx-auto">
+					<h1 class="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">Latest Posts</h1>
+					<p class="text-sm text-indigo-600/70 dark:text-indigo-200/70">Fresh updates pulled from a public sample API.</p>
+					{time && (
+						<p class="text-xs text-slate-500 dark:text-gray-400">
+							Server time: {time} (from {source})
+						</p>
+					)}
+				</header>
+
+				<form set:onsubmit={subscribe.handle} class="max-w-md mx-auto flex flex-col gap-2">
+					<div class="flex gap-2">
+						<input
+							type="email"
+							name="email"
+							placeholder="Subscribe to newsletter"
+							disabled={subscribe.pending}
+							class="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-white/20 bg-white dark:bg-white/10 disabled:opacity-50"
+						/>
+						<button
+							type="submit"
+							disabled={subscribe.pending}
+							class="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+						>
+							{subscribe.pending ? 'Subscribing...' : 'Subscribe'}
+						</button>
+					</div>
+					{subscribe.data && (
+						<p class="text-sm text-green-600 dark:text-green-400">
+							Subscribed: {subscribe.data.email}
+						</p>
+					)}
+					{subscribe.error && (
+						<p class="text-sm text-red-600 dark:text-red-400">
+							{subscribe.error}
+						</p>
+					)}
+				</form>
 			<ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
 				{posts.map(post => (
 					<li key={post.id}>
@@ -78,7 +117,8 @@ const Page: Stateful<Args, 'article'> = function* (args) {
 				))}
 			</ul>
 		</>
-	)
+		)
+	}
 }
 
 Page.is = 'article'

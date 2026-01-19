@@ -1,15 +1,15 @@
 import fs from 'node:fs/promises'
 import { createServer as createHttpServer } from 'node:http'
-import sade from 'sade'
+import { createServer } from 'vite'
+import { json } from '@polka/parse'
+import send from '@polka/send'
 import polka from 'polka'
 import sirv from 'sirv'
-import { createServer } from 'vite'
+import sade from 'sade'
 
 const re = /<!--\s*ssr:([A-Za-z0-9_]+)\s*-->/g
 
-type TemplateRenderer = (contents: Record<string, string>) => string
-
-function compile(html: string): TemplateRenderer {
+function compile(html: string) {
 
   const statics: string[] = []
   const markers: string[] = []
@@ -41,6 +41,67 @@ function compile(html: string): TemplateRenderer {
   }
 }
 
+type Module = {
+  data: (url: string) => Promise<unknown>
+  action: (url: string, name: string, body: Record<string, unknown>) => Promise<{ redirect?: string } | void>
+}
+
+function routes(app: ReturnType<typeof polka>, module: Module) {
+
+  app.use(json())
+
+  // JSON data for client navigation
+
+  app.get('*', async (req, res, next) => {
+
+    if (!req.headers.accept?.includes('application/json')) return next()
+
+    try {
+      send(res, 200, await module.data(req.originalUrl))
+    } catch (error: any) {
+      send(res, error.status ?? 500, { error: error.message ?? 'Error' })
+    }
+  })
+
+  // Form actions
+
+  app.post('*', async (req, res, next) => {
+
+    const url = new URL(req.originalUrl, `http://${req.headers.host}`)
+    const name = [...url.searchParams.keys()].find(key => key.startsWith('/'))?.slice(1)
+
+    if (!name) return next()
+
+    const isJson = req.headers.accept?.includes('application/json')
+
+    try {
+
+      const result = await module.action(url.pathname, name, req.body ?? {})
+
+      if (isJson) {
+        send(res, 200, result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true }))
+      } else {
+        res.statusCode = 302
+        res.setHeader('Location', result?.redirect ?? url.pathname)
+        res.end()
+      }
+
+    } catch (error: unknown) {
+
+      const status = error instanceof Error && 'status' in error ? (error as { status: number }).status : 500
+      const message = error instanceof Error ? error.message : 'Action failed'
+
+      if (isJson) {
+        send(res, status, { error: message })
+      } else {
+        res.statusCode = 302
+        res.setHeader('Location', url.pathname)
+        res.end()
+      }
+    }
+  })
+}
+
 async function createDevServer() {
 
   const app = polka()
@@ -52,9 +113,13 @@ async function createDevServer() {
 
   app.use(vite.middlewares)
 
-  const { create, render } = await vite.ssrLoadModule('./src/server.tsx')
+  const { create, render, data, action } = await vite.ssrLoadModule('./src/server.tsx')
 
   app.use('/api', await create())
+
+  routes(app, { data, action })
+
+  // SSR
 
   app.use('*', async (req, res) => {
 
@@ -73,16 +138,18 @@ async function createDevServer() {
       res.statusCode = result.error?.status ?? 200
       res.setHeader('Content-Type', 'text/html').end(template(result))
 
-    } catch (e) {
+    } catch (error: unknown) {
 
-      res.statusCode = 500
+      const status = error instanceof Error && 'status' in error ? (error as { status: number }).status : 500
 
-      if (e instanceof Error) {
-        vite.ssrFixStacktrace(e)
-        console.log(e.stack ?? e)
-        res.end(e.stack ?? e)
+      res.statusCode = status
+
+      if (error instanceof Error) {
+        vite.ssrFixStacktrace(error)
+        if (status >= 500) console.log(error.stack ?? error)
+        res.end(error.stack ?? error)
       } else {
-        console.log(e)
+        console.log(error)
         res.end('Server error')
       }
     }
@@ -98,32 +165,36 @@ async function createProdServer() {
   const template = compile(await fs.readFile('./dist/client/index.html', 'utf-8'))
 
   // @ts-ignore
-  const { render, create } = await import('./dist/server/server.js')
+  const { create, render, data, action } = await import('./dist/server/server.js')
 
   app.use('/api', await create())
 
   app.use(sirv('./dist/client', { extensions: [] }))
 
+  routes(app, { data, action })
+
+  // SSR
+
   app.use('*', async (req, res) => {
 
     try {
 
-      const { originalUrl: url } = req
-
-      const result = await render(url)
+      const result = await render(req.originalUrl)
 
       res.statusCode = result.error?.status ?? 200
       res.setHeader('Content-Type', 'text/html').end(template(result))
 
-    } catch (e) {
+    } catch (error: unknown) {
 
-      res.statusCode = 500
+      const status = error instanceof Error && 'status' in error ? (error as { status: number }).status : 500
 
-      if (e instanceof Error) {
-        console.log(e.stack ?? e)
-        res.end(e.stack ?? e)
+      res.statusCode = status
+
+      if (error instanceof Error) {
+        if (status >= 500) console.log(error.stack ?? error)
+        res.end(error.stack ?? error)
       } else {
-        console.log(e)
+        console.log(error)
         res.end('Server error')
       }
     }

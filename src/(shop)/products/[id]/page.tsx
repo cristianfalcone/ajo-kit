@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { LoaderArgs, PageArgs } from '/src/app'
+import type { LoaderArgs, PageArgs } from '/src/constants'
 import { CartContext, NotFoundError } from '/src/constants'
 import { Button } from '/src/ui/button'
 import { Image } from '/src/ui/image'
