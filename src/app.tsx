@@ -95,27 +95,24 @@ export async function resolve(
 
 	const args = { url, params }
 
-	const data: Cache = cached ?? {
-		url,
-		params,
-		page: await page.load?.(args) ?? {},
-		layout: await Promise.all(entries.map(entry => entry.module.load?.(args) ?? {}))
-	}
-
-	// Compose: wrap page in layouts (innermost to outermost)
-
-	const key = paths.join('/')
+	const data: Cache = cached ?? await Promise.all([
+		page.load?.(args) ?? {},
+		Promise.all(entries.map(entry => entry.module.load?.(args) ?? {}))
+	]).then(([page, layout]) => ({ url, params, page, layout }))
 
 	const Page = page.default as Component<{ params: Params; data: Cache['page'] }>
 
 	return {
 		data,
+
+		// Compose: wrap page in layouts (innermost to outermost)
+
 		Page: entries.reduceRight<Component>(
 			(Child, { path, module }, index) => {
 				const Layout = module.default as Component<{ params: Params; data: Cache['layout'][number] }>
 				return () => <Layout key={path} params={data.params} data={data.layout[index]}><Child /></Layout>
 			},
-			() => <Page key={key} params={data.params} data={data.page} />
+			() => <Page key={paths.join('/')} params={data.params} data={data.page} />
 		)
 	}
 }
@@ -137,11 +134,11 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		try {
 			Page = (await resolve(location.pathname, layouts, route)).Page
 		} catch (error) {
-			Page = () => <div class="p-4 text-red-500">Error: {error instanceof Error ? error.message : 'Unknown error'}</div>
+			console.error('Error in routing logic', error)
 		}
 
 		this.next(() => loading = false)
-	
+
 		requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
 	}
 
