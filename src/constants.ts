@@ -44,8 +44,28 @@ export const navigate = (to: string) => {
   globalThis.history?.pushState({}, '', to)
 }
 
-export class NotFoundError extends Error {
+// Route errors with HTTP status codes
+
+export class RouteError extends Error {
+  constructor(public status: number, message: string) {
+    super(message)
+  }
+}
+
+export class NotFoundError extends RouteError {
   constructor(path?: string) {
-    super(`Route not found${path ? `: ${path}` : ''}`)
+    super(404, `Route not found${path ? `: ${path}` : ''}`)
+  }
+}
+
+export class ForbiddenError extends RouteError {
+  constructor(message = 'Access denied') {
+    super(403, message)
+  }
+}
+
+export class UnauthorizedError extends RouteError {
+  constructor(message = 'Authentication required') {
+    super(401, message)
   }
 }

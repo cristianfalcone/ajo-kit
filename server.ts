@@ -70,7 +70,7 @@ async function createDevServer() {
 
       const result = await render(url)
 
-      res.statusCode = result.notFound ? 404 : 200
+      res.statusCode = result.error?.status ?? 200
       res.setHeader('Content-Type', 'text/html').end(template(result))
 
     } catch (e) {
@@ -112,7 +112,7 @@ async function createProdServer() {
 
       const result = await render(url)
 
-      res.statusCode = result.notFound ? 404 : 200
+      res.statusCode = result.error?.status ?? 200
       res.setHeader('Content-Type', 'text/html').end(template(result))
 
     } catch (e) {

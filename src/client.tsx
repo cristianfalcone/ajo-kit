@@ -1,18 +1,10 @@
 import 'virtual:uno.css'
 import { render } from 'ajo'
-import { type Params } from 'navaid'
-import App, { set } from '/src/app'
+import App, { cache, type Data } from '/src/app'
 
-interface SSR {
-	url: string
-	params: Params
-	page: Record<string, unknown>
-	layout: Record<string, unknown>[]
-}
+const ssr = (globalThis as { __SSR__?: Data }).__SSR__
 
-const ssr = (globalThis as { __SSR__?: SSR }).__SSR__
-
-if (ssr) set(ssr)
+if (ssr) cache.set(ssr.url, ssr)
 
 const root = document.getElementById('root')
 

@@ -3,19 +3,28 @@ import polka from 'polka'
 import type { Request, Response, Middleware, NextHandler } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
-import App, { match, routes, resolve, layouts } from './app'
+import navaid from 'navaid'
+import App, { routes, resolve, layouts, notFound, type Route } from './app'
 
 export async function render(url: string) {
 
-  const route = match(url, routes)
+  let match: Route
 
-  const { params, data, Page } = await resolve(url, layouts, route)
+  const router = navaid('/', () => match = notFound)
+
+  for (const route of routes) {
+    router.on(route.pattern, params => match = { ...route, params })
+  }
+
+  router.run(url)
+
+  const { data, Page } = await resolve(url, layouts, match!)
 
   return {
     head: r(<title>ajo-kit</title>),
-    data: `<script>window.__SSR__=${JSON.stringify({ url, params, ...data })}</script>`,
+    data: `<script>window.__SSR__=${JSON.stringify(data)}</script>`,
     root: r(<App page={Page} />),
-    notFound: route.notFound,
+    error: match!.error,
   }
 }
 
