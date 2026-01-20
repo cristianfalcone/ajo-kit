@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { LoaderArgs, PageArgs } from '/src/constants'
+import type { HandlerArgs, PageArgs } from '/src/constants'
 import { Button } from '/src/ui/button'
 import { Image } from '/src/ui/image'
 
@@ -26,7 +26,7 @@ interface Post {
 	imageUrl: string
 }
 
-export async function load({ params }: LoaderArgs) {
+export async function handler({ params }: HandlerArgs) {
 
 	const postRes = await fetch(`https://dummyjson.com/posts/${params.id}`)
 

@@ -1,7 +1,7 @@
 import navaid from 'navaid'
 import type { Component, Stateful } from 'ajo'
 import { NotFoundError, RouteError } from '/src/constants'
-import type { LoaderArgs, Params, PageArgs, LayoutArgs, ActionState, Server } from '/src/constants'
+import type { HandlerArgs, Params, PageArgs, LayoutArgs, ActionState, Server } from '/src/constants'
 
 // Pattern compilation
 
@@ -29,7 +29,7 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 	let controller: AbortController | undefined
 
 	const state: ActionState<T> = {
-		pending: false,
+		loading: false,
 		data: undefined,
 		error: undefined,
 		handle: () => {},
@@ -51,7 +51,7 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 		const form = event.target as HTMLFormElement
 		const body = Object.fromEntries(new FormData(form) as unknown as Iterable<[string, string]>)
 
-		state.pending = true
+		state.loading = true
 		state.error = undefined
 		element.next()
 
@@ -78,7 +78,7 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 			if (error instanceof Error && error.name === 'AbortError') return
 			state.error = error instanceof Error ? error.message : 'Action failed'
 		} finally {
-			state.pending = false
+			state.loading = false
 			element.next()
 		}
 	}
@@ -88,7 +88,7 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 
 export type Module = {
 	default: Component
-	load?: (args: LoaderArgs) => Promise<Record<string, unknown>>
+	handler?: (args: HandlerArgs) => Promise<Record<string, unknown>>
 	defer?: boolean
 }
 
@@ -114,7 +114,7 @@ export const notFound: Route = {
 	segments: [''], // use root layout
 	loader: async () => ({
 		default: () => null,
-		load: async ({ url }: LoaderArgs) => { throw new NotFoundError(`Page not found: ${url}`) }
+		handler: async ({ url }: HandlerArgs) => { throw new NotFoundError(`Page not found: ${url}`) }
 	}),
 }
 
@@ -132,7 +132,7 @@ for (const [path, loader] of Object.entries(import.meta.glob('/src/**/{layout,pa
 	if (type === 'page') routes.push({ pattern: toPattern(segments), segments, loader })
 }
 
-// Execute load() with parent() support
+// Execute handler() with parent() support
 
 async function execute(
 	module: Module,
@@ -140,7 +140,7 @@ async function execute(
 	ancestors: Array<{ data?: Record<string, unknown>; error?: RouteError }>
 ): Promise<{ data?: Record<string, unknown>; error?: RouteError }> {
 
-	if (!module.load) return { data: {} }
+	if (!module.handler) return { data: {} }
 
 	const parent = async () => {
 		const error = ancestors.find(item => item.error)?.error
@@ -149,7 +149,7 @@ async function execute(
 	}
 
 	try {
-		return { data: await module.load({ ...args, parent }) }
+		return { data: await module.handler({ ...args, parent }) }
 	} catch (error) {
 		return {
 			error: error instanceof RouteError
@@ -183,7 +183,7 @@ function compose(
 					key={path}
 					params={data.params}
 					data={result?.data}
-					loading={loading}
+					loading={loading && module.defer === true}
 					error={result?.error ?? error}
 				>
 					<Child />
@@ -197,7 +197,7 @@ function compose(
 					key={paths.join('/')}
 					params={data.params}
 					data={result?.data}
-					loading={loading}
+					loading={loading && page.defer === true}
 					error={result?.error}
 				/>
 			)

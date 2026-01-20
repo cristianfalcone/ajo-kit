@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { LoaderArgs, PageArgs } from '/src/constants'
+import type { HandlerArgs, PageArgs } from '/src/constants'
 import { action } from '/src/app'
 import { Image } from '/src/ui/image'
 
@@ -17,7 +17,7 @@ interface Post {
 	imageUrl: string
 }
 
-export async function load({}: LoaderArgs) {
+export async function handler({}: HandlerArgs) {
 
 	const [postsRes, usersRes] = await Promise.all([
 		fetch('https://dummyjson.com/posts?limit=18'),
@@ -68,15 +68,15 @@ const Page: Stateful<Args, 'article'> = function* (args) {
 							type="email"
 							name="email"
 							placeholder="Subscribe to newsletter"
-							disabled={subscribe.pending}
+							disabled={subscribe.loading}
 							class="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-white/20 bg-white dark:bg-white/10 disabled:opacity-50"
 						/>
 						<button
 							type="submit"
-							disabled={subscribe.pending}
+							disabled={subscribe.loading}
 							class="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
 						>
-							{subscribe.pending ? 'Subscribing...' : 'Subscribe'}
+							{subscribe.loading ? 'Subscribing...' : 'Subscribe'}
 						</button>
 					</div>
 					{subscribe.data && (

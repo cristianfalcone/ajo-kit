@@ -3,7 +3,7 @@ import type { Action } from '/src/constants'
 // Server-only data loading for the blog page
 export async function page() {
 
-	// Example: load server-side metadata that merges with page's load()
+	// Example: load server-side metadata that merges with page's handler()
 	return {
 		time: new Date().toISOString(),
 		source: 'handler.ts'

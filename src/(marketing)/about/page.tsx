@@ -68,7 +68,8 @@ const files: TreeNode[] = [
 									{ content: <File name='page.tsx' kind='file' note='Blog article detail' route='/blog/:id' /> },
 								]
 							},
-							{ content: <File name='page.tsx' kind='file' note='Blog index (data fetch)' route='/blog' /> },
+							{ content: <File name='handler.ts' kind='file' note='Server data + subscribe action' /> },
+							{ content: <File name='page.tsx' kind='file' note='Blog index + action() form' route='/blog' /> },
 						]
 					},
 					{ content: <File name='layout.tsx' kind='file' note='Marketing shell' /> },
@@ -108,7 +109,7 @@ const files: TreeNode[] = [
 			},
 			{ content: <File name='app.tsx' kind='file' note='Main app component (UI router)' /> },
 			{ content: <File name='client.tsx' kind='file' note='Client bootstrap / hydration' /> },
-			{ content: <File name='constants.ts' kind='file' note='Context definitions' /> },
+			{ content: <File name='constants.ts' kind='file' note='Types, errors, contexts' /> },
 			{ content: <File name='handler.ts' kind='file' note='Root API handler' route='/api' /> },
 			{ content: <File name='layout.tsx' kind='file' note='Root layout: theme, nav, contexts' /> },
 			{ content: <File name='page.tsx' kind='file' note='Landing page' route='/' /> },
@@ -128,29 +129,29 @@ const files: TreeNode[] = [
 const features = [
 	['i-lucide-zap', 'Lean Core', 'Just generators + a tiny reconciler. No virtual component classes, no effect labyrinth.'],
 	['i-lucide-cpu', 'SSR Friendly', 'Patterns map directly to server rendering needs without extra ceremony.'],
-	['i-lucide-database', 'Data Simplicity', 'Fetch where you render. Mutate plain objects + call this.next().'],
-	['i-lucide-layout', 'Nested Layouts', 'Folder hierarchy = UI shell composition (marketing, blog, shop groups).'],
-	['i-lucide-sparkles', 'Theme System', 'Class-based light/dark with persisted tri‑mode cycle & accessible toggle.'],
-	['i-lucide-plug-zap', 'File APIs', 'Filesystem-discovered Polka handlers + middlewares mounted under /api'],
+	['i-lucide-database', 'Server Data', 'handler.ts files for server-only code (DB, secrets). Safe separation from client bundle.'],
+	['i-lucide-layout', 'Nested Layouts', 'Folder hierarchy = UI shell composition with parent() data cascade.'],
+	['i-lucide-send', 'Form Actions', 'Named exports become server actions. action() helper manages loading/error/data states.'],
+	['i-lucide-loader', 'Loading States', 'defer export controls who shows loading UI. Root layout or page—your choice.'],
 ]
 
 const stack = [
 	['i-lucide-cog', 'Ajo', 'provides generator-based component model + direct DOM reconciliation.'],
 	['i-lucide-bolt', 'Vite', 'handles fast dev bundling + TS transform with JSX factory injection.'],
 	['i-lucide-wand-2', 'UnoCSS', <>utility engine with <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">presetWind4</code> + icons preset for atomic styling.</>],
-	['i-lucide-plug', 'Polka', 'tiny HTTP server powering file-based APIs and middlewares on /api.'],
+	['i-lucide-plug', 'Polka', 'tiny HTTP server powering file-based APIs, page handlers, and middlewares.'],
+	['i-lucide-server', 'handler.ts', <>server-only <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">page()</code> / <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">layout()</code> + named form actions.</>],
 	['i-lucide-moon-star', 'Theme Context', <>persists tri-mode (system/light/dark) using <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">localStorage</code>.</>],
-	['i-lucide-newspaper', 'Demo Data', 'fetched from public APIs to simulate real flows.']
 ]
 
 const flow = [
-	<>Request hits <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">server.ts</code>; route file graph resolved.</>,
-	<>API calls hit <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">/api</code> via <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">src/server.tsx</code> with filesystem handlers + middlewares.</>,
-	<>Root + nested <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">layout.tsx</code> generators initialize with initial markup immediately.</>,
-	'Page generator yields a skeleton/pass-through state while data fetches.',
-	'Data settles → component advances with richer DOM (no diff illusions: just next yield).',
-	'Client bootstrap attaches lightweight interactivity (cart actions, theme toggle, navigation).',
-	'Subsequent client navigations reuse contexts & progressively enhance next pages.',
+	<>Request hits <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">server.ts</code>; route matched, handlers resolved.</>,
+	<>Server runs <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">handler.ts</code> functions (<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">page()</code>/<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">layout()</code>) + module <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">handler()</code> functions.</>,
+	<>Data merged (<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">{'{ ...server, ...local }'}</code>), injected as <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">window.__SSR__</code>.</>,
+	<>Root layout with <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">defer</code> handles loading UI; pages receive <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">loading</code>/<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">error</code>/<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">data</code> props.</>,
+	'Client hydrates with cached data (no re-fetch). Generators advance with fresh DOM.',
+	<>Client navigation fetches server data via JSON, runs local <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">handler()</code>, merges & renders.</>,
+	<>Form actions POST to <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">?/actionName</code>; <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">action()</code> helper tracks loading/error/data.</>,
 ]
 
 const performance = [
@@ -162,11 +163,11 @@ const performance = [
 ]
 
 const conventions = [
-	['i-lucide-ban', <><strong>Do not destructure props</strong> in generator signature; use <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">args</code> inside loop for freshness.</>],
+	['i-lucide-server', <>Put secrets/DB in <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">handler.ts</code> (<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">page()</code>/<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">layout()</code>)—never in module <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">handler()</code>.</>],
+	['i-lucide-loader', <>Root layout needs <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">defer = true</code> for global loading UI. Pages can opt-in too.</>],
+	['i-lucide-send', <>Use <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">action(this, 'name')</code> helper for forms; it handles loading/error/data.</>],
+	['i-lucide-ban', <><strong>Do not destructure props</strong> in generator signature; use <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">args</code> inside loop.</>],
 	['i-lucide-repeat-2', <>Use <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">this.next()</code> to batch local mutations.</>],
-	['i-lucide-layers', <>Prefer fragments (<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">&lt;&gt;</code>) to avoid wrapper depth.</>],
-	['i-lucide-gauge', <>Add <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">memo</code> around large static subtrees if profiling shows churn.</>],
-	['i-lucide-circle-dot', 'Keep contexts narrowly scoped (Theme, Cart, Query) instead of universal stores.'],
 ]
 
 export default () => (
@@ -184,7 +185,7 @@ export default () => (
 				showcasing generator components, nested layouts, a blog, and a small shop with cart + theming.
 			</p>
 			<div class="flex flex-wrap justify-center gap-3 text-xs font-medium">
-				{['Generator Components', 'File Routes', 'Local Mutations', 'Scoped Context', 'Utility CSS', 'Theme Persistence'].map(t => (
+				{['Generator Components', 'File Routes', 'Server Handlers', 'Form Actions', 'Loading States', 'Scoped Context'].map(t => (
 					<span key={t} class="px-3 py-1 rounded-full bg-slate-900/5 ring-1 ring-slate-200 text-indigo-600/80 dark:bg-white/5 dark:ring-white/10 dark:text-indigo-200/80">{t}</span>
 				))}
 			</div>
@@ -262,9 +263,9 @@ export default () => (
 			<div class="panel p-6 space-y-6">
 				<h3 class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300"><span class="i-lucide-plug" /> Extend It</h3>
 				<div class="space-y-4 text-sm leading-relaxed text-slate-700 dark:text-gray-300/80">
-					<p>Add new feature areas by creating a folder group (e.g. <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">(account)</code>) with its own <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">layout.tsx</code>. Keep business logic inside generator closures; escalate only cross-cutting state to contexts.</p>
-					<p>Swap the demo data layer with a real API: replace fetch calls, keep yield pattern. Add placeholder yields for long latency endpoints if desired.</p>
-					<p>Want MDX? Preprocess markdown to JSX and stream sections incrementally. Need auth? Inject a UserContext at the root with a session bootstrap yield.</p>
+					<p>Add new feature areas by creating a folder group (e.g. <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">(account)</code>) with its own <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">layout.tsx</code> + <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">handler.ts</code>. Use <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">parent()</code> to cascade auth data down.</p>
+					<p>Connect a real database in <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">handler.ts</code>—it's server-only. Add form actions for mutations. The <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">action()</code> helper handles optimistic UI.</p>
+					<p>Want custom loading? Add <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">defer = true</code> to your page and handle <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">args.loading</code> with skeleton components.</p>
 				</div>
 				<a href="https://github.com/cristianfalcone/ajo-kit" class="inline-flex items-center gap-2 h-10 px-5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium shadow ring-1 ring-indigo-500/30 dark:ring-indigo-400/30 transition">
 					<span class="i-lucide-github" /> View Source
@@ -277,7 +278,7 @@ export default () => (
 				ajo-kit is deliberately small. Use it as a reference implementation to understand how generator components and tiny routing interplay—then transplant the ideas back into your main stack.
 			</p>
 			<div class="flex flex-wrap justify-center gap-3 text-xs font-medium">
-				{['Low Ceremony', 'Progressive Rendering', 'Scoped Context', 'Plain Mutations', 'Theme Layer'].map(t => (
+				{['Low Ceremony', 'Server Safety', 'Form Actions', 'Loading Control', 'Data Cascade'].map(t => (
 					<span key={t} class="px-3 py-1 rounded-full bg-slate-900/5 ring-1 ring-slate-200 text-indigo-600/80 dark:bg-white/5 dark:ring-white/10 dark:text-indigo-200/80">
 						{t}
 					</span>

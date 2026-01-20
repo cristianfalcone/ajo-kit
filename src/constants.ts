@@ -36,7 +36,7 @@ export class UnauthorizedError extends RouteError {
 
 export type Server = { page: Record<string, unknown>; layout: Array<Record<string, unknown>> }
 
-export type LoaderArgs = {
+export type HandlerArgs = {
 	params: Params
 	url: string
 	parent: () => Promise<Record<string, unknown>>
@@ -50,7 +50,7 @@ export type Action = {
 // Form action state
 
 export type ActionState<T> = {
-	pending: boolean
+	loading: boolean
 	data: T | undefined
 	error: string | undefined
 	handle: (event: SubmitEvent) => void

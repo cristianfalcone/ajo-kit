@@ -6,7 +6,7 @@ import { json } from '@polka/parse'
 import send from '@polka/send'
 import navaid from 'navaid'
 import App, { routes, resolve, layouts, notFound, toPattern, toSegments, getType, type Route, type Data } from './app'
-import { RouteError, type LoaderArgs, type Action, type Server } from './constants'
+import { RouteError, type HandlerArgs, type Action, type Server } from './constants'
 
 // Route matching
 
@@ -21,8 +21,8 @@ function match(url: string): Route {
 // Page handlers
 
 type PageHandler = {
-	page?: (args: LoaderArgs) => Promise<Record<string, unknown>>
-	layout?: (args: LoaderArgs) => Promise<Record<string, unknown>>
+	page?: (args: HandlerArgs) => Promise<Record<string, unknown>>
+	layout?: (args: HandlerArgs) => Promise<Record<string, unknown>>
 	actions: Record<string, (args: Action) => Promise<unknown>>
 }
 
@@ -46,14 +46,14 @@ export async function data(url: string): Promise<Server> {
 		const handler = handlers.get(path)
 		const module = await layouts.get(path)!()
 		const remote = await handler?.layout?.({ params, url, parent }) ?? {}
-		const local = await module.load?.({ params, url, parent }) ?? {}
+		const local = await module.handler?.({ params, url, parent }) ?? {}
 		layout.push({ ...remote, ...local })
 	}
 
 	const handler = handlers.get(segments.join('/'))
 	const module = await route.loader()
 	const remote = await handler?.page?.({ params, url, parent }) ?? {}
-	const local = await module.load?.({ params, url, parent }) ?? {}
+	const local = await module.handler?.({ params, url, parent }) ?? {}
 
 	return { page: { ...remote, ...local }, layout }
 }

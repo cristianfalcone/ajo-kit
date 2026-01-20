@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { LoaderArgs } from '/src/constants'
+import type { HandlerArgs } from '/src/constants'
 import { CartContext } from '/src/constants'
 import { Button } from '/src/ui/button'
 import { Image } from '/src/ui/image'
@@ -13,7 +13,7 @@ interface Product {
   images: string[]
 }
 
-export async function load({}: LoaderArgs) {
+export async function handler({}: HandlerArgs) {
   const res = await fetch('https://dummyjson.com/products?limit=18')
   if (!res.ok) throw new Error('Failed to fetch products')
   const { products } = await res.json()
