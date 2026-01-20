@@ -1,24 +1,8 @@
 import type { Stateful } from 'ajo'
-import type { HandlerArgs } from '/src/constants'
+import type { Product } from '/src/data'
 import { CartContext } from '/src/constants'
 import { Button } from '/src/ui/button'
 import { Image } from '/src/ui/image'
-
-interface Product {
-  id: number
-  title: string
-  price: number
-  description: string
-  thumbnail: string
-  images: string[]
-}
-
-export async function handler({}: HandlerArgs) {
-  const res = await fetch('https://dummyjson.com/products?limit=18')
-  if (!res.ok) throw new Error('Failed to fetch products')
-  const { products } = await res.json()
-  return { products }
-}
 
 const ProductsGrid: Stateful<{ products: Product[] }> = function* ({ products }) {
 

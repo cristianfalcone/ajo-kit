@@ -1,48 +1,12 @@
 import type { Stateful } from 'ajo'
-import type { HandlerArgs, PageArgs } from '/src/constants'
+import type { PageArgs } from '/src/constants'
+import type { PostWithUser } from '/src/data'
 import { action } from '/src/app'
 import { Image } from '/src/ui/image'
 
-interface User {
-	id: number
-	username: string
-}
-
-interface Post {
-	id: number
-	title: string
-	body: string
-	userId: number
-	user?: User
-	imageUrl: string
-}
-
 export const defer = true
 
-export async function handler({}: HandlerArgs) {
-
-	const [postsRes, usersRes] = await Promise.all([
-		fetch('https://dummyjson.com/posts?limit=18'),
-		fetch('https://dummyjson.com/users?limit=100'),
-	])
-
-	if (!postsRes.ok || !usersRes.ok) throw new Error('Failed to load posts')
-
-	const postsJson = await postsRes.json()
-	const usersJson = await usersRes.json()
-	const rawPosts = postsJson.posts as any[]
-	const users = usersJson.users as any[]
-
-	const posts: Post[] = rawPosts.map(p => ({
-		...p,
-		user: users.find(u => u.id === p.userId),
-		imageUrl: `https://picsum.photos/seed/ajo-post-${p.id}/600/400`,
-	}))
-
-	return { posts }
-}
-
-type Args = PageArgs<{ posts: Post[]; time?: string }>
+type Args = PageArgs<{ posts: PostWithUser[]; time?: string }>
 
 const PostSkeleton = () => (
 	<div class="flex flex-col h-full rounded-xl bg-slate-900/5 ring-1 ring-slate-200 overflow-hidden dark:bg-white/5 dark:ring-white/10 animate-pulse">

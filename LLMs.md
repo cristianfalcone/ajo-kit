@@ -58,6 +58,8 @@ type PageArgs<T> = {
 
 **Note:** `loading` is only `true` for components that export `defer = true`. Without `defer`, an ancestor layout with `defer: true` (typically root layout) handles the loading UI and the component receives `loading: false`.
 
+> **⚠️ handler() vs page():** Use `handler()` in page.tsx ONLY for external APIs (code runs on both server and client). For database access, secrets, or server-only code, use `page()` in a separate handler.ts file. See [Handler Files](#handler-files-server-only-data--actions).
+
 **Simple page (root layout shows loading):**
 
 Without `defer`, the root layout handles loading UI. Page only sees `loading: false`:
@@ -411,7 +413,7 @@ export default {
     return { success: true }
   },
 
-  del: (req: Request) => {  // 'del' for DELETE
+  delete: (req: Request) => {
     return { deleted: true }
   },
 }
@@ -538,14 +540,14 @@ export const AdminContext = context<{ sidebarOpen: boolean }>({ sidebarOpen: tru
 |-------|------|
 | **Pages** | Export `default` component + optional `handler()` + optional `defer` |
 | **Layouts** | Export `default` component, receives `LayoutArgs<T>` with `children` |
-| **Loaders** | Async `handler({ params, url, parent })`, return data object |
-| **handler.ts** | Next to page: `page()`, `layout()`, named actions. For API: `default` with HTTP verbs |
+| **Loaders** | `handler()` in page.tsx for external APIs (runs on server and client). `page()` in handler.ts for database, secrets, server-only code (never bundled to client) |
+| **handler.ts** | Server-only: `page()`, `layout()` for private data, named exports for form actions. API routes: `default` with `{ get, post, put, delete }` |
 | **Actions** | Named exports in handler.ts, use `action(this, 'name')` helper in page |
 | **defer** | `export const defer = true` = component handles its own loading UI |
 | **parent()** | Access merged ancestor layout data in loaders |
 | **404** | Throw `NotFoundError` in loader |
 | **Errors** | Use `RouteError`, `NotFoundError`, `ForbiddenError`, `UnauthorizedError` |
-| **API routes** | handler.ts with `default` export: `{ get, post, put, del, patch }` |
+| **API routes** | handler.ts with `default` export: `{ get, post, put, delete, patch }` |
 | **Middleware** | Export default function or array from `wares.ts` |
 | **Route groups** | `(name)/` folders organize code, excluded from URL |
 | **Dynamic segments** | `[param]` for single, `[...]` for catch-all |

@@ -1,29 +1,10 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { HandlerArgs, PageArgs } from '/src/constants'
-import { CartContext, NotFoundError } from '/src/constants'
+import type { PageArgs } from '/src/constants'
+import type { Product } from '/src/data'
+import { CartContext } from '/src/constants'
 import { Button } from '/src/ui/button'
 import { Image } from '/src/ui/image'
-
-interface Product {
-	id: number
-	title: string
-	price: number
-	description: string
-	images: string[]
-	thumbnail: string
-	category: string
-	brand?: string
-	rating?: number
-	stock?: number
-}
-
-export async function handler({ params }: HandlerArgs) {
-	const res = await fetch(`https://dummyjson.com/products/${params.id}`)
-	if (!res.ok) throw new NotFoundError(`Product with id ${params.id} not found`)
-	const product: Product = await res.json()
-	return { product }
-}
 
 type Args = PageArgs<{ product: Product }>
 

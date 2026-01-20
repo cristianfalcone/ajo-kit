@@ -1,68 +1,15 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { HandlerArgs, PageArgs } from '/src/constants'
+import type { PageArgs } from '/src/constants'
+import type { PostWithDetails, CommentWithUser } from '/src/data'
 import { Button } from '/src/ui/button'
 import { Image } from '/src/ui/image'
 
-interface User {
-	username: string
-	firstName: string
-	lastName: string
-}
-
-interface Comment {
-	id: number
-	body: string
-	user?: User
-}
-
-interface Post {
-	id: number
-	title: string
-	body: string
-	userId: number
-	user?: User
-	comments: Comment[]
-	imageUrl: string
-}
-
 export const defer = true
 
-export async function handler({ params }: HandlerArgs) {
+type Args = PageArgs<{ post: PostWithDetails }>
 
-	const postRes = await fetch(`https://dummyjson.com/posts/${params.id}`)
-
-	if (!postRes.ok) {
-		if (postRes.status === 404) throw new Error('Post not found')
-		throw new Error('Failed to load post')
-	}
-
-	const post = await postRes.json()
-
-	const [userRes, commentsRes] = await Promise.all([
-		fetch(`https://dummyjson.com/users/${post.userId}`),
-		fetch(`https://dummyjson.com/posts/${post.id}/comments`),
-	])
-
-	if (!userRes.ok || !commentsRes.ok) throw new Error('Failed to load post data')
-
-	const user = await userRes.json()
-	const commentsJson = await commentsRes.json()
-	const comments = commentsJson.comments ?? []
-
-	const fullPost: Post = {
-		...post,
-		user,
-		comments,
-		imageUrl: `https://picsum.photos/seed/ajo-post-${post.id}/1200/700`
-	}
-
-	return { post: fullPost }
-}
-
-type Args = PageArgs<{ post: Post }>
-
-const Comments: Stateful<{ list: Comment[] }> = function* (args) {
+const Comments: Stateful<{ list: CommentWithUser[] }> = function* (args) {
 
 	let open = false
 
