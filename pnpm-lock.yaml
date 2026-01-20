@@ -27,8 +27,8 @@ importers:
         specifier: 66.6.0
         version: 66.6.0
       ajo:
-        specifier: file:../ajo
-        version: file:../ajo
+        specifier: 0.1.29
+        version: 0.1.29
       clsx:
         specifier: 2.1.1
         version: 2.1.1
@@ -491,8 +491,8 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  ajo@file:../ajo:
-    resolution: {directory: ../ajo, type: directory}
+  ajo@0.1.29:
+    resolution: {integrity: sha512-22PyD3LL3cpJ6xEQ/d+mvu4dfq4NsM7b85HCr60AfQlv55uf/ezRgedSJefp1dt94VaDKnieI7wT5698vaUx3w==}
 
   cac@6.7.14:
     resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
@@ -1165,7 +1165,7 @@ snapshots:
 
   acorn@8.15.0: {}
 
-  ajo@file:../ajo: {}
+  ajo@0.1.29: {}
 
   cac@6.7.14: {}
 

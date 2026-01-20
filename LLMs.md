@@ -560,7 +560,7 @@ export const AdminContext = context<{ sidebarOpen: boolean }>({ sidebarOpen: tru
 1. Server runs `handler.ts` functions (`page()`/`layout()`) for server-only data
 2. Server runs `page.tsx`/`layout.tsx` `handler()` functions
 3. Data merged: `{ ...serverData, ...localData }`
-4. Data injected into HTML as `window.__SSR__`
+4. Data injected into HTML as `globalThis.__SSR__`
 5. Client hydrates with cached data (no re-fetch)
 
 **Client navigation:**

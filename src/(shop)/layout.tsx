@@ -45,7 +45,7 @@ const Layout: Stateful<Args, 'section'> = function* (args) {
     try { globalThis.localStorage?.setItem('cart.v1', JSON.stringify(items)) } catch { }
   }
 
-  globalThis.window?.addEventListener('beforeunload', persist)
+  globalThis.addEventListener?.('beforeunload', persist)
 
   try {
 

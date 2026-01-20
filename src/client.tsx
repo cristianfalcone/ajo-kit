@@ -9,3 +9,5 @@ if (ssr) cache.set(ssr.url, ssr)
 const root = document.getElementById('root')
 
 if (root) render(<App />, root)
+
+if (import.meta.hot) (globalThis as { __HMR__?: () => void }).__HMR__ = () => dispatchEvent(new PopStateEvent('popstate'))

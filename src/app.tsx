@@ -132,6 +132,27 @@ for (const [path, loader] of Object.entries(import.meta.glob('/src/**/{layout,pa
 	if (type === 'page') routes.push({ pattern: toPattern(segments), segments, loader })
 }
 
+// HMR: wrap loaders to use hot-updated modules
+
+if (import.meta.env.DEV && !import.meta.env.SSR) {
+
+	const wrap = (loader: Loader, path: string): Loader => async () => {
+
+		const cache = (globalThis as { __MODULES__?: Map<string, Module> }).__MODULES__
+
+		if (cache?.has(path)) {
+			const module = cache.get(path)!
+			cache.delete(path)
+			return module
+		}
+
+		return loader()
+	}
+
+	for (const [path, loader] of layouts) layouts.set(path, wrap(loader, `/src${path}/layout.tsx`))
+	for (const route of routes) route.loader = wrap(route.loader, `/src${route.segments!.join('/')}/page.tsx`)
+}
+
 // Execute handler() with parent() support
 
 async function execute(
@@ -174,6 +195,9 @@ function compose(
 	const loading = 'loading' in data
 	const error = loading ? undefined : data.page.error
 
+	// Find who handles loading: page first, then innermost layout with defer
+	const deferred = page.defer ? 'page' : entries.findLast(e => e.module.defer)?.path
+
 	return entries.reduceRight<Component>(
 		(Child, { path, module }, index) => {
 			const Layout = module.default as Component<LayoutArgs>
@@ -183,7 +207,7 @@ function compose(
 					key={path}
 					params={data.params}
 					data={result?.data}
-					loading={loading && module.defer === true}
+					loading={loading && deferred === path}
 					error={result?.error ?? error}
 				>
 					<Child />
@@ -197,7 +221,7 @@ function compose(
 					key={paths.join('/')}
 					params={data.params}
 					data={result?.data}
-					loading={loading && page.defer === true}
+					loading={loading && deferred === 'page'}
 					error={result?.error}
 				/>
 			)

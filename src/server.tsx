@@ -86,7 +86,7 @@ export async function render(url: string) {
 
 	return {
 		head: r(<title>ajo-kit</title>),
-		data: `<script>window.__SSR__=${JSON.stringify(result!.data)}</script>`,
+		data: `<script>globalThis.__SSR__=${JSON.stringify(result!.data)}</script>`,
 		root: r(<App page={result!.Page} />),
 		error: result!.data?.page.error,
 	}

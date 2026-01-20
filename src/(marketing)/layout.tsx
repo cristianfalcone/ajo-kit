@@ -1,9 +1,8 @@
 import clsx from 'clsx'
-import type { Children, Stateful } from 'ajo'
+import type { Stateful } from 'ajo'
+import type { LayoutArgs } from '/src/constants'
 
-type Args = { children: Children }
-
-const Layout: Stateful<Args, 'section'> = function* (args) {
+const Layout: Stateful<LayoutArgs, 'section'> = function* (args) {
 
   while (true) {
 

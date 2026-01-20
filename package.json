@@ -1,11 +1,11 @@
 {
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --include 'src/**/*' server.ts dev",
+    "dev": "tsx watch --include 'src/**/handler.ts' --include 'src/**/wares.ts' --include 'src/server.tsx' server.ts dev",
     "build": "pnpm build:client && pnpm build:server",
     "build:client": "vite build --outDir dist/client",
     "build:server": "vite build --ssr src/server.tsx --outDir dist/server",
-    "prod": "pnpm build && NODE_ENV=production tsx server.ts prod"
+    "prod": "NODE_ENV=production tsx server.ts prod"
   },
   "dependencies": {
     "@iconify-json/lucide": "1.2.85",
@@ -14,7 +14,7 @@
     "@types/node": "25.0.9",
     "@unocss/preset-icons": "66.6.0",
     "@unocss/preset-wind4": "66.6.0",
-    "ajo": "file:../ajo",
+    "ajo": "0.1.29",
     "clsx": "2.1.1",
     "navaid": "1.2.0",
     "polka": "1.0.0-next.28",

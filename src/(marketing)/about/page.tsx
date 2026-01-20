@@ -147,7 +147,7 @@ const stack = [
 const flow = [
 	<>Request hits <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">server.ts</code>; route matched, handlers resolved.</>,
 	<>Server runs <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">handler.ts</code> functions (<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">page()</code>/<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">layout()</code>) + module <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">handler()</code> functions.</>,
-	<>Data merged (<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">{'{ ...server, ...local }'}</code>), injected as <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">window.__SSR__</code>.</>,
+	<>Data merged (<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">{'{ ...server, ...local }'}</code>), injected as <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">globalThis.__SSR__</code>.</>,
 	<>Root layout with <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">defer</code> handles loading UI; pages receive <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">loading</code>/<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">error</code>/<code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">data</code> props.</>,
 	'Client hydrates with cached data (no re-fetch). Generators advance with fresh DOM.',
 	<>Client navigation fetches server data via JSON, runs local <code class="px-1 rounded bg-slate-900/5 dark:bg-white/10">handler()</code>, merges & renders.</>,

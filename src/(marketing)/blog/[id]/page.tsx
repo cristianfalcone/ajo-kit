@@ -26,6 +26,8 @@ interface Post {
 	imageUrl: string
 }
 
+export const defer = true
+
 export async function handler({ params }: HandlerArgs) {
 
 	const postRes = await fetch(`https://dummyjson.com/posts/${params.id}`)
@@ -99,30 +101,72 @@ const Comments: Stateful<{ list: Comment[] }> = function* (args) {
 
 Comments.attrs = { class: 'space-y-4' }
 
+const PostSkeleton = () => (
+	<>
+		<div class="flex items-center justify-between">
+			<div class="h-8 w-16 rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+			<div class="h-4 w-32 rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+		</div>
+		<div class="rounded-xl overflow-hidden aspect-16/9 bg-slate-200 dark:bg-white/10 animate-pulse" />
+		<header class="space-y-4">
+			<div class="h-10 w-3/4 rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+			<div class="space-y-2">
+				<div class="h-4 w-full rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+				<div class="h-4 w-2/3 rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+			</div>
+		</header>
+		<div class="panel p-6 space-y-3">
+			<div class="h-4 w-full rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+			<div class="h-4 w-full rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+			<div class="h-4 w-5/6 rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+			<div class="h-4 w-4/5 rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+		</div>
+		<div class="h-8 w-40 rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+	</>
+)
+
 const Page: Stateful<Args, 'article'> = function* (args) {
 
-	const { id, title, body, user, comments, imageUrl } = args.data!.post
+	while (true) {
 
-	while (true) yield (
-		<>
-			<div class="flex items-center justify-between">
-				<Button href="/blog" variant="ghost" size="xs">Back</Button>
-				{user && <span class="text-xs text-indigo-600/80 dark:text-indigo-300/80">By {user.firstName} {user.lastName}</span>}
-			</div>
-			<div class="rounded-xl overflow-hidden">
-				<Image src={imageUrl} alt={title} aspect="16/9" />
-			</div>
-			<header class="space-y-4">
-				<h1 class="text-4xl font-bold tracking-tight leading-tight text-balance text-slate-900 dark:text-white">{title}</h1>
-				<p class="text-sm text-slate-600 dark:text-gray-400/80">{body.slice(0, 140)}...</p>
-			</header>
-			<div class="panel p-6 space-y-4">
-				<p class="text-sm leading-relaxed text-slate-700 dark:text-gray-300/80" set:innerHTML={body} skip />
-			</div>
-			<Comments list={comments} />
-			<footer class="pt-6 border-t border-slate-200 dark:border-white/10 text-xs uppercase tracking-wide text-slate-500 dark:text-gray-400/60">Post #{id}</footer>
-		</>
-	)
+		if (args.loading) {
+			yield <PostSkeleton />
+			continue
+		}
+
+		if (args.error) {
+			yield (
+				<div class="text-center py-20 space-y-4">
+					<p class="text-red-600 dark:text-red-400">{args.error.message}</p>
+					<Button href="/blog" variant="ghost" size="sm">Back to Blog</Button>
+				</div>
+			)
+			continue
+		}
+
+		const { id, title, body, user, comments, imageUrl } = args.data!.post
+
+		yield (
+			<>
+				<div class="flex items-center justify-between">
+					<Button href="/blog" variant="ghost" size="xs">Back</Button>
+					{user && <span class="text-xs text-indigo-600/80 dark:text-indigo-300/80">By {user.firstName} {user.lastName}</span>}
+				</div>
+				<div class="rounded-xl overflow-hidden">
+					<Image src={imageUrl} alt={title} aspect="16/9" />
+				</div>
+				<header class="space-y-4">
+					<h1 class="text-4xl font-bold tracking-tight leading-tight text-balance text-slate-900 dark:text-white">{title}</h1>
+					<p class="text-sm text-slate-600 dark:text-gray-400/80">{body.slice(0, 140)}...</p>
+				</header>
+				<div class="panel p-6 space-y-4">
+					<p class="text-sm leading-relaxed text-slate-700 dark:text-gray-300/80" set:innerHTML={body} skip />
+				</div>
+				<Comments list={comments} />
+				<footer class="pt-6 border-t border-slate-200 dark:border-white/10 text-xs uppercase tracking-wide text-slate-500 dark:text-gray-400/60">Post #{id}</footer>
+			</>
+		)
+	}
 }
 
 Page.is = 'article'
