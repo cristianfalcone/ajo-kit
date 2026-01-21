@@ -20,7 +20,7 @@ export const toSegments = (path: string) => {
 	return parts
 }
 
-export const getType = (path: string) => path.split('/').pop()?.split('.')[0]
+export const getFileName = (path: string) => path.split('/').pop()?.split('.')[0]
 
 // Form action helper for stateful generator components
 
@@ -126,7 +126,7 @@ export const routes: Route[] = []
 for (const [path, loader] of Object.entries(import.meta.glob('/src/**/{layout,page}.{j,t}s{,x}') as Record<string, Loader>)) {
 
 	const segments = toSegments(path)
-	const type = getType(path)
+	const type = getFileName(path)
 
 	if (type === 'layout') layouts.set(segments.join('/'), loader)
 	if (type === 'page') routes.push({ pattern: toPattern(segments), segments, loader })

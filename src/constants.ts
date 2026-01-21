@@ -42,11 +42,6 @@ export type HandlerArgs = {
 	parent: () => Promise<Record<string, unknown>>
 }
 
-export type Action = {
-	params: Params
-	body: Record<string, unknown>
-}
-
 // Form action state
 
 export type ActionState<T> = {
@@ -118,4 +113,25 @@ export const ThemeContext = context<Theme>({
 
 export const navigate = (to: string) => {
 	globalThis.history?.pushState({}, '', to)
+}
+
+// Auth types
+
+export type Role = 'admin' | 'user' | 'moderator'
+
+export interface Auth {
+	id: number
+	username: string
+	email: string
+	roles: Role[]
+}
+
+export const AuthContext = context<Auth | null>(null)
+
+// Request may have auth populated by session middleware
+
+declare module 'polka' {
+	interface Request {
+		auth?: Auth | null
+	}
 }

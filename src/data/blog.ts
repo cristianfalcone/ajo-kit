@@ -1,24 +1,9 @@
 import { db } from './db'
-import type { User, PostWithUser, PostWithDetails, CommentWithUser } from './types'
+import type { PostWithUser, PostWithDetails, CommentWithUser } from './types'
+import { users } from './auth'
 
 const postImage = (id: number, size = '600/400') =>
 	`https://picsum.photos/seed/ajo-post-${id}/${size}`
-
-// Users
-
-export const users = {
-	all: () =>
-		db().selectFrom('users').selectAll().execute(),
-
-	find: (id: number) =>
-		db().selectFrom('users').selectAll().where('id', '=', id).executeTakeFirst(),
-
-	byIds: async (ids: number[]): Promise<Map<number, User>> => {
-		if (!ids.length) return new Map()
-		const rows = await db().selectFrom('users').selectAll().where('id', 'in', ids).execute()
-		return new Map(rows.map(u => [u.id, u]))
-	},
-}
 
 // Posts
 

@@ -3,11 +3,31 @@ import type { Generated, Selectable, Insertable } from 'kysely'
 // Table Schemas
 
 export interface UsersTable {
-	id: number
+	id: Generated<number>
 	username: string
 	firstName: string
 	lastName: string
 	email: string
+	password: string | null
+	verified: Generated<number>
+	created: Generated<string>
+}
+
+export interface SessionsTable {
+	id: string
+	userId: number
+	expiry: string
+	created: Generated<string>
+}
+
+export interface RolesTable {
+	id: number
+	name: string
+}
+
+export interface MembersTable {
+	userId: number
+	roleId: number
 }
 
 export interface PostsTable {
@@ -46,6 +66,9 @@ export interface DB {
 	posts: PostsTable
 	comments: CommentsTable
 	products: ProductsTable
+	sessions: SessionsTable
+	roles: RolesTable
+	members: MembersTable
 }
 
 // Derived Types (Selectable = query results)
@@ -59,6 +82,9 @@ export type NewUser = Insertable<UsersTable>
 export type NewPost = Insertable<PostsTable>
 export type NewComment = Insertable<CommentsTable>
 export type NewProduct = Insertable<ProductsTable>
+
+export type Session = Selectable<SessionsTable>
+export type Role = 'admin' | 'user' | 'moderator'
 
 // Enriched Types (for API responses)
 

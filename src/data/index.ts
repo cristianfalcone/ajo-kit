@@ -7,13 +7,14 @@ export type {
 	PostWithUser,
 	PostWithDetails,
 	CommentWithUser,
+	Session,
+	Role,
 } from './types'
 
 // Database
 export { db, close } from './db'
-export { migrate, rollback } from './schema'
-export { seed } from './seed'
 
 // Repositories
-export { users, posts, comments } from './blog'
+export { posts, comments } from './blog'
 export { products } from './shop'
+export { users, sessions, roles } from './auth'

@@ -1,7 +1,9 @@
 {
   "type": "module",
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   },
   "scripts": {
     "dev": "tsx watch --include 'src/**/handler.ts' --include 'src/**/wares.ts' --include 'src/server.tsx' server.ts dev",
@@ -9,12 +11,13 @@
     "build:client": "vite build --outDir dist/client",
     "build:server": "vite build --ssr src/server.tsx --outDir dist/server",
     "prod": "NODE_ENV=production tsx server.ts prod",
-    "db": "tsx src/data/seed.ts"
+    "db": "tsx src/data/cli.ts"
   },
   "dependencies": {
     "@polka/parse": "1.0.0-next.28",
     "@polka/send": "1.0.0-next.28",
     "ajo": "0.1.29",
+    "argon2": "^0.44.0",
     "better-sqlite3": "^12.6.2",
     "clsx": "2.1.1",
     "kysely": "^0.28.10",

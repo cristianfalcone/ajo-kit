@@ -1,8 +1,8 @@
-import type { Action, HandlerArgs } from '/src/constants'
+import type { Request, Response } from 'polka'
 import { posts } from '/src/data'
 
 // Server-only data loading for the blog page
-export async function page({}: HandlerArgs) {
+export async function page() {
 	return {
 		posts: await posts.all(18),
 		time: new Date().toISOString(),
@@ -10,8 +10,9 @@ export async function page({}: HandlerArgs) {
 }
 
 // Example form action for newsletter subscription
-export async function subscribe({ body }: Action) {
+export async function subscribe(req: Request, res: Response) {
 
+	const { body } = req
 	const email = body.email as string
 
 	if (!email || !email.includes('@')) {

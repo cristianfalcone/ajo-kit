@@ -3,7 +3,7 @@ import { createServer as createHttpServer } from 'node:http'
 import { createServer } from 'vite'
 import { json } from '@polka/parse'
 import send from '@polka/send'
-import polka from 'polka'
+import polka, { type Request, type Response } from 'polka'
 import sirv from 'sirv'
 import sade from 'sade'
 
@@ -42,8 +42,8 @@ function compile(html: string) {
 }
 
 type Module = {
-  data: (url: string) => Promise<unknown>
-  action: (url: string, name: string, body: Record<string, unknown>) => Promise<{ redirect?: string } | void>
+  data: (req: Request, res: Response) => Promise<unknown>
+  action: (req: Request, res: Response, name: string) => Promise<{ redirect?: string } | void>
 }
 
 function routes(app: ReturnType<typeof polka>, module: Module) {
@@ -57,9 +57,11 @@ function routes(app: ReturnType<typeof polka>, module: Module) {
     if (!req.headers.accept?.includes('application/json')) return next()
 
     try {
-      send(res, 200, await module.data(req.originalUrl))
-    } catch (error: any) {
-      send(res, error.status ?? 500, { error: error.message ?? 'Error' })
+      send(res, 200, await module.data(req, res))
+    } catch (error: unknown) {
+      const status = error instanceof Error && 'status' in error ? (error as { status: number }).status : 500
+      const message = error instanceof Error ? error.message : 'Error'
+      send(res, status, { error: message })
     }
   })
 
@@ -76,7 +78,7 @@ function routes(app: ReturnType<typeof polka>, module: Module) {
 
     try {
 
-      const result = await module.action(url.pathname, name, req.body ?? {})
+      const result = await module.action(req, res, name)
 
       if (isJson) {
         send(res, 200, result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true }))
@@ -125,15 +127,13 @@ async function createDevServer() {
 
     try {
 
-      const { originalUrl: url } = req
-
       let raw = await fs.readFile('./index.html', 'utf-8')
 
-      raw = await vite.transformIndexHtml(url, raw)
+      raw = await vite.transformIndexHtml(req.originalUrl, raw)
 
       const template = compile(raw)
 
-      const result = await render(url)
+      const result = await render(req, res)
 
       res.statusCode = result.error?.status ?? 200
       res.setHeader('Content-Type', 'text/html').end(template(result))
@@ -179,7 +179,7 @@ async function createProdServer() {
 
     try {
 
-      const result = await render(req.originalUrl)
+      const result = await render(req, res)
 
       res.statusCode = result.error?.status ?? 200
       res.setHeader('Content-Type', 'text/html').end(template(result))
