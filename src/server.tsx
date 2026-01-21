@@ -102,11 +102,18 @@ export async function action(req: Request, res: Response, name: string) {
 	// Run wares for this path
 	await run(waresFor(segments), req, res)
 
-	const invoke = handlers.get(segments.join('/') ?? '')?.actions[name]
+	// Walk up the handler chain to find the action
+	const paths = segments
+		.map((_, i) => segments.slice(0, i + 1).join('/'))
+		.filter(path => handlers.has(path))
+		.reverse()
 
-	if (!invoke) throw new RouteError(400, `Action '${name}' not found`)
+	for (const path of paths) {
+		const invoke = handlers.get(path)?.actions[name]
+		if (invoke) return invoke(req, res)
+	}
 
-	return invoke(req, res)
+	throw new RouteError(400, `Action '${name}' not found`)
 }
 
 // SSR render

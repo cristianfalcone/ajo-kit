@@ -126,7 +126,21 @@ export interface Auth {
 	roles: Role[]
 }
 
-export const AuthContext = context<Auth | null>(null)
+export interface AuthState {
+	user: Auth | null
+	signout: ActionState<void>
+}
+
+export const AuthContext = context<AuthState>({
+	user: null,
+	signout: {
+		loading: false,
+		data: undefined,
+		error: undefined,
+		handle: () => {},
+		reset: () => {}
+	}
+})
 
 // Request may have auth populated by session middleware
 

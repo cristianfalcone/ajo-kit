@@ -1,6 +1,6 @@
 import navaid from 'navaid'
 import type { Component, Stateful } from 'ajo'
-import { NotFoundError, RouteError } from '/src/constants'
+import { NotFoundError, RouteError, navigate } from '/src/constants'
 import type { HandlerArgs, Params, PageArgs, LayoutArgs, ActionState, Server } from '/src/constants'
 
 // Pattern compilation
@@ -60,7 +60,8 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
 				body: JSON.stringify(body),
-				signal: controller.signal
+				signal: controller.signal,
+				credentials: 'same-origin'
 			})
 
 			const json = await response.json()
@@ -68,7 +69,7 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 			if (!response.ok) {
 				state.error = json.error ?? 'Action failed'
 			} else if (json.redirect) {
-				location.href = json.redirect
+				navigate(json.redirect)
 				return
 			} else {
 				state.data = json as T
@@ -272,7 +273,7 @@ export async function* resolve(
 	const server: Server = await (async () => {
 		if (remote) return remote
 		if (import.meta.env.SSR) return { page: {}, layout: [] }
-		const response = await fetch(url, { headers: { Accept: 'application/json' } })
+		const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
 		if (response.ok) return response.json()
 		const { error } = await response.json().catch(reason => ({ error: reason?.message ?? 'Load failed' }))
 		throw new RouteError(response.status, error)

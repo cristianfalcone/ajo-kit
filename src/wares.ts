@@ -5,7 +5,7 @@ import { users, roles } from './data'
 
 export default [
 
-	function timing(_: Request, res: Response, next: NextHandler) {
+	function timing(_req: Request, res: Response, next: NextHandler) {
 
 		const t0 = Date.now()
 
@@ -18,7 +18,7 @@ export default [
 			return writeHead.apply(this, arguments as any)
 		}
 
-		next()
+		return next()
 	},
 
 	async function session(req: Request, res: Response, next: NextHandler) {
@@ -50,6 +50,6 @@ export default [
 
 		req.auth = { id: user.id, username: user.username, email: user.email, roles: userRoles }
 
-		next()
+		return next()
 	},
 ]

@@ -1,7 +1,8 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
-import type { LayoutArgs } from '/src/constants'
-import { ThemeContext, ThemeMode, NotFoundError } from '/src/constants'
+import type { Auth, LayoutArgs } from '/src/constants'
+import { AuthContext, ThemeContext, ThemeMode, NotFoundError } from '/src/constants'
+import { action } from '/src/app'
 import Spinner from '/src/ui/spinner'
 
 const isDev = import.meta.env.DEV
@@ -13,6 +14,8 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 
 	let mode: ThemeMode = globalThis.localStorage?.getItem('theme.v1') as ThemeMode ?? 'system'
 	let previous: Children = args.children
+
+	const signout = action<void>(this, 'signout')
 
 	const apply = (mode: ThemeMode) => {
 
@@ -46,7 +49,10 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 
 	while (true) try {
 
+		const user = (args.data?.auth as Auth | null) ?? null
+
 		ThemeContext({ mode, set, cycle })
+		AuthContext({ user, signout })
 
 		if (args.loading) {
 			// Show spinner overlay, keep previous content visible
@@ -153,9 +159,17 @@ const isActive = (path: string, url: string, options?: LinkOptions): boolean => 
 const Nav = () => {
 
 	const url = globalThis.location?.pathname ?? '/'
+	const { user, signout } = AuthContext()
+
+	const linkClass = (active: boolean) => clsx([
+		'px-3 py-1.5 rounded-md text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60',
+		active
+			? 'bg-slate-900/5 text-slate-900 dark:bg-white/10 dark:text-white'
+			: 'text-slate-600 hover:text-slate-900 hover:bg-slate-900/5 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10'
+	])
 
 	return (
-		<nav class="sticky top-0 z-40" memo={url}>
+		<nav class="sticky top-0 z-40" memo={[url, user?.id, signout.loading].join(':')}>
 			<div class="backdrop-blur border-b shadow-[0_2px_4px_-2px_rgba(0,0,0,0.08)] bg-white/80 supports-[backdrop-filter]:bg-white/60 border-slate-200 dark:supports-[backdrop-filter]:bg-black/40 dark:bg-black/70 dark:border-white/10 dark:shadow-[0_2px_4px_-2px_rgba(0,0,0,0.4)] transition-colors">
 				<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div class="flex h-14 items-center justify-between">
@@ -166,21 +180,35 @@ const Nav = () => {
 							{links.map(([path, label, options]) => {
 								const active = isActive(path, url, options)
 								return (
-									<a
-										key={path}
-										href={path as string}
-										class={clsx([
-											'px-3 py-1.5 rounded-md text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60',
-											active
-												? 'bg-slate-900/5 text-slate-900 dark:bg-white/10 dark:text-white'
-												: 'text-slate-600 hover:text-slate-900 hover:bg-slate-900/5 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10'
-										])}
-										aria-current={active ? 'page' : undefined}
-									>
+									<a key={path} href={path as string} class={linkClass(active)} aria-current={active ? 'page' : undefined}>
 										{label}
 									</a>
 								)
 							})}
+
+							<span class="mx-2 h-4 w-px bg-slate-300 dark:bg-white/20" />
+
+							{user ? (
+								<>
+									<span class="text-xs text-slate-600 dark:text-gray-300 px-2">
+										{user.username}
+									</span>
+									<form set:onsubmit={signout.handle} class="inline">
+										<button
+											type="submit"
+											disabled={signout.loading}
+											class={clsx([linkClass(false), signout.loading && 'opacity-50'])}
+										>
+											{signout.loading ? 'Signing out...' : 'Logout'}
+										</button>
+									</form>
+								</>
+							) : (
+								<>
+									<a href="/login" class={linkClass(url === '/login')}>Login</a>
+									<a href="/register" class={linkClass(url === '/register')}>Register</a>
+								</>
+							)}
 						</div>
 					</div>
 				</div>
