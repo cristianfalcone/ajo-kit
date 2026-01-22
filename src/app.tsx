@@ -32,10 +32,12 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 		loading: false,
 		data: undefined,
 		error: undefined,
+		fields: undefined,
 		handle: () => {},
 		reset: () => {
 			state.data = undefined
 			state.error = undefined
+			state.fields = undefined
 			element.next()
 		}
 	}
@@ -53,6 +55,7 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 
 		state.loading = true
 		state.error = undefined
+		state.fields = undefined
 		element.next()
 
 		try {
@@ -68,6 +71,7 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 
 			if (!response.ok) {
 				state.error = json.error ?? 'Action failed'
+				state.fields = json.fields
 			} else if (json.redirect) {
 				navigate(json.redirect)
 				return

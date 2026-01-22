@@ -10,7 +10,10 @@ export class RouteError extends Error {
 	override message: string
 	constructor(public status: number, message: string) {
 		super(message)
-		this.message = message // Make enumerable for JSON serialization
+		this.message = message
+	}
+	toJSON() {
+		return { error: this.message }
 	}
 }
 
@@ -48,6 +51,7 @@ export type ActionState<T> = {
 	loading: boolean
 	data: T | undefined
 	error: string | undefined
+	fields: Record<string, string[]> | undefined
 	handle: (event: SubmitEvent) => void
 	reset: () => void
 }
@@ -137,6 +141,7 @@ export const AuthContext = context<AuthState>({
 		loading: false,
 		data: undefined,
 		error: undefined,
+		fields: undefined,
 		handle: () => {},
 		reset: () => {}
 	}

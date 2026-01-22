@@ -40,7 +40,7 @@ export interface PostsTable {
 }
 
 export interface CommentsTable {
-	id: number
+	id: Generated<number>
 	postId: number
 	body: string
 	userId: number

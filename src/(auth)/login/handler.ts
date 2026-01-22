@@ -4,20 +4,20 @@ import { verify } from '../../auth/password'
 import { create } from '../../auth/session'
 import { write } from '../../auth/cookie'
 import { users } from '../../data'
+import { v, parse, email } from '../../schemas'
+
+const Login = v.object({
+	email,
+	password: v.string(),
+})
 
 export async function authenticate(req: Request, res: Response) {
 
-	const { body } = req
-	const email = (body.email as string)?.trim().toLowerCase()
-	const password = body.password as string
+	const input = parse(Login, req.body)
 
-	if (!email || !password) {
-		throw new UnauthorizedError('Email and password required')
-	}
+	const user = await users.byEmail(input.email)
 
-	const user = await users.byEmail(email)
-
-	if (!user?.password || !await verify(password, user.password)) {
+	if (!user?.password || !await verify(input.password, user.password)) {
 		throw new UnauthorizedError('Invalid credentials')
 	}
 

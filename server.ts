@@ -7,7 +7,7 @@ import polka, { type Request, type Response } from 'polka'
 import sirv from 'sirv'
 import sade from 'sade'
 
-const re = /<!--\s*ssr:([A-Za-z0-9_]+)\s*-->/g
+const reMarkers = /<!--\s*ssr:([A-Za-z0-9_]+)\s*-->/g
 
 function compile(html: string) {
 
@@ -17,7 +17,7 @@ function compile(html: string) {
   let start = 0
   let match: RegExpExecArray | null
 
-  while (match = re.exec(html)) {
+  while (match = reMarkers.exec(html)) {
 
     const end = match.index
 

@@ -4,6 +4,7 @@ import type { Session, Role, User, NewUser } from './types'
 // Users
 
 export const users = {
+
 	all: () =>
 		db().selectFrom('users').selectAll().execute(),
 
@@ -26,6 +27,7 @@ export const users = {
 // Sessions
 
 export const sessions = {
+
 	create: (data: { id: string; userId: number; expiry: string }) =>
 		db().insertInto('sessions').values(data).execute(),
 
@@ -40,6 +42,7 @@ export const sessions = {
 }
 
 export const roles = {
+
 	forUser: async (userId: number): Promise<Role[]> => {
 		const rows = await db()
 			.selectFrom('members')

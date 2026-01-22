@@ -24,7 +24,8 @@
     "navaid": "1.2.0",
     "polka": "1.0.0-next.28",
     "sade": "1.8.1",
-    "sirv": "3.0.2"
+    "sirv": "3.0.2",
+    "valibot": "^1.2.0"
   },
   "devDependencies": {
     "@iconify-json/lucide": "1.2.85",

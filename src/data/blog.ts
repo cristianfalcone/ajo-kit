@@ -2,12 +2,12 @@ import { db } from './db'
 import type { PostWithUser, PostWithDetails, CommentWithUser } from './types'
 import { users } from './auth'
 
-const postImage = (id: number, size = '600/400') =>
-	`https://picsum.photos/seed/ajo-post-${id}/${size}`
+const postImage = (id: number, size = '600/400') => `https://picsum.photos/seed/ajo-post-${id}/${size}`
 
 // Posts
 
 export const posts = {
+
 	all: async (limit = 18): Promise<PostWithUser[]> => {
 		const rows = await db()
 			.selectFrom('posts')
@@ -26,6 +26,7 @@ export const posts = {
 	},
 
 	find: async (id: number): Promise<PostWithDetails | undefined> => {
+
 		const post = await db()
 			.selectFrom('posts')
 			.selectAll()
@@ -51,7 +52,9 @@ export const posts = {
 // Comments
 
 export const comments = {
+
 	forPost: async (postId: number): Promise<CommentWithUser[]> => {
+
 		const rows = await db()
 			.selectFrom('comments')
 			.selectAll()
@@ -66,4 +69,20 @@ export const comments = {
 			user: userMap.get(c.userId),
 		}))
 	},
+
+	find: (id: number) =>
+		db().selectFrom('comments').selectAll().where('id', '=', id).executeTakeFirst(),
+
+	create: (data: { postId: number; userId: number; body: string }) =>
+		db().insertInto('comments').values(data).returningAll().executeTakeFirstOrThrow(),
+
+	update: (id: number, body: string) =>
+		db()
+			.updateTable('comments')
+			.set({ body, updatedAt: new Date().toISOString() })
+			.where('id', '=', id)
+			.returningAll()
+			.executeTakeFirstOrThrow(),
+
+	remove: (id: number) => db().deleteFrom('comments').where('id', '=', id).execute(),
 }

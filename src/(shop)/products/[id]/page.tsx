@@ -11,6 +11,7 @@ type Args = PageArgs<{ product: Product }>
 const Page: Stateful<Args, 'article'> = function* (args) {
 
 	const { product } = args.data!
+
 	let selected = 0
 
 	const setSelected = (i: number) => this.next(() => selected = i)

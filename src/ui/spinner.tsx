@@ -21,7 +21,7 @@ export default function Spinner({ loading, duration = 300, label = 'Loading', ov
       aria-live="polite"
       aria-busy={loading ? 'true' : 'false'}
       class={container}
-      style={{ transitionDuration: duration + 'ms' }}
+      style={'transition-duration: ' + duration + 'ms'}
     >
       {overlay && <div class="absolute inset-0 backdrop-blur-sm bg-white/60 dark:bg-black/40" />}
       <div class="relative px-5 py-4 rounded-xl panel flex flex-col items-center gap-3 shadow-sm dark:shadow-none">

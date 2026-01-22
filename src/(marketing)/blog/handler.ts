@@ -1,7 +1,7 @@
-import type { Request, Response } from 'polka'
+import type { Request } from 'polka'
 import { posts } from '/src/data'
+import { v, parse, email } from '/src/schemas'
 
-// Server-only data loading for the blog page
 export async function page() {
 	return {
 		posts: await posts.all(18),
@@ -9,18 +9,13 @@ export async function page() {
 	}
 }
 
-// Example form action for newsletter subscription
-export async function subscribe(req: Request, res: Response) {
+const Subscribe = v.object({ email })
 
-	const { body } = req
-	const email = body.email as string
+export async function subscribe(req: Request) {
 
-	if (!email || !email.includes('@')) {
-		throw new Error('Invalid email address')
-	}
+	const input = parse(Subscribe, req.body)
 
-	// Simulate server processing
-	console.log(`Newsletter subscription: ${email}`)
+	console.log(`Newsletter subscription: ${input.email}`)
 
-	return { success: true, email }
+	return { success: true, email: input.email }
 }

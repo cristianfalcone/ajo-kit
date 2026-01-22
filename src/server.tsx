@@ -150,12 +150,15 @@ const wrap = (fn: Handler = () => {}): Middleware => async (req, res, next) => {
 export async function create() {
 
 	const app = polka({
-		onError: (err, _, res) => send(
-			res,
-			res.statusCode && res.statusCode >= 400 ? res.statusCode : 500,
-			typeof err === 'string' ? err : (err?.message ?? 'Internal Server Error')
-		),
-		onNoMatch: (_, res) => send(res, 404, 'Not Found')
+		onError: (err, _, res) => {
+			if (err instanceof RouteError) {
+				send(res, err.status, err)
+			} else {
+				console.error(err)
+				send(res, 500, { error: 'Internal error' })
+			}
+		},
+		onNoMatch: (_, res) => send(res, 404, { error: 'Not found' })
 	})
 
 	app.use(json())

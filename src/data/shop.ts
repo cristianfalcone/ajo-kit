@@ -8,6 +8,7 @@ const enrich = (row: { images: string } & Omit<Product, 'images'>): Product => (
 })
 
 export const products = {
+
 	all: async (limit = 18): Promise<Product[]> => {
 		const rows = await db()
 			.selectFrom('products')

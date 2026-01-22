@@ -10,6 +10,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export async function migrate(): Promise<void> {
+
 	const k = db()
 
 	// Users
