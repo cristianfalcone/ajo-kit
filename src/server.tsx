@@ -1,36 +1,36 @@
-import { render as r } from 'ajo/html'
+import { render as html } from 'ajo/html'
 import type { Component } from 'ajo'
 import polka from 'polka'
 import type { Request, Response, Middleware, NextHandler } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
 import navaid from 'navaid'
-import App, { routes, resolve, layouts, notFound, toPattern, toSegments, getFileName, type Route, type Data } from './app'
-import { RouteError, type Server } from './constants'
+import App, { pages, resolve, layouts, notFound, toPattern, toSegments, getFileName, type Page, type State } from './app'
+import { AppError, type Remote } from './constants'
 
-// Route matching
+// Page matching
 
-function match(url: string): Route {
-	let route: Route = notFound
-	const router = navaid('/', () => route = notFound)
-	for (const item of routes) router.on(item.pattern!, params => route = { ...item, params })
+function match(url: string): Page {
+	let page: Page = notFound
+	const router = navaid('/', () => page = notFound)
+	for (const config of pages) router.on(config.pattern!, params => page = { ...config, params })
 	router.run(url)
-	return route
+	return page
 }
 
 // Wares populated by create()
 
 const wares = new Map<string, Middleware[]>()
 
-// Helper to run middleware chain
+// Helper to pipeline middleware chain
 
-async function run(list: Middleware[], req: Request, res: Response): Promise<void> {
+async function pipeline(chain: Middleware[], req: Request, res: Response): Promise<void> {
 
-	let i = 0
+	let index = 0
 
 	const next: NextHandler = async (err?: unknown) => {
 		if (err) throw err
-		if (i < list.length) await list[i++](req, res, next)
+		if (index < chain.length) await chain[index++](req, res, next)
 	}
 
 	await next()
@@ -40,7 +40,7 @@ async function run(list: Middleware[], req: Request, res: Response): Promise<voi
 
 function waresFor(segments: string[]): Middleware[] {
 	return segments
-		.map((_, i) => segments.slice(0, i + 1).join('/'))
+		.map((_, index) => segments.slice(0, index + 1).join('/'))
 		.flatMap(path => wares.get(path) ?? [])
 }
 
@@ -58,7 +58,7 @@ const handlers = new Map<string, PageHandler>()
 
 // Server data loading
 
-export async function data(req: Request, res: Response): Promise<Server> {
+export async function data(req: Request, res: Response): Promise<Remote> {
 
 	const url = req.originalUrl
 	const { segments = [], params = {}, loader } = match(url)
@@ -67,14 +67,14 @@ export async function data(req: Request, res: Response): Promise<Server> {
 	Object.assign(req, { params })
 
 	// Run wares for this path
-	await run(waresFor(segments), req, res)
+	await pipeline(waresFor(segments), req, res)
 
 	const paths = segments
 		.map((_, index) => segments.slice(0, index + 1).join('/'))
 		.filter(path => layouts.has(path))
 
-	const layout: Server['layout'] = []
-	const parent: Parent = async () => layout.reduce((merged, item) => ({ ...merged, ...item }), {})
+	const layout: Remote['layout'] = []
+	const parent: Parent = async () => layout.reduce((result, entry) => ({ ...result, ...entry }), {})
 
 	for (const path of paths) {
 		const module = await layouts.get(path)?.()
@@ -100,11 +100,11 @@ export async function action(req: Request, res: Response, name: string) {
 	Object.assign(req, { params })
 
 	// Run wares for this path
-	await run(waresFor(segments), req, res)
+	await pipeline(waresFor(segments), req, res)
 
 	// Walk up the handler chain to find the action
 	const paths = segments
-		.map((_, i) => segments.slice(0, i + 1).join('/'))
+		.map((_, index) => segments.slice(0, index + 1).join('/'))
 		.filter(path => handlers.has(path))
 		.reverse()
 
@@ -113,7 +113,7 @@ export async function action(req: Request, res: Response, name: string) {
 		if (invoke) return invoke(req, res)
 	}
 
-	throw new RouteError(400, `Action '${name}' not found`)
+	throw new AppError(400, `Action '${name}' not found`)
 }
 
 // SSR render
@@ -122,17 +122,17 @@ export async function render(req: Request, res: Response) {
 
 	const url = req.originalUrl
 
-	let result: { Page: Component; data?: Data } | undefined
+	let resolved: { Page: Component; data?: State } | undefined
 
 	for await (const state of resolve(url, layouts, match(url), await data(req, res))) {
-		result = state
+		resolved = state
 	}
 
 	return {
-		head: r(<title>ajo-kit</title>),
-		data: `<script>globalThis.__SSR__=${JSON.stringify(result!.data)}</script>`,
-		root: r(<App page={result!.Page} />),
-		error: result!.data?.page.error,
+		head: html(<title>ajo-kit</title>),
+		data: `<script>globalThis.__SSR__=${JSON.stringify(resolved!.data)}</script>`,
+		root: html(<App page={resolved!.Page} />),
+		error: resolved!.data?.page.error,
 	}
 }
 
@@ -142,16 +142,16 @@ type Handler = (req: Request, res: Response, next: NextHandler) => unknown | Pro
 type Handlers = Partial<Record<HttpMethod, Handler>>
 
 const wrap = (fn: Handler = () => {}): Middleware => async (req, res, next) => {
-	const out = await fn(req, res, next)
+	const output = await fn(req, res, next)
 	if (res.writableEnded) return
-	send(res, res.statusCode, out)
+	send(res, res.statusCode, output)
 }
 
 export async function create() {
 
 	const app = polka({
 		onError: (err, _, res) => {
-			if (err instanceof RouteError) {
+			if (err instanceof AppError) {
 				send(res, err.status, err)
 			} else {
 				console.error(err)
@@ -163,34 +163,34 @@ export async function create() {
 
 	app.use(json())
 
-	const entries = Object.entries(import.meta.glob('/src/**/{wares,handler}.{j,t}s{,x}') as Record<string, () => Promise<Record<string, unknown>>>)
+	const files = Object.entries(import.meta.glob('/src/**/{wares,handler}.{j,t}s{,x}') as Record<string, () => Promise<Record<string, unknown>>>)
 
-	for (const [path, loader] of entries) {
+	for (const [file, load] of files) {
 
-		const module = await loader()
-		const segments = toSegments(path)
+		const exports = await load()
+		const segments = toSegments(file)
 		const key = segments.join('/')
 
-		switch (getFileName(path) as FileName) {
+		switch (getFileName(file) as FileName) {
 
 			case 'wares': {
 				wares.set(key, (wares.get(key) ?? []).concat(
-					(Array.isArray(module.default) ? module.default : [module.default]) as Middleware[]
+					(Array.isArray(exports.default) ? exports.default : [exports.default]) as Middleware[]
 				))
 				break
 			}
 
 			case 'handler': {
 
-				const { default: api, page, layout, ...actions } = module
+				const { default: routes, page, layout, ...actions } = exports
 
 				handlers.set(key, { page, layout, actions } as PageHandler)
 
-				if (api) for (const method of Object.keys(api) as HttpMethod[]) {
+				if (routes) for (const method of Object.keys(routes) as HttpMethod[]) {
 					app[method](
 						toPattern(segments),
 						...waresFor(segments),
-						wrap((api as Handlers)[method])
+						wrap((routes as Handlers)[method])
 					)
 				}
 			}

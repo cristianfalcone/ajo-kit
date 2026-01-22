@@ -15,29 +15,29 @@ function compile(html: string) {
   const markers: string[] = []
 
   let start = 0
-  let match: RegExpExecArray | null
+  let found: RegExpExecArray | null
 
-  while (match = reMarkers.exec(html)) {
+  while (found = reMarkers.exec(html)) {
 
-    const end = match.index
+    const end = found.index
 
-    markers.push(match[1])
+    markers.push(found[1])
     statics.push(html.slice(start, end))
 
-    start = end + match[0].length
+    start = end + found[0].length
   }
 
   statics.push(html.slice(start))
 
-  return (contents: Record<string, string>) => {
+  return (slots: Record<string, string>) => {
 
-    let out = ''
+    let output = ''
 
-    for (let i = 0; i < markers.length; i++) out += statics[i] + (contents[markers[i]] ?? '')
+    for (let index = 0; index < markers.length; index++) output += statics[index] + (slots[markers[index]] ?? '')
 
-    out += statics[statics.length - 1]
+    output += statics[statics.length - 1]
 
-    return out
+    return output
   }
 }
 
@@ -78,13 +78,13 @@ function routes(app: ReturnType<typeof polka>, module: Module) {
 
     try {
 
-      const result = await module.action(req, res, name)
+      const response = await module.action(req, res, name)
 
       if (isJson) {
-        send(res, 200, result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true }))
+        send(res, 200, response?.redirect ? { redirect: response.redirect } : (response ?? { ok: true }))
       } else {
         res.statusCode = 302
-        res.setHeader('Location', result?.redirect ?? url.pathname)
+        res.setHeader('Location', response?.redirect ?? url.pathname)
         res.end()
       }
 
@@ -133,10 +133,10 @@ async function createDevServer() {
 
       const template = compile(raw)
 
-      const result = await render(req, res)
+      const rendered = await render(req, res)
 
-      res.statusCode = result.error?.status ?? 200
-      res.setHeader('Content-Type', 'text/html').end(template(result))
+      res.statusCode = rendered.error?.status ?? 200
+      res.setHeader('Content-Type', 'text/html').end(template(rendered))
 
     } catch (error: unknown) {
 
@@ -179,10 +179,10 @@ async function createProdServer() {
 
     try {
 
-      const result = await render(req, res)
+      const rendered = await render(req, res)
 
-      res.statusCode = result.error?.status ?? 200
-      res.setHeader('Content-Type', 'text/html').end(template(result))
+      res.statusCode = rendered.error?.status ?? 200
+      res.setHeader('Content-Type', 'text/html').end(template(rendered))
 
     } catch (error: unknown) {
 
@@ -206,7 +206,7 @@ async function createProdServer() {
 const listen = (handler: any, port: number): Promise<number> => new Promise((resolve, reject) => {
   createHttpServer(handler)
     .listen(port, () => resolve(port))
-    .once('error', (e: NodeJS.ErrnoException) => e.code === 'EADDRINUSE' ? resolve(listen(handler, port + 1)) : reject(e))
+    .once('error', (error: NodeJS.ErrnoException) => error.code === 'EADDRINUSE' ? resolve(listen(handler, port + 1)) : reject(error))
 })
 
 type ServerOptions = {

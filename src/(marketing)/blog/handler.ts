@@ -1,6 +1,6 @@
 import type { Request } from 'polka'
-import { posts } from '/src/data'
-import { v, parse, email } from '/src/schemas'
+import { object } from 'valibot'
+import { posts, parse, email } from '/src/data'
 
 export async function page() {
 	return {
@@ -9,7 +9,7 @@ export async function page() {
 	}
 }
 
-const Subscribe = v.object({ email })
+const Subscribe = object({ email })
 
 export async function subscribe(req: Request) {
 

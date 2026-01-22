@@ -1,8 +1,8 @@
 import 'virtual:uno.css'
 import { render } from 'ajo'
-import App, { cache, type Data } from '/src/app'
+import App, { cache, type State } from '/src/app'
 
-const ssr = (globalThis as { __SSR__?: Data }).__SSR__
+const ssr = (globalThis as { __SSR__?: State }).__SSR__
 
 if (ssr) cache.set(ssr.url, ssr)
 

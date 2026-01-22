@@ -1,14 +1,14 @@
 import type { Request } from 'polka'
 import { NotFoundError, ForbiddenError, UnauthorizedError } from '/src/constants'
-import { posts, comments, users } from '/src/data'
-import { v, parse, numeric, body } from '/src/schemas'
+import { object } from 'valibot'
+import { posts, comments, users, parse, numeric, body } from '/src/data'
 
-const AddComment = v.object({ body })
-const EditComment = v.object({ commentId: numeric, body })
-const DeleteComment = v.object({ commentId: numeric })
+const AddComment = object({ body })
+const EditComment = object({ commentId: numeric, body })
+const DeleteComment = object({ commentId: numeric })
 
 export async function page(req: Request) {
-	const { id } = parse(v.object({ id: numeric }), req.params)
+	const { id } = parse(object({ id: numeric }), req.params)
 	const post = await posts.find(id)
 	if (!post) throw new NotFoundError('Post not found')
 	return { post }
@@ -18,7 +18,7 @@ export async function addComment(req: Request) {
 
 	if (!req.auth) throw new UnauthorizedError()
 
-	const { id } = parse(v.object({ id: numeric }), req.params)
+	const { id } = parse(object({ id: numeric }), req.params)
 
 	const input = parse(AddComment, req.body)
 

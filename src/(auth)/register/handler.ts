@@ -1,17 +1,17 @@
 import type { Request, Response } from 'polka'
-import { RouteError } from '../../constants'
+import { AppError } from '../../constants'
 import { hash } from '../../auth/password'
 import { create } from '../../auth/session'
 import { write } from '../../auth/cookie'
-import { users, roles } from '../../data'
-import { v, parse, email, password, username, trimmed } from '../../schemas'
+import { object, optional } from 'valibot'
+import { users, roles, parse, email, password, username, trimmed } from '../../data'
 
-const Signup = v.object({
+const Signup = object({
 	email,
 	password,
 	username,
-	firstName: v.optional(trimmed, ''),
-	lastName: v.optional(trimmed, ''),
+	firstName: optional(trimmed, ''),
+	lastName: optional(trimmed, ''),
 })
 
 export async function signup(req: Request, res: Response) {
@@ -21,7 +21,7 @@ export async function signup(req: Request, res: Response) {
 	const exists = await users.byEmail(input.email)
 
 	if (exists) {
-		throw new RouteError(400, 'Email already registered')
+		throw new AppError(400, 'Email already registered')
 	}
 
 	const hashed = await hash(input.password)

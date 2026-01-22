@@ -1,7 +1,7 @@
 import navaid from 'navaid'
 import type { Component, Stateful } from 'ajo'
-import { NotFoundError, RouteError, navigate } from '/src/constants'
-import type { HandlerArgs, Params, PageArgs, LayoutArgs, ActionState, Server } from '/src/constants'
+import { NotFoundError, AppError, navigate } from '/src/constants'
+import type { Context, Params, PageArgs, LayoutArgs, ActionState, Remote } from '/src/constants'
 
 // Pattern compilation
 
@@ -24,7 +24,7 @@ export const getFileName = (path: string) => path.split('/').pop()?.split('.')[0
 
 // Form action helper for stateful generator components
 
-export function action<T = unknown>(element: { next: () => void }, name: string): ActionState<T> {
+export function action<T = unknown>(component: { next: () => void }, name: string): ActionState<T> {
 
 	let controller: AbortController | undefined
 
@@ -38,7 +38,7 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 			state.data = undefined
 			state.error = undefined
 			state.fields = undefined
-			element.next()
+			component.next()
 		}
 	}
 
@@ -56,7 +56,7 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 		state.loading = true
 		state.error = undefined
 		state.fields = undefined
-		element.next()
+		component.next()
 
 		try {
 			const response = await fetch(`?/${name}`, {
@@ -84,7 +84,7 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 			state.error = error instanceof Error ? error.message : 'Action failed'
 		} finally {
 			state.loading = false
-			element.next()
+			component.next()
 		}
 	}
 
@@ -93,94 +93,94 @@ export function action<T = unknown>(element: { next: () => void }, name: string)
 
 export type Module = {
 	default: Component
-	handler?: (args: HandlerArgs) => Promise<Record<string, unknown>>
+	handler?: (args: Context) => Promise<Record<string, unknown>>
 	defer?: boolean
 }
 
 export type Loader = () => Promise<Module>
 
-export type Route = {
+export type Page = {
 	loader: Loader
 	pattern?: string
 	segments?: string[]
 	params?: Params
 }
 
-export interface Data {
+export interface State {
 	url: string
 	params: Params
-	page: { data?: Record<string, unknown>; error?: RouteError }
-	layout: Array<{ data?: Record<string, unknown>; error?: RouteError }>
+	page: { data?: Record<string, unknown>; error?: AppError }
+	layout: Array<{ data?: Record<string, unknown>; error?: AppError }>
 }
 
-export const cache = new Map<string, Data>()
+export const cache = new Map<string, State>()
 
-export const notFound: Route = {
+export const notFound: Page = {
 	segments: [''], // use root layout
 	loader: async () => ({
 		default: () => null,
-		handler: async ({ url }: HandlerArgs) => { throw new NotFoundError(`Page not found: ${url}`) }
+		handler: async ({ url }: Context) => { throw new NotFoundError(`Page not found: ${url}`) }
 	}),
 }
 
-// Build routes from file system
+// Build pages from file system
 
 export const layouts = new Map<string, Loader>()
-export const routes: Route[] = []
+export const pages: Page[] = []
 
 for (const [path, loader] of Object.entries(import.meta.glob('/src/**/{layout,page}.{j,t}s{,x}') as Record<string, Loader>)) {
 
 	const segments = toSegments(path)
-	const type = getFileName(path)
+	const kind = getFileName(path)
 
-	if (type === 'layout') layouts.set(segments.join('/'), loader)
-	if (type === 'page') routes.push({ pattern: toPattern(segments), segments, loader })
+	if (kind === 'layout') layouts.set(segments.join('/'), loader)
+	if (kind === 'page') pages.push({ pattern: toPattern(segments), segments, loader })
 }
 
 // HMR: wrap loaders to use hot-updated modules
 
 if (import.meta.env.DEV && !import.meta.env.SSR) {
 
-	const wrap = (loader: Loader, path: string): Loader => async () => {
+	const hot = (loader: Loader, file: string): Loader => async () => {
 
-		const cache = (globalThis as { __MODULES__?: Map<string, Module> }).__MODULES__
+		const modules = (globalThis as { __MODULES__?: Map<string, Module> }).__MODULES__
 
-		if (cache?.has(path)) {
-			const module = cache.get(path)!
-			cache.delete(path)
-			return module
+		if (modules?.has(file)) {
+			const cached = modules.get(file)!
+			modules.delete(file)
+			return cached
 		}
 
 		return loader()
 	}
 
-	for (const [path, loader] of layouts) layouts.set(path, wrap(loader, `/src${path}/layout.tsx`))
-	for (const route of routes) route.loader = wrap(route.loader, `/src${route.segments!.join('/')}/page.tsx`)
+	for (const [path, loader] of layouts) layouts.set(path, hot(loader, `/src${path}/layout.tsx`))
+	for (const config of pages) config.loader = hot(config.loader, `/src${config.segments!.join('/')}/page.tsx`)
 }
 
 // Execute handler() with parent() support
 
 async function execute(
-	module: Module,
-	args: { url: string; params: Params },
-	ancestors: Array<{ data?: Record<string, unknown>; error?: RouteError }>
-): Promise<{ data?: Record<string, unknown>; error?: RouteError }> {
+	target: Module,
+	context: { url: string; params: Params },
+	parents: Array<{ data?: Record<string, unknown>; error?: AppError }>
+): Promise<{ data?: Record<string, unknown>; error?: AppError }> {
 
-	if (!module.handler) return { data: {} }
+	if (!target.handler) return { data: {} }
 
 	const parent = async () => {
-		const error = ancestors.find(item => item.error)?.error
+		const error = parents.find(parent => parent.error)?.error
 		if (error) throw error
-		return ancestors.reduce((merged, item) => ({ ...merged, ...item.data }), {})
+		return parents.reduce((result, parent) => ({ ...result, ...parent.data }), {})
 	}
 
 	try {
-		return { data: await module.handler({ ...args, parent }) }
+		return { data: await target.handler({ ...context, parent }) }
 	} catch (error) {
 		return {
-			error: error instanceof RouteError
+			error: error instanceof AppError
 				? error
-				: new RouteError(500, error instanceof Error ? error.message : 'Load failed')
+				: new AppError(500, error instanceof Error ? error.message : 'Load failed')
 		}
 	}
 }
@@ -191,69 +191,69 @@ type LoadingData = { url: string; params: Params; loading: true }
 
 function compose(
 	page: Module,
-	entries: Array<{ path: string; module: Module }>,
+	tree: Array<{ path: string; module: Module }>,
 	paths: string[],
-	data: Data | LoadingData
+	state: State | LoadingData
 ): Component {
 
 	const Page = page.default as Component<PageArgs>
-	const loading = 'loading' in data
-	const error = loading ? undefined : data.page.error
+	const loading = 'loading' in state
+	const error = loading ? undefined : state.page.error
 
 	// Find who handles loading: page first, then innermost layout with defer
-	const deferred = page.defer ? 'page' : entries.findLast(e => e.module.defer)?.path
+	const deferred = page.defer ? 'page' : tree.findLast(entry => entry.module.defer)?.path
 
-	return entries.reduceRight<Component>(
-		(Child, { path, module }, index) => {
+	return tree.reduceRight<Component>(
+		(Child, { path, module }, depth) => {
 			const Layout = module.default as Component<LayoutArgs>
-			const result = loading ? undefined : data.layout[index]
+			const loaded = loading ? undefined : state.layout[depth]
 			return () => (
 				<Layout
 					key={path}
-					params={data.params}
-					data={result?.data}
+					params={state.params}
+					data={loaded?.data}
 					loading={loading && deferred === path}
-					error={result?.error ?? error}
+					error={loaded?.error ?? error}
 				>
 					<Child />
 				</Layout>
 			)
 		},
 		() => {
-			const result = loading ? undefined : data.page
+			const loaded = loading ? undefined : state.page
 			return (
 				<Page
 					key={paths.join('/')}
-					params={data.params}
-					data={result?.data}
+					params={state.params}
+					data={loaded?.data}
 					loading={loading && deferred === 'page'}
-					error={result?.error}
+					error={loaded?.error}
 				/>
 			)
 		}
 	)
 }
 
-// Resolve route: async generator yielding loading then data states
+// Resolve page: async generator yielding loading then data states
 
 export async function* resolve(
 	url: string,
 	layouts: Map<string, Loader>,
-	route: Route,
-	remote?: Server
-): AsyncGenerator<{ Page: Component; data?: Data }> {
+	page: Page,
+	remote?: Remote
+): AsyncGenerator<{ Page: Component; data?: State }> {
 
-	const { loader, segments = [], params = {} } = route
+	const { loader, segments = [], params = {} } = page
 
 	// Find layout paths
 
 	const paths = segments
-		.map((_, i) => segments.slice(0, i + 1).join('/'))
+		.map((_, index) => segments.slice(0, index + 1).join('/'))
 		.filter(path => layouts.has(path))
 
 	// Load modules in parallel (fast - already bundled)
 
-	const [page, ...entries] = await Promise.all([
+	const [target, ...tree] = await Promise.all([
 		loader(),
 		...paths.map(path => layouts.get(path)!().then(module => ({ path, module })))
 	])
@@ -264,46 +264,46 @@ export async function* resolve(
 
 	if (cached) {
 		cache.delete(url)
-		yield { Page: compose(page, entries, paths, cached), data: cached }
+		yield { Page: compose(target, tree, paths, cached), data: cached }
 		return
 	}
 
 	// First yield: loading state
 
-	yield { Page: compose(page, entries, paths, { url, params, loading: true }) }
+	yield { Page: compose(target, tree, paths, { url, params, loading: true }) }
 
 	// Fetch server data on client navigation
 
-	const server: Server = await (async () => {
+	const server: Remote = await (async () => {
 		if (remote) return remote
 		if (import.meta.env.SSR) return { page: {}, layout: [] }
 		const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
 		if (response.ok) return response.json()
 		const { error } = await response.json().catch(reason => ({ error: reason?.message ?? 'Load failed' }))
-		throw new RouteError(response.status, error)
+		throw new AppError(response.status, error)
 	})()
 
 	// Execute load functions with parent() support and merge server data
 
-	const layout: Data['layout'] = []
+	const results: State['layout'] = []
 
-	for (let i = 0; i < entries.length; i++) {
-		const result = await execute(entries[i].module, { url, params }, layout)
-		layout.push({ data: { ...server.layout[i], ...result.data }, error: result.error })
+	for (let depth = 0; depth < tree.length; depth++) {
+		const local = await execute(tree[depth].module, { url, params }, results)
+		results.push({ data: { ...server.layout[depth], ...local.data }, error: local.error })
 	}
 
-	const result = await execute(page, { url, params }, layout)
+	const local = await execute(target, { url, params }, results)
 
-	const data: Data = {
+	const state: State = {
 		url,
 		params,
-		page: { data: { ...server.page, ...result.data }, error: result.error },
-		layout
+		page: { data: { ...server.page, ...local.data }, error: local.error },
+		layout: results
 	}
 
 	// Second yield: data state
 
-	yield { Page: compose(page, entries, paths, data), data }
+	yield { Page: compose(target, tree, paths, state), data: state }
 }
 
 // App component
@@ -318,19 +318,19 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	// Client: set up routing
 
-	const navigate = async (route: Route) => {
+	const go = async (page: Page) => {
 
-		for await (const state of resolve(location.pathname, layouts, route)) {
+		for await (const state of resolve(location.pathname, layouts, page)) {
 			this.next(() => Page = state.Page)
 		}
 
 		requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
 	}
 
-	const router = navaid('/', () => navigate(notFound))
+	const router = navaid('/', () => go(notFound))
 
-	for (const route of routes) {
-		router.on(route.pattern!, params => navigate({ ...route, params }))
+	for (const config of pages) {
+		router.on(config.pattern!, params => go({ ...config, params }))
 	}
 
 	router.listen()

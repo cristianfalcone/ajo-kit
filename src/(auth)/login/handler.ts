@@ -3,12 +3,12 @@ import { UnauthorizedError } from '../../constants'
 import { verify } from '../../auth/password'
 import { create } from '../../auth/session'
 import { write } from '../../auth/cookie'
-import { users } from '../../data'
-import { v, parse, email } from '../../schemas'
+import { object, string } from 'valibot'
+import { users, parse, email } from '../../data'
 
-const Login = v.object({
+const Login = object({
 	email,
-	password: v.string(),
+	password: string(),
 })
 
 export async function authenticate(req: Request, res: Response) {

@@ -6,7 +6,7 @@ export type { Params }
 
 // Route errors with HTTP status codes
 
-export class RouteError extends Error {
+export class AppError extends Error {
 	override message: string
 	constructor(public status: number, message: string) {
 		super(message)
@@ -17,29 +17,40 @@ export class RouteError extends Error {
 	}
 }
 
-export class NotFoundError extends RouteError {
+export class NotFoundError extends AppError {
 	constructor(message = 'Page not found') {
 		super(404, message)
 	}
 }
 
-export class ForbiddenError extends RouteError {
+export class ForbiddenError extends AppError {
 	constructor(message = 'Access denied') {
 		super(403, message)
 	}
 }
 
-export class UnauthorizedError extends RouteError {
+export class UnauthorizedError extends AppError {
 	constructor(message = 'Authentication required') {
 		super(401, message)
 	}
 }
 
+export type ValidationFields = Record<string, string[] | undefined>
+
+export class InvalidError extends AppError {
+	constructor(public fields: ValidationFields, message = 'Validation failed') {
+		super(400, message)
+	}
+	toJSON() {
+		return { error: this.message, fields: this.fields }
+	}
+}
+
 // Server data types
 
-export type Server = { page: Record<string, unknown>; layout: Array<Record<string, unknown>> }
+export type Remote = { page: Record<string, unknown>; layout: Array<Record<string, unknown>> }
 
-export type HandlerArgs = {
+export type Context = {
 	params: Params
 	url: string
 	parent: () => Promise<Record<string, unknown>>
@@ -62,7 +73,7 @@ export type PageArgs<T = Record<string, unknown>> = {
 	params: Params
 	data: T | undefined
 	loading: boolean
-	error: RouteError | undefined
+	error: AppError | undefined
 }
 
 export type LayoutArgs<T = Record<string, unknown>> = PageArgs<T> & {
