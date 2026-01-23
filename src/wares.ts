@@ -1,10 +1,10 @@
-import type { Request, Response, NextHandler } from 'polka'
+import type { Middleware } from 'polka'
 import { read, clear, validate } from '/src/auth'
 import { users, roles } from '/src/data'
 
 export default [
 
-	function timing(req: Request, res: Response, next: NextHandler) {
+	function timing(req, res, next) {
 
 		const t0 = Date.now()
 
@@ -22,20 +22,16 @@ export default [
 		return next()
 	},
 
-	async function session(req: Request, res: Response, next: NextHandler) {
+	async function session(req, res, next) {
 
 		const token = read(req)
 
-		if (!token) {
-			req.auth = null
-			return next()
-		}
+		if (!token) return next()
 
 		const data = await validate(token)
 
 		if (!data) {
 			clear(res)
-			req.auth = null
 			return next()
 		}
 
@@ -43,14 +39,14 @@ export default [
 
 		if (!user) {
 			clear(res)
-			req.auth = null
 			return next()
 		}
 
 		const userRoles = await roles.forUser(user.id)
 
-		req.auth = { id: user.id, username: user.username, email: user.email, roles: userRoles }
+		req.user = { id: user.id, username: user.username, email: user.email, roles: userRoles }
 
 		return next()
 	},
-]
+
+] satisfies Middleware[]

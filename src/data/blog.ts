@@ -33,7 +33,7 @@ export const posts = {
 			.where('id', '=', id)
 			.executeTakeFirst()
 
-		if (!post) return undefined
+		if (!post) return
 
 		const [user, postComments] = await Promise.all([
 			users.find(post.userId),

@@ -64,9 +64,9 @@ type Action = {
 
 export type ActionState<T> = {
 	loading: boolean
-	data: T | undefined
-	error: string | undefined
-	fields: Record<string, string[]> | undefined
+	data?: T
+	error?: string
+	fields?: Record<string, string[]>
 	handle: (event: SubmitEvent) => void
 	reset: () => void
 }
@@ -75,9 +75,9 @@ export type ActionState<T> = {
 
 export type PageArgs<T = Record<string, unknown>> = {
 	params: Params
-	data: T | undefined
+	data?: T
 	loading: boolean
-	error: AppError | undefined
+	error?: AppError
 }
 
 export type LayoutArgs<T = Record<string, unknown>> = PageArgs<T> & {
@@ -138,7 +138,7 @@ export const navigate = (to: string) => {
 
 export type Role = 'admin' | 'user' | 'moderator'
 
-export interface Auth {
+export interface User {
 	id: number
 	username: string
 	email: string
@@ -146,12 +146,12 @@ export interface Auth {
 }
 
 export interface AuthState {
-	user: Auth | null
+	user?: User
 	signout: ActionState<void>
 }
 
 export const AuthContext = context<AuthState>({
-	user: null,
+	user: undefined,
 	signout: {
 		loading: false,
 		data: undefined,
@@ -166,7 +166,7 @@ export const AuthContext = context<AuthState>({
 
 declare module 'polka' {
 	interface Request {
-		auth?: Auth | null
+		user?: User
 		action?: Action
 		data?: Data
 	}

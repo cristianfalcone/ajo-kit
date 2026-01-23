@@ -1,15 +1,13 @@
 import { render as html } from 'ajo/html'
 import type { Component } from 'ajo'
 import polka from 'polka'
-import type { Request, Response, Middleware, NextHandler } from 'polka'
+import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
 import App, { resolve, layouts, pages, toPattern, toSegments, type Page, type State } from './app'
 import { AppError, type Data } from './constants'
 
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head'
-
-type Handler = (req: Request, res: Response, next: NextHandler) => unknown | Promise<unknown>
 
 type Parent = () => Promise<Record<string, unknown>>
 
@@ -35,28 +33,31 @@ export async function create(template: Template) {
 		for (const path of paths) {
 
 			const module = await layouts.get(path)?.()
-			const remote = await handlers.get(path)?.layout?.(req, parent)
-			const local = await module?.handler?.({ url, params, parent })
+			const server = await handlers.get(path)?.layout?.(req, parent)
+			const client = await module?.handler?.({ url, params, parent })
 
-			layout.push({ ...remote, ...local })
+			layout.push({ ...server, ...client })
 		}
 
 		const module = await loader()
-		const remote = await handlers.get(segments.join('/'))?.page?.(req, parent)
-		const local = await module.handler?.({ url, params, parent })
+		const server = await handlers.get(segments.join('/'))?.page?.(req, parent)
+		const client = await module.handler?.({ url, params, parent })
 
-		req.data = { page: { ...remote, ...local }, layout }
+		req.data = { page: { ...server, ...client }, layout }
 
 		next()
 	}
 
 	// Handler factory: page GET - returns JSON or HTML
 
-	const render = (page: Page): Handler => async (req, res) => {
+	const render = (page: Page): Middleware => async (req, res) => {
 
-		if (req.headers.accept?.includes('application/json')) return req.data
+		if (req.headers.accept?.includes('application/json')) {
+			send(res, 200, req.data)
+			return
+		}
 
-		let resolved: { Page: Component; data?: State } | undefined
+		let resolved: { Page: Component; data?: State }
 
 		for await (const state of resolve(req.originalUrl, layouts, page, req.data)) {
 			resolved = state
@@ -64,11 +65,12 @@ export async function create(template: Template) {
 
 		res.setHeader('Content-Type', 'text/html')
 		res.statusCode = resolved!.data?.page.error?.status ?? 200
-		res.end(template({
+		const output = template({
 			head: html(<title>ajo-kit</title>),
 			data: `<script>globalThis.__SSR__=${JSON.stringify(resolved!.data)}</script>`,
 			root: html(<App page={resolved!.Page} />),
-		}))
+		})
+		send(res, res.statusCode, output)
 	}
 
 	const action = (segments: string[]): Middleware => (req, _, next) => {
@@ -95,14 +97,16 @@ export async function create(template: Template) {
 
 	// Handler factory: execute action and respond
 
-	const invoke = (): Handler => async (req, res) => {
+	const invoke = (): Middleware => async (req, res) => {
 
 		if (!req.action) return
 
 		const result = await req.action.invoke(req, res) as { redirect?: string } | void
 
 		if (req.headers.accept?.includes('application/json')) {
-			return result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true })
+			const payload = result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true })
+			send(res, 200, payload)
+			return
 		}
 
 		res.statusCode = 302
@@ -125,12 +129,6 @@ export async function create(template: Template) {
 	const ancestors = (segments: string[]) => segments.map((_, i) => segments.slice(0, i + 1).join('/'))
 
 	const collect = (segments: string[]): Middleware[] => ancestors(segments).flatMap(path => wares.get(path) ?? [])
-
-	const wrap = (fn: Handler): Middleware => async (req, res, next) => {
-		const output = await fn(req, res, next)
-		if (res.writableEnded) return
-		send(res, res.statusCode, output)
-	}
 
 	// Load wares first
 
@@ -160,7 +158,7 @@ export async function create(template: Template) {
 
 		if (routes) {
 			for (const method of Object.keys(routes) as HttpMethod[]) {
-				app[method](toPattern(segments), json(), ...collect(segments), wrap((routes as Record<HttpMethod, Handler>)[method]))
+				app[method](toPattern(segments), json(), ...collect(segments), (routes as Record<HttpMethod, Middleware>)[method])
 			}
 		}
 	}
@@ -173,8 +171,8 @@ export async function create(template: Template) {
 		const path = `/${pattern || ''}`
 		const wares = collect(segments)
 
-		app.get(path, json(), ...wares, data(page), wrap(render(page)))
-		app.post(path, action(segments), json(), ...wares, wrap(invoke()))
+		app.get(path, json(), ...wares, data(page), render(page))
+		app.post(path, action(segments), json(), ...wares, invoke())
 	}
 
 	return app

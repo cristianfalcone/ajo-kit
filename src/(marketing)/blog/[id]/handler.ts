@@ -16,7 +16,7 @@ export async function page(req: Request) {
 
 export async function addComment(req: Request) {
 
-	if (!req.auth) throw new UnauthorizedError()
+	if (!req.user) throw new UnauthorizedError()
 
 	const { id } = parse(object({ id: numeric }), req.params)
 
@@ -26,22 +26,22 @@ export async function addComment(req: Request) {
 
 	if (!post) throw new NotFoundError('Post not found')
 
-	const comment = await comments.create({ postId: id, userId: req.auth.id, body: input.body })
-	const user = await users.find(req.auth.id)
+	const comment = await comments.create({ postId: id, userId: req.user.id, body: input.body })
+	const user = await users.find(req.user.id)
 
 	return { comment: { ...comment, user } }
 }
 
 export async function editComment(req: Request) {
 
-	if (!req.auth) throw new UnauthorizedError()
+	if (!req.user) throw new UnauthorizedError()
 
 	const { commentId, body: newBody } = parse(EditComment, req.body)
 
 	const comment = await comments.find(commentId)
 
 	if (!comment) throw new NotFoundError('Comment not found')
-	if (comment.userId !== req.auth.id) throw new ForbiddenError()
+	if (comment.userId !== req.user.id) throw new ForbiddenError()
 
 	const updated = await comments.update(commentId, newBody)
 
@@ -50,14 +50,14 @@ export async function editComment(req: Request) {
 
 export async function deleteComment(req: Request) {
 
-	if (!req.auth) throw new UnauthorizedError()
+	if (!req.user) throw new UnauthorizedError()
 
 	const { commentId } = parse(DeleteComment, req.body)
 
 	const comment = await comments.find(commentId)
 
 	if (!comment) throw new NotFoundError('Comment not found')
-	if (comment.userId !== req.auth.id) throw new ForbiddenError()
+	if (comment.userId !== req.user.id) throw new ForbiddenError()
 
 	await comments.remove(commentId)
 

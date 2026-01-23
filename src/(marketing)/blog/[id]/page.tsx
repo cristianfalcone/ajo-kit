@@ -21,8 +21,8 @@ const CommentItem: Stateful<{
 	let editing = false
 	let body = comment.body
 
-	const edit = action<{ comment: CommentWithUser }>(this, 'editComment')
-	const del = action<{ success: boolean }>(this, 'deleteComment')
+	const edit = action<{ comment: CommentWithUser }>('editComment')
+	const del = action<{ success: boolean }>('deleteComment')
 
 	while (true) {
 
@@ -114,7 +114,7 @@ const Comments: Stateful<{ list: CommentWithUser[] }> = function* (args) {
 	let items = [...args.list]
 
 	const toggle = () => this.next(() => open = !open)
-	const add = action<{ comment: CommentWithUser }>(this, 'addComment')
+	const add = action<{ comment: CommentWithUser }>('addComment')
 
 	const handleUpdate = (updated: CommentWithUser) => this.next(() => {
 		items = items.map(c => c.id === updated.id ? { ...updated, user: c.user } : c)

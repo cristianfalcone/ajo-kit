@@ -2,7 +2,8 @@ import type { Request, Response } from 'polka'
 import { read, clear, remove } from '/src/auth'
 
 export async function layout(req: Request) {
-	return { auth: req.auth ?? null }
+	const user = req.user
+	if (user) return { user }
 }
 
 export async function signout(req: Request, res: Response) {

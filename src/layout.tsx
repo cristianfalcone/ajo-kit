@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
-import type { Auth, LayoutArgs } from '/src/constants'
+import type { User, LayoutArgs } from '/src/constants'
 import { AuthContext, ThemeContext, ThemeMode, NotFoundError } from '/src/constants'
 import { action } from '/src/app'
 import Spinner from '/src/ui/spinner'
@@ -10,12 +10,12 @@ const isDev = import.meta.env.DEV
 // Root layout handles global loading and error UI
 export const defer = true
 
-const Layout: Stateful<LayoutArgs> = function* (args) {
+const Layout: Stateful<LayoutArgs<{ user?: User }>> = function* (args) {
 
 	let mode: ThemeMode = globalThis.localStorage?.getItem('theme.v1') as ThemeMode ?? 'system'
 	let previous: Children = args.children
 
-	const signout = action<void>(this, 'signout')
+	const signout = action<void>('signout')
 
 	const apply = (mode: ThemeMode) => {
 
@@ -49,10 +49,8 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 
 	while (true) try {
 
-		const user = (args.data?.auth as Auth | null) ?? null
-
 		ThemeContext({ mode, set, cycle })
-		AuthContext({ user, signout })
+		AuthContext({ user: args.data?.user, signout })
 
 		if (args.loading) {
 			// Show spinner overlay, keep previous content visible

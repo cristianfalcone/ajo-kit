@@ -1,6 +1,6 @@
-import type { Request, Response, NextHandler } from 'polka'
+import type { Middleware } from 'polka'
 
-export default function(_: Request, res: Response, next: NextHandler) {
+export default ((_, res, next) => {
   res.setHeader('x-ware-users', '1')
   next()
-}
+}) satisfies Middleware

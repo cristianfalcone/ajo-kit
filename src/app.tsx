@@ -1,5 +1,6 @@
 import navaid, { type Params } from 'navaid'
 import type { Component, Stateful } from 'ajo'
+import { current } from 'ajo/context'
 import { NotFoundError, AppError, navigate } from '/src/constants'
 import type { Context, PageArgs, LayoutArgs, ActionState, Data } from '/src/constants'
 
@@ -24,9 +25,9 @@ export const getFileName = (path: string) => path.split('/').pop()?.split('.')[0
 
 // Form action helper for stateful generator components
 
-export function action<T = unknown>(component: { next: () => void }, name: string): ActionState<T> {
+export function action<T = unknown>(name: string, init?: RequestInit): ActionState<T> {
 
-	let controller: AbortController | undefined
+	const component =  current()
 
 	const state: ActionState<T> = {
 		loading: false,
@@ -41,6 +42,10 @@ export function action<T = unknown>(component: { next: () => void }, name: strin
 			component.next()
 		}
 	}
+
+	if (import.meta.env.SSR) return state
+
+	let controller: AbortController
 
 	state.handle = async (event: SubmitEvent) => {
 
@@ -64,7 +69,7 @@ export function action<T = unknown>(component: { next: () => void }, name: strin
 				headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
 				body: JSON.stringify(body),
 				signal: controller.signal,
-				credentials: 'same-origin'
+				...init,
 			})
 
 			const json = await response.json()
@@ -277,7 +282,7 @@ export async function* resolve(
 	const server: Data = await (async () => {
 		if (data) return data
 		if (import.meta.env.SSR) return { layout: [], page: {} }
-		const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+		const response = await fetch(url, { headers: { Accept: 'application/json' } })
 		if (response.ok) return response.json()
 		const error = await response.json().catch(reason => reason?.message ?? 'Server data load failed')
 		throw new AppError(response.status, error)

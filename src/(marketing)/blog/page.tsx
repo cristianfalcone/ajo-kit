@@ -27,7 +27,7 @@ const PostSkeleton = () => (
 
 const Page: Stateful<Args, 'article'> = function* (args) {
 
-	const subscribe = action<{ success: boolean; email: string }>(this, 'subscribe')
+	const subscribe = action<{ success: boolean; email: string }>('subscribe')
 
 	while (true) {
 

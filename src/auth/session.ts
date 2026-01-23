@@ -1,13 +1,13 @@
 import { randomBytes } from 'node:crypto'
 import { sessions } from '/src/data/auth'
 
-const DAYS = 30
+const days = 30
 
 export const generate = () => randomBytes(32).toString('base64url')
 
 export const create = async (userId: number) => {
 	const id = generate()
-	const expiry = new Date(Date.now() + DAYS * 24 * 60 * 60 * 1000).toISOString()
+	const expiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
 	await sessions.create({ id, userId, expiry })
 	return id
 }
