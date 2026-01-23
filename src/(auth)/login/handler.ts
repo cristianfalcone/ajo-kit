@@ -1,10 +1,8 @@
 import type { Request, Response } from 'polka'
-import { UnauthorizedError } from '../../constants'
-import { verify } from '../../auth/password'
-import { create } from '../../auth/session'
-import { write } from '../../auth/cookie'
 import { object, string } from 'valibot'
-import { users, parse, email } from '../../data'
+import { verify, create, write } from '/src/auth'
+import { users, parse, email } from '/src/data'
+import { UnauthorizedError } from '/src/constants'
 
 const Login = object({
 	email,

@@ -1,10 +1,8 @@
 import type { Request, Response } from 'polka'
-import { AppError } from '../../constants'
-import { hash } from '../../auth/password'
-import { create } from '../../auth/session'
-import { write } from '../../auth/cookie'
 import { object, optional } from 'valibot'
-import { users, roles, parse, email, password, username, trimmed } from '../../data'
+import { AppError } from '/src/constants'
+import { hash, create, write } from '/src/auth'
+import { users, roles, parse, email, password, username, trimmed } from '/src/data'
 
 const Signup = object({
 	email,
@@ -20,22 +18,15 @@ export async function signup(req: Request, res: Response) {
 
 	const exists = await users.byEmail(input.email)
 
-	if (exists) {
-		throw new AppError(400, 'Email already registered')
-	}
+	if (exists) throw new AppError(400, 'Email already registered')
 
-	const hashed = await hash(input.password)
+	const password = await hash(input.password)
 
-	const { id } = await users.create({
-		...input,
-		password: hashed,
-	})
+	const { id } = await users.create({ ...input, password })
 
 	const role = await roles.find('user')
 
-	if (role) {
-		await roles.assign(id, role.id)
-	}
+	if (role) await roles.assign(id, role.id)
 
 	const token = await create(id)
 

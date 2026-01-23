@@ -1,8 +1,7 @@
 import { context } from 'ajo/context'
 import type { Children } from 'ajo'
 import type { Params } from 'navaid'
-
-export type { Params }
+import type { Request, Response } from 'polka'
 
 // Route errors with HTTP status codes
 
@@ -48,7 +47,7 @@ export class InvalidError extends AppError {
 
 // Server data types
 
-export type Remote = { page: Record<string, unknown>; layout: Array<Record<string, unknown>> }
+export type Data = { page: Record<string, unknown>; layout: Array<Record<string, unknown>> }
 
 export type Context = {
 	params: Params
@@ -56,7 +55,12 @@ export type Context = {
 	parent: () => Promise<Record<string, unknown>>
 }
 
-// Form action state
+// Form actions
+
+type Action = {
+	name: string
+	invoke: (req: Request, res: Response) => Promise<unknown>
+}
 
 export type ActionState<T> = {
 	loading: boolean
@@ -158,10 +162,12 @@ export const AuthContext = context<AuthState>({
 	}
 })
 
-// Request may have auth populated by session middleware
+// Request extensions for polka
 
 declare module 'polka' {
 	interface Request {
 		auth?: Auth | null
+		action?: Action
+		data?: Data
 	}
 }

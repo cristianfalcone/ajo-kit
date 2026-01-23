@@ -4,7 +4,7 @@ import {
 	type GenericSchema,
 	type InferOutput,
 } from 'valibot'
-import { InvalidError, type ValidationFields } from '../constants'
+import { InvalidError, type ValidationFields } from '/src/constants'
 
 // Types
 export type {

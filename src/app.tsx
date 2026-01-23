@@ -1,7 +1,7 @@
-import navaid from 'navaid'
+import navaid, { type Params } from 'navaid'
 import type { Component, Stateful } from 'ajo'
 import { NotFoundError, AppError, navigate } from '/src/constants'
-import type { Context, Params, PageArgs, LayoutArgs, ActionState, Remote } from '/src/constants'
+import type { Context, PageArgs, LayoutArgs, ActionState, Data } from '/src/constants'
 
 // Pattern compilation
 
@@ -240,7 +240,7 @@ export async function* resolve(
 	url: string,
 	layouts: Map<string, Loader>,
 	page: Page,
-	remote?: Remote
+	data?: Data
 ): AsyncGenerator<{ Page: Component; data?: State }> {
 
 	const { loader, segments = [], params = {} } = page
@@ -274,12 +274,12 @@ export async function* resolve(
 
 	// Fetch server data on client navigation
 
-	const server: Remote = await (async () => {
-		if (remote) return remote
-		if (import.meta.env.SSR) return { page: {}, layout: [] }
+	const server: Data = await (async () => {
+		if (data) return data
+		if (import.meta.env.SSR) return { layout: [], page: {} }
 		const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
 		if (response.ok) return response.json()
-		const { error } = await response.json().catch(reason => ({ error: reason?.message ?? 'Load failed' }))
+		const error = await response.json().catch(reason => reason?.message ?? 'Server data load failed')
 		throw new AppError(response.status, error)
 	})()
 
@@ -288,16 +288,16 @@ export async function* resolve(
 	const results: State['layout'] = []
 
 	for (let depth = 0; depth < tree.length; depth++) {
-		const local = await execute(tree[depth].module, { url, params }, results)
-		results.push({ data: { ...server.layout[depth], ...local.data }, error: local.error })
+		const client = await execute(tree[depth].module, { url, params }, results)
+		results.push({ data: { ...server.layout[depth], ...client.data }, error: client.error })
 	}
 
-	const local = await execute(target, { url, params }, results)
+	const client = await execute(target, { url, params }, results)
 
 	const state: State = {
 		url,
 		params,
-		page: { data: { ...server.page, ...local.data }, error: local.error },
+		page: { data: { ...server.page, ...client.data }, error: client.error },
 		layout: results
 	}
 

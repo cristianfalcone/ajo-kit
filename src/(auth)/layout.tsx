@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import type { LayoutArgs } from '../constants'
+import type { LayoutArgs } from '/src/constants'
 
 const AuthLayout: Stateless<LayoutArgs> = ({ children }) => (
 	<div class="flex-grow flex items-center justify-center py-8">

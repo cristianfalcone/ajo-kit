@@ -1,5 +1,5 @@
 import type { Middleware } from 'polka'
-import { UnauthorizedError, ForbiddenError, type Role } from '../constants'
+import { UnauthorizedError, ForbiddenError, type Role } from '/src/constants'
 
 export const auth = (): Middleware => (req, _, next) => {
 	if (!req.auth) throw new UnauthorizedError()

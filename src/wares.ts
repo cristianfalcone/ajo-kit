@@ -1,11 +1,10 @@
 import type { Request, Response, NextHandler } from 'polka'
-import { read, clear } from './auth/cookie'
-import { validate } from './auth/session'
-import { users, roles } from './data'
+import { read, clear, validate } from '/src/auth'
+import { users, roles } from '/src/data'
 
 export default [
 
-	function timing(_req: Request, res: Response, next: NextHandler) {
+	function timing(req: Request, res: Response, next: NextHandler) {
 
 		const t0 = Date.now()
 
@@ -17,6 +16,8 @@ export default [
 
 			return writeHead.apply(this, arguments as any)
 		}
+
+		console.log(req.method, req.url)
 
 		return next()
 	},

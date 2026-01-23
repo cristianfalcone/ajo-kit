@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '../../constants'
-import { action } from '../../app'
+import type { PageArgs } from '/src/constants'
+import { action } from '/src/app'
 
 type Result = { redirect: string }
 

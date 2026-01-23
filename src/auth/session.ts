@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { sessions } from '../data/auth'
+import { sessions } from '/src/data/auth'
 
 const DAYS = 30
 
