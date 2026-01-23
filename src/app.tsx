@@ -304,17 +304,11 @@ export async function* resolve(
 	yield { Page: compose(target, tree, paths, state), data: state }
 }
 
-// App component
-
 const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	let Page: Component = page ?? (() => null)
 
-	// SSR: page already resolved
-
 	if (page) return <Page />
-
-	// Client: set up routing
 
 	const go = async (page: Page) => {
 
@@ -333,7 +327,6 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	}
 
 	router.listen()
-
 	if (import.meta.env.DEV) addEventListener('hmr', hmr)
 
 	try {

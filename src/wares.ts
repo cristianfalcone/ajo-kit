@@ -7,19 +7,16 @@ export default [
 	function timing(req, res, next) {
 
 		const t0 = Date.now()
-
 		const writeHead = res.writeHead
 
 		res.writeHead = function () {
-
 			res.setHeader('x-response-time', `${Date.now() - t0}ms`)
-
 			return writeHead.apply(this, arguments as any)
 		}
 
 		console.log(req.method, req.url)
 
-		return next()
+		next()
 	},
 
 	async function session(req, res, next) {
@@ -46,7 +43,7 @@ export default [
 
 		req.user = { id: user.id, username: user.username, email: user.email, roles: userRoles }
 
-		return next()
+		next()
 	},
 
 ] satisfies Middleware[]
