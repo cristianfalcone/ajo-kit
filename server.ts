@@ -67,8 +67,8 @@ async function createProdServer() {
   // @ts-ignore
   const { create } = await import('./dist/server/server.js')
 
-  app.use(await create(compile(await fs.readFile('./dist/client/index.html', 'utf-8'))))
   app.use(sirv('./dist/client', { extensions: [] }))
+  app.use(await create(compile(await fs.readFile('./dist/client/index.html', 'utf-8'))))
 
   return app
 }

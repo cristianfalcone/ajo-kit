@@ -146,21 +146,14 @@ for (const [path, loader] of Object.entries(import.meta.glob('/src/**/{layout,pa
 
 if (import.meta.env.DEV && !import.meta.env.SSR) {
 
-	const hot = (loader: Loader, file: string): Loader => async () => {
-
+	const hmr = (loader: Loader, file: string): Loader => async () => {
 		const modules = (globalThis as { __MODULES__?: Map<string, Module> }).__MODULES__
-
-		if (modules?.has(file)) {
-			const cached = modules.get(file)!
-			modules.delete(file)
-			return cached
-		}
-
+		if (modules?.has(file)) return modules.get(file)!
 		return loader()
 	}
 
-	for (const [path, loader] of layouts) layouts.set(path, hot(loader, `/src${path}/layout.tsx`))
-	for (const config of pages) config.loader = hot(config.loader, `/src${config.segments!.join('/')}/page.tsx`)
+	for (const [path, loader] of layouts) layouts.set(path, hmr(loader, `/src${path}/layout.tsx`))
+	for (const config of pages) config.loader = hmr(config.loader, `/src${config.segments!.join('/')}/page.tsx`)
 }
 
 // Execute handler() with parent() support
@@ -333,6 +326,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	}
 
 	const router = navaid('/', () => go(notFound))
+	const hmr = () => router.run()
 
 	for (const config of pages) {
 		router.on(config.pattern!, params => go({ ...config, params }))
@@ -340,10 +334,13 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	router.listen()
 
+	if (import.meta.env.DEV) addEventListener('hmr', hmr)
+
 	try {
 		while (true) yield <Page />
 	} finally {
 		router.unlisten?.()
+		if (import.meta.env.DEV) removeEventListener('hmr', hmr)
 	}
 }
 

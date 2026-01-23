@@ -14,12 +14,23 @@ const hmr = (pattern: RegExp): Plugin => ({
   name: 'ajo-hmr',
   apply: 'serve',
   transform(code, id) {
+  
     if (!pattern.test(id)) return null
+
+    const HMR = `Symbol.for('ajo.hmr')`
     const path = '/' + id.replace(/^.*?(src\/)/, '$1')
-    return {
-      code: code + `\nif(import.meta.hot)import.meta.hot.accept(module=>module&&((globalThis.__MODULES__??=new Map).set(${JSON.stringify(path)},module),globalThis.__HMR__?.()))`,
-      map: null
-    }
+
+    const tagged = code.match(/export\s+default\s+(\w+)\s*[\n;]/)
+      ? code.replace(/export\s+default\s+(\w+)/, `export default $1;$1[${HMR}]=${JSON.stringify(path)}`)
+      : code
+
+    const accept = `
+if(import.meta.hot)import.meta.hot.accept(m=>{
+  if(m?.default)m.default[${HMR}]=${JSON.stringify(path)};
+  if(m)(globalThis.__MODULES__??=new Map).set(${JSON.stringify(path)},m),globalThis.__HMR__?.(${JSON.stringify(path)});
+})`
+
+    return { code: tagged + accept, map: null }
   }
 })
 
