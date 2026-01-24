@@ -1,13 +1,14 @@
 import type { Middleware, Request, Response } from 'polka'
 import send from '@polka/send'
 import { UnauthorizedError, ForbiddenError, type Role } from '/src/constants'
+import { pack } from '/src/serial'
 
 export const redirect = (to: string | ((req: Request) => string)): Middleware => (req, res) => {
 
 	const target = typeof to === 'function' ? to(req) : to
 
 	if (req.headers.accept?.includes('application/json')) {
-		send(res, 200, { redirect: target })
+		send(res, 200, pack({ redirect: target }))
 	} else {
 		send(res, 302, null, { 'Location': target })
 	}

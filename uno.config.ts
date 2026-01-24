@@ -11,4 +11,11 @@ export default defineConfig({
     'site-container': 'mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8',
     'panel': 'rounded-xl ring-1 ring-slate-200 bg-white shadow-sm dark:bg-white/5 dark:ring-white/10 dark:shadow-none',
   },
+  theme: {
+    animation: {
+      keyframes: {
+        'fade-in': '{from{opacity:0}to{opacity:1}}',
+      },
+    },
+  },
 })

@@ -1,27 +1,25 @@
-import clsx from 'clsx'
-
 interface SpinnerProps {
   loading: boolean
   duration?: number
+  delay?: number
   label?: string
   overlay?: boolean
 }
 
-export default function Spinner({ loading, duration = 300, label = 'Loading', overlay = true }: SpinnerProps) {
+export default function Spinner({ loading, duration = 300, delay = 400, label = 'Loading', overlay = true }: SpinnerProps) {
 
-  // static utility classes so Uno can tree-shake properly; dynamic duration moved inline
-  const container = clsx(
-    'fixed inset-0 flex items-center justify-center z-50 transition-opacity ease-in-out',
-    loading ? 'opacity-100' : 'opacity-0 pointer-events-none'
-  )
+  const base = 'fixed inset-0 flex items-center justify-center z-50'
+  const style = loading
+    ? `opacity:0;animation:fade-in ${duration}ms ease-out ${delay}ms forwards`
+    : `opacity:0;pointer-events:none;transition:opacity ${duration}ms ease-in-out`
 
   return (
     <div
       role="status"
       aria-live="polite"
       aria-busy={loading ? 'true' : 'false'}
-      class={container}
-      style={'transition-duration: ' + duration + 'ms'}
+      class={`${base} keyframes-fade-in`}
+      style={style}
     >
       {overlay && <div class="absolute inset-0 backdrop-blur-sm bg-white/60 dark:bg-black/40" />}
       <div class="relative px-5 py-4 rounded-xl panel flex flex-col items-center gap-3 shadow-sm dark:shadow-none">
