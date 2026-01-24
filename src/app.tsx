@@ -150,14 +150,14 @@ if (import.meta.env.DEV && !import.meta.env.SSR) {
 	(globalThis as { __MODULES__?: Map<string, Module> }).__MODULES__ = modules
 
 	const hmr = (loader: Loader, file: string): Loader => async () => {
-		if (modules.has(file)) return modules.get(file)!
+		if (modules.has(file)) return modules.get(file)
 		const module = await loader()
 		modules.set(file, module)
 		return module
 	}
 
 	for (const [path, loader] of layouts) layouts.set(path, hmr(loader, `/src${path}/layout.tsx`))
-	for (const config of pages) config.loader = hmr(config.loader, `/src${config.segments!.join('/')}/page.tsx`)
+	for (const page of pages) page.loader = hmr(page.loader, `/src${page.segments!.join('/')}/page.tsx`)
 }
 
 // Execute handler() with parent() support
@@ -264,7 +264,7 @@ export async function* resolve(
 	// Error page: skip loading/fetching, compose directly with error
 
 	if (error) {
-		const state: State = { url, params, page: {}, layout: [], error }
+		const state: State = { url, params, layout: [], page: {}, error }
 		yield { Page: compose(target, tree, paths, state), data: state }
 		return
 	}

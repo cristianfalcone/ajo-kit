@@ -27,11 +27,10 @@ export async function create(template: Template) {
 		const url = req.originalUrl
 		const { segments = [], loader } = page
 		const params = req.params
-		const paths = ancestors(segments).filter(path => layouts.has(path))
 		const layout: Data['layout'] = []
 		const parent: Parent = async () => layout.reduce((result, entry) => ({ ...result, ...entry }), {})
 
-		for (const path of paths) {
+		for (const path of ancestors(segments).filter(path => layouts.has(path))) {
 
 			const module = await layouts.get(path)?.()
 			const server = await handlers.get(path)?.layout?.(req, parent)
@@ -44,7 +43,7 @@ export async function create(template: Template) {
 		const server = await handlers.get(segments.join('/'))?.page?.(req, parent)
 		const client = await module.handler?.({ url, params, parent })
 
-		req.data = { page: { ...server, ...client }, layout }
+		req.data = { layout, page: { ...server, ...client } }
 
 		next()
 	}
@@ -82,9 +81,7 @@ export async function create(template: Template) {
 
 		if (!name) throw new AppError(400, 'No action specified')
 
-		const paths = ancestors(segments).filter(path => handlers.has(path)).reverse()
-
-		for (const path of paths) {
+		for (const path of ancestors(segments).filter(path => handlers.has(path)).reverse()) {
 
 			const invoke = handlers.get(path)?.actions[name]
 
