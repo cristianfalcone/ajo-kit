@@ -1,8 +1,9 @@
 import navaid, { type Params } from 'navaid'
 import type { Component, Stateful } from 'ajo'
 import { current } from 'ajo/context'
-import { NotFoundError, AppError, navigate } from '/src/constants'
+import { AppError, navigate } from '/src/constants'
 import type { Context, PageArgs, LayoutArgs, ActionState, Data } from '/src/constants'
+import { unpack } from '/src/serial'
 
 // Pattern compilation
 
@@ -27,14 +28,14 @@ export const getFileName = (path: string) => path.split('/').pop()?.split('.')[0
 
 export function action<T = unknown>(name: string, init?: RequestInit): ActionState<T> {
 
-	const component =  current()
+	const component = current()
 
 	const state: ActionState<T> = {
 		loading: false,
 		data: undefined,
 		error: undefined,
 		fields: undefined,
-		handle: () => {},
+		handle: () => { },
 		reset: () => {
 			state.data = undefined
 			state.error = undefined
@@ -72,7 +73,7 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 				...init,
 			})
 
-			const json = await response.json()
+			const json = unpack(await response.text())
 
 			if (!response.ok) {
 				state.error = json.error ?? 'Action failed'
@@ -114,19 +115,17 @@ export type Page = {
 export interface State {
 	url: string
 	params: Params
-	page: { data?: Record<string, unknown>; error?: AppError }
-	layout: Array<{ data?: Record<string, unknown>; error?: AppError }>
+	page: { data?: Record<string, unknown> }
+	layout: Array<{ data?: Record<string, unknown> }>
+	error?: AppError
 }
 
 export const cache = new Map<string, State>()
 
-export const notFound: Page = {
-	segments: [''], // use root layout
-	loader: async () => ({
-		default: () => null,
-		handler: async ({ url }: Context) => { throw new NotFoundError(`Page not found: ${url}`) }
-	}),
-}
+export const error: () => Page = () => ({
+	segments: [''],
+	loader: async () => ({ default: () => null }),
+})
 
 // Build pages from file system
 
@@ -146,10 +145,15 @@ for (const [path, loader] of Object.entries(import.meta.glob('/src/**/{layout,pa
 
 if (import.meta.env.DEV && !import.meta.env.SSR) {
 
+	const modules = (globalThis as { __MODULES__?: Map<string, Module> }).__MODULES__ ?? new Map();
+
+	(globalThis as { __MODULES__?: Map<string, Module> }).__MODULES__ = modules
+
 	const hmr = (loader: Loader, file: string): Loader => async () => {
-		const modules = (globalThis as { __MODULES__?: Map<string, Module> }).__MODULES__
-		if (modules?.has(file)) return modules.get(file)!
-		return loader()
+		if (modules.has(file)) return modules.get(file)!
+		const module = await loader()
+		modules.set(file, module)
+		return module
 	}
 
 	for (const [path, loader] of layouts) layouts.set(path, hmr(loader, `/src${path}/layout.tsx`))
@@ -196,7 +200,7 @@ function compose(
 
 	const Page = page.default as Component<PageArgs>
 	const loading = 'loading' in state
-	const error = loading ? undefined : state.page.error
+	const error = loading ? undefined : state.error
 
 	// Find who handles loading: page first, then innermost layout with defer
 	const deferred = page.defer ? 'page' : tree.findLast(entry => entry.module.defer)?.path
@@ -211,7 +215,7 @@ function compose(
 					params={state.params}
 					data={loaded?.data}
 					loading={loading && deferred === path}
-					error={loaded?.error ?? error}
+					error={error}
 				>
 					<Child />
 				</Layout>
@@ -225,7 +229,7 @@ function compose(
 					params={state.params}
 					data={loaded?.data}
 					loading={loading && deferred === 'page'}
-					error={loaded?.error}
+					error={error}
 				/>
 			)
 		}
@@ -238,7 +242,8 @@ export async function* resolve(
 	url: string,
 	layouts: Map<string, Loader>,
 	page: Page,
-	data?: Data
+	data?: Data,
+	error?: AppError
 ): AsyncGenerator<{ Page: Component; data?: State }> {
 
 	const { loader, segments = [], params = {} } = page
@@ -256,6 +261,14 @@ export async function* resolve(
 		...paths.map(path => layouts.get(path)!().then(module => ({ path, module })))
 	])
 
+	// Error page: skip loading/fetching, compose directly with error
+
+	if (error) {
+		const state: State = { url, params, page: {}, layout: [], error }
+		yield { Page: compose(target, tree, paths, state), data: state }
+		return
+	}
+
 	// Check cache (SSR hydration) - skip loading phase if cached
 
 	const cached = cache.get(url)
@@ -272,22 +285,42 @@ export async function* resolve(
 
 	// Fetch server data on client navigation
 
-	const server: Data = await (async () => {
+	const server: Data & { redirect?: string; error?: AppError } = await (async () => {
+
 		if (data) return data
 		if (import.meta.env.SSR) return { layout: [], page: {} }
+
 		const response = await fetch(url, { headers: { Accept: 'application/json' } })
-		if (response.ok) return response.json()
-		const error = await response.json().catch(reason => reason?.message ?? 'Server data load failed')
-		throw new AppError(response.status, error)
+		const json = await response.text().then(unpack).catch(error => ({ error }))
+
+		if (json.redirect) return { layout: [], page: {}, redirect: json.redirect }
+		if (!response.ok) return { layout: [], page: {}, error: new AppError(json.error?.status ?? 500, json.error?.message ?? 'Server data load failed') }
+
+		return json
 	})()
 
-	// Execute load functions with parent() support and merge server data
+	// Handle server redirect
+
+	if (server.redirect) {
+		navigate(server.redirect)
+		return
+	}
+
+	// Handle server error (e.g., 404)
+
+	if (server.error) {
+		const state: State = { url, params, layout: [], page: {}, error: server.error }
+		yield { Page: compose(target, tree, paths, state), data: state }
+		return
+	}
+
+	// Execute handler() functions with parent() support and merge server data
 
 	const results: State['layout'] = []
 
 	for (let depth = 0; depth < tree.length; depth++) {
 		const client = await execute(tree[depth].module, { url, params }, results)
-		results.push({ data: { ...server.layout[depth], ...client.data }, error: client.error })
+		results.push({ data: { ...server.layout[depth], ...client.data } })
 	}
 
 	const client = await execute(target, { url, params }, results)
@@ -295,8 +328,9 @@ export async function* resolve(
 	const state: State = {
 		url,
 		params,
-		page: { data: { ...server.page, ...client.data }, error: client.error },
-		layout: results
+		page: { data: { ...server.page, ...client.data } },
+		layout: results,
+		error: client.error
 	}
 
 	// Second yield: data state
@@ -307,33 +341,38 @@ export async function* resolve(
 const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	let Page: Component = page ?? (() => null)
+	let hmr = false
 
 	if (page) return <Page />
 
 	const go = async (page: Page) => {
 
 		for await (const state of resolve(location.pathname, layouts, page)) {
+			if (hmr && !state.data) continue // Skip loading state during HMR
 			this.next(() => Page = state.Page)
 		}
 
-		requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
+		if (!hmr) requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
+		hmr = false
 	}
 
-	const router = navaid('/', () => go(notFound))
-	const hmr = () => router.run()
+	const router = navaid('/', () => go(error()))
 
 	for (const config of pages) {
 		router.on(config.pattern!, params => go({ ...config, params }))
 	}
 
 	router.listen()
-	if (import.meta.env.DEV) addEventListener('hmr', hmr)
+
+	const run = import.meta.env.DEV ? () => { hmr = true; router.run() } : null
+
+	if (run) addEventListener('hmr', run)
 
 	try {
 		while (true) yield <Page />
 	} finally {
 		router.unlisten?.()
-		if (import.meta.env.DEV) removeEventListener('hmr', hmr)
+		if (run) removeEventListener('hmr', run)
 	}
 }
 

@@ -1,5 +1,6 @@
 import type { Middleware } from 'polka'
 import { read, clear, validate } from '/src/auth'
+import { when, redirect } from '/src/auth/guard'
 import { users, roles } from '/src/data'
 
 export default [
@@ -25,14 +26,14 @@ export default [
 
 		if (!token) return next()
 
-		const data = await validate(token)
+		const session = await validate(token)
 
-		if (!data) {
+		if (!session) {
 			clear(res)
 			return next()
 		}
 
-		const user = await users.find(data.userId)
+		const user = await users.find(session.userId)
 
 		if (!user) {
 			clear(res)
@@ -45,5 +46,7 @@ export default [
 
 		next()
 	},
+
+	when(req => req.path === '/', redirect(req => req.user ? '/dashboard' : '/login')),
 
 ] satisfies Middleware[]

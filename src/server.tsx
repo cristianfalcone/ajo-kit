@@ -4,8 +4,9 @@ import polka from 'polka'
 import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
-import App, { resolve, layouts, pages, toPattern, toSegments, type Page, type State } from './app'
-import { AppError, type Data } from './constants'
+import App, { resolve, layouts, pages, error, toPattern, toSegments, type Page, type State } from '/src/app'
+import { AppError, type Data } from '/src/constants'
+import { embed, pack } from '/src/serial'
 
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head'
 
@@ -48,29 +49,30 @@ export async function create(template: Template) {
 		next()
 	}
 
-	// Handler factory: page GET - returns JSON or HTML
+	// Core render logic - used by pages and error handlers
 
-	const render = (page: Page): Middleware => async (req, res) => {
+	const render = async (req: Request, res: Response, page: Page, error?: AppError) => {
 
 		if (req.headers.accept?.includes('application/json')) {
-			send(res, 200, req.data)
-			return
+			return send(res, error?.status ?? 200, pack(error ? { error } : req.data))
 		}
 
 		let resolved: { Page: Component; data?: State }
 
-		for await (const state of resolve(req.originalUrl, layouts, page, req.data)) {
+		for await (const state of resolve(req.originalUrl, layouts, page, req.data, error)) {
 			resolved = state
 		}
 
-		res.setHeader('Content-Type', 'text/html')
-		res.statusCode = resolved!.data?.page.error?.status ?? 200
-		const output = template({
-			head: html(<title>ajo-kit</title>),
-			data: `<script>globalThis.__SSR__=${JSON.stringify(resolved!.data)}</script>`,
-			root: html(<App page={resolved!.Page} />),
-		})
-		send(res, res.statusCode, output)
+		send(
+			res,
+			resolved!.data?.error?.status ?? 200,
+			template({
+				head: html(<title>ajo-kit</title>),
+				data: `<script>globalThis.__SSR__=${embed(resolved!.data)}</script>`,
+				root: html(<App page={resolved!.Page} />),
+			}),
+			{ 'Content-Type': 'text/html' }
+		)
 	}
 
 	const action = (segments: string[]): Middleware => (req, _, next) => {
@@ -105,7 +107,7 @@ export async function create(template: Template) {
 
 		if (req.headers.accept?.includes('application/json')) {
 			const payload = result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true })
-			send(res, 200, payload)
+			send(res, 200, pack(payload))
 			return
 		}
 
@@ -115,15 +117,11 @@ export async function create(template: Template) {
 	}
 
 	const app = polka({
-		onError: (err, _, res) => {
-			if (err instanceof AppError) {
-				send(res, err.status, err)
-			} else {
-				console.error(err)
-				send(res, 500, { error: 'Internal error' })
-			}
+		onError: (err, req, res) => {
+			if (!(err instanceof AppError)) console.error(err)
+			render(req, res, error(), err instanceof AppError ? err : new AppError(500, 'Internal error'))
 		},
-		onNoMatch: (_, res) => send(res, 404, { error: 'Not found' })
+		onNoMatch: (req, res) => render(req, res, error(), new AppError(404, 'Not found'))
 	})
 
 	const ancestors = (segments: string[]) => segments.map((_, i) => segments.slice(0, i + 1).join('/'))
@@ -171,7 +169,7 @@ export async function create(template: Template) {
 		const path = `/${pattern || ''}`
 		const wares = collect(segments)
 
-		app.get(path, json(), ...wares, data(page), render(page))
+		app.get(path, json(), ...wares, data(page), (req, res) => render(req, res, page))
 		app.post(path, action(segments), json(), ...wares, invoke())
 	}
 

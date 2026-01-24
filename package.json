@@ -6,7 +6,7 @@
     ]
   },
   "scripts": {
-    "dev": "tsx watch --include 'src/**/handler.ts' --include 'src/**/wares.ts' --include 'src/server.tsx' server.ts dev",
+    "dev": "tsx watch --include 'src/server.tsx' server.ts dev",
     "build": "pnpm build:client && pnpm build:server",
     "build:client": "vite build --outDir dist/client",
     "build:server": "vite build --ssr src/server.tsx --outDir dist/server",
@@ -20,6 +20,7 @@
     "argon2": "0.44.0",
     "better-sqlite3": "12.6.2",
     "clsx": "2.1.1",
+    "devalue": "^5.6.2",
     "kysely": "0.28.10",
     "navaid": "1.2.0",
     "polka": "1.0.0-next.28",

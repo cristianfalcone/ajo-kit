@@ -23,5 +23,5 @@ export async function authenticate(req: Request, res: Response) {
 
 	write(res, token)
 
-	return { redirect: '/' }
+	return { redirect: '/dashboard' }
 }

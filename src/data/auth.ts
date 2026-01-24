@@ -1,8 +1,6 @@
 import { db } from './db'
 import type { Session, Role, User, NewUser } from './types'
 
-// Users
-
 export const users = {
 
 	all: () =>
@@ -23,8 +21,6 @@ export const users = {
 	create: (data: NewUser) =>
 		db().insertInto('users').values(data).returning('id').executeTakeFirstOrThrow(),
 }
-
-// Sessions
 
 export const sessions = {
 

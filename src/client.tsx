@@ -39,7 +39,7 @@ if (import.meta.hot) {
     Array.from(el.children).forEach(child => walk(child, path))
   }
 
-  (globalThis as { __HMR__?: () => void }).__HMR__ = (path?: string) => {
+  (globalThis as { __HMR__?: (path?: string) => void }).__HMR__ = path => {
     if (root) walk(root, path)
     dispatchEvent(new CustomEvent('hmr'))
   }

@@ -12,7 +12,11 @@ export class AppError extends Error {
 		this.message = message
 	}
 	toJSON() {
-		return { error: this.message }
+		return {
+			message: this.message,
+			status: this.status,
+			...(import.meta.env.DEV && { stack: this.stack })
+		}
 	}
 }
 
@@ -41,7 +45,12 @@ export class InvalidError extends AppError {
 		super(400, message)
 	}
 	toJSON() {
-		return { error: this.message, fields: this.fields }
+		return {
+			message: this.message,
+			status: this.status,
+			fields: this.fields,
+			...(import.meta.env.DEV && { stack: this.stack })
+		}
 	}
 }
 
@@ -84,34 +93,6 @@ export type LayoutArgs<T = Record<string, unknown>> = PageArgs<T> & {
 	children: Children
 }
 
-// Cart context
-
-export interface CartItem {
-	id: number | string
-	name: string
-	price: number
-	qty: number
-	image?: string
-}
-
-export interface Cart {
-	items: CartItem[]
-	add: (item: Omit<CartItem, 'qty'>) => void
-	update: (id: CartItem['id'], quantity: number) => void
-	remove: (id: CartItem['id']) => void
-	count: number
-	total: number
-}
-
-export const CartContext = context<Cart>({
-	items: [],
-	add: () => {},
-	update: () => {},
-	remove: () => {},
-	count: 0,
-	total: 0,
-})
-
 // Theme context
 
 export type ThemeMode = 'system' | 'light' | 'dark'
@@ -144,23 +125,6 @@ export interface User {
 	email: string
 	roles: Role[]
 }
-
-export interface AuthState {
-	user?: User
-	signout: ActionState<void>
-}
-
-export const AuthContext = context<AuthState>({
-	user: undefined,
-	signout: {
-		loading: false,
-		data: undefined,
-		error: undefined,
-		fields: undefined,
-		handle: () => {},
-		reset: () => {}
-	}
-})
 
 // Request extensions for polka
 

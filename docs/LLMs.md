@@ -17,20 +17,6 @@ src/
 ├── handler.ts           # Root API handlers + page() data loader
 ├── wares.ts             # Root API middlewares
 ├── ui/                  # Global reusable components
-├── (marketing)/         # Route group (no URL impact)
-│   ├── layout.tsx       # Section layout
-│   ├── constants.ts     # Section-specific types, contexts
-│   ├── ui/              # Section-specific components
-│   ├── blog/
-│   │   ├── page.tsx     # /blog (component + handler() + optional defer)
-│   │   ├── handler.ts   # Server-only data + form actions
-│   │   └── [id]/
-│   │       └── page.tsx # /blog/:id
-│   └── about/
-│       └── page.tsx     # /about
-└── (shop)/
-    └── products/
-        └── [id]/page.tsx # /products/:id
 ```
 
 ## File-Based Routing
@@ -448,31 +434,45 @@ import { context } from 'ajo/context'
 import type { Params } from 'navaid'
 import type { Children } from 'ajo'
 
-// Re-export for convenience
-export type { Params }
-
-// ─── Error Classes ───────────────────────────────────────────────
-
-export class RouteError extends Error {
-  constructor(public status: number, message: string) {
-    super(message)
-    this.message = message  // Enumerable for JSON serialization
-  }
+export class AppError extends Error {
+	override message: string
+	constructor(public status: number, message: string) {
+		super(message)
+		this.message = message
+	}
+	toJSON() {
+		return { error: this.message }
+	}
 }
 
-export class NotFoundError extends RouteError {
-  constructor(message = 'Page not found') { super(404, message) }
+export class NotFoundError extends AppError {
+	constructor(message = 'Page not found') {
+		super(404, message)
+	}
 }
 
-export class ForbiddenError extends RouteError {
-  constructor(message = 'Access denied') { super(403, message) }
+export class ForbiddenError extends AppError {
+	constructor(message = 'Access denied') {
+		super(403, message)
+	}
 }
 
-export class UnauthorizedError extends RouteError {
-  constructor(message = 'Authentication required') { super(401, message) }
+export class UnauthorizedError extends AppError {
+	constructor(message = 'Authentication required') {
+		super(401, message)
+	}
 }
 
-// ─── Data Loading Types ──────────────────────────────────────────
+export type ValidationFields = Record<string, string[] | undefined>
+
+export class InvalidError extends AppError {
+	constructor(public fields: ValidationFields, message = 'Validation failed') {
+		super(400, message)
+	}
+	toJSON() {
+		return { error: this.message, fields: this.fields }
+	}
+}
 
 export type HandlerArgs = {
   params: Params
@@ -493,8 +493,6 @@ export type ActionState<T> = {
   reset: () => void
 }
 
-// ─── Component Props Types ───────────────────────────────────────
-
 export type PageArgs<T = Record<string, unknown>> = {
   params: Params
   data: T | undefined
@@ -505,8 +503,6 @@ export type PageArgs<T = Record<string, unknown>> = {
 export type LayoutArgs<T = Record<string, unknown>> = PageArgs<T> & {
   children: Children
 }
-
-// ─── Contexts ────────────────────────────────────────────────────
 
 export type ThemeMode = 'system' | 'light' | 'dark'
 
@@ -521,8 +517,6 @@ export const ThemeContext = context<Theme>({
   set: () => {},
   cycle: () => {},
 })
-
-// ─── Navigation Helper ───────────────────────────────────────────
 
 export const navigate = (to: string) => {
   globalThis.history?.pushState({}, '', to)
