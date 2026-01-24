@@ -15,8 +15,8 @@ importers:
         specifier: 1.0.0-next.28
         version: 1.0.0-next.28
       ajo:
-        specifier: file:../ajo
-        version: file:../ajo
+        specifier: 0.1.29
+        version: 0.1.29
       argon2:
         specifier: 0.44.0
         version: 0.44.0
@@ -29,6 +29,9 @@ importers:
       devalue:
         specifier: ^5.6.2
         version: 5.6.2
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.2.3
       kysely:
         specifier: 0.28.10
         version: 0.28.10
@@ -520,8 +523,8 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  ajo@file:../ajo:
-    resolution: {directory: ../ajo, type: directory}
+  ajo@0.1.29:
+    resolution: {integrity: sha512-22PyD3LL3cpJ6xEQ/d+mvu4dfq4NsM7b85HCr60AfQlv55uf/ezRgedSJefp1dt94VaDKnieI7wT5698vaUx3w==}
 
   argon2@0.44.0:
     resolution: {integrity: sha512-zHPGN3S55sihSQo0dBbK0A5qpi2R31z7HZDZnry3ifOyj8bZZnpZND2gpmhnRGO1V/d555RwBqIK5W4Mrmv3ig==}
@@ -610,6 +613,10 @@ packages:
 
   devalue@5.6.2:
     resolution: {integrity: sha512-nPRkjWzzDQlsejL1WVifk5rvcFi/y1onBRxjaFMjZeR9mFpqu2gmAZ9xUB9/IEanEP/vBtGeGganC/GO1fmufg==}
+
+  dotenv@17.2.3:
+    resolution: {integrity: sha512-JVUnt+DUIzu87TABbhPmNfVdBDt18BLOWjMUFJMSi/Qqg7NTYtabbvSNJGOJ7afbRuv9D/lngizHtP7QyLQ+9w==}
+    engines: {node: '>=12'}
 
   duplexer@0.1.2:
     resolution: {integrity: sha512-jtD6YG370ZCIi/9GTaJKQxWTZD045+4R4hTk/x1UyoqadyJ9x9CgSi1RlVDQF8U2sxLLSnFkCaMihqljHIWgMg==}
@@ -1387,7 +1394,7 @@ snapshots:
 
   acorn@8.15.0: {}
 
-  ajo@file:../ajo: {}
+  ajo@0.1.29: {}
 
   argon2@0.44.0:
     dependencies:
@@ -1467,6 +1474,8 @@ snapshots:
   detect-libc@2.1.2: {}
 
   devalue@5.6.2: {}
+
+  dotenv@17.2.3: {}
 
   duplexer@0.1.2: {}
 

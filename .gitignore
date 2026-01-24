@@ -2,3 +2,7 @@ node_modules
 dist
 local
 database.sqlite
+database.sqlite-wal
+database.sqlite-shm
+drive.json
+.env
