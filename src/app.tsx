@@ -4,6 +4,7 @@ import { current } from 'ajo/context'
 import { AppError, navigate } from '/src/constants'
 import type { Context, PageArgs, LayoutArgs, ActionState, Data } from '/src/constants'
 import { unpack } from '/src/serial'
+import { merge, apply, type Head } from '/src/head'
 
 // Pattern compilation
 
@@ -100,6 +101,7 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 export type Module = {
 	default: Component
 	handler?: (args: Context) => Promise<Record<string, unknown>>
+	head?: (args: Context) => Promise<Head>
 	defer?: boolean
 }
 
@@ -115,8 +117,8 @@ export type Page = {
 export interface State {
 	url: string
 	params: Params
-	page: { data?: Record<string, unknown> }
-	layout: Array<{ data?: Record<string, unknown> }>
+	data: Array<Record<string, unknown> | undefined>
+	head?: Head
 	error?: AppError
 }
 
@@ -165,16 +167,12 @@ if (import.meta.env.DEV && !import.meta.env.SSR) {
 async function execute(
 	target: Module,
 	context: { url: string; params: Params },
-	parents: Array<{ data?: Record<string, unknown>; error?: AppError }>
+	parents: Array<Record<string, unknown>>
 ): Promise<{ data?: Record<string, unknown>; error?: AppError }> {
 
 	if (!target.handler) return { data: {} }
 
-	const parent = async () => {
-		const error = parents.find(parent => parent.error)?.error
-		if (error) throw error
-		return parents.reduce((result, parent) => ({ ...result, ...parent.data }), {})
-	}
+	const parent = async () => parents.reduce((result, entry) => ({ ...result, ...entry }), {})
 
 	try {
 		return { data: await target.handler({ ...context, parent }) }
@@ -208,12 +206,12 @@ function compose(
 	return tree.reduceRight<Component>(
 		(Child, { path, module }, depth) => {
 			const Layout = module.default as Component<LayoutArgs>
-			const loaded = loading ? undefined : state.layout[depth]
+			const data = loading ? undefined : state.data[depth]
 			return () => (
 				<Layout
 					key={path}
 					params={state.params}
-					data={loaded?.data}
+					data={data}
 					loading={loading && deferred === path}
 					error={error}
 				>
@@ -222,12 +220,12 @@ function compose(
 			)
 		},
 		() => {
-			const loaded = loading ? undefined : state.page
+			const data = loading ? undefined : state.data.at(-1)
 			return (
 				<Page
 					key={paths.join('/')}
 					params={state.params}
-					data={loaded?.data}
+					data={data}
 					loading={loading && deferred === 'page'}
 					error={error}
 				/>
@@ -264,7 +262,7 @@ export async function* resolve(
 	// Error page: skip loading/fetching, compose directly with error
 
 	if (error) {
-		const state: State = { url, params, layout: [], page: {}, error }
+		const state: State = { url, params, data: [], error }
 		yield { Page: compose(target, tree, paths, state), data: state }
 		return
 	}
@@ -285,16 +283,16 @@ export async function* resolve(
 
 	// Fetch server data on client navigation
 
-	const server: Data & { redirect?: string; error?: AppError } = await (async () => {
+	const server: { data: Data; head?: Head; redirect?: string; error?: AppError } = await (async () => {
 
-		if (data) return data
-		if (import.meta.env.SSR) return { layout: [], page: {} }
+		if (data) return { data, head: undefined }
+		if (import.meta.env.SSR) return { data: [] }
 
 		const response = await fetch(url, { headers: { Accept: 'application/json' } })
 		const json = await response.text().then(unpack).catch(error => ({ error }))
 
-		if (json.redirect) return { layout: [], page: {}, redirect: json.redirect }
-		if (!response.ok) return { layout: [], page: {}, error: new AppError(json.error?.status ?? 500, json.error?.message ?? 'Server data load failed') }
+		if (json.redirect) return { data: [], redirect: json.redirect }
+		if (!response.ok) return { data: [], error: new AppError(json.error?.status ?? 500, json.error?.message ?? 'Server data load failed') }
 
 		return json
 	})()
@@ -309,18 +307,18 @@ export async function* resolve(
 	// Handle server error (e.g., 404)
 
 	if (server.error) {
-		const state: State = { url, params, layout: [], page: {}, error: server.error }
+		const state: State = { url, params, data: [], error: server.error }
 		yield { Page: compose(target, tree, paths, state), data: state }
 		return
 	}
 
 	// Execute handler() functions with parent() support and merge server data
 
-	const results: State['layout'] = []
+	const results: Array<Record<string, unknown>> = []
 
 	for (let depth = 0; depth < tree.length; depth++) {
 		const client = await execute(tree[depth].module, { url, params }, results)
-		results.push({ data: { ...server.layout[depth], ...client.data } })
+		results.push({ ...server.data[depth], ...client.data })
 	}
 
 	const client = await execute(target, { url, params }, results)
@@ -328,9 +326,32 @@ export async function* resolve(
 	const state: State = {
 		url,
 		params,
-		page: { data: { ...server.page, ...client.data } },
-		layout: results,
+		data: [...results, { ...server.data.at(-1), ...client.data }],
 		error: client.error
+	}
+
+	// Use server head (includes handler.head + module.head from server)
+	// Only run module.head() on SSR when no server data
+
+	if (server.head) {
+		state.head = server.head
+	} else {
+		const heads: Head[] = []
+
+		for (let depth = 0; depth < tree.length; depth++) {
+			const { module } = tree[depth]
+			if (module.head) {
+				const parent = async () => results[depth] ?? {}
+				heads.push(await module.head({ url, params, parent }))
+			}
+		}
+
+		if (target.head) {
+			const parent = async () => state.data.at(-1) ?? {}
+			heads.push(await target.head({ url, params, parent }))
+		}
+
+		state.head = merge(...heads)
 	}
 
 	// Second yield: data state
@@ -350,6 +371,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		for await (const state of resolve(location.pathname, layouts, page)) {
 			if (hmr && !state.data) continue // Skip loading state during HMR
 			this.next(() => Page = state.Page)
+			if (state.data?.head) apply(state.data.head)
 		}
 
 		if (!hmr) requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))

@@ -2,6 +2,7 @@ import { context } from 'ajo/context'
 import type { Children } from 'ajo'
 import type { Params } from 'navaid'
 import type { Request, Response } from 'polka'
+import type { Head } from '/src/head'
 
 // Route errors with HTTP status codes
 
@@ -54,13 +55,13 @@ export class InvalidError extends AppError {
 	}
 }
 
-// Server data types
+// Server data types (array where last element is page data)
 
-export type Data = { page: Record<string, unknown>; layout: Array<Record<string, unknown>> }
+export type Data = Array<Record<string, unknown>>
 
 export type Context = {
-	params: Params
 	url: string
+	params: Params
 	parent: () => Promise<Record<string, unknown>>
 }
 
@@ -133,5 +134,6 @@ declare module 'polka' {
 		user?: User
 		action?: Action
 		data?: Data
+		head?: Head
 	}
 }

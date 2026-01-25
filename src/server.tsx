@@ -5,8 +5,9 @@ import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
 import App, { resolve, layouts, pages, error, toPattern, toSegments, type Page, type State } from '/src/app'
-import { AppError, type Data } from '/src/constants'
+import { AppError, type Data, type Context } from '/src/constants'
 import { embed, pack } from '/src/serial'
+import { merge, render as renderHead, type Head } from '/src/head'
 
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head'
 
@@ -15,6 +16,7 @@ type Parent = () => Promise<Record<string, unknown>>
 type PageHandler = {
 	page?: (req: Request, parent: Parent) => Promise<Record<string, unknown>>
 	layout?: (req: Request, parent: Parent) => Promise<Record<string, unknown>>
+	head?: (req: Request, parent: Parent) => Promise<Head>
 	actions: Record<string, (req: Request, res: Response) => Promise<unknown>>
 }
 
@@ -27,23 +29,45 @@ export async function create(template: Template) {
 		const url = req.originalUrl
 		const { segments = [], loader } = page
 		const params = req.params
-		const layout: Data['layout'] = []
-		const parent: Parent = async () => layout.reduce((result, entry) => ({ ...result, ...entry }), {})
+		const data: Data = []
+		const heads: Head[] = []
+		const parent: Parent = async () => data.reduce((result, entry) => ({ ...result, ...entry }), {})
 
 		for (const path of ancestors(segments).filter(path => layouts.has(path))) {
 
 			const module = await layouts.get(path)?.()
-			const server = await handlers.get(path)?.layout?.(req, parent)
-			const client = await module?.handler?.({ url, params, parent })
+			const handler = handlers.get(path)
 
-			layout.push({ ...server, ...client })
+			// Data
+			const server = await handler?.layout?.(req, parent)
+			const client = await module?.handler?.({ url, params, parent })
+			const entry = { ...server, ...client }
+			data.push(entry)
+
+			// Head
+			const context: Context = { url, params, parent: async () => entry }
+			const serverHead = await handler?.head?.(req, context.parent)
+			const clientHead = await module?.head?.(context)
+			heads.push(merge(serverHead, clientHead))
 		}
 
 		const module = await loader()
-		const server = await handlers.get(segments.join('/'))?.page?.(req, parent)
-		const client = await module.handler?.({ url, params, parent })
+		const handler = handlers.get(segments.join('/'))
 
-		req.data = { layout, page: { ...server, ...client } }
+		// Page data (last element in data array)
+		const server = await handler?.page?.(req, parent)
+		const client = await module.handler?.({ url, params, parent })
+		const entry = { ...server, ...client }
+		data.push(entry)
+
+		// Page head
+		const context: Context = { url, params, parent: async () => entry }
+		const serverHead = await handler?.head?.(req, context.parent)
+		const clientHead = await module.head?.(context)
+		heads.push(merge(serverHead, clientHead))
+
+		req.data = data
+		req.head = merge(...heads)
 
 		next()
 	}
@@ -53,7 +77,7 @@ export async function create(template: Template) {
 	const render = async (req: Request, res: Response, page: Page, error?: AppError) => {
 
 		if (req.headers.accept?.includes('application/json')) {
-			return send(res, error?.status ?? 200, pack(error ? { error } : req.data))
+			return send(res, error?.status ?? 200, pack(error ? { error } : { data: req.data, head: req.head }))
 		}
 
 		let resolved: { Page: Component; data?: State }
@@ -66,8 +90,8 @@ export async function create(template: Template) {
 			res,
 			resolved!.data?.error?.status ?? 200,
 			template({
-				head: html(<title>ajo-kit</title>),
-				data: `<script>globalThis.__SSR__=${embed(resolved!.data)}</script>`,
+				head: renderHead(req.head ?? {}),
+				data: `<script>globalThis.__SSR__=${embed({ ...resolved!.data, head: req.head })}</script>`,
 				root: html(<App page={resolved!.Page} />),
 			}),
 			{ 'Content-Type': 'text/html' }
@@ -148,8 +172,8 @@ export async function create(template: Template) {
 		const segments = toSegments(file)
 		const key = segments.join('/')
 
-		const { default: routes, page, layout, ...actions } = exports
-		handlers.set(key, { page, layout, actions } as PageHandler)
+		const { default: routes, page, layout, head, ...actions } = exports
+		handlers.set(key, { page, layout, head, actions } as PageHandler)
 
 		if (routes) {
 			for (const method of Object.keys(routes) as HttpMethod[]) {
