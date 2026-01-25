@@ -1,6 +1,7 @@
 import 'virtual:uno.css'
 import { render } from 'ajo'
-import App, { cache, type State } from '/src/app'
+import App, { cache } from '/src/app'
+import type { State } from '/src/constants'
 
 const ssr = (globalThis as { __SSR__?: State }).__SSR__
 

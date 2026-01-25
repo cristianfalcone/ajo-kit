@@ -4,18 +4,17 @@ import polka from 'polka'
 import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
-import App, { resolve, layouts, pages, error, toPattern, toSegments, type Page, type State } from '/src/app'
-import { AppError, type Data, type Context } from '/src/constants'
+import App, { resolve, layouts, pages, error, toPattern, toSegments } from '/src/app'
+import { AppError, links, ancestors, normalize } from '/src/constants'
+import type { State, Data, Entry, Page, Context, Parent } from '/src/constants'
 import { embed, pack } from '/src/serial'
 import { merge, render as renderHead, type Head } from '/src/head'
 
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head'
 
-type Parent = () => Promise<Record<string, unknown>>
-
 type PageHandler = {
-	page?: (req: Request, parent: Parent) => Promise<Record<string, unknown>>
-	layout?: (req: Request, parent: Parent) => Promise<Record<string, unknown>>
+	page?: (req: Request, parent: Parent) => Promise<Entry>
+	layout?: (req: Request, parent: Parent) => Promise<Entry>
 	head?: (req: Request, parent: Parent) => Promise<Head>
 	actions: Record<string, (req: Request, res: Response) => Promise<unknown>>
 }
@@ -27,46 +26,95 @@ export async function create(template: Template) {
 	const data = (page: Page): Middleware => async (req, _, next) => {
 
 		const url = req.originalUrl
-		const { segments = [], loader } = page
+		const { segments, loader } = page
 		const params = req.params
-		const data: Data = []
-		const heads: Head[] = []
-		const parent: Parent = async () => data.reduce((result, entry) => ({ ...result, ...entry }), {})
 
-		for (const path of ancestors(segments).filter(path => layouts.has(path))) {
+		const paths = ancestors(segments).filter(path => layouts.has(path))
+		const chain = links(paths.length + 1)
 
-			const module = await layouts.get(path)?.()
-			const handler = handlers.get(path)
+		const layoutTasks = paths.map(async (path, depth) => {
 
-			// Data
-			const server = await handler?.layout?.(req, parent)
-			const client = await module?.handler?.({ url, params, parent })
-			const entry = { ...server, ...client }
-			data.push(entry)
+			const { parent, deferred } = chain[depth]
 
-			// Head
-			const context: Context = { url, params, parent: async () => entry }
-			const serverHead = await handler?.head?.(req, context.parent)
-			const clientHead = await module?.head?.(context)
-			heads.push(merge(serverHead, clientHead))
-		}
+			try {
+				const module = await layouts.get(path)?.()
+				const handler = handlers.get(path)
 
-		const module = await loader()
-		const handler = handlers.get(segments.join('/'))
+				const [server, client] = await Promise.all([
+					handler?.layout?.(req, parent),
+					module?.handler?.({ url, params, parent })
+				])
 
-		// Page data (last element in data array)
-		const server = await handler?.page?.(req, parent)
-		const client = await module.handler?.({ url, params, parent })
-		const entry = { ...server, ...client }
-		data.push(entry)
+				const entry = { ...server, ...client }
+				deferred.resolve(entry)
 
-		// Page head
-		const context: Context = { url, params, parent: async () => entry }
-		const serverHead = await handler?.head?.(req, context.parent)
-		const clientHead = await module.head?.(context)
-		heads.push(merge(serverHead, clientHead))
+				return { entry, module, handler }
 
-		req.data = data
+			} catch (error) {
+				deferred.reject(normalize(error))
+				throw error
+			}
+		})
+
+		const pageTask = (async () => {
+
+			const depth = paths.length
+			const { parent, deferred } = chain[depth]
+
+			try {
+				const module = await loader()
+				const handler = handlers.get(segments.join('/'))
+
+				const [server, client] = await Promise.all([
+					handler?.page?.(req, parent),
+					module?.handler?.({ url, params, parent })
+				])
+
+				const entry = { ...server, ...client }
+				deferred.resolve(entry)
+
+				return { entry, module, handler }
+
+			} catch (error) {
+				deferred.reject(normalize(error))
+				throw error
+			}
+		})()
+
+		const [layoutResults, pageResult] = await Promise.all([
+			Promise.all(layoutTasks),
+			pageTask
+		])
+
+		const entries: Data = [...layoutResults.map(r => r.entry), pageResult.entry]
+
+		const heads = await Promise.all([
+			...layoutResults.map(async ({ module, handler, entry }) => {
+
+				const context: Context = { url, params, parent: async () => entry }
+
+				const [serverHead, clientHead] = await Promise.all([
+					handler?.head?.(req, context.parent),
+					module?.head?.(context)
+				])
+
+				return merge(serverHead, clientHead)
+			}),
+			(async () => {
+
+				const { module, handler, entry } = pageResult
+				const context: Context = { url, params, parent: async () => entry }
+
+				const [serverHead, clientHead] = await Promise.all([
+					handler?.head?.(req, context.parent),
+					module?.head?.(context)
+				])
+
+				return merge(serverHead, clientHead)
+			})()
+		])
+
+		req.data = entries
 		req.head = merge(...heads)
 
 		next()
@@ -90,7 +138,7 @@ export async function create(template: Template) {
 			res,
 			resolved!.data?.error?.status ?? 200,
 			template({
-				head: renderHead(req.head ?? {}),
+				head: renderHead(req.head),
 				data: `<script>globalThis.__SSR__=${embed({ ...resolved!.data, head: req.head })}</script>`,
 				root: html(<App page={resolved!.Page} />),
 			}),
@@ -140,12 +188,10 @@ export async function create(template: Template) {
 	const app = polka({
 		onError: (err, req, res) => {
 			if (!(err instanceof AppError)) console.error(err)
-			render(req, res, error(), err instanceof AppError ? err : new AppError(500, 'Internal error'))
+			render(req, res, error(), normalize(err))
 		},
 		onNoMatch: (req, res) => render(req, res, error(), new AppError(404, 'Not found'))
 	})
-
-	const ancestors = (segments: string[]) => segments.map((_, i) => segments.slice(0, i + 1).join('/'))
 
 	const collect = (segments: string[]): Middleware[] => ancestors(segments).flatMap(path => wares.get(path) ?? [])
 
@@ -186,7 +232,7 @@ export async function create(template: Template) {
 
 	for (const page of pages) {
 
-		const { pattern, segments = [] } = page
+		const { pattern, segments } = page
 		const path = `/${pattern || ''}`
 		const wares = collect(segments)
 

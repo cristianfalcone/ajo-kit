@@ -15,6 +15,11 @@ const reducers = {
 	json: (value: unknown) => hasJSON(value) ? value.toJSON() : undefined
 }
 
+// For parse: revivers object (must match reducers)
+const revivers = {
+	json: (value: unknown) => value
+}
+
 export const embed = (value: unknown) => uneval(value, replacer)
 export const pack = (value: unknown) => stringify(value, reducers)
-export const unpack = (value: string) => parse(value)
+export const unpack = (value: string) => parse(value, revivers)

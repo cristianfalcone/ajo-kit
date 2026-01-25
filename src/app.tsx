@@ -1,8 +1,19 @@
 import navaid, { type Params } from 'navaid'
 import type { Component, Stateful } from 'ajo'
 import { current } from 'ajo/context'
-import { AppError, navigate } from '/src/constants'
-import type { Context, PageArgs, LayoutArgs, ActionState, Data } from '/src/constants'
+import { AppError, navigate, links, ancestors, normalize } from '/src/constants'
+import type {
+	PageArgs,
+	LayoutArgs,
+	ActionState,
+	Data,
+	Entry,
+	Parent,
+	Module,
+	Loader,
+	Page,
+	State
+} from '/src/constants'
 import { unpack } from '/src/serial'
 import { merge, apply, type Head } from '/src/head'
 
@@ -98,30 +109,6 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 	return state
 }
 
-export type Module = {
-	default: Component
-	handler?: (args: Context) => Promise<Record<string, unknown>>
-	head?: (args: Context) => Promise<Head>
-	defer?: boolean
-}
-
-export type Loader = () => Promise<Module>
-
-export type Page = {
-	loader: Loader
-	pattern?: string
-	segments?: string[]
-	params?: Params
-}
-
-export interface State {
-	url: string
-	params: Params
-	data: Array<Record<string, unknown> | undefined>
-	head?: Head
-	error?: AppError
-}
-
 export const cache = new Map<string, State>()
 
 export const error: () => Page = () => ({
@@ -159,7 +146,7 @@ if (import.meta.env.DEV && !import.meta.env.SSR) {
 	}
 
 	for (const [path, loader] of layouts) layouts.set(path, hmr(loader, `/src${path}/layout.tsx`))
-	for (const page of pages) page.loader = hmr(page.loader, `/src${page.segments!.join('/')}/page.tsx`)
+	for (const page of pages) page.loader = hmr(page.loader, `/src${page.segments.join('/')}/page.tsx`)
 }
 
 // Execute handler() with parent() support
@@ -167,38 +154,28 @@ if (import.meta.env.DEV && !import.meta.env.SSR) {
 async function execute(
 	target: Module,
 	context: { url: string; params: Params },
-	parents: Array<Record<string, unknown>>
-): Promise<{ data?: Record<string, unknown>; error?: AppError }> {
+	parent: Parent
+): Promise<{ data?: Entry; error?: AppError }> {
 
 	if (!target.handler) return { data: {} }
-
-	const parent = async () => parents.reduce((result, entry) => ({ ...result, ...entry }), {})
 
 	try {
 		return { data: await target.handler({ ...context, parent }) }
 	} catch (error) {
-		return {
-			error: error instanceof AppError
-				? error
-				: new AppError(500, error instanceof Error ? error.message : 'Load failed')
-		}
+		return { error: normalize(error) }
 	}
 }
 
 // Compose component tree
 
-type LoadingData = { url: string; params: Params; loading: true }
-
 function compose(
 	page: Module,
 	tree: Array<{ path: string; module: Module }>,
 	paths: string[],
-	state: State | LoadingData
+	state: State
 ): Component {
 
 	const Page = page.default as Component<PageArgs>
-	const loading = 'loading' in state
-	const error = loading ? undefined : state.error
 
 	// Find who handles loading: page first, then innermost layout with defer
 	const deferred = page.defer ? 'page' : tree.findLast(entry => entry.module.defer)?.path
@@ -206,31 +183,27 @@ function compose(
 	return tree.reduceRight<Component>(
 		(Child, { path, module }, depth) => {
 			const Layout = module.default as Component<LayoutArgs>
-			const data = loading ? undefined : state.data[depth]
 			return () => (
 				<Layout
 					key={path}
 					params={state.params}
-					data={data}
-					loading={loading && deferred === path}
-					error={error}
+					data={state.data[depth]}
+					loading={state.loading && deferred === path}
+					error={state.error}
 				>
 					<Child />
 				</Layout>
 			)
 		},
-		() => {
-			const data = loading ? undefined : state.data.at(-1)
-			return (
-				<Page
-					key={paths.join('/')}
-					params={state.params}
-					data={data}
-					loading={loading && deferred === 'page'}
-					error={error}
-				/>
-			)
-		}
+		() => (
+			<Page
+				key={paths.join('/')}
+				params={state.params}
+				data={state.data.at(-1)}
+				loading={state.loading && deferred === 'page'}
+				error={state.error}
+			/>
+		)
 	)
 }
 
@@ -244,13 +217,9 @@ export async function* resolve(
 	error?: AppError
 ): AsyncGenerator<{ Page: Component; data?: State }> {
 
-	const { loader, segments = [], params = {} } = page
+	const { loader, segments, params = {} } = page
 
-	// Find layout paths
-
-	const paths = segments
-		.map((_, index) => segments.slice(0, index + 1).join('/'))
-		.filter(path => layouts.has(path))
+	const paths = ancestors(segments).filter(path => layouts.has(path))
 
 	// Load modules in parallel (fast - already bundled)
 
@@ -262,7 +231,7 @@ export async function* resolve(
 	// Error page: skip loading/fetching, compose directly with error
 
 	if (error) {
-		const state: State = { url, params, data: [], error }
+		const state: State = { url, params, data: [], loading: false, error }
 		yield { Page: compose(target, tree, paths, state), data: state }
 		return
 	}
@@ -279,7 +248,7 @@ export async function* resolve(
 
 	// First yield: loading state
 
-	yield { Page: compose(target, tree, paths, { url, params, loading: true }) }
+	yield { Page: compose(target, tree, paths, { url, params, data: [], loading: true }) }
 
 	// Fetch server data on client navigation
 
@@ -307,51 +276,71 @@ export async function* resolve(
 	// Handle server error (e.g., 404)
 
 	if (server.error) {
-		const state: State = { url, params, data: [], error: server.error }
+		const state: State = { url, params, data: [], loading: false, error: server.error }
 		yield { Page: compose(target, tree, paths, state), data: state }
 		return
 	}
 
 	// Execute handler() functions with parent() support and merge server data
 
-	const results: Array<Record<string, unknown>> = []
+	const chain = links(tree.length + 1)
 
-	for (let depth = 0; depth < tree.length; depth++) {
-		const client = await execute(tree[depth].module, { url, params }, results)
-		results.push({ ...server.data[depth], ...client.data })
-	}
+	const layoutTasks = tree.map(async ({ module }, depth) => {
 
-	const client = await execute(target, { url, params }, results)
+		const { parent, deferred } = chain[depth]
+
+		try {
+			const result = await execute(module, { url, params }, parent)
+			const merged = { ...server.data[depth], ...result.data }
+			deferred.resolve(merged)
+			return { merged, error: result.error }
+		} catch (error) {
+			const appError = normalize(error)
+			deferred.reject(appError)
+			return { merged: server.data[depth] ?? {}, error: appError }
+		}
+	})
+
+	const pageTask = (async () => {
+
+		const depth = tree.length
+		const { parent, deferred } = chain[depth]
+
+		try {
+			const result = await execute(target, { url, params }, parent)
+			const merged = { ...server.data.at(-1), ...result.data }
+			deferred.resolve(merged)
+			return { merged, error: result.error }
+		} catch (error) {
+			const appError = normalize(error)
+			deferred.reject(appError)
+			return { merged: server.data.at(-1) ?? {}, error: appError }
+		}
+	})()
+
+	const [layoutResults, pageResult] = await Promise.all([
+		Promise.all(layoutTasks),
+		pageTask
+	])
 
 	const state: State = {
 		url,
 		params,
-		data: [...results, { ...server.data.at(-1), ...client.data }],
-		error: client.error
+		data: [...layoutResults.map(r => r.merged), pageResult.merged],
+		loading: false,
+		error: layoutResults.find(r => r.error)?.error ?? pageResult.error
 	}
-
-	// Use server head (includes handler.head + module.head from server)
-	// Only run module.head() on SSR when no server data
 
 	if (server.head) {
 		state.head = server.head
 	} else {
-		const heads: Head[] = []
-
-		for (let depth = 0; depth < tree.length; depth++) {
-			const { module } = tree[depth]
-			if (module.head) {
-				const parent = async () => results[depth] ?? {}
-				heads.push(await module.head({ url, params, parent }))
-			}
-		}
-
-		if (target.head) {
-			const parent = async () => state.data.at(-1) ?? {}
-			heads.push(await target.head({ url, params, parent }))
-		}
-
-		state.head = merge(...heads)
+		const heads = await Promise.all([
+			...tree.map(({ module }, depth) =>
+				module.head?.({ url, params, parent: async () => layoutResults[depth]?.merged ?? {} })
+			),
+			target.head?.({ url, params, parent: async () => state.data.at(-1) ?? {} })
+		])
+		state.head = merge(...heads.filter(Boolean) as Head[])
 	}
 
 	// Second yield: data state

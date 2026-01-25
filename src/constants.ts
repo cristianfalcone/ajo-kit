@@ -1,5 +1,5 @@
 import { context } from 'ajo/context'
-import type { Children } from 'ajo'
+import type { Children, Component } from 'ajo'
 import type { Params } from 'navaid'
 import type { Request, Response } from 'polka'
 import type { Head } from '/src/head'
@@ -55,14 +55,55 @@ export class InvalidError extends AppError {
 	}
 }
 
-// Server data types (array where last element is page data)
+export function normalize(error: unknown): AppError {
+	if (error instanceof AppError) return error
+	if (error instanceof Error) return new AppError(500, error.message)
+	return new AppError(500, 'Unknown error')
+}
 
-export type Data = Array<Record<string, unknown>>
+// Route path utilities
+
+export const ancestors = (segments: string[]) => segments.map((_, i) => segments.slice(0, i + 1).join('/'))
+
+// Loader data types
+
+export type Entry = Record<string, unknown>
+
+export type Data = Entry[]
+
+export type Parent = () => Promise<Entry>
 
 export type Context = {
 	url: string
 	params: Params
-	parent: () => Promise<Record<string, unknown>>
+	parent: Parent
+}
+
+// Route module types
+
+export type Module = {
+	default: Component
+	handler?: (args: Context) => Promise<Entry>
+	head?: (args: Context) => Promise<Head>
+	defer?: boolean
+}
+
+export type Loader = () => Promise<Module>
+
+export type Page = {
+	loader: Loader
+	segments: string[]
+	pattern?: string
+	params?: Params
+}
+
+export interface State {
+	url: string
+	params: Params
+	data: Data
+	loading: boolean
+	error?: AppError
+	head?: Head
 }
 
 // Form actions
@@ -83,14 +124,14 @@ export type ActionState<T> = {
 
 // Page and layout args
 
-export type PageArgs<T = Record<string, unknown>> = {
+export type PageArgs<T = Entry> = {
 	params: Params
 	data?: T
 	loading: boolean
 	error?: AppError
 }
 
-export type LayoutArgs<T = Record<string, unknown>> = PageArgs<T> & {
+export type LayoutArgs<T = Entry> = PageArgs<T> & {
 	children: Children
 }
 
@@ -136,4 +177,46 @@ declare module 'polka' {
 		data?: Data
 		head?: Head
 	}
+}
+
+// Deferred promises for parallel loader execution
+
+export type Deferred<T> = {
+	promise: Promise<T>
+	resolve: (value: T) => void
+	reject: (error: Error) => void
+}
+
+export function deferred<T>(): Deferred<T> {
+	let resolve!: (value: T) => void
+	let reject!: (error: Error) => void
+	const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej })
+	return { promise, resolve, reject }
+}
+
+export type Link = {
+	parent: Parent
+	deferred: Deferred<Entry>
+}
+
+export function links(count: number): Link[] {
+
+	const chain: Link[] = []
+
+	for (let depth = 0; depth < count; depth++) {
+
+		const current = deferred<Entry>()
+
+		// parent() waits for ALL ancestors and accumulates their data
+		const parent = depth === 0
+			? async () => ({})
+			: async () => {
+				const ancestors = await Promise.all(chain.slice(0, depth).map(link => link.deferred.promise))
+				return ancestors.reduce((result, entry) => ({ ...result, ...entry }), {})
+			}
+
+		chain.push({ parent, deferred: current })
+	}
+
+	return chain
 }

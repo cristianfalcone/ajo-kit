@@ -69,7 +69,7 @@ export function merge(...heads: (Head | undefined)[]): Head {
 
 // SSR: render to HTML string
 
-export function render(head: Head): string {
+export function render(head: Head = {}): string {
 
 	const tags: unknown[] = []
 
@@ -85,7 +85,7 @@ export function render(head: Head): string {
 
 // CSR: update document.head (diff before mutate)
 
-export function apply(head: Head): void {
+export function apply(head: Head = {}): void {
 
 	if (head.title && document.title !== head.title) {
 		document.title = head.title
