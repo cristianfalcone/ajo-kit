@@ -68,9 +68,9 @@ const Nav = ({ user, signout }: { user: User, signout: ActionState<void> }) => {
 
 							<span class="mx-2 h-4 w-px bg-slate-300 dark:bg-white/20" />
 
-							<span class="text-xs text-slate-600 dark:text-gray-300 px-2">
+							<a href="/settings/profile" class="text-xs text-slate-600 dark:text-gray-300 px-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
 								{user.name || user.email}
-							</span>
+							</a>
 							<form set:onsubmit={signout.handle} class="inline">
 								<button
 									type="submit"

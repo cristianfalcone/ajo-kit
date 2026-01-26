@@ -39,12 +39,20 @@ export interface TokensTable {
 	created: Generated<string>
 }
 
+export interface ResetsTable {
+	id: string
+	user: number
+	expiry: string
+	created: Generated<string>
+}
+
 export interface DB {
 	users: UsersTable
 	sessions: SessionsTable
 	roles: RolesTable
 	members: MembersTable
 	tokens: TokensTable
+	resets: ResetsTable
 }
 
 // Derived Types (Selectable = query results)

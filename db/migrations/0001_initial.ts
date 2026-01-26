@@ -1,6 +1,7 @@
 import { sql, type Kysely } from 'kysely'
 
 export async function up(db: Kysely<any>): Promise<void> {
+
 	await db.schema
 		.createTable('users')
 		.addColumn('id', 'integer', c => c.primaryKey())

@@ -12,6 +12,7 @@ export async function create(
 	abilities: Ability[] = ['*'],
 	expiresMs?: number
 ) {
+
 	const plain = generate()
 	const id = hash(plain)
 	const expiry = expiresMs ? new Date(Date.now() + expiresMs).toISOString() : null
@@ -29,7 +30,9 @@ export async function create(
 }
 
 export async function validate(plain: string) {
+
 	const id = hash(plain)
+
 	const token = await db()
 		.selectFrom('tokens')
 		.select(['id', 'user', 'abilities', 'expiry'])
@@ -37,6 +40,7 @@ export async function validate(plain: string) {
 		.executeTakeFirst()
 
 	if (!token) return null
+
 	if (token.expiry && new Date(token.expiry) < new Date()) {
 		await db().deleteFrom('tokens').where('id', '=', id).execute()
 		return null
@@ -51,9 +55,12 @@ export async function validate(plain: string) {
 }
 
 export function can(abilities: Ability[], required: Ability): boolean {
+
 	if (abilities.includes('*')) return true
 	if (abilities.includes(required)) return true
+
 	const [resource] = required.split(':')
+
 	return abilities.includes(`${resource}:*`)
 }
 

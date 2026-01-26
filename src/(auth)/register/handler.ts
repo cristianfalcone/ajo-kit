@@ -4,6 +4,8 @@ import { AppError } from '/src/constants'
 import { hash } from '/src/auth/password'
 import { create } from '/src/auth/session'
 import { write } from '/src/auth/cookie'
+import { url } from '/src/auth/verify'
+import { send } from '/src/mail'
 import { db, parse, email, password, trimmed } from '/src/data'
 
 const Signup = pipe(
@@ -56,6 +58,15 @@ export async function signup(req: Request, res: Response) {
 			.values({ user: id, role: role.id })
 			.execute()
 	}
+
+	const base = process.env.APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`
+	const link = url(id, base)
+
+	await send({
+		to: input.email,
+		subject: 'Verify your email',
+		text: `Welcome! Click here to verify your email: ${link}\n\nThis link expires in 24 hours.`,
+	})
 
 	const token = await create(id)
 

@@ -44,6 +44,22 @@ const Login: Stateful<PageArgs> = function* () {
 					/>
 				</div>
 
+				<div class="flex items-center justify-between">
+					<label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+						<input
+							type="checkbox"
+							name="remember"
+							value="true"
+							class="rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
+							disabled={form.loading}
+						/>
+						Remember me
+					</label>
+					<a href="/forgot" class="text-sm text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+						Forgot password?
+					</a>
+				</div>
+
 				{form.error && (
 					<p class="text-sm text-red-600 dark:text-red-400">{form.error.message}</p>
 				)}

@@ -1,506 +1,130 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Commands
 
 ```bash
-pnpm dev       # Dev server with HMR (tsx watch + Vite)
-pnpm build     # Production build (client + server)
-pnpm prod      # Run production server
-pnpm kysely       # Database migrations/seeds (--help for commands)
-pnpm backup auth  # OAuth flow for Google Drive
-pnpm backup push  # Push database to Drive (--watch for continuous)
-pnpm backup pull  # Download database from Drive
+pnpm dev          # Dev server with HMR
+pnpm build        # Production build
+pnpm prod         # Run production server
+pnpm kysely       # Database migrations (--help)
+pnpm backup auth  # OAuth for Google Drive
+pnpm backup push  # Push DB to Drive (--watch)
+pnpm backup pull  # Pull DB from Drive
 ```
 
-## Code Principles
+## Principles
 
-**This repo has no users yet.** Refactor freely without backwards compatibility concerns.
+**No users yet.** Refactor freely, no backwards compatibility.
 
-**Naming:** Single meaningful words for identifiers—not abbreviations, not single letters. Complete words that describe intent (e.g., `defer`, `parent`, `protect`, `guard`, `embed`, `pack`).
+**Naming:** Single meaningful words (`defer`, `guard`, `embed`, `pack`), not abbreviations.
 
 **Style:** DRY, simple, clever, performant, elegant.
 
 **Feature parity:**
-- **Backend** (auth, database, validation): Feature parity with **Laravel**
-- **Frontend/SSR/BFF** (routing, data loading, forms): Feature parity with **SvelteKit**
-
-Research these frameworks for feature inspiration, but implement using the ajo-kit architecture.
+- Backend (auth, db, validation) → **Laravel**
+- Frontend (routing, data loading, forms) → **SvelteKit**
 
 ## Documentation
 
-- **Ajo-kit patterns:** [docs/LLMs.md](docs/LLMs.md)
-- **Ajo UI syntax:** `node_modules/ajo/LLMs.md`
+- [docs/LLMs.md](docs/LLMs.md) — Ajo-kit patterns
+- `node_modules/ajo/LLMs.md` — Ajo UI syntax
 
 ## Architecture
 
-Full-stack metaframework for Ajo (micro UI library with JSX + generators). Inspired by SvelteKit.
+Full-stack metaframework for Ajo (JSX + generators).
 
-**Core files:**
-- [app.tsx](src/app.tsx) — Router, page resolution, `action()` helper, HMR
-- [server.tsx](src/server.tsx) — SSR, data pipeline, form actions, middleware registration
-- [client.tsx](src/client.tsx) — Hydration entry point
+| File | Role |
+|------|------|
+| [app.tsx](src/app.tsx) | Router, `action()` helper, HMR |
+| [server.tsx](src/server.tsx) | SSR, data pipeline, form actions |
+| [client.tsx](src/client.tsx) | Hydration entry |
 
-**Server-only enforcement:** Vite plugin blocks `handler.ts`, `wares.ts`, `src/data/*`, `src/auth/*` from client bundle.
+**Server-only:** Vite plugin blocks `handler.ts`, `wares.ts`, `src/data/*`, `src/auth/*` from client.
 
-## Data Loading Pipeline
-
-### Execution Flow
-
-```
-SSR (first load):
-  1. Server runs handler.ts layout()/page() → server-only data
-  2. Server runs page.tsx/layout.tsx handler() → shared data
-  3. Merge: { ...serverData, ...clientData }
-  4. Inject as globalThis.__SSR__
-  5. Hydrate without re-fetch
-
-CSR (navigation):
-  1. Client fetches JSON from same URL (Accept: application/json)
-  2. Server returns { data: [...], head: {...} }
-  3. Client runs local handler() functions
-  4. Merge server + client data
-  5. Render with new state
-```
-
-### Parallel Execution
-
-Layout and page handlers execute **concurrently** via `Promise.all`:
-
-```typescript
-const [layoutResults, pageResult] = await Promise.all([
-  Promise.all(layoutTasks),  // All layout handlers in parallel
-  pageTask                   // Page handler simultaneously
-])
-```
-
-### Handler Types
+## Data Loading
 
 | Location | Export | Runs On | Use For |
 |----------|--------|---------|---------|
-| `page.tsx` | `handler()` | Server + Client | External APIs, public data |
-| `handler.ts` | `page()` | Server only | Database, secrets, heavy computation |
-| `handler.ts` | `layout()` | Server only | Shared layout data |
-| `handler.ts` | `head()` | Server only | Dynamic SEO tags |
-| `page.tsx` | `head()` | Server + Client | Static/computed SEO tags |
-| `handler.ts` | Named exports | Server only | Form actions |
+| `page.tsx` | `handler()` | Both | External APIs, public data |
+| `handler.ts` | `page()` | Server | Database, secrets |
+| `handler.ts` | `layout()` | Server | Shared layout data |
+| `handler.ts` | `head()` | Server | Dynamic SEO |
+| `handler.ts` | Named exports | Server | Form actions |
 
-### Data Merge Order
+**Merge order:** `{ ...serverData, ...clientData }` — client wins.
 
-```typescript
-// Server-side merge (server.tsx)
-const entry = { ...server, ...client }  // handler.ts + page.tsx
+**Parent chain:** `await parent()` returns merged ancestor data. See `links()` in [app.tsx](src/app.tsx).
 
-// Client-side merge (app.tsx)
-const merged = { ...server.data[depth], ...result.data }  // server JSON + local handler
-```
-
-Client/local data always wins over server data for same keys.
-
-## Parent Chain
-
-`parent()` is a promise-based function for accessing ancestor data:
-
-```typescript
-// links() creates a chain of deferred promises
-export function links(count: number): Link[] {
-  const chain: Link[] = []
-  for (let depth = 0; depth < count; depth++) {
-    const current = deferred<Entry>()
-    const parent = depth === 0
-      ? async () => ({})
-      : async () => {
-          const ancestors = await Promise.all(
-            chain.slice(0, depth).map(link => link.deferred.promise)
-          )
-          return ancestors.reduce((acc, entry) => ({ ...acc, ...entry }), {})
-        }
-    chain.push({ parent, deferred: current })
-  }
-  return chain
-}
-```
-
-**Flow:**
-1. Each handler receives a `parent()` function
-2. Calling `parent()` waits for ALL ancestor handlers to complete
-3. Returns merged object of all ancestor data
-4. Handler resolves its own deferred when complete
-5. Child handlers can then proceed
-
-**Example:**
-```
-Root layout: deferred[0].resolve({ userId: 1 })
-App layout:  await parent() → { userId: 1 }
-             deferred[1].resolve({ userId: 1, org: 'acme' })
-Page:        await parent() → { userId: 1, org: 'acme' }
-```
-
-**Parallel fetch pattern:**
-```typescript
-export async function handler({ parent }: Context) {
-  const [data, ancestors] = await Promise.all([
-    fetchMyData(),
-    parent()  // Don't block on parent if you don't need it yet
-  ])
-  return { ...data, ancestorId: ancestors.id }
-}
-```
-
-## Defer & Loading
-
-Only ONE component shows loading spinner, determined by `defer` export:
-
-```typescript
-// compose() in app.tsx
-const deferred = page.defer ? 'page' : tree.findLast(entry => entry.module.defer)?.path
-```
-
-- Page's `defer: true` → page handles loading
-- Layout's `defer: true` → that layout handles loading (innermost wins)
-- No `defer` anywhere → root layout handles loading
-
-**Without defer:** Component receives `loading: false`, root layout shows spinner
-**With defer:** Component receives `loading: true` during fetch, handles own skeleton
-
-## Head Management
-
-### Merge Strategy
-
-```typescript
-export function merge(...heads: Head[]): Head {
-  // Simple props: last wins
-  if (head.title) result.title = head.title
-
-  // Meta: dedupe by name/property, last wins
-  for (const entry of head.meta ?? []) {
-    const id = 'name' in entry ? entry.name : entry.property
-    // Replace existing or append
-  }
-
-  // Links: dedupe by rel, last wins
-  for (const entry of head.link ?? []) {
-    // Replace existing or append
-  }
-}
-```
-
-### SSR vs CSR
-
-**SSR:** `render()` generates HTML string, injected into template
-**CSR:** `apply()` diffs DOM, updates only changed attributes
-
-```typescript
-// app.tsx - after navigation
-if (state.data?.head) apply(state.data.head)
-```
-
-### Export Locations
-
-```typescript
-// layout.tsx or page.tsx - runs on both server and client
-export async function head({ url, params, parent }: Context): Promise<Head> {
-  return { title: 'Page Title' }
-}
-
-// handler.ts - runs on server only
-export async function head(req: Request, parent: Parent): Promise<Head> {
-  const data = await parent()
-  return { title: `${data.userName}'s Profile` }
-}
-```
+**Defer:** Export `defer: true` to handle loading state locally. Innermost wins.
 
 ## Authentication
 
-### Architecture
+| Module | Purpose |
+|--------|---------|
+| [password.ts](src/auth/password.ts) | Argon2id hash/verify |
+| [session.ts](src/auth/session.ts) | Create/validate sessions (30d, 365d with remember) |
+| [cookie.ts](src/auth/cookie.ts) | HttpOnly session cookie |
+| [guard.ts](src/auth/guard.ts) | `protect()`, `guest()`, `auth()`, `role()`, `confirmed()`, `verified()`, `ability()` |
+| [csrf.ts](src/auth/csrf.ts) | Double-submit + same-origin check |
+| [limit.ts](src/auth/limit.ts) | In-memory rate limiting |
+| [confirm.ts](src/auth/confirm.ts) | Password confirmation stamps (3min) |
+| [reset.ts](src/auth/reset.ts) | Password reset tokens (1hr, hashed in DB) |
+| [verify.ts](src/auth/verify.ts) | Email verification (signed URLs, 24hr, no DB) |
 
-- **Password:** Argon2id (OWASP recommended, GPU-resistant)
-- **Sessions:** 32-byte random tokens, 30-day expiry
-- **Cookies:** HttpOnly, SameSite=Lax, Path=/
+**Email:** [src/mail/index.ts](src/mail/index.ts) — `send()` + `configure()`. Console.log by default.
 
-### Auth Modules
-
-| File | Exports |
-|------|---------|
-| [password.ts](src/auth/password.ts) | `hash(plain)`, `verify(plain, hashed)` |
-| [session.ts](src/auth/session.ts) | `create(userId)`, `validate(token)`, `remove(token)`, `generate()` |
-| [cookie.ts](src/auth/cookie.ts) | `read(req)`, `write(res, token)`, `clear(res)` |
-| [guard.ts](src/auth/guard.ts) | `auth()`, `role(...roles)`, `protect(to?)`, `guest(to?)`, `when()`, `redirect()` |
-
-### Session Flow
-
-```typescript
-// wares.ts - session middleware
-const token = read(req)
-const session = await validate(token)
-const user = await db()
-  .selectFrom('users')
-  .select(['id', 'email'])
-  .where('id', '=', session.user)
-  .executeTakeFirst()
-const roles = await db()
-  .selectFrom('members')
-  .innerJoin('roles', 'roles.id', 'members.role')
-  .select('roles.name')
-  .where('members.user', '=', user.id)
-  .execute()
-req.user = { ...user, roles: roles.map(r => r.name) }
-```
-
-### Guard Middleware
-
-```typescript
-// Redirect if not authenticated
-protect(to = '/login')
-
-// Redirect if authenticated (for login/register pages)
-guest(to = '/dashboard')
-
-// Require authentication (throws UnauthorizedError)
-auth()
-
-// Require specific roles (throws ForbiddenError)
-role('admin', 'moderator')
-
-// Conditional middleware
-when(req => req.path === '/', redirect('/dashboard'))
-```
-
-### JSON vs HTML Redirects
-
-Guards handle both response types:
-```typescript
-if (req.headers.accept?.includes('application/json')) {
-  send(res, 200, pack({ redirect: target }))  // Client handles navigation
-} else {
-  send(res, 302, null, { Location: target })  // Browser redirect
-}
-```
+**Requires:** `APP_SECRET` env var for signed URLs.
 
 ## Database
 
-### Stack
+SQLite + Kysely + better-sqlite3. Schema in [types.ts](src/data/types.ts).
 
-- **SQLite** with WAL (Write-Ahead Logging)
-- **Kysely** for type-safe queries
-- **better-sqlite3** for sync API
+Tables: `users`, `sessions`, `roles`, `members`, `tokens`, `resets`.
 
-### Schema ([types.ts](src/data/types.ts))
-
-```typescript
-interface DB {
-  users: UsersTable      // id, name, email, password, verified, created, updated
-  sessions: SessionsTable // id, user, expiry, ip, agent, created
-  roles: RolesTable      // id, name
-  members: MembersTable  // user, role (many-to-many)
-}
-```
-
-### Query Builder (No Repositories)
-
-Use Kysely's query builder directly in handlers and middleware. **Always select only the fields you need** to avoid overfetching:
-
-```typescript
-import { db } from '/src/data'
-
-// Good: select only what the UI/API needs
-const user = await db()
-  .selectFrom('users')
-  .select(['id', 'email'])
-  .where('id', '=', userId)
-  .executeTakeFirst()
-
-// Bad: selectAll() fetches unnecessary data
-const user = await db().selectFrom('users').selectAll().where('id', '=', userId).executeTakeFirst()
-```
-
-**Performance guidelines:**
-- Select only required columns, never `selectAll()` in production code
-- Use `executeTakeFirst()` for single row queries
-- Use indexes for frequently queried columns
-- Batch queries with `where('id', 'in', ids)` instead of N+1 loops
-- Use joins instead of separate queries when fetching related data
-
-### Google Drive Sync
-
-WAL-based incremental backup:
-
-1. **Snapshot:** Full database backup on rotation (default: 6 hours)
-2. **Changes:** WAL file uploaded on each write (debounced: 1s)
-3. **Rotation:** Checkpoints WAL into main DB, uploads snapshot, clears remote WAL files
-
-```bash
-pnpm db sync --watch  # Continuous sync
-pnpm db pull          # Restore from Drive
-```
+**Rule:** Always `select(['fields'])`, never `selectAll()`.
 
 ## Validation
 
-### Valibot Schemas
+Valibot schemas. Reusable fields in [fields.ts](src/data/fields.ts).
 
-```typescript
-// data/fields.ts - Reusable field validators
-export const email = pipe(string(), trim(), toLowerCase(), vemail('Invalid email'))
-export const password = pipe(string(), minLength(8, 'Password must be at least 8 characters'))
-
-// handler.ts - Schema composition
-const Login = object({ email, password: string() })
-```
-
-### Parse with Error Handling
-
-```typescript
-// data/index.ts
-export function parse<T>(schema: T, data: unknown): InferOutput<T> {
-  const result = safeParse(schema, data)
-  if (result.success) return result.output
-
-  const flat = flatten(result.issues)
-  const fields = { ...flat.nested }
-  if (flat.root?.length) fields._form = flat.root
-
-  throw new InvalidError(fields, firstMessage)
-}
-```
-
-### Error Response Format
-
-```json
-{
-  "status": 400,
-  "message": "Validation failed",
-  "fields": {
-    "email": ["Invalid email"],
-    "password": ["Password must be at least 8 characters"],
-    "_form": ["Email already registered"]
-  }
-}
-```
+`parse(schema, data)` throws `InvalidError` with `{ fields: { name: ['errors'] } }`.
 
 ## Form Actions
 
-### Client-Side (`action()` helper)
+Client: `const form = action<Result>('name')` → `form.loading`, `form.data`, `form.error?`, `form.handle`, `form.reset`.
 
-```typescript
-const form = action<ResultType>('actionName')
+`error` es `ActionError`: `{ status, message, fields? }`. Ver [constants.ts](src/constants.ts).
 
-// State:
-form.loading   // boolean
-form.data      // ResultType | undefined
-form.error     // string | undefined
-form.fields    // Record<string, string[]> | undefined (validation errors)
-form.handle    // (event: SubmitEvent) => void
-form.reset     // () => void
-```
-
-### Server-Side (handler.ts)
-
-```typescript
-// Named export becomes ?/actionName endpoint
-export async function subscribe(req: Request, res: Response) {
-  const input = parse(Schema, req.body)
-  await db.subscribers.create(input)
-  return { success: true }  // or { redirect: '/thanks' }
-}
-```
-
-### Abort Handling
-
-Actions use AbortController—new submissions abort pending ones:
-```typescript
-controller?.abort()
-controller = new AbortController()
-await fetch(`?/${name}`, { signal: controller.signal, ... })
-```
+Server: Named export in `handler.ts` → `?/actionName` endpoint.
 
 ## Middleware
 
-### Root Middleware ([wares.ts](src/wares.ts))
-
-```typescript
-export default [
-  timing,   // Adds x-response-time header
-  session,  // Populates req.user from cookie
-  when(req => req.path === '/', redirect(...)),
-] satisfies Middleware[]
-```
-
-### Route-Specific
-
-```typescript
-// (app)/wares.ts - Protected routes
-export default [protect()]
-
-// (auth)/wares.ts - Guest-only routes
-export default [guest()]
-```
-
-### Execution Order
-
-1. Root wares first (from /src/wares.ts)
-2. Then route-specific wares (ancestors → current)
-3. Data handlers last
-
-## Serialization ([serial.ts](src/serial.ts))
-
-Uses `devalue` for safe serialization:
-
-| Function | Use | Format |
-|----------|-----|--------|
-| `embed(value)` | SSR injection | JS code (`uneval`) |
-| `pack(value)` | JSON responses | Compact string (`stringify`) |
-| `unpack(string)` | Parse responses | Object (`parse`) |
-
-All support `toJSON()` methods (e.g., `AppError.toJSON()`).
-
-## Error Classes
-
-```typescript
-AppError(status, message)      // Base class with toJSON()
-NotFoundError(message?)        // 404
-UnauthorizedError(message?)    // 401
-ForbiddenError(message?)       // 403
-InvalidError(fields, message?) // 400 with validation fields
-```
+Root: [wares.ts](src/wares.ts) runs first.
+Route: `(group)/wares.ts` runs in ancestor order.
 
 ## Routing
 
-### Pattern Compilation
-
 ```
-/src/(app)/dashboard/page.tsx  → 'dashboard'
-/src/blog/[id]/page.tsx        → 'blog/:id'
-/src/docs/[...]/page.tsx       → 'docs/*'
+(app)/dashboard/page.tsx  → /dashboard
+blog/[id]/page.tsx        → /blog/:id
+docs/[...]/page.tsx       → /docs/*
 ```
 
-Groups `(name)` are excluded from URLs but organize code.
+Groups `(name)` excluded from URLs.
 
-### Navigation
+## Serialization
 
-```typescript
-import { navigate } from '/src/constants'
-navigate('/dashboard')  // Client-side navigation
-```
+[serial.ts](src/serial.ts): `embed()` for SSR, `pack()`/`unpack()` for JSON.
 
-## HMR
+## Errors
 
-Symbol-based tracking for hot module replacement:
-
-```typescript
-// vite.config.ts hmr plugin
-component[Symbol.for('ajo.hmr')] = '/src/path/page.tsx'
-globalThis.__MODULES__.set(path, module)
-globalThis.__HMR__?.(path)  // Triggers router.run()
-```
-
-Components preserve state across HMR updates.
+[constants.ts](src/constants.ts): `AppError`, `NotFoundError`, `UnauthorizedError`, `ForbiddenError`, `InvalidError`.
 
 ## Anti-patterns
 
-- Secrets in `page.tsx handler()` (may reach client bundle)
-- Checking `args.loading` without `defer` export (always false)
-- Forgetting `NotFoundError` for missing data
-- Context outside loop in stateful layouts
+- Secrets in `page.tsx handler()` (leaks to client)
+- `args.loading` without `defer` export (always false)
+- Missing `NotFoundError` for 404s
+- Context outside generator loop
 - React patterns (`useState`, `className`, `onClick`)
-- Forgetting to `await parent()` in handlers
+- Missing `await parent()` in dependent handlers

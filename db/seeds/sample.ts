@@ -7,6 +7,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export async function seed(db: Kysely<any>): Promise<void> {
+
 	// Clear existing data
 	await db.deleteFrom('members').execute()
 	await db.deleteFrom('sessions').execute()
@@ -23,6 +24,7 @@ export async function seed(db: Kysely<any>): Promise<void> {
 	}))
 
 	await db.insertInto('users').values(users).execute()
+
 	console.log(`  ${users.length} users`)
 
 	// Insert default roles
@@ -33,5 +35,6 @@ export async function seed(db: Kysely<any>): Promise<void> {
 	]
 
 	await db.insertInto('roles').values(roles).execute()
+
 	console.log(`  ${roles.length} roles`)
 }
