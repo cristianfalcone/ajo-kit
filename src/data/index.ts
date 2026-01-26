@@ -12,7 +12,7 @@ export type {
 	Role,
 } from './types'
 
-export { db, close } from './db'
+export { db, close, version, bump, snapshot } from './db'
 export * from './fields'
 
 // Parse with validation

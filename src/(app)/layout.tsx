@@ -6,8 +6,8 @@ import { action } from '/src/app'
 
 type LinkOptions = { exact?: boolean, include?: string[] }
 
-const links: [string, string, LinkOptions?][] = [
-	['/dashboard', 'Dashboard', { exact: true }],
+const links: [string, string, string, LinkOptions?][] = [
+	['/dashboard', 'Dashboard', 'i-lucide-layout-dashboard', { exact: true }],
 ]
 
 const isActive = (path: string, url: string, options?: LinkOptions): boolean => {
@@ -42,7 +42,7 @@ const Nav = ({ user, signout }: { user: User, signout: ActionState<void> }) => {
 	const url = globalThis.location?.pathname ?? '/'
 
 	const linkClass = (active: boolean) => clsx([
-		'px-3 py-1.5 rounded-md text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60',
+		'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60',
 		active
 			? 'bg-slate-900/5 text-slate-900 dark:bg-white/10 dark:text-white'
 			: 'text-slate-600 hover:text-slate-900 hover:bg-slate-900/5 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10'
@@ -52,23 +52,36 @@ const Nav = ({ user, signout }: { user: User, signout: ActionState<void> }) => {
 		<nav class="sticky top-0 z-40" memo={[url, user.id, signout.loading].join(':')}>
 			<div class="backdrop-blur border-b shadow-[0_2px_4px_-2px_rgba(0,0,0,0.08)] bg-white/80 supports-[backdrop-filter]:bg-white/60 border-slate-200 dark:supports-[backdrop-filter]:bg-black/40 dark:bg-black/70 dark:border-white/10 dark:shadow-[0_2px_4px_-2px_rgba(0,0,0,0.4)] transition-colors">
 				<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div class="flex h-14 items-center justify-between">
+					<div class="flex h-14 items-center">
+						{/* Logo */}
 						<a href="/dashboard" class="focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-sm">
 							<span class="font-semibold tracking-tight text-sm text-slate-900 dark:text-white">ajo<span class="text-indigo-600 dark:text-indigo-400">‑kit</span></span>
 						</a>
-						<div class="flex items-center gap-1">
-							{links.map(([path, label, options]) => {
+
+						{/* Center links */}
+						<div class="flex-1 flex items-center justify-center gap-1">
+							{links.map(([path, label, icon, options]) => {
 								const active = isActive(path, url, options)
 								return (
 									<a key={path} href={path as string} class={linkClass(active)} aria-current={active ? 'page' : undefined}>
+										<span class={clsx(icon, 'w-4 h-4')} />
 										{label}
 									</a>
 								)
 							})}
 
-							<span class="mx-2 h-4 w-px bg-slate-300 dark:bg-white/20" />
+							{user.roles.includes('admin') && (
+								<a href="/admin" class={linkClass(url.startsWith('/admin'))}>
+									<span class="i-lucide-shield w-4 h-4" />
+									Admin
+								</a>
+							)}
+						</div>
 
-							<a href="/settings/profile" class="text-xs text-slate-600 dark:text-gray-300 px-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+						{/* Auth */}
+						<div class="flex items-center gap-1">
+							<a href="/settings/profile" class={linkClass(url.startsWith('/settings'))}>
+								<span class="i-lucide-settings w-4 h-4" />
 								{user.name || user.email}
 							</a>
 							<form set:onsubmit={signout.handle} class="inline">
@@ -77,6 +90,7 @@ const Nav = ({ user, signout }: { user: User, signout: ActionState<void> }) => {
 									disabled={signout.loading}
 									class={clsx([linkClass(false), signout.loading && 'opacity-50'])}
 								>
+									<span class="i-lucide-log-out w-4 h-4" />
 									{signout.loading ? 'Signing out...' : 'Logout'}
 								</button>
 							</form>

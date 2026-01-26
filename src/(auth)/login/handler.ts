@@ -5,7 +5,7 @@ import { create } from '/src/auth/session'
 import { write } from '/src/auth/cookie'
 import { check, hit, clear } from '/src/auth/limit'
 import { db, parse, email } from '/src/data'
-import { UnauthorizedError, AppError } from '/src/constants'
+import { UnauthorizedError, AppError, ip } from '/src/constants'
 
 const checkbox = pipe(unknown(), transform(v => v === 'true' || v === true))
 
@@ -18,8 +18,8 @@ const Login = object({
 export async function authenticate(req: Request, res: Response) {
 	const input = parse(Login, req.body)
 
-	const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] ?? req.socket?.remoteAddress ?? 'unknown'
-	const key = `login:${input.email}:${ip}`
+	const addr = ip(req)
+	const key = `login:${input.email}:${addr}`
 
 	if (!check(key)) {
 		throw new AppError(429, 'Too many login attempts. Try again later.')
@@ -39,7 +39,8 @@ export async function authenticate(req: Request, res: Response) {
 
 	clear(key)
 
-	const token = await create(user.id, input.remember)
+	const agent = req.headers['user-agent']
+	const token = await create(user.id, input.remember, addr, agent)
 
 	write(res, token, input.remember)
 

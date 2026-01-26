@@ -1,4 +1,5 @@
 import { context } from 'ajo/context'
+import { stringify, parse } from 'devalue'
 import type { Children, Component } from 'ajo'
 import type { Params } from 'navaid'
 import type { Request, Response } from 'polka'
@@ -70,6 +71,10 @@ export function normalize(error: unknown): AppError {
 // Route path utilities
 
 export const ancestors = (segments: string[]) => segments.map((_, i) => segments.slice(0, i + 1).join('/'))
+
+// Cache entry type
+
+export type Cached = { value: Head | Entry; sum: string }
 
 // Loader data types
 
@@ -161,9 +166,28 @@ export const navigate = (to: string) => {
 	globalThis.history?.pushState({}, '', to)
 }
 
+// Request helpers
+
+export const ajax = (req: Request) => !!req.headers.accept?.includes('application/json')
+
+export const ip = (req: Request) => {
+	const raw = req.headers['x-forwarded-for']?.toString().split(',')[0] ?? req.socket?.remoteAddress ?? 'unknown'
+	return raw === '::1' || raw === '127.0.0.1' ? 'localhost' : raw.replace(/^::ffff:/, '')
+}
+
+// Hash for cache comparison (djb2, from SvelteKit)
+
+export function sum(value: unknown): string {
+	const str = JSON.stringify(value)
+	let hash = 5381
+	let i = str.length
+	while (i) hash = (hash * 33) ^ str.charCodeAt(--i)
+	return (hash >>> 0).toString(36)
+}
+
 // Auth types
 
-export type Role = 'admin' | 'user' | 'moderator'
+export type Role = 'admin' | 'user'
 
 export interface User {
 	id: number
@@ -179,8 +203,9 @@ declare module 'polka' {
 		user?: User
 		token?: { abilities: string[] }
 		action?: Action
-		data?: Data
-		head?: Head
+		data?: (Head | Entry | null)[]
+		sums?: string[]
+		versions?: Record<string, number>
 	}
 }
 
@@ -213,6 +238,7 @@ export function links(count: number): Link[] {
 		const current = deferred<Entry>()
 
 		// parent() waits for ALL ancestors and accumulates their data
+
 		const parent = depth === 0
 			? async () => ({})
 			: async () => {
@@ -225,3 +251,21 @@ export function links(count: number): Link[] {
 
 	return chain
 }
+
+// Serialization
+
+type WithJSON = { toJSON: () => unknown }
+
+const hasJSON = (value: unknown): value is WithJSON =>
+	value !== null && typeof value === 'object' && 'toJSON' in value
+
+const reducers = {
+	json: (value: unknown) => hasJSON(value) ? value.toJSON() : undefined
+}
+
+const revivers = {
+	json: (value: unknown) => value
+}
+
+export const pack = (value: unknown) => stringify(value, reducers)
+export const unpack = (value: string) => parse(value, revivers)

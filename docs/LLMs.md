@@ -169,6 +169,30 @@ export async function head(req: Request, parent: Parent) {
 }
 ```
 
+## Caching (deps)
+
+Export `deps` in handler.ts to enable skip-on-fresh:
+
+```typescript
+// handler.ts
+export const deps = ['users', ':user']  // Skip if users table unchanged AND same user
+
+export async function page(req: Request, parent: Parent) {
+  return { user: await db.getUser(req.user.id) }
+}
+```
+
+**How it works:**
+1. Client sends `X-Have` header with cached sums
+2. Server generates sum from `deps` (table versions + user + ttl)
+3. If sums match → skip handler, return `null` (client uses cache)
+
+**Special deps:**
+- `':user'` - include user ID in sum (skip if same user)
+- `':ttl:60000'` - include time bucket (skip if <60s passed)
+
+**Manual invalidation:** `invalidate(key?)` from `/src/app`. No key = clear all.
+
 ## Rules
 
 | Topic | Rule |
@@ -193,6 +217,7 @@ export async function head(req: Request, parent: Parent) {
 | **Components** | Global in `src/ui/`, section-specific in `src/(section)/ui/` |
 | **Validation** | Valibot schemas, `parse()` throws `InvalidError` with `{ fields }` |
 | **Auth guards** | `protect()`, `guest()`, `auth()`, `role()`, `confirmed()`, `verified()` |
+| **Caching** | Export `deps` in handler.ts for skip-on-fresh. `invalidate()` for manual clear |
 
 ## Anti-patterns
 
@@ -208,6 +233,7 @@ export async function head(req: Request, parent: Parent) {
 | Modifying core files | Create new routes/components | app.tsx, server.tsx, client.tsx are generated |
 | `selectAll()` in queries | `select(['field1', 'field2'])` | Overfetching, performance |
 | Direct `form.error.fields` access | `form.error?.fields?.email` | error and fields are optional |
+| Missing `deps` in handler.ts | `export const deps = ['table']` | Causes unnecessary refetches |
 
 ## Styling (UnoCSS)
 

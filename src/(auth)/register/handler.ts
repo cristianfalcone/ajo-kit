@@ -1,6 +1,6 @@
 import type { Request, Response } from 'polka'
 import { object, optional, string, forward, partialCheck, pipe } from 'valibot'
-import { AppError } from '/src/constants'
+import { AppError, ip } from '/src/constants'
 import { hash } from '/src/auth/password'
 import { create } from '/src/auth/session'
 import { write } from '/src/auth/cookie'
@@ -68,7 +68,8 @@ export async function signup(req: Request, res: Response) {
 		text: `Welcome! Click here to verify your email: ${link}\n\nThis link expires in 24 hours.`,
 	})
 
-	const token = await create(id)
+	const agent = req.headers['user-agent']
+	const token = await create(id, false, ip(req), agent)
 
 	write(res, token)
 

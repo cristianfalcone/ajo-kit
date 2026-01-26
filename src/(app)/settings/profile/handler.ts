@@ -4,6 +4,9 @@ import { hash, verify } from '/src/auth/password'
 import { db, parse, password as passwordField, trimmed } from '/src/data'
 import { UnauthorizedError } from '/src/constants'
 
+// Skip handler if users table hasn't changed and same user
+export const deps = ['users', ':user']
+
 const UpdateName = object({
 	name: optional(trimmed, ''),
 })
@@ -45,7 +48,7 @@ export async function name(req: Request) {
 		.where('id', '=', req.user!.id)
 		.execute()
 
-	return { success: true }
+	return { success: true, name: input.name }
 }
 
 export async function password(req: Request) {

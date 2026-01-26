@@ -1,11 +1,30 @@
 import 'virtual:uno.css'
 import { render } from 'ajo'
-import App, { cache } from '/src/app'
-import type { State } from '/src/constants'
+import App, { ssr, cache } from '/src/app'
+import type { State, Entry } from '/src/constants'
+import type { Head } from '/src/head'
+import { unpack } from '/src/constants'
 
-const ssr = (globalThis as { __SSR__?: State }).__SSR__
+type SSR = State & { keys?: string[]; sums?: string[] }
 
-if (ssr) cache.set(ssr.url, ssr)
+const packed = (globalThis as { __SSR__?: string }).__SSR__
+const data = packed ? unpack(packed) as SSR : undefined
+
+if (data) {
+
+	ssr.set(data.url, data)
+
+	// Populate cache for hash-based navigation optimization
+
+	if (data.keys && data.sums) {
+
+		const values = [data.head, ...data.data] as (Head | Entry)[]
+
+		data.keys.forEach((key, i) => {
+			if (values[i]) cache.set(key, { value: values[i], sum: data.sums![i] })
+		})
+	}
+}
 
 const root = document.getElementById('root')
 

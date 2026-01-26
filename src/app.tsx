@@ -1,7 +1,7 @@
 import navaid, { type Params } from 'navaid'
 import type { Component, Stateful } from 'ajo'
 import { current } from 'ajo/context'
-import { AppError, navigate, links, ancestors, normalize } from '/src/constants'
+import { AppError, navigate, links, ancestors, normalize, unpack } from '/src/constants'
 import type {
 	PageArgs,
 	LayoutArgs,
@@ -12,9 +12,9 @@ import type {
 	Module,
 	Loader,
 	Page,
-	State
+	State,
+	Cached
 } from '/src/constants'
-import { unpack } from '/src/serial'
 import { merge, apply, type Head } from '/src/head'
 
 // Pattern compilation
@@ -63,6 +63,7 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 		event.preventDefault()
 
 		// Abort any in-flight request
+
 		controller?.abort()
 		controller = new AbortController()
 
@@ -74,6 +75,7 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 		component.next()
 
 		try {
+
 			const response = await fetch(`?/${name}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -97,12 +99,16 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 				state.data = json as T
 				form.reset()
 			}
+
 		} catch (error) {
+
 			if (error instanceof Error && error.name === 'AbortError') return
+
 			state.error = {
 				status: 500,
 				message: error instanceof Error ? error.message : 'Action failed'
 			}
+
 		} finally {
 			state.loading = false
 			component.next()
@@ -112,7 +118,16 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 	return state
 }
 
-export const cache = new Map<string, State>()
+export const ssr = new Map<string, State>()
+
+// Navigation cache: key → { value, sum }
+
+export const cache = new Map<string, Cached>()
+
+export function invalidate(key?: string) {
+	if (key) cache.delete(key)
+	else cache.clear()
+}
 
 export const error: () => Page = () => ({
 	segments: [''],
@@ -123,6 +138,11 @@ export const error: () => Page = () => ({
 
 export const layouts = new Map<string, Loader>()
 export const pages: Page[] = []
+
+// Path helpers for cache keys
+
+export const layoutPaths = (segments: string[]) => ancestors(segments).filter(path => layouts.has(path))
+export const cacheKeys = (paths: string[], segments: string[]) => ['head', ...paths, `page:${segments.join('/')}`]
 
 for (const [path, loader] of Object.entries(import.meta.glob('/src/**/{layout,page}.{j,t}s{,x}') as Record<string, Loader>)) {
 
@@ -181,6 +201,7 @@ function compose(
 	const Page = page.default as Component<PageArgs>
 
 	// Find who handles loading: page first, then innermost layout with defer
+
 	const deferred = page.defer ? 'page' : tree.findLast(entry => entry.module.defer)?.path
 
 	return tree.reduceRight<Component>(
@@ -241,10 +262,10 @@ export async function* resolve(
 
 	// Check cache (SSR hydration) - skip loading phase if cached
 
-	const cached = cache.get(url)
+	const cached = ssr.get(url)
 
 	if (cached) {
-		cache.delete(url)
+		ssr.delete(url)
 		yield { Page: compose(target, tree, paths, cached), data: cached }
 		return
 	}
@@ -255,18 +276,48 @@ export async function* resolve(
 
 	// Fetch server data on client navigation
 
+	const keys = cacheKeys(paths, segments)
+
 	const server: { data: Data; head?: Head; redirect?: string; error?: AppError } = await (async () => {
 
 		if (data) return { data, head: undefined }
 		if (import.meta.env.SSR) return { data: [] }
 
-		const response = await fetch(url, { headers: { Accept: 'application/json' } })
+		// Build X-Have header with cached sums
+
+		const have = keys
+			.map(key => [key, cache.get(key)] as const)
+			.filter((entry): entry is [string, Cached] => !!entry[1])
+			.map(([key, entry]) => `${key}=${entry.sum}`)
+			.join(',')
+
+		const response = await fetch(url, {
+			headers: {
+				Accept: 'application/json',
+				...(have && { 'X-Have': have })
+			}
+		})
+
 		const json = await response.text().then(unpack).catch(error => ({ error }))
 
 		if (json.redirect) return { data: [], redirect: json.redirect }
 		if (!response.ok) return { data: [], error: new AppError(json.error?.status ?? 500, json.error?.message ?? 'Server data load failed') }
 
-		return json
+		// Update cache and merge nulls with cached values
+
+		const { data: raw, sums } = json as {
+			data: (Head | Entry | null)[]
+			sums: string[]
+		}
+
+		raw.forEach((item, i) => {
+			if (item !== null) cache.set(keys[i], { value: item, sum: sums[i] })
+		})
+
+		const merged = raw.map((item, i) => item ?? cache.get(keys[i])?.value ?? {})
+		const [head, ...entries] = merged
+
+		return { data: entries as Data, head: head as Head }
 	})()
 
 	// Handle server redirect
@@ -293,10 +344,10 @@ export async function* resolve(
 		const { parent, deferred } = chain[depth]
 
 		try {
-			const result = await execute(module, { url, params }, parent)
-			const merged = { ...server.data[depth], ...result.data }
+			const client = await execute(module, { url, params }, parent)
+			const merged = { ...server.data[depth], ...client.data }
 			deferred.resolve(merged)
-			return { merged, error: result.error }
+			return { merged, error: client.error }
 		} catch (error) {
 			const appError = normalize(error)
 			deferred.reject(appError)
@@ -310,10 +361,10 @@ export async function* resolve(
 		const { parent, deferred } = chain[depth]
 
 		try {
-			const result = await execute(target, { url, params }, parent)
-			const merged = { ...server.data.at(-1), ...result.data }
+			const client = await execute(target, { url, params }, parent)
+			const merged = { ...server.data.at(-1), ...client.data }
 			deferred.resolve(merged)
-			return { merged, error: result.error }
+			return { merged, error: client.error }
 		} catch (error) {
 			const appError = normalize(error)
 			deferred.reject(appError)
@@ -334,17 +385,12 @@ export async function* resolve(
 		error: layoutResults.find(r => r.error)?.error ?? pageResult.error
 	}
 
-	if (server.head) {
-		state.head = server.head
-	} else {
-		const heads = await Promise.all([
-			...tree.map(({ module }, depth) =>
-				module.head?.({ url, params }, async () => layoutResults[depth]?.merged ?? {})
-			),
-			target.head?.({ url, params }, async () => state.data.at(-1) ?? {})
-		])
-		state.head = merge(...heads.filter(Boolean) as Head[])
-	}
+	const clientHeads = await Promise.all([
+		...tree.map(({ module }, depth) => module.head?.({ url, params }, async () => layoutResults[depth].merged)),
+		target.head?.({ url, params }, async () => state.data.at(-1)!)
+	])
+
+	state.head = merge(server.head, ...clientHeads)
 
 	// Second yield: data state
 
@@ -367,6 +413,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		}
 
 		if (!hmr) requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
+
 		hmr = false
 	}
 

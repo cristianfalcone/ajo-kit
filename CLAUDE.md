@@ -84,6 +84,26 @@ Tables: `users`, `sessions`, `roles`, `members`, `tokens`, `resets`.
 
 **Rule:** Always `select(['fields'])`, never `selectAll()`.
 
+**Table versions:** Auto-tracked via `TrackerPlugin`. Use `version()`, `bump()`, `snapshot()` from [db.ts](src/data/db.ts).
+
+## Cache
+
+SvelteKit-style cache for client navigation. Avoids overfetching by comparing sums.
+
+**How it works:**
+1. Client sends `X-Have` header with cached sums: `head=abc,(app)=def,dashboard=ghi`
+2. Server generates expected sums from `deps` (table versions + user + ttl)
+3. If sums match → skip handler, return `null` (client uses cache)
+
+**Deps-based skip:** Export `deps` in `handler.ts` to enable caching:
+
+```ts
+export const deps = ['users', ':user']  // Skip if users table unchanged AND same user
+export const deps = ['posts', ':ttl:60000']  // Skip if posts unchanged AND <60s passed
+```
+
+**Manual invalidation:** `invalidate(key?)` from [app.tsx](src/app.tsx). No key = clear all.
+
 ## Validation
 
 Valibot schemas. Reusable fields in [fields.ts](src/data/fields.ts).
@@ -113,13 +133,15 @@ docs/[...]/page.tsx       → /docs/*
 
 Groups `(name)` excluded from URLs.
 
-## Serialization
-
-[serial.ts](src/serial.ts): `embed()` for SSR, `pack()`/`unpack()` for JSON.
-
 ## Errors
 
 [constants.ts](src/constants.ts): `AppError`, `NotFoundError`, `UnauthorizedError`, `ForbiddenError`, `InvalidError`.
+
+## Serialization
+
+`pack()` and `unpack()` in [constants.ts](src/constants.ts) use devalue for JSON with circular refs and custom types.
+
+Objects with `toJSON()` are automatically serialized.
 
 ## Anti-patterns
 
@@ -129,3 +151,4 @@ Groups `(name)` excluded from URLs.
 - Context outside generator loop
 - React patterns (`useState`, `className`, `onClick`)
 - Missing `await parent()` in dependent handlers
+- Missing `deps` export for cacheable handlers (causes unnecessary refetches)

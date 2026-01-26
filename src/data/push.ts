@@ -56,17 +56,22 @@ export function push(config: Config) {
 	}
 
 	async function rotate() {
+
 		try {
+
 			config.database.pragma('wal_checkpoint(TRUNCATE)')
 
 			const backup = join(tmpdir(), `snapshot-${Date.now()}.db`)
+
 			await config.database.backup(backup)
 			await config.snapshot(backup)
+
 			unlinkSync(backup)
 
 			await config.clear()
 
 			console.log('[sync] rotated snapshot')
+
 		} catch (error) {
 			console.error('[sync] rotation failed:', error)
 		}
@@ -87,6 +92,7 @@ export function push(config: Config) {
 		watchWal()
 
 		let poll: NodeJS.Timeout | null = null
+
 		if (!existsSync(walpath)) {
 			poll = setInterval(() => {
 				if (existsSync(walpath)) {

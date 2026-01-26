@@ -1,7 +1,6 @@
 import type { Middleware, Request, Response } from 'polka'
 import send from '@polka/send'
-import { UnauthorizedError, ForbiddenError, AppError, type Role } from '/src/constants'
-import { pack } from '/src/serial'
+import { UnauthorizedError, ForbiddenError, AppError, ajax, pack, type Role } from '/src/constants'
 import { can } from './token'
 import { check as checkConfirm } from './confirm'
 import { db } from '/src/data'
@@ -10,7 +9,7 @@ export const redirect = (to: string | ((req: Request) => string)): Middleware =>
 
 	const target = typeof to === 'function' ? to(req) : to
 
-	if (req.headers.accept?.includes('application/json')) {
+	if (ajax(req)) {
 		send(res, 200, pack({ redirect: target }))
 	} else {
 		send(res, 302, null, { 'Location': target })
@@ -51,12 +50,13 @@ export const ability = (...required: string[]): Middleware => (req, _, next) => 
 	next()
 }
 
-export const confirmed = (window?: number): Middleware => (req, _, next) => {
+export const confirmed = (window?: number): Middleware => (req, res, next) => {
 
 	if (!req.user) throw new UnauthorizedError()
 
 	if (!checkConfirm(req.user.id, window)) {
-		throw new AppError(423, 'Password confirmation required')
+		const returnTo = encodeURIComponent(req.originalUrl)
+		return redirect(`/confirm?redirect=${returnTo}`)(req, res, next)
 	}
 
 	next()
@@ -74,7 +74,7 @@ export const verified = (): Middleware => async (req, res, next) => {
 
 	if (!user?.verified) {
 
-		if (req.headers.accept?.includes('application/json')) {
+		if (ajax(req)) {
 			throw new AppError(403, 'Email verification required')
 		}
 

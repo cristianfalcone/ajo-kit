@@ -16,6 +16,7 @@ export interface SessionsTable {
 	expiry: string
 	ip: string | null
 	agent: string | null
+	last: string | null
 	created: Generated<string>
 }
 
@@ -62,4 +63,4 @@ export type NewUser = Insertable<UsersTable>
 
 export type Session = Selectable<SessionsTable>
 export type Token = Selectable<TokensTable>
-export type Role = 'admin' | 'user' | 'moderator'
+export type Role = 'admin' | 'user'

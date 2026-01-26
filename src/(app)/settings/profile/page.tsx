@@ -2,7 +2,7 @@ import type { Stateful } from 'ajo'
 import type { PageArgs } from '/src/constants'
 import { action } from '/src/app'
 
-type NameResult = { success: boolean }
+type NameResult = { success: boolean; name: string }
 type PasswordResult = { success: boolean }
 
 interface Data {
@@ -35,7 +35,7 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 						<input
 							type="text"
 							name="name"
-							value={user?.name || ''}
+							value={nameForm.data?.name ?? user?.name ?? ''}
 							class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
 							disabled={nameForm.loading}
 						/>
