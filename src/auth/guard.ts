@@ -2,6 +2,7 @@ import type { Middleware, Request, Response } from 'polka'
 import send from '@polka/send'
 import { UnauthorizedError, ForbiddenError, type Role } from '/src/constants'
 import { pack } from '/src/serial'
+import { can } from './token'
 
 export const redirect = (to: string | ((req: Request) => string)): Middleware => (req, res) => {
 
@@ -31,3 +32,14 @@ export const role = (...allowed: Role[]): Middleware => (req, _, next) => {
 
 export const protect = (to = '/login') => when(req => !req.user, redirect(to))
 export const guest = (to = '/dashboard') => when(req => !!req.user, redirect(to))
+
+export const ability = (...required: string[]): Middleware => (req, _, next) => {
+	if (!req.user) throw new UnauthorizedError()
+	if (!req.token) return next()
+	for (const a of required) {
+		if (!can(req.token.abilities, a)) {
+			throw new ForbiddenError(`Missing ability: ${a}`)
+		}
+	}
+	next()
+}

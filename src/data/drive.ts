@@ -137,6 +137,7 @@ export function drive(config: { credentials: string; folder: string; name?: stri
 		const id = data.files[0]?.id ?? null
 
 		if (id) cache.set(name, id)
+
 		return id
 	}
 
@@ -147,6 +148,7 @@ export function drive(config: { credentials: string; folder: string; name?: stri
 		if (!file) return false
 
 		const access = await authorize(credentials)
+
 		const response = await request(`https://www.googleapis.com/drive/v3/files/${file}?alt=media`, {
 			headers: { Authorization: `Bearer ${access}` },
 		})

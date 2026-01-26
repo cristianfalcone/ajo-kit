@@ -1,7 +1,12 @@
 import type { Middleware } from 'polka'
-import { read, clear, validate } from '/src/auth'
+import { read, clear } from '/src/auth/cookie'
+import { validate } from '/src/auth/session'
+import { validate as validateToken } from '/src/auth/token'
+import { verify as verifyCsrf } from '/src/auth/csrf'
 import { when, redirect } from '/src/auth/guard'
-import { users, roles } from '/src/data'
+import { db } from '/src/data'
+import type { Role } from '/src/data'
+import { ForbiddenError } from '/src/constants'
 
 export default [
 
@@ -22,27 +27,87 @@ export default [
 
 	async function session(req, res, next) {
 
-		const token = read(req)
+		// 1. Cookie session (SPA/Web)
 
-		if (!token) return next()
+		const cookie = read(req)
 
-		const session = await validate(token)
+		if (cookie) {
 
-		if (!session) {
+			const session = await validate(cookie)
+
+			if (session) {
+
+				const user = await db()
+					.selectFrom('users')
+					.select(['id', 'name', 'email'])
+					.where('id', '=', session.user)
+					.executeTakeFirst()
+
+				if (user) {
+
+					const roles = await db()
+						.selectFrom('members')
+						.innerJoin('roles', 'roles.id', 'members.role')
+						.select('roles.name')
+						.where('members.user', '=', user.id)
+						.execute()
+
+					req.user = { ...user, roles: roles.map(r => r.name as Role) }
+
+					return next()
+				}
+			}
+
 			clear(res)
+
 			return next()
 		}
 
-		const user = await users.find(session.userId)
+		// 2. Bearer token (API/Mobile/CLI)
 
-		if (!user) {
-			clear(res)
-			return next()
+		const auth = req.headers.authorization
+
+		if (auth?.startsWith('Bearer ')) {
+
+			const token = await validateToken(auth.slice(7))
+
+			if (token) {
+
+				const user = await db()
+					.selectFrom('users')
+					.select(['id', 'name', 'email'])
+					.where('id', '=', token.user)
+					.executeTakeFirst()
+
+				if (user) {
+
+					const roles = await db()
+						.selectFrom('members')
+						.innerJoin('roles', 'roles.id', 'members.role')
+						.select('roles.name')
+						.where('members.user', '=', user.id)
+						.execute()
+
+					req.user = { ...user, roles: roles.map(r => r.name as Role) }
+					req.token = { abilities: token.abilities }
+				}
+			}
 		}
 
-		const userRoles = await roles.forUser(user.id)
+		next()
+	},
 
-		req.user = { id: user.id, username: user.username, email: user.email, roles: userRoles }
+	function csrf(req, _, next) {
+
+		// Skip para Bearer tokens
+		if (req.token) return next()
+
+		// Skip para safe methods
+		if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
+
+		if (!verifyCsrf(req)) {
+			throw new ForbiddenError('Invalid CSRF token')
+		}
 
 		next()
 	},

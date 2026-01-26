@@ -12,7 +12,7 @@ interface Config {
 	debounce?: number
 }
 
-export function sync(config: Config) {
+export function push(config: Config) {
 
 	const path = config.database.name
 	const walpath = `${path}-wal`

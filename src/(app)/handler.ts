@@ -1,5 +1,6 @@
 import type { Request, Response } from 'polka'
-import { read, clear, remove } from '/src/auth'
+import { read, clear } from '/src/auth/cookie'
+import { remove } from '/src/auth/session'
 
 export async function layout(req: Request) {
 	return { user: req.user }

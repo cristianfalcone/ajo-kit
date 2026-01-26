@@ -19,10 +19,4 @@ export const password = pipe(
 	minLength(8, 'Password must be at least 8 characters')
 )
 
-export const username = pipe(
-	string(),
-	trim(),
-	minLength(1, 'Username required')
-)
-
 export const trimmed = pipe(string(), trim())

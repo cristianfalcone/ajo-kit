@@ -2,19 +2,20 @@ import type { Generated, Selectable, Insertable } from 'kysely'
 
 export interface UsersTable {
 	id: Generated<number>
-	username: string
-	firstName: string
-	lastName: string
+	name: Generated<string>
 	email: string
 	password: string | null
-	verified: Generated<number>
+	verified: string | null
 	created: Generated<string>
+	updated: string | null
 }
 
 export interface SessionsTable {
 	id: string
-	userId: number
+	user: number
 	expiry: string
+	ip: string | null
+	agent: string | null
 	created: Generated<string>
 }
 
@@ -24,8 +25,18 @@ export interface RolesTable {
 }
 
 export interface MembersTable {
-	userId: number
-	roleId: number
+	user: number
+	role: number
+}
+
+export interface TokensTable {
+	id: string
+	user: number
+	name: string
+	abilities: string
+	last: string | null
+	expiry: string | null
+	created: Generated<string>
 }
 
 export interface DB {
@@ -33,6 +44,7 @@ export interface DB {
 	sessions: SessionsTable
 	roles: RolesTable
 	members: MembersTable
+	tokens: TokensTable
 }
 
 // Derived Types (Selectable = query results)
@@ -41,4 +53,5 @@ export type User = Selectable<UsersTable>
 export type NewUser = Insertable<UsersTable>
 
 export type Session = Selectable<SessionsTable>
+export type Token = Selectable<TokensTable>
 export type Role = 'admin' | 'user' | 'moderator'

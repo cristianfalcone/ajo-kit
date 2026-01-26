@@ -5,14 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-pnpm dev          # Dev server with HMR (tsx watch + Vite)
-pnpm build        # Production build (client + server)
-pnpm prod         # Run production server
-pnpm db           # Database CLI
-pnpm db seed      # Seed with sample data
-pnpm db auth      # OAuth flow for Google Drive
-pnpm db sync      # Sync database to Drive (--watch for continuous)
-pnpm db pull      # Download database from Drive
+pnpm dev       # Dev server with HMR (tsx watch + Vite)
+pnpm build     # Production build (client + server)
+pnpm prod      # Run production server
+pnpm kysely       # Database migrations/seeds (--help for commands)
+pnpm backup auth  # OAuth flow for Google Drive
+pnpm backup push  # Push database to Drive (--watch for continuous)
+pnpm backup pull  # Download database from Drive
 ```
 
 ## Code Principles
@@ -21,7 +20,13 @@ pnpm db pull      # Download database from Drive
 
 **Naming:** Single meaningful words for identifiers—not abbreviations, not single letters. Complete words that describe intent (e.g., `defer`, `parent`, `protect`, `guard`, `embed`, `pack`).
 
-**Style:** DRY, simple, clever, performant, elegant. Research patterns from SvelteKit for inspiration.
+**Style:** DRY, simple, clever, performant, elegant.
+
+**Feature parity:**
+- **Backend** (auth, database, validation): Feature parity with **Laravel**
+- **Frontend/SSR/BFF** (routing, data loading, forms): Feature parity with **SvelteKit**
+
+Research these frameworks for feature inspiration, but implement using the ajo-kit architecture.
 
 ## Documentation
 
@@ -229,9 +234,18 @@ export async function head(req: Request, parent: Parent): Promise<Head> {
 // wares.ts - session middleware
 const token = read(req)
 const session = await validate(token)
-const user = await users.find(session.userId)
-const userRoles = await roles.forUser(user.id)
-req.user = { id, username, email, roles: userRoles }
+const user = await db()
+  .selectFrom('users')
+  .select(['id', 'email'])
+  .where('id', '=', session.user)
+  .executeTakeFirst()
+const roles = await db()
+  .selectFrom('members')
+  .innerJoin('roles', 'roles.id', 'members.role')
+  .select('roles.name')
+  .where('members.user', '=', user.id)
+  .execute()
+req.user = { ...user, roles: roles.map(r => r.name) }
 ```
 
 ### Guard Middleware
@@ -276,27 +290,37 @@ if (req.headers.accept?.includes('application/json')) {
 
 ```typescript
 interface DB {
-  users: UsersTable      // id, username, firstName, lastName, email, password, verified, created
-  sessions: SessionsTable // id, userId, expiry, created
+  users: UsersTable      // id, name, email, password, verified, created, updated
+  sessions: SessionsTable // id, user, expiry, ip, agent, created
   roles: RolesTable      // id, name
-  members: MembersTable  // userId, roleId (many-to-many)
+  members: MembersTable  // user, role (many-to-many)
 }
 ```
 
-### Data Access ([auth.ts](src/data/auth.ts))
+### Query Builder (No Repositories)
+
+Use Kysely's query builder directly in handlers and middleware. **Always select only the fields you need** to avoid overfetching:
 
 ```typescript
-users.find(id)
-users.byEmail(email)
-users.create(data)
+import { db } from '/src/data'
 
-sessions.create({ id, userId, expiry })
-sessions.find(id)
-sessions.remove(id)
+// Good: select only what the UI/API needs
+const user = await db()
+  .selectFrom('users')
+  .select(['id', 'email'])
+  .where('id', '=', userId)
+  .executeTakeFirst()
 
-roles.forUser(userId)  // Returns Role[]
-roles.assign(userId, roleId)
+// Bad: selectAll() fetches unnecessary data
+const user = await db().selectFrom('users').selectAll().where('id', '=', userId).executeTakeFirst()
 ```
+
+**Performance guidelines:**
+- Select only required columns, never `selectAll()` in production code
+- Use `executeTakeFirst()` for single row queries
+- Use indexes for frequently queried columns
+- Batch queries with `where('id', 'in', ids)` instead of N+1 loops
+- Use joins instead of separate queries when fetching related data
 
 ### Google Drive Sync
 

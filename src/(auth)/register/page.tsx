@@ -18,20 +18,6 @@ const Register: Stateful<PageArgs> = function* () {
 
 				<div>
 					<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-						Username
-					</label>
-					<input
-						type="text"
-						name="username"
-						required
-						autocomplete="username"
-						class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-						disabled={form.loading}
-					/>
-				</div>
-
-				<div>
-					<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
 						Email
 					</label>
 					<input
@@ -62,8 +48,23 @@ const Register: Stateful<PageArgs> = function* () {
 					</p>
 				</div>
 
+				<div>
+					<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+						Confirm Password
+					</label>
+					<input
+						type="password"
+						name="confirm"
+						required
+						minlength={8}
+						autocomplete="new-password"
+						class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+						disabled={form.loading}
+					/>
+				</div>
+
 				{form.error && (
-					<p class="text-sm text-red-600 dark:text-red-400">{form.error}</p>
+					<p class="text-sm text-red-600 dark:text-red-400">{form.error.message}</p>
 				)}
 
 				<button

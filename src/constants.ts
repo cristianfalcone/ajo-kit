@@ -41,6 +41,12 @@ export class UnauthorizedError extends AppError {
 
 export type ValidationFields = Record<string, string[] | undefined>
 
+export type ActionError = {
+	status: number
+	message: string
+	fields?: ValidationFields
+}
+
 export class InvalidError extends AppError {
 	constructor(public fields: ValidationFields, message = 'Validation failed') {
 		super(400, message)
@@ -116,8 +122,7 @@ type Action = {
 export type ActionState<T> = {
 	loading: boolean
 	data?: T
-	error?: string
-	fields?: Record<string, string[]>
+	error?: ActionError
 	handle: (event: SubmitEvent) => void
 	reset: () => void
 }
@@ -163,7 +168,7 @@ export type Role = 'admin' | 'user' | 'moderator'
 
 export interface User {
 	id: number
-	username: string
+	name: string
 	email: string
 	roles: Role[]
 }
@@ -173,6 +178,7 @@ export interface User {
 declare module 'polka' {
 	interface Request {
 		user?: User
+		token?: { abilities: string[] }
 		action?: Action
 		data?: Data
 		head?: Head

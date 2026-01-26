@@ -46,12 +46,10 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 		loading: false,
 		data: undefined,
 		error: undefined,
-		fields: undefined,
 		handle: () => { },
 		reset: () => {
 			state.data = undefined
 			state.error = undefined
-			state.fields = undefined
 			component.next()
 		}
 	}
@@ -73,7 +71,6 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 
 		state.loading = true
 		state.error = undefined
-		state.fields = undefined
 		component.next()
 
 		try {
@@ -88,8 +85,11 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 			const json = unpack(await response.text())
 
 			if (!response.ok) {
-				state.error = json.error ?? 'Action failed'
-				state.fields = json.fields
+				state.error = {
+					status: json.error?.status ?? response.status,
+					message: json.error?.message ?? json.message ?? 'Action failed',
+					fields: json.error?.fields ?? json.fields
+				}
 			} else if (json.redirect) {
 				navigate(json.redirect)
 				return
@@ -99,7 +99,10 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 			}
 		} catch (error) {
 			if (error instanceof Error && error.name === 'AbortError') return
-			state.error = error instanceof Error ? error.message : 'Action failed'
+			state.error = {
+				status: 500,
+				message: error instanceof Error ? error.message : 'Action failed'
+			}
 		} finally {
 			state.loading = false
 			component.next()

@@ -13,7 +13,6 @@ export type {
 } from './types'
 
 export { db, close } from './db'
-export { users, sessions, roles } from './auth'
 export * from './fields'
 
 // Parse with validation

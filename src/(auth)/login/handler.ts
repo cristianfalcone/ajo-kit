@@ -1,7 +1,9 @@
 import type { Request, Response } from 'polka'
 import { object, string } from 'valibot'
-import { verify, create, write } from '/src/auth'
-import { users, parse, email } from '/src/data'
+import { verify } from '/src/auth/password'
+import { create } from '/src/auth/session'
+import { write } from '/src/auth/cookie'
+import { db, parse, email } from '/src/data'
 import { UnauthorizedError } from '/src/constants'
 
 const Login = object({
@@ -13,7 +15,11 @@ export async function authenticate(req: Request, res: Response) {
 
 	const input = parse(Login, req.body)
 
-	const user = await users.byEmail(input.email)
+	const user = await db()
+		.selectFrom('users')
+		.select(['id', 'password'])
+		.where('email', '=', input.email)
+		.executeTakeFirst()
 
 	if (!user?.password || !await verify(input.password, user.password)) {
 		throw new UnauthorizedError('Invalid credentials')

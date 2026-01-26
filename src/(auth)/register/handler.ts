@@ -1,32 +1,61 @@
 import type { Request, Response } from 'polka'
-import { object, optional } from 'valibot'
+import { object, optional, string, forward, partialCheck, pipe } from 'valibot'
 import { AppError } from '/src/constants'
-import { hash, create, write } from '/src/auth'
-import { users, roles, parse, email, password, username, trimmed } from '/src/data'
+import { hash } from '/src/auth/password'
+import { create } from '/src/auth/session'
+import { write } from '/src/auth/cookie'
+import { db, parse, email, password, trimmed } from '/src/data'
 
-const Signup = object({
-	email,
-	password,
-	username,
-	firstName: optional(trimmed, ''),
-	lastName: optional(trimmed, ''),
-})
+const Signup = pipe(
+	object({
+		email,
+		password,
+		confirm: string(),
+		name: optional(trimmed, ''),
+	}),
+	forward(
+		partialCheck(
+			[['password'], ['confirm']],
+			input => input.password === input.confirm,
+			'Passwords do not match'
+		),
+		['confirm']
+	)
+)
 
 export async function signup(req: Request, res: Response) {
 
 	const input = parse(Signup, req.body)
 
-	const exists = await users.byEmail(input.email)
+	const exists = await db()
+		.selectFrom('users')
+		.select('id')
+		.where('email', '=', input.email)
+		.executeTakeFirst()
 
 	if (exists) throw new AppError(400, 'Email already registered')
 
-	const password = await hash(input.password)
+	const hashed = await hash(input.password)
+	const { confirm, ...user } = input
 
-	const { id } = await users.create({ ...input, password })
+	const { id } = await db()
+		.insertInto('users')
+		.values({ ...user, password: hashed })
+		.returning('id')
+		.executeTakeFirstOrThrow()
 
-	const role = await roles.find('user')
+	const role = await db()
+		.selectFrom('roles')
+		.select('id')
+		.where('name', '=', 'user')
+		.executeTakeFirst()
 
-	if (role) await roles.assign(id, role.id)
+	if (role) {
+		await db()
+			.insertInto('members')
+			.values({ user: id, role: role.id })
+			.execute()
+	}
 
 	const token = await create(id)
 

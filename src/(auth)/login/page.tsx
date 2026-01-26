@@ -45,7 +45,7 @@ const Login: Stateful<PageArgs> = function* () {
 				</div>
 
 				{form.error && (
-					<p class="text-sm text-red-600 dark:text-red-400">{form.error}</p>
+					<p class="text-sm text-red-600 dark:text-red-400">{form.error.message}</p>
 				)}
 
 				<button
