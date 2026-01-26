@@ -45,10 +45,11 @@ Full-stack metaframework for Ajo (JSX + generators).
 
 | Location | Export | Runs On | Use For |
 |----------|--------|---------|---------|
-| `page.tsx` | `handler()` | Both | External APIs, public data |
-| `handler.ts` | `page()` | Server | Database, secrets |
-| `handler.ts` | `layout()` | Server | Shared layout data |
-| `handler.ts` | `head()` | Server | Dynamic SEO |
+| `page/layout.tsx` | `handler(context, parent)` | Both | External APIs, public data |
+| `page/layout.tsx` | `head(context, parent)` | Both | SEO metadata |
+| `handler.ts` | `page(req, parent)` | Server | Database, secrets |
+| `handler.ts` | `layout(req, parent)` | Server | Shared layout data |
+| `handler.ts` | `head(req, parent)` | Server | Dynamic SEO with secrets |
 | `handler.ts` | Named exports | Server | Form actions |
 
 **Merge order:** `{ ...serverData, ...clientData }` — client wins.

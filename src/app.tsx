@@ -163,7 +163,7 @@ async function execute(
 	if (!target.handler) return { data: {} }
 
 	try {
-		return { data: await target.handler({ ...context, parent }) }
+		return { data: await target.handler(context, parent) }
 	} catch (error) {
 		return { error: normalize(error) }
 	}
@@ -339,9 +339,9 @@ export async function* resolve(
 	} else {
 		const heads = await Promise.all([
 			...tree.map(({ module }, depth) =>
-				module.head?.({ url, params, parent: async () => layoutResults[depth]?.merged ?? {} })
+				module.head?.({ url, params }, async () => layoutResults[depth]?.merged ?? {})
 			),
-			target.head?.({ url, params, parent: async () => state.data.at(-1) ?? {} })
+			target.head?.({ url, params }, async () => state.data.at(-1) ?? {})
 		])
 		state.head = merge(...heads.filter(Boolean) as Head[])
 	}

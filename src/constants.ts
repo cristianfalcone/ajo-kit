@@ -82,15 +82,14 @@ export type Parent = () => Promise<Entry>
 export type Context = {
 	url: string
 	params: Params
-	parent: Parent
 }
 
 // Route module types
 
 export type Module = {
 	default: Component
-	handler?: (args: Context) => Promise<Entry>
-	head?: (args: Context) => Promise<Head>
+	handler?: (context: Context, parent: Parent) => Promise<Entry>
+	head?: (context: Context, parent: Parent) => Promise<Head>
 	defer?: boolean
 }
 

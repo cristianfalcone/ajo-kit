@@ -42,7 +42,7 @@ export async function create(template: Template) {
 
 				const [server, client] = await Promise.all([
 					handler?.layout?.(req, parent),
-					module?.handler?.({ url, params, parent })
+					module?.handler?.({ url, params }, parent)
 				])
 
 				const entry = { ...server, ...client }
@@ -67,7 +67,7 @@ export async function create(template: Template) {
 
 				const [server, client] = await Promise.all([
 					handler?.page?.(req, parent),
-					module?.handler?.({ url, params, parent })
+					module?.handler?.({ url, params }, parent)
 				])
 
 				const entry = { ...server, ...client }
@@ -91,11 +91,12 @@ export async function create(template: Template) {
 		const heads = await Promise.all([
 			...layoutResults.map(async ({ module, handler, entry }) => {
 
-				const context: Context = { url, params, parent: async () => entry }
+				const context: Context = { url, params }
+				const parent = async () => entry
 
 				const [serverHead, clientHead] = await Promise.all([
-					handler?.head?.(req, context.parent),
-					module?.head?.(context)
+					handler?.head?.(req, parent),
+					module?.head?.(context, parent)
 				])
 
 				return merge(serverHead, clientHead)
@@ -103,11 +104,12 @@ export async function create(template: Template) {
 			(async () => {
 
 				const { module, handler, entry } = pageResult
-				const context: Context = { url, params, parent: async () => entry }
+				const context: Context = { url, params }
+				const parent = async () => entry
 
 				const [serverHead, clientHead] = await Promise.all([
-					handler?.head?.(req, context.parent),
-					module?.head?.(context)
+					handler?.head?.(req, parent),
+					module?.head?.(context, parent)
 				])
 
 				return merge(serverHead, clientHead)
