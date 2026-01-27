@@ -1,13 +1,13 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
-import type { LayoutArgs, Context } from '/src/constants'
+import type { LayoutArgs } from '/src/constants'
 import { ThemeContext, ThemeMode } from '/src/constants'
 import type { Head } from '/src/head'
 import Spinner from '/src/ui/spinner'
 
 export const defer = true
 
-export async function head(_context: Context): Promise<Head> {
+export async function head(): Promise<Head> {
 	return {
 		title: 'ajo-kit',
 		description: 'A minimalist full-stack metaframework powered by ajo',

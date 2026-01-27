@@ -87,9 +87,7 @@ export function render(head: Head = {}): string {
 
 export function apply(head: Head = {}): void {
 
-	if (head.title && document.title !== head.title) {
-		document.title = head.title
-	}
+	if (head.title && document.title !== head.title) document.title = head.title
 
 	const upsert = (selector: string, attrs: Record<string, string>) => {
 
