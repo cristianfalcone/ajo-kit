@@ -1,20 +1,27 @@
 import type { Request } from 'polka'
 import { url } from '/src/auth/verify'
+import { check, hit } from '/src/auth/limit'
 import { send } from '/src/mail'
 import { db } from '/src/data'
-import { UnauthorizedError, AppError } from '/src/constants'
+import { AppError } from '/src/constants'
 
 export async function resend(req: Request) {
 
-	if (!req.user) throw new UnauthorizedError()
+	const key = `verify:${req.user!.id}`
+
+	if (!check(key)) {
+		throw new AppError(429, 'Too many verification requests. Try again later.')
+	}
+
+	hit(key)
 
 	const user = await db()
 		.selectFrom('users')
 		.select(['id', 'email', 'verified'])
-		.where('id', '=', req.user.id)
+		.where('id', '=', req.user!.id)
 		.executeTakeFirst()
 
-	if (!user) throw new UnauthorizedError()
+	if (!user) throw new AppError(404, 'User not found')
 	if (user.verified) throw new AppError(400, 'Email already verified')
 
 	const base = process.env.APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`

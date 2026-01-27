@@ -16,8 +16,12 @@ export const redirect = (to: string | ((req: Request) => string)): Middleware =>
 	}
 }
 
-export const when = (condition: (req: Request, res: Response) => boolean, middleware: Middleware): Middleware => (req, res, next) => {
-	condition(req, res) ? middleware(req, res, next) : next()
+export const when = (
+	condition: (req: Request, res: Response) => boolean,
+	middleware: Middleware,
+	otherwise?: Middleware
+): Middleware => (req, res, next) => {
+	condition(req, res) ? middleware(req, res, next) : (otherwise ? otherwise(req, res, next) : next())
 }
 
 export const auth = (): Middleware => (req, _, next) => {

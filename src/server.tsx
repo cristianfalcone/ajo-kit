@@ -5,7 +5,7 @@ import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
 import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths, cacheKeys } from '/src/app'
-import { AppError, links, ancestors, normalize, ajax, sum, pack } from '/src/constants'
+import { AppError, links, ancestors, normalize, ajax, api, sum, pack } from '/src/constants'
 import { snapshot } from '/src/data'
 import type { State, Data, Entry, Page, Parent } from '/src/constants'
 import { merge, render as renderHead, type Head } from '/src/head'
@@ -299,9 +299,17 @@ export async function create(template: Template) {
 	const app = polka({
 		onError: (err, req, res) => {
 			if (!(err instanceof AppError)) console.error(err)
-			render(req, res, error(), normalize(err))
+			const normalized = normalize(err)
+			api(req)
+				? send(res, normalized.status, normalized.toJSON())
+				: render(req, res, error(), normalized)
 		},
-		onNoMatch: (req, res) => render(req, res, error(), new AppError(404, 'Not found'))
+		onNoMatch: (req, res) => {
+			const notFound = new AppError(404, 'Not found')
+			api(req)
+				? send(res, 404, notFound.toJSON())
+				: render(req, res, error(), notFound)
+		}
 	})
 
 	const collect = (segments: string[]): Middleware[] => ancestors(segments).flatMap(path => wares.get(path) ?? [])
@@ -329,12 +337,12 @@ export async function create(template: Template) {
 		const segments = toSegments(file)
 		const key = segments.join('/')
 
-		const { default: routes, page, layout, head, deps, ...actions } = exports
+		const { default: api, page, layout, head, deps, ...actions } = exports
 		handlers.set(key, { page, layout, head, deps, actions } as PageHandler)
 
-		if (routes) {
-			for (const method of Object.keys(routes) as HttpMethod[]) {
-				app[method](toPattern(segments), json(), ...collect(segments), (routes as Record<HttpMethod, Middleware>)[method])
+		if (api) {
+			for (const method of Object.keys(api) as HttpMethod[]) {
+				app[method](`api/${toPattern(segments)}`, json(), ...collect(segments), (api as Record<HttpMethod, Middleware>)[method])
 			}
 		}
 	}

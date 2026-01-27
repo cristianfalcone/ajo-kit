@@ -169,6 +169,7 @@ export const navigate = (to: string) => {
 // Request helpers
 
 export const ajax = (req: Request) => !!req.headers.accept?.includes('application/json')
+export const api = (req: Request) => req.path.startsWith('/api/')
 
 export const ip = (req: Request) => {
 	const raw = req.headers['x-forwarded-for']?.toString().split(',')[0] ?? req.socket?.remoteAddress ?? 'unknown'

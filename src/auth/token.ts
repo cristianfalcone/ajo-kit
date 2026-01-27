@@ -10,7 +10,7 @@ export async function create(
 	user: number,
 	name: string,
 	abilities: Ability[] = ['*'],
-	expiresMs?: number
+	expiresMs: number | null = 90 * 24 * 60 * 60 * 1000 // 90 días default
 ) {
 
 	const plain = generate()

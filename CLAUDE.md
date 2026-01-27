@@ -27,6 +27,7 @@ pnpm backup pull  # Pull DB from Drive
 ## Documentation
 
 - [docs/LLMs.md](docs/LLMs.md) — Ajo-kit patterns
+- [docs/api-endpoints.md](docs/api-endpoints.md) — API endpoints & form actions
 - `node_modules/ajo/LLMs.md` — Ajo UI syntax
 
 ## Architecture
@@ -43,14 +44,16 @@ Full-stack metaframework for Ajo (JSX + generators).
 
 ## Data Loading
 
-| Location | Export | Runs On | Use For |
-|----------|--------|---------|---------|
-| `page/layout.tsx` | `handler(context, parent)` | Both | External APIs, public data |
-| `page/layout.tsx` | `head(context, parent)` | Both | SEO metadata |
-| `handler.ts` | `page(req, parent)` | Server | Database, secrets |
-| `handler.ts` | `layout(req, parent)` | Server | Shared layout data |
-| `handler.ts` | `head(req, parent)` | Server | Dynamic SEO with secrets |
-| `handler.ts` | Named exports | Server | Form actions |
+| File Name | Export | Runs On | Use For |
+|-----------|--------|---------|---------|
+| `page.tsx` | `handler(context, parent)` | Both | Page External APIs, public data |
+| `page.tsx` | `head(context, parent)` | Both | Page SEO metadata |
+| `layout.tsx` | `handler(context, parent)` | Both | Shared External APIs, public data |
+| `layout.tsx` | `head(context, parent)` | Both | Shared SEO metadata |
+| `handler.ts` | `page(req, parent)` | Server | Page Database, secrets |
+| `handler.ts` | `layout(req, parent)` | Server | Shared Database, secrets |
+| `handler.ts` | `head(req, parent)` | Server | Shared Dynamic SEO with secrets |
+| `handler.ts` | Named exports | Server | Shared Form actions |
 
 **Merge order:** `{ ...serverData, ...clientData }` — client wins.
 
@@ -110,13 +113,33 @@ Valibot schemas. Reusable fields in [fields.ts](src/data/fields.ts).
 
 `parse(schema, data)` throws `InvalidError` with `{ fields: { name: ['errors'] } }`.
 
-## Form Actions
+## Form Actions & API Endpoints
 
-Client: `const form = action<Result>('name')` → `form.loading`, `form.data`, `form.error?`, `form.handle`, `form.reset`.
+**Every `handler.ts` can export multiple handler types:**
 
-`error` es `ActionError`: `{ status, message, fields? }`. Ver [constants.ts](src/constants.ts).
+```ts
+export async function page(req, parent) { }    // Server data loading
+export async function action1(req, res) { }    // Form action (?/action1)
+export default { get, post, put, delete }       // API endpoints (METHOD /api/route)
+```
 
-Server: Named export in `handler.ts` → `?/actionName` endpoint.
+**Form Actions (SPA):**
+- Client: `const form = action<Result>('name')` → `form.loading`, `form.data`, `form.error?`, `form.handle`, `form.reset`
+- Server: Named export in `handler.ts` → `POST /route?/actionName`
+- CSRF: ✅ Required
+
+**API Endpoints (Mobile/External):**
+- Server: `default export { method() }` in `handler.ts` → `METHOD /api/route`
+- Authentication: Cookie sessions OR Bearer tokens
+- CSRF: ❌ Skipped (for Bearer tokens)
+- **Important:** API routes automatically get `/api/` prefix
+
+**Dual authentication:**
+- Cookie sessions → SPA/Web (HttpOnly session cookie)
+- Bearer tokens → API/Mobile (`Authorization: Bearer <token>`)
+- Both populate `req.user` (and `req.token` for Bearer)
+
+See [docs/api-endpoints.md](docs/api-endpoints.md) for complete guide.
 
 ## Middleware
 
@@ -145,8 +168,8 @@ Objects with `toJSON()` are automatically serialized.
 
 ## Anti-patterns
 
-- Secrets in `page.tsx handler()` (leaks to client)
-- `args.loading` without `defer` export (always false)
+- Secrets in `layout.tsx/page.tsx handler() and head()` (leaks to client)
+- Use of `args.loading` without `defer` export (always false)
 - Missing `NotFoundError` for 404s
 - Context outside generator loop
 - React patterns (`useState`, `className`, `onClick`)

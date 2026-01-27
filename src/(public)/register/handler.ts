@@ -4,6 +4,7 @@ import { AppError, ip } from '/src/constants'
 import { hash } from '/src/auth/password'
 import { create } from '/src/auth/session'
 import { write } from '/src/auth/cookie'
+import { check, hit } from '/src/auth/limit'
 import { url } from '/src/auth/verify'
 import { send } from '/src/mail'
 import { db, parse, email, password, trimmed } from '/src/data'
@@ -26,6 +27,15 @@ const Signup = pipe(
 )
 
 export async function signup(req: Request, res: Response) {
+
+	const addr = ip(req)
+	const key = `register:${addr}`
+
+	if (!check(key)) {
+		throw new AppError(429, 'Too many registration attempts. Try again later.')
+	}
+
+	hit(key)
 
 	const input = parse(Signup, req.body)
 

@@ -6,7 +6,7 @@ import { verify as verifyCsrf } from '/src/auth/csrf'
 import { when, redirect } from '/src/auth/guard'
 import { db } from '/src/data'
 import type { Role } from '/src/data'
-import { ForbiddenError } from '/src/constants'
+import { ForbiddenError, api } from '/src/constants'
 
 export default [
 
@@ -99,15 +99,16 @@ export default [
 
 	function csrf(req, _, next) {
 
+		// Skip para API endpoints
+		if (api(req)) return next()
+
 		// Skip para Bearer tokens
 		if (req.token) return next()
 
 		// Skip para safe methods
 		if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
 
-		if (!verifyCsrf(req)) {
-			throw new ForbiddenError('Invalid CSRF token')
-		}
+		if (!verifyCsrf(req)) throw new ForbiddenError('Invalid CSRF token')
 
 		next()
 	},

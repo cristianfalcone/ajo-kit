@@ -1,14 +1,24 @@
 import type { Request } from 'polka'
 import { object } from 'valibot'
 import { create } from '/src/auth/reset'
+import { check, hit } from '/src/auth/limit'
 import { send } from '/src/mail'
 import { db, parse, email } from '/src/data'
+import { AppError, ip } from '/src/constants'
 
 const Forgot = object({ email })
 
 export async function forgot(req: Request) {
 
 	const input = parse(Forgot, req.body)
+	const addr = ip(req)
+	const key = `forgot:${input.email}:${addr}`
+
+	if (!check(key)) {
+		throw new AppError(429, 'Too many reset attempts. Try again later.')
+	}
+
+	hit(key)
 
 	const user = await db()
 		.selectFrom('users')
