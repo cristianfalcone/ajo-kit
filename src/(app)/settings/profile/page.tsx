@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '/src/constants'
-import { action } from '/src/app'
+import { action } from '/src/client'
 
 type NameResult = { success: boolean; name: string }
 type PasswordResult = { success: boolean }

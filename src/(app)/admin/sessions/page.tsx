@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, navigate } from '/src/constants'
-import { action, invalidate } from '/src/app'
+import { action, invalidate } from '/src/client'
 
 type Session = {
 	id: string

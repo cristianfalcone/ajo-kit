@@ -1,11 +1,9 @@
 import navaid, { type Params } from 'navaid'
 import type { Component, Stateful } from 'ajo'
-import { current } from 'ajo/context'
 import { AppError, navigate, links, ancestors, normalize, unpack } from '/src/constants'
 import type {
 	PageArgs,
 	LayoutArgs,
-	ActionState,
 	Data,
 	Entry,
 	Parent,
@@ -36,98 +34,15 @@ export const toSegments = (path: string) => {
 
 export const getFileName = (path: string) => path.split('/').pop()?.split('.')[0]
 
-// Form action helper for stateful generator components
-
-export function action<T = unknown>(name?: string, init?: RequestInit): ActionState<T> {
-
-	const component = current()
-
-	const state: ActionState<T> = {
-		loading: false,
-		data: undefined,
-		error: undefined,
-		handle: () => { },
-		reset: () => {
-			state.data = undefined
-			state.error = undefined
-			component.next()
-		}
-	}
-
-	if (import.meta.env.SSR) return state
-
-	let controller: AbortController
-
-	state.handle = async (event: SubmitEvent) => {
-
-		event.preventDefault()
-
-		// Abort any in-flight request
-
-		controller?.abort()
-		controller = new AbortController()
-
-		const form = event.target as HTMLFormElement
-		const body = Object.fromEntries(new FormData(form) as unknown as Iterable<[string, string]>)
-
-		state.loading = true
-		state.error = undefined
-		component.next()
-
-		try {
-
-			const response = await fetch(name ? `?/${name}` : '', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-				body: JSON.stringify(body),
-				signal: controller.signal,
-				...init,
-			})
-
-			const json = unpack(await response.text())
-
-			if (!response.ok) {
-				state.error = {
-					status: json.error?.status ?? response.status,
-					message: json.error?.message ?? json.message ?? 'Action failed',
-					fields: json.error?.fields ?? json.fields
-				}
-			} else if (json.redirect) {
-				navigate(json.redirect)
-				return
-			} else {
-				state.data = json as T
-				form.reset()
-			}
-
-		} catch (error) {
-
-			if (error instanceof Error && error.name === 'AbortError') return
-
-			state.error = {
-				status: 500,
-				message: error instanceof Error ? error.message : 'Action failed'
-			}
-
-		} finally {
-			state.loading = false
-			component.next()
-		}
-	}
-
-	return state
-}
-
 export const ssr = new Map<string, State>()
 
 // Navigation cache: key → { value, sum }
 
 export const cache = new Map<string, Cached>()
 
-export function invalidate(key?: string) {
-	if (key) cache.delete(key)
-	else cache.clear()
-}
+// Event callbacks: name → Set<callback>
+
+export const callbacks = new Map<string, Set<(payload: Entry) => void>>()
 
 export const error: () => Page = () => ({
 	segments: [''],
@@ -400,11 +315,34 @@ export async function* resolve(
 const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	let Page: Component = page ?? (() => null)
-	let hmr = false
 
 	if (page) return <Page />
 
+	let hmr = false
+
+	const sse = { source: null as EventSource | null }
+
+	const connect = (path: string) => {
+
+		sse.source?.close()
+		callbacks.clear()
+
+		sse.source = new EventSource(`/sse?path=${encodeURIComponent(path)}`)
+
+		sse.source.onmessage = (e) => {
+			const { event, payload } = JSON.parse(e.data)
+			callbacks.get(event)?.forEach(fn => fn(payload))
+		}
+
+		sse.source.onerror = () => {
+			sse.source?.close()
+			setTimeout(() => connect(path), 1000)
+		}
+	}
+
 	const go = async (page: Page) => {
+
+		if (!hmr) connect(location.pathname)
 
 		for await (const state of resolve(location.pathname, layouts, page)) {
 			if (hmr && !state.data) continue // Skip loading state during HMR
@@ -432,6 +370,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	try {
 		while (true) yield <Page />
 	} finally {
+		sse.source?.close()
 		router.unlisten?.()
 		if (run) removeEventListener('hmr', run)
 	}

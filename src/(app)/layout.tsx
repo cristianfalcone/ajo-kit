@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import type { Stateful } from 'ajo'
 import type { User, LayoutArgs, ActionState } from '/src/constants'
 import { ThemeContext } from '/src/constants'
-import { action } from '/src/app'
+import { action } from '/src/client'
 
 type LinkOptions = { exact?: boolean, include?: string[] }
 

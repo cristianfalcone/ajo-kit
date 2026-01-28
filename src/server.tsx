@@ -4,20 +4,51 @@ import polka from 'polka'
 import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
+import { parse } from 'regexparam'
 import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths, cacheKeys } from '/src/app'
 import { AppError, links, ancestors, normalize, ajax, api, sum, pack } from '/src/constants'
 import { snapshot } from '/src/data'
 import type { State, Data, Entry, Page, Parent } from '/src/constants'
 import { merge, render as renderHead, type Head } from '/src/head'
 
+// Event bus
+
+type Listener = (params: Record<string, unknown>) => void
+
+const bus = new Map<string, Set<Listener>>()
+
+export const on = (name: string, fn: Listener) => {
+	if (!bus.has(name)) bus.set(name, new Set())
+	bus.get(name)!.add(fn)
+	return () => bus.get(name)!.delete(fn)
+}
+
+export const emit = (name: string, params?: Record<string, unknown>) => {
+	bus.get(name)?.forEach(fn => fn(params ?? {}))
+}
+
+// SSE clients
+
+type SSEClient = {
+	path: string
+	params: Record<string, string>
+	user?: { id: number }
+	send: (data: { event: string; payload: Entry }) => void
+}
+
+const clients = new Set<SSEClient>()
+
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head'
+
+type EventHandler = (req: Request) => Promise<Entry>
 
 type PageHandler = {
 	page?: (req: Request, parent: Parent) => Promise<Entry>
 	layout?: (req: Request, parent: Parent) => Promise<Entry>
 	head?: (req: Request, parent: Parent) => Promise<Head>
 	deps?: string[]
-	actions: Record<string, (req: Request, res: Response) => Promise<unknown>>
+	actions?: Record<string, (req: Request, res: Response) => Promise<unknown>>
+	events?: Record<string, EventHandler>
 }
 
 // Parse deps array: tables + special keys (:user, :ttl:N)
@@ -334,16 +365,81 @@ export async function create(template: Template) {
 		const exports = await loader()
 		const segments = toSegments(file)
 		const key = segments.join('/')
+		const pattern = toPattern(segments)
 
-		const { default: api, page, layout, head, deps, actions } = exports
-		handlers.set(key, { page, layout, head, deps, actions } as PageHandler)
+		const { default: api, page, layout, head, deps, actions, events } = exports
+		handlers.set(key, { page, layout, head, deps, actions, events } as PageHandler)
+
+		// Register event listeners
+
+		if (events) {
+
+			const route = parse(`/${pattern}`)
+
+			for (const [name, fn] of Object.entries(events as Record<string, EventHandler>)) {
+				on(name, async (params) => {
+
+					for (const client of clients) {
+
+						// Match client path against handler pattern
+
+						const match = route.pattern.exec(client.path)
+
+						if (!match) continue
+
+						// Extract params from matched path
+
+						const extracted = route.keys.reduce((acc, key, i) => ({ ...acc, [key]: match[i + 1] }), {} as Record<string, string>)
+
+						// Check emit params match extracted route params
+
+						const skip = Object.entries(params).some(([k, v]) => extracted[k] !== undefined && extracted[k] !== v)
+
+						if (skip) continue
+
+						// Build minimal request for event handler
+
+						const req = { params: extracted, user: client.user } as Request
+						const payload = await fn(req)
+
+						client.send({ event: name, payload })
+					}
+				})
+			}
+		}
 
 		if (api) {
 			for (const method of Object.keys(api) as HttpMethod[]) {
-				app[method](`api/${toPattern(segments)}`, json(), ...collect(segments), (api as Record<HttpMethod, Middleware>)[method])
+				app[method](`api/${pattern}`, json(), ...collect(segments), (api as Record<HttpMethod, Middleware>)[method])
 			}
 		}
 	}
+
+	// SSE endpoint
+
+	app.get('/sse', ...collect([]), (req, res) => {
+
+		const path = new URL(req.originalUrl, `http://${req.headers.host}`).searchParams.get('path') ?? '/'
+
+		res.writeHead(200, {
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			'Connection': 'keep-alive'
+		})
+
+		res.flushHeaders()
+
+		const client: SSEClient = {
+			path,
+			params: {},
+			user: req.user,
+			send: (data) => res.write(`data: ${JSON.stringify(data)}\n\n`)
+		}
+
+		clients.add(client)
+
+		req.socket?.on('close', () => clients.delete(client))
+	})
 
 	// Register pages
 

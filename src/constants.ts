@@ -131,6 +131,10 @@ export type ActionState<T> = {
 	reset: () => void
 }
 
+// Events (SSE)
+
+export type EventCallback<T = Entry> = (payload: T) => void
+
 // Page and layout args
 
 export type PageArgs<T = Entry> = {

@@ -41,6 +41,9 @@ importers:
       polka:
         specifier: 1.0.0-next.28
         version: 1.0.0-next.28
+      regexparam:
+        specifier: ^3.0.0
+        version: 3.0.0
       sade:
         specifier: 1.8.1
         version: 1.8.1

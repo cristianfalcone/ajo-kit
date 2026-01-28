@@ -47,6 +47,26 @@ export interface ResetsTable {
 	created: Generated<string>
 }
 
+export interface ChatsTable {
+	id: Generated<number>
+	name: string | null
+	created: Generated<string>
+}
+
+export interface ParticipantsTable {
+	chat: number
+	user: number
+	joined: Generated<string>
+}
+
+export interface MessagesTable {
+	id: Generated<number>
+	chat: number
+	user: number
+	text: string
+	created: Generated<string>
+}
+
 export interface DB {
 	users: UsersTable
 	sessions: SessionsTable
@@ -54,6 +74,9 @@ export interface DB {
 	members: MembersTable
 	tokens: TokensTable
 	resets: ResetsTable
+	chats: ChatsTable
+	participants: ParticipantsTable
+	messages: MessagesTable
 }
 
 // Derived Types (Selectable = query results)
