@@ -6,7 +6,7 @@ type Result = { message: string }
 
 const Forgot: Stateful<PageArgs> = function* () {
 
-	const form = action<Result>('forgot')
+	const form = action<Result>()
 
 	while (true) yield (
 		<>

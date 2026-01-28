@@ -34,34 +34,37 @@ export async function page() {
 	}
 }
 
-export async function revoke(req: Request) {
+export const actions = {
 
-	const input = parse(RevokeSession, req.body)
+	revoke: async (req: Request) => {
 
-	const session = await db()
-		.selectFrom('sessions')
-		.select(['id'])
-		.where('id', 'like', `${input.id}%`)
-		.executeTakeFirst()
+		const input = parse(RevokeSession, req.body)
 
-	if (!session) return { revoked: false }
+		const session = await db()
+			.selectFrom('sessions')
+			.select(['id'])
+			.where('id', 'like', `${input.id}%`)
+			.executeTakeFirst()
 
-	await db()
-		.deleteFrom('sessions')
-		.where('id', '=', session.id)
-		.execute()
+		if (!session) return { revoked: false }
 
-	return { revoked: true }
-}
+		await db()
+			.deleteFrom('sessions')
+			.where('id', '=', session.id)
+			.execute()
 
-export async function revokeUser(req: Request) {
+		return { revoked: true }
+	},
 
-	const input = parse(RevokeUser, req.body)
+	revokeUser: async (req: Request) => {
 
-	const result = await db()
-		.deleteFrom('sessions')
-		.where('user', '=', input.user)
-		.execute()
+		const input = parse(RevokeUser, req.body)
 
-	return { revoked: Number(result[0].numDeletedRows) }
+		const result = await db()
+			.deleteFrom('sessions')
+			.where('user', '=', input.user)
+			.execute()
+
+		return { revoked: Number(result[0].numDeletedRows) }
+	}
 }

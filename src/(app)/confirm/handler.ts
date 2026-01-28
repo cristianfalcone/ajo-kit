@@ -7,21 +7,24 @@ import { UnauthorizedError } from '/src/constants'
 
 const Confirm = object({ password: string() })
 
-export async function confirm(req: Request) {
+export const actions = {
 
-	const input = parse(Confirm, req.body)
+	default: async (req: Request) => {
 
-	const user = await db()
-		.selectFrom('users')
-		.select(['password'])
-		.where('id', '=', req.user!.id)
-		.executeTakeFirst()
+		const input = parse(Confirm, req.body)
 
-	if (!user?.password || !await verify(input.password, user.password)) {
-		throw new UnauthorizedError('Invalid password')
+		const user = await db()
+			.selectFrom('users')
+			.select(['password'])
+			.where('id', '=', req.user!.id)
+			.executeTakeFirst()
+
+		if (!user?.password || !await verify(input.password, user.password)) {
+			throw new UnauthorizedError('Invalid password')
+		}
+
+		stamp(req.user!.id)
+
+		return { confirmed: true }
 	}
-
-	stamp(req.user!.id)
-
-	return { confirmed: true }
 }

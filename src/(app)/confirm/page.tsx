@@ -6,7 +6,7 @@ type Result = { confirmed: boolean }
 
 const Confirm: Stateful<PageArgs> = function* () {
 
-	const form = action<Result>('confirm')
+	const form = action<Result>()
 
 	while (true) {
 

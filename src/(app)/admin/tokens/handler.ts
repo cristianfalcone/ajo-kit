@@ -33,22 +33,23 @@ export async function page() {
 	}
 }
 
-export async function revoke(req: Request) {
+export const actions = {
+	default: async (req: Request) => {
+		const input = parse(Revoke, req.body)
 
-	const input = parse(Revoke, req.body)
+		const token = await db()
+			.selectFrom('tokens')
+			.select(['id'])
+			.where('id', 'like', `%${input.id}`)
+			.executeTakeFirst()
 
-	const token = await db()
-		.selectFrom('tokens')
-		.select(['id'])
-		.where('id', 'like', `%${input.id}`)
-		.executeTakeFirst()
+		if (!token) return { revoked: false }
 
-	if (!token) return { revoked: false }
+		await db()
+			.deleteFrom('tokens')
+			.where('id', '=', token.id)
+			.execute()
 
-	await db()
-		.deleteFrom('tokens')
-		.where('id', '=', token.id)
-		.execute()
-
-	return { revoked: true }
+		return { revoked: true }
+	}
 }

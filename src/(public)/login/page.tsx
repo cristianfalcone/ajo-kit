@@ -6,7 +6,7 @@ type Result = { redirect: string }
 
 const Login: Stateful<PageArgs> = function* () {
 
-	const form = action<Result>('authenticate')
+	const form = action<Result>()
 
 	while (true) yield (
 		<>

@@ -20,36 +20,39 @@ const Login = object({
 	remember: optional(checkbox, false),
 })
 
-export async function authenticate(req: Request, res: Response) {
-	const input = parse(Login, req.body)
+export const actions = {
 
-	const addr = ip(req)
-	const key = `login:${input.email}:${addr}`
+	default: async (req: Request, res: Response) => {
 
-	if (!check(key)) {
-		throw new AppError(429, 'Too many login attempts. Try again later.')
+		const input = parse(Login, req.body)
+		const addr = ip(req)
+		const key = `login:${input.email}:${addr}`
+
+		if (!check(key)) {
+			throw new AppError(429, 'Too many login attempts. Try again later.')
+		}
+
+		hit(key)
+
+		const user = await db()
+			.selectFrom('users')
+			.select(['id', 'password'])
+			.where('email', '=', input.email)
+			.executeTakeFirst()
+
+		const valid = await verify(input.password, user?.password ?? DUMMY_HASH)
+
+		if (!user?.password || !valid) throw new UnauthorizedError('Invalid credentials')
+
+		clear(key)
+
+		const agent = req.headers['user-agent']
+		const token = await create(user.id, input.remember, addr, agent)
+
+		write(res, token, input.remember)
+
+		return { redirect: '/dashboard' }
 	}
-
-	hit(key)
-
-	const user = await db()
-		.selectFrom('users')
-		.select(['id', 'password'])
-		.where('email', '=', input.email)
-		.executeTakeFirst()
-
-	const valid = await verify(input.password, user?.password ?? DUMMY_HASH)
-
-	if (!user?.password || !valid) throw new UnauthorizedError('Invalid credentials')
-
-	clear(key)
-
-	const agent = req.headers['user-agent']
-	const token = await create(user.id, input.remember, addr, agent)
-
-	write(res, token, input.remember)
-
-	return { redirect: '/dashboard' }
 }
 
 const ApiLogin = object({
@@ -59,6 +62,7 @@ const ApiLogin = object({
 })
 
 export default {
+
 	async post(req: Request, res: Response) {
 
 		const input = parse(ApiLogin, req.body)

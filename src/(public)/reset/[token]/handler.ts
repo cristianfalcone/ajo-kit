@@ -26,18 +26,21 @@ export async function page(req: Request) {
 	return { valid: !!user }
 }
 
-export async function reset(req: Request) {
+export const actions = {
 
-	const token = req.params.token
-	const user = await consume(token)
+	default: async (req: Request) => {
 
-	if (!user) throw new AppError(400, 'Invalid or expired reset link')
+		const token = req.params.token
+		const user = await consume(token)
 
-	const input = parse(Reset, req.body)
-	const hashed = await hash(input.password)
+		if (!user) throw new AppError(400, 'Invalid or expired reset link')
 
-	await db().updateTable('users').set({ password: hashed }).where('id', '=', user).execute()
-	await db().deleteFrom('sessions').where('user', '=', user).execute()
+		const input = parse(Reset, req.body)
+		const hashed = await hash(input.password)
 
-	return { redirect: '/login' }
+		await db().updateTable('users').set({ password: hashed }).where('id', '=', user).execute()
+		await db().deleteFrom('sessions').where('user', '=', user).execute()
+
+		return { redirect: '/login' }
+	}
 }

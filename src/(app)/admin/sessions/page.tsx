@@ -15,7 +15,7 @@ type Session = {
 }
 
 type Data = { sessions: Session[] }
-type RevokeResult = { revoked: boolean | number }
+type FormResult = { revoked: boolean | number }
 
 function formatDate(iso: string) {
 	return new Date(iso).toLocaleDateString(undefined, {
@@ -24,22 +24,28 @@ function formatDate(iso: string) {
 }
 
 function parseAgent(agent: string | null) {
+
 	if (!agent) return 'Unknown'
+
 	const browser = agent.includes('Chrome') ? 'Chrome' :
 		agent.includes('Firefox') ? 'Firefox' :
 		agent.includes('Safari') ? 'Safari' :
 		agent.includes('Edge') ? 'Edge' : 'Unknown'
+
 	const os = agent.includes('Windows') ? 'Windows' :
 		agent.includes('Mac') ? 'macOS' :
 		agent.includes('Linux') ? 'Linux' : ''
+
 	return `${browser}${os ? ` / ${os}` : ''}`
 }
 
 const Sessions: Stateful<PageArgs<Data>> = function* (args) {
-	const revokeForm = action<RevokeResult>('revoke')
-	const revokeUserForm = action<RevokeResult>('revokeUser')
+
+	const revokeForm = action<FormResult>('revoke')
+	const revokeUserForm = action<FormResult>('revokeUser')
 
 	while (true) {
+
 		if (revokeForm.data?.revoked || revokeUserForm.data?.revoked) {
 			invalidate('sessions')
 			navigate('/admin/sessions')

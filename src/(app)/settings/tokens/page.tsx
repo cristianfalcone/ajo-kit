@@ -21,10 +21,12 @@ function formatDate(iso: string) {
 }
 
 const Tokens: Stateful<PageArgs<Data>> = function* (args) {
+
 	const createForm = action<CreateResult>('make')
 	const revokeForm = action<RevokeResult>('revoke')
 
 	while (true) {
+
 		if (revokeForm.data?.revoked) {
 			invalidate('tokens')
 			navigate('/settings/tokens')

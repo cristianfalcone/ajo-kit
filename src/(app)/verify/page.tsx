@@ -6,7 +6,7 @@ type Result = { sent: boolean }
 
 const Verify: Stateful<PageArgs> = function* () {
 
-	const form = action<Result>('resend')
+	const form = action<Result>()
 
 	while (true) yield (
 		<>

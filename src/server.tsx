@@ -260,13 +260,11 @@ export async function create(template: Template) {
 	const action = (segments: string[]): Middleware => (req, _, next) => {
 
 		const url = new URL(req.originalUrl, `http://${req.headers.host}`)
-		const name = [...url.searchParams.keys()].find(key => key.startsWith('/'))?.slice(1)
-
-		if (!name) throw new AppError(400, 'No action specified')
+		const name = [...url.searchParams.keys()].find(key => key.startsWith('/'))?.slice(1) || 'default'
 
 		for (const path of ancestors(segments).filter(path => handlers.has(path)).reverse()) {
 
-			const invoke = handlers.get(path)?.actions[name]
+			const invoke = handlers.get(path)?.actions?.[name]
 
 			if (invoke) {
 				req.action = { name, invoke }
@@ -337,7 +335,7 @@ export async function create(template: Template) {
 		const segments = toSegments(file)
 		const key = segments.join('/')
 
-		const { default: api, page, layout, head, deps, ...actions } = exports
+		const { default: api, page, layout, head, deps, actions } = exports
 		handlers.set(key, { page, layout, head, deps, actions } as PageHandler)
 
 		if (api) {

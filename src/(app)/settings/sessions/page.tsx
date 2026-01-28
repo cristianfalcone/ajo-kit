@@ -16,16 +16,20 @@ type RevokeResult = { revoked: boolean }
 type RevokeAllResult = { revoked: number }
 
 function parse(agent: string | null) {
+
 	if (!agent) return { browser: 'Unknown', os: 'Unknown' }
+
 	const browser = agent.includes('Chrome') ? 'Chrome' :
 		agent.includes('Firefox') ? 'Firefox' :
 		agent.includes('Safari') ? 'Safari' :
 		agent.includes('Edge') ? 'Edge' : 'Unknown'
+
 	const os = agent.includes('Windows') ? 'Windows' :
 		agent.includes('Mac') ? 'macOS' :
 		agent.includes('Linux') ? 'Linux' :
 		agent.includes('Android') ? 'Android' :
 		agent.includes('iOS') ? 'iOS' : 'Unknown'
+
 	return { browser, os }
 }
 
@@ -36,10 +40,12 @@ function formatDate(iso: string) {
 }
 
 const Sessions: Stateful<PageArgs<Data>> = function* (args) {
+
 	const revokeForm = action<RevokeResult>('revoke')
 	const revokeAllForm = action<RevokeAllResult>('revokeAll')
 
 	while (true) {
+
 		if (revokeForm.data?.revoked || revokeAllForm.data?.revoked) {
 			invalidate('sessions')
 			revokeForm.reset()

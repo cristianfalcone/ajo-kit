@@ -38,40 +38,43 @@ export async function page(req: Request) {
 	return { user }
 }
 
-export async function name(req: Request) {
+export const actions = {
 
-	const input = parse(UpdateName, req.body)
+	name: async (req: Request) => {
 
-	await db()
-		.updateTable('users')
-		.set({ name: input.name, updated: new Date().toISOString() })
-		.where('id', '=', req.user!.id)
-		.execute()
+		const input = parse(UpdateName, req.body)
 
-	return { success: true, name: input.name }
-}
+		await db()
+			.updateTable('users')
+			.set({ name: input.name, updated: new Date().toISOString() })
+			.where('id', '=', req.user!.id)
+			.execute()
 
-export async function password(req: Request) {
+		return { success: true, name: input.name }
+	},
 
-	const input = parse(UpdatePassword, req.body)
+	password: async (req: Request) => {
 
-	const user = await db()
-		.selectFrom('users')
-		.select(['password'])
-		.where('id', '=', req.user!.id)
-		.executeTakeFirst()
+		const input = parse(UpdatePassword, req.body)
 
-	if (!user?.password || !await verify(input.current, user.password)) {
-		throw new UnauthorizedError('Current password is incorrect')
+		const user = await db()
+			.selectFrom('users')
+			.select(['password'])
+			.where('id', '=', req.user!.id)
+			.executeTakeFirst()
+
+		if (!user?.password || !await verify(input.current, user.password)) {
+			throw new UnauthorizedError('Current password is incorrect')
+		}
+
+		const hashed = await hash(input.password)
+
+		await db()
+			.updateTable('users')
+			.set({ password: hashed, updated: new Date().toISOString() })
+			.where('id', '=', req.user!.id)
+			.execute()
+
+		return { success: true }
 	}
-
-	const hashed = await hash(input.password)
-
-	await db()
-		.updateTable('users')
-		.set({ password: hashed, updated: new Date().toISOString() })
-		.where('id', '=', req.user!.id)
-		.execute()
-
-	return { success: true }
 }

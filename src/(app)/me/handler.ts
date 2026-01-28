@@ -3,6 +3,7 @@ import send from '@polka/send'
 import { db } from '/src/data'
 
 export default {
+
 	async get(req: Request, res: Response) {
 
 		const extra = await db()

@@ -30,39 +30,42 @@ export async function page(req: Request) {
 	}
 }
 
-export async function revoke(req: Request) {
+export const actions = {
 
-	const input = parse(Revoke, req.body)
-	const current = read(req)
+	revoke: async (req: Request) => {
 
-	const session = await db()
-		.selectFrom('sessions')
-		.select(['id'])
-		.where('user', '=', req.user!.id)
-		.where('id', 'like', `${input.id}%`)
-		.executeTakeFirst()
+		const input = parse(Revoke, req.body)
+		const current = read(req)
 
-	if (!session || session.id === current) {
-		return { revoked: false }
+		const session = await db()
+			.selectFrom('sessions')
+			.select(['id'])
+			.where('user', '=', req.user!.id)
+			.where('id', 'like', `${input.id}%`)
+			.executeTakeFirst()
+
+		if (!session || session.id === current) {
+			return { revoked: false }
+		}
+
+		await db()
+			.deleteFrom('sessions')
+			.where('id', '=', session.id)
+			.execute()
+
+		return { revoked: true }
+	},
+
+	revokeAll: async (req: Request) => {
+
+		const current = read(req)
+
+		const result = await db()
+			.deleteFrom('sessions')
+			.where('user', '=', req.user!.id)
+			.where('id', '!=', current!)
+			.execute()
+
+		return { revoked: Number(result[0].numDeletedRows) }
 	}
-
-	await db()
-		.deleteFrom('sessions')
-		.where('id', '=', session.id)
-		.execute()
-
-	return { revoked: true }
-}
-
-export async function revokeAll(req: Request) {
-
-	const current = read(req)
-
-	const result = await db()
-		.deleteFrom('sessions')
-		.where('user', '=', req.user!.id)
-		.where('id', '!=', current!)
-		.execute()
-
-	return { revoked: Number(result[0].numDeletedRows) }
 }

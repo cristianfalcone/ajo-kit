@@ -6,9 +6,11 @@ export async function layout(req: Request) {
 	return { user: req.user }
 }
 
-export async function signout(req: Request, res: Response) {
-	const token = read(req)
-	if (token) await remove(token)
-	clear(res)
-	return { redirect: '/login' }
+export const actions = {
+	signout: async (req: Request, res: Response) => {
+		const token = read(req)
+		if (token) await remove(token)
+		clear(res)
+		return { redirect: '/login' }
+	}
 }

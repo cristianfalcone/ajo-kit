@@ -38,7 +38,7 @@ export const getFileName = (path: string) => path.split('/').pop()?.split('.')[0
 
 // Form action helper for stateful generator components
 
-export function action<T = unknown>(name: string, init?: RequestInit): ActionState<T> {
+export function action<T = unknown>(name?: string, init?: RequestInit): ActionState<T> {
 
 	const component = current()
 
@@ -76,7 +76,7 @@ export function action<T = unknown>(name: string, init?: RequestInit): ActionSta
 
 		try {
 
-			const response = await fetch(`?/${name}`, {
+			const response = await fetch(name ? `?/${name}` : '', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
 				body: JSON.stringify(body),

@@ -27,36 +27,39 @@ export async function page(req: Request) {
 	}
 }
 
-export async function make(req: Request) {
+export const actions = {
 
-	const input = parse(Create, req.body)
-	const abilities = input.abilities.length > 0 ? input.abilities : ['*']
+	make: async (req: Request) => {
 
-	const plain = await create(req.user!.id, input.name, abilities)
+		const input = parse(Create, req.body)
+		const abilities = input.abilities.length > 0 ? input.abilities : ['*']
 
-	return { token: plain }
-}
+		const plain = await create(req.user!.id, input.name, abilities)
 
-export async function revoke(req: Request) {
+		return { token: plain }
+	},
 
-	const input = parse(Revoke, req.body)
+	revoke: async (req: Request) => {
 
-	const tokens = await db()
-		.selectFrom('tokens')
-		.select(['id'])
-		.where('user', '=', req.user!.id)
-		.execute()
+		const input = parse(Revoke, req.body)
 
-	const match = tokens.find(t => t.id.slice(-4) === input.id)
+		const tokens = await db()
+			.selectFrom('tokens')
+			.select(['id'])
+			.where('user', '=', req.user!.id)
+			.execute()
 
-	if (!match) {
-		return { revoked: false }
+		const match = tokens.find(t => t.id.slice(-4) === input.id)
+
+		if (!match) {
+			return { revoked: false }
+		}
+
+		await db()
+			.deleteFrom('tokens')
+			.where('id', '=', match.id)
+			.execute()
+
+		return { revoked: true }
 	}
-
-	await db()
-		.deleteFrom('tokens')
-		.where('id', '=', match.id)
-		.execute()
-
-	return { revoked: true }
 }

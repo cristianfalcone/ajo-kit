@@ -9,21 +9,24 @@ const Confirm = object({
 	confirmation: literal('DELETE', 'Type DELETE to confirm')
 })
 
-export async function destroy(req: Request, res: Response) {
+export const actions = {
 
-	if (req.user!.roles.includes('admin')) {
-		throw new ForbiddenError('Admins cannot delete their own account')
+	default: async (req: Request, res: Response) => {
+
+		if (req.user!.roles.includes('admin')) {
+			throw new ForbiddenError('Admins cannot delete their own account')
+		}
+
+		parse(Confirm, req.body)
+
+		await db()
+			.deleteFrom('users')
+			.where('id', '=', req.user!.id)
+			.execute()
+
+		clearCookie(res)
+		clearConfirm(req.user!.id)
+
+		return { deleted: true }
 	}
-
-	parse(Confirm, req.body)
-
-	await db()
-		.deleteFrom('users')
-		.where('id', '=', req.user!.id)
-		.execute()
-
-	clearCookie(res)
-	clearConfirm(req.user!.id)
-
-	return { deleted: true }
 }

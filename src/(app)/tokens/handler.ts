@@ -12,6 +12,7 @@ const Create = object({
 })
 
 export default {
+
 	async get(req: Request, res: Response) {
 
 		const tokens = await list(req.user!.id)

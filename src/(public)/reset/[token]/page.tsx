@@ -10,7 +10,7 @@ interface Data {
 
 const Reset: Stateful<PageArgs<Data>> = function* (args) {
 
-	const form = action<Result>('reset')
+	const form = action<Result>()
 	const valid = args.data?.valid
 
 	while (true) yield (

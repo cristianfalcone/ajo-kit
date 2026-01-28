@@ -6,7 +6,7 @@ type Result = { redirect: string }
 
 const Register: Stateful<PageArgs> = function* () {
 
-	const form = action<Result>('signup')
+	const form = action<Result>()
 
 	while (true) yield (
 		<>

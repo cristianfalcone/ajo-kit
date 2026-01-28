@@ -26,62 +26,65 @@ const Signup = pipe(
 	)
 )
 
-export async function signup(req: Request, res: Response) {
+export const actions = {
 
-	const addr = ip(req)
-	const key = `register:${addr}`
+	default: async (req: Request, res: Response) => {
 
-	if (!check(key)) {
-		throw new AppError(429, 'Too many registration attempts. Try again later.')
+		const addr = ip(req)
+		const key = `register:${addr}`
+
+		if (!check(key)) {
+			throw new AppError(429, 'Too many registration attempts. Try again later.')
+		}
+
+		hit(key)
+
+		const input = parse(Signup, req.body)
+
+		const exists = await db()
+			.selectFrom('users')
+			.select('id')
+			.where('email', '=', input.email)
+			.executeTakeFirst()
+
+		if (exists) throw new AppError(400, 'Email already registered')
+
+		const hashed = await hash(input.password)
+		const { confirm, ...user } = input
+
+		const { id } = await db()
+			.insertInto('users')
+			.values({ ...user, password: hashed })
+			.returning('id')
+			.executeTakeFirstOrThrow()
+
+		const role = await db()
+			.selectFrom('roles')
+			.select('id')
+			.where('name', '=', 'user')
+			.executeTakeFirst()
+
+		if (role) {
+			await db()
+				.insertInto('members')
+				.values({ user: id, role: role.id })
+				.execute()
+		}
+
+		const base = process.env.APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`
+		const link = url(id, base)
+
+		await send({
+			to: input.email,
+			subject: 'Verify your email',
+			text: `Welcome! Click here to verify your email: ${link}\n\nThis link expires in 24 hours.`,
+		})
+
+		const agent = req.headers['user-agent']
+		const token = await create(id, false, ip(req), agent)
+
+		write(res, token)
+
+		return { redirect: '/dashboard' }
 	}
-
-	hit(key)
-
-	const input = parse(Signup, req.body)
-
-	const exists = await db()
-		.selectFrom('users')
-		.select('id')
-		.where('email', '=', input.email)
-		.executeTakeFirst()
-
-	if (exists) throw new AppError(400, 'Email already registered')
-
-	const hashed = await hash(input.password)
-	const { confirm, ...user } = input
-
-	const { id } = await db()
-		.insertInto('users')
-		.values({ ...user, password: hashed })
-		.returning('id')
-		.executeTakeFirstOrThrow()
-
-	const role = await db()
-		.selectFrom('roles')
-		.select('id')
-		.where('name', '=', 'user')
-		.executeTakeFirst()
-
-	if (role) {
-		await db()
-			.insertInto('members')
-			.values({ user: id, role: role.id })
-			.execute()
-	}
-
-	const base = process.env.APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`
-	const link = url(id, base)
-
-	await send({
-		to: input.email,
-		subject: 'Verify your email',
-		text: `Welcome! Click here to verify your email: ${link}\n\nThis link expires in 24 hours.`,
-	})
-
-	const agent = req.headers['user-agent']
-	const token = await create(id, false, ip(req), agent)
-
-	write(res, token)
-
-	return { redirect: '/dashboard' }
 }

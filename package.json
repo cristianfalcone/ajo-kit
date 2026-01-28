@@ -6,7 +6,7 @@
     ]
   },
   "scripts": {
-    "dev": "tsx watch --include 'src/server.tsx' server.ts dev",
+    "dev": "tsx watch --include 'src/server.tsx' --include 'src/**/{handler,wares}.ts' server.ts dev",
     "build": "pnpm build:client && pnpm build:server",
     "build:client": "vite build --outDir dist/client",
     "build:server": "vite build --ssr src/server.tsx --outDir dist/server",

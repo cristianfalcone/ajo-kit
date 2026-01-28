@@ -14,7 +14,7 @@ type Token = {
 }
 
 type Data = { tokens: Token[] }
-type RevokeResult = { revoked: boolean }
+type FormResult = { revoked: boolean }
 
 function formatDate(iso: string) {
 	return new Date(iso).toLocaleDateString(undefined, {
@@ -23,10 +23,12 @@ function formatDate(iso: string) {
 }
 
 const Tokens: Stateful<PageArgs<Data>> = function* (args) {
-	const revokeForm = action<RevokeResult>('revoke')
+
+	const form = action<FormResult>()
 
 	while (true) {
-		if (revokeForm.data?.revoked) {
+
+		if (form.data?.revoked) {
 			invalidate('tokens')
 			navigate('/admin/tokens')
 			return
@@ -78,12 +80,12 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 											{token.last ? formatDate(token.last) : 'Never'}
 										</td>
 										<td class="px-4 py-3 text-right">
-											<form set:onsubmit={revokeForm.handle}>
+											<form set:onsubmit={form.handle}>
 												<input type="hidden" name="id" value={token.id} />
 												<button
 													type="submit"
 													title="Revoke this token"
-													disabled={revokeForm.loading}
+													disabled={form.loading}
 													class="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
 												>
 													<span class="i-lucide-trash-2 w-4 h-4 block" />

@@ -8,36 +8,39 @@ import { AppError, ip } from '/src/constants'
 
 const Forgot = object({ email })
 
-export async function forgot(req: Request) {
+export const actions = {
 
-	const input = parse(Forgot, req.body)
-	const addr = ip(req)
-	const key = `forgot:${input.email}:${addr}`
+	default: async (req: Request) => {
 
-	if (!check(key)) {
-		throw new AppError(429, 'Too many reset attempts. Try again later.')
+		const input = parse(Forgot, req.body)
+		const addr = ip(req)
+		const key = `forgot:${input.email}:${addr}`
+
+		if (!check(key)) {
+			throw new AppError(429, 'Too many reset attempts. Try again later.')
+		}
+
+		hit(key)
+
+		const user = await db()
+			.selectFrom('users')
+			.select(['id', 'email'])
+			.where('email', '=', input.email)
+			.executeTakeFirst()
+
+		if (user) {
+
+			const token = await create(user.id)
+			const base = process.env.APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`
+			const url = `${base}/reset/${token}`
+
+			await send({
+				to: user.email,
+				subject: 'Reset your password',
+				text: `Click here to reset your password: ${url}\n\nThis link expires in 1 hour.`,
+			})
+		}
+
+		return { message: 'If that email exists, we sent a reset link.' }
 	}
-
-	hit(key)
-
-	const user = await db()
-		.selectFrom('users')
-		.select(['id', 'email'])
-		.where('email', '=', input.email)
-		.executeTakeFirst()
-
-	if (user) {
-
-		const token = await create(user.id)
-		const base = process.env.APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`
-		const url = `${base}/reset/${token}`
-
-		await send({
-			to: user.email,
-			subject: 'Reset your password',
-			text: `Click here to reset your password: ${url}\n\nThis link expires in 1 hour.`,
-		})
-	}
-
-	return { message: 'If that email exists, we sent a reset link.' }
 }

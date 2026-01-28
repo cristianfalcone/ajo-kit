@@ -5,9 +5,11 @@ import { action, invalidate } from '/src/app'
 type Result = { deleted: boolean }
 
 const Delete: Stateful<PageArgs> = function* () {
-	const form = action<Result>('destroy')
+
+	const form = action<Result>()
 
 	while (true) {
+
 		if (form.data?.deleted) {
 			invalidate()
 			location.href = '/'
