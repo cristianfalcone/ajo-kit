@@ -8,7 +8,6 @@ import { check, hit } from '/src/auth/limit'
 import { url } from '/src/auth/verify'
 import { send } from '/src/mail'
 import { db, parse, email, password, trimmed } from '/src/data'
-import { emit } from '/src/server'
 
 const Signup = pipe(
 	object({
@@ -85,7 +84,6 @@ export const actions = {
 		const token = await create(id, false, ip(req), agent)
 
 		write(res, token)
-		emit('activity')
 
 		return { redirect: '/dashboard' }
 	}

@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, navigate } from '/src/constants'
-import { action, invalidate } from '/src/client'
+import { type PageArgs, formatDate } from '/src/constants'
+import { action, subscribe } from '/src/client'
 
 type Session = {
 	id: string
@@ -17,11 +17,7 @@ type Session = {
 type Data = { sessions: Session[] }
 type FormResult = { revoked: boolean | number }
 
-function formatDate(iso: string) {
-	return new Date(iso).toLocaleDateString(undefined, {
-		month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-	})
-}
+const dateTime = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } as const
 
 function parseAgent(agent: string | null) {
 
@@ -41,18 +37,16 @@ function parseAgent(agent: string | null) {
 
 const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 
+	let sessions = args.data?.sessions ?? []
 	const revokeForm = action<FormResult>('revoke')
 	const revokeUserForm = action<FormResult>('revokeUser')
 
+	subscribe<Data>('sessions', ({ data, error }) => {
+		if (error) return
+		sessions = data!.sessions
+	})
+
 	while (true) {
-
-		if (revokeForm.data?.revoked || revokeUserForm.data?.revoked) {
-			invalidate('sessions')
-			navigate('/admin/sessions')
-			return
-		}
-
-		const sessions = args.data?.sessions ?? []
 
 		yield (
 			<div class="space-y-6">
@@ -86,7 +80,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 										{session.ip ?? '-'}
 									</td>
 									<td class="px-4 py-3 text-slate-500 dark:text-slate-400">
-										{session.last ? formatDate(session.last) : formatDate(session.created)}
+										{session.last ? formatDate(session.last, dateTime) : formatDate(session.created, dateTime)}
 									</td>
 									<td class="px-4 py-3 text-right">
 										<div class="flex items-center justify-end gap-1">

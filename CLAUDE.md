@@ -171,22 +171,29 @@ Objects with `toJSON()` are automatically serialized.
 
 Server → Client via SSE. Counterpart to Actions (client → server).
 
-**Event handlers** in `handler.ts` return data sent to clients:
+**Auto-emit:** Events fire automatically when their `deps` tables change. No manual `emit()` needed for broadcast events:
 
 ```ts
-// handler.ts
-import { emit } from '/src/server'
-
+// handler.ts — auto-emit: any write to sessions/tokens triggers 'activity' event
+export const deps = ['sessions', 'tokens', ':user']
 export const events = {
-  messages: async (req: Request) => {
-    return { messages: await db().selectFrom('messages').where('chat', '=', Number(req.params.id)).execute() }
+  activity: async (req: Request) => {
+    return { sessions: await db().selectFrom('sessions').where('user', '=', req.user!.id).execute() }
   }
 }
+```
+
+**How it works:** `TrackerPlugin` intercepts writes → `bump(table)` → `tap()` looks up `deps` → `emit()` fires, debounced per microtask. Multiple table writes in one action = one emit per event.
+
+**Manual emit** — only for param-filtered events (auto-emit can't know route params):
+
+```ts
+import { emit } from '/src/server'
 
 export const actions = {
   send: async (req: Request) => {
     await db().insertInto('messages').values({ ... }).execute()
-    emit('messages', { id: String(req.params.id) })  // notify clients viewing this chat
+    emit('messages', { id: String(req.params.id) })  // only clients viewing this chat
     return { ok: true }
   }
 }
@@ -215,13 +222,11 @@ const Page: Stateful<PageArgs<Data>> = function* (args) {
 
 | Concept | Description |
 |---------|-------------|
-| `emit(name, params?)` | Fire event; params filter by route params |
+| `deps` + `events` | Auto-emit: table writes trigger events automatically |
+| `emit(name, params?)` | Manual emit: only for param-filtered events |
 | `subscribe(name, callback)` | Subscribe in component; auto-calls `component.next()` |
 | Layout-level events | Handler with trailing group segment matches all subpaths (`(app)/handler.ts` → `/*`) |
 | SSE-on-connect | Initial data sent when SSE connects, resolves navigation race conditions |
-| `deps` + events | Don't use `deps` on handlers with side effects (e.g. marking `seen`) — cache skips the handler |
-
-**emit() filtering:** `emit('messages', { id: '5' })` only notifies clients where the route extracts `id='5'`. `emit('unread')` without params notifies all matching clients.
 
 **Pitfall:** Don't overwrite event state with `args.data` inside `while(true)` — the SSE callback updates the variable, but re-reading from `args.data` overwrites it with stale data. Initialize before the loop, let `subscribe()` handle updates.
 
@@ -236,3 +241,5 @@ See [docs/events.md](docs/events.md) for full architecture, security audit, and 
 - React patterns (`useState`, `className`, `onClick`)
 - Missing `await parent()` in dependent handlers
 - Missing `deps` export for cacheable handlers (causes unnecessary refetches)
+- Manual `emit()` for broadcast events (auto-emit handles it via `deps`)
+- Missing `deps` on handler with `events` (auto-emit won't work)

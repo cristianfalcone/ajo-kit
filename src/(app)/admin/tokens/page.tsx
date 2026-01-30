@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '/src/constants'
+import { type PageArgs, formatDate } from '/src/constants'
 import { action, subscribe } from '/src/client'
 
 type Token = {
@@ -15,12 +15,6 @@ type Token = {
 
 type Data = { tokens: Token[] }
 type FormResult = { revoked: boolean }
-
-function formatDate(iso: string) {
-	return new Date(iso).toLocaleDateString(undefined, {
-		month: 'short', day: 'numeric', year: 'numeric'
-	})
-}
 
 const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 

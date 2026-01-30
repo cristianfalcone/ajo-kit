@@ -199,32 +199,51 @@ export async function page(req: Request, parent: Parent) {
 
 Server → client events via SSE. Counterpart of form actions (client → server).
 
-### Server (handler.ts)
+### Auto-emit (default)
 
-Export `events` object with async handlers that return data:
+Events fire automatically when their `deps` tables change. No manual `emit()` needed:
+
+```typescript
+// handler.ts — this is all you need for automatic real-time updates
+export const deps = ['sessions', 'tokens', ':user']
+
+export const events = {
+  activity: async (req: Request) => {
+    return { sessions: await db().selectFrom('sessions').where('user', '=', req.user!.id).execute() }
+  }
+}
+```
+
+**How it works:** `TrackerPlugin` intercepts every INSERT/UPDATE/DELETE → calls `bump(table)` → `tap()` callback looks up which events depend on that table via `deps` → `emit()` fires automatically, debounced per microtask.
+
+**Requirements for auto-emit:**
+1. Handler exports `deps` with table names (e.g. `['sessions', 'tokens']`)
+2. Handler exports `events` with event handlers
+3. That's it — any action writing to those tables triggers the events
+
+### Manual emit (param-filtered events only)
+
+Use `emit(name, params)` manually **only** when events need route param filtering:
 
 ```typescript
 import { emit } from '/src/server'
 
 export const events = {
   messages: async (req: Request) => {
-    const messages = await db()
-      .selectFrom('messages')
-      .where('chat', '=', Number(req.params.id))
-      .execute()
-    return { messages }
+    return { messages: await db().selectFrom('messages').where('chat', '=', Number(req.params.id)).execute() }
   }
 }
 
 export const actions = {
   send: async (req: Request) => {
     await db().insertInto('messages').values({ ... }).execute()
-    emit('messages', { id: String(req.params.id) })  // notify clients viewing this chat
-    emit('chats')                                      // notify clients on chat list
+    emit('messages', { id: String(req.params.id) })  // only clients viewing this chat
     return { ok: true }
   }
 }
 ```
+
+Auto-emit cannot know route params, so `emit(name, { param })` stays manual. Broadcast events (no params) are always automatic.
 
 ### Client (page.tsx)
 
@@ -249,10 +268,11 @@ const Chat: Stateful<PageArgs<Data>> = function* (args) {
 
 | Concept | Detail |
 |---------|--------|
+| **Auto-emit** | Events with `deps` fire automatically on table writes. No manual `emit()` needed |
+| **Manual emit** | Only for param-filtered events: `emit('messages', { id: '5' })` |
 | **SSE-on-connect** | All matching event handlers run immediately when SSE connects, sending initial data |
 | **Layout-level events** | Events in layout handlers (trailing group segment) match all subpaths. `(app)/handler.ts` → `/*` |
-| **emit() filtering** | `emit('messages', { id: '5' })` only notifies clients where route extracts `id='5'` |
-| **emit() broadcast** | `emit('unread')` (no params) notifies all clients matching the event's route |
+| **Microtask debounce** | Multiple table writes in one action coalesce into a single emit per event name |
 | **Wares protect SSE** | Same middleware runs for both page requests and SSE connections |
 
 ### Pitfall: Don't overwrite SSE state in the loop
@@ -282,7 +302,7 @@ while (true) { yield ... }
 | **handler.ts layout()** | Server-only shared layout data |
 | **handler.ts head()** | Server-only dynamic SEO (access to req, secrets) |
 | **Form actions** | `export const actions = {}` in handler.ts → `?/actionName`, use `action('name')` client-side |
-| **Events export** | `export const events = {}` in handler.ts → SSE event handlers returning data |
+| **Events export** | `export const events = {}` in handler.ts → SSE event handlers returning data. Auto-emitted via `deps` |
 | **defer** | `export const defer = true` = component handles its own loading UI |
 | **parent()** | Always `await parent()` in loaders for ancestor data |
 | **404** | Throw `NotFoundError` when data not found |
@@ -297,7 +317,7 @@ while (true) { yield ... }
 | **Auth guards** | `protect()`, `guest()`, `auth()`, `role()`, `confirmed()`, `verified()` |
 | **Caching** | Export `deps` in handler.ts for skip-on-fresh. `invalidate()` for manual clear |
 | **Events** | `export const events = {}` in handler.ts. Handlers receive `Request`, return data |
-| **emit()** | `emit(name, params?)` from `/src/server`. Params filter by route params |
+| **emit()** | `emit(name, params?)` from `/src/server`. Only needed for param-filtered events |
 | **subscribe()** | `subscribe(name, callback)` from `/src/client`. Call before `while (true)` loop |
 | **SSE state** | Initialize from `args.data` before loop. Never re-assign from `args.data` inside loop |
 
@@ -317,7 +337,8 @@ while (true) { yield ... }
 | Direct `form.error.fields` access | `form.error?.fields?.email` | error and fields are optional |
 | Missing `deps` in handler.ts | `export const deps = ['table']` | Causes unnecessary refetches |
 | Re-assign SSE state from `args.data` in loop | Initialize before loop, `subscribe()` updates | Loop overwrites SSE data with stale args |
-| `emit()` only inside `events.*` handler | Also `emit()` from `actions.*` | Events only run for clients already at that route |
+| Manual `emit()` for broadcast events | Let auto-emit handle it via `deps` | Broadcast events fire automatically on table writes |
+| Missing `deps` on handler with `events` | `export const deps = ['table']` | Auto-emit requires `deps` to know which tables trigger which events |
 
 ## Styling (UnoCSS)
 

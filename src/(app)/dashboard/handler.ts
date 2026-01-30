@@ -9,7 +9,7 @@ export async function page(req: Request) {
 
 	const userId = req.user!.id
 
-	const [user, sessions, tokens, chats, unread, recentSessions] = await Promise.all([
+	const [user, sessions, tokens, chats, unread, recentSessions, roles] = await Promise.all([
 		db()
 			.selectFrom('users')
 			.select(['id', 'name', 'email', 'verified', 'created'])
@@ -48,14 +48,13 @@ export async function page(req: Request) {
 			.orderBy('last', 'desc')
 			.limit(5)
 			.execute(),
+		db()
+			.selectFrom('members')
+			.innerJoin('roles', 'roles.id', 'members.role')
+			.select(['roles.name'])
+			.where('members.user', '=', userId)
+			.execute(),
 	])
-
-	const roles = await db()
-		.selectFrom('members')
-		.innerJoin('roles', 'roles.id', 'members.role')
-		.select(['roles.name'])
-		.where('members.user', '=', userId)
-		.execute()
 
 	return {
 		user: { ...user, roles: roles.map(r => r.name) },
@@ -76,8 +75,4 @@ export async function page(req: Request) {
 	}
 }
 
-export const events = {
-	activity: async (req: Request) => {
-		return await page(req)
-	}
-}
+export const events = { activity: page }

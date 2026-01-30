@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '/src/constants'
+import { type PageArgs, formatDate } from '/src/constants'
 import { subscribe } from '/src/client'
 
 type Session = {
@@ -27,12 +27,6 @@ type Data = {
 		unread: number
 	}
 	recentSessions: Session[]
-}
-
-function formatDate(iso: string) {
-	return new Date(iso).toLocaleDateString(undefined, {
-		month: 'short', day: 'numeric', year: 'numeric'
-	})
 }
 
 function timeAgo(iso: string) {

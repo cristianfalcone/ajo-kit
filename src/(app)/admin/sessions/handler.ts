@@ -34,6 +34,8 @@ export async function page() {
 	}
 }
 
+export const events = { sessions: page }
+
 export const actions = {
 
 	revoke: async (req: Request) => {

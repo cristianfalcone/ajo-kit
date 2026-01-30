@@ -11,9 +11,18 @@ database.pragma('journal_mode = WAL')
 
 const versions = new Map<string, number>()
 
+let hook: ((table: string) => void) | null = null
+
 export const version = (table: string) => versions.get(table) ?? 0
-export const bump = (table: string) => versions.set(table, version(table) + 1)
 export const snapshot = (tables: string[]) => Object.fromEntries(tables.map(t => [t, version(t)]))
+export const tap = (fn: (table: string) => void) => { hook = fn }
+
+export const bump = (table: string) => {
+	versions.set(table, version(table) + 1)
+	hook?.(table)
+}
+
+
 
 // Kysely plugin to auto-bump versions on writes
 

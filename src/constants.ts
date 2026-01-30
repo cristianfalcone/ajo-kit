@@ -276,3 +276,8 @@ const revivers = {
 
 export const pack = (value: unknown) => stringify(value, reducers)
 export const unpack = (value: string) => parse(value, revivers)
+
+// Formatting
+
+export const formatDate = (iso: string, options?: Intl.DateTimeFormatOptions) =>
+	new Date(iso).toLocaleDateString(undefined, options ?? { month: 'short', day: 'numeric', year: 'numeric' })

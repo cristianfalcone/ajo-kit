@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, navigate } from '/src/constants'
-import { action, invalidate } from '/src/client'
+import { type PageArgs, formatDate } from '/src/constants'
+import { action, subscribe } from '/src/client'
 
 type Session = {
 	id: string
@@ -33,26 +33,21 @@ function parse(agent: string | null) {
 	return { browser, os }
 }
 
-function formatDate(iso: string) {
-	return new Date(iso).toLocaleDateString(undefined, {
-		month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-	})
-}
+const dateTime = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } as const
 
 const Sessions: Stateful<PageArgs<Data>> = function* (args) {
+
+	let sessions = args.data?.sessions ?? []
 
 	const revokeForm = action<RevokeResult>('revoke')
 	const revokeAllForm = action<RevokeAllResult>('revokeAll')
 
+	subscribe<Data>('sessions', ({ data, error }) => {
+		if (error) return
+		sessions = data!.sessions
+	})
+
 	while (true) {
-
-		if (revokeForm.data?.revoked || revokeAllForm.data?.revoked) {
-			invalidate('sessions')
-			navigate('/account/sessions')
-			return
-		}
-
-		const sessions = args.data?.sessions ?? []
 
 		yield (
 			<div class="space-y-8">
@@ -96,7 +91,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 											)}
 										</div>
 										<div class="text-sm text-slate-500 dark:text-slate-400">
-											{session.ip ?? 'Unknown IP'} · Last active {formatDate(session.last ?? session.created)}
+											{session.ip ?? 'Unknown IP'} · Last active {formatDate(session.last ?? session.created, dateTime)}
 										</div>
 									</div>
 								</div>

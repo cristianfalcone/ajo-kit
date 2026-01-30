@@ -4,8 +4,6 @@ import { sql } from 'kysely'
 import { emit } from '/src/server'
 import { NotFoundError } from '/src/constants'
 
-export const deps = []
-
 export async function page(req: Request) {
 
 	const chatId = Number(req.params.id)
@@ -72,10 +70,6 @@ export const events = {
 			.where('user', '=', req.user!.id)
 			.execute()
 
-		// Notify users viewing the chat list or other pages
-		emit('chats')
-		emit('unread')
-
 		return { messages }
 	}
 }
@@ -98,9 +92,7 @@ export const actions = {
 			})
 			.execute()
 
-		// Emit to all clients viewing this chat
 		emit('messages', { id: String(chatId) })
-		emit('activity')
 
 		return { ok: true }
 	}

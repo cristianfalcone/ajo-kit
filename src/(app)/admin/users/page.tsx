@@ -1,4 +1,4 @@
-import type { PageArgs } from '/src/constants'
+import { type PageArgs, formatDate } from '/src/constants'
 
 type User = {
 	id: number
@@ -10,12 +10,6 @@ type User = {
 }
 
 type Data = { users: User[] }
-
-function formatDate(iso: string) {
-	return new Date(iso).toLocaleDateString(undefined, {
-		month: 'short', day: 'numeric', year: 'numeric'
-	})
-}
 
 export default function Users({ data }: PageArgs<Data>) {
 	const users = data?.users ?? []

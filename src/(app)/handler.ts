@@ -3,7 +3,6 @@ import { db } from '/src/data'
 import { sql } from 'kysely'
 import { read, clear } from '/src/auth/cookie'
 import { remove } from '/src/auth/session'
-import { emit } from '/src/server'
 
 const unreadCount = async (userId: number) => {
 
@@ -22,16 +21,15 @@ const unreadCount = async (userId: number) => {
 	return Number(row?.count ?? 0)
 }
 
+export const deps = ['messages', 'participants', ':user']
+
 export async function layout(req: Request) {
 	const unread = await unreadCount(req.user!.id)
 	return { user: req.user, unread }
 }
 
 export const events = {
-	unread: async (req: Request) => {
-		const unread = await unreadCount(req.user!.id)
-		return { unread }
-	}
+	unread: async (req: Request) => ({ unread: await unreadCount(req.user!.id) })
 }
 
 export const actions = {
@@ -39,7 +37,6 @@ export const actions = {
 		const token = read(req)
 		if (token) await remove(token)
 		clear(res)
-		emit('activity')
 		return { redirect: '/login' }
 	}
 }

@@ -7,7 +7,7 @@ import send from '@polka/send'
 import { parse } from 'regexparam'
 import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths, cacheKeys, reGroup } from '/src/app'
 import { AppError, links, ancestors, normalize, ajax, api, sum, pack } from '/src/constants'
-import { snapshot } from '/src/data'
+import { snapshot, tap } from '/src/data'
 import type { State, Data, Entry, Page, Parent } from '/src/constants'
 import { merge, render as renderHead, type Head } from '/src/head'
 
@@ -422,6 +422,36 @@ export async function create(template: Template) {
 			}
 		}
 	}
+
+	// Auto-emit: table writes → event broadcasts (debounced per microtask)
+
+	const binds = new Map<string, Set<string>>()
+
+	for (const [, handler] of handlers) if (handler.events && handler.deps) {
+
+		const tables = handler.deps.filter(d => !d.startsWith(':'))
+
+		for (const table of tables) {
+			if (!binds.has(table)) binds.set(table, new Set())
+			for (const name of Object.keys(handler.events)) binds.get(table)!.add(name)
+		}
+	}
+
+	const pending = new Set<string>()
+
+	tap(table => {
+
+		const names = binds.get(table)
+
+		if (!names) return
+
+		if (!pending.size) queueMicrotask(() => {
+			pending.forEach(name => emit(name))
+			pending.clear()
+		})
+
+		names.forEach(name => pending!.add(name))
+	})
 
 	// SSE middleware - intercepts EventSource requests (Accept: text/event-stream)
 

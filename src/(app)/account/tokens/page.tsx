@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '/src/constants'
+import { type PageArgs, formatDate } from '/src/constants'
 import { action, subscribe } from '/src/client'
 import Checkbox from '/src/ui/checkbox'
 
@@ -15,11 +15,7 @@ type Data = { tokens: Token[] }
 type CreateResult = { token: string }
 type RevokeResult = { revoked: boolean }
 
-function formatDate(iso: string) {
-	return new Date(iso).toLocaleDateString(undefined, {
-		month: 'short', day: 'numeric'
-	})
-}
+const shortDate = { month: 'short', day: 'numeric' } as const
 
 const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 
@@ -148,7 +144,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 												</span>
 											</td>
 											<td class="px-4 py-3 text-slate-500 dark:text-slate-400">
-												{token.last ? formatDate(token.last) : 'Never'}
+												{token.last ? formatDate(token.last, shortDate) : 'Never'}
 											</td>
 											<td class="px-6 py-3 text-right">
 												<form set:onsubmit={revokeForm.handle}>
