@@ -1,30 +1,14 @@
 import type { Request } from 'polka'
 import { db } from '/src/data'
+import { sql } from 'kysely'
 import { emit } from '/src/server'
-import { NotFoundError, ForbiddenError } from '/src/constants'
+import { NotFoundError } from '/src/constants'
 
-export const deps = ['chats', 'participants', 'messages', ':user']
-
-// Verify user is participant
-async function verify(req: Request) {
-
-	const chatId = Number(req.params.id)
-
-	const participant = await db()
-		.selectFrom('participants')
-		.where('chat', '=', chatId)
-		.where('user', '=', req.user!.id)
-		.select('user')
-		.executeTakeFirst()
-
-	if (!participant) throw new ForbiddenError('Not a participant')
-
-	return chatId
-}
+export const deps = []
 
 export async function page(req: Request) {
 
-	const chatId = await verify(req)
+	const chatId = Number(req.params.id)
 
 	const chat = await db()
 		.selectFrom('chats')
@@ -53,10 +37,17 @@ export async function page(req: Request) {
 		.execute()
 		.then(rows => rows.reverse())
 
+	// Mark chat as seen
+	await db()
+		.updateTable('participants')
+		.set({ seen: sql`CURRENT_TIMESTAMP` })
+		.where('chat', '=', chatId)
+		.where('user', '=', req.user!.id)
+		.execute()
+
 	return { chat, participants, messages, me: req.user!.id }
 }
 
-// Events - real-time updates
 export const events = {
 
 	messages: async (req: Request) => {
@@ -73,16 +64,27 @@ export const events = {
 			.execute()
 			.then(rows => rows.reverse())
 
+		// Mark as seen while viewing
+		await db()
+			.updateTable('participants')
+			.set({ seen: sql`CURRENT_TIMESTAMP` })
+			.where('chat', '=', chatId)
+			.where('user', '=', req.user!.id)
+			.execute()
+
+		// Notify users viewing the chat list or other pages
+		emit('chats')
+		emit('unread')
+
 		return { messages }
 	}
 }
 
-// Actions
 export const actions = {
 
 	send: async (req: Request) => {
 
-		const chatId = await verify(req)
+		const chatId = Number(req.params.id)
 		const { text } = req.body as { text: string }
 
 		if (!text?.trim()) throw new Error('Message cannot be empty')
@@ -98,6 +100,7 @@ export const actions = {
 
 		// Emit to all clients viewing this chat
 		emit('messages', { id: String(chatId) })
+		emit('activity')
 
 		return { ok: true }
 	}

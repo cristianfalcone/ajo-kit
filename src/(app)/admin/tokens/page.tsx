@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, navigate } from '/src/constants'
-import { action, invalidate } from '/src/client'
+import type { PageArgs } from '/src/constants'
+import { action, subscribe } from '/src/client'
 
 type Token = {
 	id: string
@@ -26,15 +26,14 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 
 	const form = action<FormResult>()
 
+	let tokens = args.data?.tokens ?? []
+
+	subscribe<Data>('tokens', ({ data, error }) => {
+		if (error) return
+		tokens = data!.tokens
+	})
+
 	while (true) {
-
-		if (form.data?.revoked) {
-			invalidate('tokens')
-			navigate('/admin/tokens')
-			return
-		}
-
-		const tokens = args.data?.tokens ?? []
 
 		yield (
 			<div class="space-y-6">
@@ -44,20 +43,20 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 				</div>
 
 				{tokens.length === 0 ? (
-					<div class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
+					<div class="glass rounded-lg p-8 text-center">
 						<span class="i-lucide-key w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
 						<p class="text-slate-500 dark:text-slate-400">No API tokens created yet</p>
 					</div>
 				) : (
-					<div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+					<div class="glass ring-0 rounded-lg overflow-hidden">
 						<table class="w-full text-sm">
-							<thead class="bg-slate-50 dark:bg-slate-700/50">
+							<thead>
 								<tr>
-									<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Token</th>
-									<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">User</th>
-									<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Abilities</th>
-									<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Last Used</th>
-									<th class="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">Actions</th>
+									<th>Token</th>
+									<th>User</th>
+									<th>Abilities</th>
+									<th>Last Used</th>
+									<th class="text-right">Actions</th>
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-slate-200 dark:divide-slate-700">

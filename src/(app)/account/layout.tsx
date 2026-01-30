@@ -1,15 +1,24 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
 import type { LayoutArgs } from '/src/constants'
+import { subscribe } from '/src/client'
 
 const links: [string, string, string][] = [
-	['/settings/profile', 'Profile', 'i-lucide-user'],
-	['/settings/sessions', 'Sessions', 'i-lucide-monitor'],
-	['/settings/tokens', 'API Tokens', 'i-lucide-key'],
-	['/settings/delete', 'Delete Account', 'i-lucide-trash-2'],
+	['/account/profile', 'Profile', 'i-lucide-user'],
+	['/account/chats', 'Chats', 'i-lucide-message-circle'],
+	['/account/sessions', 'Sessions', 'i-lucide-monitor'],
+	['/account/tokens', 'API Tokens', 'i-lucide-key'],
+	['/account/delete', 'Delete Account', 'i-lucide-trash-2'],
 ]
 
-const SettingsLayout: Stateful<LayoutArgs> = function* (args) {
+const AccountLayout: Stateful<LayoutArgs<{ unread: number }>> = function* (args) {
+
+	let unread = args.data?.unread ?? 0
+
+	subscribe<{ unread: number }>('unread', ({ data, error }) => {
+		if (error) return
+		unread = data!.unread
+	})
 
 	while (true) {
 		const url = globalThis.location?.pathname ?? '/'
@@ -19,7 +28,7 @@ const SettingsLayout: Stateful<LayoutArgs> = function* (args) {
 				<aside class="lg:w-56 shrink-0">
 					<nav class="flex lg:flex-col gap-1">
 						{links.map(([path, label, icon]) => {
-							const active = url === path
+							const active = url === path || url.startsWith(path + '/')
 							return (
 								<a
 									key={path}
@@ -27,13 +36,18 @@ const SettingsLayout: Stateful<LayoutArgs> = function* (args) {
 									class={clsx([
 										'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
 										active
-											? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300'
+											? 'bg-accent/10 text-primary dark:bg-accent/15 dark:text-accent'
 											: 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5',
 										path.includes('delete') && !active && 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10'
 									])}
 								>
 									<span class={clsx(icon, 'w-5 h-5')} />
 									{label}
+									{path === '/account/chats' && unread > 0 && (
+										<span class="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold bg-red-500 text-white">
+											{unread}
+										</span>
+									)}
 								</a>
 							)
 						})}
@@ -47,4 +61,4 @@ const SettingsLayout: Stateful<LayoutArgs> = function* (args) {
 	}
 }
 
-export default SettingsLayout
+export default AccountLayout

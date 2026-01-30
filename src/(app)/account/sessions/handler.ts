@@ -2,6 +2,7 @@ import type { Request } from 'polka'
 import { object, string } from 'valibot'
 import { read } from '/src/auth/cookie'
 import { db, parse } from '/src/data'
+import { emit } from '/src/server'
 
 export const deps = ['sessions', ':user']
 
@@ -53,6 +54,8 @@ export const actions = {
 			.where('id', '=', session.id)
 			.execute()
 
+		emit('activity')
+
 		return { revoked: true }
 	},
 
@@ -65,6 +68,8 @@ export const actions = {
 			.where('user', '=', req.user!.id)
 			.where('id', '!=', current!)
 			.execute()
+
+		emit('activity')
 
 		return { revoked: Number(result[0].numDeletedRows) }
 	}

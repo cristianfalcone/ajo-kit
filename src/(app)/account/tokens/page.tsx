@@ -1,6 +1,7 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, navigate } from '/src/constants'
-import { action, invalidate } from '/src/client'
+import type { PageArgs } from '/src/constants'
+import { action, subscribe } from '/src/client'
+import Checkbox from '/src/ui/checkbox'
 
 type Token = {
 	id: string
@@ -25,15 +26,14 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 	const createForm = action<CreateResult>('make')
 	const revokeForm = action<RevokeResult>('revoke')
 
+	let tokens = args.data?.tokens ?? []
+
+	subscribe<Data>('tokens', ({ data, error }) => {
+		if (error) return
+		tokens = data!.tokens
+	})
+
 	while (true) {
-
-		if (revokeForm.data?.revoked) {
-			invalidate('tokens')
-			navigate('/settings/tokens')
-			revokeForm.reset()
-		}
-
-		const tokens = args.data?.tokens ?? []
 
 		yield (
 			<div class="space-y-8">
@@ -61,8 +61,6 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 									if (createForm.data?.token) {
 										navigator.clipboard.writeText(createForm.data.token)
 									}
-									invalidate('tokens')
-									navigate('/settings/tokens')
 									createForm.reset()
 								}}
 								class="px-3 py-2 bg-green-700 hover:bg-green-800 dark:bg-green-800 dark:hover:bg-green-900 text-white text-sm font-medium rounded-r transition-colors whitespace-nowrap"
@@ -73,7 +71,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 					</div>
 				)}
 
-				<div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+				<div class="glass rounded-lg p-6">
 					<h2 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">
 						Create New Token
 					</h2>
@@ -88,7 +86,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 								name="name"
 								required
 								placeholder="e.g., CI/CD Pipeline"
-								class="w-full max-w-sm px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+								class="w-full max-w-sm input"
 								disabled={createForm.loading}
 							/>
 						</div>
@@ -102,10 +100,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 							</p>
 							<div class="flex flex-wrap gap-3">
 								{['read', 'write', 'delete'].map(ability => (
-									<label key={ability} class="inline-flex items-center gap-1.5">
-										<input type="checkbox" name="abilities" value={ability} class="rounded" />
-										<span class="text-sm text-slate-700 dark:text-slate-300">{ability}</span>
-									</label>
+									<Checkbox key={ability} name="abilities" value={ability} label={ability} />
 								))}
 							</div>
 						</div>
@@ -117,7 +112,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 						<button
 							type="submit"
 							disabled={createForm.loading}
-							class="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white font-medium rounded-lg transition"
+							class="btn"
 						>
 							{createForm.loading ? 'Creating...' : 'Create Token'}
 						</button>
@@ -125,19 +120,19 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 				</div>
 
 				{tokens.length > 0 && (
-					<div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+					<div class="glass ring-0 rounded-lg overflow-hidden">
 						<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
 							<h2 class="text-lg font-semibold text-slate-900 dark:text-white">
 								Existing Tokens
 							</h2>
 						</div>
 						<table class="w-full text-sm">
-								<thead class="bg-slate-50 dark:bg-slate-700/50">
+								<thead>
 									<tr>
-										<th class="px-6 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Token</th>
-										<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Abilities</th>
-										<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Last Used</th>
-										<th class="px-6 py-3 text-right font-medium text-slate-600 dark:text-slate-300">Actions</th>
+										<th class="px-6">Token</th>
+										<th>Abilities</th>
+										<th>Last Used</th>
+										<th class="px-6 text-right">Actions</th>
 									</tr>
 								</thead>
 								<tbody class="divide-y divide-slate-200 dark:divide-slate-700">

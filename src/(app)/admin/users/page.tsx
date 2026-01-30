@@ -27,14 +27,14 @@ export default function Users({ data }: PageArgs<Data>) {
 				<span class="text-sm text-slate-500 dark:text-slate-400">{users.length} total</span>
 			</div>
 
-			<div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+			<div class="glass ring-0 rounded-lg overflow-hidden">
 				<table class="w-full text-sm">
-					<thead class="bg-slate-50 dark:bg-slate-700/50">
+					<thead>
 						<tr>
-							<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">User</th>
-							<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Role</th>
-							<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Verified</th>
-							<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Created</th>
+							<th>User</th>
+							<th>Role</th>
+							<th>Verified</th>
+							<th>Created</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200 dark:divide-slate-700">
@@ -47,8 +47,8 @@ export default function Users({ data }: PageArgs<Data>) {
 								<td class="px-4 py-3">
 									<span class={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
 										user.role === 'admin'
-											? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300'
-											: 'bg-slate-100 text-slate-600 dark:bg-slate-600 dark:text-slate-300'
+											? 'bg-primary text-white dark:bg-accent dark:text-primary'
+											: 'bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300'
 									}`}>
 										{user.role ?? 'none'}
 									</span>

@@ -57,6 +57,7 @@ export interface ParticipantsTable {
 	chat: number
 	user: number
 	joined: Generated<string>
+	seen: string | null
 }
 
 export interface MessagesTable {

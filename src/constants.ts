@@ -133,7 +133,9 @@ export type ActionState<T> = {
 
 // Events (SSE)
 
-export type EventCallback<T = Entry> = (payload: T) => void
+export type EventState<T = Entry> = { data: T | null; error: Entry | null }
+
+export type EventCallback<T = Entry> = (state: EventState<T>) => void
 
 // Page and layout args
 
@@ -209,7 +211,7 @@ declare module 'polka' {
 		token?: { abilities: string[] }
 		action?: Action
 		data?: (Head | Entry | null)[]
-		sums?: string[]
+		sums?: (string | null)[]
 		versions?: Record<string, number>
 	}
 }

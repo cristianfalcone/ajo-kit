@@ -26,7 +26,7 @@ const Reset: Stateful<PageArgs<Data>> = function* (args) {
 							This reset link is invalid or has expired.
 						</p>
 					</div>
-					<a href="/forgot" class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 font-medium">
+					<a href="/forgot" class="text-accent hover:text-primary dark:text-accent dark:hover:text-accent/70 font-medium">
 						Request a new link
 					</a>
 				</div>
@@ -42,7 +42,7 @@ const Reset: Stateful<PageArgs<Data>> = function* (args) {
 							required
 							minlength={8}
 							autocomplete="new-password"
-							class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+							class="w-full input"
 							disabled={form.loading}
 						/>
 						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -60,7 +60,7 @@ const Reset: Stateful<PageArgs<Data>> = function* (args) {
 							required
 							minlength={8}
 							autocomplete="new-password"
-							class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+							class="w-full input"
 							disabled={form.loading}
 						/>
 					</div>
@@ -72,7 +72,7 @@ const Reset: Stateful<PageArgs<Data>> = function* (args) {
 					<button
 						type="submit"
 						disabled={form.loading}
-						class="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white font-medium rounded-lg transition shadow hover:shadow-lg"
+						class="w-full btn py-2.5 shadow hover:shadow-lg"
 					>
 						{form.loading ? 'Resetting...' : 'Reset Password'}
 					</button>

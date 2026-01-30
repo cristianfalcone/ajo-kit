@@ -22,7 +22,7 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 				</h1>
 			</div>
 
-			<div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+			<div class="glass rounded-lg p-6">
 				<h2 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">
 					Update Name
 				</h2>
@@ -36,7 +36,7 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 							type="text"
 							name="name"
 							value={nameForm.data?.name ?? user?.name ?? ''}
-							class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+							class="w-full input"
 							disabled={nameForm.loading}
 						/>
 					</div>
@@ -52,14 +52,14 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 					<button
 						type="submit"
 						disabled={nameForm.loading}
-						class="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white font-medium rounded-lg transition"
+						class="btn"
 					>
 						{nameForm.loading ? 'Saving...' : 'Save Name'}
 					</button>
 				</form>
 			</div>
 
-			<div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+			<div class="glass rounded-lg p-6">
 				<h2 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">
 					Change Password
 				</h2>
@@ -74,7 +74,7 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 							name="current"
 							required
 							autocomplete="current-password"
-							class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+							class="w-full input"
 							disabled={passwordForm.loading}
 						/>
 					</div>
@@ -89,7 +89,7 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 							required
 							minlength={8}
 							autocomplete="new-password"
-							class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+							class="w-full input"
 							disabled={passwordForm.loading}
 						/>
 						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -107,7 +107,7 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 							required
 							minlength={8}
 							autocomplete="new-password"
-							class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+							class="w-full input"
 							disabled={passwordForm.loading}
 						/>
 					</div>
@@ -123,7 +123,7 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 					<button
 						type="submit"
 						disabled={passwordForm.loading}
-						class="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white font-medium rounded-lg transition"
+						class="btn"
 					>
 						{passwordForm.loading ? 'Changing...' : 'Change Password'}
 					</button>

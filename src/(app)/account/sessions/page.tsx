@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '/src/constants'
+import { type PageArgs, navigate } from '/src/constants'
 import { action, invalidate } from '/src/client'
 
 type Session = {
@@ -48,8 +48,8 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 
 		if (revokeForm.data?.revoked || revokeAllForm.data?.revoked) {
 			invalidate('sessions')
-			revokeForm.reset()
-			revokeAllForm.reset()
+			navigate('/account/sessions')
+			return
 		}
 
 		const sessions = args.data?.sessions ?? []
@@ -83,7 +83,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 					{sessions.map(session => {
 						const device = parse(session.agent)
 						return (
-							<div key={session.id} class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 flex items-center justify-between">
+							<div key={session.id} class="glass rounded-lg p-4 flex items-center justify-between">
 								<div class="flex items-center gap-4">
 									<div class="i-lucide-monitor w-8 h-8 text-slate-400" />
 									<div>
@@ -106,10 +106,11 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 										<input type="hidden" name="id" value={session.id} />
 										<button
 											type="submit"
+											title="Revoke this session"
 											disabled={revokeForm.loading}
-											class="text-sm text-red-600 hover:text-red-500 dark:text-red-400"
+											class="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
 										>
-											Revoke
+											<span class="i-lucide-x w-4 h-4 block" />
 										</button>
 									</form>
 								)}

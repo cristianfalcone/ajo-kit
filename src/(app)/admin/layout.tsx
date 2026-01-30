@@ -17,7 +17,7 @@ const AdminLayout: Stateful<LayoutArgs> = function* (args) {
 		yield (
 			<div class="py-8">
 				<div class="flex items-center gap-3 mb-8">
-					<span class="i-lucide-shield-check w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+					<span class="i-lucide-shield-check w-6 h-6 text-primary dark:text-accent" />
 					<h1 class="text-2xl font-bold text-slate-900 dark:text-white">Admin</h1>
 				</div>
 
@@ -33,7 +33,7 @@ const AdminLayout: Stateful<LayoutArgs> = function* (args) {
 										class={clsx([
 											'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
 											active
-												? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300'
+												? 'bg-accent/10 text-primary dark:bg-accent/15 dark:text-accent'
 												: 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'
 										])}
 									>

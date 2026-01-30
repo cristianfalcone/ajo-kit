@@ -11,13 +11,14 @@ import type {
 	Loader,
 	Page,
 	State,
-	Cached
+	Cached,
+	EventState
 } from '/src/constants'
 import { merge, apply, type Head } from '/src/head'
 
 // Pattern compilation
 
-const reGroup = /^\(.*\)$/
+export const reGroup = /^\(.*\)$/
 const reDynamic = /^\[(.+?)\]$/
 
 export const toPattern = (segments: string[]) =>
@@ -40,9 +41,9 @@ export const ssr = new Map<string, State>()
 
 export const cache = new Map<string, Cached>()
 
-// Event callbacks: name → Set<callback>
+// Event subscribers: name → Set<callback>
 
-export const callbacks = new Map<string, Set<(payload: Entry) => void>>()
+export const subscribers = new Map<string, Set<(state: EventState) => void>>()
 
 export const error: () => Page = () => ({
 	segments: [''],
@@ -207,6 +208,7 @@ export async function* resolve(
 			.join(',')
 
 		const response = await fetch(url, {
+			credentials: 'include',
 			headers: {
 				Accept: 'application/json',
 				...(have && { 'X-Have': have })
@@ -222,11 +224,11 @@ export async function* resolve(
 
 		const { data: raw, sums } = json as {
 			data: (Head | Entry | null)[]
-			sums: string[]
+			sums: (string | null)[]
 		}
 
 		raw.forEach((item, i) => {
-			if (item !== null) cache.set(keys[i], { value: item, sum: sums[i] })
+			if (item !== null) cache.set(keys[i], { value: item, sum: sums[i]! })
 		})
 
 		const merged = raw.map((item, i) => item ?? cache.get(keys[i])?.value ?? {})
@@ -320,35 +322,52 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	let hmr = false
 
-	const sse = { source: null as EventSource | null }
+	const sse = { source: null as EventSource | null, retries: 0 }
 
 	const connect = (path: string) => {
 
 		sse.source?.close()
-		callbacks.clear()
 
-		sse.source = new EventSource(`/sse?path=${encodeURIComponent(path)}`)
+		sse.source = new EventSource(path)
+
+		sse.source.onopen = () => { sse.retries = 0 }
 
 		sse.source.onmessage = (e) => {
-			const { event, payload } = JSON.parse(e.data)
-			callbacks.get(event)?.forEach(fn => fn(payload))
+			const { event, data, error } = JSON.parse(e.data)
+			subscribers.get(event)?.forEach(fn => fn({ data, error }))
 		}
 
 		sse.source.onerror = () => {
+
 			sse.source?.close()
-			setTimeout(() => connect(path), 1000)
+
+			// Exponential backoff with jitter: 1s, 2s, 4s, 8s... max 30s
+			const base = Math.min(1000 * 2 ** sse.retries, 30_000)
+			const jitter = base * Math.random()
+			sse.retries++
+
+			setTimeout(() => connect(path), base + jitter)
 		}
 	}
 
 	const go = async (page: Page) => {
 
-		if (!hmr) connect(location.pathname)
+		// Disconnect previous SSE
+
+		sse.source?.close()
+		sse.source = null
+		sse.retries = 0
+		subscribers.clear()
 
 		for await (const state of resolve(location.pathname, layouts, page)) {
 			if (hmr && !state.data) continue // Skip loading state during HMR
 			this.next(() => Page = state.Page)
 			if (state.data?.head) apply(state.data.head)
 		}
+
+		// Connect SSE only if page registered event subscribers
+
+		if (!hmr && subscribers.size > 0) connect(location.pathname)
 
 		if (!hmr) requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
 

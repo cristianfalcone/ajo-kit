@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import type { Stateful } from 'ajo'
 import type { User, LayoutArgs, ActionState } from '/src/constants'
 import { ThemeContext } from '/src/constants'
-import { action } from '/src/client'
+import { action, subscribe } from '/src/client'
 
 type LinkOptions = { exact?: boolean, include?: string[] }
 
@@ -16,18 +16,24 @@ const isActive = (path: string, url: string, options?: LinkOptions): boolean => 
 	return false
 }
 
-const AppLayout: Stateful<LayoutArgs<{ user: User }>> = function* (args) {
+const AppLayout: Stateful<LayoutArgs<{ user: User; unread: number }>> = function* (args) {
 
 	const signout = action<void>('signout')
+
+	let unread = args.data?.unread ?? 0
+
+	subscribe<{ unread: number }>('unread', ({ data, error }) => {
+		if (error) return
+		unread = data!.unread
+	})
 
 	while (true) {
 		yield (
 			<>
-				<Nav user={args.data!.user} signout={signout} />
+				{args.data?.user && <Nav user={args.data.user} unread={unread} signout={signout} />}
 				<main class="site-container flex-1 flex flex-col">
 					{args.children}
 				</main>
-				<Footer />
 			</>
 		)
 	}
@@ -37,29 +43,24 @@ AppLayout.attrs = { class: 'flex-1 flex flex-col' }
 
 export default AppLayout
 
-const Nav = ({ user, signout }: { user: User, signout: ActionState<void> }) => {
+const Nav = ({ user, unread, signout }: { user: User, unread: number, signout: ActionState<void> }) => {
 
 	const url = globalThis.location?.pathname ?? '/'
 
 	const linkClass = (active: boolean) => clsx([
-		'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60',
+		'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60',
 		active
 			? 'bg-slate-900/5 text-slate-900 dark:bg-white/10 dark:text-white'
 			: 'text-slate-600 hover:text-slate-900 hover:bg-slate-900/5 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10'
 	])
 
 	return (
-		<nav class="sticky top-0 z-40" memo={[url, user.id, signout.loading].join(':')}>
+		<nav class="sticky top-0 z-40">
 			<div class="backdrop-blur border-b shadow-[0_2px_4px_-2px_rgba(0,0,0,0.08)] bg-white/80 supports-[backdrop-filter]:bg-white/60 border-slate-200 dark:supports-[backdrop-filter]:bg-black/40 dark:bg-black/70 dark:border-white/10 dark:shadow-[0_2px_4px_-2px_rgba(0,0,0,0.4)] transition-colors">
 				<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div class="flex h-14 items-center">
-						{/* Logo */}
-						<a href="/dashboard" class="focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 rounded-sm">
-							<span class="font-semibold tracking-tight text-sm text-slate-900 dark:text-white">ajo<span class="text-indigo-600 dark:text-indigo-400">‑kit</span></span>
-						</a>
-
-						{/* Center links */}
-						<div class="flex-1 flex items-center justify-center gap-1">
+						{/* Nav links */}
+						<div class="flex items-center gap-1">
 							{links.map(([path, label, icon, options]) => {
 								const active = isActive(path, url, options)
 								return (
@@ -78,20 +79,30 @@ const Nav = ({ user, signout }: { user: User, signout: ActionState<void> }) => {
 							)}
 						</div>
 
-						{/* Auth */}
-						<div class="flex items-center gap-1">
-							<a href="/settings/profile" class={linkClass(url.startsWith('/settings'))}>
+						{/* Right side */}
+						<div class="ml-auto flex items-center gap-1">
+							<ThemeToggle />
+							<div class="w-px h-5 bg-slate-200 dark:bg-white/10 mx-1" />
+							<a href="/account/profile" class={linkClass(url.startsWith('/account'))}>
 								<span class="i-lucide-settings w-4 h-4" />
 								{user.name || user.email}
+								{unread > 0 && (
+									<span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold bg-red-500 text-white">
+										{unread}
+									</span>
+								)}
 							</a>
 							<form set:onsubmit={signout.handle} class="inline">
 								<button
 									type="submit"
 									disabled={signout.loading}
-									class={clsx([linkClass(false), signout.loading && 'opacity-50'])}
+									title="Logout"
+									class={clsx([
+										'flex items-center justify-center w-7 h-7 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-900/5 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10 transition-colors',
+										signout.loading && 'opacity-50'
+									])}
 								>
 									<span class="i-lucide-log-out w-4 h-4" />
-									{signout.loading ? 'Signing out...' : 'Logout'}
 								</button>
 							</form>
 						</div>
@@ -102,33 +113,17 @@ const Nav = ({ user, signout }: { user: User, signout: ActionState<void> }) => {
 	)
 }
 
-const Footer = () => {
-
-	const year = new Date().getFullYear()
-
+const ThemeToggle = () => {
 	const { mode, cycle } = ThemeContext()
-
 	return (
-		<footer class="relative z-10 mt-12 border-t border-slate-200/70 dark:border-white/10 bg-slate-50/60 backdrop-blur dark:bg-transparent transition-colors">
-			<div class="site-container py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600 dark:text-gray-400">
-				<div class="flex items-center gap-2 font-medium tracking-wide">
-					<span class="inline-flex items-center justify-center h-6 w-6 rounded-md bg-indigo-500/10 dark:bg-indigo-500/15 text-pink-500 dark:text-pink-300 text-sm">♥</span>
-					<span class="text-slate-700/90 dark:text-gray-300/90">Made with <span class="text-pink-500 dark:text-pink-400">love</span> · <span class="text-indigo-600 dark:text-indigo-300">ajo‑kit</span></span>
-				</div>
-				<div class="flex items-center gap-4">
-					<div class="opacity-60 text-slate-500 dark:text-gray-400">© {year} All rights reserved.</div>
-					<button
-						aria-label="Change theme"
-						class="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium ring-1 ring-slate-300/70 dark:ring-white/15 bg-white/70 hover:bg-white dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-gray-200 transition"
-						set:onclick={cycle}
-					>
-						{mode === 'system' && <span class="i-lucide-monitor w-4 h-4" />}
-						{mode === 'light' && <span class="i-lucide-sun w-4 h-4" />}
-						{mode === 'dark' && <span class="i-lucide-moon w-4 h-4" />}
-						<span class="hidden sm:inline select-none">{mode === 'system' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</span>
-					</button>
-				</div>
-			</div>
-		</footer>
+		<button
+			aria-label="Change theme"
+			class="flex items-center justify-center w-7 h-7 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-900/5 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
+			set:onclick={cycle}
+		>
+			{mode === 'system' && <span class="i-lucide-monitor w-4 h-4" />}
+			{mode === 'light' && <span class="i-lucide-sun w-4 h-4" />}
+			{mode === 'dark' && <span class="i-lucide-moon w-4 h-4" />}
+		</button>
 	)
 }

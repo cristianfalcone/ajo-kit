@@ -1,8 +1,8 @@
 import 'virtual:uno.css'
 import { render } from 'ajo'
 import { current } from 'ajo/context'
-import App, { ssr, cache, callbacks } from '/src/app'
-import type { State, Entry, ActionState, EventCallback } from '/src/constants'
+import App, { ssr, cache, subscribers } from '/src/app'
+import type { State, Entry, ActionState, EventCallback, EventState } from '/src/constants'
 import type { Head } from '/src/head'
 import { navigate, unpack } from '/src/constants'
 
@@ -44,6 +44,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 
 			const response = await fetch(name ? `?/${name}` : '', {
 				method: 'POST',
+				credentials: 'include',
 				headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
 				body: JSON.stringify(body),
 				signal: controller.signal,
@@ -93,22 +94,23 @@ export function invalidate(key?: string) {
 
 // Event subscription helper
 
-export function event<T = Entry>(name: string, callback: EventCallback<T>) {
+export function subscribe<T = Entry>(name: string, callback: EventCallback<T>) {
 
 	const component = current()
 
-	const wrapped: EventCallback = (payload) => {
-		callback(payload as T)
+	const wrapped = (state: EventState) => {
+		callback(state as EventState<T>)
 		component.next()
 	}
 
-	if (!callbacks.has(name)) callbacks.set(name, new Set())
-	callbacks.get(name)!.add(wrapped)
+	if (!subscribers.has(name)) subscribers.set(name, new Set())
+
+	subscribers.get(name)!.add(wrapped)
 }
 
 if (!import.meta.env.SSR) {
 
-	type SSR = State & { keys?: string[]; sums?: string[] }
+	type SSR = State & { keys?: string[]; sums?: (string | null)[] }
 
 	const packed = (globalThis as { __SSR__?: string }).__SSR__
 	const data = packed ? unpack(packed) as SSR : undefined
@@ -124,7 +126,7 @@ if (!import.meta.env.SSR) {
 			const values = [data.head, ...data.data] as (Head | Entry)[]
 
 			data.keys.forEach((key, i) => {
-				if (values[i]) cache.set(key, { value: values[i], sum: data.sums![i] })
+				if (values[i] && data.sums![i]) cache.set(key, { value: values[i], sum: data.sums![i]! })
 			})
 		}
 	}

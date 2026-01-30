@@ -85,14 +85,12 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 	}
 }
 
-Layout.attrs = { class: 'min-h-screen flex flex-col bg-white text-slate-800 relative dark:bg-[#0a0f1c] dark:text-gray-100 transition-colors duration-300' }
+Layout.attrs = { class: 'min-h-screen flex flex-col bg-white text-slate-800 relative dark:bg-[#0e1a2e] dark:text-gray-100 transition-colors duration-300' }
 
 export default Layout
 
 const Wrapper = ({ children }: { children: Children }) => (
 	<>
-		<div class="pointer-events-none absolute inset-0 [background:radial-gradient(circle_at_20%_30%,rgba(99,102,241,.15),transparent_55%),radial-gradient(circle_at_80%_70%,rgba(236,72,153,.12),transparent_55%)]" />
-		<div class="pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-overlay [background-image:linear-gradient(rgba(255,255,255,.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.07)_1px,transparent_1px)]; [background-size:40px_40px]" />
 		<div class="flex-1 flex flex-col">
 			{children}
 		</div>
@@ -104,35 +102,37 @@ export const AppError = ({ error }: { error: Error }) => {
 	const isNotFound = 'status' in error && error.status === 404
 
 	return (
-		<div class="mx-auto px-4 py-12 sm:px-6 lg:px-8">
-			<div class="mx-auto max-w-5xl">
-				<div class="rounded-md bg-red-50 p-4 overflow-x-auto">
-					<div class="flex">
-						<div class={clsx(['flex-shrink-0', isNotFound ? 'text-yellow-400' : 'text-red-400'])}>
-							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-								{isNotFound ? (
-									<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-								) : (
-									<path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-								)}
-							</svg>
-						</div>
-						<div class="ml-3">
-							<h3 class={clsx(['text-sm font-medium', isNotFound ? 'text-yellow-800' : 'text-red-800'])}>
-								{error.message}
-							</h3>
-							<div class={clsx(['mt-2 text-sm', isNotFound ? 'text-yellow-700' : 'text-red-700'])}>
-								{isNotFound ? (
-									<p>The requested resource could not be found.</p>
-								) : (
-									<pre>
-										{import.meta.env.DEV ? error.stack ?? error.message : 'Application Error'}
-									</pre>
-								)}
-							</div>
-						</div>
-					</div>
+		<div class="flex-1 flex items-center justify-center px-4 py-16">
+			<div class="text-center max-w-md">
+				<div class={clsx('inline-flex items-center justify-center size-16 rounded-2xl mb-6 ring-1', isNotFound
+					? 'bg-amber-500/10 text-amber-400 ring-amber-500/20'
+					: 'bg-red-500/10 text-red-400 ring-red-500/20'
+				)}>
+					<div class={clsx('size-8', isNotFound ? 'i-lucide-search-x' : 'i-lucide-alert-triangle')} />
 				</div>
+				<h1 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+					{isNotFound ? 'Page not found' : error.message}
+				</h1>
+				<p class="text-slate-500 dark:text-gray-400 mb-8">
+					{isNotFound
+						? 'The page you are looking for doesn\u2019t exist or has been moved.'
+						: (import.meta.env.DEV ? '' : 'Something went wrong. Please try again later.')}
+				</p>
+				{import.meta.env.DEV && !isNotFound && (
+					<div class="text-left rounded-xl bg-white/5 ring-1 ring-white/10 mb-8 overflow-hidden">
+						<div class="flex items-center gap-2 px-4 py-2.5 border-b border-white/10">
+							<div class="i-lucide-code size-3.5 text-red-400/60" />
+							<span class="text-xs font-medium text-gray-400">Stack trace</span>
+						</div>
+						<pre class="text-xs text-red-400/80 p-4 overflow-auto max-h-48 leading-relaxed">
+							{error.stack ?? error.message}
+						</pre>
+					</div>
+				)}
+				<a href="/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 ring-1 ring-white/15 text-sm font-medium text-slate-700 dark:text-gray-200 hover:bg-white/20 transition">
+					<div class="i-lucide-home size-4" />
+					Back to home
+				</a>
 			</div>
 		</div>
 	)

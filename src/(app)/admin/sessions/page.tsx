@@ -61,15 +61,15 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 					<span class="text-sm text-slate-500 dark:text-slate-400">{sessions.length} active</span>
 				</div>
 
-				<div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+				<div class="glass ring-0 rounded-lg overflow-hidden">
 					<table class="w-full text-sm">
-						<thead class="bg-slate-50 dark:bg-slate-700/50">
+						<thead>
 							<tr>
-								<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">User</th>
-								<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Device</th>
-								<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">IP</th>
-								<th class="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Last Active</th>
-								<th class="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">Actions</th>
+								<th>User</th>
+								<th>Device</th>
+								<th>IP</th>
+								<th>Last Active</th>
+								<th class="text-right">Actions</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-slate-200 dark:divide-slate-700">

@@ -5,7 +5,7 @@ import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
 import { parse } from 'regexparam'
-import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths, cacheKeys } from '/src/app'
+import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths, cacheKeys, reGroup } from '/src/app'
 import { AppError, links, ancestors, normalize, ajax, api, sum, pack } from '/src/constants'
 import { snapshot } from '/src/data'
 import type { State, Data, Entry, Page, Parent } from '/src/constants'
@@ -30,10 +30,8 @@ export const emit = (name: string, params?: Record<string, unknown>) => {
 // SSE clients
 
 type SSEClient = {
-	path: string
-	params: Record<string, string>
-	user?: { id: number }
-	send: (data: { event: string; payload: Entry }) => void
+	req: Request
+	send: (data: Entry) => void
 }
 
 const clients = new Set<SSEClient>()
@@ -41,6 +39,10 @@ const clients = new Set<SSEClient>()
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head'
 
 type EventHandler = (req: Request) => Promise<Entry>
+
+type EventRegistration = { route: { pattern: RegExp, keys: string[] }, name: string, handler: EventHandler }
+
+const registrations: EventRegistration[] = []
 
 type PageHandler = {
 	page?: (req: Request, parent: Parent) => Promise<Entry>
@@ -247,7 +249,7 @@ export async function create(template: Template) {
 		)
 
 		req.data = optimized
-		req.sums = sums
+		req.sums = sums.map((s, i) => optimized[i] === null ? null : s)
 
 		next()
 	}
@@ -374,16 +376,20 @@ export async function create(template: Template) {
 
 		if (events) {
 
-			const route = parse(`/${pattern}`)
+			const trailing = reGroup.test(segments.at(-1) ?? '')
+			const route = parse(`/${trailing ? (pattern ? pattern + '/*' : '*') : pattern}`)
 
 			for (const [name, fn] of Object.entries(events as Record<string, EventHandler>)) {
+
+				registrations.push({ route, name, handler: fn })
+
 				on(name, async (params) => {
 
 					for (const client of clients) {
 
 						// Match client path against handler pattern
 
-						const match = route.pattern.exec(client.path)
+						const match = route.pattern.exec(client.req.path)
 
 						if (!match) continue
 
@@ -397,12 +403,14 @@ export async function create(template: Template) {
 
 						if (skip) continue
 
-						// Build minimal request for event handler
+						// Execute event handler with error handling
 
-						const req = { params: extracted, user: client.user } as Request
-						const payload = await fn(req)
-
-						client.send({ event: name, payload })
+						try {
+							const data = await fn(Object.assign(Object.create(client.req), { params: extracted }))
+							client.send({ event: name, data, error: null })
+						} catch (e) {
+							client.send({ event: name, data: null, error: normalize(e).toJSON() })
+						}
 					}
 				})
 			}
@@ -415,11 +423,27 @@ export async function create(template: Template) {
 		}
 	}
 
-	// SSE endpoint
+	// SSE middleware - intercepts EventSource requests (Accept: text/event-stream)
 
-	app.get('/sse', ...collect([]), (req, res) => {
+	const SSE_MAX_PER_USER = 5
+	const SSE_HEARTBEAT_MS = 30_000
 
-		const path = new URL(req.originalUrl, `http://${req.headers.host}`).searchParams.get('path') ?? '/'
+	const sse: Middleware = (req, res, next) => {
+
+		if (req.headers.accept !== 'text/event-stream') return next()
+
+		// Per-user connection limits
+
+		if (req.user) {
+
+			const count = [...clients].filter(c => c.req.user?.id === req.user!.id).length
+
+			if (count >= SSE_MAX_PER_USER) {
+				res.writeHead(429)
+				res.end()
+				return
+			}
+		}
 
 		res.writeHead(200, {
 			'Content-Type': 'text/event-stream',
@@ -430,16 +454,41 @@ export async function create(template: Template) {
 		res.flushHeaders()
 
 		const client: SSEClient = {
-			path,
-			params: {},
-			user: req.user,
+			req,
 			send: (data) => res.write(`data: ${JSON.stringify(data)}\n\n`)
 		}
 
 		clients.add(client)
 
-		req.socket?.on('close', () => clients.delete(client))
-	})
+		// Send initial event data
+
+		for (const { route, name, handler } of registrations) {
+
+			const match = route.pattern.exec(client.req.path)
+
+			if (!match) continue
+
+			const extracted = route.keys.reduce((acc, key, i) => ({ ...acc, [key]: match[i + 1] }), {} as Record<string, string>)
+
+			handler(Object.assign(Object.create(client.req), { params: extracted }))
+				.then(data => client.send({ event: name, data, error: null }))
+				.catch(e => client.send({ event: name, data: null, error: normalize(e).toJSON() }))
+		}
+
+		// Heartbeat to detect dead connections
+
+		const heartbeat = setInterval(() => {
+			if (!res.write(':heartbeat\n\n')) {
+				clearInterval(heartbeat)
+				clients.delete(client)
+			}
+		}, SSE_HEARTBEAT_MS)
+
+		req.socket?.on('close', () => {
+			clearInterval(heartbeat)
+			clients.delete(client)
+		})
+	}
 
 	// Register pages
 
@@ -449,7 +498,7 @@ export async function create(template: Template) {
 		const path = `/${pattern || ''}`
 		const wares = collect(segments)
 
-		app.get(path, json(), ...wares, data(page), (req, res) => render(req, res, page))
+		app.get(path, json(), ...wares, sse, data(page), (req, res) => render(req, res, page))
 		app.post(path, action(segments), json(), ...wares, invoke())
 	}
 

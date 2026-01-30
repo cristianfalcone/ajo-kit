@@ -24,7 +24,7 @@ const VerifyResult: Stateful<PageArgs<Data>> = function* (args) {
 						<div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
 							<p class="text-red-800 dark:text-red-200">{error}</p>
 						</div>
-						<a href="/verify" class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 font-medium">
+						<a href="/verify" class="text-accent hover:text-primary dark:text-accent dark:hover:text-accent/70 font-medium">
 							Request a new verification link
 						</a>
 					</>
@@ -35,7 +35,7 @@ const VerifyResult: Stateful<PageArgs<Data>> = function* (args) {
 								Your email has been verified!
 							</p>
 						</div>
-						<a href="/dashboard" class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 font-medium">
+						<a href="/dashboard" class="text-accent hover:text-primary dark:text-accent dark:hover:text-accent/70 font-medium">
 							Go to dashboard
 						</a>
 					</>

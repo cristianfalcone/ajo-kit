@@ -38,7 +38,7 @@ const Verify: Stateful<PageArgs> = function* () {
 					<button
 						type="submit"
 						disabled={form.loading}
-						class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 font-medium disabled:opacity-50"
+						class="text-accent hover:text-primary dark:text-accent dark:hover:text-accent/70 font-medium disabled:opacity-50"
 					>
 						{form.loading ? 'Sending...' : "Didn't receive the email? Click to resend"}
 					</button>

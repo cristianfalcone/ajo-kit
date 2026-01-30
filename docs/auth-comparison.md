@@ -1004,7 +1004,7 @@ Everything from Fortify plus:
 **Implementation path for Ajo-kit:**
 1. Install `otplib` or `speakeasy`
 2. Add `two_factor_secret` and `two_factor_confirmed` columns to `users`
-3. Create `/settings/2fa` page with QR code
+3. Create `/account/2fa` page with QR code
 4. Add recovery codes table
 5. Modify login flow to check for 2FA
 
@@ -1485,7 +1485,7 @@ To achieve **full parity** with Laravel Jetstream, Ajo-kit would need:
 ### Phase 1: Two-Factor Authentication
 - [ ] Install `otplib` or `speakeasy`
 - [ ] Add `two_factor_secret`, `two_factor_confirmed` columns
-- [ ] Create `/settings/2fa` setup page with QR code
+- [ ] Create `/account/2fa` setup page with QR code
 - [ ] Add recovery codes table
 - [ ] Modify login flow to prompt for TOTP code
 - [ ] Implement recovery code validation
@@ -1522,7 +1522,7 @@ To achieve **full parity** with Laravel Jetstream, Ajo-kit would need:
 - [ ] Add `avatar` column to `users` (path or URL)
 - [ ] Implement file upload handler
 - [ ] Integrate image processing (resize, crop)
-- [ ] Add `/settings/profile` photo upload UI
+- [ ] Add `/account/profile` photo upload UI
 - [ ] Implement storage (local or S3)
 
 **Effort**: ~4-6 hours

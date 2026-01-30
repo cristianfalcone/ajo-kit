@@ -7,6 +7,7 @@ import { create as createToken } from '/src/auth/token'
 import { write } from '/src/auth/cookie'
 import { check, hit, clear } from '/src/auth/limit'
 import { db, parse, email } from '/src/data'
+import { emit } from '/src/server'
 import { UnauthorizedError, AppError, ip } from '/src/constants'
 
 const checkbox = pipe(unknown(), transform(v => v === 'true' || v === true))
@@ -50,6 +51,7 @@ export const actions = {
 		const token = await create(user.id, input.remember, addr, agent)
 
 		write(res, token, input.remember)
+		emit('activity')
 
 		return { redirect: '/dashboard' }
 	}

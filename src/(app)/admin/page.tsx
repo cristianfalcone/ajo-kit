@@ -24,11 +24,11 @@ export default function Overview({ data }: PageArgs<Data>) {
 					<a
 						key={key}
 						href={href}
-						class="bg-white dark:bg-slate-800 rounded-lg shadow p-6 hover:shadow-md transition-shadow"
+						class="glass rounded-lg p-6 hover:shadow-md transition-shadow"
 					>
 						<div class="flex items-center gap-4">
-							<div class="p-3 bg-indigo-50 dark:bg-indigo-500/15 rounded-lg">
-								<span class={`${icon} w-6 h-6 text-indigo-600 dark:text-indigo-400`} />
+							<div class="p-3 bg-accent/10 dark:bg-accent/15 rounded-lg">
+								<div class={`${icon} w-6 h-6 text-accent`} />
 							</div>
 							<div>
 								<p class="text-2xl font-bold text-slate-900 dark:text-white">

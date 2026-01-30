@@ -2,6 +2,7 @@ import type { Request } from 'polka'
 import { object, string, array, optional, pipe, minLength } from 'valibot'
 import { create, list } from '/src/auth/token'
 import { db, parse, trimmed } from '/src/data'
+import { emit } from '/src/server'
 
 export const deps = ['tokens', ':user']
 
@@ -27,6 +28,21 @@ export async function page(req: Request) {
 	}
 }
 
+export const events = {
+	tokens: async (req: Request) => {
+		const tokens = await list(req.user!.id)
+		return {
+			tokens: tokens.map(t => ({
+				id: t.id.slice(-4),
+				name: t.name,
+				abilities: JSON.parse(t.abilities),
+				last: t.last,
+				created: t.created
+			}))
+		}
+	}
+}
+
 export const actions = {
 
 	make: async (req: Request) => {
@@ -35,6 +51,9 @@ export const actions = {
 		const abilities = input.abilities.length > 0 ? input.abilities : ['*']
 
 		const plain = await create(req.user!.id, input.name, abilities)
+
+		emit('tokens')
+		emit('activity')
 
 		return { token: plain }
 	},
@@ -59,6 +78,9 @@ export const actions = {
 			.deleteFrom('tokens')
 			.where('id', '=', match.id)
 			.execute()
+
+		emit('tokens')
+		emit('activity')
 
 		return { revoked: true }
 	}

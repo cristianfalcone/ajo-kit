@@ -53,7 +53,8 @@ Full-stack metaframework for Ajo (JSX + generators).
 | `handler.ts` | `page(req, parent)` | Server | Page Database, secrets |
 | `handler.ts` | `layout(req, parent)` | Server | Shared Database, secrets |
 | `handler.ts` | `head(req, parent)` | Server | Shared Dynamic SEO with secrets |
-| `handler.ts` | Named exports | Server | Shared Form actions |
+| `handler.ts` | `actions = {}` | Server | Shared Form actions |
+| `handler.ts` | `events = {}` | Server | Real-time SSE events |
 
 **Merge order:** `{ ...serverData, ...clientData }` — client wins.
 
@@ -83,7 +84,7 @@ Full-stack metaframework for Ajo (JSX + generators).
 
 SQLite + Kysely + better-sqlite3. Schema in [types.ts](src/data/types.ts).
 
-Tables: `users`, `sessions`, `roles`, `members`, `tokens`, `resets`.
+Tables: `users`, `sessions`, `roles`, `members`, `tokens`, `resets`, `chats`, `participants`, `messages`.
 
 **Rule:** Always `select(['fields'])`, never `selectAll()`.
 
@@ -119,13 +120,13 @@ Valibot schemas. Reusable fields in [fields.ts](src/data/fields.ts).
 
 ```ts
 export async function page(req, parent) { }    // Server data loading
-export async function action1(req, res) { }    // Form action (?/action1)
+export const actions = { name: async (req, res) => {} }  // Form actions (?/name)
 export default { get, post, put, delete }       // API endpoints (METHOD /api/route)
 ```
 
 **Form Actions (SPA):**
 - Client: `const form = action<Result>('name')` → `form.loading`, `form.data`, `form.error?`, `form.handle`, `form.reset`
-- Server: Named export in `handler.ts` → `POST /route?/actionName`
+- Server: `export const actions = {}` in `handler.ts` → `POST /route?/actionName`
 - CSRF: ✅ Required
 
 **API Endpoints (Mobile/External):**
@@ -165,6 +166,66 @@ Groups `(name)` excluded from URLs.
 `pack()` and `unpack()` in [constants.ts](src/constants.ts) use devalue for JSON with circular refs and custom types.
 
 Objects with `toJSON()` are automatically serialized.
+
+## Real-time Events (SSE)
+
+Server → Client via SSE. Counterpart to Actions (client → server).
+
+**Event handlers** in `handler.ts` return data sent to clients:
+
+```ts
+// handler.ts
+import { emit } from '/src/server'
+
+export const events = {
+  messages: async (req: Request) => {
+    return { messages: await db().selectFrom('messages').where('chat', '=', Number(req.params.id)).execute() }
+  }
+}
+
+export const actions = {
+  send: async (req: Request) => {
+    await db().insertInto('messages').values({ ... }).execute()
+    emit('messages', { id: String(req.params.id) })  // notify clients viewing this chat
+    return { ok: true }
+  }
+}
+```
+
+**Client subscription** with `subscribe()`:
+
+```tsx
+import { subscribe } from '/src/client'
+
+const Page: Stateful<PageArgs<Data>> = function* (args) {
+  let messages = args.data?.messages ?? []
+
+  subscribe<{ messages: Message[] }>('messages', ({ data, error }) => {
+    if (error) return
+    messages = data!.messages
+  })
+
+  while (true) {
+    yield <ul>{messages.map(m => <li key={m.id}>{m.text}</li>)}</ul>
+  }
+}
+```
+
+**Key concepts:**
+
+| Concept | Description |
+|---------|-------------|
+| `emit(name, params?)` | Fire event; params filter by route params |
+| `subscribe(name, callback)` | Subscribe in component; auto-calls `component.next()` |
+| Layout-level events | Handler with trailing group segment matches all subpaths (`(app)/handler.ts` → `/*`) |
+| SSE-on-connect | Initial data sent when SSE connects, resolves navigation race conditions |
+| `deps` + events | Don't use `deps` on handlers with side effects (e.g. marking `seen`) — cache skips the handler |
+
+**emit() filtering:** `emit('messages', { id: '5' })` only notifies clients where the route extracts `id='5'`. `emit('unread')` without params notifies all matching clients.
+
+**Pitfall:** Don't overwrite event state with `args.data` inside `while(true)` — the SSE callback updates the variable, but re-reading from `args.data` overwrites it with stale data. Initialize before the loop, let `subscribe()` handle updates.
+
+See [docs/events.md](docs/events.md) for full architecture, security audit, and flow diagrams.
 
 ## Anti-patterns
 

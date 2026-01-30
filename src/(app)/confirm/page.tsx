@@ -18,7 +18,7 @@ const Confirm: Stateful<PageArgs> = function* () {
 
 		yield (
 			<div class="flex-1 flex items-center justify-center px-4">
-				<div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6 w-full max-w-sm">
+				<div class="glass rounded-lg p-6 w-full max-w-sm">
 					<h1 class="text-xl font-bold text-slate-900 dark:text-white mb-2">
 						Confirm Password
 					</h1>
@@ -34,7 +34,7 @@ const Confirm: Stateful<PageArgs> = function* () {
 								required
 								autocomplete="current-password"
 								placeholder="Password"
-								class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+								class="w-full input"
 								disabled={form.loading}
 							/>
 						</div>
@@ -46,7 +46,7 @@ const Confirm: Stateful<PageArgs> = function* () {
 						<button
 							type="submit"
 							disabled={form.loading}
-							class="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white font-medium rounded-lg transition"
+							class="w-full btn"
 						>
 							{form.loading ? 'Confirming...' : 'Confirm'}
 						</button>

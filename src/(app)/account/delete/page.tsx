@@ -47,7 +47,7 @@ const Delete: Stateful<PageArgs> = function* () {
 								required
 								pattern="DELETE"
 								autocomplete="off"
-								class="w-full max-w-xs px-4 py-2 border border-red-300 dark:border-red-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+								class="w-full max-w-xs input border-red-300 dark:border-red-700 focus:ring-red-500"
 								disabled={form.loading}
 							/>
 						</div>
@@ -59,7 +59,7 @@ const Delete: Stateful<PageArgs> = function* () {
 						<button
 							type="submit"
 							disabled={form.loading}
-							class="py-2 px-4 bg-red-600 hover:bg-red-500 disabled:bg-red-400 text-white font-medium rounded-lg transition"
+							class="btn-danger"
 						>
 							{form.loading ? 'Deleting...' : 'Delete My Account'}
 						</button>
