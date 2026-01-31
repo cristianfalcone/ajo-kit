@@ -41,6 +41,10 @@ export const ssr = new Map<string, State>()
 
 export const cache = new Map<string, Cached>()
 
+// Event seals: name → sum (persists across navigations for SSE skip)
+
+export const seals = new Map<string, string>()
+
 // Event subscribers: name → Set<callback>
 
 export const subscribers = new Map<string, Set<(state: EventState) => void>>()
@@ -201,11 +205,13 @@ export async function* resolve(
 
 		// Build X-Have header with cached sums
 
-		const have = keys
-			.map(key => [key, cache.get(key)] as const)
-			.filter((entry): entry is [string, Cached] => !!entry[1])
-			.map(([key, entry]) => `${key}=${entry.sum}`)
-			.join(',')
+		const have = [
+			...keys
+				.map(key => [key, cache.get(key)] as const)
+				.filter((entry): entry is [string, Cached] => !!entry[1])
+				.map(([key, entry]) => `${key}=${entry.sum}`),
+			...[...seals].map(([name, s]) => `es:${name}=${s}`)
+		].join(',')
 
 		const response = await fetch(url, {
 			credentials: 'include',
@@ -222,14 +228,17 @@ export async function* resolve(
 
 		// Update cache and merge nulls with cached values
 
-		const { data: raw, sums } = json as {
+		const { data: raw, sums, es } = json as {
 			data: (Head | Entry | null)[]
 			sums: (string | null)[]
+			es?: Record<string, string>
 		}
 
 		raw.forEach((item, i) => {
 			if (item !== null) cache.set(keys[i], { value: item, sum: sums[i]! })
 		})
+
+		if (es) for (const [name, s] of Object.entries(es)) seals.set(name, s)
 
 		const merged = raw.map((item, i) => item ?? cache.get(keys[i])?.value ?? {})
 		const [head, ...entries] = merged
@@ -328,12 +337,16 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		sse.source?.close()
 
-		sse.source = new EventSource(path)
+		const have = [...seals].map(([k, v]) => `${k}:${v}`).join(',')
+
+		sse.source = new EventSource(have ? `${path}${path.includes('?') ? '&' : '?'}es=${have}` : path)
 
 		sse.source.onopen = () => { sse.retries = 0 }
 
 		sse.source.onmessage = (e) => {
-			const { event, data, error } = JSON.parse(e.data)
+			const { event, data, error, sum, nav } = JSON.parse(e.data)
+			if (sum) seals.set(event, sum)
+			if (nav && data) cache.set(nav.key, { value: data, sum: nav.sum })
 			subscribers.get(event)?.forEach(fn => fn({ data, error }))
 		}
 

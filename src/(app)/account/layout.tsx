@@ -15,7 +15,7 @@ const AccountLayout: Stateful<LayoutArgs<{ unread: number }>> = function* (args)
 
 	let unread = args.data?.unread ?? 0
 
-	subscribe<{ unread: number }>('unread', ({ data, error }) => {
+	subscribe<{ unread: number }>('status', ({ data, error }) => {
 		if (error) return
 		unread = data!.unread
 	})

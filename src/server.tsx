@@ -40,9 +40,32 @@ type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'hea
 
 type EventHandler = (req: Request) => Promise<Entry>
 
-type EventRegistration = { route: { pattern: RegExp, keys: string[] }, name: string, handler: EventHandler }
+type EventRegistration = { route: { pattern: RegExp, keys: string[] }, name: string, handler: EventHandler, deps?: string[], key: string, cacheKey: string }
 
 const registrations: EventRegistration[] = []
+
+// Deliver event to a client: match route, execute handler, send result
+
+const deliver = async (client: SSEClient, reg: EventRegistration) => {
+
+	const match = reg.route.pattern.exec(client.req.path)
+
+	if (!match) return false
+
+	const extracted = reg.route.keys.reduce((acc, key, index) => ({ ...acc, [key]: match[index + 1] }), {} as Record<string, string>)
+	const request = Object.assign(Object.create(client.req), { params: extracted })
+
+	try {
+		const data = await reg.handler(request)
+		const seal = depSum(reg.deps, client.req.user?.id, reg.key)
+		const nav = depSum(reg.deps, client.req.user?.id)
+		client.send({ event: reg.name, data, error: null, sum: seal, nav: nav ? { key: reg.cacheKey, sum: nav } : undefined })
+	} catch (error) {
+		client.send({ event: reg.name, data: null, error: normalize(error).toJSON() })
+	}
+
+	return true
+}
 
 type PageHandler = {
 	page?: (req: Request, parent: Parent) => Promise<Entry>
@@ -66,7 +89,7 @@ const parseDeps = (deps?: string[]) => {
 }
 
 // Generate sum based on deps (versions + user + ttl bucket)
-const depSum = (deps: string[] | undefined, userId?: number) => {
+const depSum = (deps: string[] | undefined, userId?: number, key?: string) => {
 
 	if (!deps) return null
 
@@ -77,7 +100,8 @@ const depSum = (deps: string[] | undefined, userId?: number) => {
 	return sum({
 		v: snapshot(tables),
 		u: user ? userId : undefined,
-		t: ttl ? Math.floor(Date.now() / ttl) : undefined
+		t: ttl ? Math.floor(Date.now() / ttl) : undefined,
+		k: key
 	})
 }
 
@@ -259,9 +283,12 @@ export async function create(template: Template) {
 	const render = async (req: Request, res: Response, page: Page, error?: AppError) => {
 
 		if (ajax(req)) {
+			const es = error ? undefined : seal(req.path, req.user?.id)
+			const clientHave = have(req.headers['x-have'] as string | undefined)
+			const esMatch = es && Object.keys(es).length > 0 && Object.entries(es).every(([name, s]) => clientHave[`es:${name}`] === s)
 			return send(res, error?.status ?? 200, pack(error
 				? { error }
-				: { data: req.data, sums: req.sums }
+				: { data: req.data, sums: req.sums, es: esMatch ? null : es }
 			))
 		}
 
@@ -283,7 +310,7 @@ export async function create(template: Template) {
 			resolved!.data?.error?.status ?? 200,
 			template({
 				head: renderHead(head as Head),
-				data: `<script>globalThis.__SSR__=${JSON.stringify(pack({ ...resolved!.data, head, keys, sums: req.sums }))}</script>`,
+				data: `<script>globalThis.__SSR__=${JSON.stringify(pack({ ...resolved!.data, head, keys, sums: req.sums, es: seal(req.path, req.user?.id) }))}</script>`,
 				root: html(<App page={resolved!.Page} />),
 			}),
 			{ 'Content-Type': 'text/html' }
@@ -379,38 +406,32 @@ export async function create(template: Template) {
 			const trailing = reGroup.test(segments.at(-1) ?? '')
 			const route = parse(`/${trailing ? (pattern ? pattern + '/*' : '*') : pattern}`)
 
+			const handlerDeps = deps as string[] | undefined
+
 			for (const [name, fn] of Object.entries(events as Record<string, EventHandler>)) {
 
-				registrations.push({ route, name, handler: fn })
+				const cacheKey = handlers.get(key)?.layout ? key : `page:${key}`
+
+				const registration = { route, name, handler: fn, deps: handlerDeps, key, cacheKey }
+
+				registrations.push(registration)
 
 				on(name, async (params) => {
 
 					for (const client of clients) {
 
-						// Match client path against handler pattern
-
 						const match = route.pattern.exec(client.req.path)
 
 						if (!match) continue
 
-						// Extract params from matched path
+						// Filter by params (for manual emit with route params)
 
-						const extracted = route.keys.reduce((acc, key, i) => ({ ...acc, [key]: match[i + 1] }), {} as Record<string, string>)
-
-						// Check emit params match extracted route params
-
-						const skip = Object.entries(params).some(([k, v]) => extracted[k] !== undefined && extracted[k] !== v)
-
-						if (skip) continue
-
-						// Execute event handler with error handling
-
-						try {
-							const data = await fn(Object.assign(Object.create(client.req), { params: extracted }))
-							client.send({ event: name, data, error: null })
-						} catch (e) {
-							client.send({ event: name, data: null, error: normalize(e).toJSON() })
+						if (Object.keys(params).length) {
+							const extracted = route.keys.reduce((acc, key, index) => ({ ...acc, [key]: match[index + 1] }), {} as Record<string, string>)
+							if (Object.entries(params).some(([key, value]) => extracted[key] !== undefined && extracted[key] !== value)) continue
 						}
+
+						deliver(client, registration)
 					}
 				})
 			}
@@ -453,6 +474,18 @@ export async function create(template: Template) {
 		names.forEach(name => pending!.add(name))
 	})
 
+	// Compute event sums for a path (used in SSR + ajax responses and SSE skip)
+
+	const seal = (path: string, userId?: number) => {
+		const es: Record<string, string> = {}
+		for (const reg of registrations) {
+			if (!reg.route.pattern.exec(path)) continue
+			const s = depSum(reg.deps, userId, reg.key)
+			if (s) es[reg.name] = s
+		}
+		return es
+	}
+
 	// SSE middleware - intercepts EventSource requests (Accept: text/event-stream)
 
 	const SSE_MAX_PER_USER = 5
@@ -490,19 +523,23 @@ export async function create(template: Template) {
 
 		clients.add(client)
 
-		// Send initial event data
+		// Send initial event data (skip if client already has matching sums)
 
-		for (const { route, name, handler } of registrations) {
+		const url = new URL(req.originalUrl, `http://${req.headers.host}`)
+		const known = Object.fromEntries(
+			(url.searchParams.get('es') ?? '').split(',').filter(Boolean).map(p => {
+				const i = p.indexOf(':')
+				return [p.slice(0, i), p.slice(i + 1)]
+			})
+		)
 
-			const match = route.pattern.exec(client.req.path)
+		for (const reg of registrations) {
 
-			if (!match) continue
+			const seal = depSum(reg.deps, req.user?.id, reg.key)
 
-			const extracted = route.keys.reduce((acc, key, i) => ({ ...acc, [key]: match[i + 1] }), {} as Record<string, string>)
+			if (seal && known[reg.name] === seal) continue
 
-			handler(Object.assign(Object.create(client.req), { params: extracted }))
-				.then(data => client.send({ event: name, data, error: null }))
-				.catch(e => client.send({ event: name, data: null, error: normalize(e).toJSON() }))
+			deliver(client, reg)
 		}
 
 		// Heartbeat to detect dead connections

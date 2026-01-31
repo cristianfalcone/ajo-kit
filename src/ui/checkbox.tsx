@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
 
-interface CheckboxProps {
+type CheckboxProps = {
 	name: string
 	value?: string
 	label: string
@@ -12,7 +12,7 @@ const Checkbox: Stateful<CheckboxProps, 'label'> = function* (args) {
 
 	let checked = args.checked ?? false
 
-	const toggle = () => this.next(() => { checked = !checked })
+	const toggle = () => this.next(() => checked = !checked)
 
 	while (true) {
 		yield (

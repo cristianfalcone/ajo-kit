@@ -1,7 +1,7 @@
 import 'virtual:uno.css'
 import { render } from 'ajo'
 import { current } from 'ajo/context'
-import App, { ssr, cache, subscribers } from '/src/app'
+import App, { ssr, cache, seals, subscribers } from '/src/app'
 import type { State, Entry, ActionState, EventCallback, EventState } from '/src/constants'
 import type { Head } from '/src/head'
 import { navigate, unpack } from '/src/constants'
@@ -110,7 +110,7 @@ export function subscribe<T = Entry>(name: string, callback: EventCallback<T>) {
 
 if (!import.meta.env.SSR) {
 
-	type SSR = State & { keys?: string[]; sums?: (string | null)[] }
+	type SSR = State & { keys?: string[]; sums?: (string | null)[]; es?: Record<string, string> }
 
 	const packed = (globalThis as { __SSR__?: string }).__SSR__
 	const data = packed ? unpack(packed) as SSR : undefined
@@ -129,6 +129,8 @@ if (!import.meta.env.SSR) {
 				if (values[i] && data.sums![i]) cache.set(key, { value: values[i], sum: data.sums![i]! })
 			})
 		}
+
+		if (data.es) for (const [name, s] of Object.entries(data.es)) seals.set(name, s)
 	}
 }
 

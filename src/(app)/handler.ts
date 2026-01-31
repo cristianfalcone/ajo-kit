@@ -3,34 +3,52 @@ import { db } from '/src/data'
 import { sql } from 'kysely'
 import { read, clear } from '/src/auth/cookie'
 import { remove } from '/src/auth/session'
+import { UnauthorizedError } from '../constants'
 
-const unreadCount = async (userId: number) => {
+export const deps = ['users', 'members', 'messages', 'participants', ':user']
 
-	const row = await db()
-		.selectFrom('messages')
-		.innerJoin('participants', 'participants.chat', 'messages.chat')
-		.where('participants.user', '=', userId)
-		.where('messages.user', '!=', userId)
-		.where((eb) => eb.or([
-			eb('participants.seen', 'is', null),
-			eb(sql`datetime(messages.created)`, '>', sql`datetime(participants.seen)`)
-		]))
-		.select(db().fn.countAll().as('count'))
-		.executeTakeFirst()
+const status = async (req: Request) => {
 
-	return Number(row?.count ?? 0)
+	if (!req.user) throw new UnauthorizedError()
+
+	const [user, unread, roles] = await Promise.all([
+
+		db()
+			.selectFrom('users')
+			.select(['id', 'name', 'email', 'verified'])
+			.where('id', '=', req.user.id)
+			.executeTakeFirstOrThrow(),
+
+		db()
+			.selectFrom('messages')
+			.innerJoin('participants', 'participants.chat', 'messages.chat')
+			.where('participants.user', '=', req.user.id)
+			.where('messages.user', '!=', req.user.id)
+			.where((eb) => eb.or([
+				eb('participants.seen', 'is', null),
+				eb(sql`datetime(messages.created)`, '>', sql`datetime(participants.seen)`)
+			]))
+			.select(db().fn.countAll().as('count'))
+			.executeTakeFirst()
+			.then(row => Number(row?.count ?? 0)),
+
+		db()
+			.selectFrom('members')
+			.innerJoin('roles', 'roles.id', 'members.role')
+			.select(['roles.name'])
+			.where('members.user', '=', req.user.id)
+			.execute()
+			.then(rows => rows.map(r => r.name))
+	])
+
+	return { user: { ...user, roles }, unread }
 }
-
-export const deps = ['messages', 'participants', ':user']
 
 export async function layout(req: Request) {
-	const unread = await unreadCount(req.user!.id)
-	return { user: req.user, unread }
+	return status(req)
 }
 
-export const events = {
-	unread: async (req: Request) => ({ unread: await unreadCount(req.user!.id) })
-}
+export const events = { status }
 
 export const actions = {
 	signout: async (req: Request, res: Response) => {

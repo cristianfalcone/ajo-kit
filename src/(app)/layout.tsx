@@ -16,21 +16,25 @@ const isActive = (path: string, url: string, options?: LinkOptions): boolean => 
 	return false
 }
 
-const AppLayout: Stateful<LayoutArgs<{ user: User; unread: number }>> = function* (args) {
+type LayoutData = { user: User; unread: number }
+
+const AppLayout: Stateful<LayoutArgs<LayoutData>> = function* (args) {
 
 	const signout = action<void>('signout')
 
+	let user = args.data?.user
 	let unread = args.data?.unread ?? 0
 
-	subscribe<{ unread: number }>('unread', ({ data, error }) => {
+	subscribe<LayoutData>('status', ({ data, error }) => {
 		if (error) return
+		user = data!.user
 		unread = data!.unread
 	})
 
 	while (true) {
 		yield (
 			<>
-				{args.data?.user && <Nav user={args.data.user} unread={unread} signout={signout} />}
+				{user && <Nav user={user} unread={unread} signout={signout} />}
 				<main class="site-container flex-1 flex flex-col">
 					{args.children}
 				</main>
