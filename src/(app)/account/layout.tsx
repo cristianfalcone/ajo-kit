@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
 import type { LayoutArgs } from '/src/constants'
-import { subscribe } from '/src/client'
+import { UnreadContext } from '/src/constants'
 
 const links: [string, string, string][] = [
 	['/account/profile', 'Profile', 'i-lucide-user'],
@@ -11,17 +11,11 @@ const links: [string, string, string][] = [
 	['/account/delete', 'Delete Account', 'i-lucide-trash-2'],
 ]
 
-const AccountLayout: Stateful<LayoutArgs<{ unread: number }>> = function* (args) {
-
-	let unread = args.data?.unread ?? 0
-
-	subscribe<{ unread: number }>('status', ({ data, error }) => {
-		if (error) return
-		unread = data!.unread
-	})
+const AccountLayout: Stateful<LayoutArgs> = function* (args) {
 
 	while (true) {
 		const url = globalThis.location?.pathname ?? '/'
+		const unread = UnreadContext()
 
 		yield (
 			<div class="flex flex-col lg:flex-row gap-8 py-8">

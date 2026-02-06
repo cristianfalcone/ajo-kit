@@ -1,4 +1,4 @@
-import { Kysely, SqliteDialect } from 'kysely'
+import { Kysely, SqliteDialect, sql } from 'kysely'
 import type { KyselyPlugin, PluginTransformQueryArgs, PluginTransformResultArgs, RootOperationNode, QueryResult, UnknownRow } from 'kysely'
 import Database from 'better-sqlite3'
 import type { DB } from './types'
@@ -60,6 +60,19 @@ export function db(): Kysely<DB> {
 		plugins: [new TrackerPlugin()]
 	})
 }
+
+export const unread = (userId: number) => db()
+	.selectFrom('messages')
+	.innerJoin('participants', 'participants.chat', 'messages.chat')
+	.where('participants.user', '=', userId)
+	.where('messages.user', '!=', userId)
+	.where((eb) => eb.or([
+		eb('participants.seen', 'is', null),
+		eb(sql`datetime(messages.created)`, '>', sql`datetime(participants.seen)`)
+	]))
+	.select(db().fn.countAll().as('count'))
+	.executeTakeFirst()
+	.then(row => Number(row?.count ?? 0))
 
 export async function close(): Promise<void> {
 	if (instance) {

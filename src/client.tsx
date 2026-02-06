@@ -110,7 +110,7 @@ export function subscribe<T = Entry>(name: string, callback: EventCallback<T>) {
 
 if (!import.meta.env.SSR) {
 
-	type SSR = State & { keys?: string[]; sums?: (string | null)[]; es?: Record<string, string> }
+	type SSR = State & { keys?: string[]; sums?: (string | Record<string, string> | null)[]; es?: Record<string, string | Record<string, string>> }
 
 	const packed = (globalThis as { __SSR__?: string }).__SSR__
 	const data = packed ? unpack(packed) as SSR : undefined

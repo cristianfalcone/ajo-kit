@@ -21,11 +21,11 @@ const Chats: Stateful<PageArgs<Data>> = function* (args) {
 
 	const form = action<void>('start')
 
-	let chatList = args.data?.chats ?? []
+	let chats = args.data?.chats ?? []
 
 	subscribe<{ chats: Chat[] }>('chats', ({ data, error }) => {
 		if (error) return
-		chatList = data!.chats
+		chats = data!.chats
 	})
 
 	let selected: number[] = []
@@ -109,7 +109,7 @@ const Chats: Stateful<PageArgs<Data>> = function* (args) {
 
 						{/* Chats list */}
 						<div class="space-y-2">
-							{chatList.map(chat => (
+							{chats.map(chat => (
 								<a
 									key={chat.id}
 									href={`/account/chats/${chat.id}`}
@@ -130,7 +130,7 @@ const Chats: Stateful<PageArgs<Data>> = function* (args) {
 									)}
 								</a>
 							))}
-							{!chatList.length && (
+							{!chats.length && (
 								<p class="text-center text-slate-500 dark:text-gray-400 py-8">
 									No conversations yet
 								</p>

@@ -2,7 +2,10 @@ import type { Request } from 'polka'
 import { db } from '/src/data'
 import { sql } from 'kysely'
 
-export const deps = ['chats', 'participants', 'messages', ':user']
+export const deps = {
+	chats: ['chats', 'participants', 'messages', ':user'],
+	users: ['users'],
+}
 
 const chats = (userId: number) => db()
 	.selectFrom('chats')

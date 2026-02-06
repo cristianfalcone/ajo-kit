@@ -176,11 +176,24 @@ export async function head(req: Request, parent: Parent) {
 Export `deps` in handler.ts to enable skip-on-fresh:
 
 ```typescript
-// handler.ts
-export const deps = ['users', ':user']  // Skip if users table unchanged AND same user
+// handler.ts — handler-level deps (all-or-nothing skip)
+export const deps = ['users', ':user']
 
 export async function page(req: Request, parent: Parent) {
   return { user: await db.getUser(req.user.id) }
+}
+```
+
+```typescript
+// handler.ts — per-key deps (each return key cached independently)
+export const deps = {
+  user: ['users', 'members', ':user'],
+  stats: ['sessions', 'tokens', 'participants', 'messages', ':user'],
+  recentSessions: ['sessions', ':user'],
+}
+
+export async function page(req: Request) {
+  return { user: ..., stats: ..., recentSessions: ... }  // keys match deps keys
 }
 ```
 
@@ -189,9 +202,11 @@ export async function page(req: Request, parent: Parent) {
 2. Server generates sum from `deps` (table versions + user + ttl)
 3. If sums match → skip handler, return `null` (client uses cache)
 
+**Per-key deps:** When `deps` is an object, each key maps to a return key. Only stale keys are re-fetched; fresh keys return `null` and the client merges cached values. This avoids re-running expensive queries when only one table changed.
+
 **Special deps:**
-- `':user'` - include user ID in sum (skip if same user)
-- `':ttl:60000'` - include time bucket (skip if <60s passed)
+- `':user'` — include user ID in sum (skip if same user)
+- `':ttl:60000'` — include time bucket (skip if <60s passed)
 
 **Manual invalidation:** `invalidate(key?)` from `/src/app`. No key = clear all.
 
@@ -315,7 +330,7 @@ while (true) { yield ... }
 | **Components** | Global in `src/ui/`, section-specific in `src/(section)/ui/` |
 | **Validation** | Valibot schemas, `parse()` throws `InvalidError` with `{ fields }` |
 | **Auth guards** | `protect()`, `guest()`, `auth()`, `role()`, `confirmed()`, `verified()` |
-| **Caching** | Export `deps` in handler.ts for skip-on-fresh. `invalidate()` for manual clear |
+| **Caching** | Export `deps` (array or object) in handler.ts for skip-on-fresh. Object = per-key granularity. `invalidate()` for manual clear |
 | **Events** | `export const events = {}` in handler.ts. Handlers receive `Request`, return data |
 | **emit()** | `emit(name, params?)` from `/src/server`. Only needed for param-filtered events |
 | **subscribe()** | `subscribe(name, callback)` from `/src/client`. Call before `while (true)` loop |
@@ -335,7 +350,7 @@ while (true) { yield ... }
 | Modifying core files | Create new routes/components | app.tsx, server.tsx, client.tsx are generated |
 | `selectAll()` in queries | `select(['field1', 'field2'])` | Overfetching, performance |
 | Direct `form.error.fields` access | `form.error?.fields?.email` | error and fields are optional |
-| Missing `deps` in handler.ts | `export const deps = ['table']` | Causes unnecessary refetches |
+| Missing `deps` in handler.ts | `export const deps = ['table']` or `{ key: ['table'] }` | Causes unnecessary refetches |
 | Re-assign SSE state from `args.data` in loop | Initialize before loop, `subscribe()` updates | Loop overwrites SSE data with stale args |
 | Manual `emit()` for broadcast events | Let auto-emit handle it via `deps` | Broadcast events fire automatically on table writes |
 | Missing `deps` on handler with `events` | `export const deps = ['table']` | Auto-emit requires `deps` to know which tables trigger which events |

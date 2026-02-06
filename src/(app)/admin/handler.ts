@@ -1,5 +1,7 @@
 import { db } from '/src/data'
 
+export const deps = ['users', 'sessions', 'tokens']
+
 export async function page() {
 
 	const [users, sessions, tokens] = await Promise.all([

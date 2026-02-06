@@ -27,6 +27,7 @@ pnpm backup pull  # Pull DB from Drive
 ## Documentation
 
 - [docs/LLMs.md](docs/LLMs.md) — Ajo-kit patterns
+- [docs/data.md](docs/data.md) — Data loading, cache, events & SSE
 - [docs/api-endpoints.md](docs/api-endpoints.md) — API endpoints & form actions
 - `node_modules/ajo/LLMs.md` — Ajo UI syntax
 
@@ -230,7 +231,7 @@ const Page: Stateful<PageArgs<Data>> = function* (args) {
 
 **Pitfall:** Don't overwrite event state with `args.data` inside `while(true)` — the SSE callback updates the variable, but re-reading from `args.data` overwrites it with stale data. Initialize before the loop, let `subscribe()` handle updates.
 
-See [docs/events.md](docs/events.md) for full architecture, security audit, and flow diagrams.
+See [docs/data.md](docs/data.md) for full architecture, protections, and flow diagrams.
 
 ## Anti-patterns
 

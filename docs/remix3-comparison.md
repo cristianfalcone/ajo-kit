@@ -1397,4 +1397,4 @@ The fundamental difference is **convention vs configuration**: ajo-kit uses file
 **ajo-kit:**
 - [Form Actions in handler.ts](../CLAUDE.md)
 - [API Endpoints](./api-endpoints.md)
-- [Data Loading Comparison](./data-loading-comparison.md)
+- [Data System](./data.md)

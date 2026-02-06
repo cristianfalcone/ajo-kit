@@ -43,7 +43,7 @@ export const cache = new Map<string, Cached>()
 
 // Event seals: name → sum (persists across navigations for SSE skip)
 
-export const seals = new Map<string, string>()
+export const seals = new Map<string, string | Record<string, string>>()
 
 // Event subscribers: name → Set<callback>
 
@@ -209,8 +209,14 @@ export async function* resolve(
 			...keys
 				.map(key => [key, cache.get(key)] as const)
 				.filter((entry): entry is [string, Cached] => !!entry[1])
-				.map(([key, entry]) => `${key}=${entry.sum}`),
-			...[...seals].map(([name, s]) => `es:${name}=${s}`)
+				.flatMap(([key, entry]) => {
+					if (typeof entry.sum === 'string') return [`${key}=${entry.sum}`]
+					return Object.entries(entry.sum).map(([k, s]) => `${key}::${k}=${s}`)
+				}),
+			...[...seals].flatMap(([name, s]) => {
+				if (typeof s === 'string') return [`es:${name}=${s}`]
+				return Object.entries(s).map(([k, v]) => `es:${name}::${k}=${v}`)
+			})
 		].join(',')
 
 		const response = await fetch(url, {
@@ -230,17 +236,24 @@ export async function* resolve(
 
 		const { data: raw, sums, es } = json as {
 			data: (Head | Entry | null)[]
-			sums: (string | null)[]
-			es?: Record<string, string>
+			sums: (string | Record<string, string> | null)[]
+			es?: Record<string, string | Record<string, string>>
 		}
 
 		raw.forEach((item, i) => {
-			if (item !== null) cache.set(keys[i], { value: item, sum: sums[i]! })
+			if (item === null) return
+			const s = sums[i]
+			if (typeof s === 'object' && s !== null) {
+				const existing = cache.get(keys[i])?.value ?? {}
+				cache.set(keys[i], { value: { ...existing, ...item }, sum: s })
+			} else if (s) {
+				cache.set(keys[i], { value: item, sum: s })
+			}
 		})
 
 		if (es) for (const [name, s] of Object.entries(es)) seals.set(name, s)
 
-		const merged = raw.map((item, i) => item ?? cache.get(keys[i])?.value ?? {})
+		const merged = raw.map((item, i) => cache.get(keys[i])?.value ?? item ?? {})
 		const [head, ...entries] = merged
 
 		return { data: entries as Data, head: head as Head }
@@ -337,7 +350,10 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		sse.source?.close()
 
-		const have = [...seals].map(([k, v]) => `${k}:${v}`).join(',')
+		const have = [...seals].flatMap(([name, s]) => {
+			if (typeof s === 'string') return [`${name}:${s}`]
+			return Object.entries(s).map(([k, v]) => `${name}::${k}:${v}`)
+		}).join(',')
 
 		sse.source = new EventSource(have ? `${path}${path.includes('?') ? '&' : '?'}es=${have}` : path)
 
@@ -346,7 +362,10 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		sse.source.onmessage = (e) => {
 			const { event, data, error, sum, nav } = JSON.parse(e.data)
 			if (sum) seals.set(event, sum)
-			if (nav && data) cache.set(nav.key, { value: data, sum: nav.sum })
+			if (nav && data) {
+				const existing = typeof nav.sum === 'object' ? cache.get(nav.key)?.value : undefined
+				cache.set(nav.key, { value: existing ? { ...existing, ...data } : data, sum: nav.sum })
+			}
 			subscribers.get(event)?.forEach(fn => fn({ data, error }))
 		}
 
@@ -354,16 +373,21 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 			sse.source?.close()
 
+			if (++sse.retries > 10) return
+
 			// Exponential backoff with jitter: 1s, 2s, 4s, 8s... max 30s
 			const base = Math.min(1000 * 2 ** sse.retries, 30_000)
 			const jitter = base * Math.random()
-			sse.retries++
 
 			setTimeout(() => connect(path), base + jitter)
 		}
 	}
 
+	let generation = 0
+
 	const go = async (page: Page) => {
+
+		const gen = ++generation
 
 		// Disconnect previous SSE
 
@@ -373,10 +397,13 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		subscribers.clear()
 
 		for await (const state of resolve(location.pathname, layouts, page)) {
+			if (gen !== generation) return
 			if (hmr && !state.data) continue // Skip loading state during HMR
 			this.next(() => Page = state.Page)
 			if (state.data?.head) apply(state.data.head)
 		}
+
+		if (gen !== generation) return
 
 		// Connect SSE only if page registered event subscribers
 

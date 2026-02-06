@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
 import type { User, LayoutArgs, ActionState } from '/src/constants'
-import { ThemeContext } from '/src/constants'
+import { ThemeContext, UnreadContext } from '/src/constants'
 import { action, subscribe } from '/src/client'
 
 type LinkOptions = { exact?: boolean, include?: string[] }
@@ -32,6 +32,9 @@ const AppLayout: Stateful<LayoutArgs<LayoutData>> = function* (args) {
 	})
 
 	while (true) {
+
+		UnreadContext(unread)
+
 		yield (
 			<>
 				{user && <Nav user={user} unread={unread} signout={signout} />}

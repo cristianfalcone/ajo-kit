@@ -4,8 +4,6 @@ import { sql } from 'kysely'
 import { emit } from '/src/server'
 import { NotFoundError } from '/src/constants'
 
-export const deps = ['messages', 'participants']
-
 export async function page(req: Request) {
 
 	const chatId = Number(req.params.id)

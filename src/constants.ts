@@ -74,7 +74,7 @@ export const ancestors = (segments: string[]) => segments.map((_, i) => segments
 
 // Cache entry type
 
-export type Cached = { value: Head | Entry; sum: string }
+export type Cached = { value: Head | Entry; sum: string | Record<string, string> }
 
 // Loader data types
 
@@ -150,6 +150,10 @@ export type LayoutArgs<T = Entry> = PageArgs<T> & {
 	children: Children
 }
 
+// Unread context (shared between layouts)
+
+export const UnreadContext = context<number>(0)
+
 // Theme context
 
 export type ThemeMode = 'system' | 'light' | 'dark'
@@ -211,7 +215,7 @@ declare module 'polka' {
 		token?: { abilities: string[] }
 		action?: Action
 		data?: (Head | Entry | null)[]
-		sums?: (string | null)[]
+		sums?: (string | Record<string, string> | null)[]
 		versions?: Record<string, number>
 	}
 }

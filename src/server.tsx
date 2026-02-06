@@ -7,7 +7,7 @@ import send from '@polka/send'
 import { parse } from 'regexparam'
 import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths, cacheKeys, reGroup } from '/src/app'
 import { AppError, links, ancestors, normalize, ajax, api, sum, pack } from '/src/constants'
-import { snapshot, tap } from '/src/data'
+import { snapshot, version, tap } from '/src/data'
 import type { State, Data, Entry, Page, Parent } from '/src/constants'
 import { merge, render as renderHead, type Head } from '/src/head'
 
@@ -23,7 +23,10 @@ export const on = (name: string, fn: Listener) => {
 	return () => bus.get(name)!.delete(fn)
 }
 
+const pending = new Set<string>()
+
 export const emit = (name: string, params?: Record<string, unknown>) => {
+	pending.delete(name)
 	bus.get(name)?.forEach(fn => fn(params ?? {}))
 }
 
@@ -40,11 +43,16 @@ type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'hea
 
 type EventHandler = (req: Request) => Promise<Entry>
 
-type EventRegistration = { route: { pattern: RegExp, keys: string[] }, name: string, handler: EventHandler, deps?: string[], key: string, cacheKey: string }
+type EventRegistration = { route: { pattern: RegExp, keys: string[] }, name: string, handler: EventHandler, deps?: string[] | Record<string, string[]>, key: string, cacheKey: string }
 
 const registrations: EventRegistration[] = []
 
 // Deliver event to a client: match route, execute handler, send result
+
+let delivering = 0
+const deferred = new Set<string>()
+let depth = 0
+let flush = () => {}
 
 const deliver = async (client: SSEClient, reg: EventRegistration) => {
 
@@ -55,13 +63,26 @@ const deliver = async (client: SSEClient, reg: EventRegistration) => {
 	const extracted = reg.route.keys.reduce((acc, key, index) => ({ ...acc, [key]: match[index + 1] }), {} as Record<string, string>)
 	const request = Object.assign(Object.create(client.req), { params: extracted })
 
+	delivering++
 	try {
 		const data = await reg.handler(request)
-		const seal = depSum(reg.deps, client.req.user?.id, reg.key)
-		const nav = depSum(reg.deps, client.req.user?.id)
-		client.send({ event: reg.name, data, error: null, sum: seal, nav: nav ? { key: reg.cacheKey, sum: nav } : undefined })
+		if (keyed(reg.deps)) {
+			const s = depSums(reg.deps, client.req.user?.id, reg.key)
+			const n = depSums(reg.deps, client.req.user?.id)
+			client.send({ event: reg.name, data, error: null, sum: s, nav: Object.keys(n).length ? { key: reg.cacheKey, sum: n } : undefined })
+		} else {
+			const s = depSum(reg.deps as string[] | undefined, client.req.user?.id, reg.key)
+			const n = depSum(reg.deps as string[] | undefined, client.req.user?.id)
+			client.send({ event: reg.name, data, error: null, sum: s, nav: n ? { key: reg.cacheKey, sum: n } : undefined })
+		}
 	} catch (error) {
 		client.send({ event: reg.name, data: null, error: normalize(error).toJSON() })
+	} finally {
+		delivering--
+		if (delivering === 0) {
+			if (deferred.size && depth < 2) { depth++; flush() }
+			else { depth = 0; deferred.clear() }
+		}
 	}
 
 	return true
@@ -71,7 +92,7 @@ type PageHandler = {
 	page?: (req: Request, parent: Parent) => Promise<Entry>
 	layout?: (req: Request, parent: Parent) => Promise<Entry>
 	head?: (req: Request, parent: Parent) => Promise<Head>
-	deps?: string[]
+	deps?: string[] | Record<string, string[]>
 	actions?: Record<string, (req: Request, res: Response) => Promise<unknown>>
 	events?: Record<string, EventHandler>
 }
@@ -105,6 +126,25 @@ const depSum = (deps: string[] | undefined, userId?: number, key?: string) => {
 	})
 }
 
+// Per-key deps helpers
+
+const keyed = (deps?: string[] | Record<string, string[]>): deps is Record<string, string[]> =>
+	!!deps && !Array.isArray(deps)
+
+const depSums = (deps: Record<string, string[]>, userId?: number, key?: string): Record<string, string> => {
+	const result: Record<string, string> = {}
+	for (const [k, d] of Object.entries(deps)) {
+		const s = depSum(d, userId, key)
+		if (s) result[k] = s
+	}
+	return result
+}
+
+const tables = (deps: string[] | Record<string, string[]>): string[] => {
+	if (Array.isArray(deps)) return deps.filter(d => !d.startsWith(':'))
+	return [...new Set(Object.values(deps).flat().filter(d => !d.startsWith(':')))]
+}
+
 type Template = (slots: Record<string, string>) => string
 
 // Parse X-Have header: "head=abc,(app)=def,dashboard=ghi" → { head: "abc", "(app)": "def", ... }
@@ -134,7 +174,11 @@ async function dual<T extends object>(
 
 export async function create(template: Template) {
 
+	let eventTables: string[] = []
+
 	const data = (page: Page): Middleware => async (req, _, next) => {
+
+		req.versions = snapshot(eventTables)
 
 		const url = req.originalUrl
 		const { segments, loader } = page
@@ -149,10 +193,17 @@ export async function create(template: Template) {
 
 		const clientHave = have(req.headers['x-have'] as string | undefined)
 
-		// Check if handler can be skipped (client sum matches current deps state)
+		// Check if handler can be skipped — returns sums if skippable, false otherwise
 
-		const canSkip = (handler: PageHandler | undefined, key: string) =>
-			handler?.deps && isAjax && clientHave[key] === depSum(handler.deps, req.user?.id)
+		const canSkip = (handler: PageHandler | undefined, key: string): string | Record<string, string> | false => {
+			if (!handler?.deps || !isAjax) return false
+			if (keyed(handler.deps)) {
+				const s = depSums(handler.deps, req.user?.id)
+				return Object.entries(s).every(([k, v]) => clientHave[`${key}::${k}`] === v) && s
+			}
+			const s = depSum(handler.deps, req.user?.id)
+			return s !== null && clientHave[key] === s && s
+		}
 
 		// Load layouts with dual execution
 
@@ -163,10 +214,11 @@ export async function create(template: Template) {
 
 			// Skip if client sum matches current deps state
 
-			if (canSkip(handler, keys[depth + 1])) {
-				const cached = clientHave[keys[depth + 1]]
+			const skipped = canSkip(handler, keys[depth + 1])
+
+			if (skipped) {
 				deferred.resolve({})
-				return { server: {}, merged: {}, module: undefined, handler: undefined, skipped: cached }
+				return { server: {}, merged: {}, module: undefined, handler: undefined, skipped }
 			}
 
 			try {
@@ -200,10 +252,11 @@ export async function create(template: Template) {
 
 			// Skip if client sum matches current deps state
 
-			if (canSkip(handler, pageKey)) {
-				const cached = clientHave[pageKey]
+			const skipped = canSkip(handler, pageKey)
+
+			if (skipped) {
 				deferred.resolve({})
-				return { server: {}, merged: {}, module: undefined, handler: undefined, skipped: cached }
+				return { server: {}, merged: {}, module: undefined, handler: undefined, skipped }
 			}
 
 			try {
@@ -263,14 +316,30 @@ export async function create(template: Template) {
 		const sums = results.map((result, i) => {
 			if (result?.skipped) return result.skipped
 			const deps = result?.handler?.deps
-			return depSum(deps, req.user?.id) ?? sum(server[i])
+			if (keyed(deps)) return depSums(deps, req.user?.id)
+			return depSum(deps as string[] | undefined, req.user?.id) ?? sum(server[i])
 		})
 
-		// For skipped handlers, return null (client uses cache)
+		// Optimized response: skip unchanged, partial for per-key
 
-		const optimized = unified.map((item, i) =>
-			results[i]?.skipped ? null : (clientHave[keys[i]] === sums[i] ? null : item)
-		)
+		const optimized = unified.map((item, i) => {
+			if (results[i]?.skipped) return null
+			const s = sums[i]
+
+			if (typeof s === 'object' && s !== null) {
+				const partial: Record<string, unknown> = {}
+				let changed = false
+				for (const [k, v] of Object.entries(s)) {
+					if (clientHave[`${keys[i]}::${k}`] !== v) {
+						partial[k] = (item as Record<string, unknown>)?.[k]
+						changed = true
+					}
+				}
+				return changed ? partial : null
+			}
+
+			return clientHave[keys[i]] === s ? null : item
+		})
 
 		req.data = optimized
 		req.sums = sums.map((s, i) => optimized[i] === null ? null : s)
@@ -283,9 +352,12 @@ export async function create(template: Template) {
 	const render = async (req: Request, res: Response, page: Page, error?: AppError) => {
 
 		if (ajax(req)) {
-			const es = error ? undefined : seal(req.path, req.user?.id)
+			const es = error ? undefined : seal(req.path, req.user?.id, req.versions)
 			const clientHave = have(req.headers['x-have'] as string | undefined)
-			const esMatch = es && Object.keys(es).length > 0 && Object.entries(es).every(([name, s]) => clientHave[`es:${name}`] === s)
+			const esMatch = es && Object.keys(es).length > 0 && Object.entries(es).every(([name, s]) => {
+				if (typeof s === 'string') return clientHave[`es:${name}`] === s
+				return Object.entries(s).every(([k, v]) => clientHave[`es:${name}::${k}`] === v)
+			})
 			return send(res, error?.status ?? 200, pack(error
 				? { error }
 				: { data: req.data, sums: req.sums, es: esMatch ? null : es }
@@ -310,7 +382,7 @@ export async function create(template: Template) {
 			resolved!.data?.error?.status ?? 200,
 			template({
 				head: renderHead(head as Head),
-				data: `<script>globalThis.__SSR__=${JSON.stringify(pack({ ...resolved!.data, head, keys, sums: req.sums, es: seal(req.path, req.user?.id) }))}</script>`,
+				data: `<script>globalThis.__SSR__=${JSON.stringify(pack({ ...resolved!.data, head, keys, sums: req.sums, es: seal(req.path, req.user?.id, req.versions) }))}</script>`,
 				root: html(<App page={resolved!.Page} />),
 			}),
 			{ 'Content-Type': 'text/html' }
@@ -406,7 +478,7 @@ export async function create(template: Template) {
 			const trailing = reGroup.test(segments.at(-1) ?? '')
 			const route = parse(`/${trailing ? (pattern ? pattern + '/*' : '*') : pattern}`)
 
-			const handlerDeps = deps as string[] | undefined
+			const handlerDeps = deps as string[] | Record<string, string[]> | undefined
 
 			for (const [name, fn] of Object.entries(events as Record<string, EventHandler>)) {
 
@@ -449,18 +521,24 @@ export async function create(template: Template) {
 	const binds = new Map<string, Set<string>>()
 
 	for (const [, handler] of handlers) if (handler.events && handler.deps) {
-
-		const tables = handler.deps.filter(d => !d.startsWith(':'))
-
-		for (const table of tables) {
+		for (const table of tables(handler.deps)) {
 			if (!binds.has(table)) binds.set(table, new Set())
 			for (const name of Object.keys(handler.events)) binds.get(table)!.add(name)
 		}
 	}
 
-	const pending = new Set<string>()
+	eventTables = [...new Set(registrations.flatMap(r => r.deps ? tables(r.deps) : []))]
+
+	flush = () => {
+		const names = new Set<string>()
+		for (const table of deferred) binds.get(table)?.forEach(n => names.add(n))
+		deferred.clear()
+		if (names.size) queueMicrotask(() => names.forEach(name => emit(name)))
+	}
 
 	tap(table => {
+
+		if (delivering > 0) { deferred.add(table); return }
 
 		const names = binds.get(table)
 
@@ -471,17 +549,23 @@ export async function create(template: Template) {
 			pending.clear()
 		})
 
-		names.forEach(name => pending!.add(name))
+		names.forEach(name => pending.add(name))
 	})
 
 	// Compute event sums for a path (used in SSR + ajax responses and SSE skip)
 
-	const seal = (path: string, userId?: number) => {
-		const es: Record<string, string> = {}
+	const seal = (path: string, userId?: number, before?: Record<string, number>) => {
+		const es: Record<string, string | Record<string, string>> = {}
 		for (const reg of registrations) {
 			if (!reg.route.pattern.exec(path)) continue
-			const s = depSum(reg.deps, userId, reg.key)
-			if (s) es[reg.name] = s
+			if (before && reg.deps && tables(reg.deps).some(t => version(t) !== (before[t] ?? 0))) continue
+			if (keyed(reg.deps)) {
+				const s = depSums(reg.deps, userId, reg.key)
+				if (Object.keys(s).length) es[reg.name] = s
+			} else {
+				const s = depSum(reg.deps as string[] | undefined, userId, reg.key)
+				if (s) es[reg.name] = s
+			}
 		}
 		return es
 	}
@@ -528,17 +612,19 @@ export async function create(template: Template) {
 		const url = new URL(req.originalUrl, `http://${req.headers.host}`)
 		const known = Object.fromEntries(
 			(url.searchParams.get('es') ?? '').split(',').filter(Boolean).map(p => {
-				const i = p.indexOf(':')
+				const i = p.lastIndexOf(':')
 				return [p.slice(0, i), p.slice(i + 1)]
 			})
 		)
 
 		for (const reg of registrations) {
-
-			const seal = depSum(reg.deps, req.user?.id, reg.key)
-
-			if (seal && known[reg.name] === seal) continue
-
+			if (keyed(reg.deps)) {
+				const s = depSums(reg.deps, req.user?.id, reg.key)
+				if (Object.entries(s).every(([k, v]) => known[`${reg.name}::${k}`] === v)) continue
+			} else {
+				const s = depSum(reg.deps as string[] | undefined, req.user?.id, reg.key)
+				if (s && known[reg.name] === s) continue
+			}
 			deliver(client, reg)
 		}
 
