@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
 import type { LayoutArgs } from '/src/constants'
-import { ThemeContext, ThemeMode } from '/src/constants'
+import { ThemeContext, type ThemeMode } from '/src/constants'
 import type { Head } from '/src/head'
 import Spinner from '/src/ui/spinner'
 

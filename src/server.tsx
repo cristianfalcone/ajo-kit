@@ -8,7 +8,7 @@ import { parse } from 'regexparam'
 import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths, cacheKeys, reGroup } from '/src/app'
 import { AppError, links, ancestors, normalize, ajax, api, sum, pack } from '/src/constants'
 import { snapshot, version, tap } from '/src/data'
-import type { State, Data, Entry, Page, Parent } from '/src/constants'
+import type { State, Data, Entry, Page, Parent, Module } from '/src/constants'
 import { merge, render as renderHead, type Head } from '/src/head'
 
 // Event bus
@@ -52,7 +52,7 @@ const registrations: EventRegistration[] = []
 let delivering = 0
 const deferred = new Set<string>()
 let depth = 0
-let flush = () => {}
+let flush = () => { }
 
 const deliver = async (client: SSEClient, reg: EventRegistration) => {
 
@@ -64,21 +64,24 @@ const deliver = async (client: SSEClient, reg: EventRegistration) => {
 	const request = Object.assign(Object.create(client.req), { params: extracted })
 
 	delivering++
+
 	try {
+
 		const data = await reg.handler(request)
-		if (keyed(reg.deps)) {
-			const s = depSums(reg.deps, client.req.user?.id, reg.key)
-			const n = depSums(reg.deps, client.req.user?.id)
-			client.send({ event: reg.name, data, error: null, sum: s, nav: Object.keys(n).length ? { key: reg.cacheKey, sum: n } : undefined })
-		} else {
-			const s = depSum(reg.deps as string[] | undefined, client.req.user?.id, reg.key)
-			const n = depSum(reg.deps as string[] | undefined, client.req.user?.id)
-			client.send({ event: reg.name, data, error: null, sum: s, nav: n ? { key: reg.cacheKey, sum: n } : undefined })
-		}
+		const sealed = digest(reg.deps, client.req.user?.id, reg.key)
+		const navigation = digest(reg.deps, client.req.user?.id)
+
+		client.send({
+			event: reg.name, data, error: null, sum: sealed,
+			nav: navigation ? { key: reg.cacheKey, sum: navigation } : undefined
+		})
+
 	} catch (error) {
 		client.send({ event: reg.name, data: null, error: normalize(error).toJSON() })
 	} finally {
+
 		delivering--
+
 		if (delivering === 0) {
 			if (deferred.size && depth < 2) { depth++; flush() }
 			else { depth = 0; deferred.clear() }
@@ -145,6 +148,22 @@ const tables = (deps: string[] | Record<string, string[]>): string[] => {
 	return [...new Set(Object.values(deps).flat().filter(d => !d.startsWith(':')))]
 }
 
+// Unified deps → sum (handles both array and per-key deps)
+
+const digest = (deps: string[] | Record<string, string[]> | undefined, userId?: number, key?: string): string | Record<string, string> | null => {
+	if (!deps) return null
+	if (keyed(deps)) return depSums(deps, userId, key)
+	return depSum(deps, userId, key)
+}
+
+// Unified comparison: does the client already have this digest?
+
+const fresh = (value: string | Record<string, string> | null, key: string, known: Record<string, string>): boolean => {
+	if (value === null) return false
+	if (typeof value === 'string') return known[key] === value
+	return Object.entries(value).every(([field, hash]) => known[`${key}::${field}`] === hash)
+}
+
 type Template = (slots: Record<string, string>) => string
 
 // Parse X-Have header: "head=abc,(app)=def,dashboard=ghi" → { head: "abc", "(app)": "def", ... }
@@ -197,87 +216,64 @@ export async function create(template: Template) {
 
 		const canSkip = (handler: PageHandler | undefined, key: string): string | Record<string, string> | false => {
 			if (!handler?.deps || !isAjax) return false
-			if (keyed(handler.deps)) {
-				const s = depSums(handler.deps, req.user?.id)
-				return Object.entries(s).every(([k, v]) => clientHave[`${key}::${k}`] === v) && s
-			}
-			const s = depSum(handler.deps, req.user?.id)
-			return s !== null && clientHave[key] === s && s
+			const value = digest(handler.deps, req.user?.id)
+			return value !== null && fresh(value, key, clientHave) && value
 		}
 
-		// Load layouts with dual execution
+		// Prepare a handler entry: skip if fresh, otherwise dual-execute
 
-		const layoutTasks = paths.map(async (path, depth) => {
+		const prepare = async (
+			handler: PageHandler | undefined,
+			load: () => Promise<Module | undefined> | undefined,
+			key: string,
+			link: typeof chain[0],
+			server: (parent: Parent) => Promise<Entry> | undefined,
+			client: (module: Module, parent: Parent) => Promise<Entry> | undefined,
+		) => {
 
-			const { parent, deferred } = chain[depth]
-			const handler = handlers.get(path)
-
-			// Skip if client sum matches current deps state
-
-			const skipped = canSkip(handler, keys[depth + 1])
+			const skipped = canSkip(handler, key)
 
 			if (skipped) {
-				deferred.resolve({})
-				return { server: {}, merged: {}, module: undefined, handler: undefined, skipped }
+				link.deferred.resolve({})
+				return { server: {} as Entry, merged: {} as Entry, module: undefined, handler: undefined, skipped }
 			}
 
 			try {
-
-				const module = await layouts.get(path)?.()
-
+				const module = await load?.()
 				const entry = await dual(
-					() => handler?.layout?.(req, parent),
-					() => module?.handler?.({ url, params }, parent),
+					() => server(link.parent),
+					() => module ? client(module, link.parent) : undefined,
 					isAjax
 				)
-
-				deferred.resolve(entry.merged)
-
-				return { ...entry, module, handler }
-
+				link.deferred.resolve(entry.merged)
+				return { ...entry, module, handler, skipped: false as const }
 			} catch (error) {
-				deferred.reject(normalize(error))
+				link.deferred.reject(normalize(error))
 				throw error
 			}
-		})
+		}
 
-		// Load page with dual execution
+		// Load layouts + page with dual execution
 
-		const pageTask = (async () => {
+		const layoutTasks = paths.map((path, depth) =>
+			prepare(
+				handlers.get(path),
+				() => layouts.get(path)?.(),
+				keys[depth + 1],
+				chain[depth],
+				(parent) => handlers.get(path)?.layout?.(req, parent),
+				(module, parent) => module.handler?.({ url, params }, parent),
+			)
+		)
 
-			const depth = paths.length
-			const { parent, deferred } = chain[depth]
-			const handler = handlers.get(segments.join('/'))
-			const pageKey = keys[keys.length - 1]
-
-			// Skip if client sum matches current deps state
-
-			const skipped = canSkip(handler, pageKey)
-
-			if (skipped) {
-				deferred.resolve({})
-				return { server: {}, merged: {}, module: undefined, handler: undefined, skipped }
-			}
-
-			try {
-
-				const module = await loader()
-
-				const entry = await dual(
-					() => handler?.page?.(req, parent),
-					() => module?.handler?.({ url, params }, parent),
-					isAjax
-				)
-
-				deferred.resolve(entry.merged)
-
-				return { ...entry, module, handler }
-
-			} catch (error) {
-				deferred.reject(normalize(error))
-				throw error
-			}
-		})()
+		const pageTask = prepare(
+			handlers.get(segments.join('/')),
+			() => loader(),
+			keys[keys.length - 1],
+			chain[paths.length],
+			(parent) => handlers.get(segments.join('/'))?.page?.(req, parent),
+			(module, parent) => module.handler?.({ url, params }, parent),
+		)
 
 		const [layoutResults, pageResult] = await Promise.all([
 			Promise.all(layoutTasks),
@@ -301,48 +297,43 @@ export async function create(template: Template) {
 			)
 		])
 
-		// Build unified arrays: [head, ...layouts, page]
-		// Server-only for sums, merged for response
+		// Finalize: compute sums + optimize response
 
 		const serverHead = merge(...headTasks.map(h => h.server))
 		const head = merge(...headTasks.map(h => h.merged))
 
-		const results = [null, ...layoutResults, pageResult]
-		const unified = [head, ...layoutResults.map(r => r.merged), pageResult.merged]
-		const server = [serverHead, ...layoutResults.map(r => r.server), pageResult.server]
+		const entries = [...layoutResults, pageResult]
+		const all = [head, ...entries.map(r => r.merged)]
+		const origin = [serverHead, ...entries.map(r => r.server)]
 
-		// Sums: deps-based for handlers with deps, content-based otherwise
+		const sums = [null as null, ...entries].map((result, index) =>
+			result?.skipped || (digest(result?.handler?.deps, req.user?.id) ?? sum(origin[index]))
+		)
 
-		const sums = results.map((result, i) => {
-			if (result?.skipped) return result.skipped
-			const deps = result?.handler?.deps
-			if (keyed(deps)) return depSums(deps, req.user?.id)
-			return depSum(deps as string[] | undefined, req.user?.id) ?? sum(server[i])
-		})
+		req.data = all.map((item, index) => {
 
-		// Optimized response: skip unchanged, partial for per-key
+			if (entries[index - 1]?.skipped) return null
 
-		const optimized = unified.map((item, i) => {
-			if (results[i]?.skipped) return null
-			const s = sums[i]
+			const value = sums[index]
 
-			if (typeof s === 'object' && s !== null) {
+			if (typeof value === 'object' && value !== null) {
+
 				const partial: Record<string, unknown> = {}
+
 				let changed = false
-				for (const [k, v] of Object.entries(s)) {
-					if (clientHave[`${keys[i]}::${k}`] !== v) {
-						partial[k] = (item as Record<string, unknown>)?.[k]
-						changed = true
-					}
+
+				for (const [field, hash] of Object.entries(value)) if (clientHave[`${keys[index]}::${field}`] !== hash) {
+					partial[field] = (item as Record<string, unknown>)?.[field]
+					changed = true
 				}
+
 				return changed ? partial : null
 			}
 
-			return clientHave[keys[i]] === s ? null : item
+			return clientHave[keys[index]] === value ? null : item
 		})
 
-		req.data = optimized
-		req.sums = sums.map((s, i) => optimized[i] === null ? null : s)
+		req.sums = sums.map((value, index) => req.data![index] === null ? null : value)
 
 		next()
 	}
@@ -352,15 +343,14 @@ export async function create(template: Template) {
 	const render = async (req: Request, res: Response, page: Page, error?: AppError) => {
 
 		if (ajax(req)) {
+
 			const es = error ? undefined : seal(req.path, req.user?.id, req.versions)
-			const clientHave = have(req.headers['x-have'] as string | undefined)
-			const esMatch = es && Object.keys(es).length > 0 && Object.entries(es).every(([name, s]) => {
-				if (typeof s === 'string') return clientHave[`es:${name}`] === s
-				return Object.entries(s).every(([k, v]) => clientHave[`es:${name}::${k}`] === v)
-			})
+			const known = have(req.headers['x-have'] as string | undefined)
+			const sealed = es && Object.keys(es).length > 0 && Object.entries(es).every(([name, value]) => fresh(value, `es:${name}`, known))
+
 			return send(res, error?.status ?? 200, pack(error
 				? { error }
-				: { data: req.data, sums: req.sums, es: esMatch ? null : es }
+				: { data: req.data, sums: req.sums, es: sealed ? null : es }
 			))
 		}
 
@@ -559,13 +549,8 @@ export async function create(template: Template) {
 		for (const reg of registrations) {
 			if (!reg.route.pattern.exec(path)) continue
 			if (before && reg.deps && tables(reg.deps).some(t => version(t) !== (before[t] ?? 0))) continue
-			if (keyed(reg.deps)) {
-				const s = depSums(reg.deps, userId, reg.key)
-				if (Object.keys(s).length) es[reg.name] = s
-			} else {
-				const s = depSum(reg.deps as string[] | undefined, userId, reg.key)
-				if (s) es[reg.name] = s
-			}
+			const value = digest(reg.deps, userId, reg.key)
+			if (value) es[reg.name] = value
 		}
 		return es
 	}
@@ -618,13 +603,8 @@ export async function create(template: Template) {
 		)
 
 		for (const reg of registrations) {
-			if (keyed(reg.deps)) {
-				const s = depSums(reg.deps, req.user?.id, reg.key)
-				if (Object.entries(s).every(([k, v]) => known[`${reg.name}::${k}`] === v)) continue
-			} else {
-				const s = depSum(reg.deps as string[] | undefined, req.user?.id, reg.key)
-				if (s && known[reg.name] === s) continue
-			}
+			const value = digest(reg.deps, req.user?.id, reg.key)
+			if (value && fresh(value, reg.name, known)) continue
 			deliver(client, reg)
 		}
 

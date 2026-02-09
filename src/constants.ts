@@ -1,6 +1,6 @@
-import { context } from 'ajo/context'
 import { stringify, parse } from 'devalue'
 import type { Children, Component } from 'ajo'
+import { context } from 'ajo/context'
 import type { Params } from 'navaid'
 import type { Request, Response } from 'polka'
 import type { Head } from '/src/head'
@@ -150,26 +150,6 @@ export type LayoutArgs<T = Entry> = PageArgs<T> & {
 	children: Children
 }
 
-// Unread context (shared between layouts)
-
-export const UnreadContext = context<number>(0)
-
-// Theme context
-
-export type ThemeMode = 'system' | 'light' | 'dark'
-
-export interface Theme {
-	mode: ThemeMode
-	set: (next: ThemeMode) => void
-	cycle: () => void
-}
-
-export const ThemeContext = context<Theme>({
-	mode: 'system',
-	set: () => {},
-	cycle: () => {},
-})
-
 // Navigation helper
 
 export const navigate = (to: string) => {
@@ -222,22 +202,9 @@ declare module 'polka' {
 
 // Deferred promises for parallel loader execution
 
-export type Deferred<T> = {
-	promise: Promise<T>
-	resolve: (value: T) => void
-	reject: (error: Error) => void
-}
-
-export function deferred<T>(): Deferred<T> {
-	let resolve!: (value: T) => void
-	let reject!: (error: Error) => void
-	const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej })
-	return { promise, resolve, reject }
-}
-
 export type Link = {
 	parent: Parent
-	deferred: Deferred<Entry>
+	deferred: { promise: Promise<Entry>; resolve: (value: Entry) => void; reject: (error: Error) => void }
 }
 
 export function links(count: number): Link[] {
@@ -246,9 +213,10 @@ export function links(count: number): Link[] {
 
 	for (let depth = 0; depth < count; depth++) {
 
-		const current = deferred<Entry>()
+		let resolve!: (value: Entry) => void
+		let reject!: (error: Error) => void
 
-		// parent() waits for ALL ancestors and accumulates their data
+		const promise = new Promise<Entry>((res, rej) => { resolve = res; reject = rej })
 
 		const parent = depth === 0
 			? async () => ({})
@@ -257,7 +225,7 @@ export function links(count: number): Link[] {
 				return ancestors.reduce((result, entry) => ({ ...result, ...entry }), {})
 			}
 
-		chain.push({ parent, deferred: current })
+		chain.push({ parent, deferred: { promise, resolve, reject } })
 	}
 
 	return chain
@@ -285,3 +253,23 @@ export const unpack = (value: string) => parse(value, revivers)
 
 export const formatDate = (iso: string, options?: Intl.DateTimeFormatOptions) =>
 	new Date(iso).toLocaleDateString(undefined, options ?? { month: 'short', day: 'numeric', year: 'numeric' })
+
+// Unread context (shared between layouts)
+
+export const UnreadContext = context<number>(0)
+
+// Theme context
+
+export type ThemeMode = 'system' | 'light' | 'dark'
+
+export interface Theme {
+	mode: ThemeMode
+	set: (next: ThemeMode) => void
+	cycle: () => void
+}
+
+export const ThemeContext = context<Theme>({
+	mode: 'system',
+	set: () => {},
+	cycle: () => {},
+})

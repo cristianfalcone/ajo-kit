@@ -151,6 +151,70 @@ function compose(
 	)
 }
 
+// Encode cache + seals state into X-Have header string
+
+function encode(keys: string[]): string {
+	return [
+		...keys
+			.map(key => [key, cache.get(key)] as const)
+			.filter((entry): entry is [string, Cached] => !!entry[1])
+			.flatMap(([key, entry]) => {
+				if (typeof entry.sum === 'string') return [`${key}=${entry.sum}`]
+				return Object.entries(entry.sum).map(([field, hash]) => `${key}::${field}=${hash}`)
+			}),
+		...[...seals].flatMap(([name, value]) => {
+			if (typeof value === 'string') return [`es:${name}=${value}`]
+			return Object.entries(value).map(([field, hash]) => `es:${name}::${field}=${hash}`)
+		})
+	].join(',')
+}
+
+// Fetch server data, update cache, return entries
+
+async function load(url: string, keys: string[]): Promise<{ data: Data; head?: Head; redirect?: string; error?: AppError }> {
+
+	const header = encode(keys)
+
+	const response = await fetch(url, {
+		credentials: 'include',
+		headers: { Accept: 'application/json', ...(header && { 'X-Have': header }) }
+	})
+
+	const json = await response.text().then(unpack).catch(error => ({ error }))
+
+	if (json.redirect) return { data: [], redirect: json.redirect }
+
+	if (!response.ok) return { data: [], error: new AppError(json.error?.status ?? 500, json.error?.message ?? 'Server data load failed') }
+
+	const { data: raw, sums, es } = json as {
+		data: (Head | Entry | null)[]
+		sums: (string | Record<string, string> | null)[]
+		es?: Record<string, string | Record<string, string>>
+	}
+
+	raw.forEach((item, index) => {
+
+		if (item === null) return
+
+		const value = sums[index]
+
+		if (typeof value === 'object' && value !== null) {
+			const existing = cache.get(keys[index])?.value ?? {}
+			cache.set(keys[index], { value: { ...existing, ...item }, sum: value })
+		} else if (value) {
+			cache.set(keys[index], { value: item, sum: value })
+		}
+	})
+
+	if (es) for (const [name, value] of Object.entries(es)) seals.set(name, value)
+
+	const merged = raw.map((item, index) => cache.get(keys[index])?.value ?? item ?? {})
+
+	const [head, ...entries] = merged
+
+	return { data: entries as Data, head: head as Head }
+}
+
 // Resolve page: async generator yielding loading then data states
 
 export async function* resolve(
@@ -198,77 +262,12 @@ export async function* resolve(
 
 	const keys = cacheKeys(paths, segments)
 
-	const server: { data: Data; head?: Head; redirect?: string; error?: AppError } = await (async () => {
+	const server = data ? { data, head: undefined as Head | undefined }
+		: import.meta.env.SSR ? { data: [] as Data }
+			: await load(url, keys)
 
-		if (data) return { data, head: undefined }
-		if (import.meta.env.SSR) return { data: [] }
-
-		// Build X-Have header with cached sums
-
-		const have = [
-			...keys
-				.map(key => [key, cache.get(key)] as const)
-				.filter((entry): entry is [string, Cached] => !!entry[1])
-				.flatMap(([key, entry]) => {
-					if (typeof entry.sum === 'string') return [`${key}=${entry.sum}`]
-					return Object.entries(entry.sum).map(([k, s]) => `${key}::${k}=${s}`)
-				}),
-			...[...seals].flatMap(([name, s]) => {
-				if (typeof s === 'string') return [`es:${name}=${s}`]
-				return Object.entries(s).map(([k, v]) => `es:${name}::${k}=${v}`)
-			})
-		].join(',')
-
-		const response = await fetch(url, {
-			credentials: 'include',
-			headers: {
-				Accept: 'application/json',
-				...(have && { 'X-Have': have })
-			}
-		})
-
-		const json = await response.text().then(unpack).catch(error => ({ error }))
-
-		if (json.redirect) return { data: [], redirect: json.redirect }
-		if (!response.ok) return { data: [], error: new AppError(json.error?.status ?? 500, json.error?.message ?? 'Server data load failed') }
-
-		// Update cache and merge nulls with cached values
-
-		const { data: raw, sums, es } = json as {
-			data: (Head | Entry | null)[]
-			sums: (string | Record<string, string> | null)[]
-			es?: Record<string, string | Record<string, string>>
-		}
-
-		raw.forEach((item, i) => {
-			if (item === null) return
-			const s = sums[i]
-			if (typeof s === 'object' && s !== null) {
-				const existing = cache.get(keys[i])?.value ?? {}
-				cache.set(keys[i], { value: { ...existing, ...item }, sum: s })
-			} else if (s) {
-				cache.set(keys[i], { value: item, sum: s })
-			}
-		})
-
-		if (es) for (const [name, s] of Object.entries(es)) seals.set(name, s)
-
-		const merged = raw.map((item, i) => cache.get(keys[i])?.value ?? item ?? {})
-		const [head, ...entries] = merged
-
-		return { data: entries as Data, head: head as Head }
-	})()
-
-	// Handle server redirect
-
-	if (server.redirect) {
-		navigate(server.redirect)
-		return
-	}
-
-	// Handle server error (e.g., 404)
-
-	if (server.error) {
+	if ('redirect' in server && server.redirect) { navigate(server.redirect); return }
+	if ('error' in server && server.error) {
 		const state: State = { url, params, data: [], loading: false, error: server.error }
 		yield { Page: compose(target, tree, paths, state), data: state }
 		return
@@ -336,6 +335,53 @@ export async function* resolve(
 	yield { Page: compose(target, tree, paths, state), data: state }
 }
 
+// SSE stream manager: connect with backoff, update cache + seals on message
+
+function stream() {
+
+	let source: EventSource | null = null
+	let retries = 0
+
+	const connect = (path: string) => {
+
+		source?.close()
+
+		const sealing = [...seals].flatMap(([name, value]) => {
+			if (typeof value === 'string') return [`${name}:${value}`]
+			return Object.entries(value).map(([field, hash]) => `${name}::${field}:${hash}`)
+		}).join(',')
+
+		source = new EventSource(sealing ? `${path}${path.includes('?') ? '&' : '?'}es=${sealing}` : path)
+
+		source.onopen = () => { retries = 0 }
+
+		source.onmessage = (event) => {
+
+			const { event: name, data, error, sum: seal, nav } = JSON.parse(event.data)
+
+			if (seal) seals.set(name, seal)
+
+			if (nav && data) {
+				const existing = typeof nav.sum === 'object' ? cache.get(nav.key)?.value : undefined
+				cache.set(nav.key, { value: existing ? { ...existing, ...data } : data, sum: nav.sum })
+			}
+
+			subscribers.get(name)?.forEach(fn => fn({ data, error }))
+		}
+
+		source.onerror = () => {
+			source?.close()
+			if (++retries > 10) return
+			const base = Math.min(1000 * 2 ** retries, 30_000)
+			setTimeout(() => connect(path), base + base * Math.random())
+		}
+	}
+
+	const close = () => { source?.close(); source = null; retries = 0 }
+
+	return { connect, close }
+}
+
 const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	let Page: Component = page ?? (() => null)
@@ -343,72 +389,26 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	if (page) return <Page />
 
 	let hmr = false
-
-	const sse = { source: null as EventSource | null, retries: 0 }
-
-	const connect = (path: string) => {
-
-		sse.source?.close()
-
-		const have = [...seals].flatMap(([name, s]) => {
-			if (typeof s === 'string') return [`${name}:${s}`]
-			return Object.entries(s).map(([k, v]) => `${name}::${k}:${v}`)
-		}).join(',')
-
-		sse.source = new EventSource(have ? `${path}${path.includes('?') ? '&' : '?'}es=${have}` : path)
-
-		sse.source.onopen = () => { sse.retries = 0 }
-
-		sse.source.onmessage = (e) => {
-			const { event, data, error, sum, nav } = JSON.parse(e.data)
-			if (sum) seals.set(event, sum)
-			if (nav && data) {
-				const existing = typeof nav.sum === 'object' ? cache.get(nav.key)?.value : undefined
-				cache.set(nav.key, { value: existing ? { ...existing, ...data } : data, sum: nav.sum })
-			}
-			subscribers.get(event)?.forEach(fn => fn({ data, error }))
-		}
-
-		sse.source.onerror = () => {
-
-			sse.source?.close()
-
-			if (++sse.retries > 10) return
-
-			// Exponential backoff with jitter: 1s, 2s, 4s, 8s... max 30s
-			const base = Math.min(1000 * 2 ** sse.retries, 30_000)
-			const jitter = base * Math.random()
-
-			setTimeout(() => connect(path), base + jitter)
-		}
-	}
-
+	const sse = stream()
 	let generation = 0
 
-	const go = async (page: Page) => {
+	const go = async (target: Page) => {
 
 		const gen = ++generation
 
-		// Disconnect previous SSE
-
-		sse.source?.close()
-		sse.source = null
-		sse.retries = 0
+		sse.close()
 		subscribers.clear()
 
-		for await (const state of resolve(location.pathname, layouts, page)) {
+		for await (const state of resolve(location.pathname, layouts, target)) {
 			if (gen !== generation) return
-			if (hmr && !state.data) continue // Skip loading state during HMR
+			if (hmr && !state.data) continue
 			this.next(() => Page = state.Page)
 			if (state.data?.head) apply(state.data.head)
 		}
 
 		if (gen !== generation) return
 
-		// Connect SSE only if page registered event subscribers
-
-		if (!hmr && subscribers.size > 0) connect(location.pathname)
-
+		if (!hmr && subscribers.size > 0) sse.connect(location.pathname)
 		if (!hmr) requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
 
 		hmr = false
@@ -416,22 +416,19 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	const router = navaid('/', () => go(error()))
 
-	for (const config of pages) {
-		router.on(config.pattern!, params => go({ ...config, params }))
-	}
+	for (const config of pages) router.on(config.pattern!, params => go({ ...config, params }))
 
 	router.listen()
 
-	const run = import.meta.env.DEV ? () => { hmr = true; router.run() } : null
-
-	if (run) addEventListener('hmr', run)
+	const reload = import.meta.env.DEV ? () => { hmr = true; router.run() } : null
+	if (reload) addEventListener('hmr', reload)
 
 	try {
 		while (true) yield <Page />
 	} finally {
-		sse.source?.close()
+		sse.close()
 		router.unlisten?.()
-		if (run) removeEventListener('hmr', run)
+		if (reload) removeEventListener('hmr', reload)
 	}
 }
 

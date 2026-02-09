@@ -163,6 +163,8 @@ if (import.meta.hot) {
 		Array.from(el.children).forEach(child => walk(child, path))
 	}
 
+	const root = document.getElementById('root');
+
 	(globalThis as { __HMR__?: (path?: string) => void }).__HMR__ = path => {
 		if (root) walk(root, path)
 		dispatchEvent(new CustomEvent('hmr'))
