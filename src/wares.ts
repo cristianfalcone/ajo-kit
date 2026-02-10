@@ -1,4 +1,5 @@
-import type { Middleware } from 'polka'
+import type { Middleware } from '@kit'
+import { ForbiddenError, api } from '@kit'
 import { read, clear } from '@kit/auth/cookie'
 import { validate } from '@kit/auth/session'
 import { validate as validateToken } from '@kit/auth/token'
@@ -7,7 +8,6 @@ import { when, redirect } from '@kit/auth/guard'
 import { configure } from '@kit/auth/store'
 import { db } from '/src/data'
 import type { Role } from '/src/data'
-import { ForbiddenError, api } from '@kit'
 
 configure(() => db())
 

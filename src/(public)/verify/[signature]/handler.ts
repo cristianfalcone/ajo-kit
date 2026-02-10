@@ -1,4 +1,4 @@
-import type { Request } from 'polka'
+import type { Request } from '@kit'
 import { validate } from '@kit/auth/verify'
 import { db } from '/src/data'
 

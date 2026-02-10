@@ -1,4 +1,4 @@
-import type { Request } from 'polka'
+import type { Request } from '@kit'
 import { db, unread } from '/src/data'
 import { read } from '@kit/auth/cookie'
 

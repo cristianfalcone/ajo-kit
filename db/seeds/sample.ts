@@ -1,5 +1,5 @@
-import type { Kysely } from 'kysely'
-import { hash } from '../../src/auth/password'
+import type { Kysely } from 'ajo-kit/database'
+import { hash } from 'ajo-auth/password'
 
 async function fetchJson<T>(url: string): Promise<T> {
 	const response = await fetch(url)

@@ -1,0 +1,23 @@
+{
+  "name": "ajo-auth",
+  "version": "0.1.0",
+  "type": "module",
+  "kit": {
+    "alias": "auth",
+    "serverOnly": true,
+    "migrations": "./migrations/"
+  },
+  "exports": {
+    ".":    { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./*":  { "types": "./src/*.ts", "default": "./src/*.ts" }
+  },
+  "dependencies": {
+    "argon2": ">=0.40.0"
+  },
+  "devDependencies": {
+    "ajo-kit": "workspace:*"
+  },
+  "peerDependencies": {
+    "ajo-kit": ">=0.1.0"
+  }
+}

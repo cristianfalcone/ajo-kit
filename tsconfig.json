@@ -22,8 +22,9 @@
     "baseUrl": ".",
     "paths": {
       "/src/*": ["src/*"],
-      "@kit": ["packages/kit/src/constants.ts"],
-      "@kit/*": ["packages/kit/src/*"],
+      "@kit": ["packages/ajo-kit/src/constants.ts"],
+      "@kit/auth/*": ["packages/ajo-auth/src/*"],
+      "@kit/*": ["packages/ajo-kit/src/*"],
     },
   },
 }

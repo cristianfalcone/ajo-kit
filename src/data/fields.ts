@@ -5,7 +5,7 @@ import {
 	toLowerCase,
 	email as vemail,
 	minLength,
-} from 'valibot'
+} from '@kit/validate'
 
 export const email = pipe(
 	string(),

@@ -1,5 +1,5 @@
-import type { Request } from 'polka'
-import { object, string, pipe, forward, partialCheck } from 'valibot'
+import type { Request } from '@kit'
+import { object, string, pipe, forward, partialCheck } from '@kit/validate'
 import { validate, consume } from '@kit/auth/reset'
 import { hash } from '@kit/auth/password'
 import { db, password } from '/src/data'

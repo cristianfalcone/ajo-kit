@@ -1,5 +1,5 @@
-import type { Request, Response } from 'polka'
-import { object, literal } from 'valibot'
+import type { Request, Response } from '@kit'
+import { object, literal } from '@kit/validate'
 import { clear as clearCookie } from '@kit/auth/cookie'
 import { clear as clearConfirm } from '@kit/auth/confirm'
 import { db } from '/src/data'

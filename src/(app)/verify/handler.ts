@@ -1,4 +1,4 @@
-import type { Request } from 'polka'
+import type { Request } from '@kit'
 import { url } from '@kit/auth/verify'
 import { check, hit } from '@kit/auth/limit'
 import { send } from '@kit/mail'

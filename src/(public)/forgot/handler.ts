@@ -1,5 +1,5 @@
-import type { Request } from 'polka'
-import { object } from 'valibot'
+import type { Request } from '@kit'
+import { object } from '@kit/validate'
 import { create } from '@kit/auth/reset'
 import { check, hit } from '@kit/auth/limit'
 import { send } from '@kit/mail'

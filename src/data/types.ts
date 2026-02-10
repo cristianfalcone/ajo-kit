@@ -1,4 +1,4 @@
-import type { Generated, Selectable, Insertable } from 'kysely'
+import type { Generated, Selectable, Insertable } from '@kit/database'
 
 export interface UsersTable {
 	id: Generated<number>

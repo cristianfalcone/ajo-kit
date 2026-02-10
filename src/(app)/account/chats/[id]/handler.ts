@@ -1,6 +1,6 @@
-import type { Request } from 'polka'
+import type { Request } from '@kit'
 import { db } from '/src/data'
-import { sql } from 'kysely'
+import { sql } from '@kit/database'
 import { emit } from '@kit/server'
 import { NotFoundError } from '@kit'
 

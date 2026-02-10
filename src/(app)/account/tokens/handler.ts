@@ -1,5 +1,5 @@
-import type { Request } from 'polka'
-import { object, string, array, optional, pipe, minLength } from 'valibot'
+import type { Request } from '@kit'
+import { object, string, array, optional, pipe, minLength } from '@kit/validate'
 import { create, list } from '@kit/auth/token'
 import { db, trimmed } from '/src/data'
 import { parse } from '@kit/validate'

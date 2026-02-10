@@ -1,5 +1,5 @@
-import type { Request } from 'polka'
-import { object, string } from 'valibot'
+import type { Request } from '@kit'
+import { object, string } from '@kit/validate'
 import { verify } from '@kit/auth/password'
 import { stamp } from '@kit/auth/confirm'
 import { db } from '/src/data'

@@ -1,6 +1,6 @@
-import type { Request, Response } from 'polka'
-import { object, optional, string, forward, partialCheck, pipe } from 'valibot'
+import type { Request, Response } from '@kit'
 import { AppError, ip } from '@kit'
+import { object, optional, string, forward, partialCheck, pipe } from '@kit/validate'
 import { hash } from '@kit/auth/password'
 import { create } from '@kit/auth/session'
 import { write } from '@kit/auth/cookie'

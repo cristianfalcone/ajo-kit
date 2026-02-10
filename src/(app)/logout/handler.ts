@@ -1,5 +1,5 @@
-import type { Request, Response } from 'polka'
-import send from '@polka/send'
+import type { Request, Response } from '@kit'
+import { send } from '@kit/server'
 import { createHash } from 'node:crypto'
 import { db } from '/src/data'
 

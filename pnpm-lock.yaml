@@ -8,61 +8,25 @@ importers:
 
   .:
     dependencies:
-      '@polka/parse':
-        specifier: 1.0.0-next.28
-        version: 1.0.0-next.28
-      '@polka/send':
-        specifier: 1.0.0-next.28
-        version: 1.0.0-next.28
       ajo:
         specifier: 0.1.29
         version: 0.1.29
-      argon2:
-        specifier: 0.44.0
-        version: 0.44.0
-      better-sqlite3:
-        specifier: 12.6.2
-        version: 12.6.2
+      ajo-auth:
+        specifier: workspace:*
+        version: link:packages/ajo-auth
+      ajo-backup:
+        specifier: workspace:*
+        version: link:packages/ajo-backup
+      ajo-kit:
+        specifier: workspace:*
+        version: link:packages/ajo-kit
       clsx:
         specifier: 2.1.1
         version: 2.1.1
-      devalue:
-        specifier: ^5.6.2
-        version: 5.6.2
-      dotenv:
-        specifier: ^17.2.3
-        version: 17.2.3
-      kit:
-        specifier: workspace:*
-        version: link:packages/kit
-      kysely:
-        specifier: 0.28.10
-        version: 0.28.10
-      navaid:
-        specifier: 1.2.0
-        version: 1.2.0
-      polka:
-        specifier: 1.0.0-next.28
-        version: 1.0.0-next.28
-      regexparam:
-        specifier: ^3.0.0
-        version: 3.0.0
-      sade:
-        specifier: 1.8.1
-        version: 1.8.1
-      sirv:
-        specifier: 3.0.2
-        version: 3.0.2
-      valibot:
-        specifier: 1.2.0
-        version: 1.2.0(typescript@5.9.3)
     devDependencies:
       '@iconify-json/lucide':
         specifier: 1.2.86
         version: 1.2.86
-      '@types/better-sqlite3':
-        specifier: 7.6.13
-        version: 7.6.13
       '@types/node':
         specifier: 25.0.9
         version: 25.0.9
@@ -72,9 +36,6 @@ importers:
       '@unocss/preset-wind4':
         specifier: 66.6.0
         version: 66.6.0
-      kysely-ctl:
-        specifier: ^0.20.0
-        version: 0.20.0(kysely@0.28.10)(typescript@5.9.3)
       tsx:
         specifier: 4.21.0
         version: 4.21.0
@@ -88,7 +49,23 @@ importers:
         specifier: 7.3.1
         version: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(tsx@4.21.0)
 
-  packages/kit:
+  packages/ajo-auth:
+    dependencies:
+      argon2:
+        specifier: '>=0.40.0'
+        version: 0.44.0
+    devDependencies:
+      ajo-kit:
+        specifier: workspace:*
+        version: link:../ajo-kit
+
+  packages/ajo-backup:
+    devDependencies:
+      ajo-kit:
+        specifier: workspace:*
+        version: link:../ajo-kit
+
+  packages/ajo-kit:
     dependencies:
       '@polka/parse':
         specifier: '>=1.0.0-next.25'
@@ -99,18 +76,21 @@ importers:
       ajo:
         specifier: '>=0.1.0'
         version: 0.1.29
-      argon2:
-        specifier: '>=0.40.0'
-        version: 0.44.0
       better-sqlite3:
         specifier: '>=12.0.0'
         version: 12.6.2
       devalue:
         specifier: '>=5.0.0'
         version: 5.6.2
+      dotenv:
+        specifier: '>=17.0.0'
+        version: 17.2.3
       kysely:
         specifier: '>=0.28.0'
         version: 0.28.10
+      kysely-ctl:
+        specifier: '>=0.20.0'
+        version: 0.20.0(kysely@0.28.10)(typescript@5.9.3)
       navaid:
         specifier: '>=1.2.0'
         version: 1.2.0
@@ -120,6 +100,12 @@ importers:
       regexparam:
         specifier: '>=3.0.0'
         version: 3.0.0
+      sade:
+        specifier: '>=1.8.0'
+        version: 1.8.1
+      sirv:
+        specifier: '>=3.0.0'
+        version: 3.0.2
       valibot:
         specifier: '>=1.0.0'
         version: 1.2.0(typescript@5.9.3)
@@ -481,9 +467,6 @@ packages:
     resolution: {integrity: sha512-CvUo2ixeIQGtF6WvuB87XWqPQkoFAFqW+HUo/WzHwuHDvIwZCtjdWXoYCcr06iKGydiqTclC4jU/TNObC/xKZg==}
     cpu: [x64]
     os: [win32]
-
-  '@types/better-sqlite3@7.6.13':
-    resolution: {integrity: sha512-NMv9ASNARoKksWtsq/SHakpYAYnhBrQgGD8zkLYk/jaK8jUGn08CfEdTRgYhMypUQAfzSP8W6gNLe0q19/t4VA==}
 
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
@@ -1363,10 +1346,6 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.46.2':
     optional: true
-
-  '@types/better-sqlite3@7.6.13':
-    dependencies:
-      '@types/node': 25.0.9
 
   '@types/estree@1.0.8': {}
 
