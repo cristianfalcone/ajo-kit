@@ -17,13 +17,6 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-
-    "baseUrl": ".",
-    "paths": {
-      "/src/*": ["src/*"],
-      "@kit": ["packages/kit/src/constants.ts"],
-      "@kit/*": ["packages/kit/src/*"],
-    },
-  },
+    "noFallthroughCasesInSwitch": true
+  }
 }

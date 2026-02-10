@@ -1,8 +1,8 @@
 import type { Request } from 'polka'
 import { db } from '/src/data'
 import { sql } from 'kysely'
-import { emit } from '/src/server'
-import { NotFoundError } from '/src/constants'
+import { emit } from '@kit/server'
+import { NotFoundError } from '@kit'
 
 export async function page(req: Request) {
 

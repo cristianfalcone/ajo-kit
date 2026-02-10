@@ -1,6 +1,7 @@
 import type { Request } from 'polka'
 import { object, string, pipe, transform, number } from 'valibot'
-import { db, parse } from '/src/data'
+import { db } from '/src/data'
+import { parse } from '@kit/validate'
 
 export const deps = ['sessions', 'users']
 

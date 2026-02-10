@@ -1,9 +1,10 @@
 import type { Request, Response } from 'polka'
 import { object, literal } from 'valibot'
-import { clear as clearCookie } from '/src/auth/cookie'
-import { clear as clearConfirm } from '/src/auth/confirm'
-import { db, parse } from '/src/data'
-import { ForbiddenError } from '/src/constants'
+import { clear as clearCookie } from '@kit/auth/cookie'
+import { clear as clearConfirm } from '@kit/auth/confirm'
+import { db } from '/src/data'
+import { parse } from '@kit/validate'
+import { ForbiddenError } from '@kit'
 
 const Confirm = object({
 	confirmation: literal('DELETE', 'Type DELETE to confirm')

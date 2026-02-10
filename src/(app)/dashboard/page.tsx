@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, formatDate } from '/src/constants'
-import { subscribe } from '/src/client'
+import { type PageArgs, formatDate } from '@kit'
+import { subscribe } from '@kit/client'
 
 type Session = {
 	id: string

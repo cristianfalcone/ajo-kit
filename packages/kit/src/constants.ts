@@ -1,9 +1,8 @@
 import { stringify, parse } from 'devalue'
 import type { Children, Component } from 'ajo'
-import { context } from 'ajo/context'
 import type { Params } from 'navaid'
 import type { Request, Response } from 'polka'
-import type { Head } from '/src/head'
+import type { Head } from './head'
 
 // Route errors with HTTP status codes
 
@@ -178,13 +177,9 @@ export function sum(value: unknown): string {
 
 // Auth types
 
-export type Role = 'admin' | 'user'
-
 export interface User {
 	id: number
-	name: string
-	email: string
-	roles: Role[]
+	[key: string]: unknown
 }
 
 // Request extensions for polka
@@ -253,23 +248,3 @@ export const unpack = (value: string) => parse(value, revivers)
 
 export const formatDate = (iso: string, options?: Intl.DateTimeFormatOptions) =>
 	new Date(iso).toLocaleDateString(undefined, options ?? { month: 'short', day: 'numeric', year: 'numeric' })
-
-// Unread context (shared between layouts)
-
-export const UnreadContext = context<number>(0)
-
-// Theme context
-
-export type ThemeMode = 'system' | 'light' | 'dark'
-
-export interface Theme {
-	mode: ThemeMode
-	set: (next: ThemeMode) => void
-	cycle: () => void
-}
-
-export const ThemeContext = context<Theme>({
-	mode: 'system',
-	set: () => {},
-	cycle: () => {},
-})

@@ -1,10 +1,10 @@
-import 'virtual:uno.css'
+import 'virtual:ajo/css'
 import { render } from 'ajo'
 import { current } from 'ajo/context'
-import App, { ssr, cache, seals, subscribers } from '/src/app'
-import type { State, Entry, ActionState, EventCallback, EventState } from '/src/constants'
-import type { Head } from '/src/head'
-import { navigate, unpack } from '/src/constants'
+import App, { ssr, cache, seals, subscribers } from './app'
+import type { State, Entry, ActionState, EventCallback, EventState } from './constants'
+import type { Head } from './head'
+import { navigate, unpack } from './constants'
 
 // Form action helper for stateful generator components
 

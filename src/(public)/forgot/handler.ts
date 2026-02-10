@@ -1,10 +1,11 @@
 import type { Request } from 'polka'
 import { object } from 'valibot'
-import { create } from '/src/auth/reset'
-import { check, hit } from '/src/auth/limit'
-import { send } from '/src/mail'
-import { db, parse, email } from '/src/data'
-import { AppError, ip } from '/src/constants'
+import { create } from '@kit/auth/reset'
+import { check, hit } from '@kit/auth/limit'
+import { send } from '@kit/mail'
+import { db, email } from '/src/data'
+import { parse } from '@kit/validate'
+import { AppError, ip } from '@kit'
 
 const Forgot = object({ email })
 

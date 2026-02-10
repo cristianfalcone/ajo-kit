@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { db } from '/src/data'
+import { db } from './store'
 import { generate } from './session'
 
 export type Ability = string

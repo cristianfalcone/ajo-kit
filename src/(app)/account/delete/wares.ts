@@ -1,3 +1,3 @@
-import { confirmed } from '/src/auth/guard'
+import { confirmed } from '@kit/auth/guard'
 
 export default [confirmed()]

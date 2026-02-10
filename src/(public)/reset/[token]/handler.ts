@@ -1,9 +1,10 @@
 import type { Request } from 'polka'
 import { object, string, pipe, forward, partialCheck } from 'valibot'
-import { validate, consume } from '/src/auth/reset'
-import { hash } from '/src/auth/password'
-import { db, parse, password } from '/src/data'
-import { AppError } from '/src/constants'
+import { validate, consume } from '@kit/auth/reset'
+import { hash } from '@kit/auth/password'
+import { db, password } from '/src/data'
+import { parse } from '@kit/validate'
+import { AppError } from '@kit'
 
 const Reset = pipe(
 	object({

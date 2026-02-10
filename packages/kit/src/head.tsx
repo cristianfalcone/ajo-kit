@@ -44,7 +44,7 @@ export function merge(...heads: (Head | undefined)[]): Head {
 			const id = key.meta(entry)
 
 			if (id && index.meta.has(id)) result.meta![index.meta.get(id)!] = entry
-			
+
 			else {
 				if (id) index.meta.set(id, result.meta!.length)
 				result.meta!.push(entry)

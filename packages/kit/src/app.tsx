@@ -1,6 +1,6 @@
 import navaid, { type Params } from 'navaid'
 import type { Component, Stateful } from 'ajo'
-import { AppError, navigate, links, ancestors, normalize, unpack } from '/src/constants'
+import { AppError, navigate, links, ancestors, normalize, unpack } from './constants'
 import type {
 	PageArgs,
 	LayoutArgs,
@@ -13,8 +13,9 @@ import type {
 	State,
 	Cached,
 	EventState
-} from '/src/constants'
-import { merge, apply, type Head } from '/src/head'
+} from './constants'
+import { merge, apply, type Head } from './head'
+import { routes } from 'virtual:ajo/routes'
 
 // Pattern compilation
 
@@ -64,7 +65,7 @@ export const pages: Page[] = []
 export const layoutPaths = (segments: string[]) => ancestors(segments).filter(path => layouts.has(path))
 export const cacheKeys = (paths: string[], segments: string[]) => ['head', ...paths, `page:${segments.join('/')}`]
 
-for (const [path, loader] of Object.entries(import.meta.glob('/src/**/{layout,page}.{j,t}s{,x}') as Record<string, Loader>)) {
+for (const [path, loader] of Object.entries(routes as Record<string, Loader>)) {
 
 	const segments = toSegments(path)
 	const kind = getFileName(path)
@@ -262,11 +263,17 @@ export async function* resolve(
 
 	const keys = cacheKeys(paths, segments)
 
-	const server = data ? { data, head: undefined as Head | undefined }
-		: import.meta.env.SSR ? { data: [] as Data }
+	const server = data
+		? { data, head: undefined as Head | undefined }
+		: import.meta.env.SSR
+			? { data: [] as Data }
 			: await load(url, keys)
 
-	if ('redirect' in server && server.redirect) { navigate(server.redirect); return }
+	if ('redirect' in server && server.redirect) {
+		navigate(server.redirect)
+		return
+	}
+
 	if ('error' in server && server.error) {
 		const state: State = { url, params, data: [], loading: false, error: server.error }
 		yield { Page: compose(target, tree, paths, state), data: state }

@@ -1,6 +1,6 @@
 import type { Middleware } from 'polka'
 import { db } from '/src/data'
-import { ForbiddenError } from '/src/constants'
+import { ForbiddenError } from '@kit'
 
 export default [
 	async (req, _, next) => {

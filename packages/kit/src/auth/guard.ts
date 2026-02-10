@@ -1,9 +1,9 @@
 import type { Middleware, Request, Response } from 'polka'
 import send from '@polka/send'
-import { UnauthorizedError, ForbiddenError, AppError, ajax, pack, type Role } from '/src/constants'
+import { UnauthorizedError, ForbiddenError, AppError, ajax, pack } from '../constants'
 import { can } from './token'
 import { check as checkConfirm } from './confirm'
-import { db } from '/src/data'
+import { db } from './store'
 
 export const redirect = (to: string | ((req: Request) => string)): Middleware => (req, res) => {
 
@@ -29,10 +29,12 @@ export const auth = (): Middleware => (req, _, next) => {
 	next()
 }
 
-export const role = (...allowed: Role[]): Middleware => (req, _, next) => {
+export const role = <R extends string>(...allowed: R[]): Middleware => (req, _, next) => {
 
 	if (!req.user) throw new UnauthorizedError()
-	if (!allowed.some(role => req.user!.roles.includes(role))) throw new ForbiddenError()
+
+	const roles = (req.user as { roles?: string[] }).roles ?? []
+	if (!allowed.some(r => roles.includes(r))) throw new ForbiddenError()
 
 	next()
 }

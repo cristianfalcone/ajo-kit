@@ -5,11 +5,12 @@ import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
 import send from '@polka/send'
 import { parse } from 'regexparam'
-import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths, cacheKeys, reGroup } from '/src/app'
-import { AppError, links, ancestors, normalize, ajax, api, sum, pack } from '/src/constants'
-import { snapshot, version, tap } from '/src/data'
-import type { State, Data, Entry, Page, Parent, Module } from '/src/constants'
-import { merge, render as renderHead, type Head } from '/src/head'
+import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths, cacheKeys, reGroup } from './app'
+import { AppError, links, ancestors, normalize, ajax, api, sum, pack } from './constants'
+import { snapshot, version, tap } from './tracker'
+import type { State, Data, Entry, Page, Parent, Module } from './constants'
+import { merge, render as renderHead, type Head } from './head'
+import { handlers as handlerFiles, wares as wareFiles } from 'virtual:ajo/handlers'
 
 // Event bus
 
@@ -436,10 +437,9 @@ export async function create(template: Template) {
 
 	// Load wares first
 
-	const wareFiles = import.meta.glob('/src/**/wares.{j,t}s{,x}') as Record<string, () => Promise<Record<string, unknown>>>
 	const wares = new Map<string, Middleware[]>()
 
-	for (const [file, loader] of Object.entries(wareFiles)) {
+	for (const [file, loader] of Object.entries(wareFiles as Record<string, () => Promise<Record<string, unknown>>>)) {
 		const exports = await loader()
 		const key = toSegments(file).join('/')
 		const items = Array.isArray(exports.default) ? exports.default : [exports.default]
@@ -448,10 +448,9 @@ export async function create(template: Template) {
 
 	// Then load handlers (wares guaranteed available)
 
-	const handlerFiles = import.meta.glob('/src/**/handler.{j,t}s{,x}') as Record<string, () => Promise<Record<string, unknown>>>
 	const handlers = new Map<string, PageHandler>()
 
-	for (const [file, loader] of Object.entries(handlerFiles)) {
+	for (const [file, loader] of Object.entries(handlerFiles as Record<string, () => Promise<Record<string, unknown>>>)) {
 
 		const exports = await loader()
 		const segments = toSegments(file)
@@ -545,13 +544,19 @@ export async function create(template: Template) {
 	// Compute event sums for a path (used in SSR + ajax responses and SSE skip)
 
 	const seal = (path: string, userId?: number, before?: Record<string, number>) => {
+
 		const es: Record<string, string | Record<string, string>> = {}
+
 		for (const reg of registrations) {
+
 			if (!reg.route.pattern.exec(path)) continue
 			if (before && reg.deps && tables(reg.deps).some(t => version(t) !== (before[t] ?? 0))) continue
+
 			const value = digest(reg.deps, userId, reg.key)
+
 			if (value) es[reg.name] = value
 		}
+
 		return es
 	}
 
@@ -595,6 +600,7 @@ export async function create(template: Template) {
 		// Send initial event data (skip if client already has matching sums)
 
 		const url = new URL(req.originalUrl, `http://${req.headers.host}`)
+
 		const known = Object.fromEntries(
 			(url.searchParams.get('es') ?? '').split(',').filter(Boolean).map(p => {
 				const i = p.lastIndexOf(':')

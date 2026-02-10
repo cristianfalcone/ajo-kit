@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, navigate } from '/src/constants'
-import { action } from '/src/client'
+import { type PageArgs, navigate } from '@kit'
+import { action } from '@kit/client'
 
 type Result = { confirmed: boolean }
 

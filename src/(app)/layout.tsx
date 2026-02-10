@@ -1,8 +1,8 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { User, LayoutArgs, ActionState } from '/src/constants'
-import { ThemeContext, UnreadContext } from '/src/constants'
-import { action, subscribe } from '/src/client'
+import type { User, LayoutArgs, ActionState } from '@kit'
+import { ThemeContext, UnreadContext } from '/src/contexts'
+import { action, subscribe } from '@kit/client'
 
 type LinkOptions = { exact?: boolean, include?: string[] }
 

@@ -1,12 +1,15 @@
 import type { Middleware } from 'polka'
-import { read, clear } from '/src/auth/cookie'
-import { validate } from '/src/auth/session'
-import { validate as validateToken } from '/src/auth/token'
-import { verify as verifyCsrf } from '/src/auth/csrf'
-import { when, redirect } from '/src/auth/guard'
+import { read, clear } from '@kit/auth/cookie'
+import { validate } from '@kit/auth/session'
+import { validate as validateToken } from '@kit/auth/token'
+import { verify as verifyCsrf } from '@kit/auth/csrf'
+import { when, redirect } from '@kit/auth/guard'
+import { configure } from '@kit/auth/store'
 import { db } from '/src/data'
 import type { Role } from '/src/data'
-import { ForbiddenError, api } from '/src/constants'
+import { ForbiddenError, api } from '@kit'
+
+configure(() => db())
 
 export default [
 

@@ -1,5 +1,5 @@
 import type { Request } from 'polka'
-import { validate } from '/src/auth/verify'
+import { validate } from '@kit/auth/verify'
 import { db } from '/src/data'
 
 export async function page(req: Request) {

@@ -1,6 +1,6 @@
 import type { Request } from 'polka'
 import { db, unread } from '/src/data'
-import { read } from '/src/auth/cookie'
+import { read } from '@kit/auth/cookie'
 
 export const deps = {
 	user: ['users', 'members', ':user'],

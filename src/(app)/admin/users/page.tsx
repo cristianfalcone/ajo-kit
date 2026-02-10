@@ -1,4 +1,4 @@
-import { type PageArgs, formatDate } from '/src/constants'
+import { type PageArgs, formatDate } from '@kit'
 
 type User = {
 	id: number

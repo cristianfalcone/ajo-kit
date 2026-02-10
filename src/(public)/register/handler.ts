@@ -1,13 +1,14 @@
 import type { Request, Response } from 'polka'
 import { object, optional, string, forward, partialCheck, pipe } from 'valibot'
-import { AppError, ip } from '/src/constants'
-import { hash } from '/src/auth/password'
-import { create } from '/src/auth/session'
-import { write } from '/src/auth/cookie'
-import { check, hit } from '/src/auth/limit'
-import { url } from '/src/auth/verify'
-import { send } from '/src/mail'
-import { db, parse, email, password, trimmed } from '/src/data'
+import { AppError, ip } from '@kit'
+import { hash } from '@kit/auth/password'
+import { create } from '@kit/auth/session'
+import { write } from '@kit/auth/cookie'
+import { check, hit } from '@kit/auth/limit'
+import { url } from '@kit/auth/verify'
+import { send } from '@kit/mail'
+import { db, email, password, trimmed } from '/src/data'
+import { parse } from '@kit/validate'
 
 const Signup = pipe(
 	object({

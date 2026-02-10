@@ -6,10 +6,10 @@
     ]
   },
   "scripts": {
-    "dev": "tsx watch --include 'src/server.tsx' --include 'src/**/{handler,wares}.ts' server.ts dev",
+    "dev": "tsx watch --include 'src/**/{handler,wares}.ts' server.ts dev",
     "build": "pnpm build:client && pnpm build:server",
     "build:client": "vite build --outDir dist/client",
-    "build:server": "vite build --ssr src/server.tsx --outDir dist/server",
+    "build:server": "vite build --ssr packages/kit/src/server.tsx --outDir dist/server",
     "prod": "NODE_ENV=production tsx server.ts prod",
     "backup": "tsx src/data/backup.ts"
   },
@@ -17,6 +17,7 @@
     "@polka/parse": "1.0.0-next.28",
     "@polka/send": "1.0.0-next.28",
     "ajo": "0.1.29",
+    "kit": "workspace:*",
     "argon2": "0.44.0",
     "better-sqlite3": "12.6.2",
     "clsx": "2.1.1",

@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { LayoutArgs } from '/src/constants'
-import { UnreadContext } from '/src/constants'
+import type { LayoutArgs } from '@kit'
+import { UnreadContext } from '/src/contexts'
 
 const links: [string, string, string][] = [
 	['/account/profile', 'Profile', 'i-lucide-user'],

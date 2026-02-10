@@ -1,13 +1,14 @@
 import type { Request, Response } from 'polka'
 import send from '@polka/send'
 import { object, string, optional, pipe, unknown, transform } from 'valibot'
-import { hash, verify } from '/src/auth/password'
-import { create } from '/src/auth/session'
-import { create as createToken } from '/src/auth/token'
-import { write } from '/src/auth/cookie'
-import { check, hit, clear } from '/src/auth/limit'
-import { db, parse, email } from '/src/data'
-import { UnauthorizedError, AppError, ip } from '/src/constants'
+import { hash, verify } from '@kit/auth/password'
+import { create } from '@kit/auth/session'
+import { create as createToken } from '@kit/auth/token'
+import { write } from '@kit/auth/cookie'
+import { check, hit, clear } from '@kit/auth/limit'
+import { db, email } from '/src/data'
+import { parse } from '@kit/validate'
+import { UnauthorizedError, AppError, ip } from '@kit'
 
 const checkbox = pipe(unknown(), transform(v => v === 'true' || v === true))
 

@@ -1,8 +1,9 @@
 import type { Request } from 'polka'
 import { object, string, optional, pipe, forward, partialCheck } from 'valibot'
-import { hash, verify } from '/src/auth/password'
-import { db, parse, password as passwordField, trimmed } from '/src/data'
-import { UnauthorizedError } from '/src/constants'
+import { hash, verify } from '@kit/auth/password'
+import { db, password as passwordField, trimmed } from '/src/data'
+import { parse } from '@kit/validate'
+import { UnauthorizedError } from '@kit'
 
 // Skip handler if users table hasn't changed and same user
 export const deps = ['users', ':user']

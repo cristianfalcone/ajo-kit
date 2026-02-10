@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '/src/constants'
+import type { PageArgs } from '@kit'
 
 interface Data {
 	error?: string

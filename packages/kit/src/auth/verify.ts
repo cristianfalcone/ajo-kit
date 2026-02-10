@@ -13,9 +13,9 @@ export function sign(user: number): string {
 }
 
 export function validate(signature: string): number | null {
-	
+
 	try {
-	
+
 		const decoded = Buffer.from(signature, 'base64url').toString()
 		const [user, expiry, sig] = decoded.split(':')
 

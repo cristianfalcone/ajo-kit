@@ -1,9 +1,9 @@
 import type { Request } from 'polka'
-import { url } from '/src/auth/verify'
-import { check, hit } from '/src/auth/limit'
-import { send } from '/src/mail'
+import { url } from '@kit/auth/verify'
+import { check, hit } from '@kit/auth/limit'
+import { send } from '@kit/mail'
 import { db } from '/src/data'
-import { AppError } from '/src/constants'
+import { AppError } from '@kit'
 
 export const actions = {
 

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { db } from '/src/data'
+import { db } from './store'
 
 export const generate = () => randomBytes(32).toString('base64url')
 

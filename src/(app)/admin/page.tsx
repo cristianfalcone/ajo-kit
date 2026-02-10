@@ -1,4 +1,4 @@
-import type { PageArgs } from '/src/constants'
+import type { PageArgs } from '@kit'
 
 type Data = {
 	stats: {

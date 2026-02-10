@@ -1,10 +1,11 @@
 import type { Request, Response } from 'polka'
 import send from '@polka/send'
 import { object, string, array, optional } from 'valibot'
-import { create, list } from '/src/auth/token'
-import { check, hit } from '/src/auth/limit'
-import { db, parse } from '/src/data'
-import { NotFoundError, AppError } from '/src/constants'
+import { create, list } from '@kit/auth/token'
+import { check, hit } from '@kit/auth/limit'
+import { db } from '/src/data'
+import { parse } from '@kit/validate'
+import { NotFoundError, AppError } from '@kit'
 
 const Create = object({
 	name: string(),

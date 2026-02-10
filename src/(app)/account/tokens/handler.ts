@@ -1,7 +1,8 @@
 import type { Request } from 'polka'
 import { object, string, array, optional, pipe, minLength } from 'valibot'
-import { create, list } from '/src/auth/token'
-import { db, parse, trimmed } from '/src/data'
+import { create, list } from '@kit/auth/token'
+import { db, trimmed } from '/src/data'
+import { parse } from '@kit/validate'
 
 export const deps = ['tokens', ':user']
 

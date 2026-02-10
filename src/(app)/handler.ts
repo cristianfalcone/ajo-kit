@@ -1,8 +1,8 @@
 import type { Request, Response } from 'polka'
 import { db, unread } from '/src/data'
-import { read, clear } from '/src/auth/cookie'
-import { remove } from '/src/auth/session'
-import { UnauthorizedError } from '../constants'
+import { read, clear } from '@kit/auth/cookie'
+import { remove } from '@kit/auth/session'
+import { UnauthorizedError } from '@kit'
 
 export const deps = {
 	user: ['users', 'members', ':user'],

@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { LayoutArgs } from '/src/constants'
+import type { LayoutArgs } from '@kit'
 
 const links: [string, string, string][] = [
 	['/admin', 'Overview', 'i-lucide-layout-dashboard'],

@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '/src/constants'
-import { action, subscribe } from '/src/client'
+import type { PageArgs } from '@kit'
+import { action, subscribe } from '@kit/client'
 
 type Message = {
 	id: number
