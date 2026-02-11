@@ -9,7 +9,7 @@ export const redirect = (to: string | ((req: Request) => string)): Middleware =>
 	const target = typeof to === 'function' ? to(req) : to
 
 	if (ajax(req)) {
-		res.writeHead(200, { 'Content-Type': 'application/json' })
+		res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
 		res.end(pack({ redirect: target }))
 	} else {
 		res.writeHead(302, { Location: target })

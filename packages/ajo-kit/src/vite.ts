@@ -110,9 +110,6 @@ export interface KitOptions {
 	wares?: string
 	serverOnly?: Pattern[]
 	css?: string[]
-	database?: string
-	migrations?: string
-	seeds?: string
 }
 
 export const defaults = {
@@ -127,6 +124,7 @@ export function kit(options?: KitOptions): Plugin[] {
 	const handlerGlob = options?.handlers ?? '/src/**/handler.{j,t}s{,x}'
 	const wareGlob = options?.wares ?? '/src/**/wares.{j,t}s{,x}'
 	const cssEntries = options?.css ?? []
+	const found = discover()
 
 	return [
 		{
@@ -134,7 +132,6 @@ export function kit(options?: KitOptions): Plugin[] {
 			resolveId(id) {
 				if (id === 'virtual:ajo/routes') return '\0virtual:ajo/routes'
 				if (id === 'virtual:ajo/handlers') return '\0virtual:ajo/handlers'
-				if (id === 'virtual:ajo/css') return '\0virtual:ajo/css'
 			},
 			load(id) {
 				if (id === '\0virtual:ajo/routes') {
@@ -146,12 +143,14 @@ export function kit(options?: KitOptions): Plugin[] {
 						`export const wares = import.meta.glob('${wareGlob}')`,
 					].join('\n')
 				}
-				if (id === '\0virtual:ajo/css') {
-					return cssEntries.map(c => `import '${c}'`).join('\n') || ''
+			},
+			transform(code, id) {
+				if (cssEntries.length && id.includes('ajo-kit') && id.endsWith('client.tsx')) {
+					return cssEntries.map(c => `import '${c}'`).join('\n') + '\n' + code
 				}
 			},
 			config() {
-				const aliases = discover()
+				const aliases = found
 					.filter(p => p.alias)
 					.map(p => ({ find: new RegExp(`^@kit/${p.alias}(/|$)`), replacement: `${p.name}$1` }))
 
@@ -170,7 +169,7 @@ export function kit(options?: KitOptions): Plugin[] {
 		serverOnly(options?.serverOnly ?? [
 			/(handler|wares)\.[jt]sx?$/,
 			/\/src\/data\//,
-			...discover().filter(p => p.serverOnly).map(p => new RegExp(`${p.name}/`)),
+			...found.filter(p => p.serverOnly).map(p => new RegExp(`${p.name}/`)),
 		]),
 		hmr(/(page|layout)\.[jt]sx?$/),
 		native(['better-sqlite3', 'argon2']),

@@ -8,5 +8,3 @@ declare module 'virtual:ajo/handlers' {
 	export const handlers: Record<string, Loader>
 	export const wares: Record<string, Loader>
 }
-
-declare module 'virtual:ajo/css' {}

@@ -178,20 +178,29 @@ async function load(url: string, keys: string[]): Promise<{ data: Data; head?: H
 
 	const response = await fetch(url, {
 		credentials: 'include',
+		cache: 'no-store',
 		headers: { Accept: 'application/json', ...(header && { 'X-Have': header }) }
 	})
 
-	const json = await response.text().then(unpack).catch(error => ({ error }))
+	const json = await response.text().then(unpack).catch(() => null)
+
+	if (!json || !response.ok) {
+
+		const status = json?.error?.status ?? response.status
+		const message = json?.error?.message ?? json?.message ?? 'Server data load failed'
+
+		return { data: [], error: new AppError(status, message) }
+	}
 
 	if (json.redirect) return { data: [], redirect: json.redirect }
-
-	if (!response.ok) return { data: [], error: new AppError(json.error?.status ?? 500, json.error?.message ?? 'Server data load failed') }
 
 	const { data: raw, sums, es } = json as {
 		data: (Head | Entry | null)[]
 		sums: (string | Record<string, string> | null)[]
 		es?: Record<string, string | Record<string, string>>
 	}
+
+	if (!raw) return { data: [], error: new AppError(500, 'Invalid server response') }
 
 	raw.forEach((item, index) => {
 
@@ -406,11 +415,30 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		sse.close()
 		subscribers.clear()
 
-		for await (const state of resolve(location.pathname, layouts, target)) {
+		try {
+
+			for await (const state of resolve(location.pathname, layouts, target)) {
+
+				if (gen !== generation) return
+				if (hmr && !state.data) continue
+
+				this.next(() => Page = state.Page)
+
+				if (state.data?.head) apply(state.data.head)
+			}
+
+		} catch (err) {
+
 			if (gen !== generation) return
-			if (hmr && !state.data) continue
-			this.next(() => Page = state.Page)
-			if (state.data?.head) apply(state.data.head)
+
+			err = err instanceof AppError ? err : new AppError(500, err instanceof Error ? err.message : 'Navigation failed')
+
+			for await (const state of resolve(location.pathname, layouts, error(), undefined, err as AppError)) {
+				if (gen !== generation) return
+				this.next(() => Page = state.Page)
+			}
+
+			return
 		}
 
 		if (gen !== generation) return

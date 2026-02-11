@@ -8,11 +8,12 @@ Sistema de data de ajo-kit: carga datos en servidor y cliente en paralelo, cache
 
 | Archivo | Rol |
 |---------|-----|
-| [server.tsx](../src/server.tsx) | Pipeline: `data()` middleware, `dual()` execution, `depSum()`, `canSkip()`, `optimized`, `seal()`, `deliver()`, auto-emit, SSE |
-| [app.tsx](../src/app.tsx) | Router, `resolve()` async generator, cache client (`Map<key, {value, sum}>`), SSE `connect()`, `seals`, `subscribers` |
-| [client.tsx](../src/client.tsx) | Hydration SSR, `action()`, `subscribe()`, `invalidate()` |
-| [constants.ts](../src/constants.ts) | Types (`Cached`, `EventState`), `sum()` hash, `links()` parent chain |
-| [data/db.ts](../src/data/db.ts) | `TrackerPlugin`, `bump()`, `version()`, `snapshot()`, `tap()`, `unread()` |
+| [server.tsx](../packages/ajo-kit/src/server.tsx) | Pipeline: `data()` middleware, `dual()` execution, `depSum()`, `canSkip()`, `optimized`, `seal()`, `deliver()`, auto-emit, SSE |
+| [app.tsx](../packages/ajo-kit/src/app.tsx) | Router, `resolve()` async generator, cache client (`Map<key, {value, sum}>`), SSE `connect()`, `seals`, `subscribers` |
+| [client.tsx](../packages/ajo-kit/src/client.tsx) | Hydration SSR, `action()`, `subscribe()`, `invalidate()` |
+| [constants.ts](../packages/ajo-kit/src/constants.ts) | Types (`Cached`, `EventState`), `sum()` hash, `links()` parent chain |
+| [tracker.ts](../packages/ajo-kit/src/tracker.ts) | `TrackerPlugin`, `bump()`, `version()`, `snapshot()`, `tap()` |
+| [data/index.ts](../src/data/index.ts) | Typed `db()`, app queries (`unread()`) |
 | handler.ts | `page()`, `layout()`, `head()`, `deps`, `actions`, `events` — por ruta |
 
 ```

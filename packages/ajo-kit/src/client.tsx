@@ -1,4 +1,3 @@
-import 'virtual:ajo/css'
 import { render } from 'ajo'
 import { current } from 'ajo/context'
 import App, { ssr, cache, seals, subscribers } from './app'

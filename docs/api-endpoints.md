@@ -39,7 +39,7 @@ export default {                                // API endpoints
 
 ## API Endpoint Registration
 
-**File:** `src/server.tsx` (lines 326-340)
+**File:** `packages/ajo-kit/src/server.tsx`
 
 ```ts
 const { default: routes, page, layout, head, deps, ...actions } = exports
@@ -82,13 +82,13 @@ API endpoints inherit **all middlewares** from ancestor `wares.ts` files, **incl
 
 ### How Middleware Collection Works
 
-**File:** `src/server.tsx` (line 307)
+**File:** `packages/ajo-kit/src/server.tsx`
 ```ts
 const collect = (segments: string[]): Middleware[] =>
   ancestors(segments).flatMap(path => wares.get(path) ?? [])
 ```
 
-**File:** `src/constants.ts` (line 73)
+**File:** `packages/ajo-kit/src/constants.ts`
 ```ts
 export const ancestors = (segments: string[]) =>
   segments.map((_, i) => segments.slice(0, i + 1).join('/'))
@@ -126,33 +126,28 @@ src/
 
 ### Dual System (Cookie + Bearer Token)
 
-**Middleware:** `src/wares.ts` (lines 28-98)
+**Package:** `ajo-auth` provides `session(lookup?)` middleware factory in `@kit/auth/wares`.
+
+**Setup in `src/wares.ts`:**
 
 ```ts
-async function session(req, res, next) {
-  // 1. Try cookie session (SPA/Web)
-  const cookie = read(req)
-  if (cookie) {
-    const session = await validate(cookie)
-    if (session) {
-      req.user = await loadUser(session.user)
-      return next()
-    }
-  }
+import { configure } from '@kit/auth'
+import { session, csrf } from '@kit/auth/wares'
+import { db } from '/src/data'
 
-  // 2. Try Bearer token (API/Mobile)
-  const auth = req.headers.authorization
-  if (auth?.startsWith('Bearer ')) {
-    const token = await validateToken(auth.slice(7))
-    if (token) {
-      req.user = await loadUser(token.user)
-      req.token = { abilities: token.abilities }
-    }
-  }
+configure(() => db())
 
-  next()
-}
+export default [timing, session(), csrf, ...] satisfies Middleware[]
 ```
+
+**How `session()` works:**
+
+1. Tries cookie session (SPA/Web) via `@kit/auth/cookie`
+2. Falls back to Bearer token (API/Mobile) via `@kit/auth/token`
+3. Loads user + roles from auth tables (default `resolve`)
+4. Sets `req.user` and optionally `req.token`
+
+**Custom lookup:** Pass a function to `session(lookup)` to load extra fields or from different tables.
 
 ### Request Extensions
 
@@ -177,23 +172,18 @@ interface User {
 
 ## CSRF Protection
 
-**Middleware:** `src/wares.ts` (lines 100-113)
+**Package:** `ajo-auth` provides `csrf` middleware in `@kit/auth/wares`.
 
 ```ts
-function csrf(req, _, next) {
-  // Skip for Bearer tokens
-  if (req.token) return next()
-
-  // Skip for safe methods
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
-
-  if (!verifyCsrf(req)) {
-    throw new ForbiddenError('Invalid CSRF token')
-  }
-
-  next()
-}
+import { csrf } from '@kit/auth/wares'
 ```
+
+**Skips:**
+- API endpoints (`/api/*`)
+- Bearer token requests (`req.token`)
+- Safe methods (GET, HEAD, OPTIONS)
+
+Throws `ForbiddenError` on failure.
 
 **Why Bearer tokens skip CSRF:**
 - Authorization headers cannot be sent cross-origin by browsers
@@ -202,10 +192,10 @@ function csrf(req, _, next) {
 
 ## Guards
 
-Seven authorization guards available from `src/auth/guard.ts`:
+Seven authorization guards available from `@kit/auth/guard`:
 
 ```ts
-import { auth, role, ability, protect, guest, confirmed, verified } from '/src/auth/guard'
+import { auth, role, ability, protect, guest, confirmed, verified } from '@kit/auth/guard'
 
 // Use in wares.ts files:
 
@@ -235,7 +225,7 @@ export default [protect('/login')]
 
 ```ts
 // src/(app)/admin/wares.ts
-import { role } from '/src/auth/guard'
+import { role } from '@kit/auth/guard'
 
 export default [role('admin')]
 ```
@@ -244,7 +234,7 @@ All routes under `src/(app)/admin/*` will require admin role.
 
 ## Token Abilities
 
-**File:** `src/auth/token.ts`
+**Package:** `@kit/auth/token`
 
 ```ts
 // Create token with abilities
@@ -270,13 +260,13 @@ can(['posts:read'], 'posts:create')  // false
 ```ts
 // src/(public)/login/handler.ts
 
-import type { Request, Response } from 'polka'
-import send from '@polka/send'
-import { verify } from '/src/auth/password'
-import { create } from '/src/auth/token'
-import { db, parse, email } from '/src/data'
-import { object, string } from 'valibot'
-import { UnauthorizedError } from '/src/constants'
+import type { Request, Response } from '@kit'
+import { UnauthorizedError } from '@kit'
+import { send } from '@kit/server'
+import { verify } from '@kit/auth/password'
+import { create } from '@kit/auth/token'
+import { parse, object, string } from '@kit/validate'
+import { db, email } from '/src/data'
 
 const Login = object({
   email,
@@ -338,8 +328,8 @@ fetch('https://example.com/api/posts', {
 ```ts
 // src/(app)/posts/handler.ts
 
-import type { Request, Response } from 'polka'
-import send from '@polka/send'
+import type { Request, Response } from '@kit'
+import { send } from '@kit/server'
 import { db } from '/src/data'
 
 // Data loading for web page
@@ -414,7 +404,7 @@ export default {
 
 ## Error Handling
 
-Use error classes from `src/constants.ts`:
+Use error classes from `@kit`:
 
 ```ts
 import {
@@ -423,7 +413,7 @@ import {
   UnauthorizedError,
   ForbiddenError,
   InvalidError
-} from '/src/constants'
+} from '@kit'
 
 // Generic HTTP error
 throw new AppError(429, 'Rate limit exceeded')
@@ -456,7 +446,7 @@ throw new InvalidError(
 ## Response Helpers
 
 ```ts
-import send from '@polka/send'
+import { send } from '@kit/server'
 
 // JSON response
 send(res, 200, { data: 'value' })
@@ -513,7 +503,7 @@ Mobile Client
 
 1. **Validation:** Always use Valibot schemas with `parse()`
 2. **Authorization:** Apply guards in `wares.ts` files, not in handlers
-3. **Rate limiting:** Use `check()`, `hit()`, `clear()` from `src/auth/limit.ts`
+3. **Rate limiting:** Use `check()`, `hit()`, `clear()` from `@kit/auth/limit`
 4. **Token abilities:** Use granular permissions like `posts:read` instead of `*`
 5. **Error handling:** Throw typed errors (`UnauthorizedError`, etc.)
 6. **Response format:** Use consistent JSON structure across all endpoints
@@ -528,15 +518,17 @@ Form actions are the **preferred pattern** in ajo-kit for SPA interactions:
 
 ```ts
 // handler.ts
-export async function authenticate(req: Request, res: Response) {
-  // ... validation
-  write(res, sessionToken)
-  return { redirect: '/dashboard' }
+export const actions = {
+  authenticate: async (req: Request, res: Response) => {
+    // ... validation
+    write(res, sessionToken)
+    return { redirect: '/dashboard' }
+  }
 }
 
 // Client
 const form = action<Result>('authenticate')
-<form onsubmit={form.handle}>
+<form set:onsubmit={form.handle}>
   {/* Submits to ?/authenticate */}
 </form>
 ```

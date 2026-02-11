@@ -350,6 +350,8 @@ export async function create(template: Template) {
 			const known = have(req.headers['x-have'] as string | undefined)
 			const sealed = es && Object.keys(es).length > 0 && Object.entries(es).every(([name, value]) => fresh(value, `es:${name}`, known))
 
+			res.setHeader('Cache-Control', 'no-store')
+
 			return send(res, error?.status ?? 200, pack(error
 				? { error }
 				: { data: req.data, sums: req.sums, es: sealed ? null : es }
@@ -408,8 +410,13 @@ export async function create(template: Template) {
 		const result = await req.action.invoke(req, res) as { redirect?: string } | void
 
 		if (ajax(req)) {
+
 			const payload = result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true })
+
+			res.setHeader('Cache-Control', 'no-store')
+
 			send(res, 200, pack(payload))
+
 			return
 		}
 

@@ -1,9 +1,33 @@
 #!/usr/bin/env tsx
 import 'dotenv/config'
 import sade from 'sade'
+import type { Kysely } from 'kysely'
 import { dev, build, start, listen } from 'ajo-kit/node'
 import { discover } from 'ajo-kit/discover'
 import { defaults } from 'ajo-kit/vite'
+
+// Status markers
+
+const ok = '\x1b[32m✓\x1b[0m'
+const fail = '\x1b[31m✗\x1b[0m'
+const pending = '\x1b[33m○\x1b[0m'
+
+// Database lifecycle wrapper (try/finally ensures close on error)
+
+async function database(path: string, fn: (db: () => Kysely<any>) => Promise<void>) {
+	const { connect, db, close } = await import('ajo-kit/database')
+	connect(path)
+	try { await fn(db) }
+	finally { await close() }
+}
+
+// Migration result reporter
+
+function report(results: { status: string; migrationName: string }[] | undefined, error: unknown, empty: string, suffix = '') {
+	for (const r of results ?? []) console.log(`${r.status === 'Success' ? ok : fail} ${r.migrationName}${suffix}`)
+	if (error) { console.error(error); process.exit(1) }
+	if (!results?.length) console.log(empty)
+}
 
 const cli = sade('kit')
 
@@ -34,66 +58,33 @@ cli.command('migrate up')
 	.describe('Run pending migrations')
 	.option('-d, --database', 'Database path', defaults.database)
 	.action(async (opts: { database: string }) => {
-
-		const { connect, db, close } = await import('ajo-kit/database')
-		const { migrator } = await import('ajo-kit/migrate')
-
-		connect(opts.database)
-
-		const { results, error } = await migrator(db()).migrateToLatest()
-
-		for (const r of results ?? []) {
-			const status = r.status === 'Success' ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m'
-			console.log(`${status} ${r.migrationName}`)
-		}
-
-		if (error) { console.error(error); process.exit(1) }
-		if (!results?.length) console.log('No pending migrations')
-
-		await close()
+		await database(opts.database, async (db) => {
+			const { migrator } = await import('ajo-kit/migrate')
+			const { results, error } = await migrator(db()).migrateToLatest()
+			report(results, error, 'No pending migrations')
+		})
 	})
 
 cli.command('migrate down')
 	.describe('Rollback last migration')
 	.option('-d, --database', 'Database path', defaults.database)
 	.action(async (opts: { database: string }) => {
-
-		const { connect, db, close } = await import('ajo-kit/database')
-		const { migrator } = await import('ajo-kit/migrate')
-
-		connect(opts.database)
-
-		const { results, error } = await migrator(db()).migrateDown()
-
-		for (const r of results ?? []) {
-			const status = r.status === 'Success' ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m'
-			console.log(`${status} ${r.migrationName} (rolled back)`)
-		}
-
-		if (error) { console.error(error); process.exit(1) }
-		if (!results?.length) console.log('No migrations to rollback')
-
-		await close()
+		await database(opts.database, async (db) => {
+			const { migrator } = await import('ajo-kit/migrate')
+			const { results, error } = await migrator(db()).migrateDown()
+			report(results, error, 'No migrations to rollback', ' (rolled back)')
+		})
 	})
 
 cli.command('migrate status')
 	.describe('Show migration status')
 	.option('-d, --database', 'Database path', defaults.database)
 	.action(async (opts: { database: string }) => {
-
-		const { connect, db, close } = await import('ajo-kit/database')
-		const { migrator } = await import('ajo-kit/migrate')
-
-		connect(opts.database)
-
-		const migrations = await migrator(db()).getMigrations()
-
-		for (const m of migrations) {
-			const status = m.executedAt ? '\x1b[32m✓\x1b[0m' : '\x1b[33m○\x1b[0m'
-			console.log(`${status} ${m.name}`)
-		}
-
-		await close()
+		await database(opts.database, async (db) => {
+			const { migrator } = await import('ajo-kit/migrate')
+			const migrations = await migrator(db()).getMigrations()
+			for (const m of migrations) console.log(`${m.executedAt ? ok : pending} ${m.name}`)
+		})
 	})
 
 cli.command('migrate create <name>')
@@ -126,32 +117,26 @@ cli.command('seed')
 	.describe('Run database seeds')
 	.option('-d, --database', 'Database path', defaults.database)
 	.action(async (opts: { database: string }) => {
+		await database(opts.database, async (db) => {
 
-		const { connect, db, close } = await import('ajo-kit/database')
-		const { join } = await import('node:path')
-		const { readdirSync } = await import('node:fs')
+			const { join } = await import('node:path')
+			const { readdirSync } = await import('node:fs')
 
-		connect(opts.database)
+			const dir = join(process.cwd(), defaults.seeds)
 
-		const dir = join(process.cwd(), defaults.seeds)
+			let files: string[]
+			try { files = readdirSync(dir).filter(f => f.endsWith('.ts')).sort() } catch { files = [] }
 
-		let files: string[]
+			if (!files.length) { console.log('No seed files found'); return }
 
-		try { files = readdirSync(dir).filter(f => f.endsWith('.ts')).sort() } catch { files = [] }
-
-		if (!files.length) { console.log('No seed files found'); await close(); return }
-
-		for (const file of files) {
-
-			const mod = await import(join(dir, file))
-
-			if (typeof mod.seed === 'function') {
-				await mod.seed(db())
-				console.log(`\x1b[32m✓\x1b[0m ${file}`)
+			for (const file of files) {
+				const mod = await import(join(dir, file))
+				if (typeof mod.seed === 'function') {
+					await mod.seed(db())
+					console.log(`${ok} ${file}`)
+				}
 			}
-		}
-
-		await close()
+		})
 	})
 
 // Discover plugin commands

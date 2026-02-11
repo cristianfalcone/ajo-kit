@@ -1,22 +1,80 @@
 # Ajo-kit LLM Instructions
 
-Full-stack metaframework for Ajo (JSX + generators).
+Full-stack metaframework for Ajo (JSX + generators). Monorepo with workspace packages.
 
 **For Ajo UI library syntax:** See `node_modules/ajo/LLMs.md`
 
 ## Project Structure
 
 ```
+packages/
+├── ajo-kit/src/       # Core framework (@kit, @kit/*)
+│   ├── app.tsx        # Router (DO NOT MODIFY)
+│   ├── server.tsx     # SSR + API (DO NOT MODIFY)
+│   ├── client.tsx     # Hydration (DO NOT MODIFY)
+│   ├── constants.ts   # Types, errors, utilities
+│   ├── database.ts    # SQLite + Kysely
+│   ├── tracker.ts     # Table version tracking
+│   ├── validate.ts    # Valibot parse + re-exports
+│   ├── vite.ts        # Vite plugin suite
+│   ├── discover.ts    # Plugin auto-discovery
+│   ├── migrate.ts     # Migration aggregator
+│   └── node.ts        # Dev/build/start
+├── ajo-auth/src/      # Auth package (@kit/auth, @kit/auth/*)
+│   ├── types.ts       # AuthDatabase schema + derived types
+│   ├── store.ts       # configure() + typed db()
+│   ├── wares.ts       # session(lookup?) + csrf middleware
+│   ├── guard.ts       # protect, guest, auth, role, ability, ...
+│   ├── session.ts     # Session create/validate
+│   ├── cookie.ts      # HttpOnly session cookie
+│   ├── token.ts       # Bearer tokens with abilities
+│   ├── password.ts    # Argon2id hash/verify
+│   ├── csrf.ts        # Double-submit + same-origin
+│   ├── limit.ts       # Rate limiting
+│   ├── confirm.ts     # Password confirmation
+│   ├── reset.ts       # Password reset tokens
+│   └── verify.ts      # Email verification (signed URLs)
+└── ajo-backup/        # Google Drive backup (CLI plugin)
+
 src/
-├── app.tsx          # Router (DO NOT MODIFY)
-├── server.tsx       # SSR + API (DO NOT MODIFY)
-├── client.tsx       # Hydration (DO NOT MODIFY)
-├── constants.ts     # Types, contexts, utilities
-├── layout.tsx       # Root layout (defer: true for global loading)
-├── page.tsx         # Home page (/)
-├── handler.ts       # Root handlers + actions
-├── wares.ts         # Root middleware
-└── ui/              # Reusable components
+├── layout.tsx         # Root layout (defer: true for global loading)
+├── page.tsx           # Home page (/)
+├── handler.ts         # Root handlers + actions
+├── wares.ts           # Root middleware
+├── data/
+│   ├── index.ts       # Typed db(), app queries
+│   ├── types.ts       # App tables + DB = AuthDatabase & {...}
+│   └── fields.ts      # Reusable validation fields
+└── ui/                # Reusable components
+```
+
+## Imports
+
+```typescript
+// Types, errors, utilities
+import type { Request, Middleware, PageArgs, LayoutArgs } from '@kit'
+import { AppError, NotFoundError, ForbiddenError } from '@kit'
+
+// Database (app-typed)
+import { db } from '/src/data'
+
+// Validation
+import { parse, object, string } from '@kit/validate'
+
+// Auth
+import { configure } from '@kit/auth'
+import { session, csrf } from '@kit/auth/wares'
+import { protect, guest, role, auth, ability } from '@kit/auth/guard'
+import { create as createSession } from '@kit/auth/session'
+import { read, write, clear } from '@kit/auth/cookie'
+import { hash, verify } from '@kit/auth/password'
+
+// Client helpers
+import { action } from '@kit/client'
+import { subscribe, invalidate } from '@kit/client'
+
+// Server helpers
+import { emit, send } from '@kit/server'
 ```
 
 ## Routing
@@ -32,7 +90,7 @@ src/
 ## Component Types
 
 ```typescript
-// src/constants.ts
+// from @kit
 type PageArgs<T> = {
   params: Params
   data?: T
@@ -51,7 +109,7 @@ Runs on **both** server and client. For external APIs only:
 
 ```typescript
 // In page.tsx or layout.tsx
-import type { Context, Parent } from '/src/constants'
+import type { Context, Parent } from '@kit'
 
 export async function handler({ url, params }: Context, parent: Parent) {
   const data = await parent()  // ancestor data
@@ -64,8 +122,8 @@ export async function handler({ url, params }: Context, parent: Parent) {
 Runs on **server only**. For database, secrets, heavy computation:
 
 ```typescript
-import type { Request } from 'polka'
-import type { Parent } from '/src/constants'
+import type { Request } from '@kit'
+import type { Parent } from '@kit'
 
 export async function page(req: Request, parent: Parent) {
   const data = await parent()
@@ -98,7 +156,7 @@ export const actions = {
 ### Client (page.tsx)
 
 ```typescript
-import { action } from '/src/app'
+import { action } from '@kit/client'
 
 const form = action<{ success: boolean }>('subscribe')
 
@@ -135,11 +193,17 @@ Root layout should have `defer: true` for global loading UI.
 ## Middleware (wares.ts)
 
 ```typescript
-import type { Middleware } from 'polka'
+import type { Middleware } from '@kit'
+import { configure } from '@kit/auth'
+import { session, csrf } from '@kit/auth/wares'
+import { db } from '/src/data'
+
+configure(() => db())
 
 export default [
   timing,
-  session,
+  session(),
+  csrf,
 ] satisfies Middleware[]
 ```
 
@@ -148,7 +212,7 @@ Execution: root → leaf (ancestors before handlers).
 ## Errors
 
 ```typescript
-import { NotFoundError, AppError } from '/src/constants'
+import { NotFoundError, AppError } from '@kit'
 
 // In loaders
 if (!post) throw new NotFoundError()
@@ -208,7 +272,7 @@ export async function page(req: Request) {
 - `':user'` — include user ID in sum (skip if same user)
 - `':ttl:60000'` — include time bucket (skip if <60s passed)
 
-**Manual invalidation:** `invalidate(key?)` from `/src/app`. No key = clear all.
+**Manual invalidation:** `invalidate(key?)` from `@kit/client`. No key = clear all.
 
 ## Real-time Events (SSE)
 
@@ -241,7 +305,7 @@ export const events = {
 Use `emit(name, params)` manually **only** when events need route param filtering:
 
 ```typescript
-import { emit } from '/src/server'
+import { emit } from '@kit/server'
 
 export const events = {
   messages: async (req: Request) => {
@@ -263,7 +327,7 @@ Auto-emit cannot know route params, so `emit(name, { param })` stays manual. Bro
 ### Client (page.tsx)
 
 ```typescript
-import { subscribe } from '/src/client'
+import { subscribe } from '@kit/client'
 
 const Chat: Stateful<PageArgs<Data>> = function* (args) {
   let messages = args.data?.messages ?? []  // SSR initial value
@@ -321,25 +385,25 @@ while (true) { yield ... }
 | **defer** | `export const defer = true` = component handles its own loading UI |
 | **parent()** | Always `await parent()` in loaders for ancestor data |
 | **404** | Throw `NotFoundError` when data not found |
-| **Errors** | `AppError`, `NotFoundError`, `ForbiddenError`, `UnauthorizedError`, `InvalidError` |
+| **Errors** | `AppError`, `NotFoundError`, `ForbiddenError`, `UnauthorizedError`, `InvalidError` from `@kit` |
 | **Middleware** | Export default function or array from `wares.ts`, runs root → leaf |
 | **Route groups** | `(name)/` folders organize code, excluded from URL |
 | **Dynamic segments** | `[param]` for single, `[...]` for catch-all |
-| **Core files** | Never modify `app.tsx`, `server.tsx`, `client.tsx` |
+| **Core files** | Never modify `app.tsx`, `server.tsx`, `client.tsx` in packages |
 | **Constants** | Global in `src/constants.ts`, section-specific in `src/(section)/constants.ts` |
 | **Components** | Global in `src/ui/`, section-specific in `src/(section)/ui/` |
-| **Validation** | Valibot schemas, `parse()` throws `InvalidError` with `{ fields }` |
-| **Auth guards** | `protect()`, `guest()`, `auth()`, `role()`, `confirmed()`, `verified()` |
+| **Validation** | Valibot schemas, `parse()` from `@kit/validate` throws `InvalidError` with `{ fields }` |
+| **Auth guards** | `protect()`, `guest()`, `auth()`, `role()`, `confirmed()`, `verified()` from `@kit/auth/guard` |
 | **Caching** | Export `deps` (array or object) in handler.ts for skip-on-fresh. Object = per-key granularity. `invalidate()` for manual clear |
 | **Events** | `export const events = {}` in handler.ts. Handlers receive `Request`, return data |
-| **emit()** | `emit(name, params?)` from `/src/server`. Only needed for param-filtered events |
-| **subscribe()** | `subscribe(name, callback)` from `/src/client`. Call before `while (true)` loop |
+| **emit()** | `emit(name, params?)` from `@kit/server`. Only needed for param-filtered events |
+| **subscribe()** | `subscribe(name, callback)` from `@kit/client`. Call before `while (true)` loop |
 | **SSE state** | Initialize from `args.data` before loop. Never re-assign from `args.data` inside loop |
 
 ## Anti-patterns
 
-| ❌ Wrong | ✅ Correct | Why |
-|----------|-----------|-----|
+| Wrong | Correct | Why |
+|-------|---------|-----|
 | Secrets in `page.tsx handler()` | Secrets in `handler.ts page()` | page.tsx may reach client bundle |
 | `args.loading` without `defer` | Export `defer = true` first | loading is always false without defer |
 | Context outside generator loop | Context inside `while (true)` | Only updates on each yield |
@@ -347,7 +411,7 @@ while (true) { yield ... }
 | Missing `NotFoundError` | `if (!data) throw new NotFoundError()` | Silent null causes runtime errors |
 | `className`, `onClick` | `class`, `set:onclick` | React patterns don't work in Ajo |
 | `useState`, `useEffect` | Generator state + `this.next()` | Ajo uses generators, not hooks |
-| Modifying core files | Create new routes/components | app.tsx, server.tsx, client.tsx are generated |
+| Modifying core files | Create new routes/components | app.tsx, server.tsx, client.tsx are framework code |
 | `selectAll()` in queries | `select(['field1', 'field2'])` | Overfetching, performance |
 | Direct `form.error.fields` access | `form.error?.fields?.email` | error and fields are optional |
 | Missing `deps` in handler.ts | `export const deps = ['table']` or `{ key: ['table'] }` | Causes unnecessary refetches |

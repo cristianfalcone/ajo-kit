@@ -33,15 +33,89 @@ pnpm backup pull  # Pull DB from Drive
 
 ## Architecture
 
-Full-stack metaframework for Ajo (JSX + generators).
+Full-stack metaframework for Ajo (JSX + generators). Monorepo with workspace packages.
+
+### Packages
+
+| Package | Alias | Role |
+|---------|-------|------|
+| `packages/ajo-kit` | `@kit`, `@kit/*` | Core framework |
+| `packages/ajo-auth` | `@kit/auth`, `@kit/auth/*` | Authentication, authorization, session/CSRF middleware |
+| `packages/ajo-backup` | — | Google Drive backup (CLI plugin) |
+
+### Core (ajo-kit)
 
 | File | Role |
 |------|------|
-| [app.tsx](src/app.tsx) | Router, `action()` helper, HMR |
-| [server.tsx](src/server.tsx) | SSR, data pipeline, form actions |
-| [client.tsx](src/client.tsx) | Hydration entry |
+| [constants.ts](packages/ajo-kit/src/constants.ts) | Types, errors, utilities (`pack`, `sum`, `links`, `navigate`) |
+| [app.tsx](packages/ajo-kit/src/app.tsx) | Router, `resolve()` generator, cache, SSE `stream()` |
+| [server.tsx](packages/ajo-kit/src/server.tsx) | SSR, data pipeline, form actions, SSE, auto-emit |
+| [client.tsx](packages/ajo-kit/src/client.tsx) | Hydration, `action()`, `subscribe()`, `invalidate()` |
+| [database.ts](packages/ajo-kit/src/database.ts) | `connect`, `db`, `raw`, `close` + Kysely/better-sqlite3 re-exports |
+| [tracker.ts](packages/ajo-kit/src/tracker.ts) | `TrackerPlugin`, `version()`, `bump()`, `snapshot()`, `tap()` |
+| [validate.ts](packages/ajo-kit/src/validate.ts) | `parse()` + Valibot re-exports |
+| [vite.ts](packages/ajo-kit/src/vite.ts) | Vite plugin suite: aliases, virtual modules, serverOnly, HMR |
+| [discover.ts](packages/ajo-kit/src/discover.ts) | Plugin discovery: scans `node_modules/ajo-*` for `"kit"` field |
+| [migrate.ts](packages/ajo-kit/src/migrate.ts) | `migrator()` — aggregates migrations from packages + app |
+| [node.ts](packages/ajo-kit/src/node.ts) | `dev`, `build`, `start`, `listen` functions |
 
-**Server-only:** Vite plugin blocks `handler.ts`, `wares.ts`, `src/data/*`, `src/auth/*` from client.
+### Auth (ajo-auth)
+
+| File | Role |
+|------|------|
+| [types.ts](packages/ajo-auth/src/types.ts) | `AuthDatabase` schema + derived types (`User`, `Role`, etc.) |
+| [store.ts](packages/ajo-auth/src/store.ts) | `configure(fn)` + `db()` typed with `Kysely<AuthDatabase>` |
+| [wares.ts](packages/ajo-auth/src/wares.ts) | `session(lookup?)` middleware factory + `csrf` middleware |
+| [guard.ts](packages/ajo-auth/src/guard.ts) | `protect()`, `guest()`, `auth()`, `role()`, `confirmed()`, `verified()`, `ability()`, `when()`, `redirect()` |
+| [password.ts](packages/ajo-auth/src/password.ts) | Argon2id hash/verify |
+| [session.ts](packages/ajo-auth/src/session.ts) | Create/validate sessions (30d, 365d with remember) |
+| [cookie.ts](packages/ajo-auth/src/cookie.ts) | HttpOnly session cookie |
+| [csrf.ts](packages/ajo-auth/src/csrf.ts) | Double-submit + same-origin check |
+| [token.ts](packages/ajo-auth/src/token.ts) | Bearer tokens with abilities |
+| [limit.ts](packages/ajo-auth/src/limit.ts) | In-memory rate limiting |
+| [confirm.ts](packages/ajo-auth/src/confirm.ts) | Password confirmation stamps (3min) |
+| [reset.ts](packages/ajo-auth/src/reset.ts) | Password reset tokens (1hr, hashed in DB) |
+| [verify.ts](packages/ajo-auth/src/verify.ts) | Email verification (signed URLs, 24hr, no DB) |
+
+### App Code
+
+| File | Role |
+|------|------|
+| [wares.ts](src/wares.ts) | Root middleware: `timing`, `session()`, `csrf`, root redirect |
+| [data/index.ts](src/data/index.ts) | Typed `db()`, app queries, validation fields |
+| [data/types.ts](src/data/types.ts) | App tables (chats, participants, messages) + `DB = AuthDatabase & {...}` |
+
+**Server-only:** Vite plugin blocks `handler.ts`, `wares.ts`, `src/data/*`, and auto-discovered `serverOnly` plugins from client.
+
+### Imports
+
+```typescript
+// App code uses aliases (resolved by Vite + tsconfig paths)
+import type { Request, Middleware } from '@kit'
+import { AppError, NotFoundError } from '@kit'
+import { db } from '/src/data'
+import { parse, object, string } from '@kit/validate'
+import { configure } from '@kit/auth'
+import { session, csrf } from '@kit/auth/wares'
+import { protect, role } from '@kit/auth/guard'
+import { action } from '@kit/client'
+import { subscribe } from '@kit/client'
+import { emit } from '@kit/server'
+
+// Migrations/seeds run outside Vite — use package names directly
+import { connect, db, close } from 'ajo-kit/database'
+```
+
+### Plugin Convention
+
+Packages declare `"kit"` field in `package.json`:
+
+```json
+{ "kit": { "alias": "auth", "serverOnly": true, "migrations": "./migrations/" } }
+{ "kit": { "commands": "./src/commands.ts" } }
+```
+
+`discover()` scans `node_modules/ajo-*`, used by CLI and Vite plugin.
 
 ## Data Loading
 
@@ -59,37 +133,52 @@ Full-stack metaframework for Ajo (JSX + generators).
 
 **Merge order:** `{ ...serverData, ...clientData }` — client wins.
 
-**Parent chain:** `await parent()` returns merged ancestor data. See `links()` in [app.tsx](src/app.tsx).
+**Parent chain:** `await parent()` returns merged ancestor data. See `links()` in [app.tsx](packages/ajo-kit/src/app.tsx).
 
 **Defer:** Export `defer: true` to handle loading state locally. Innermost wins.
 
 ## Authentication
 
-| Module | Purpose |
-|--------|---------|
-| [password.ts](src/auth/password.ts) | Argon2id hash/verify |
-| [session.ts](src/auth/session.ts) | Create/validate sessions (30d, 365d with remember) |
-| [cookie.ts](src/auth/cookie.ts) | HttpOnly session cookie |
-| [guard.ts](src/auth/guard.ts) | `protect()`, `guest()`, `auth()`, `role()`, `confirmed()`, `verified()`, `ability()` |
-| [csrf.ts](src/auth/csrf.ts) | Double-submit + same-origin check |
-| [limit.ts](src/auth/limit.ts) | In-memory rate limiting |
-| [confirm.ts](src/auth/confirm.ts) | Password confirmation stamps (3min) |
-| [reset.ts](src/auth/reset.ts) | Password reset tokens (1hr, hashed in DB) |
-| [verify.ts](src/auth/verify.ts) | Email verification (signed URLs, 24hr, no DB) |
+`ajo-auth` provides ready-to-use middleware + guards. App just imports and configures:
 
-**Email:** [src/mail/index.ts](src/mail/index.ts) — `send()` + `configure()`. Console.log by default.
+```typescript
+// src/wares.ts
+import { configure } from '@kit/auth'
+import { session, csrf } from '@kit/auth/wares'
+import { db } from '/src/data'
+
+configure(() => db())
+
+export default [timing, session(), csrf, ...] satisfies Middleware[]
+```
+
+**`session(lookup?)`** — Factory that returns middleware handling both cookie sessions and Bearer tokens. Default `resolve` loads user + roles from auth tables. Pass custom `lookup` to load extra fields.
+
+**`csrf`** — Skips safe methods, API endpoints, and Bearer tokens. Throws `ForbiddenError`.
+
+**Guards** (use in route-level `wares.ts`):
+
+```typescript
+import { protect, guest, role, auth, ability, confirmed, verified } from '@kit/auth/guard'
+```
+
+**Email:** [src/mail/index.ts](packages/ajo-kit/src/mail/index.ts) — `send()` + `configure()`. Console.log by default.
 
 **Requires:** `APP_SECRET` env var for signed URLs.
 
 ## Database
 
-SQLite + Kysely + better-sqlite3. Schema in [types.ts](src/data/types.ts).
+SQLite + Kysely + better-sqlite3.
 
-Tables: `users`, `sessions`, `roles`, `members`, `tokens`, `resets`, `chats`, `participants`, `messages`.
+**Auth tables** (defined by `ajo-auth`): `users`, `sessions`, `roles`, `members`, `tokens`, `resets`.
+
+**App tables** (defined in [types.ts](src/data/types.ts)): `chats`, `participants`, `messages`.
+
+**Composition:** `type DB = AuthDatabase & { chats, participants, messages }` — intersection, never `extends`.
 
 **Rule:** Always `select(['fields'])`, never `selectAll()`.
 
-**Table versions:** Auto-tracked via `TrackerPlugin`. Use `version()`, `bump()`, `snapshot()` from [db.ts](src/data/db.ts).
+**Table versions:** Auto-tracked via `TrackerPlugin` in [tracker.ts](packages/ajo-kit/src/tracker.ts). Use `version()`, `bump()`, `snapshot()`.
 
 ## Cache
 
@@ -107,7 +196,7 @@ export const deps = ['users', ':user']  // Skip if users table unchanged AND sam
 export const deps = ['posts', ':ttl:60000']  // Skip if posts unchanged AND <60s passed
 ```
 
-**Manual invalidation:** `invalidate(key?)` from [app.tsx](src/app.tsx). No key = clear all.
+**Manual invalidation:** `invalidate(key?)` from `@kit/client`. No key = clear all.
 
 ## Validation
 
@@ -128,12 +217,12 @@ export default { get, post, put, delete }       // API endpoints (METHOD /api/ro
 **Form Actions (SPA):**
 - Client: `const form = action<Result>('name')` → `form.loading`, `form.data`, `form.error?`, `form.handle`, `form.reset`
 - Server: `export const actions = {}` in `handler.ts` → `POST /route?/actionName`
-- CSRF: ✅ Required
+- CSRF: Required
 
 **API Endpoints (Mobile/External):**
 - Server: `default export { method() }` in `handler.ts` → `METHOD /api/route`
 - Authentication: Cookie sessions OR Bearer tokens
-- CSRF: ❌ Skipped (for Bearer tokens)
+- CSRF: Skipped (for Bearer tokens)
 - **Important:** API routes automatically get `/api/` prefix
 
 **Dual authentication:**
@@ -160,11 +249,11 @@ Groups `(name)` excluded from URLs.
 
 ## Errors
 
-[constants.ts](src/constants.ts): `AppError`, `NotFoundError`, `UnauthorizedError`, `ForbiddenError`, `InvalidError`.
+From `@kit`: `AppError`, `NotFoundError`, `UnauthorizedError`, `ForbiddenError`, `InvalidError`.
 
 ## Serialization
 
-`pack()` and `unpack()` in [constants.ts](src/constants.ts) use devalue for JSON with circular refs and custom types.
+`pack()` and `unpack()` from `@kit` use devalue for JSON with circular refs and custom types.
 
 Objects with `toJSON()` are automatically serialized.
 
@@ -189,7 +278,7 @@ export const events = {
 **Manual emit** — only for param-filtered events (auto-emit can't know route params):
 
 ```ts
-import { emit } from '/src/server'
+import { emit } from '@kit/server'
 
 export const actions = {
   send: async (req: Request) => {
@@ -203,7 +292,7 @@ export const actions = {
 **Client subscription** with `subscribe()`:
 
 ```tsx
-import { subscribe } from '/src/client'
+import { subscribe } from '@kit/client'
 
 const Page: Stateful<PageArgs<Data>> = function* (args) {
   let messages = args.data?.messages ?? []
