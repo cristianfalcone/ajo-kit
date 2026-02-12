@@ -62,7 +62,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 
 				{sessions.length > 1 && (
 					<div class="flex justify-end">
-						<form set:onsubmit={revokeAllForm.handle}>
+						<form set:onsubmit={revokeAllForm.submit}>
 							<button
 								type="submit"
 								disabled={revokeAllForm.loading}
@@ -97,7 +97,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 								</div>
 
 								{!session.current && (
-									<form set:onsubmit={revokeForm.handle}>
+									<form set:onsubmit={revokeForm.submit}>
 										<input type="hidden" name="id" value={session.id} />
 										<button
 											type="submit"

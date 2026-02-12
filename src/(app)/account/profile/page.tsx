@@ -27,7 +27,7 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 					Update Name
 				</h2>
 
-				<form set:onsubmit={nameForm.handle} class="space-y-4">
+				<form set:onsubmit={nameForm.submit} class="space-y-4">
 					<div>
 						<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
 							Name
@@ -64,7 +64,7 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 					Change Password
 				</h2>
 
-				<form set:onsubmit={passwordForm.handle} class="space-y-4">
+				<form set:onsubmit={passwordForm.submit} class="space-y-4">
 					<div>
 						<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
 							Current Password

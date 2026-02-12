@@ -72,7 +72,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 						Create New Token
 					</h2>
 
-					<form set:onsubmit={createForm.handle} class="space-y-4">
+					<form set:onsubmit={createForm.submit} class="space-y-4">
 						<div>
 							<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
 								Token Name
@@ -147,7 +147,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 												{token.last ? formatDate(token.last, shortDate) : 'Never'}
 											</td>
 											<td class="px-6 py-3 text-right">
-												<form set:onsubmit={revokeForm.handle}>
+												<form set:onsubmit={revokeForm.submit}>
 													<input type="hidden" name="id" value={token.id} />
 													<button
 														type="submit"

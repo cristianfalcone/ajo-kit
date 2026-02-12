@@ -1,21 +1,24 @@
 import { render } from 'ajo'
 import { current } from 'ajo/context'
-import App, { ssr, cache, seals, subscribers } from './app'
+import App, { ssr, cache, seals, subscribers, snapshots } from './app'
 import type { State, Entry, ActionState, EventCallback, EventState } from './constants'
 import type { Head } from './head'
 import { navigate, unpack } from './constants'
 
-// Form action helper for stateful generator components
+// Action helper for stateful generator components
 
 export function action<T = unknown>(name?: string, init?: RequestInit): ActionState<T> {
 
 	const component = current()
 
+	let controller: AbortController
+
 	const state: ActionState<T> = {
 		loading: false,
 		data: undefined,
 		error: undefined,
-		handle: () => { },
+		submit: () => { },
+		invoke: (body?) => run(body),
 		reset: () => {
 			state.data = undefined
 			state.error = undefined
@@ -23,17 +26,10 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 		}
 	}
 
-	let controller: AbortController
-
-	state.handle = async (event: SubmitEvent) => {
-
-		event.preventDefault()
+	const run = async (body: unknown): Promise<T | undefined> => {
 
 		controller?.abort()
 		controller = new AbortController()
-
-		const form = event.target as HTMLFormElement
-		const body = Object.fromEntries(new FormData(form) as unknown as Iterable<[string, string]>)
 
 		state.loading = true
 		state.error = undefined
@@ -53,18 +49,24 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 			const json = unpack(await response.text())
 
 			if (!response.ok) {
+
 				state.error = {
 					status: json.error?.status ?? response.status,
 					message: json.error?.message ?? json.message ?? 'Action failed',
 					fields: json.error?.fields ?? json.fields
 				}
-			} else if (json.redirect) {
+
+				return
+			}
+
+			if (json.redirect) {
 				navigate(json.redirect)
 				return
-			} else {
-				state.data = json as T
-				form.reset()
 			}
+
+			state.data = json as T
+
+			return json as T
 
 		} catch (error) {
 
@@ -75,10 +77,19 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 				message: error instanceof Error ? error.message : 'Action failed'
 			}
 
+			return
+
 		} finally {
 			state.loading = false
 			component.next()
 		}
+	}
+
+	state.submit = (event: SubmitEvent) => {
+		event.preventDefault()
+		const form = event.target as HTMLFormElement
+		const body = Object.fromEntries(new FormData(form) as unknown as Iterable<[string, string]>)
+		run(body).then(() => { if (!state.error) form.reset() })
 	}
 
 	return state
@@ -97,14 +108,27 @@ export function subscribe<T = Entry>(name: string, callback: EventCallback<T>) {
 
 	const component = current()
 
+	if (!subscribers.has(name)) subscribers.set(name, new Set())
+
+	const set = subscribers.get(name)!
+
 	const wrapped = (state: EventState) => {
+
+		if (!document.contains(component)) {
+			set.delete(wrapped)
+			return
+		}
+
 		callback(state as EventState<T>)
+
 		component.next()
 	}
 
-	if (!subscribers.has(name)) subscribers.set(name, new Set())
+	set.add(wrapped)
 
-	subscribers.get(name)!.add(wrapped)
+	const snapshot = snapshots.get(name)
+
+	if (snapshot) callback(snapshot as EventState<T>)
 }
 
 if (!import.meta.env.SSR) {

@@ -73,7 +73,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 											{token.last ? formatDate(token.last) : 'Never'}
 										</td>
 										<td class="px-4 py-3 text-right">
-											<form set:onsubmit={form.handle}>
+											<form set:onsubmit={form.submit}>
 												<input type="hidden" name="id" value={token.id} />
 												<button
 													type="submit"

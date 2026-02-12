@@ -99,7 +99,7 @@ const Nav = ({ user, unread, signout }: { user: User, unread: number, signout: A
 									</span>
 								)}
 							</a>
-							<form set:onsubmit={signout.handle} class="inline">
+							<form set:onsubmit={signout.submit} class="inline">
 								<button
 									type="submit"
 									disabled={signout.loading}

@@ -26,7 +26,7 @@ const Confirm: Stateful<PageArgs> = function* () {
 						Please enter your password to continue.
 					</p>
 
-					<form set:onsubmit={form.handle} class="space-y-4">
+					<form set:onsubmit={form.submit} class="space-y-4">
 						<div>
 							<input
 								type="password"

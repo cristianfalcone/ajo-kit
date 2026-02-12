@@ -10,8 +10,17 @@ export const version = (table: string) => versions.get(table) ?? 0
 export const snapshot = (tables: string[]) => Object.fromEntries(tables.map(t => [t, version(t)]))
 export const tap = (fn: (table: string) => void) => { hook = fn }
 
+let muted = 0
+
+export function hush<T>(fn: () => T): T {
+	muted++
+	try { return fn() }
+	finally { muted-- }
+}
+
 export const bump = (table: string) => {
 	versions.set(table, version(table) + 1)
+	if (muted) return
 	hook?.(table)
 }
 

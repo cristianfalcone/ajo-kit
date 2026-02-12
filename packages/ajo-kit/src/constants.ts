@@ -127,7 +127,8 @@ export type ActionState<T> = {
 	loading: boolean
 	data?: T
 	error?: ActionError
-	handle: (event: SubmitEvent) => void
+	submit: (event: SubmitEvent) => void
+	invoke: (body?: unknown) => Promise<T | undefined>
 	reset: () => void
 }
 

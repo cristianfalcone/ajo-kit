@@ -178,7 +178,7 @@ SQLite + Kysely + better-sqlite3.
 
 **Rule:** Always `select(['fields'])`, never `selectAll()`.
 
-**Table versions:** Auto-tracked via `TrackerPlugin` in [tracker.ts](packages/ajo-kit/src/tracker.ts). Use `version()`, `bump()`, `snapshot()`.
+**Table versions:** Auto-tracked via `TrackerPlugin` in [tracker.ts](packages/ajo-kit/src/tracker.ts). Use `version()`, `bump()`, `snapshot()`. Use `hush(() => ...)` from `@kit/server` to suppress auto-emit while still tracking version changes (for cache invalidation).
 
 ## Cache
 
@@ -215,7 +215,7 @@ export default { get, post, put, delete }       // API endpoints (METHOD /api/ro
 ```
 
 **Form Actions (SPA):**
-- Client: `const form = action<Result>('name')` → `form.loading`, `form.data`, `form.error?`, `form.handle`, `form.reset`
+- Client: `const form = action<Result>('name')` → `form.loading`, `form.data`, `form.error?`, `form.submit`, `form.invoke`, `form.reset`
 - Server: `export const actions = {}` in `handler.ts` → `POST /route?/actionName`
 - CSRF: Required
 

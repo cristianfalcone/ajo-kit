@@ -50,6 +50,10 @@ export const seals = new Map<string, string | Record<string, string>>()
 
 export const subscribers = new Map<string, Set<(state: EventState) => void>>()
 
+// Event snapshots: last SSE state per event (seeds re-subscribers across generator restarts)
+
+export const snapshots = new Map<string, EventState>()
+
 export const error: () => Page = () => ({
 	segments: [''],
 	loader: async () => ({ default: () => null }),
@@ -357,10 +361,13 @@ function stream() {
 
 	let source: EventSource | null = null
 	let retries = 0
+	let gen = 0
 
 	const connect = (path: string) => {
 
 		source?.close()
+
+		const current = ++gen
 
 		const sealing = [...seals].flatMap(([name, value]) => {
 			if (typeof value === 'string') return [`${name}:${value}`]
@@ -373,6 +380,8 @@ function stream() {
 
 		source.onmessage = (event) => {
 
+			if (gen !== current) return
+
 			const { event: name, data, error, sum: seal, nav } = JSON.parse(event.data)
 
 			if (seal) seals.set(name, seal)
@@ -382,18 +391,19 @@ function stream() {
 				cache.set(nav.key, { value: existing ? { ...existing, ...data } : data, sum: nav.sum })
 			}
 
+			snapshots.set(name, { data, error })
 			subscribers.get(name)?.forEach(fn => fn({ data, error }))
 		}
 
 		source.onerror = () => {
 			source?.close()
-			if (++retries > 10) return
+			if (gen !== current || ++retries > 10) return
 			const base = Math.min(1000 * 2 ** retries, 30_000)
-			setTimeout(() => connect(path), base + base * Math.random())
+			setTimeout(() => { if (gen === current) connect(path) }, base + base * Math.random())
 		}
 	}
 
-	const close = () => { source?.close(); source = null; retries = 0 }
+	const close = () => { gen++; source?.close(); source = null; retries = 0 }
 
 	return { connect, close }
 }
@@ -413,7 +423,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		const gen = ++generation
 
 		sse.close()
-		subscribers.clear()
+		snapshots.clear()
 
 		try {
 

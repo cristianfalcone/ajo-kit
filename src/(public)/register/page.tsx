@@ -14,7 +14,7 @@ const Register: Stateful<PageArgs> = function* () {
 				Create Account
 			</h1>
 
-			<form set:onsubmit={form.handle} class="space-y-4">
+			<form set:onsubmit={form.submit} class="space-y-4">
 
 				<div>
 					<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">

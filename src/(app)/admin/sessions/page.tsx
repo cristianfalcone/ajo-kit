@@ -84,7 +84,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 									</td>
 									<td class="px-4 py-3 text-right">
 										<div class="flex items-center justify-end gap-1">
-											<form set:onsubmit={revokeForm.handle}>
+											<form set:onsubmit={revokeForm.submit}>
 												<input type="hidden" name="id" value={session.id} />
 												<button
 													type="submit"
@@ -95,7 +95,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 													<span class="i-lucide-x w-4 h-4 block" />
 												</button>
 											</form>
-											<form set:onsubmit={revokeUserForm.handle}>
+											<form set:onsubmit={revokeUserForm.submit}>
 												<input type="hidden" name="user" value={session.user} />
 												<button
 													type="submit"

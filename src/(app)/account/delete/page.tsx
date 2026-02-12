@@ -36,7 +36,7 @@ const Delete: Stateful<PageArgs> = function* () {
 						Deleting your account will permanently remove all your data, including sessions, API tokens, and role memberships.
 					</p>
 
-					<form set:onsubmit={form.handle} class="space-y-4">
+					<form set:onsubmit={form.submit} class="space-y-4">
 						<div>
 							<label class="block text-sm font-medium text-red-700 dark:text-red-300 mb-1">
 								Type DELETE to confirm

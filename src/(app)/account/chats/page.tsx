@@ -57,7 +57,7 @@ const Chats: Stateful<PageArgs<Data>> = function* (args) {
 					<div class="space-y-6">
 
 						{/* New chat form */}
-						<form set:onsubmit={form.handle} class="rounded-xl glass p-4">
+						<form set:onsubmit={form.submit} class="rounded-xl glass p-4">
 							<p class="text-sm font-medium text-slate-700 dark:text-gray-300 mb-3">
 								Start a conversation
 							</p>

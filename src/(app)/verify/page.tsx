@@ -34,7 +34,7 @@ const Verify: Stateful<PageArgs> = function* () {
 					</div>
 				)}
 
-				<form set:onsubmit={form.handle}>
+				<form set:onsubmit={form.submit}>
 					<button
 						type="submit"
 						disabled={form.loading}

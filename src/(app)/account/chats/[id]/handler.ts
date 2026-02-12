@@ -1,8 +1,25 @@
 import type { Request } from '@kit'
 import { db } from '/src/data'
 import { sql } from '@kit/database'
-import { emit } from '@kit/server'
+import { emit, hush } from '@kit/server'
 import { NotFoundError } from '@kit'
+
+const LIMIT = 50
+
+function recent(chatId: number, before?: number, limit = LIMIT) {
+
+	let q = db()
+		.selectFrom('messages')
+		.innerJoin('users', 'users.id', 'messages.user')
+		.where('messages.chat', '=', chatId)
+		.select(['messages.id', 'messages.text', 'messages.created', 'users.id as userId', 'users.name as userName'])
+		.orderBy('messages.id', 'desc')
+		.limit(limit)
+
+	if (before) q = q.where('messages.id', '<', before)
+
+	return q.execute().then(rows => rows.reverse())
+}
 
 export async function page(req: Request) {
 
@@ -16,7 +33,6 @@ export async function page(req: Request) {
 
 	if (!chat) throw new NotFoundError('Chat not found')
 
-	// Get participants with names
 	const participants = await db()
 		.selectFrom('participants')
 		.innerJoin('users', 'users.id', 'participants.user')
@@ -24,18 +40,8 @@ export async function page(req: Request) {
 		.select(['users.id', 'users.name'])
 		.execute()
 
-	// Get messages (last 50)
-	const messages = await db()
-		.selectFrom('messages')
-		.innerJoin('users', 'users.id', 'messages.user')
-		.where('messages.chat', '=', chatId)
-		.select(['messages.id', 'messages.text', 'messages.created', 'users.id as userId', 'users.name as userName'])
-		.orderBy('messages.created', 'desc')
-		.limit(50)
-		.execute()
-		.then(rows => rows.reverse())
+	const messages = await recent(chatId)
 
-	// Mark chat as seen
 	await db()
 		.updateTable('participants')
 		.set({ seen: sql`CURRENT_TIMESTAMP` })
@@ -43,7 +49,7 @@ export async function page(req: Request) {
 		.where('user', '=', req.user!.id)
 		.execute()
 
-	return { chat, participants, messages, me: req.user!.id }
+	return { chat, participants, messages, hasMore: messages.length === LIMIT, me: req.user!.id }
 }
 
 export const events = {
@@ -51,18 +57,9 @@ export const events = {
 	messages: async (req: Request) => {
 
 		const chatId = Number(req.params.id)
+		const latest = await recent(chatId, undefined, 5)
 
-		const messages = await db()
-			.selectFrom('messages')
-			.innerJoin('users', 'users.id', 'messages.user')
-			.where('messages.chat', '=', chatId)
-			.select(['messages.id', 'messages.text', 'messages.created', 'users.id as userId', 'users.name as userName'])
-			.orderBy('messages.created', 'desc')
-			.limit(50)
-			.execute()
-			.then(rows => rows.reverse())
-
-		// Mark as seen while viewing
+		// Mark seen — participants bump defers until delivery completes, then triggers status
 		await db()
 			.updateTable('participants')
 			.set({ seen: sql`CURRENT_TIMESTAMP` })
@@ -70,7 +67,7 @@ export const events = {
 			.where('user', '=', req.user!.id)
 			.execute()
 
-		return { messages }
+		return { latest }
 	}
 }
 
@@ -83,17 +80,28 @@ export const actions = {
 
 		if (!text?.trim()) throw new Error('Message cannot be empty')
 
-		await db()
-			.insertInto('messages')
-			.values({
-				chat: chatId,
-				user: req.user!.id,
-				text: text.trim()
-			})
-			.execute()
+		await hush(
+			() => db()
+				.insertInto('messages')
+				.values({
+					chat: chatId,
+					user: req.user!.id,
+					text: text.trim()
+				})
+				.execute()
+		)
 
 		emit('messages', { id: String(chatId) })
 
 		return { ok: true }
+	},
+
+	older: async (req: Request) => {
+
+		const chatId = Number(req.params.id)
+		const { cursor } = req.body as { cursor: number }
+		const messages = await recent(chatId, cursor)
+
+		return { messages, hasMore: messages.length === LIMIT }
 	}
 }

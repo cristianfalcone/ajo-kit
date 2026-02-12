@@ -627,7 +627,7 @@ function* ContactForm() {
   const form = action<{ success: boolean }>('contact')
 
   yield (
-    <form onsubmit={form.handle}>
+    <form onsubmit={form.submit}>
       <input name="email" type="email" />
       <button disabled={form.loading}>
         {form.loading ? 'Sending...' : 'Send'}
@@ -795,7 +795,8 @@ const form = action<Result>('name')
 form.loading   // boolean - submission in progress
 form.data      // Result | null - success response
 form.error     // Error | null - failure response
-form.handle    // (event) => void - form onsubmit handler
+form.submit    // (event) => void - form onsubmit handler
+form.invoke    // (body?) => Promise<T | undefined> - programmatic call
 form.reset     // () => void - clear state
 ```
 
@@ -1107,7 +1108,7 @@ function* ContactPage() {
     <main>
       <h1>Contact Us</h1>
 
-      <form onsubmit={form.handle}>
+      <form onsubmit={form.submit}>
         <label>
           Email
           <input name="email" type="email" required />
@@ -1356,7 +1357,7 @@ function ContactForm() {
 
 + // ajo-kit page.tsx
 + const form = action<Result>('myAction')
-+ <form onsubmit={form.handle}>
++ <form onsubmit={form.submit}>
 ```
 
 ---

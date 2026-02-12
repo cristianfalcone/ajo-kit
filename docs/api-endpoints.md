@@ -528,7 +528,7 @@ export const actions = {
 
 // Client
 const form = action<Result>('authenticate')
-<form set:onsubmit={form.handle}>
+<form set:onsubmit={form.submit}>
   {/* Submits to ?/authenticate */}
 </form>
 ```

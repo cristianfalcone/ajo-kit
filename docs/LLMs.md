@@ -163,12 +163,13 @@ const form = action<{ success: boolean }>('subscribe')
 // form.loading   - boolean
 // form.data      - success response
 // form.error     - { status, message, fields? }
-// form.handle    - submit handler
+// form.submit    - form submit handler
+// form.invoke    - programmatic call (returns Promise<T | undefined>)
 // form.reset     - clear state
 ```
 
 ```tsx
-<form set:onsubmit={form.handle}>
+<form set:onsubmit={form.submit}>
   <input name="email" disabled={form.loading} />
   <button disabled={form.loading}>Subscribe</button>
   {form.data && <p>Subscribed!</p>}
