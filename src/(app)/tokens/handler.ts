@@ -1,5 +1,5 @@
 import type { Request, Response } from '@kit'
-import { send } from '@kit/server'
+import { send, emit } from '@kit/server'
 import { object, string, array, optional } from '@kit/validate'
 import { create, list } from '@kit/auth/token'
 import { check, hit } from '@kit/auth/limit'
@@ -47,6 +47,7 @@ export default {
 			input.name,
 			input.abilities
 		)
+		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		const expires_at = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
 
@@ -77,6 +78,7 @@ export default {
 			.deleteFrom('tokens')
 			.where('id', '=', match.id)
 			.execute()
+		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		send(res, 200, { message: 'Token revoked' })
 	}

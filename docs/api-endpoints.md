@@ -1,549 +1,145 @@
-# API Endpoints in ajo-kit
+# API Endpoints and Form Actions
 
-This document explains how API endpoints work in ajo-kit and how they differ from form actions.
+Current `ajo-kit` supports two server mutation styles in the same route `handler.ts`:
 
-## Overview
+1. `actions` for SPA form/navigation flows
+2. `default` API handlers for external clients under `/api/*`
 
-Every `handler.ts` file can export multiple types of handlers:
+## 1. Form Actions (`actions`)
 
-```ts
-// handler.ts exports
-
-export async function page(req, parent) { }    // Server data loading
-export async function layout(req, parent) { }  // Layout data
-export async function head(req, parent) { }    // SEO metadata
-export const deps = ['table']                   // Cache dependencies
-
-export async function action1(req, res) { }    // Form action (?/action1)
-export async function action2(req, res) { }    // Form action (?/action2)
-
-export default {                                // API endpoints
-  get(req, res) { },                           // GET /route
-  post(req, res) { },                          // POST /route
-  put(req, res) { },                           // PUT /route
-  delete(req, res) { }                         // DELETE /route
-}
-```
-
-## Form Actions vs API Endpoints
-
-| Aspect | Form Actions | API Endpoints |
-|--------|-------------|---------------|
-| **Export** | Named functions | `default { method() }` |
-| **Route** | `POST /route?/name` | `METHOD /api/route` |
-| **Usage** | SPA forms (`action('name')`) | External APIs, mobile |
-| **CSRF** | ✅ Required | ❌ Skipped (if Bearer token) |
-| **Return** | `{ redirect?, ...data }` | Uses `send(res, status, data)` |
-
-**Important:** API endpoints automatically get `/api/` prefix. A handler at `src/(public)/login/handler.ts` with `default export` creates routes at `/api/login`, not `/login`.
-
-## API Endpoint Registration
-
-**File:** `packages/ajo-kit/src/server.tsx`
+### Server
 
 ```ts
-const { default: routes, page, layout, head, deps, ...actions } = exports
-
-if (routes) {
-  for (const method of Object.keys(routes) as HttpMethod[]) {
-    app[method](toPattern(segments), json(), ...collect(segments), routes[method])
-  }
-}
-```
-
-**Process:**
-1. Scan all `handler.ts` files
-2. Extract `default` export as API routes
-3. Register each HTTP method with Polka
-4. Apply JSON parsing + middleware chain
-5. Route to handler function
-
-## Route Patterns
-
-### File to URL Mapping
-
-| File | Handler Export | URL | Type |
-|------|---------------|-----|------|
-| `(public)/login/handler.ts` | `page.tsx` exists | `/login` | Web page |
-| `(public)/login/handler.ts` | Named function | `/login?/authenticate` | Form action |
-| `(public)/login/handler.ts` | `default { post }` | `/api/login` | API endpoint |
-| `(app)/posts/[id]/handler.ts` | `default { get, put, delete }` | `/api/posts/:id` | API endpoint |
-| `docs/[...]/handler.ts` | `page.tsx` exists | `/docs/*` | Web page |
-
-**Rules:**
-- Groups `(name)` are removed from URLs
-- `[param]` becomes `:param`
-- `[...]` becomes `*` (catch-all)
-- **API endpoints (`default export`) automatically get `/api/` prefix**
-
-## Middleware Inheritance
-
-API endpoints inherit **all middlewares** from ancestor `wares.ts` files, **including the wares.ts at the same level as the handler.ts**.
-
-### How Middleware Collection Works
-
-**File:** `packages/ajo-kit/src/server.tsx`
-```ts
-const collect = (segments: string[]): Middleware[] =>
-  ancestors(segments).flatMap(path => wares.get(path) ?? [])
-```
-
-**File:** `packages/ajo-kit/src/constants.ts`
-```ts
-export const ancestors = (segments: string[]) =>
-  segments.map((_, i) => segments.slice(0, i + 1).join('/'))
-```
-
-### Example: Middleware Chain for `/admin/users`
-
-```
-src/
-  wares.ts                      → Root middleware (key: '')
-  (app)/
-    wares.ts                    → App group middleware
-    admin/
-      wares.ts                  → Admin section middleware
-      users/
-        wares.ts                → Route-level middleware ← SAME LEVEL!
-        handler.ts              → Handler
-```
-
-**For** `src/(app)/admin/users/handler.ts`:
-- File path: `/src/(app)/admin/users/handler.ts`
-- Segments: `['', '(app)', 'admin', 'users']` ← Note: starts with `''`
-- Ancestors: `['', '/(app)', '/(app)/admin', '/(app)/admin/users']`
-- Middleware lookup keys:
-  - `''` → `src/wares.ts` (root)
-  - `'/(app)'` → `src/(app)/wares.ts` (group)
-  - `'/(app)/admin'` → `src/(app)/admin/wares.ts` (section)
-  - `'/(app)/admin/users'` → `src/(app)/admin/users/wares.ts` (route-level)
-
-**Execution order:** Root → Group → Section → Route-level → Handler
-
-**Important:** The root segment `''` (empty string) is ALWAYS the first segment, so `src/wares.ts` is ALWAYS applied to all routes.
-
-## Authentication
-
-### Dual System (Cookie + Bearer Token)
-
-**Package:** `ajo-auth` provides `session(lookup?)` middleware factory in `@kit/auth/wares`.
-
-**Setup in `src/wares.ts`:**
-
-```ts
-import { configure } from '@kit/auth'
-import { session, csrf } from '@kit/auth/wares'
-import { db } from '/src/data'
-
-configure(() => db())
-
-export default [timing, session(), csrf, ...] satisfies Middleware[]
-```
-
-**How `session()` works:**
-
-1. Tries cookie session (SPA/Web) via `@kit/auth/cookie`
-2. Falls back to Bearer token (API/Mobile) via `@kit/auth/token`
-3. Loads user + roles from auth tables (default `resolve`)
-4. Sets `req.user` and optionally `req.token`
-
-**Custom lookup:** Pass a function to `session(lookup)` to load extra fields or from different tables.
-
-### Request Extensions
-
-```ts
-declare module 'polka' {
-  interface Request {
-    user?: User                      // Populated by session middleware
-    token?: { abilities: string[] }  // Bearer token metadata
-  }
-}
-```
-
-**User object:**
-```ts
-interface User {
-  id: number
-  name: string
-  email: string
-  roles: Role[]  // ['user'] or ['admin']
-}
-```
-
-## CSRF Protection
-
-**Package:** `ajo-auth` provides `csrf` middleware in `@kit/auth/wares`.
-
-```ts
-import { csrf } from '@kit/auth/wares'
-```
-
-**Skips:**
-- API endpoints (`/api/*`)
-- Bearer token requests (`req.token`)
-- Safe methods (GET, HEAD, OPTIONS)
-
-Throws `ForbiddenError` on failure.
-
-**Why Bearer tokens skip CSRF:**
-- Authorization headers cannot be sent cross-origin by browsers
-- Cookies are sent automatically (vulnerable to CSRF)
-- Bearer tokens require explicit code (not vulnerable)
-
-## Guards
-
-Seven authorization guards available from `@kit/auth/guard`:
-
-```ts
-import { auth, role, ability, protect, guest, confirmed, verified } from '@kit/auth/guard'
-
-// Use in wares.ts files:
-
-// 1. Require authentication
-export default [auth()]
-
-// 2. Require specific role
-export default [role('admin')]
-
-// 3. Require token ability (only for Bearer tokens)
-export default [ability('posts:create')]
-
-// 4. Require password confirmation (3min window)
-export default [confirmed()]
-
-// 5. Require email verification
-export default [verified()]
-
-// 6. Redirect if authenticated (for login page)
-export default [guest('/dashboard')]
-
-// 7. Redirect if not authenticated
-export default [protect('/login')]
-```
-
-### Example: Protected Admin Section
-
-```ts
-// src/(app)/admin/wares.ts
-import { role } from '@kit/auth/guard'
-
-export default [role('admin')]
-```
-
-All routes under `src/(app)/admin/*` will require admin role.
-
-## Token Abilities
-
-**Package:** `@kit/auth/token`
-
-```ts
-// Create token with abilities
-const token = await create(
-  userId,
-  'Mobile App',
-  ['posts:read', 'posts:create', 'users:update'],
-  90 * 24 * 60 * 60 * 1000  // 90 days expiry (optional)
-)
-
-// Wildcard matching
-'*'           // All abilities
-'posts:*'     // All post operations
-'posts:read'  // Only read posts
-
-// Check ability
-can(['posts:*'], 'posts:create')  // true
-can(['posts:read'], 'posts:create')  // false
-```
-
-## Example: Login Endpoint
-
-```ts
-// src/(public)/login/handler.ts
-
-import type { Request, Response } from '@kit'
-import { UnauthorizedError } from '@kit'
-import { send } from '@kit/server'
-import { verify } from '@kit/auth/password'
-import { create } from '@kit/auth/token'
-import { parse, object, string } from '@kit/validate'
-import { db, email } from '/src/data'
-
-const Login = object({
-  email,
-  password: string(),
-})
-
-// API endpoint for mobile/external clients
-export default {
-  async post(req: Request, res: Response) {
-
-    const input = parse(Login, req.body)
-
-    const user = await db()
-      .selectFrom('users')
-      .select(['id', 'name', 'email', 'password'])
-      .where('email', '=', input.email)
-      .executeTakeFirst()
-
-    if (!user?.password || !await verify(input.password, user.password)) {
-      throw new UnauthorizedError('Invalid credentials')
-    }
-
-    // Create stateless token
-    const token = await create(user.id, 'Mobile App', ['*'])
-
-    send(res, 200, {
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      }
-    })
-  }
-}
-```
-
-**Usage from mobile:**
-
-```ts
-const response = await fetch('https://example.com/api/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password })
-})
-
-const { token, user } = await response.json()
-
-// Use in subsequent requests
-fetch('https://example.com/api/posts', {
-  headers: {
-    'Authorization': `Bearer ${token}`
-  }
-})
-```
-
-## Example: CRUD API
-
-```ts
-// src/(app)/posts/handler.ts
-
-import type { Request, Response } from '@kit'
-import { send } from '@kit/server'
-import { db } from '/src/data'
-
-// Data loading for web page
-export const deps = ['posts', ':user']
-
-export async function page(req: Request) {
-  const posts = await db()
-    .selectFrom('posts')
-    .select(['id', 'title', 'content'])
-    .where('user', '=', req.user!.id)
-    .execute()
-
-  return { posts }
-}
-
-// API endpoints for mobile
-export default {
-
-  // GET /api/posts
-  async get(req: Request, res: Response) {
-    const posts = await db()
-      .selectFrom('posts')
-      .select(['id', 'title', 'content', 'created'])
-      .where('user', '=', req.user!.id)
-      .execute()
-
-    send(res, 200, { posts })
-  },
-
-  // POST /api/posts
-  async post(req: Request, res: Response) {
-    const { id } = await db()
-      .insertInto('posts')
-      .values({
-        user: req.user!.id,
-        title: req.body.title,
-        content: req.body.content,
-      })
-      .returning('id')
-      .executeTakeFirstOrThrow()
-
-    send(res, 201, { id })
-  },
-
-  // PUT /api/posts
-  async put(req: Request, res: Response) {
-    await db()
-      .updateTable('posts')
-      .set({
-        title: req.body.title,
-        content: req.body.content,
-      })
-      .where('id', '=', req.body.id)
-      .where('user', '=', req.user!.id)
-      .execute()
-
-    send(res, 200, { success: true })
-  },
-
-  // DELETE /api/posts
-  async delete(req: Request, res: Response) {
-    await db()
-      .deleteFrom('posts')
-      .where('id', '=', req.body.id)
-      .where('user', '=', req.user!.id)
-      .execute()
-
-    send(res, 200, { success: true })
-  }
-}
-```
-
-## Error Handling
-
-Use error classes from `@kit`:
-
-```ts
-import {
-  AppError,
-  NotFoundError,
-  UnauthorizedError,
-  ForbiddenError,
-  InvalidError
-} from '@kit'
-
-// Generic HTTP error
-throw new AppError(429, 'Rate limit exceeded')
-
-// Specific errors
-throw new NotFoundError('Post not found')
-throw new UnauthorizedError('Invalid credentials')
-throw new ForbiddenError('Insufficient permissions')
-
-// Validation errors with field-level messages
-throw new InvalidError(
-  { email: ['Invalid format'] },
-  'Validation failed'
-)
-```
-
-**Error response format:**
-```json
-{
-  "error": {
-    "status": 400,
-    "message": "Validation failed",
-    "fields": {
-      "email": ["Invalid format"]
-    }
-  }
-}
-```
-
-## Response Helpers
-
-```ts
-import { send } from '@kit/server'
-
-// JSON response
-send(res, 200, { data: 'value' })
-
-// Error response
-send(res, 404, { error: 'Not found' })
-
-// Created resource
-send(res, 201, { id: 123 })
-
-// No content
-send(res, 204)
-```
-
-## Complete Request Flow
-
-```
-Mobile Client
-     │
-     │ POST /api/posts
-     │ Authorization: Bearer <token>
-     │ Content-Type: application/json
-     │
-     ├────────────────────────────────>  Polka Router
-     │                                        │
-     │                                   json() middleware
-     │                                        │
-     │                                   Root wares (src/wares.ts)
-     │                                        │
-     │                                   ├─ timing: log request
-     │                                   ├─ session: validate Bearer token
-     │                                   │  → sets req.user + req.token
-     │                                   ├─ csrf: skip (Bearer token)
-     │                                        │
-     │                                   Group wares (src/(app)/wares.ts)
-     │                                        │
-     │                                   ├─ protect(): check req.user
-     │                                        │
-     │                                   Route wares (src/(app)/posts/wares.ts)
-     │                                        │
-     │                                   ├─ [custom middleware if exists]
-     │                                        │
-     │                                   Handler default.post(req, res)
-     │                                        │
-     │                                   ├─ parse request body
-     │                                   ├─ database operations
-     │                                   ├─ send(res, 201, { id })
-     │                                        │
-     │  { id: 123 }
-     │<────────────────────────────────
-```
-
-## Best Practices
-
-1. **Validation:** Always use Valibot schemas with `parse()`
-2. **Authorization:** Apply guards in `wares.ts` files, not in handlers
-3. **Rate limiting:** Use `check()`, `hit()`, `clear()` from `@kit/auth/limit`
-4. **Token abilities:** Use granular permissions like `posts:read` instead of `*`
-5. **Error handling:** Throw typed errors (`UnauthorizedError`, etc.)
-6. **Response format:** Use consistent JSON structure across all endpoints
-7. **SQL safety:** Always use `.select(['fields'])`, never `.selectAll()`
-8. **Secrets:** Never leak sensitive data in API responses
-9. **Middleware order:** Root → Group → Section → Route-level
-10. **Same-level wares:** Remember that `wares.ts` at the same level as `handler.ts` also applies
-
-## Form Actions (Complementary Pattern)
-
-Form actions are the **preferred pattern** in ajo-kit for SPA interactions:
-
-```ts
-// handler.ts
+// src/(app)/account/profile/handler.ts
 export const actions = {
-  authenticate: async (req: Request, res: Response) => {
-    // ... validation
-    write(res, sessionToken)
-    return { redirect: '/dashboard' }
+  name: async (req: Request) => {
+    const { name } = req.body as { name: string }
+    await db().updateTable('users').set({ name }).where('id', '=', req.user!.id).execute()
+    emit([`profile:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:users'])
+    return { success: true }
   }
 }
-
-// Client
-const form = action<Result>('authenticate')
-<form set:onsubmit={form.submit}>
-  {/* Submits to ?/authenticate */}
-</form>
 ```
 
-### When to Use Each Pattern
+### Client
 
-**Use form actions when:**
-- Building SPA features with server-side validation
-- Need CSRF protection automatically
-- Want framework-managed loading states
-- Client and server are same-origin
+```tsx
+import { action } from '@kit/client'
 
-**Use API endpoints when:**
-- Building mobile apps
-- Supporting third-party integrations
-- Need stateless authentication (Bearer tokens)
-- Client is different origin
-- Building RESTful APIs
+const form = action<{ success: true }>('name')
+
+<form set:onsubmit={form.submit}>...</form>
+```
+
+### How action routing works
+
+`action('name')` posts to the current route using query action syntax:
+
+- request path: `POST /current/route?/name`
+
+If no name is passed, action key `default` is used.
+
+## 2. API Endpoints (`default export`)
+
+### Server
+
+```ts
+// src/(app)/tokens/handler.ts
+export default {
+  async get(req: Request, res: Response) {
+    const tokens = await list(req.user!.id)
+    send(res, 200, { tokens })
+  },
+
+  async post(req: Request, res: Response) {
+    const token = await create(req.user!.id, 'API Client', ['*'])
+    emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
+    send(res, 201, { token })
+  }
+}
+```
+
+Route mapping:
+
+- file route: `src/(app)/tokens/handler.ts`
+- API URL: `/api/tokens`
+
+Supported methods: `get`, `post`, `put`, `patch`, `delete`, `options`, `head`.
+
+## 3. Authentication Modes
+
+Both actions and API handlers can use `req.user`.
+
+- Cookie session auth (web)
+- Bearer token auth (API/mobile)
+
+Bearer example:
+
+```bash
+curl -H "Authorization: Bearer <token>" http://localhost:5173/api/tokens
+```
+
+## 4. Response Behavior
+
+### For actions
+
+- `Accept: application/json` returns JSON
+- Non-AJAX form posts return 302 redirect by default
+
+Return values:
+
+- `{ redirect: '/target' }` -> client navigation redirect
+- any object -> serialized JSON payload
+
+### For API handlers
+
+Use `send(res, status, payload)` explicitly.
+
+## 5. Live Data Integration
+
+When actions/API mutate data, emit topics for all readers.
+
+Checklist after a mutation:
+
+1. Which pages/layouts read this data?
+2. Which topics do those loaders track?
+3. Emit every impacted topic.
+
+If emit coverage is incomplete, some pages will not update live.
+
+## 6. Common Patterns
+
+### Revoke account session
+
+- delete row in `sessions`
+- emit: `sessions:<id>`, `dashboard:<id>`, `user:<id>`, `admin:sessions`, `admin:stats`
+
+### Create token
+
+- insert row in `tokens`
+- emit: `tokens:<id>`, `dashboard:<id>`, `user:<id>`, `admin:tokens`, `admin:stats`
+
+### Profile update
+
+- update row in `users`
+- emit: `profile:<id>`, `dashboard:<id>`, `user:<id>`, `admin:users`
+
+## 7. Validation
+
+Use Valibot via `@kit/validate`:
+
+```ts
+import { object, string, parse } from '@kit/validate'
+
+const Schema = object({ name: string() })
+
+const input = parse(Schema, req.body)
+```
+
+Validation errors throw `InvalidError` and are surfaced by `action()` as `form.error`.
+
+## 8. Anti-patterns
+
+- Using API handlers for internal SPA forms when actions are simpler
+- Forgetting `emit(...)` after mutations
+- Returning secrets from publicly reachable endpoints

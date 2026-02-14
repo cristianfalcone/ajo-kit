@@ -4,9 +4,7 @@ import { hash, verify } from '@kit/auth/password'
 import { db, password as passwordField, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
 import { UnauthorizedError } from '@kit'
-
-// Skip handler if users table hasn't changed and same user
-export const deps = ['users', ':user']
+import { emit } from '@kit/server'
 
 const UpdateName = object({
 	name: optional(trimmed, ''),
@@ -29,6 +27,7 @@ const UpdatePassword = pipe(
 )
 
 export async function page(req: Request) {
+	req.track?.([`profile:${req.user!.id}`, `user:${req.user!.id}`])
 
 	const user = await db()
 		.selectFrom('users')
@@ -50,6 +49,7 @@ export const actions = {
 			.set({ name: input.name, updated: new Date().toISOString() })
 			.where('id', '=', req.user!.id)
 			.execute()
+		emit([`profile:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:users'])
 
 		return { success: true, name: input.name }
 	},
@@ -75,6 +75,7 @@ export const actions = {
 			.set({ password: hashed, updated: new Date().toISOString() })
 			.where('id', '=', req.user!.id)
 			.execute()
+		emit([`profile:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`])
 
 		return { success: true }
 	}

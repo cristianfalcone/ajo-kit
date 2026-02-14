@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, formatDate } from '@kit'
-import { action, subscribe } from '@kit/client'
+import { action } from '@kit/client'
 import Checkbox from '/src/ui/checkbox'
 
 type Token = {
@@ -22,14 +22,8 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 	const createForm = action<CreateResult>('make')
 	const revokeForm = action<RevokeResult>('revoke')
 
-	let tokens = args.data?.tokens ?? []
-
-	subscribe<Data>('tokens', ({ data, error }) => {
-		if (error) return
-		tokens = data!.tokens
-	})
-
 	while (true) {
+		const tokens = args.data?.tokens ?? []
 
 		yield (
 			<div class="space-y-8">

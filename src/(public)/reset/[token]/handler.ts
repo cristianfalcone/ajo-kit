@@ -5,6 +5,7 @@ import { hash } from '@kit/auth/password'
 import { db, password } from '/src/data'
 import { parse } from '@kit/validate'
 import { AppError } from '@kit'
+import { emit } from '@kit/server'
 
 const Reset = pipe(
 	object({
@@ -41,6 +42,15 @@ export const actions = {
 
 		await db().updateTable('users').set({ password: hashed }).where('id', '=', user).execute()
 		await db().deleteFrom('sessions').where('user', '=', user).execute()
+		emit([
+			`profile:${user}`,
+			`sessions:${user}`,
+			`dashboard:${user}`,
+			`user:${user}`,
+			'admin:sessions',
+			'admin:users',
+			'admin:stats',
+		])
 
 		return { redirect: '/login' }
 	}

@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
-import { action, subscribe } from '@kit/client'
+import { action } from '@kit/client'
 
 type Chat = {
 	id: number
@@ -20,13 +20,6 @@ type Data = {
 const Chats: Stateful<PageArgs<Data>> = function* (args) {
 
 	const form = action<void>('start')
-
-	let chats = args.data?.chats ?? []
-
-	subscribe<{ chats: Chat[] }>('chats', ({ data, error }) => {
-		if (error) return
-		chats = data!.chats
-	})
 
 	let selected: number[] = []
 	let groupName = ''
@@ -109,7 +102,7 @@ const Chats: Stateful<PageArgs<Data>> = function* (args) {
 
 						{/* Chats list */}
 						<div class="space-y-2">
-							{chats.map(chat => (
+							{data?.chats?.map(chat => (
 								<a
 									key={chat.id}
 									href={`/account/chats/${chat.id}`}
@@ -130,7 +123,7 @@ const Chats: Stateful<PageArgs<Data>> = function* (args) {
 									)}
 								</a>
 							))}
-							{!chats.length && (
+							{!data?.chats?.length && (
 								<p class="text-center text-slate-500 dark:text-gray-400 py-8">
 									No conversations yet
 								</p>

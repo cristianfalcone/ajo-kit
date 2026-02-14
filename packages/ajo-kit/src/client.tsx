@@ -1,9 +1,8 @@
 import { render } from 'ajo'
 import { current } from 'ajo/context'
-import App, { ssr, cache, seals, subscribers, snapshots } from './app'
-import type { State, Entry, ActionState, EventCallback, EventState } from './constants'
-import type { Head } from './head'
-import { navigate, unpack } from './constants'
+import App, { ssr } from './app'
+import type { State, ActionState } from './constants'
+import { navigate } from './constants'
 
 // Action helper for stateful generator components
 
@@ -46,27 +45,29 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 				...init,
 			})
 
-			const json = unpack(await response.text())
+			const json = await response.json().catch(() => null) as
+				| { redirect?: string; error?: { status?: number; message?: string; fields?: Record<string, string[] | undefined> }; message?: string; fields?: Record<string, string[] | undefined> }
+				| null
 
 			if (!response.ok) {
 
 				state.error = {
-					status: json.error?.status ?? response.status,
-					message: json.error?.message ?? json.message ?? 'Action failed',
-					fields: json.error?.fields ?? json.fields
+					status: json?.error?.status ?? response.status,
+					message: json?.error?.message ?? json?.message ?? 'Action failed',
+					fields: json?.error?.fields ?? json?.fields
 				}
 
 				return
 			}
 
-			if (json.redirect) {
+			if (json?.redirect) {
 				navigate(json.redirect)
 				return
 			}
 
-			state.data = json as T
+			state.data = (json ?? {}) as T
 
-			return json as T
+			return state.data
 
 		} catch (error) {
 
@@ -95,66 +96,10 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 	return state
 }
 
-// Cache invalidation helper
-
-export function invalidate(key?: string) {
-	if (key) cache.delete(key)
-	else cache.clear()
-}
-
-// Event subscription helper
-
-export function subscribe<T = Entry>(name: string, callback: EventCallback<T>) {
-
-	const component = current()
-
-	if (!subscribers.has(name)) subscribers.set(name, new Set())
-
-	const set = subscribers.get(name)!
-
-	const wrapped = (state: EventState) => {
-
-		if (!document.contains(component)) {
-			set.delete(wrapped)
-			return
-		}
-
-		callback(state as EventState<T>)
-
-		component.next()
-	}
-
-	set.add(wrapped)
-
-	const snapshot = snapshots.get(name)
-
-	if (snapshot) callback(snapshot as EventState<T>)
-}
-
 if (!import.meta.env.SSR) {
-
-	type SSR = State & { keys?: string[]; sums?: (string | Record<string, string> | null)[]; es?: Record<string, string | Record<string, string>> }
-
 	const packed = (globalThis as { __SSR__?: string }).__SSR__
-	const data = packed ? unpack(packed) as SSR : undefined
-
-	if (data) {
-
-		ssr.set(data.url, data)
-
-		// Populate cache for hash-based navigation optimization
-
-		if (data.keys && data.sums) {
-
-			const values = [data.head, ...data.data] as (Head | Entry)[]
-
-			data.keys.forEach((key, i) => {
-				if (values[i] && data.sums![i]) cache.set(key, { value: values[i], sum: data.sums![i]! })
-			})
-		}
-
-		if (data.es) for (const [name, s] of Object.entries(data.es)) seals.set(name, s)
-	}
+	const data = packed ? JSON.parse(packed) as State : null
+	if (data) ssr.set(data.url, data)
 }
 
 if (import.meta.hot) {
@@ -186,9 +131,9 @@ if (import.meta.hot) {
 		Array.from(el.children).forEach(child => walk(child, path))
 	}
 
-	const root = document.getElementById('root');
+	const root = document.getElementById('root')
 
-	(globalThis as { __HMR__?: (path?: string) => void }).__HMR__ = path => {
+	;(globalThis as { __HMR__?: (path?: string) => void }).__HMR__ = path => {
 		if (root) walk(root, path)
 		dispatchEvent(new CustomEvent('hmr'))
 	}

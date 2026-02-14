@@ -1,20 +1,16 @@
-import navaid, { type Params } from 'navaid'
+import navaid from 'navaid'
 import type { Component, Stateful } from 'ajo'
-import { AppError, navigate, links, ancestors, normalize, unpack } from './constants'
+import { AppError, navigate, ancestors } from './constants'
 import type {
 	PageArgs,
 	LayoutArgs,
 	Data,
-	Entry,
-	Parent,
 	Module,
 	Loader,
 	Page,
 	State,
-	Cached,
-	EventState
 } from './constants'
-import { merge, apply, type Head } from './head'
+import { apply, type Head } from './head'
 import { routes } from 'virtual:ajo/routes'
 
 // Pattern compilation
@@ -38,22 +34,6 @@ export const getFileName = (path: string) => path.split('/').pop()?.split('.')[0
 
 export const ssr = new Map<string, State>()
 
-// Navigation cache: key → { value, sum }
-
-export const cache = new Map<string, Cached>()
-
-// Event seals: name → sum (persists across navigations for SSE skip)
-
-export const seals = new Map<string, string | Record<string, string>>()
-
-// Event subscribers: name → Set<callback>
-
-export const subscribers = new Map<string, Set<(state: EventState) => void>>()
-
-// Event snapshots: last SSE state per event (seeds re-subscribers across generator restarts)
-
-export const snapshots = new Map<string, EventState>()
-
 export const error: () => Page = () => ({
 	segments: [''],
 	loader: async () => ({ default: () => null }),
@@ -64,10 +44,9 @@ export const error: () => Page = () => ({
 export const layouts = new Map<string, Loader>()
 export const pages: Page[] = []
 
-// Path helpers for cache keys
+// Path helpers
 
 export const layoutPaths = (segments: string[]) => ancestors(segments).filter(path => layouts.has(path))
-export const cacheKeys = (paths: string[], segments: string[]) => ['head', ...paths, `page:${segments.join('/')}`]
 
 for (const [path, loader] of Object.entries(routes as Record<string, Loader>)) {
 
@@ -87,31 +66,19 @@ if (import.meta.env.DEV && !import.meta.env.SSR) {
 	(globalThis as { __MODULES__?: Map<string, Module> }).__MODULES__ = modules
 
 	const hmr = (loader: Loader, file: string): Loader => async () => {
+
 		if (modules.has(file)) return modules.get(file)
+
 		const module = await loader()
+
 		modules.set(file, module)
+
 		return module
 	}
 
 	for (const [path, loader] of layouts) layouts.set(path, hmr(loader, `/src${path}/layout.tsx`))
+
 	for (const page of pages) page.loader = hmr(page.loader, `/src${page.segments.join('/')}/page.tsx`)
-}
-
-// Execute handler() with parent() support
-
-async function execute(
-	target: Module,
-	context: { url: string; params: Params },
-	parent: Parent
-): Promise<{ data?: Entry; error?: AppError }> {
-
-	if (!target.handler) return { data: {} }
-
-	try {
-		return { data: await target.handler(context, parent) }
-	} catch (error) {
-		return { error: normalize(error) }
-	}
 }
 
 // Compose component tree
@@ -156,77 +123,70 @@ function compose(
 	)
 }
 
-// Encode cache + seals state into X-Have header string
+async function load(url: string): Promise<{ data: Data; head?: Head; redirect?: string; error?: AppError }> {
 
-function encode(keys: string[]): string {
-	return [
-		...keys
-			.map(key => [key, cache.get(key)] as const)
-			.filter((entry): entry is [string, Cached] => !!entry[1])
-			.flatMap(([key, entry]) => {
-				if (typeof entry.sum === 'string') return [`${key}=${entry.sum}`]
-				return Object.entries(entry.sum).map(([field, hash]) => `${key}::${field}=${hash}`)
-			}),
-		...[...seals].flatMap(([name, value]) => {
-			if (typeof value === 'string') return [`es:${name}=${value}`]
-			return Object.entries(value).map(([field, hash]) => `es:${name}::${field}=${hash}`)
-		})
-	].join(',')
-}
+	const response = await fetch(url, { credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } })
 
-// Fetch server data, update cache, return entries
-
-async function load(url: string, keys: string[]): Promise<{ data: Data; head?: Head; redirect?: string; error?: AppError }> {
-
-	const header = encode(keys)
-
-	const response = await fetch(url, {
-		credentials: 'include',
-		cache: 'no-store',
-		headers: { Accept: 'application/json', ...(header && { 'X-Have': header }) }
-	})
-
-	const json = await response.text().then(unpack).catch(() => null)
+	const json = await response.json().catch(() => null) as
+		| { data?: Data; head?: Head; redirect?: string; error?: { status?: number; message?: string } }
+		| null
 
 	if (!json || !response.ok) {
-
-		const status = json?.error?.status ?? response.status
-		const message = json?.error?.message ?? json?.message ?? 'Server data load failed'
-
-		return { data: [], error: new AppError(status, message) }
+		return {
+			data: [],
+			error: new AppError(
+				json?.error?.status ?? response.status,
+				json?.error?.message ?? 'Load failed'
+			)
+		}
 	}
 
 	if (json.redirect) return { data: [], redirect: json.redirect }
 
-	const { data: raw, sums, es } = json as {
-		data: (Head | Entry | null)[]
-		sums: (string | Record<string, string> | null)[]
-		es?: Record<string, string | Record<string, string>>
+	return {
+		data: json.data ?? [],
+		head: json.head
 	}
+}
 
-	if (!raw) return { data: [], error: new AppError(500, 'Invalid server response') }
+function applyPatch(obj: any, patches: any[]) {
+	for (const { op, path, value } of patches) {
 
-	raw.forEach((item, index) => {
+		if (path === '/') {
 
-		if (item === null) return
+			if (Array.isArray(obj) && Array.isArray(value)) {
+				obj.length = 0
+				obj.push(...value)
+			} else {
+				Object.keys(obj).forEach(k => delete obj[k])
+				Object.assign(obj, value)
+			}
 
-		const value = sums[index]
-
-		if (typeof value === 'object' && value !== null) {
-			const existing = cache.get(keys[index])?.value ?? {}
-			cache.set(keys[index], { value: { ...existing, ...item }, sum: value })
-		} else if (value) {
-			cache.set(keys[index], { value: item, sum: value })
+			continue
 		}
-	})
 
-	if (es) for (const [name, value] of Object.entries(es)) seals.set(name, value)
+		const keys = path.split('/').filter(Boolean)
+		const last = keys.pop()!
+		let target = obj
 
-	const merged = raw.map((item, index) => cache.get(keys[index])?.value ?? item ?? {})
+		for (const key of keys) target = target[key]
 
-	const [head, ...entries] = merged
+		if (op === 'replace') {
+			target[last] = value
+		} else if (op === 'add') {
 
-	return { data: entries as Data, head: head as Head }
+			if (Array.isArray(target)) {
+				if (last === '-') target.push(value)
+				else target.splice(Number(last), 0, value)
+			} else {
+				target[last] = value
+			}
+
+		} else if (op === 'remove') {
+			if (Array.isArray(target)) target.splice(Number(last), 1)
+			else delete target[last]
+		}
+	}
 }
 
 // Resolve page: async generator yielding loading then data states
@@ -237,20 +197,16 @@ export async function* resolve(
 	page: Page,
 	data?: Data,
 	error?: AppError
-): AsyncGenerator<{ Page: Component; data?: State }> {
+): AsyncGenerator<{ Page: Component; data?: State; recompose?: () => Component }> {
 
 	const { loader, segments, params = {} } = page
 
 	const paths = ancestors(segments).filter(path => layouts.has(path))
 
-	// Load modules in parallel (fast - already bundled)
-
 	const [target, ...tree] = await Promise.all([
 		loader(),
 		...paths.map(path => layouts.get(path)!().then(module => ({ path, module })))
 	])
-
-	// Error page: skip loading/fetching, compose directly with error
 
 	if (error) {
 		const state: State = { url, params, data: [], loading: false, error }
@@ -258,29 +214,28 @@ export async function* resolve(
 		return
 	}
 
-	// Check cache (SSR hydration) - skip loading phase if cached
-
 	const cached = ssr.get(url)
 
 	if (cached) {
+
 		ssr.delete(url)
-		yield { Page: compose(target, tree, paths, cached), data: cached }
+
+		yield {
+			Page: compose(target, tree, paths, cached),
+			recompose: () => compose(target, tree, paths, cached),
+			data: cached
+		}
+
 		return
 	}
 
-	// First yield: loading state
-
 	yield { Page: compose(target, tree, paths, { url, params, data: [], loading: true }) }
-
-	// Fetch server data on client navigation
-
-	const keys = cacheKeys(paths, segments)
 
 	const server = data
 		? { data, head: undefined as Head | undefined }
 		: import.meta.env.SSR
-			? { data: [] as Data }
-			: await load(url, keys)
+			? { data: [] as Data, head: undefined as Head | undefined }
+			: await load(url)
 
 	if ('redirect' in server && server.redirect) {
 		navigate(server.redirect)
@@ -293,117 +248,51 @@ export async function* resolve(
 		return
 	}
 
-	// Execute handler() functions with parent() support and merge server data
-
-	const chain = links(tree.length + 1)
-
-	const layoutTasks = tree.map(async ({ module }, depth) => {
-
-		const { parent, deferred } = chain[depth]
-
-		try {
-			const client = await execute(module, { url, params }, parent)
-			const merged = { ...server.data[depth], ...client.data }
-			deferred.resolve(merged)
-			return { merged, error: client.error }
-		} catch (error) {
-			const appError = normalize(error)
-			deferred.reject(appError)
-			return { merged: server.data[depth] ?? {}, error: appError }
-		}
-	})
-
-	const pageTask = (async () => {
-
-		const depth = tree.length
-		const { parent, deferred } = chain[depth]
-
-		try {
-			const client = await execute(target, { url, params }, parent)
-			const merged = { ...server.data.at(-1), ...client.data }
-			deferred.resolve(merged)
-			return { merged, error: client.error }
-		} catch (error) {
-			const appError = normalize(error)
-			deferred.reject(appError)
-			return { merged: server.data.at(-1) ?? {}, error: appError }
-		}
-	})()
-
-	const [layoutResults, pageResult] = await Promise.all([
-		Promise.all(layoutTasks),
-		pageTask
-	])
-
 	const state: State = {
 		url,
 		params,
-		data: [...layoutResults.map(r => r.merged), pageResult.merged],
+		data: server.data,
 		loading: false,
-		error: layoutResults.find(r => r.error)?.error ?? pageResult.error
+		head: server.head,
+		rawServerData: [server.head, ...server.data]
 	}
 
-	const clientHeads = await Promise.all([
-		...tree.map(({ module }, depth) => module.head?.({ url, params }, async () => layoutResults[depth].merged)),
-		target.head?.({ url, params }, async () => state.data.at(-1)!)
-	])
-
-	state.head = merge(server.head, ...clientHeads)
-
-	// Second yield: data state
-
-	yield { Page: compose(target, tree, paths, state), data: state }
+	yield {
+		Page: compose(target, tree, paths, state),
+		recompose: () => compose(target, tree, paths, state),
+		data: state
+	}
 }
 
-// SSE stream manager: connect with backoff, update cache + seals on message
-
-function stream() {
+function stream(onPatch: (patches: any[]) => void) {
 
 	let source: EventSource | null = null
 	let retries = 0
-	let gen = 0
 
 	const connect = (path: string) => {
 
 		source?.close()
-
-		const current = ++gen
-
-		const sealing = [...seals].flatMap(([name, value]) => {
-			if (typeof value === 'string') return [`${name}:${value}`]
-			return Object.entries(value).map(([field, hash]) => `${name}::${field}:${hash}`)
-		}).join(',')
-
-		source = new EventSource(sealing ? `${path}${path.includes('?') ? '&' : '?'}es=${sealing}` : path)
-
+		source = new EventSource(path)
 		source.onopen = () => { retries = 0 }
-
 		source.onmessage = (event) => {
-
-			if (gen !== current) return
-
-			const { event: name, data, error, sum: seal, nav } = JSON.parse(event.data)
-
-			if (seal) seals.set(name, seal)
-
-			if (nav && data) {
-				const existing = typeof nav.sum === 'object' ? cache.get(nav.key)?.value : undefined
-				cache.set(nav.key, { value: existing ? { ...existing, ...data } : data, sum: nav.sum })
-			}
-
-			snapshots.set(name, { data, error })
-			subscribers.get(name)?.forEach(fn => fn({ data, error }))
+			if (event.data === ':hb') return
+			const patches = JSON.parse(event.data) as any[]
+			if (patches.length) onPatch(patches)
 		}
 
 		source.onerror = () => {
 			source?.close()
-			if (gen !== current || ++retries > 10) return
-			const base = Math.min(1000 * 2 ** retries, 30_000)
-			setTimeout(() => { if (gen === current) connect(path) }, base + base * Math.random())
+			retries++
+			if (retries > 10) return
+			setTimeout(() => connect(path), Math.min(1000 * 2 ** retries, 30000))
 		}
 	}
 
-	const close = () => { gen++; source?.close(); source = null; retries = 0 }
+	const close = () => {
+		source?.close()
+		source = null
+		retries = 0
+	}
 
 	return { connect, close }
 }
@@ -415,19 +304,38 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	if (page) return <Page />
 
 	let hmr = false
-	const sse = stream()
+	let activeState: State | null = null
+	let activeRecompose: (() => Component) | null = null
 	let generation = 0
+
+	const sse = stream((patches) => {
+
+		if (!activeState || !activeState.rawServerData || patches.length === 0) return
+
+		applyPatch(activeState.rawServerData, patches)
+		const [head, ...entries] = activeState.rawServerData
+		activeState.data = entries as Data
+
+		if (head) {
+			activeState.head = head as Head
+			apply(head as Head)
+		}
+
+		const recompose = activeRecompose
+
+		if (recompose) this.next(() => Page = recompose())
+	})
 
 	const go = async (target: Page) => {
 
 		const gen = ++generation
+		const currentUrl = location.pathname + location.search
 
 		sse.close()
-		snapshots.clear()
 
 		try {
 
-			for await (const state of resolve(location.pathname, layouts, target)) {
+			for await (const state of resolve(currentUrl, layouts, target)) {
 
 				if (gen !== generation) return
 				if (hmr && !state.data) continue
@@ -435,6 +343,12 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 				this.next(() => Page = state.Page)
 
 				if (state.data?.head) apply(state.data.head)
+
+				if (state.data && !state.data.loading) {
+					activeState = state.data
+					activeRecompose = state.recompose ?? null
+					if (!activeState.rawServerData) activeState.rawServerData = [state.data.head, ...state.data.data]
+				}
 			}
 
 		} catch (err) {
@@ -443,7 +357,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 			err = err instanceof AppError ? err : new AppError(500, err instanceof Error ? err.message : 'Navigation failed')
 
-			for await (const state of resolve(location.pathname, layouts, error(), undefined, err as AppError)) {
+			for await (const state of resolve(currentUrl, layouts, error(), undefined, err as AppError)) {
 				if (gen !== generation) return
 				this.next(() => Page = state.Page)
 			}
@@ -453,7 +367,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		if (gen !== generation) return
 
-		if (!hmr && subscribers.size > 0) sse.connect(location.pathname)
+		if (!hmr) sse.connect(currentUrl)
 		if (!hmr) requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
 
 		hmr = false
@@ -466,6 +380,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	router.listen()
 
 	const reload = import.meta.env.DEV ? () => { hmr = true; router.run() } : null
+
 	if (reload) addEventListener('hmr', reload)
 
 	try {

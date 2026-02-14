@@ -7,6 +7,7 @@ import { write } from '@kit/auth/cookie'
 import { check, hit } from '@kit/auth/limit'
 import { url } from '@kit/auth/verify'
 import { send } from '@kit/mail'
+import { emit } from '@kit/server'
 import { db, email, password, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
 
@@ -83,6 +84,14 @@ export const actions = {
 
 		const agent = req.headers['user-agent']
 		const token = await create(id, false, ip(req), agent)
+		emit([
+			`sessions:${id}`,
+			`dashboard:${id}`,
+			`user:${id}`,
+			'admin:sessions',
+			'admin:users',
+			'admin:stats',
+		])
 
 		write(res, token)
 

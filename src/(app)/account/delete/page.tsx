@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
-import { action, invalidate } from '@kit/client'
+import { action } from '@kit/client'
 
 type Result = { deleted: boolean }
 
@@ -11,7 +11,6 @@ const Delete: Stateful<PageArgs> = function* () {
 	while (true) {
 
 		if (form.data?.deleted) {
-			invalidate()
 			location.href = '/'
 			return
 		}

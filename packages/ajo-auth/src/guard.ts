@@ -1,5 +1,5 @@
 import type { Middleware, Request, Response } from 'ajo-kit'
-import { UnauthorizedError, ForbiddenError, AppError, ajax, pack } from 'ajo-kit'
+import { UnauthorizedError, ForbiddenError, AppError, ajax } from 'ajo-kit'
 import { can } from './token'
 import { check as checkConfirm } from './confirm'
 import { db } from './store'
@@ -10,7 +10,7 @@ export const redirect = (to: string | ((req: Request) => string)): Middleware =>
 
 	if (ajax(req)) {
 		res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
-		res.end(pack({ redirect: target }))
+		res.end(JSON.stringify({ redirect: target }))
 	} else {
 		res.writeHead(302, { Location: target })
 		res.end()
@@ -35,6 +35,7 @@ export const role = <R extends string>(...allowed: R[]): Middleware => (req, _, 
 	if (!req.user) throw new UnauthorizedError()
 
 	const roles = (req.user as { roles?: string[] }).roles ?? []
+
 	if (!allowed.some(r => roles.includes(r))) throw new ForbiddenError()
 
 	next()

@@ -2,13 +2,13 @@ import type { Request } from '@kit'
 import { object, string, pipe, transform, number } from '@kit/validate'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
-
-export const deps = ['sessions', 'users']
+import { emit } from '@kit/server'
 
 const RevokeSession = object({ id: string() })
 const RevokeUser = object({ user: pipe(string(), transform(v => Number(v)), number()) })
 
-export async function page() {
+export async function page(req: Request) {
+	req.track?.('admin:sessions')
 
 	const sessions = await db()
 		.selectFrom('sessions')
@@ -35,8 +35,6 @@ export async function page() {
 	}
 }
 
-export const events = { sessions: page }
-
 export const actions = {
 
 	revoke: async (req: Request) => {
@@ -45,7 +43,7 @@ export const actions = {
 
 		const session = await db()
 			.selectFrom('sessions')
-			.select(['id'])
+			.select(['id', 'user'])
 			.where('id', 'like', `${input.id}%`)
 			.executeTakeFirst()
 
@@ -55,6 +53,7 @@ export const actions = {
 			.deleteFrom('sessions')
 			.where('id', '=', session.id)
 			.execute()
+		emit(['admin:sessions', 'admin:stats', `sessions:${session.user}`, `dashboard:${session.user}`, `user:${session.user}`])
 
 		return { revoked: true }
 	},
@@ -67,6 +66,7 @@ export const actions = {
 			.deleteFrom('sessions')
 			.where('user', '=', input.user)
 			.execute()
+		emit(['admin:sessions', 'admin:stats', `sessions:${input.user}`, `dashboard:${input.user}`, `user:${input.user}`])
 
 		return { revoked: Number(result[0].numDeletedRows) }
 	}

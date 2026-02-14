@@ -1,8 +1,8 @@
+import type { Request } from '@kit'
 import { db } from '/src/data'
 
-export const deps = ['users', 'sessions', 'tokens']
-
-export async function page() {
+export async function page(req: Request) {
+	req.track?.('admin:stats')
 
 	const [users, sessions, tokens] = await Promise.all([
 		db().selectFrom('users').select(db().fn.countAll().as('count')).executeTakeFirstOrThrow(),

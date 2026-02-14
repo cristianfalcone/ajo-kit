@@ -1,8 +1,8 @@
+import type { Request } from '@kit'
 import { db } from '/src/data'
 
-export const deps = ['users', 'members']
-
-export async function page() {
+export async function page(req: Request) {
+	req.track?.('admin:users')
 
 	const users = await db()
 		.selectFrom('users')

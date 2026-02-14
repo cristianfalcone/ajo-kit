@@ -1,11 +1,7 @@
 import type { Request } from '@kit'
 import { db } from '/src/data'
 import { sql } from '@kit/database'
-
-export const deps = {
-	chats: ['chats', 'participants', 'messages', ':user'],
-	users: ['users'],
-}
+import { emit } from '@kit/server'
 
 const chats = (userId: number) => db()
 	.selectFrom('chats')
@@ -45,6 +41,8 @@ const chats = (userId: number) => db()
 
 export async function page(req: Request) {
 
+	req.track?.([`chats:${req.user!.id}`, 'users:list'])
+
 	const [chatList, users] = await Promise.all([
 		chats(req.user!.id),
 		db()
@@ -56,10 +54,6 @@ export async function page(req: Request) {
 	])
 
 	return { chats: chatList, users }
-}
-
-export const events = {
-	chats: async (req: Request) => ({ chats: await chats(req.user!.id) })
 }
 
 export const actions = {
@@ -107,6 +101,14 @@ export const actions = {
 				...users.map(user => ({ chat: chat.id, user }))
 			])
 			.execute()
+
+		const participants = [req.user!.id, ...users]
+
+		emit([
+			`chat:${chat.id}`,
+			...participants.map(user => `chats:${user}`),
+			...participants.map(user => `user:${user}`)
+		])
 
 		return { redirect: `/account/chats/${chat.id}` }
 	}

@@ -1,5 +1,5 @@
 import type { Request, Response } from '@kit'
-import { send } from '@kit/server'
+import { send, emit } from '@kit/server'
 import { object, string, optional, pipe, unknown, transform } from '@kit/validate'
 import { hash, verify } from '@kit/auth/password'
 import { create } from '@kit/auth/session'
@@ -49,6 +49,7 @@ export const actions = {
 
 		const agent = req.headers['user-agent']
 		const token = await create(user.id, input.remember, addr, agent)
+		emit([`sessions:${user.id}`, `dashboard:${user.id}`, `user:${user.id}`, 'admin:sessions', 'admin:stats'])
 
 		write(res, token, input.remember)
 
@@ -93,6 +94,7 @@ export default {
 			input.device_name || 'API Client',
 			['*']
 		)
+		emit([`tokens:${user.id}`, `dashboard:${user.id}`, `user:${user.id}`, 'admin:tokens', 'admin:stats'])
 
 		send(res, 200, {
 			token,

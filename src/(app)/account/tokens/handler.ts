@@ -3,8 +3,7 @@ import { object, string, array, optional, pipe, minLength } from '@kit/validate'
 import { create, list } from '@kit/auth/token'
 import { db, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
-
-export const deps = ['tokens', ':user']
+import { emit } from '@kit/server'
 
 const Create = object({
 	name: pipe(trimmed, minLength(1, 'Token name is required')),
@@ -14,6 +13,7 @@ const Create = object({
 const Revoke = object({ id: string() })
 
 export async function page(req: Request) {
+	req.track?.([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`])
 
 	const tokens = await list(req.user!.id)
 
@@ -28,8 +28,6 @@ export async function page(req: Request) {
 	}
 }
 
-export const events = { tokens: page }
-
 export const actions = {
 
 	make: async (req: Request) => {
@@ -38,6 +36,7 @@ export const actions = {
 		const abilities = input.abilities.length > 0 ? input.abilities : ['*']
 
 		const plain = await create(req.user!.id, input.name, abilities)
+		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		return { token: plain }
 	},
@@ -62,6 +61,7 @@ export const actions = {
 			.deleteFrom('tokens')
 			.where('id', '=', match.id)
 			.execute()
+		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		return { revoked: true }
 	}

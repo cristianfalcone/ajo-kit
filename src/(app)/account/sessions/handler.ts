@@ -3,12 +3,12 @@ import { object, string } from '@kit/validate'
 import { read } from '@kit/auth/cookie'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
-
-export const deps = ['sessions', ':user']
+import { emit } from '@kit/server'
 
 const Revoke = object({ id: string() })
 
 export async function page(req: Request) {
+	req.track?.([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`])
 
 	const current = read(req)
 
@@ -30,8 +30,6 @@ export async function page(req: Request) {
 		}))
 	}
 }
-
-export const events = { sessions: page }
 
 export const actions = {
 
@@ -55,6 +53,7 @@ export const actions = {
 			.deleteFrom('sessions')
 			.where('id', '=', session.id)
 			.execute()
+		emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: true }
 	},
@@ -68,6 +67,7 @@ export const actions = {
 			.where('user', '=', req.user!.id)
 			.where('id', '!=', current!)
 			.execute()
+		emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: Number(result[0].numDeletedRows) }
 	}

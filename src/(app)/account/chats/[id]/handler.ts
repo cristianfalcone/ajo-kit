@@ -1,14 +1,14 @@
 import type { Request } from '@kit'
 import { db } from '/src/data'
 import { sql } from '@kit/database'
-import { emit, hush } from '@kit/server'
+import { emit } from '@kit/server'
 import { NotFoundError } from '@kit'
 
 const LIMIT = 50
 
 function recent(chatId: number, before?: number, limit = LIMIT) {
 
-	let q = db()
+	let query = db()
 		.selectFrom('messages')
 		.innerJoin('users', 'users.id', 'messages.user')
 		.where('messages.chat', '=', chatId)
@@ -16,14 +16,18 @@ function recent(chatId: number, before?: number, limit = LIMIT) {
 		.orderBy('messages.id', 'desc')
 		.limit(limit)
 
-	if (before) q = q.where('messages.id', '<', before)
+	if (before) query = query.where('messages.id', '<', before)
 
-	return q.execute().then(rows => rows.reverse())
+	return query.execute().then(rows => rows.reverse())
 }
 
 export async function page(req: Request) {
 
 	const chatId = Number(req.params.id)
+
+	req.track?.(`chat:${chatId}`)
+
+	const limit = Number(new URL(req.url, `http://${req.headers.host}`).searchParams.get('limit')) || LIMIT
 
 	const chat = await db()
 		.selectFrom('chats')
@@ -40,37 +44,16 @@ export async function page(req: Request) {
 		.select(['users.id', 'users.name'])
 		.execute()
 
-	const messages = await recent(chatId)
+	const messages = await recent(chatId, undefined, limit)
 
-	await hush(() => db()
+	await db()
 		.updateTable('participants')
 		.set({ seen: sql`CURRENT_TIMESTAMP` })
 		.where('chat', '=', chatId)
 		.where('user', '=', req.user!.id)
 		.execute()
-	)
 
-	return { chat, participants, messages, hasMore: messages.length === LIMIT, me: req.user!.id }
-}
-
-export const events = {
-
-	messages: async (req: Request) => {
-
-		const chatId = Number(req.params.id)
-		const latest = await recent(chatId, undefined, 5)
-
-		// Mark seen — hush prevents deferred status auto-emit (already delivered above)
-		await hush(() => db()
-			.updateTable('participants')
-			.set({ seen: sql`CURRENT_TIMESTAMP` })
-			.where('chat', '=', chatId)
-			.where('user', '=', req.user!.id)
-			.execute()
-		)
-
-		return { latest }
-	}
+	return { chat, participants, messages, hasMore: messages.length === limit, me: req.user!.id }
 }
 
 export const actions = {
@@ -82,30 +65,43 @@ export const actions = {
 
 		if (!text?.trim()) throw new Error('Message cannot be empty')
 
-		await hush(
-			() => db()
-				.insertInto('messages')
-				.values({
-					chat: chatId,
-					user: req.user!.id,
-					text: text.trim()
-				})
-				.execute()
-		)
+		await db()
+			.insertInto('messages')
+			.values({
+				chat: chatId,
+				user: req.user!.id,
+				text: text.trim()
+			})
+			.execute()
 
-		emit('messages', { id: String(chatId) })
-		emit('chats')
-		emit('status')
+		const participants = await db()
+			.selectFrom('participants')
+			.where('chat', '=', chatId)
+			.select('user')
+			.execute()
+
+		emit([
+			`chat:${chatId}`,
+			...participants.map(p => `chats:${p.user}`),
+			...participants.map(p => `user:${p.user}`),
+		])
 
 		return { ok: true }
 	},
 
-	older: async (req: Request) => {
+	markAsSeen: async (req: Request) => {
 
 		const chatId = Number(req.params.id)
-		const { cursor } = req.body as { cursor: number }
-		const messages = await recent(chatId, cursor)
 
-		return { messages, hasMore: messages.length === LIMIT }
+		await db()
+			.updateTable('participants')
+			.set({ seen: sql`CURRENT_TIMESTAMP` })
+			.where('chat', '=', chatId)
+			.where('user', '=', req.user!.id)
+			.execute()
+
+		emit(`user:${req.user!.id}`)
+
+		return { ok: true }
 	}
 }

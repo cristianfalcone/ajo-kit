@@ -1,4 +1,3 @@
-import { stringify, parse } from 'devalue'
 import type { Children, Component } from 'ajo'
 import type { Params } from 'navaid'
 import type { Request, Response, Middleware } from 'polka'
@@ -8,11 +7,14 @@ import type { Head } from './head'
 // Route errors with HTTP status codes
 
 export class AppError extends Error {
+
 	override message: string
+
 	constructor(public status: number, message: string) {
 		super(message)
 		this.message = message
 	}
+
 	toJSON() {
 		return {
 			message: this.message,
@@ -72,10 +74,6 @@ export function normalize(error: unknown): AppError {
 
 export const ancestors = (segments: string[]) => segments.map((_, i) => segments.slice(0, i + 1).join('/'))
 
-// Cache entry type
-
-export type Cached = { value: Head | Entry; sum: string | Record<string, string> }
-
 // Loader data types
 
 export type Entry = Record<string, unknown>
@@ -114,6 +112,7 @@ export interface State {
 	loading: boolean
 	error?: AppError
 	head?: Head
+	rawServerData?: [Head | undefined, ...Data]
 }
 
 // Form actions
@@ -131,12 +130,6 @@ export type ActionState<T> = {
 	invoke: (body?: unknown) => Promise<T | undefined>
 	reset: () => void
 }
-
-// Events (SSE)
-
-export type EventState<T = Entry> = { data: T | null; error: Entry | null }
-
-export type EventCallback<T = Entry> = (state: EventState<T>) => void
 
 // Page and layout args
 
@@ -167,20 +160,11 @@ export const ip = (req: Request) => {
 	return raw === '::1' || raw === '127.0.0.1' ? 'localhost' : raw.replace(/^::ffff:/, '')
 }
 
-// Hash for cache comparison (djb2, from SvelteKit)
-
-export function sum(value: unknown): string {
-	const str = JSON.stringify(value)
-	let hash = 5381
-	let i = str.length
-	while (i) hash = (hash * 33) ^ str.charCodeAt(--i)
-	return (hash >>> 0).toString(36)
-}
-
 // Auth types
 
 export interface User {
 	id: number
+	roles?: string[]
 	[key: string]: unknown
 }
 
@@ -191,9 +175,8 @@ declare module 'polka' {
 		user?: User
 		token?: { abilities: string[] }
 		action?: Action
-		data?: (Head | Entry | null)[]
-		sums?: (string | Record<string, string> | null)[]
-		versions?: Record<string, number>
+		topics?: Set<string>
+		track?: (topic: string | string[]) => void
 	}
 }
 
@@ -227,24 +210,6 @@ export function links(count: number): Link[] {
 
 	return chain
 }
-
-// Serialization
-
-type WithJSON = { toJSON: () => unknown }
-
-const hasJSON = (value: unknown): value is WithJSON =>
-	value !== null && typeof value === 'object' && 'toJSON' in value
-
-const reducers = {
-	json: (value: unknown) => hasJSON(value) ? value.toJSON() : undefined
-}
-
-const revivers = {
-	json: (value: unknown) => value
-}
-
-export const pack = (value: unknown) => stringify(value, reducers)
-export const unpack = (value: string) => parse(value, revivers)
 
 // Formatting
 

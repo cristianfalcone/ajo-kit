@@ -1,6 +1,7 @@
 import type { Request } from '@kit'
 import { validate } from '@kit/auth/verify'
 import { db } from '/src/data'
+import { emit } from '@kit/server'
 
 export async function page(req: Request) {
 
@@ -15,6 +16,7 @@ export async function page(req: Request) {
 		.set({ verified: new Date().toISOString() })
 		.where('id', '=', user)
 		.execute()
+	emit([`profile:${user}`, `dashboard:${user}`, `user:${user}`, 'admin:users'])
 
 	return { redirect: '/dashboard', verified: true }
 }

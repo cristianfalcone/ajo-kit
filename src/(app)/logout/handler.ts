@@ -1,5 +1,5 @@
 import type { Request, Response } from '@kit'
-import { send } from '@kit/server'
+import { send, emit } from '@kit/server'
 import { createHash } from 'node:crypto'
 import { db } from '/src/data'
 
@@ -21,6 +21,7 @@ export default {
 					.where('id', '=', id)
 					.where('user', '=', req.user!.id)
 					.execute()
+				emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 			}
 		}
 

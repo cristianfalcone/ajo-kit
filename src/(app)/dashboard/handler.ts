@@ -2,13 +2,8 @@ import type { Request } from '@kit'
 import { db, unread } from '/src/data'
 import { read } from '@kit/auth/cookie'
 
-export const deps = {
-	user: ['users', 'members', ':user'],
-	stats: ['sessions', 'tokens', 'participants', 'messages', ':user'],
-	recentSessions: ['sessions', ':user'],
-}
-
 export async function page(req: Request) {
+	req.track?.([`dashboard:${req.user!.id}`, `user:${req.user!.id}`])
 
 	const userId = req.user!.id
 
@@ -67,5 +62,3 @@ export async function page(req: Request) {
 		})),
 	}
 }
-
-export const events = { activity: page }

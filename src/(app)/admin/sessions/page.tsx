@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, formatDate } from '@kit'
-import { action, subscribe } from '@kit/client'
+import { action } from '@kit/client'
 
 type Session = {
 	id: string
@@ -37,16 +37,11 @@ function parseAgent(agent: string | null) {
 
 const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 
-	let sessions = args.data?.sessions ?? []
 	const revokeForm = action<FormResult>('revoke')
 	const revokeUserForm = action<FormResult>('revokeUser')
 
-	subscribe<Data>('sessions', ({ data, error }) => {
-		if (error) return
-		sessions = data!.sessions
-	})
-
 	while (true) {
+		const sessions = args.data?.sessions ?? []
 
 		yield (
 			<div class="space-y-6">

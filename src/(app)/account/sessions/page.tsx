@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, formatDate } from '@kit'
-import { action, subscribe } from '@kit/client'
+import { action } from '@kit/client'
 
 type Session = {
 	id: string
@@ -37,17 +37,11 @@ const dateTime = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-d
 
 const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 
-	let sessions = args.data?.sessions ?? []
-
 	const revokeForm = action<RevokeResult>('revoke')
 	const revokeAllForm = action<RevokeAllResult>('revokeAll')
 
-	subscribe<Data>('sessions', ({ data, error }) => {
-		if (error) return
-		sessions = data!.sessions
-	})
-
 	while (true) {
+		const sessions = args.data?.sessions ?? []
 
 		yield (
 			<div class="space-y-8">

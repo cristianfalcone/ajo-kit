@@ -1,6 +1,5 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, formatDate } from '@kit'
-import { subscribe } from '@kit/client'
 
 type Session = {
 	id: string
@@ -42,14 +41,17 @@ function timeAgo(iso: string) {
 
 const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
 
-	let data = args.data!
-
-	subscribe<Data>('activity', ({ data: update, error }) => {
-		if (error) return
-		data = update!
-	})
-
 	while (true) {
+		const data = args.data
+		if (!data) {
+			yield (
+				<div class="py-8">
+					<p class="text-slate-500 dark:text-slate-400">Loading...</p>
+				</div>
+			)
+			continue
+		}
+
 		const { user, stats, recentSessions } = data
 		const isAdmin = user.roles.includes('admin')
 

@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, formatDate } from '@kit'
-import { action, subscribe } from '@kit/client'
+import { action } from '@kit/client'
 
 type Token = {
 	id: string
@@ -20,14 +20,8 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 
 	const form = action<FormResult>()
 
-	let tokens = args.data?.tokens ?? []
-
-	subscribe<Data>('tokens', ({ data, error }) => {
-		if (error) return
-		tokens = data!.tokens
-	})
-
 	while (true) {
+		const tokens = args.data?.tokens ?? []
 
 		yield (
 			<div class="space-y-6">

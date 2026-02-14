@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import type { Stateful } from 'ajo'
 import type { User, LayoutArgs, ActionState } from '@kit'
 import { ThemeContext, UnreadContext } from '/src/contexts'
-import { action, subscribe } from '@kit/client'
+import { action } from '@kit/client'
 
 type LinkOptions = { exact?: boolean, include?: string[] }
 
@@ -22,16 +22,9 @@ const AppLayout: Stateful<LayoutArgs<LayoutData>> = function* (args) {
 
 	const signout = action<void>('signout')
 
-	let user = args.data?.user
-	let unread = args.data?.unread ?? 0
-
-	subscribe<LayoutData>('status', ({ data, error }) => {
-		if (error) return
-		user = data!.user
-		unread = data!.unread
-	})
-
 	while (true) {
+		const user = args.data?.user
+		const unread = args.data?.unread ?? 0
 
 		UnreadContext(unread)
 
@@ -78,7 +71,7 @@ const Nav = ({ user, unread, signout }: { user: User, unread: number, signout: A
 								)
 							})}
 
-							{user.roles.includes('admin') && (
+							{user.roles?.includes('admin') && (
 								<a href="/admin" class={linkClass(url.startsWith('/admin'))}>
 									<span class="i-lucide-shield w-4 h-4" />
 									Admin
