@@ -42,12 +42,13 @@ export async function page(req: Request) {
 
 	const messages = await recent(chatId)
 
-	await db()
+	await hush(() => db()
 		.updateTable('participants')
 		.set({ seen: sql`CURRENT_TIMESTAMP` })
 		.where('chat', '=', chatId)
 		.where('user', '=', req.user!.id)
 		.execute()
+	)
 
 	return { chat, participants, messages, hasMore: messages.length === LIMIT, me: req.user!.id }
 }
@@ -59,13 +60,14 @@ export const events = {
 		const chatId = Number(req.params.id)
 		const latest = await recent(chatId, undefined, 5)
 
-		// Mark seen — participants bump defers until delivery completes, then triggers status
-		await db()
+		// Mark seen — hush prevents deferred status auto-emit (already delivered above)
+		await hush(() => db()
 			.updateTable('participants')
 			.set({ seen: sql`CURRENT_TIMESTAMP` })
 			.where('chat', '=', chatId)
 			.where('user', '=', req.user!.id)
 			.execute()
+		)
 
 		return { latest }
 	}
@@ -92,6 +94,8 @@ export const actions = {
 		)
 
 		emit('messages', { id: String(chatId) })
+		emit('chats')
+		emit('status')
 
 		return { ok: true }
 	},
