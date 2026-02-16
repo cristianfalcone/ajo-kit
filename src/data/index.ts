@@ -13,7 +13,7 @@ export const unread = (userId: number, excludeChatId?: number) => {
 		.where('messages.user', '!=', userId)
 		.where((eb) => eb.or([
 			eb('participants.seen', 'is', null),
-			eb(sql`datetime(messages.created)`, '>', sql`datetime(participants.seen)`)
+			eb(sql`julianday(messages.created)`, '>', sql`julianday(participants.seen)`)
 		]))
 
 	if (excludeChatId) query = query.where('messages.chat', '!=', excludeChatId)

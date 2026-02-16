@@ -21,7 +21,7 @@ const chats = (userId: number) => db()
 		// Subquery: last message
 		eb.selectFrom('messages')
 			.whereRef('messages.chat', '=', 'chats.id')
-			.orderBy('messages.created', 'desc')
+			.orderBy('messages.id', 'desc')
 			.limit(1)
 			.select('messages.text')
 			.as('last'),
@@ -31,7 +31,7 @@ const chats = (userId: number) => db()
 			.where('messages.user', '!=', userId)
 			.where((qb) => qb.or([
 				qb('participants.seen', 'is', null),
-				qb(sql`datetime(messages.created)`, '>', sql`datetime(participants.seen)`)
+				qb(sql`julianday(messages.created)`, '>', sql`julianday(participants.seen)`)
 			]))
 			.select(eb.fn.countAll<number>().as('count'))
 			.as('unread'),
