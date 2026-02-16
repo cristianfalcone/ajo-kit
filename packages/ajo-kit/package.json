@@ -70,7 +70,7 @@
     "valibot": ">=1.0.0"
   },
   "peerDependencies": {
-    "ajo": ">=0.1.0",
+    "ajo": ">=0.1.30",
     "vite": ">=7.0.0"
   },
   "devDependencies": {
