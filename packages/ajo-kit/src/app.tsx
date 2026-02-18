@@ -367,8 +367,10 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		if (gen !== generation) return
 
-		if (!hmr) sse.connect(currentUrl)
-		if (!hmr) requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
+		if (!hmr) {
+			sse.connect(currentUrl)
+			requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
+		}
 
 		hmr = false
 	}
@@ -379,17 +381,11 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	router.listen()
 
-	const reload = import.meta.env.DEV ? () => { hmr = true; router.run() } : null
+	if (import.meta.env.DEV) addEventListener('hmr', () => { hmr = true; router.run() }, { signal: this.signal })
 
-	if (reload) addEventListener('hmr', reload)
+	this.signal.addEventListener('abort', () => { sse.close(); router.unlisten?.() })
 
-	try {
-		while (true) yield <Page />
-	} finally {
-		sse.close()
-		router.unlisten?.()
-		if (reload) removeEventListener('hmr', reload)
-	}
+	while (true) yield <Page />
 }
 
 App.attrs = { class: 'h-full' }

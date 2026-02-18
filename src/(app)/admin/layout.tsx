@@ -12,6 +12,7 @@ const links: [string, string, string][] = [
 const AdminLayout: Stateful<LayoutArgs> = function* (args) {
 
 	while (true) {
+
 		const url = globalThis.location?.pathname ?? '/'
 
 		yield (

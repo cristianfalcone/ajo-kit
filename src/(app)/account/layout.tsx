@@ -14,6 +14,7 @@ const links: [string, string, string][] = [
 const AccountLayout: Stateful<LayoutArgs> = function* (args) {
 
 	while (true) {
+
 		const url = globalThis.location?.pathname ?? '/'
 		const unread = UnreadContext()
 

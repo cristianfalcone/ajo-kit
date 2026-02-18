@@ -11,8 +11,6 @@ import type { State, Data, Entry, Page, Parent } from './constants'
 import { merge, render as renderHead, type Head } from './head'
 import { handlers as handlerFiles, wares as wareFiles } from 'virtual:ajo/handlers'
 
-// --- MOTOR DIFFING Y PUB/SUB ---
-
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
 const joinPath = (path: string, key: string | number) => `${path || ''}/${String(key).replace(/~/g, '~0').replace(/\//g, '~1')}`
@@ -227,6 +225,7 @@ export async function create(template: Template) {
 		}
 
 		try {
+
 			const result = await executeLoaders();
 
 			(req as any).revalidate = executeLoaders;

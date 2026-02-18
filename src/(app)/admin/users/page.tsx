@@ -12,6 +12,7 @@ type User = {
 type Data = { users: User[] }
 
 export default function Users({ data }: PageArgs<Data>) {
+
 	const users = data?.users ?? []
 
 	return (

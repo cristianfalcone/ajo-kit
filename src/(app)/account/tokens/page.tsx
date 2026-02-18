@@ -23,6 +23,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 	const revokeForm = action<RevokeResult>('revoke')
 
 	while (true) {
+
 		const tokens = args.data?.tokens ?? []
 
 		yield (

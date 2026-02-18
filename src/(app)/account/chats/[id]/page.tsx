@@ -186,7 +186,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 	) => {
 
 		if (unreadCount <= 0) return null
-		
+
 		// Source of truth: backend oldest unread id.
 		// Derive only as a last-resort fallback when that id is unavailable in the latest loaded window.
 		if (fallbackId !== null) {
@@ -318,7 +318,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 		if (import.meta.env.SSR) return
 
-		requestAnimationFrame(() => {
+		queueMicrotask(() => {
 			if (shouldJumpToUnreadOnOpen) this.next()
 			else scrollToBottom()
 		})
@@ -454,6 +454,12 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		return targetRect.bottom >= topEdge && targetRect.top <= bottomEdge
 	}
 
+	this.signal.addEventListener('abort', () => {
+		clearUnreadJumpTimeout()
+		clearUnreadVisibilityCheck()
+		clearUnreadHighlightTimers()
+	})
+
 	while (true) {
 
 		const { data, loading } = args
@@ -531,9 +537,9 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 				shouldJumpToBottom = false
 
-				requestAnimationFrame(() => {
+				queueMicrotask(() => {
 					scrollToBottom('auto')
-					if (shouldForceBottom) requestAnimationFrame(() => scrollToBottom('auto'))
+					if (shouldForceBottom) queueMicrotask(() => scrollToBottom('auto'))
 				})
 			}
 		}
@@ -550,7 +556,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 			if (jumpToUnreadId !== null) continue
 
 			// Keep the current viewport anchored when older messages are prepended.
-			requestAnimationFrame(() => {
+			queueMicrotask(() => {
 
 				const box = boxRef.current
 
@@ -568,6 +574,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 				}
 
 				const delta = box.scrollHeight - snapshot.scrollHeight
+
 				box.scrollTop = snapshot.scrollTop + delta
 			})
 		}
@@ -615,19 +622,28 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 					}, 420)
 				}
 			} else if (!load.loading && needsOlder && canLoadOlder) {
+
 				requestAnimationFrame(() => maybeLoad('older', { force: true }))
+
 			} else if (!load.loading && needsNewer && canLoadNewer) {
+
 				requestAnimationFrame(() => maybeLoad('newer', { force: true }))
+
 			} else if (!load.loading && needsOlder && !canLoadOlder) {
-				requestAnimationFrame(() => {
+
+				queueMicrotask(() => {
 					const box = boxRef.current
 					if (!box) return
 					box.scrollTo({ top: 0, behavior: 'smooth' })
 				})
+
 				finishUnreadJump(true)
+
 			} else if (!load.loading && needsNewer && !canLoadNewer) {
+
 				// Fallback: no further pages available but unread anchor not found ahead.
-				requestAnimationFrame(() => scrollToBottom('smooth'))
+				queueMicrotask(() => scrollToBottom('smooth'))
+
 				finishUnreadJump(true)
 			}
 		}
@@ -804,7 +820,9 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 						set:onscroll={onScroll}
 					>
 						{loading ? (
-							<p class="text-slate-500 dark:text-gray-400">Loading messages...</p>
+							<p class="text-slate-500 dark:text-gray-400">
+								Loading messages...
+							</p>
 						) : (
 							<>
 								{canLoadOlder && (
@@ -818,7 +836,9 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 									</p>
 								)}
 								{!canLoadOlder && timeline.length > 0 && (
-									<p class="text-center text-slate-400 dark:text-gray-500 py-2 text-sm">Beginning of conversation</p>
+									<p class="text-center text-slate-400 dark:text-gray-500 py-2 text-sm">
+										Beginning of conversation
+									</p>
 								)}
 								{timeline.length === 0 ? (
 									<p class="text-center text-slate-500 dark:text-gray-400 py-8">

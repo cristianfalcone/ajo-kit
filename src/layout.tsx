@@ -49,9 +49,13 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 
 	apply(mode)
 
-	globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', () => {
-		if (mode === 'system') apply('system')
-	})
+	globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener(
+		'change',
+		() => {
+			if (mode === 'system') apply('system')
+		},
+		{ signal: this.signal }
+	)
 
 	while (true) try {
 

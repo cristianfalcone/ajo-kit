@@ -21,6 +21,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 	const form = action<FormResult>()
 
 	while (true) {
+
 		const tokens = args.data?.tokens ?? []
 
 		yield (

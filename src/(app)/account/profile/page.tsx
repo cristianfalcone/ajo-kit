@@ -10,6 +10,7 @@ interface Data {
 }
 
 const Profile: Stateful<PageArgs<Data>> = function* (args) {
+
 	const nameForm = action<NameResult>('name')
 	const passwordForm = action<PasswordResult>('password')
 	const user = args.data?.user

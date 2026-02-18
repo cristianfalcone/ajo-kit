@@ -41,6 +41,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 	const revokeUserForm = action<FormResult>('revokeUser')
 
 	while (true) {
+
 		const sessions = args.data?.sessions ?? []
 
 		yield (

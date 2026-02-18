@@ -23,6 +23,7 @@ const AppLayout: Stateful<LayoutArgs<LayoutData>> = function* (args) {
 	const signout = action<void>('signout')
 
 	while (true) {
+
 		const user = args.data?.user
 		const unread = args.data?.unread ?? 0
 
@@ -114,7 +115,9 @@ const Nav = ({ user, unread, signout }: { user: User, unread: number, signout: A
 }
 
 const ThemeToggle = () => {
+
 	const { mode, cycle } = ThemeContext()
+
 	return (
 		<button
 			aria-label="Change theme"
