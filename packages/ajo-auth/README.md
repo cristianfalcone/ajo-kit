@@ -1,18 +1,30 @@
 # ajo-auth
 
-Authentication and authorization for ajo-kit apps. Session-based auth with cookie management, CSRF protection, API tokens, rate limiting, password reset, and email verification.
+Authentication and authorization for `ajo-kit` apps.
+
+Includes:
+
+- session auth (cookie)
+- bearer tokens with abilities
+- CSRF middleware
+- route guards
+- in-memory rate limiting
+- password reset tokens
+- email verification signatures
 
 ## Install
 
 ```bash
-pnpm add ajo-auth argon2
+pnpm add ajo-auth
 ```
 
-> `ajo-kit` and `kysely` are peer dependencies — your app must install them.
+`ajo-kit` is a peer dependency.
 
 ## Setup
 
-Configure the database accessor in your root middleware (`wares.ts`):
+### 1. Configure DB accessor
+
+Call `configure()` once during app boot so auth modules can access your Kysely instance.
 
 ```ts
 import { configure } from '@kit/auth/store'
@@ -21,196 +33,178 @@ import { db } from '/src/data'
 configure(() => db())
 ```
 
-### Required Tables
+### 2. Run migrations
 
-Auth expects these tables (create via Kysely migrations):
+`ajo-auth` exposes `kit.migrations`, so with the package installed:
 
-```sql
-CREATE TABLE users (
-  id        INTEGER PRIMARY KEY,
-  name      TEXT NOT NULL,
-  email     TEXT NOT NULL UNIQUE,
-  password  TEXT,
-  verified  TEXT,
-  created   TEXT NOT NULL DEFAULT (datetime('now')),
-  updated   TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE sessions (
-  id      TEXT PRIMARY KEY,
-  user    INTEGER NOT NULL REFERENCES users(id),
-  expiry  TEXT NOT NULL,
-  ip      TEXT,
-  agent   TEXT,
-  last    TEXT,
-  created TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE tokens (
-  id        TEXT PRIMARY KEY,
-  user      INTEGER NOT NULL REFERENCES users(id),
-  name      TEXT NOT NULL,
-  abilities TEXT NOT NULL DEFAULT '["*"]',
-  last      TEXT,
-  expiry    TEXT,
-  created   TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE resets (
-  id      TEXT PRIMARY KEY,
-  user    INTEGER NOT NULL REFERENCES users(id),
-  expiry  TEXT NOT NULL,
-  created TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE roles (
-  id   INTEGER PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE
-);
-
-CREATE TABLE members (
-  user INTEGER NOT NULL REFERENCES users(id),
-  role INTEGER NOT NULL REFERENCES roles(id),
-  PRIMARY KEY (user, role)
-);
+```bash
+kit migrate up
 ```
 
-### Environment
+This creates auth tables (`users`, `sessions`, `roles`, `members`, `tokens`, `resets`).
+
+### 3. Register auth middlewares
+
+```ts
+// src/wares.ts
+import { session, csrf } from '@kit/auth/wares'
+
+export default [session(), csrf]
+```
+
+`session()` resolves `req.user` from cookie or bearer token.  
+`csrf` validates unsafe non-API requests (skips API routes, token-auth requests, and safe HTTP methods).
+
+### 4. Set secret for verification links
 
 ```env
-APP_SECRET=your-secret-key  # Required for signed URLs (email verification)
+APP_SECRET=your-secret-key
 ```
 
-## Modules
+If missing, verification falls back to `change-in-production` (not safe for production).
 
-Import individual modules via `@kit/auth/*`:
+## Main Exports
 
-### password — Argon2id hashing
+You can import from `@kit/auth/*`:
+
+### `password`
 
 ```ts
 import { hash, verify } from '@kit/auth/password'
-
-const hashed = await hash('plaintext')
-const valid = await verify('plaintext', hashed)
 ```
 
-### session — Session management
+Argon2id hash/verify helpers.
+
+### `session`
 
 ```ts
 import * as session from '@kit/auth/session'
 
 const id = await session.create(userId, remember, ip, agent)
-const sess = await session.validate(id)    // { id, user, expiry } | null
-await session.touch(id)                    // update last activity
+const active = await session.validate(id)
+await session.touch(id)
 await session.remove(id)
 ```
 
-Sessions last 30 days, or 365 days with `remember = true`.
+Session lifetime: 30 days (default) or 365 days (`remember = true`).
 
-### cookie — HttpOnly session cookie
+### `cookie`
 
 ```ts
 import * as cookie from '@kit/auth/cookie'
 
-const id = cookie.read(req)                // read session ID from cookie
-cookie.write(res, sessionId, remember)     // set cookie
-cookie.clear(res)                          // delete cookie
+const id = cookie.read(req)
+cookie.write(res, id, remember)
+cookie.clear(res)
 ```
 
-### csrf — CSRF protection
+Cookie name is `session`, with `HttpOnly; SameSite=Lax; Path=/`.
+
+### `csrf`
 
 ```ts
 import * as csrf from '@kit/auth/csrf'
 
-const token = csrf.set(res)                // set XSRF-TOKEN cookie
-const valid = csrf.verify(req)             // check double-submit or same-origin
+const token = csrf.set(res)
+const ok = csrf.verify(req)
 ```
 
-Verifies via double-submit cookie (`X-XSRF-TOKEN` header matches cookie) or same-origin check (Origin/Referer matches Host).
+Verification accepts:
 
-### guard — Route middleware
+- double-submit (`XSRF-TOKEN` cookie + `X-XSRF-TOKEN` header)
+- same-origin check (`Origin`/`Referer` host matches request host)
+
+### `wares`
 
 ```ts
-import { protect, guest, auth, role, ability, confirmed, verified, redirect, when } from '@kit/auth'
-
-// Redirect unauthenticated users to login
-protect('/login')
-
-// Redirect authenticated users away (e.g., login page)
-guest('/dashboard')
-
-// Throw 401/403 (for API routes)
-auth()
-role('admin', 'editor')
-ability('posts:write', 'posts:delete')
-
-// Require password confirmation (3 min window)
-confirmed()
-
-// Require verified email
-verified()
-
-// Conditional middleware
-when(req => req.user?.admin, adminMiddleware, fallback)
-
-// AJAX-aware redirect (JSON response for fetch, 302 for browser)
-redirect('/login')
+import { session, csrf } from '@kit/auth/wares'
 ```
 
-### token — API tokens (Bearer auth)
+`session(lookup?)` accepts an optional custom user resolver.
+
+### Guards (`@kit/auth` or `@kit/auth/guard`)
+
+```ts
+import { auth, role, ability, protect, guest, confirmed, verified, redirect, when } from '@kit/auth'
+```
+
+- `auth()` -> requires authenticated user
+- `role(...names)` -> requires any matching role
+- `ability(...abilities)` -> checks token abilities (when bearer token is present)
+- `protect('/login')` -> redirect guests
+- `guest('/dashboard')` -> redirect authenticated users
+- `confirmed(window?)` -> requires recent password confirmation
+- `verified()` -> requires `users.verified` timestamp
+- `when(condition, middleware, otherwise?)`
+- `redirect(target)` -> AJAX-aware redirect helper
+
+### `token`
 
 ```ts
 import * as token from '@kit/auth/token'
 
-const plain = await token.create(userId, 'My Token', ['posts:*'], expiresMs)
-const data = await token.validate(plain)   // { id, user, abilities } | null
-token.can(abilities, 'posts:write')        // check ability
+const plain = await token.create(userId, 'My token', ['posts:*'])
+const valid = await token.validate(plain)
+const canWrite = token.can(valid?.abilities ?? [], 'posts:write')
 await token.revoke(plain)
 await token.revokeAll(userId)
 const all = await token.list(userId)
+await token.prune()
 ```
 
-Abilities support wildcards: `*` (all), `posts:*` (all post operations), `posts:write` (specific).
+Abilities support `*`, exact matches, and resource wildcards like `posts:*`.
 
-### limit — In-memory rate limiting
+### `limit`
 
 ```ts
 import * as limit from '@kit/auth/limit'
 
-if (!limit.check(ip)) throw new AppError(429, 'Too many attempts')
-limit.hit(ip, 60_000)                     // 1 min window
-limit.remaining(ip)                        // attempts left (default max: 5)
-limit.clear(ip)                            // reset on success
+if (!limit.check(ip)) throw new Error('Too many attempts')
+limit.hit(ip, 60_000)
+limit.remaining(ip)
+limit.clear(ip)
 ```
 
-### confirm — Password confirmation stamps
+In-memory limiter (per-process, non-distributed).
+
+### `confirm`
 
 ```ts
 import * as confirm from '@kit/auth/confirm'
 
-confirm.stamp(userId)                      // after password verification
-confirm.check(userId, 180_000)             // valid for 3 min (default)
+confirm.stamp(userId)
+confirm.check(userId, 180_000)
 confirm.clear(userId)
 ```
 
-### reset — Password reset tokens
+Tracks recent password confirmation in memory.
+
+### `reset`
 
 ```ts
 import * as reset from '@kit/auth/reset'
 
-const plain = await reset.create(userId)   // hashed in DB, expires 1hr
-const userId = await reset.validate(plain)
-const userId = await reset.consume(plain)  // validate + delete
-await reset.prune()                        // clean expired
+const plain = await reset.create(userId)
+const user = await reset.validate(plain)
+const consumed = await reset.consume(plain)
+await reset.prune()
 ```
 
-### verify — Email verification (signed URLs)
+Reset tokens are SHA-256 hashed in DB and expire in 1 hour.
+
+### `verify`
 
 ```ts
 import * as verify from '@kit/auth/verify'
 
-const link = verify.url(userId, 'https://example.com')  // /verify/:signature
-const userId = verify.validate(signature)                // number | null
+const link = verify.url(userId, 'https://example.com')
+const verifiedUser = verify.validate(signature)
 ```
 
-Uses HMAC-SHA256 signed URLs. Expires in 24 hours. Requires `APP_SECRET` env var.
+HMAC-SHA256 signed token, default expiry 24 hours.
+
+## Types
+
+```ts
+import type { User, NewUser, Session, Token, Role, AuthDB } from '@kit/auth'
+```

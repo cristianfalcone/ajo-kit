@@ -2,25 +2,27 @@
 
 SQLite backup to Google Drive with WAL-based incremental sync.
 
-Watches your database's WAL file for changes, debounces uploads, and periodically rotates full snapshots. Pulling restores both snapshot and WAL for minimal data loss.
+This package does not ship a standalone CLI binary. It extends the `kit` CLI via plugin discovery (`package.json#kit.commands`), so commands are run as `kit backup ...`.
 
 ## Install
 
 ```bash
-pnpm add ajo-backup better-sqlite3
+pnpm add ajo-backup
 ```
 
-> `better-sqlite3` is a peer dependency — your app must install it directly.
+Prerequisites:
 
-## Getting Started
+- `ajo-kit` in the app (provides `kit` CLI)
+- `tsx` available in the project (required by `kit`)
 
-### 1. Create Google Drive credentials
+## Setup
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. **APIs & Services → Library** → Enable **Google Drive API**
-3. **APIs & Services → OAuth consent screen** → Add yourself as test user
-4. **APIs & Services → Credentials** → Create **OAuth client ID** (Desktop app)
-5. Save to `drive.json`:
+### 1. Create Google Drive OAuth credentials
+
+1. Google Cloud Console -> APIs & Services -> Library -> enable **Google Drive API**
+2. APIs & Services -> OAuth consent screen -> add your account as a test user
+3. APIs & Services -> Credentials -> create **OAuth client ID** (Desktop app)
+4. Save credentials to `drive.json`:
 
 ```json
 {
@@ -29,41 +31,41 @@ pnpm add ajo-backup better-sqlite3
 }
 ```
 
-### 2. Authorize
+### 2. Authorize once
 
 ```bash
-npx backup auth
+kit backup auth -c ./drive.json
 ```
 
-Opens a browser flow. On success, `refresh_token` is saved to `drive.json`.
+On success, `refresh_token` is written into the same file.
 
 ### 3. Create a Drive folder
 
-Create a folder in Google Drive for backups. Copy the folder ID from the URL:
+Create a folder in Google Drive and copy its ID:
 
-```
+```text
 https://drive.google.com/drive/folders/FOLDER_ID
 ```
 
-### 4. Push
+### 4. Push backups
 
 ```bash
-# One-time snapshot
-npx backup push -f FOLDER_ID
+# One-time snapshot (+ WAL if present)
+kit backup push -f FOLDER_ID
 
-# Continuous sync (watches WAL for changes)
-npx backup push -f FOLDER_ID --watch
+# Continuous sync
+kit backup push -f FOLDER_ID --watch
 ```
 
-### 5. Pull
+### 5. Pull backups
 
 ```bash
-npx backup pull -f FOLDER_ID -o ./database.sqlite
+kit backup pull -f FOLDER_ID -o ./database.sqlite
 ```
 
 ## Environment Variables
 
-All CLI flags can be set via `.env` (loaded automatically via `dotenv`):
+The commands read these env vars (loaded via `dotenv` in `kit`):
 
 ```env
 DRIVE_CREDENTIALS=./drive.json
@@ -73,35 +75,33 @@ DATABASE_PATH=./database.sqlite
 
 ## CLI Reference
 
-```
-backup auth [options]
+```text
+kit backup auth [options]
   -c, --credentials  Path to credentials JSON  (default: ./drive.json)
   -p, --port         Local callback port        (default: 3000)
 
-backup push [options]
+kit backup push [options]
   -b, --database     Path to SQLite database     (default: ./database.sqlite)
   -c, --credentials  Path to credentials JSON    (default: ./drive.json)
-  -f, --folder       Google Drive folder ID      (required)
-  -s, --snapshot     Snapshot file name in Drive  (default: snapshot.db)
-  -n, --name         WAL file name in Drive       (default: changes.wal)
+  -f, --folder       Google Drive folder ID      (required if DRIVE_FOLDER not set)
+  -s, --snapshot     Snapshot file name          (default: snapshot.db)
+  -n, --name         WAL file name               (default: changes.wal)
   -w, --watch        Watch for changes continuously
-  -r, --rotate       Rotation interval in hours   (default: 6)
-  -d, --debounce     Debounce delay in ms         (default: 1000)
+  -r, --rotate       Rotation interval in hours  (default: 6)
+  -d, --debounce     Debounce delay in ms        (default: 1000)
 
-backup pull [options]
+kit backup pull [options]
   -c, --credentials  Path to credentials JSON    (default: ./drive.json)
-  -f, --folder       Google Drive folder ID      (required)
-  -s, --snapshot     Snapshot file name in Drive  (default: snapshot.db)
-  -n, --name         WAL file name in Drive       (default: changes.wal)
+  -f, --folder       Google Drive folder ID      (required if DRIVE_FOLDER not set)
+  -s, --snapshot     Snapshot file name          (default: snapshot.db)
+  -n, --name         WAL file name               (default: changes.wal)
   -o, --output       Output database path         (default: ./database.sqlite)
 ```
 
 ## Library Usage
 
-For programmatic use, import `drive` and `push` directly:
-
 ```ts
-import Database from 'better-sqlite3'
+import { Database } from 'ajo-kit/database'
 import { drive, push } from 'ajo-backup'
 
 const db = new Database('./database.sqlite')
@@ -119,21 +119,21 @@ const syncer = push({
   clear: () => client.remove('changes.wal'),
 })
 
-// One-time snapshot + WAL upload
 await syncer.once()
 
-// Or continuous sync
-const { stop, rotate } = syncer.start()
-// ... later:
+const { stop } = syncer.start()
+// ...
 await stop()
 ```
 
-> **Important:** The database must use WAL journal mode. The CLI sets this automatically; when using the library, call `db.pragma('journal_mode = WAL')` before passing the instance to `push()`.
-
 ## How It Works
 
-1. **Watch** — Monitors the `-wal` file for changes via `fs.watch`
-2. **Debounce** — Waits for write activity to settle before uploading
-3. **Upload** — Copies WAL to a temp file and uploads to Drive
-4. **Rotate** — Every 6 hours (configurable), truncates WAL and uploads a fresh full snapshot
-5. **Pull** — Downloads snapshot + WAL, which SQLite replays on next open
+1. WAL auto-checkpoint is disabled for incremental shipping.
+2. WAL changes are watched, debounced, copied to a temp file, then uploaded.
+3. Rotation runs on an interval (default 6h): checkpoint/truncate WAL, upload fresh snapshot, clear remote WAL object.
+4. Pull restores snapshot and optional WAL (`<output>-wal`) for SQLite recovery.
+
+## Notes
+
+- WAL mode is required (`journal_mode = WAL`).
+- In `--watch` mode, SIGINT/SIGTERM triggers graceful shutdown (`stop()` + DB close).

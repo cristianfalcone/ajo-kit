@@ -364,9 +364,11 @@ export async function create(template: Template) {
 	const wares = new Map<string, Middleware[]>()
 
 	for (const [file, loader] of Object.entries(wareFiles as Record<string, () => Promise<Record<string, unknown>>>)) {
+		
 		const exports = await loader()
 		const key = toSegments(file).join('/')
 		const items = Array.isArray(exports.default) ? exports.default : [exports.default]
+		
 		wares.set(key, (wares.get(key) ?? []).concat(items as Middleware[]))
 	}
 
@@ -399,9 +401,11 @@ export async function create(template: Template) {
 	}
 
 	for (const page of pages) {
+
 		const { pattern, segments } = page
 		const path = `/${pattern || ''}`
 		const routeWares = collect(segments)
+
 		app.get(path, json(), ...routeWares, data(page), sse, (req, res) => render(req, res, page))
 		app.post(path, action(segments), json(), ...routeWares, invoke())
 	}
