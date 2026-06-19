@@ -19,7 +19,7 @@ export { cache, clearCache, invalidateCache } from './cache'
 
 // Pattern compilation
 
-export const reGroup = /^\(.*\)$/
+const reGroup = /^\(.*\)$/
 const reDynamic = /^\[(.+?)\]$/
 
 export const toPattern = (segments: string[]) =>
@@ -28,13 +28,7 @@ export const toPattern = (segments: string[]) =>
 		.map(segment => segment.replace(reDynamic, (_, name) => name === '...' ? '*' : `:${name}`))
 		.join('/')
 
-export const toSegments = (path: string) => {
-	const parts = path.slice(4).split('/')
-	parts.pop()
-	return parts
-}
-
-export const getFileName = (path: string) => path.split('/').pop()?.split('.')[0]
+export const toSegments = (path: string) => path.slice(4).split('/').slice(0, -1)
 
 export const ssr = new Map<string, State>()
 
@@ -55,7 +49,7 @@ export const layoutPaths = (segments: string[]) => ancestors(segments).filter(pa
 for (const [path, loader] of Object.entries(routes as Record<string, Loader>)) {
 
 	const segments = toSegments(path)
-	const kind = getFileName(path)
+	const kind = path.split('/').pop()?.split('.')[0]
 
 	if (kind === 'layout') layouts.set(segments.join('/'), loader)
 	if (kind === 'page') pages.push({ pattern: toPattern(segments), segments, loader })
@@ -65,9 +59,8 @@ for (const [path, loader] of Object.entries(routes as Record<string, Loader>)) {
 
 if (import.meta.env.DEV && !import.meta.env.SSR) {
 
-	const modules = (globalThis as { __MODULES__?: Map<string, Module> }).__MODULES__ ?? new Map();
-
-	(globalThis as { __MODULES__?: Map<string, Module> }).__MODULES__ = modules
+	const scope = globalThis as { __MODULES__?: Map<string, Module> }
+	const modules = scope.__MODULES__ ??= new Map()
 
 	const hmr = (loader: Loader, file: string): Loader => async () => {
 
@@ -199,7 +192,7 @@ export async function* resolve(
 
 	const { loader, segments, params = {} } = page
 
-	const paths = ancestors(segments).filter(path => layouts.has(path))
+	const paths = layoutPaths(segments)
 
 	const [target, ...tree] = await Promise.all([
 		loader(),
@@ -230,18 +223,18 @@ export async function* resolve(
 
 	yield { page: compose(target, tree, paths, { url, params, data: [], loading: true }) }
 
-	const server = data
-		? { data, head: undefined as Head | undefined }
+	const server: ServerLoad = data
+		? { data }
 		: import.meta.env.SSR
-			? { data: [] as Data, head: undefined as Head | undefined }
+			? { data: [] }
 			: await load(url)
 
-	if ('redirect' in server && server.redirect) {
+	if (server.redirect) {
 		navigate(server.redirect)
 		return
 	}
 
-	if ('error' in server && server.error) {
+	if (server.error) {
 		const state = { url, params, data: [], loading: false, error: server.error }
 		yield { page: compose(target, tree, paths, state), state }
 		return
