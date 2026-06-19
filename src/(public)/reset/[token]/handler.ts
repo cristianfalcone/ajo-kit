@@ -40,8 +40,10 @@ export const actions = {
 		const input = parse(Reset, req.body)
 		const hashed = await hash(input.password)
 
-		await db().updateTable('users').set({ password: hashed }).where('id', '=', user).execute()
-		await db().deleteFrom('sessions').where('user', '=', user).execute()
+		await db().transaction().execute(async trx => {
+			await trx.updateTable('users').set({ password: hashed }).where('id', '=', user).execute()
+			await trx.deleteFrom('sessions').where('user', '=', user).execute()
+		})
 		emit([
 			`profile:${user}`,
 			`sessions:${user}`,

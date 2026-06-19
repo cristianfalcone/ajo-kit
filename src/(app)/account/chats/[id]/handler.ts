@@ -133,21 +133,23 @@ export const actions = {
 
 		if (!text?.trim()) throw new Error('Message cannot be empty')
 
-		await db()
-			.insertInto('messages')
-			.values({
-				chat: chatId,
-				user: userId,
-				text: text.trim(),
-				created: now()
-			})
-			.execute()
+		const participants = await db().transaction().execute(async trx => {
+			await trx
+				.insertInto('messages')
+				.values({
+					chat: chatId,
+					user: userId,
+					text: text.trim(),
+					created: now()
+				})
+				.execute()
 
-		const participants = await db()
-			.selectFrom('participants')
-			.where('chat', '=', chatId)
-			.select('user')
-			.execute()
+			return trx
+				.selectFrom('participants')
+				.where('chat', '=', chatId)
+				.select('user')
+				.execute()
+		})
 
 		emit([
 			`chat:${chatId}`,

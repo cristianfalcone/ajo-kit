@@ -54,24 +54,28 @@ export const actions = {
 		const hashed = await hash(input.password)
 		const { confirm, ...user } = input
 
-		const { id } = await db()
-			.insertInto('users')
-			.values({ ...user, password: hashed })
-			.returning('id')
-			.executeTakeFirstOrThrow()
+		const id = await db().transaction().execute(async trx => {
+			const created = await trx
+				.insertInto('users')
+				.values({ ...user, password: hashed })
+				.returning('id')
+				.executeTakeFirstOrThrow()
 
-		const role = await db()
-			.selectFrom('roles')
-			.select('id')
-			.where('name', '=', 'user')
-			.executeTakeFirst()
+			const role = await trx
+				.selectFrom('roles')
+				.select('id')
+				.where('name', '=', 'user')
+				.executeTakeFirst()
 
-		if (role) {
-			await db()
-				.insertInto('members')
-				.values({ user: id, role: role.id })
-				.execute()
-		}
+			if (role) {
+				await trx
+					.insertInto('members')
+					.values({ user: created.id, role: role.id })
+					.execute()
+			}
+
+			return created.id
+		})
 
 		const base = process.env.APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`
 		const link = url(id, base)

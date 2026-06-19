@@ -86,30 +86,28 @@ export const actions = {
 			if (existing) return { redirect: `/account/chats/${existing.id}` }
 		}
 
-		// Create new chat
-		const chat = await db()
-			.insertInto('chats')
-			.values({ name: name || null })
-			.returning('id')
-			.executeTakeFirstOrThrow()
-
-		// Add participants (self + selected users)
-		await db()
-			.insertInto('participants')
-			.values([
-				{ chat: chat.id, user: req.user!.id },
-				...users.map(user => ({ chat: chat.id, user }))
-			])
-			.execute()
-
 		const participants = [req.user!.id, ...users]
+		const chatId = await db().transaction().execute(async trx => {
+			const chat = await trx
+				.insertInto('chats')
+				.values({ name: name || null })
+				.returning('id')
+				.executeTakeFirstOrThrow()
+
+			await trx
+				.insertInto('participants')
+				.values(participants.map(user => ({ chat: chat.id, user })))
+				.execute()
+
+			return chat.id
+		})
 
 		emit([
-			`chat:${chat.id}`,
+			`chat:${chatId}`,
 			...participants.map(user => `chats:${user}`),
 			...participants.map(user => `user:${user}`)
 		])
 
-		return { redirect: `/account/chats/${chat.id}` }
+		return { redirect: `/account/chats/${chatId}` }
 	}
 }
