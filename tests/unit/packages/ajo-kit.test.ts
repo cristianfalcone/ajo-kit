@@ -15,7 +15,7 @@ import {
 	setCache,
 } from '../../../packages/ajo-kit/src/cache'
 import { parseSSR, renderSSRScript, serializeSSR } from '../../../packages/ajo-kit/src/ssr'
-import { AppError, InvalidError } from '../../../packages/ajo-kit/src/constants'
+import { AppError, InvalidError, ip, trustedOrigin } from '../../../packages/ajo-kit/src/constants'
 import type { State } from '../../../packages/ajo-kit/src/constants'
 import { object, parse, string, minLength, pipe } from '../../../packages/ajo-kit/src/validate'
 import {
@@ -26,9 +26,20 @@ import {
 } from '../../../packages/ajo-kit/src/timing'
 
 const previousTiming = process.env.AJO_TIMING
+const previousAppUrl = process.env.APP_URL
+const previousTrustProxy = process.env.TRUST_PROXY
+const previousNodeEnv = process.env.NODE_ENV
+
+const restoreEnv = (key: string, value: string | undefined) => {
+	if (value === undefined) delete process.env[key]
+	else process.env[key] = value
+}
 
 afterEach(async () => {
-	process.env.AJO_TIMING = previousTiming
+	restoreEnv('AJO_TIMING', previousTiming)
+	restoreEnv('APP_URL', previousAppUrl)
+	restoreEnv('TRUST_PROXY', previousTrustProxy)
+	restoreEnv('NODE_ENV', previousNodeEnv)
 	clearCache()
 	await close()
 })
@@ -107,6 +118,45 @@ describe('ajo-kit validation and errors', () => {
 			status: 418,
 			message: 'Short and stout',
 		})
+	})
+})
+
+describe('ajo-kit request security helpers', () => {
+	test('uses forwarded client IPs only when proxy trust is explicit', () => {
+		const req = {
+			headers: { 'x-forwarded-for': '203.0.113.8, 10.0.0.1' },
+			socket: { remoteAddress: '10.0.0.5' },
+		} as any
+
+		delete process.env.TRUST_PROXY
+		expect(ip(req)).toBe('10.0.0.5')
+
+		process.env.TRUST_PROXY = '1'
+		expect(ip(req)).toBe('203.0.113.8')
+		expect(ip({
+			headers: { 'x-forwarded-for': 'bad, ::ffff:127.0.0.1' },
+			socket: { remoteAddress: '10.0.0.5' },
+		} as any)).toBe('10.0.0.5')
+	})
+
+	test('uses APP_URL as the trusted origin and requires it in production', () => {
+		const req = {
+			headers: {
+				host: 'evil.test',
+				'x-forwarded-proto': 'https',
+			},
+		} as any
+
+		process.env.APP_URL = 'https://app.test/base'
+		expect(trustedOrigin(req)).toBe('https://app.test')
+
+		delete process.env.APP_URL
+		process.env.NODE_ENV = 'production'
+		expect(() => trustedOrigin(req)).toThrow('APP_URL is required in production')
+
+		process.env.NODE_ENV = 'development'
+		process.env.TRUST_PROXY = '1'
+		expect(trustedOrigin({ headers: { host: 'local.test', 'x-forwarded-proto': 'https' } } as any)).toBe('https://local.test')
 	})
 })
 

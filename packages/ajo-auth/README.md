@@ -100,7 +100,8 @@ cookie.write(res, id, remember)
 cookie.clear(res)
 ```
 
-Cookie name is `session`, with `HttpOnly; SameSite=Lax; Path=/`.
+Cookie name is `session`, with `HttpOnly; SameSite=Lax; Path=/` and `Secure`
+in production.
 
 ### `csrf`
 

@@ -3,7 +3,7 @@ import { url } from '@kit/auth/verify'
 import { check, hit } from '@kit/auth/limit'
 import { send } from '@kit/mail'
 import { db } from '/src/data'
-import { AppError } from '@kit'
+import { AppError, trustedOrigin } from '@kit'
 
 export const actions = {
 
@@ -26,7 +26,7 @@ export const actions = {
 		if (!user) throw new AppError(404, 'User not found')
 		if (user.verified) throw new AppError(400, 'Email already verified')
 
-		const base = process.env.APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`
+		const base = trustedOrigin(req)
 		const link = url(user.id, base)
 
 		await send({

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { read, write, clear as clearCookie } from '../../../packages/ajo-auth/src/cookie'
-import { verify as verifyCsrf } from '../../../packages/ajo-auth/src/csrf'
+import { set as setCsrf, verify as verifyCsrf } from '../../../packages/ajo-auth/src/csrf'
 import { check as checkLimit, clear as clearLimit, hit, remaining } from '../../../packages/ajo-auth/src/limit'
 import { stamp, check as checkConfirm, clear as clearConfirm } from '../../../packages/ajo-auth/src/confirm'
 import { sign, url, validate } from '../../../packages/ajo-auth/src/verify'
@@ -25,6 +25,11 @@ const response = () => {
 	}
 }
 
+const restoreEnv = (key: string, value: string | undefined) => {
+	if (value === undefined) delete process.env[key]
+	else process.env[key] = value
+}
+
 describe('ajo-auth cookies and csrf', () => {
 	test('writes, reads and clears the session cookie with safe defaults', () => {
 		const { headers, res } = response()
@@ -43,7 +48,30 @@ describe('ajo-auth cookies and csrf', () => {
 		expect(headers.get('Set-Cookie')).toBe('session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0')
 	})
 
+	test('sets Secure on auth cookies in production', () => {
+		const previous = process.env.NODE_ENV
+		process.env.NODE_ENV = 'production'
+
+		try {
+			const session = response()
+			write(session.res as any, 'session-token')
+			expect(session.headers.get('Set-Cookie')).toBe('session=session-token; HttpOnly; SameSite=Lax; Path=/; Secure; Max-Age=2592000')
+
+			const csrf = response()
+			setCsrf(csrf.res as any)
+			expect(csrf.headers.get('Set-Cookie')).toContain('; Secure')
+		} finally {
+			restoreEnv('NODE_ENV', previous)
+		}
+	})
+
 	test('accepts double-submit csrf and same-origin requests only', () => {
+		const previousAppUrl = process.env.APP_URL
+		const previousNodeEnv = process.env.NODE_ENV
+
+		delete process.env.APP_URL
+		process.env.NODE_ENV = 'development'
+
 		expect(verifyCsrf({
 			headers: {
 				cookie: 'XSRF-TOKEN=abc',
@@ -53,6 +81,7 @@ describe('ajo-auth cookies and csrf', () => {
 
 		expect(verifyCsrf({
 			headers: {
+				host: 'app.test',
 				cookie: 'not_XSRF-TOKEN=abc',
 				'x-xsrf-token': 'abc',
 			},
@@ -61,14 +90,14 @@ describe('ajo-auth cookies and csrf', () => {
 		expect(verifyCsrf({
 			headers: {
 				host: 'app.test',
-				origin: 'https://app.test',
+				origin: 'http://app.test',
 			},
 		} as any)).toBe(true)
 
 		expect(verifyCsrf({
 			headers: {
 				host: 'app.test',
-				referer: 'https://app.test/account/profile',
+				referer: 'http://app.test/account/profile',
 			},
 		} as any)).toBe(true)
 
@@ -78,6 +107,25 @@ describe('ajo-auth cookies and csrf', () => {
 				origin: 'https://evil.test',
 			},
 		} as any)).toBe(false)
+
+		try {
+			process.env.APP_URL = 'https://app.test'
+			expect(verifyCsrf({
+				headers: {
+					host: 'evil.test',
+					origin: 'https://app.test',
+				},
+			} as any)).toBe(true)
+			expect(verifyCsrf({
+				headers: {
+					host: 'app.test',
+					origin: 'https://evil.test',
+				},
+			} as any)).toBe(false)
+		} finally {
+			restoreEnv('APP_URL', previousAppUrl)
+			restoreEnv('NODE_ENV', previousNodeEnv)
+		}
 	})
 })
 

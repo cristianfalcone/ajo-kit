@@ -1,5 +1,5 @@
 import type { Request, Response } from '@kit'
-import { AppError, ip } from '@kit'
+import { AppError, ip, trustedOrigin } from '@kit'
 import { object, optional, string, forward, partialCheck, pipe } from '@kit/validate'
 import { hash } from '@kit/auth/password'
 import { create } from '@kit/auth/session'
@@ -34,6 +34,7 @@ export const actions = {
 
 		const addr = ip(req)
 		const key = `register:${addr}`
+		const base = trustedOrigin(req)
 
 		if (!check(key)) {
 			throw new AppError(429, 'Too many registration attempts. Try again later.')
@@ -77,7 +78,6 @@ export const actions = {
 			return created.id
 		})
 
-		const base = process.env.APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`
 		const link = url(id, base)
 
 		await send({

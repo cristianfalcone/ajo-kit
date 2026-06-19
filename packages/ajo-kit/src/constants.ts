@@ -160,9 +160,73 @@ export const navigate = (to: string) => {
 export const ajax = (req: Request) => !!req.headers.accept?.includes('application/json')
 export const api = (req: Request) => req.path.startsWith('/api/')
 
+const enabled = (value: string | undefined) => value === '1' || value?.toLowerCase() === 'true'
+const trustProxy = () => enabled(process.env.TRUST_PROXY)
+
+const firstHeader = (value: string | string[] | undefined) =>
+	Array.isArray(value) ? value[0] : value
+
+const normalizeIp = (value: string) => {
+	const raw = value.trim().replace(/^\[/, '').replace(/\]$/, '').replace(/^::ffff:/, '')
+	return raw === '::1' || raw === '127.0.0.1' ? 'localhost' : raw
+}
+
+const isIPv4 = (value: string) => {
+	const parts = value.split('.')
+	return parts.length === 4 && parts.every(part => {
+		if (!/^\d{1,3}$/.test(part)) return false
+		const number = Number(part)
+		return number >= 0 && number <= 255
+	})
+}
+
+const isIPv6 = (value: string) =>
+	value.includes(':') && /^[0-9a-f:.]+$/i.test(value)
+
+const firstForwardedIp = (header: string | string[] | undefined) => {
+	const value = firstHeader(header)
+	if (!value) return
+
+	const address = normalizeIp(value.split(',')[0])
+	if (address === 'localhost' || isIPv4(address) || isIPv6(address)) return address
+}
+
 export const ip = (req: Request) => {
-	const raw = req.headers['x-forwarded-for']?.toString().split(',')[0] ?? req.socket?.remoteAddress ?? 'unknown'
-	return raw === '::1' || raw === '127.0.0.1' ? 'localhost' : raw.replace(/^::ffff:/, '')
+	const raw = trustProxy()
+		? firstForwardedIp(req.headers['x-forwarded-for']) ?? req.socket?.remoteAddress
+		: req.socket?.remoteAddress
+
+	return raw ? normalizeIp(raw) : 'unknown'
+}
+
+export const trustedOrigin = (req: Request) => {
+	const configured = process.env.APP_URL
+
+	if (configured) {
+		try {
+			const url = new URL(configured)
+			if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error()
+			return url.origin
+		} catch {
+			throw new AppError(500, 'Invalid APP_URL')
+		}
+	}
+
+	if (process.env.NODE_ENV === 'production') {
+		throw new AppError(500, 'APP_URL is required in production')
+	}
+
+	const host = req.headers.host
+	if (!host) throw new AppError(400, 'Missing Host header')
+
+	const forwarded = firstHeader(req.headers['x-forwarded-proto'])?.split(',')[0]?.trim()
+	const protocol = trustProxy() && (forwarded === 'http' || forwarded === 'https') ? forwarded : 'http'
+
+	try {
+		return new URL(`${protocol}://${host}`).origin
+	} catch {
+		throw new AppError(400, 'Invalid Host header')
+	}
 }
 
 // Auth types

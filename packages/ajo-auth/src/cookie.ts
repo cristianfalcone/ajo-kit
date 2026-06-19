@@ -1,7 +1,8 @@
 import type { Request, Response } from 'ajo-kit'
 
 const name = 'session'
-const base = 'HttpOnly; SameSite=Lax; Path=/'
+const secure = () => process.env.NODE_ENV === 'production' ? '; Secure' : ''
+const base = () => `HttpOnly; SameSite=Lax; Path=/${secure()}`
 
 export const readCookie = (header: string | undefined, key: string) => {
 	let value: string | undefined
@@ -22,8 +23,8 @@ export const read = (req: Request) => readCookie(req.headers.cookie, name)
 
 export const write = (res: Response, value: string, remember = false) => {
 	const maxAge = remember ? 31536000 : 2592000
-	res.setHeader('Set-Cookie', `${name}=${value}; ${base}; Max-Age=${maxAge}`)
+	res.setHeader('Set-Cookie', `${name}=${value}; ${base()}; Max-Age=${maxAge}`)
 }
 
 export const clear = (res: Response) =>
-	res.setHeader('Set-Cookie', `${name}=; ${base}; Max-Age=0`)
+	res.setHeader('Set-Cookie', `${name}=; ${base()}; Max-Age=0`)
