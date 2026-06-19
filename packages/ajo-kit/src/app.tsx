@@ -9,10 +9,10 @@ import type {
 	Loader,
 	Page,
 	State,
+	RoutePayload,
 } from './constants'
 import { apply, type Head } from './head'
 import { getCache, setCache } from './cache'
-import type { Patch } from './patch'
 import { routes } from 'virtual:ajo/routes'
 
 export { cache, clearCache, invalidateCache } from './cache'
@@ -261,7 +261,7 @@ export async function* resolve(
 }
 
 type LiveMessage = {
-	patches: Patch[]
+	data: RoutePayload
 	hash?: string
 	topics?: string[]
 	versions?: Record<string, number>
@@ -273,7 +273,7 @@ type ActionDetail = {
 	topics?: string[]
 }
 
-function stream(onPatch: (message: LiveMessage) => void, onStatus?: (status: LiveStatus) => void) {
+function stream(onUpdate: (message: LiveMessage) => void, onStatus?: (status: LiveStatus) => void) {
 
 	let source: EventSource | null = null
 
@@ -296,7 +296,7 @@ function stream(onPatch: (message: LiveMessage) => void, onStatus?: (status: Liv
 
 		source.onmessage = event => {
 			const message = JSON.parse(event.data) as LiveMessage
-			if (message.patches.length) onPatch(message)
+			if (message.data) onUpdate(message)
 		}
 
 		source.onerror = () => status('connecting')
@@ -323,18 +323,16 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	let activePage: Page | null = null
 	let actionRefresh: ReturnType<typeof setTimeout> | null = null
 	let generation = 0
-	let patchGeneration = 0
+	let liveGeneration = 0
 	let sseStatus: LiveStatus = 'closed'
 
 	const sse = stream(message => {
 
-		const patch = message.patches.at(-1)
+		if (!activeState || !message.data) return
 
-		if (!activeState || !patch) return
+		liveGeneration++
 
-		patchGeneration++
-
-		const [head, ...entries] = patch.value as [Head | undefined, ...Data]
+		const [head, ...entries] = message.data
 
 		activeState.data = entries
 		activeState.hash = message.hash ?? activeState.hash
@@ -446,14 +444,14 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		if (!activeState.topics.some(topic => changed.has(topic))) return
 
-		const seen = patchGeneration
+		const seen = liveGeneration
 		const delay = sseStatus === 'open' ? 250 : 0
 
 		if (actionRefresh) clearTimeout(actionRefresh)
 
 		actionRefresh = setTimeout(() => {
 			actionRefresh = null
-			if (patchGeneration !== seen || !activePage) return
+			if (liveGeneration !== seen || !activePage) return
 			void refreshActiveRoute()
 		}, delay)
 	}

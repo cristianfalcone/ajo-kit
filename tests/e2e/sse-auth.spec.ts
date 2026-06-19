@@ -109,7 +109,7 @@ const openEventStream = (baseURL: string, path: string, cookie: string) =>
 
 const hashCredential = (plain: string) => createHash('sha256').update(plain).digest('hex')
 
-test('SSE patches private routes while the session remains valid', async ({ baseURL }) => {
+test('SSE updates private routes while the session remains valid', async ({ baseURL }) => {
 	const admin = await playwrightRequest.newContext({ baseURL })
 	const other = await playwrightRequest.newContext({ baseURL })
 	let stream: EventStream | undefined
@@ -122,10 +122,10 @@ test('SSE patches private routes while the session remains valid', async ({ base
 
 		await loginRequest(other, baseURL!, adminCredentials)
 
-		const message = JSON.parse(await stream.waitForMessage()) as { patches?: unknown[]; hash?: string }
+		const message = JSON.parse(await stream.waitForMessage()) as { data?: unknown[]; hash?: string }
 
 		expect(message.hash).toBeTruthy()
-		expect(message.patches?.length).toBeGreaterThan(0)
+		expect(message.data?.length).toBeGreaterThan(0)
 	} finally {
 		stream?.close()
 		await admin.dispose()

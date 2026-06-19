@@ -85,6 +85,8 @@ export type Entry = Record<string, unknown>
 
 export type Data = Entry[]
 
+export type RoutePayload = [Head, ...Data]
+
 export type Parent = () => Promise<Entry>
 
 export type Context = {
@@ -243,7 +245,7 @@ declare module 'polka' {
 		track?: (topic: string | string[]) => void
 		verifyLive?: () => Promise<boolean>
 		timing?: RouteTiming
-		revalidate?: () => Promise<any[]>
+		revalidate?: () => Promise<RoutePayload>
 		head?: Head
 		entries?: Data
 	}

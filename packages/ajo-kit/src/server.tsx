@@ -9,12 +9,11 @@ export { default as send } from '@polka/send'
 import send from '@polka/send'
 import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths } from './app'
 import { AppError, links, ancestors, normalize, ajax, api } from './constants'
-import type { State, Data, Entry, Page, Parent } from './constants'
+import type { State, Data, Entry, Page, Parent, RoutePayload } from './constants'
 import { merge, render as renderHead, type Head } from './head'
 import { bumpTopics, isFresh, normalizeTopics, parseVersions, routeHash, versionsFor, type TopicVersions } from './freshness'
 import { elapsed, finishRouteTiming, logRouteTiming, serverTiming, startRouteTiming } from './timing'
 import { renderSSRScript } from './ssr'
-import { replacePatch, type Patch } from './patch'
 import { handlers as handlerFiles, wares as wareFiles } from 'virtual:ajo/handlers'
 
 const emitted = new AsyncLocalStorage<Set<string>>()
@@ -88,8 +87,8 @@ type LiveConnection = {
 	topics: Set<string>
 	hash: string
 	verify?: () => Promise<boolean>
-	revalidate: () => Promise<any[]>
-	send: (message: { patches: Patch[]; hash: string; topics: string[]; versions: TopicVersions }) => void
+	revalidate: () => Promise<RoutePayload>
+	send: (message: { data: RoutePayload; hash: string; topics: string[]; versions: TopicVersions }) => void
 	close: () => void
 }
 
@@ -218,13 +217,17 @@ const revalidateConnection = async (conn: LiveConnection) => {
 		conn.req.topics = new Set<string>()
 		const newData = await conn.revalidate()
 		conn.topics = conn.req.topics ?? new Set<string>()
-		const [head, ...entries] = newData as [Head, ...Data]
+		const [head, ...entries] = newData
 		const hash = digest(head, entries)
 
 		if (hash === conn.hash) return
 
 		conn.hash = hash
-		conn.send({ patches: replacePatch(newData), hash, ...metadata(conn.topics) })
+		conn.send({
+			data: newData,
+			hash,
+			...metadata(conn.topics)
+		})
 
 	} catch (err) {
 		console.error('[SSE] Live update failed:', err)
@@ -333,7 +336,7 @@ export async function create(template: Template) {
 				handlers.get(key)?.head?.(req, async () => pageData) ?? Promise.resolve({})
 			])
 
-			return [merge(...headData), ...allData] as any[]
+			return [merge(...headData), ...allData] as RoutePayload
 		}
 
 		const loaderStart = performance.now()
