@@ -9,8 +9,6 @@ type Link = { rel: string; href: string; [key: string]: string | undefined }
 
 export type Head = {
 	title?: string
-	description?: string
-	canonical?: string
 	meta?: Meta[]
 	link?: Link[]
 }
@@ -18,15 +16,29 @@ export type Head = {
 // Key extractor for deduplication
 
 const key = {
-	meta: (entry: Meta) => 'name' in entry ? entry.name : 'property' in entry ? entry.property : null,
+	meta: (entry: Meta) => 'name' in entry ? entry.name : 'property' in entry ? entry.property : entry.httpEquiv,
 	link: (entry: Link) => entry.rel,
+}
+
+const append = <T,>(items: T[], index: Map<string, number>, entry: T, id: string) => {
+	const position = index.get(id)
+
+	if (position === undefined) {
+		index.set(id, items.length)
+		items.push(entry)
+		return
+	}
+
+	items[position] = entry
 }
 
 // Merge: dedupe by key, last wins
 
 export function merge(...heads: (Head | undefined)[]): Head {
 
-	const result: Head = { meta: [], link: [] }
+	const result: Head = {}
+	const meta: Meta[] = []
+	const link: Link[] = []
 	const index = { meta: new Map<string, number>(), link: new Map<string, number>() }
 
 	for (const head of heads) {
@@ -34,33 +46,13 @@ export function merge(...heads: (Head | undefined)[]): Head {
 		if (!head) continue
 
 		if (head.title) result.title = head.title
-		if (head.description) result.description = head.description
-		if (head.canonical) result.canonical = head.canonical
 
-		for (const entry of head.meta ?? []) {
-
-			const id = key.meta(entry)
-
-			if (id && index.meta.has(id)) result.meta![index.meta.get(id)!] = entry
-
-			else {
-				if (id) index.meta.set(id, result.meta!.length)
-				result.meta!.push(entry)
-			}
-		}
-
-		for (const entry of head.link ?? []) {
-
-			const id = key.link(entry)
-
-			if (index.link.has(id)) result.link![index.link.get(id)!] = entry
-
-			else {
-				index.link.set(id, result.link!.length)
-				result.link!.push(entry)
-			}
-		}
+		for (const entry of head.meta ?? []) append(meta, index.meta, entry, key.meta(entry))
+		for (const entry of head.link ?? []) append(link, index.link, entry, key.link(entry))
 	}
+
+	if (meta.length) result.meta = meta
+	if (link.length) result.link = link
 
 	return result
 }
@@ -88,8 +80,6 @@ export function render(head: Head = {}): string {
 	const tags: string[] = []
 
 	if (head.title) tags.push(`<title>${text(head.title)}</title>`)
-	if (head.description) tags.push(tag('meta', { name: 'description', content: head.description }))
-	if (head.canonical) tags.push(tag('link', { rel: 'canonical', href: head.canonical }))
 
 	for (const entry of head.meta ?? []) tags.push(tag('meta', entry))
 	for (const entry of head.link ?? []) tags.push(tag('link', entry))
@@ -119,12 +109,9 @@ export function apply(head: Head = {}): void {
 		}
 	}
 
-	if (head.description) upsert('meta[name="description"]', { name: 'description', content: head.description })
-	if (head.canonical) upsert('link[rel="canonical"]', { rel: 'canonical', href: head.canonical })
-
 	for (const entry of head.meta ?? []) {
 		const id = key.meta(entry)
-		const selector = 'name' in entry ? `meta[name="${id}"]` : `meta[property="${id}"]`
+		const selector = 'name' in entry ? `meta[name="${id}"]` : 'property' in entry ? `meta[property="${id}"]` : `meta[http-equiv="${id}"]`
 		upsert(selector, entry as Record<string, string>)
 	}
 

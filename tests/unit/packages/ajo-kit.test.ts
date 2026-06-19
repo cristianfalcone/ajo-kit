@@ -64,8 +64,8 @@ describe('ajo-kit head', () => {
 			},
 			{
 				title: 'Page',
-				description: 'Page description',
 				meta: [
+					{ name: 'description', content: 'Page description' },
 					{ name: 'viewport', content: 'width=device-width, initial-scale=1' },
 					{ property: 'og:type', content: 'website' },
 				],
@@ -75,10 +75,10 @@ describe('ajo-kit head', () => {
 
 		expect(head).toEqual({
 			title: 'Page',
-			description: 'Page description',
 			meta: [
 				{ name: 'viewport', content: 'width=device-width, initial-scale=1' },
 				{ property: 'og:title', content: 'Base' },
+				{ name: 'description', content: 'Page description' },
 				{ property: 'og:type', content: 'website' },
 			],
 			link: [{ rel: 'icon', href: '/favicon.ico' }],
@@ -88,10 +88,14 @@ describe('ajo-kit head', () => {
 	test('render emits title, description, canonical, meta and links', () => {
 		const html = render({
 			title: 'Docs',
-			description: 'Ajo docs',
-			canonical: 'https://app.test/docs',
-			meta: [{ property: 'og:type', content: 'website' }],
-			link: [{ rel: 'icon', href: '/favicon.ico' }],
+			meta: [
+				{ name: 'description', content: 'Ajo docs' },
+				{ property: 'og:type', content: 'website' },
+			],
+			link: [
+				{ rel: 'canonical', href: 'https://app.test/docs' },
+				{ rel: 'icon', href: '/favicon.ico' },
+			],
 		})
 
 		expect(html).toContain('<title>Docs</title>')
