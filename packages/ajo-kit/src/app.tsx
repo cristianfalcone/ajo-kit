@@ -12,7 +12,7 @@ import type {
 } from './constants'
 import { apply, type Head } from './head'
 import { getCache, setCache } from './cache'
-import { applyPatch } from './patch'
+import { applyPatch, type Patch } from './patch'
 import { routes } from 'virtual:ajo/routes'
 
 export { cache, clearCache, invalidateCache } from './cache'
@@ -261,7 +261,7 @@ export async function* resolve(
 }
 
 type LiveMessage = {
-	patches: any[]
+	patches: Patch[]
 	hash?: string
 	topics?: string[]
 	versions?: Record<string, number>
@@ -273,7 +273,6 @@ type LiveStatus = 'closed' | 'connecting' | 'open'
 
 type ActionDetail = {
 	topics?: string[]
-	versions?: Record<string, number>
 }
 
 function stream(onPatch: (message: LiveMessage) => void, onStatus?: (status: LiveStatus) => void) {
@@ -298,9 +297,8 @@ function stream(onPatch: (message: LiveMessage) => void, onStatus?: (status: Liv
 		source.onopen = () => status('open')
 
 		source.onmessage = event => {
-			const data = JSON.parse(event.data)
-			const message = Array.isArray(data) ? { patches: data } : data as LiveMessage
-			if (message.patches?.length) onPatch(message)
+			const message = JSON.parse(event.data) as LiveMessage
+			if (message.patches.length) onPatch(message)
 		}
 
 		source.onerror = () => status('connecting')
