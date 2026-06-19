@@ -37,7 +37,26 @@ export function session(lookup?: Resolve): Middleware {
 
 	return async (req, res, next) => {
 
-		// 1. Cookie session (SPA/Web)
+		// 1. Explicit bearer token for API/Mobile/CLI
+
+		const auth = req.headers.authorization
+
+		if (api(req) && auth?.startsWith('Bearer ')) {
+
+			const token = await validateToken(auth.slice(7))
+
+			if (token) {
+				const user = await find(token.user)
+				if (user) {
+					req.user = user
+					req.token = { abilities: token.abilities }
+				}
+			}
+
+			return next()
+		}
+
+		// 2. Cookie session (SPA/Web)
 
 		const cookie = read(req)
 
@@ -54,34 +73,15 @@ export function session(lookup?: Resolve): Middleware {
 			return next()
 		}
 
-		// 2. Bearer token (API/Mobile/CLI)
-
-		if (!api(req)) return next()
-
-		const auth = req.headers.authorization
-
-		if (auth?.startsWith('Bearer ')) {
-
-			const token = await validateToken(auth.slice(7))
-
-			if (token) {
-				const user = await find(token.user)
-				if (user) {
-					req.user = user
-					req.token = { abilities: token.abilities }
-				}
-			}
-		}
-
 		next()
 	}
 }
 
 export const csrf: Middleware = (req, _, next) => {
 
-	if (api(req)) return next()
 	if (req.token) return next()
 	if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
+	if (api(req) && !req.user) return next()
 
 	if (!verifyCsrf(req)) throw new ForbiddenError('Invalid CSRF token')
 

@@ -60,10 +60,14 @@ test('account token page creates and revokes a scoped token', async ({ page }) =
 })
 
 test('session page revokes other sessions but keeps the current browser session', async ({ page, baseURL }) => {
-	await loginPage(page)
+	const email = `sessions-${Date.now()}@example.com`
+	await createUser({ email, name: 'Sessions User' })
+	const credentials = { email, password: 'password' }
+
+	await loginPage(page, credentials)
 
 	const other = await playwrightRequest.newContext({ baseURL })
-	await loginRequest(other, baseURL!, adminCredentials)
+	await loginRequest(other, baseURL!, credentials)
 
 	await gotoReady(page, '/account/sessions')
 	await expect(page.getByText('Revoke All Other Sessions')).toBeVisible()

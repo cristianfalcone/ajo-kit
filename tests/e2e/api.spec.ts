@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { actionHeaders, createUser, loginRequest } from './helpers'
 
 test('bearer API covers login, me, token create/list/delete and logout', async ({ request }) => {
 	const login = await request.post('/api/login', {
@@ -111,6 +112,56 @@ test('bearer tokens do not authenticate route actions outside api', async ({ req
 
 	expect(response.status()).toBe(403)
 	await expect(response.json()).resolves.toMatchObject({ error: { message: 'Invalid CSRF token' } })
+})
+
+test('cookie-auth API mutations require CSRF proof', async ({ request, baseURL }) => {
+	const email = `csrf-api-${Date.now()}@example.com`
+	await createUser({ email, name: 'CSRF API User' })
+	await loginRequest(request, baseURL!, { email, password: 'password' })
+
+	const blocked = await request.post('/api/tokens', {
+		data: {
+			name: 'Cookie API Token Blocked',
+			abilities: ['tokens:read'],
+		},
+	})
+
+	expect(blocked.status()).toBe(403)
+	await expect(blocked.json()).resolves.toMatchObject({ message: 'Invalid CSRF token' })
+
+	const allowed = await request.post('/api/tokens', {
+		headers: actionHeaders(baseURL!),
+		data: {
+			name: 'Cookie API Token Allowed',
+			abilities: ['tokens:read'],
+		},
+	})
+
+	expect(allowed.status()).toBe(201)
+	await expect(allowed.json()).resolves.toMatchObject({
+		token: expect.any(String),
+		message: 'Save this token securely. It will not be shown again.',
+	})
+})
+
+test('api authorization header takes precedence over session cookies', async ({ request, baseURL }) => {
+	const email = `mixed-api-${Date.now()}@example.com`
+	await createUser({ email, name: 'Mixed API User' })
+	await loginRequest(request, baseURL!, { email, password: 'password' })
+
+	const response = await request.post('/api/tokens', {
+		headers: {
+			...actionHeaders(baseURL!),
+			Authorization: 'Bearer seed-api-token',
+		},
+		data: {
+			name: 'Mixed Credential Token',
+			abilities: ['tokens:read'],
+		},
+	})
+
+	expect(response.status()).toBe(403)
+	await expect(response.json()).resolves.toMatchObject({ message: 'Missing ability: tokens:create' })
 })
 
 test('bearer token creation cannot exceed caller abilities', async ({ request }) => {
