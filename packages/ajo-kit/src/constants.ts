@@ -121,13 +121,6 @@ export interface State {
 	versions?: Record<string, number>
 }
 
-// Form actions
-
-type Action = {
-	name: string
-	invoke: (req: Request, res: Response) => Promise<unknown>
-}
-
 export type ActionState<T> = {
 	loading: boolean
 	data?: T
@@ -246,7 +239,6 @@ declare module 'polka' {
 		user?: User
 		session?: { id: string }
 		token?: { id: string; abilities: string[] }
-		action?: Action
 		topics?: Set<string>
 		track?: (topic: string | string[]) => void
 		verifyLive?: () => Promise<boolean>

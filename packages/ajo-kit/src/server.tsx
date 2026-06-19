@@ -475,30 +475,20 @@ export async function create(template: Template) {
 		)
 	}
 
-	const action = (segments: string[]): Middleware => (req, _, next) => {
-
+	const action = (segments: string[]): Middleware => async (req, res) => {
 		const url = new URL(req.originalUrl, `http://${req.headers.host}`)
 		const name = [...url.searchParams.keys()].find(key => key.startsWith('/'))?.slice(1) || 'default'
+		let handler: ((req: Request, res: Response) => Promise<unknown>) | undefined
 
 		for (const path of ancestors(segments).filter(path => handlers.has(path)).reverse()) {
-
-			const invoke = handlers.get(path)?.actions?.[name]
-
-			if (invoke) {
-				req.action = { name, invoke }
-				return next()
-			}
+			handler = handlers.get(path)?.actions?.[name]
+			if (handler) break
 		}
 
-		throw new AppError(400, `Action '${name}' not found`)
-	}
-
-	const invoke = (): Middleware => async (req, res) => {
-
-		if (!req.action) return
+		if (!handler) throw new AppError(400, `Action '${name}' not found`)
 
 		const topics = new Set<string>()
-		const result = await emitted.run(topics, () => req.action!.invoke(req, res)) as { redirect?: string } | void
+		const result = await emitted.run(topics, () => handler(req, res)) as { redirect?: string } | void
 
 		if (ajax(req)) {
 			const body = result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true })
@@ -587,7 +577,7 @@ export async function create(template: Template) {
 		const routeWares = collect(segments)
 
 		app.get(path, timing, json(), ...routeWares, data(page, routeWares), sse, (req, res) => render(req, res, page))
-		app.post(path, action(segments), json(), ...routeWares, invoke())
+		app.post(path, json(), ...routeWares, action(segments))
 	}
 
 	return app
