@@ -24,34 +24,10 @@ const reMarkers = /<!--\s*ssr:([A-Za-z0-9_]+)\s*-->/g
 
 export function compile(html: string) {
 
-	const statics: string[] = []
-	const markers: string[] = []
+	const parts = html.split(reMarkers)
 
-	let start = 0
-	let found: RegExpExecArray | null
-
-	while (found = reMarkers.exec(html)) {
-
-		const end = found.index
-
-		markers.push(found[1])
-		statics.push(html.slice(start, end))
-
-		start = end + found[0].length
-	}
-
-	statics.push(html.slice(start))
-
-	return (slots: Record<string, string>) => {
-
-		let output = ''
-
-		for (let index = 0; index < markers.length; index++) output += statics[index] + (slots[markers[index]] ?? '')
-
-		output += statics[statics.length - 1]
-
-		return output
-	}
+	return (slots: Record<string, string>) =>
+		parts.map((part, index) => index % 2 ? slots[part] ?? '' : part).join('')
 }
 
 async function html() {

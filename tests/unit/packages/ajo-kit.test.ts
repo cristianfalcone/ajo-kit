@@ -26,7 +26,7 @@ import {
 	timingEnabled,
 	type TimingResult,
 } from '../../../packages/ajo-kit/src/timing'
-import { listen } from '../../../packages/ajo-kit/src/node'
+import { compile, listen } from '../../../packages/ajo-kit/src/node'
 
 const previousTiming = process.env.AJO_TIMING
 const previousAppUrl = process.env.APP_URL
@@ -320,6 +320,13 @@ describe('ajo-kit route cache', () => {
 })
 
 describe('ajo-kit timing and database', () => {
+	test('compile replaces SSR slots and drops missing slots', () => {
+		const template = compile('<head><!-- ssr:head --></head><!-- ssr:data --><!-- ssr:missing -->')
+
+		expect(template({ head: '<title>Ajo</title>', data: '<script></script>' }))
+			.toBe('<head><title>Ajo</title></head><script></script>')
+	})
+
 	test('strict listen rejects an occupied port instead of incrementing', async () => {
 		const busy = createServer((_, res) => res.end('busy'))
 
