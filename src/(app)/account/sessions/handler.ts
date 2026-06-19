@@ -1,6 +1,7 @@
 import type { Request } from '@kit'
 import { object, string } from '@kit/validate'
 import { read } from '@kit/auth/cookie'
+import { hash as hashSession } from '@kit/auth/session'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
@@ -10,7 +11,8 @@ const Revoke = object({ id: string() })
 export async function page(req: Request) {
 	req.track?.([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`])
 
-	const current = read(req)
+	const cookie = read(req)
+	const current = cookie ? hashSession(cookie) : undefined
 
 	const sessions = await db()
 		.selectFrom('sessions')
@@ -36,22 +38,23 @@ export const actions = {
 	revoke: async (req: Request) => {
 
 		const input = parse(Revoke, req.body)
-		const current = read(req)
+		const cookie = read(req)
+		const current = cookie ? hashSession(cookie) : undefined
 
-		const session = await db()
+		const matches = await db()
 			.selectFrom('sessions')
 			.select(['id'])
 			.where('user', '=', req.user!.id)
 			.where('id', 'like', `${input.id}%`)
-			.executeTakeFirst()
+			.execute()
 
-		if (!session || session.id === current) {
+		if (matches.length !== 1 || matches[0].id === current) {
 			return { revoked: false }
 		}
 
 		await db()
 			.deleteFrom('sessions')
-			.where('id', '=', session.id)
+			.where('id', '=', matches[0].id)
 			.execute()
 		emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
@@ -60,7 +63,10 @@ export const actions = {
 
 	revokeAll: async (req: Request) => {
 
-		const current = read(req)
+		const cookie = read(req)
+		const current = cookie ? hashSession(cookie) : undefined
+
+		if (!current) return { revoked: 0 }
 
 		const result = await db()
 			.deleteFrom('sessions')

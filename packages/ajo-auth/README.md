@@ -86,7 +86,9 @@ await session.touch(id)
 await session.remove(id)
 ```
 
-Session lifetime: 30 days (default) or 365 days (`remember = true`).
+`create()` returns the plaintext cookie value. The database stores only a
+SHA-256 hash of that value in `sessions.id`. Session lifetime: 30 days
+(default) or 365 days (`remember = true`).
 
 ### `cookie`
 

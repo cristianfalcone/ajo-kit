@@ -1,5 +1,6 @@
 import type { Request, Response } from 'ajo-kit'
 import { generate } from './session'
+import { readCookie } from './cookie'
 
 const NAME = 'XSRF-TOKEN'
 
@@ -13,7 +14,7 @@ export function verify(req: Request): boolean {
 
 	// 1. Check XSRF token (double-submit cookie)
 
-	const cookie = req.headers.cookie?.match(/XSRF-TOKEN=([^;]+)/)?.[1]
+	const cookie = readCookie(req.headers.cookie, NAME)
 	const header = req.headers['x-xsrf-token'] as string | undefined
 
 	if (cookie && cookie === header) return true

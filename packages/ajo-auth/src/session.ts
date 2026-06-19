@@ -1,7 +1,8 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { db } from './store'
 
 export const generate = () => randomBytes(32).toString('base64url')
+export const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 
 export const create = async (
 	user: number,
@@ -10,7 +11,8 @@ export const create = async (
 	agent?: string
 ) => {
 
-	const id = generate()
+	const plain = generate()
+	const id = hash(plain)
 	const days = remember ? 365 : 30
 	const expiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
 	const last = new Date().toISOString()
@@ -24,10 +26,12 @@ export const create = async (
 		last
 	}).execute()
 
-	return id
+	return plain
 }
 
-export const validate = async (id: string) => {
+export const validate = async (plain: string) => {
+
+	const id = hash(plain)
 
 	const session = await db()
 		.selectFrom('sessions')
@@ -40,11 +44,11 @@ export const validate = async (id: string) => {
 	return session
 }
 
-export const remove = (id: string) =>
-	db().deleteFrom('sessions').where('id', '=', id).execute()
+export const remove = (plain: string) =>
+	db().deleteFrom('sessions').where('id', '=', hash(plain)).execute()
 
-export const touch = (id: string) =>
+export const touch = (plain: string) =>
 	db().updateTable('sessions')
 		.set({ last: new Date().toISOString() })
-		.where('id', '=', id)
+		.where('id', '=', hash(plain))
 		.execute()

@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { read, write, clear as clearCookie } from '../../../packages/ajo-auth/src/cookie'
 import { verify as verifyCsrf } from '../../../packages/ajo-auth/src/csrf'
@@ -5,6 +8,9 @@ import { check as checkLimit, clear as clearLimit, hit, remaining } from '../../
 import { stamp, check as checkConfirm, clear as clearConfirm } from '../../../packages/ajo-auth/src/confirm'
 import { sign, url, validate } from '../../../packages/ajo-auth/src/verify'
 import { can, canAll } from '../../../packages/ajo-auth/src/token'
+import { create as createSession, hash as hashSession, remove as removeSession, validate as validateSession } from '../../../packages/ajo-auth/src/session'
+import { configure } from '../../../packages/ajo-auth/src/store'
+import { close, connect, db } from '../../../packages/ajo-kit/src/database'
 import { hash, verify } from '../../../packages/ajo-auth/src/password'
 
 const response = () => {
@@ -27,6 +33,10 @@ describe('ajo-auth cookies and csrf', () => {
 
 		expect(headers.get('Set-Cookie')).toBe('session=session-token; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000')
 		expect(read({ headers: { cookie: 'theme=dark; session=session-token' } } as any)).toBe('session-token')
+		expect(read({ headers: { cookie: 'not_session=wrong' } } as any)).toBeUndefined()
+		expect(read({ headers: { cookie: 'not_session=wrong; session=real-session' } } as any)).toBe('real-session')
+		expect(read({ headers: { cookie: 'session_id=wrong; xsession=wrong' } } as any)).toBeUndefined()
+		expect(read({ headers: { cookie: 'session=first; session=second' } } as any)).toBeUndefined()
 
 		clearCookie(res as any)
 
@@ -40,6 +50,13 @@ describe('ajo-auth cookies and csrf', () => {
 				'x-xsrf-token': 'abc',
 			},
 		} as any)).toBe(true)
+
+		expect(verifyCsrf({
+			headers: {
+				cookie: 'not_XSRF-TOKEN=abc',
+				'x-xsrf-token': 'abc',
+			},
+		} as any)).toBe(false)
 
 		expect(verifyCsrf({
 			headers: {
@@ -61,6 +78,67 @@ describe('ajo-auth cookies and csrf', () => {
 				origin: 'https://evil.test',
 			},
 		} as any)).toBe(false)
+	})
+})
+
+describe('ajo-auth session storage', () => {
+	let dir: string
+
+	beforeEach(async () => {
+		dir = mkdtempSync(join(tmpdir(), 'ajo-auth-session-'))
+		connect(join(dir, 'test.sqlite'))
+		configure(() => db())
+		await db<any>().schema
+			.createTable('users')
+			.addColumn('id', 'integer', column => column.primaryKey())
+			.addColumn('name', 'text')
+			.addColumn('email', 'text')
+			.addColumn('password', 'text')
+			.execute()
+		await db<any>().schema
+			.createTable('sessions')
+			.addColumn('id', 'text', column => column.primaryKey())
+			.addColumn('user', 'integer')
+			.addColumn('expiry', 'text')
+			.addColumn('ip', 'text')
+			.addColumn('agent', 'text')
+			.addColumn('last', 'text')
+			.execute()
+	})
+
+	afterEach(async () => {
+		await close()
+		rmSync(dir, { recursive: true, force: true })
+	})
+
+	test('stores hashed session ids and validates only plaintext cookie values', async () => {
+		const user = await db<any>()
+			.insertInto('users')
+			.values({
+				name: 'Session User',
+				email: 'session@example.com',
+				password: null,
+			})
+			.returning('id')
+			.executeTakeFirstOrThrow()
+
+		const plain = await createSession(user.id)
+		const stored = await db<any>()
+			.selectFrom('sessions')
+			.select(['id', 'user'])
+			.executeTakeFirstOrThrow()
+
+		expect(stored.id).toBe(hashSession(plain))
+		expect(stored.id).not.toBe(plain)
+
+		await expect(validateSession(plain)).resolves.toMatchObject({
+			id: stored.id,
+			user: user.id,
+		})
+		await expect(validateSession(stored.id)).resolves.toBeNull()
+
+		await removeSession(plain)
+		await expect(validateSession(plain)).resolves.toBeNull()
 	})
 })
 

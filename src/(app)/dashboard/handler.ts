@@ -1,6 +1,7 @@
 import type { Parent, Request } from '@kit'
 import { db } from '/src/data'
 import { read } from '@kit/auth/cookie'
+import { hash as hashSession } from '@kit/auth/session'
 
 type AppParent = {
 	user: {
@@ -19,6 +20,8 @@ export async function page(req: Request, parent: Parent) {
 
 	const { user, unread } = await parent() as AppParent
 	const userId = user.id
+	const cookie = read(req)
+	const currentSession = cookie ? hashSession(cookie) : undefined
 
 	const [sessions, tokens, chats, recentSessions] = await Promise.all([
 		db()
@@ -59,7 +62,7 @@ export async function page(req: Request, parent: Parent) {
 			agent: s.agent,
 			last: s.last,
 			created: s.created,
-			current: s.id === read(req),
+			current: s.id === currentSession,
 		})),
 	}
 }

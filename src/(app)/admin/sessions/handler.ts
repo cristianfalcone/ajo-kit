@@ -47,13 +47,15 @@ export const actions = {
 
 		const input = parse(RevokeSession, req.body)
 
-		const session = await db()
+		const matches = await db()
 			.selectFrom('sessions')
 			.select(['id', 'user'])
 			.where('id', 'like', `${input.id}%`)
-			.executeTakeFirst()
+			.execute()
 
-		if (!session) return { revoked: false }
+		if (matches.length !== 1) return { revoked: false }
+
+		const session = matches[0]
 
 		await db()
 			.deleteFrom('sessions')

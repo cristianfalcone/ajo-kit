@@ -81,6 +81,9 @@ test('emitted action topics make stale route versions miss early 304', async ({ 
 		headers: { Accept: 'application/json' },
 	})
 	const beforeBody = await before.json()
+	const beforeSessionIds = new Set(
+		beforeBody.data.at(-1).sessions.map((session: { id: string }) => session.id)
+	)
 
 	const other = await playwrightRequest.newContext({ baseURL })
 	await loginRequest(other, baseURL!)
@@ -100,12 +103,18 @@ test('emitted action topics make stale route versions miss early 304', async ({ 
 
 	expect(staleAfterLogin.status()).toBe(200)
 	expect(staleAfterLogin.headers()['x-ajo-cache']).toBe('miss')
+	const staleBody = await staleAfterLogin.json()
+	const otherSessionRow = staleBody.data.at(-1).sessions.find((session: { id: string; email: string }) =>
+		session.email === adminCredentials.email && !beforeSessionIds.has(session.id)
+	)
+
+	expect(otherSessionRow?.id).toBeTruthy()
 
 	const revoke = await request.post('/admin/sessions?/revoke', {
 		headers: {
 			...actionHeaders(baseURL!),
 		},
-		data: { id: otherSession!.value.slice(0, 8) },
+		data: { id: otherSessionRow.id },
 	})
 
 	expect(revoke.status()).toBe(200)
