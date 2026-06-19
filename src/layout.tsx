@@ -2,24 +2,9 @@ import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
 import type { LayoutArgs } from '@kit'
 import { ThemeContext, type ThemeMode } from '/src/contexts'
-import type { Head } from '@kit/head'
 import Spinner from '/src/ui/spinner'
 
 export const defer = true
-
-export async function head(): Promise<Head> {
-	return {
-		title: '@kit',
-		description: 'A minimalist full-stack metaframework powered by ajo',
-		meta: [
-			{ property: 'og:site_name', content: '@kit' },
-			{ property: 'og:type', content: 'website' },
-		],
-		link: [
-			{ rel: 'icon', href: '/favicon.ico' },
-		],
-	}
-}
 
 const Layout: Stateful<LayoutArgs> = function* (args) {
 

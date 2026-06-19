@@ -89,16 +89,10 @@ export type RoutePayload = [Head, ...Data]
 
 export type Parent = () => Promise<Entry>
 
-export type Context = {
-	url: string
-	params: Params
-}
-
 // Route module types
 
 export type Module = {
 	default: Component
-	head?: (context: Context, parent: Parent) => Promise<Head>
 	defer?: boolean
 }
 
