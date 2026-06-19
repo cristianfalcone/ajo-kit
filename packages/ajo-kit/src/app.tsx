@@ -190,7 +190,7 @@ export async function* resolve(
 	page: Page,
 	data?: Data,
 	error?: AppError
-): AsyncGenerator<{ page: Component; state?: State; recompose?: () => Component }> {
+): AsyncGenerator<{ page: Component; state?: State }> {
 
 	const { loader, segments, params = {} } = page
 
@@ -217,7 +217,6 @@ export async function* resolve(
 		yield {
 			page: compose(target, tree, paths, cached),
 			state: cached,
-			recompose: () => compose(target, tree, paths, cached),
 		}
 
 		return
@@ -257,7 +256,6 @@ export async function* resolve(
 
 	yield {
 		page: compose(target, tree, paths, state),
-		recompose: () => compose(target, tree, paths, state),
 		state
 	}
 }
@@ -321,7 +319,6 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	let hmr = false
 	let activeState: State | null = null
-	let activeRecompose: (() => Component) | null = null
 	let activePage: Page | null = null
 	let actionRefresh: ReturnType<typeof setTimeout> | null = null
 	let generation = 0
@@ -345,9 +342,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		if (activeState.hash) setCache(activeState.url, activeState)
 
-		const recompose = activeRecompose
-
-		if (recompose) this.next(() => Page = recompose())
+		this.next()
 	}, status => sseStatus = status)
 
 	const go = async (target: Page, options: { scroll?: boolean } = {}) => {
@@ -360,7 +355,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		try {
 
-			for await (const { page, state, recompose } of resolve(currentUrl, layouts, target)) {
+			for await (const { page, state } of resolve(currentUrl, layouts, target)) {
 
 				if (gen !== generation) return
 				if (hmr && !state) continue
@@ -372,7 +367,6 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 				if (state && !state.loading) {
 
 					activeState = state
-					activeRecompose = recompose ?? null
 					activePage = target
 				}
 			}
@@ -433,9 +427,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 			if (state.hash) setCache(state.url, state)
 		}
 
-		const recompose = activeRecompose
-
-		if (recompose) this.next(() => Page = recompose())
+		this.next()
 	}
 
 	const refreshAfterAction = (topics?: string[]) => {
