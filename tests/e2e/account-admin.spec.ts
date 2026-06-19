@@ -92,9 +92,9 @@ test('admin pages expose bounded lists, pagination and admin-only actions', asyn
 	expect(page.url()).toContain('size=5')
 	await expect(page.getByText('Page 2 - 5 users')).toBeVisible()
 
-	await gotoReady(page, '/admin/sessions?size=5')
+	await gotoReady(page, '/admin/sessions?size=100')
 	await expect(page.getByRole('heading', { name: 'Sessions' })).toBeVisible()
-	await expect(page.getByText(/Page 1 - \d+ sessions/)).toBeVisible()
+	await expect(page.getByText(/Page 1 - \d+ sessions/)).toHaveCount(0)
 
 	await gotoReady(page, '/admin/tokens?size=5')
 	await expect(page.getByRole('heading', { name: 'API Tokens' })).toBeVisible()

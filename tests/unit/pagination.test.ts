@@ -37,6 +37,20 @@ test('pageInfo preserves query params in prev and next links', () => {
 	})
 })
 
+test('pageInfo marks first page without sentinel row as a single page', () => {
+	const page = paginate(req('/admin/users?size=10'))
+	const info = pageInfo(req('/admin/users?size=10'), page, Array.from({ length: 10 }))
+
+	expect(info).toMatchObject({
+		page: 1,
+		size: 10,
+		hasPrev: false,
+		hasNext: false,
+	})
+	expect(info.prev).toBeUndefined()
+	expect(info.next).toBeUndefined()
+})
+
 test('pageRows drops the sentinel row', () => {
 	const page = paginate(req('/admin/users?size=2'))
 
