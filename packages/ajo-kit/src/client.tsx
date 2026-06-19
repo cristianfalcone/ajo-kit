@@ -1,6 +1,6 @@
 import { render } from 'ajo'
 import { current } from 'ajo/context'
-import App, { invalidateCache, ssr } from './app'
+import App, { invalidateCache, setInitialState } from './app'
 import type { State, ActionState } from './constants'
 import { navigate } from './constants'
 import { formArrayFields, formDataBody } from './form'
@@ -106,7 +106,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 if (!import.meta.env.SSR) {
 	const script = globalThis.document?.getElementById('__SSR__')
 	const data = script?.textContent ? parseSSR<State>(script.textContent) : null
-	if (data) ssr.set(data.url, data)
+	setInitialState(data)
 }
 
 if (import.meta.hot) {

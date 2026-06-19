@@ -30,7 +30,11 @@ export const toPattern = (segments: string[]) =>
 
 export const toSegments = (path: string) => path.slice(4).split('/').slice(0, -1)
 
-export const ssr = new Map<string, State>()
+let initialState: State | undefined
+
+export function setInitialState(state: State | null) {
+	initialState = state ?? undefined
+}
 
 export const error: () => Page = () => ({
 	segments: [''],
@@ -205,11 +209,11 @@ export async function* resolve(
 		return
 	}
 
-	const cached = ssr.get(url)
+	const cached = initialState?.url === url ? initialState : undefined
 
 	if (cached) {
 
-		ssr.delete(url)
+		initialState = undefined
 		if (cached.hash) setCache(url, cached)
 
 		yield {
