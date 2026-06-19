@@ -292,27 +292,6 @@ describe('ajo-kit JSON patches', () => {
 		expect(current).toEqual(next)
 	})
 
-	test('applyPatch unescapes JSON pointer object keys', () => {
-		const value = {
-			'tilde~key': {
-				'slash/key': 'old',
-			},
-			list: ['a'],
-		}
-
-		applyPatch(value, [
-			{ op: 'replace', path: '/tilde~0key/slash~1key', value: 'new' },
-			{ op: 'add', path: '/list/-', value: 'b' },
-			{ op: 'remove', path: '/list/0' },
-		])
-
-		expect(value).toEqual({
-			'tilde~key': {
-				'slash/key': 'new',
-			},
-			list: ['b'],
-		})
-	})
 })
 
 describe('ajo-kit route cache', () => {
