@@ -3,6 +3,9 @@ import { current } from 'ajo/context'
 import App, { invalidateCache, ssr } from './app'
 import type { State, ActionState } from './constants'
 import { navigate } from './constants'
+import { formArrayFields, formDataBody } from './form'
+
+export { formArrayFields, formDataBody } from './form'
 
 // Action helper for stateful generator components
 
@@ -91,7 +94,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 	state.submit = (event: SubmitEvent) => {
 		event.preventDefault()
 		const form = event.target as HTMLFormElement
-		const body = Object.fromEntries(new FormData(form) as unknown as Iterable<[string, string]>)
+		const body = formDataBody(new FormData(form), formArrayFields(form))
 		run(body).then(() => { if (!state.error) form.reset() })
 	}
 
@@ -133,4 +136,7 @@ if (import.meta.hot) {
 
 const root = globalThis?.document?.getElementById('root')
 
-if (root) render(<App />, root)
+if (root) {
+	render(<App />, root)
+	document.documentElement.dataset.ajoReady = 'true'
+}

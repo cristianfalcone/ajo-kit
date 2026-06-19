@@ -1,5 +1,3 @@
-import { render as html } from 'ajo/html'
-
 // Types
 
 type Meta =
@@ -69,18 +67,34 @@ export function merge(...heads: (Head | undefined)[]): Head {
 
 // SSR: render to HTML string
 
+const text = (value: string) => value
+	.replace(/&/g, '&amp;')
+	.replace(/</g, '&lt;')
+	.replace(/>/g, '&gt;')
+
+const attribute = (value: string) => text(value).replace(/"/g, '&quot;')
+
+const attrs = (entries: Record<string, string | undefined>) =>
+	Object.entries(entries)
+		.filter((entry): entry is [string, string] => entry[1] !== undefined)
+		.map(([name, value]) => `${name}="${attribute(value)}"`)
+		.join(' ')
+
+const tag = (name: 'meta' | 'link', entries: Record<string, string | undefined>) =>
+	`<${name} ${attrs(entries)}>`
+
 export function render(head: Head = {}): string {
 
-	const tags: unknown[] = []
+	const tags: string[] = []
 
-	if (head.title) tags.push(<title>{head.title}</title>)
-	if (head.description) tags.push(<meta name="description" content={head.description} />)
-	if (head.canonical) tags.push(<link rel="canonical" href={head.canonical} />)
+	if (head.title) tags.push(`<title>${text(head.title)}</title>`)
+	if (head.description) tags.push(tag('meta', { name: 'description', content: head.description }))
+	if (head.canonical) tags.push(tag('link', { rel: 'canonical', href: head.canonical }))
 
-	for (const entry of head.meta ?? []) tags.push(<meta {...entry} />)
-	for (const entry of head.link ?? []) tags.push(<link {...entry} />)
+	for (const entry of head.meta ?? []) tags.push(tag('meta', entry))
+	for (const entry of head.link ?? []) tags.push(tag('link', entry))
 
-	return tags.map(html).join('\n  ')
+	return tags.join('\n  ')
 }
 
 // CSR: update document.head (diff before mutate)

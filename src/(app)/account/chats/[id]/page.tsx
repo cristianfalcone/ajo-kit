@@ -460,7 +460,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		clearUnreadHighlightTimers()
 	})
 
-	while (true) {
+	for (args of this) {
 
 		const { data, loading } = args
 		const incoming = data?.messages ?? []

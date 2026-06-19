@@ -152,6 +152,7 @@ export type LayoutArgs<T = Entry> = PageArgs<T> & {
 
 export const navigate = (to: string) => {
 	globalThis.history?.pushState({}, '', to)
+	globalThis.dispatchEvent?.(new CustomEvent('ajo:navigate'))
 }
 
 // Request helpers

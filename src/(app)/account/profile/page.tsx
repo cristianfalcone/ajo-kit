@@ -13,9 +13,10 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 
 	const nameForm = action<NameResult>('name')
 	const passwordForm = action<PasswordResult>('password')
-	const user = args.data?.user
+	for (args of this) {
+		const user = args.data?.user
 
-	while (true) yield (
+		yield (
 		<div class="space-y-8">
 			<div>
 				<h1 class="text-2xl font-bold text-slate-900 dark:text-white mb-6">
@@ -132,6 +133,7 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 			</div>
 		</div>
 	)
+	}
 }
 
 export default Profile

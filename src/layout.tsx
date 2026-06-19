@@ -57,7 +57,7 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 		{ signal: this.signal }
 	)
 
-	while (true) try {
+	for (args of this) try {
 
 		ThemeContext({ mode, set, cycle })
 

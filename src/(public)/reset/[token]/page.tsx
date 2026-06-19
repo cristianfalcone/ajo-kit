@@ -11,9 +11,10 @@ interface Data {
 const Reset: Stateful<PageArgs<Data>> = function* (args) {
 
 	const form = action<Result>()
-	const valid = args.data?.valid
+	for (args of this) {
+		const valid = args.data?.valid
 
-	while (true) yield (
+		yield (
 		<>
 			<h1 class="text-2xl font-bold text-center mb-8 text-slate-900 dark:text-white">
 				Set New Password
@@ -80,6 +81,7 @@ const Reset: Stateful<PageArgs<Data>> = function* (args) {
 			)}
 		</>
 	)
+	}
 }
 
 export default Reset

@@ -9,10 +9,11 @@ interface Data {
 
 const VerifyResult: Stateful<PageArgs<Data>> = function* (args) {
 
-	const error = args.data?.error
-	const verified = args.data?.verified
+	for (args of this) {
+		const error = args.data?.error
+		const verified = args.data?.verified
 
-	while (true) yield (
+		yield (
 		<>
 			<h1 class="text-2xl font-bold text-center mb-8 text-slate-900 dark:text-white">
 				Email Verification
@@ -43,6 +44,7 @@ const VerifyResult: Stateful<PageArgs<Data>> = function* (args) {
 			</div>
 		</>
 	)
+	}
 }
 
 export default VerifyResult

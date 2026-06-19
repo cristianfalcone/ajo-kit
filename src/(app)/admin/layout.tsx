@@ -11,7 +11,7 @@ const links: [string, string, string][] = [
 
 const AdminLayout: Stateful<LayoutArgs> = function* (args) {
 
-	while (true) {
+	for (args of this) {
 
 		const url = globalThis.location?.pathname ?? '/'
 

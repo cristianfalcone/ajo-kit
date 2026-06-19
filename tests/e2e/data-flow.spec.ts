@@ -1,32 +1,10 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test'
-
-const credentials = {
-	email: 'cristian@example.com',
-	password: 'password',
-}
-
-async function login(request: any, baseURL: string) {
-	const response = await request.post('/login?/default', {
-		headers: {
-			Accept: 'application/json',
-			Origin: baseURL,
-		},
-		data: credentials,
-	})
-
-	expect(response.status()).toBe(200)
-
-	const json = await response.json()
-	expect(json.redirect).toBe('/dashboard')
-	expect(json.topics).toEqual(expect.arrayContaining(['admin:sessions', 'admin:stats', 'user:1']))
-
-	return json
-}
+import { actionHeaders, adminCredentials, loginRequest } from './helpers'
 
 test('CSRF rejects cross-site JSON actions without same-origin proof', async ({ request }) => {
 	const response = await request.post('/login?/default', {
 		headers: { Accept: 'application/json' },
-		data: credentials,
+		data: adminCredentials,
 	})
 
 	expect(response.status()).toBe(403)
@@ -39,7 +17,9 @@ test('CSRF rejects cross-site JSON actions without same-origin proof', async ({ 
 })
 
 test('route data uses no-store JSON, ETag, topics, versions and early 304', async ({ request, baseURL }) => {
-	await login(request, baseURL!)
+	const login = await loginRequest(request, baseURL!)
+	expect(login.redirect).toBe('/dashboard')
+	expect(login.topics).toEqual(expect.arrayContaining(['admin:sessions', 'admin:stats', 'user:1']))
 
 	const users = await request.get('/admin/users', {
 		headers: { Accept: 'application/json' },
@@ -87,7 +67,7 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 })
 
 test('emitted action topics make stale route versions miss early 304', async ({ request, baseURL }) => {
-	await login(request, baseURL!)
+	await loginRequest(request, baseURL!)
 
 	const before = await request.get('/admin/sessions', {
 		headers: { Accept: 'application/json' },
@@ -95,7 +75,7 @@ test('emitted action topics make stale route versions miss early 304', async ({ 
 	const beforeBody = await before.json()
 
 	const other = await playwrightRequest.newContext({ baseURL })
-	await login(other, baseURL!)
+	await loginRequest(other, baseURL!)
 
 	const otherState = await other.storageState()
 	const otherSession = otherState.cookies.find(cookie => cookie.name === 'session')
@@ -115,8 +95,7 @@ test('emitted action topics make stale route versions miss early 304', async ({ 
 
 	const revoke = await request.post('/admin/sessions?/revoke', {
 		headers: {
-			Accept: 'application/json',
-			Origin: baseURL!,
+			...actionHeaders(baseURL!),
 		},
 		data: { id: otherSession!.value.slice(0, 8) },
 	})

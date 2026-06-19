@@ -1,6 +1,6 @@
 import type { Request, Response } from '@kit'
 import { UnauthorizedError } from '@kit'
-import { unread } from '/src/data'
+import { db, unread } from '/src/data'
 import { read, clear } from '@kit/auth/cookie'
 import { remove } from '@kit/auth/session'
 import { emit } from '@kit/server'
@@ -11,9 +11,14 @@ export async function layout(req: Request) {
 
 	const match = req.path.match(/^\/account\/chats\/(\d+)/)
 	const activeChatId = match ? Number(match[1]) : undefined
+	const user = await db()
+		.selectFrom('users')
+		.select(['id', 'name', 'email', 'verified'])
+		.where('id', '=', req.user.id)
+		.executeTakeFirst()
 
 	return {
-		user: { ...req.user, roles: req.user.roles ?? [] },
+		user: { ...req.user, ...user, roles: req.user.roles ?? [] },
 		unread: await unread(req.user.id, activeChatId),
 	}
 }

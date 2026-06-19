@@ -22,7 +22,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 
 	const form = action<FormResult>()
 
-	while (true) {
+	for (args of this) {
 
 		const tokens = args.data?.tokens ?? []
 

@@ -47,7 +47,7 @@ function timeAgo(iso: string) {
 
 const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
 
-	while (true) {
+	for (args of this) {
 		const data = args.data
 		if (!data) {
 			yield (

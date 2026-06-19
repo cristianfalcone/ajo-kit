@@ -22,7 +22,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 	const createForm = action<CreateResult>('make')
 	const revokeForm = action<RevokeResult>('revoke')
 
-	while (true) {
+	for (args of this) {
 
 		const tokens = args.data?.tokens ?? []
 

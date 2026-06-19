@@ -13,7 +13,7 @@ const links: [string, string, string][] = [
 
 const AccountLayout: Stateful<LayoutArgs> = function* (args) {
 
-	while (true) {
+	for (args of this) {
 
 		const url = globalThis.location?.pathname ?? '/'
 		const unread = UnreadContext()

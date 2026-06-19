@@ -1,5 +1,6 @@
 import { render as html } from 'ajo/html'
-import { h as createElement, type Component } from 'ajo'
+import { h as createElement } from 'ajo/jsx-runtime'
+import type { Component } from 'ajo'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import polka from 'polka'
 import type { Request, Response, Middleware } from 'polka'

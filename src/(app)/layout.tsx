@@ -22,7 +22,7 @@ const AppLayout: Stateful<LayoutArgs<LayoutData>> = function* (args) {
 
 	const signout = action<void>('signout')
 
-	while (true) {
+	for (args of this) {
 
 		const user = args.data?.user
 		const unread = args.data?.unread ?? 0

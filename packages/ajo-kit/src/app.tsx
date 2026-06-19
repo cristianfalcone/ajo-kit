@@ -470,6 +470,8 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		{ signal: this.signal }
 	)
 
+	addEventListener('ajo:navigate', () => router.run(), { signal: this.signal })
+
 	this.signal.addEventListener('abort', () => {
 		sse.close()
 		router.unlisten?.()

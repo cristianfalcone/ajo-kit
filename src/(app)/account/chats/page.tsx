@@ -32,7 +32,7 @@ const Chats: Stateful<PageArgs<Data>> = function* (args) {
 		})
 	}
 
-	while (true) {
+	for (args of this) {
 
 		const { data, loading } = args
 
