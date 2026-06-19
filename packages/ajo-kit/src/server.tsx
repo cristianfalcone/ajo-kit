@@ -1,5 +1,6 @@
 import { render as html } from 'ajo/html'
 import type { Component } from 'ajo'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import polka from 'polka'
 import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
@@ -9,11 +10,29 @@ import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths
 import { AppError, links, ancestors, normalize, ajax, api } from './constants'
 import type { State, Data, Entry, Page, Parent } from './constants'
 import { merge, render as renderHead, type Head } from './head'
+import { bumpTopics, isFresh, normalizeTopics, parseVersions, routeHash, versionsFor, type TopicVersions } from './freshness'
 import { handlers as handlerFiles, wares as wareFiles } from 'virtual:ajo/handlers'
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
 const joinPath = (path: string, key: string | number) => `${path || ''}/${String(key).replace(/~/g, '~0').replace(/\//g, '~1')}`
+
+const emitted = new AsyncLocalStorage<Set<string>>()
+
+const payload = (head: Head, entries: Data) => ({ data: entries, head })
+
+const metadata = (topics: Set<string>) => {
+	const list = [...topics].sort()
+	return { topics: list, versions: versionsFor(list) }
+}
+
+const writeFresh = (res: Response, hash?: string, early = false) => {
+	res.statusCode = 304
+	res.setHeader('Cache-Control', 'no-store')
+	res.setHeader('X-Ajo-Cache', early ? 'fresh' : 'revalidated')
+	if (hash) res.setHeader('ETag', `"${hash}"`)
+	res.end()
+}
 
 export function diff(a: any, b: any, path = ''): any[] {
 
@@ -99,9 +118,10 @@ export function diff(a: any, b: any, path = ''): any[] {
 export type LiveConnection = {
 	req: Request
 	topics: Set<string>
+	hash: string
 	lastData: any[]
 	revalidate: () => Promise<any[]>
-	send: (patches: any[]) => void
+	send: (message: { patches: any[]; hash: string; topics: string[]; versions: TopicVersions }) => void
 }
 
 export const liveConnections = new Set<LiveConnection>()
@@ -112,8 +132,13 @@ let debounceTimeout: NodeJS.Timeout | null = null
 
 export function emit(topic: string | string[]) {
 
-	const topics = Array.isArray(topic) ? topic : [topic]
-	topics.forEach(t => pendingTopics.add(t))
+	const topics = bumpTopics(topic)
+	const store = emitted.getStore()
+
+	topics.forEach(t => {
+		pendingTopics.add(t)
+		store?.add(t)
+	})
 
 	if (!debounceTimeout) {
 
@@ -143,13 +168,17 @@ export function emit(topic: string | string[]) {
 					conn.req.topics = new Set<string>()
 					const newData = await conn.revalidate()
 					conn.topics = conn.req.topics ?? new Set<string>()
+					const [head, ...entries] = newData as [Head, ...Data]
+					const digest = routeHash(JSON.stringify(payload(head, entries)))
+
+					if (digest === conn.hash) continue
 
 					const patches = diff(conn.lastData, newData)
 
-					if (patches.length > 0) {
-						conn.lastData = clone(newData)
-						conn.send(patches)
-					}
+					conn.hash = digest
+					conn.lastData = clone(newData)
+
+					if (patches.length > 0) conn.send({ patches, hash: digest, ...metadata(conn.topics) })
 
 				} catch (err) {
 					console.error('[SSE] Live update failed:', err)
@@ -176,7 +205,7 @@ type Template = (slots: Record<string, string>) => string
 
 export async function create(template: Template) {
 
-	const data = (page: Page): Middleware => async (req, _, next) => {
+	const data = (page: Page): Middleware => async (req, res, next) => {
 
 		req.topics = new Set<string>()
 
@@ -187,6 +216,11 @@ export async function create(template: Template) {
 
 		const paths = layoutPaths(page.segments)
 		const key = page.segments.join('/')
+
+		if (ajax(req) && isFresh(parseVersions(req.headers['x-ajo-versions']))) {
+			writeFresh(res, req.headers['x-have']?.toString(), true)
+			return
+		}
 
 		const executeLoaders = async () => {
 
@@ -251,12 +285,17 @@ export async function create(template: Template) {
 
 		res.flushHeaders()
 
+		const head = ((req as any).head ?? {}) as Head
+		const entries = (((req as any).entries ?? []) as Data)
+		const digest = routeHash(JSON.stringify(payload(head, entries)))
+
 		const conn: LiveConnection = {
 			req,
 			topics: req.topics ?? new Set<string>(),
-			lastData: clone([((req as any).head ?? {}), ...((req as any).entries ?? [])]),
+			hash: digest,
+			lastData: clone([head, ...entries]),
 			revalidate: (req as any).revalidate,
-			send: (patches: any[]) => res.write(`data: ${JSON.stringify(patches)}\n\n`)
+			send: (message) => res.write(`data: ${JSON.stringify(message)}\n\n`)
 		}
 
 		liveConnections.add(conn)
@@ -279,26 +318,39 @@ export async function create(template: Template) {
 			res.setHeader('Cache-Control', 'no-store')
 			res.setHeader('Content-Type', 'application/json')
 
-			const payload = error
-				? { error: error.toJSON() }
-				: { data: entries, head }
+			if (error) return send(res, error.status, JSON.stringify({ error: error.toJSON() }))
 
-			return send(res, error?.status ?? 200, JSON.stringify(payload))
+			const body = payload(head, entries)
+			const digest = routeHash(JSON.stringify(body))
+			const match = req.headers['x-have'] === digest || req.headers['if-none-match'] === `"${digest}"`
+			const meta = metadata(req.topics ?? new Set<string>())
+
+			res.setHeader('ETag', `"${digest}"`)
+
+			if (match) {
+				writeFresh(res, digest)
+				return
+			}
+
+			res.setHeader('X-Ajo-Cache', 'miss')
+
+			return send(res, 200, JSON.stringify({ ...body, hash: digest, ...meta }))
 		}
 
-		let resolved: { Page: Component; data?: State } | undefined
+		let resolved: { page: Component; state?: State } | undefined
 
-		for await (const state of resolve(req.originalUrl, layouts, page, entries, error)) {
-			resolved = state
-		}
+		for await (const r of resolve(req.originalUrl, layouts, page, entries, error)) resolved = r
+
+		const digest = error ? undefined : routeHash(JSON.stringify(payload(head, entries)))
+		const meta = metadata(req.topics ?? new Set<string>())
 
 		send(
 			res,
-			resolved?.data?.error?.status ?? error?.status ?? 200,
+			resolved?.state?.error?.status ?? error?.status ?? 200,
 			template({
 				head: renderHead(head as Head),
-				data: `<script>globalThis.__SSR__=${JSON.stringify(JSON.stringify({ ...resolved!.data, head, rawServerData: [head, ...entries] }))}</script>`,
-				root: html(<App page={resolved!.Page} />),
+				data: `<script>globalThis.__SSR__=${JSON.stringify(JSON.stringify({ ...resolved!.state, head, hash: digest, ...meta, rawServerData: [head, ...entries] }))}</script>`,
+				root: html(<App page={resolved!.page} />),
 			}),
 			{ 'Content-Type': 'text/html' }
 		)
@@ -326,10 +378,15 @@ export async function create(template: Template) {
 
 		if (!req.action) return
 
-		const result = await req.action.invoke(req, res) as { redirect?: string } | void
+		const topics = new Set<string>()
+		const result = await emitted.run(topics, () => req.action!.invoke(req, res)) as { redirect?: string } | void
 
 		if (ajax(req)) {
-			const payload = result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true })
+			const body = result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true })
+			const payload = {
+				...body,
+				...(topics.size > 0 && { topics: normalizeTopics([...topics]) })
+			}
 
 			res.setHeader('Cache-Control', 'no-store')
 			res.setHeader('Content-Type', 'application/json')

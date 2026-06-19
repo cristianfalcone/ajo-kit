@@ -2,17 +2,18 @@
 import 'dotenv/config'
 import sade from 'sade'
 import type { Kysely } from 'kysely'
+import { pathToFileURL } from 'node:url'
 import { dev, build, start, listen } from 'ajo-kit/node'
 import { discover } from 'ajo-kit/discover'
 import { defaults } from 'ajo-kit/vite'
 
-// Status markers
+// Status markers:
 
 const ok = '\x1b[32m✓\x1b[0m'
 const fail = '\x1b[31m✗\x1b[0m'
 const pending = '\x1b[33m○\x1b[0m'
 
-// Database lifecycle wrapper (try/finally ensures close on error)
+// Database lifecycle wrapper (try/finally ensures close on error):
 
 async function database(path: string, fn: (db: () => Kysely<any>) => Promise<void>) {
 	const { connect, db, close } = await import('ajo-kit/database')
@@ -21,7 +22,7 @@ async function database(path: string, fn: (db: () => Kysely<any>) => Promise<voi
 	finally { await close() }
 }
 
-// Migration result reporter
+// Migration result reporter:
 
 function report(results: { status: string; migrationName: string }[] | undefined, error: unknown, empty: string, suffix = '') {
 	for (const r of results ?? []) console.log(`${r.status === 'Success' ? ok : fail} ${r.migrationName}${suffix}`)
@@ -52,7 +53,7 @@ cli.command('start')
 		await listen(await start(), opts.port)
 	})
 
-// Migrate commands
+// Migrate commands:
 
 cli.command('migrate up')
 	.describe('Run pending migrations')
@@ -130,7 +131,7 @@ cli.command('seed')
 			if (!files.length) { console.log('No seed files found'); return }
 
 			for (const file of files) {
-				const mod = await import(join(dir, file))
+				const mod = await import(pathToFileURL(join(dir, file)).href)
 				if (typeof mod.seed === 'function') {
 					await mod.seed(db())
 					console.log(`${ok} ${file}`)
@@ -139,14 +140,14 @@ cli.command('seed')
 		})
 	})
 
-// Discover plugin commands
+// Discover plugin commands:
 
 for (const plugin of discover()) {
 
 	if (!plugin.commands) continue
 
 	try {
-		const mod = await import(plugin.commands)
+		const mod = await import(pathToFileURL(plugin.commands).href)
 		if (typeof mod.register === 'function') mod.register(cli)
 	} catch (error) {
 		console.error(`Failed to load commands from ${plugin.name}:`, error)

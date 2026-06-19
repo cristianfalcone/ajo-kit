@@ -6,3 +6,7 @@ database.sqlite-wal
 database.sqlite-shm
 drive.json
 .env
+.claude
+CLAUDE.md
+AGENTS.md
+ai

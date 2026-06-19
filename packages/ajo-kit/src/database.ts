@@ -12,6 +12,9 @@ let instance: Kysely<any> | null = null
 export function connect(path = './database.sqlite'): BetterSqliteDatabase {
 	sqlite = new BetterSqlite(path)
 	sqlite.pragma('journal_mode = WAL')
+	sqlite.pragma('foreign_keys = ON')
+	sqlite.pragma('busy_timeout = 5000')
+	sqlite.pragma('synchronous = NORMAL')
 	return sqlite
 }
 

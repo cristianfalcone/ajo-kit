@@ -17,9 +17,9 @@ pnpm -s exec tsc --noEmit
 
 ## Documentation Index
 
-- [docs/LLMs.md](docs/LLMs.md) — Contributor + LLM implementation guide
-- [docs/data.md](docs/data.md) — Data pipeline, live updates, topic design
-- [docs/api-endpoints.md](docs/api-endpoints.md) — Actions vs `/api/*` endpoints
+- [ai/LLMs.md](ai/LLMs.md) — Contributor + LLM implementation guide
+- [ai/data.md](ai/data.md) — Data pipeline, live updates, topic design
+- [ai/api-endpoints.md](ai/api-endpoints.md) — Actions vs `/api/*` endpoints
 - `node_modules/ajo/LLMs.md` — Ajo UI syntax reference
 
 ## Current Architecture

@@ -112,6 +112,9 @@ export interface State {
 	loading: boolean
 	error?: AppError
 	head?: Head
+	hash?: string
+	topics?: string[]
+	versions?: Record<string, number>
 	rawServerData?: [Head | undefined, ...Data]
 }
 

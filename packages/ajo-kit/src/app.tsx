@@ -34,6 +34,23 @@ export const getFileName = (path: string) => path.split('/').pop()?.split('.')[0
 
 export const ssr = new Map<string, State>()
 
+export const cache = new Map<string, State>()
+
+export const clearCache = () => cache.clear()
+
+export const invalidateCache = (topics?: string[]) => {
+	if (!topics?.length) {
+		cache.clear()
+		return
+	}
+
+	const changed = new Set(topics)
+
+	for (const [url, state] of cache) {
+		if (!state.topics?.length || state.topics.some(topic => changed.has(topic))) cache.delete(url)
+	}
+}
+
 export const error: () => Page = () => ({
 	segments: [''],
 	loader: async () => ({ default: () => null }),
@@ -123,12 +140,43 @@ function compose(
 	)
 }
 
-async function load(url: string): Promise<{ data: Data; head?: Head; redirect?: string; error?: AppError }> {
+type ServerLoad = {
+	data: Data
+	head?: Head
+	hash?: string
+	topics?: string[]
+	versions?: Record<string, number>
+	redirect?: string
+	error?: AppError
+}
 
-	const response = await fetch(url, { credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } })
+async function load(url: string): Promise<ServerLoad> {
+
+	const cached = cache.get(url)
+	const versions = cached?.versions ? JSON.stringify(cached.versions) : undefined
+
+	const response = await fetch(url, {
+		credentials: 'include',
+		cache: 'no-store',
+		headers: {
+			Accept: 'application/json',
+			...(cached?.hash && { 'X-Have': cached.hash }),
+			...(versions && { 'X-Ajo-Versions': versions })
+		}
+	})
+
+	if (response.status === 304 && cached) {
+		return {
+			data: cached.data,
+			head: cached.head,
+			hash: cached.hash,
+			topics: cached.topics,
+			versions: cached.versions
+		}
+	}
 
 	const json = await response.json().catch(() => null) as
-		| { data?: Data; head?: Head; redirect?: string; error?: { status?: number; message?: string } }
+		| { data?: Data; head?: Head; hash?: string; topics?: string[]; versions?: Record<string, number>; redirect?: string; error?: { status?: number; message?: string } }
 		| null
 
 	if (!json || !response.ok) {
@@ -145,7 +193,10 @@ async function load(url: string): Promise<{ data: Data; head?: Head; redirect?: 
 
 	return {
 		data: json.data ?? [],
-		head: json.head
+		head: json.head,
+		hash: json.hash,
+		topics: json.topics,
+		versions: json.versions
 	}
 }
 
@@ -167,12 +218,15 @@ function applyPatch(obj: any, patches: any[]) {
 
 		const keys = path.split('/').filter(Boolean)
 		const last = keys.pop()!
+
 		let target = obj
 
 		for (const key of keys) target = target[key]
 
 		if (op === 'replace') {
+
 			target[last] = value
+
 		} else if (op === 'add') {
 
 			if (Array.isArray(target)) {
@@ -183,6 +237,7 @@ function applyPatch(obj: any, patches: any[]) {
 			}
 
 		} else if (op === 'remove') {
+
 			if (Array.isArray(target)) target.splice(Number(last), 1)
 			else delete target[last]
 		}
@@ -197,7 +252,7 @@ export async function* resolve(
 	page: Page,
 	data?: Data,
 	error?: AppError
-): AsyncGenerator<{ Page: Component; data?: State; recompose?: () => Component }> {
+): AsyncGenerator<{ page: Component; state?: State; recompose?: () => Component }> {
 
 	const { loader, segments, params = {} } = page
 
@@ -210,7 +265,7 @@ export async function* resolve(
 
 	if (error) {
 		const state: State = { url, params, data: [], loading: false, error }
-		yield { Page: compose(target, tree, paths, state), data: state }
+		yield { page: compose(target, tree, paths, state), state }
 		return
 	}
 
@@ -219,17 +274,18 @@ export async function* resolve(
 	if (cached) {
 
 		ssr.delete(url)
+		if (cached.hash) cache.set(url, cached)
 
 		yield {
-			Page: compose(target, tree, paths, cached),
+			page: compose(target, tree, paths, cached),
+			state: cached,
 			recompose: () => compose(target, tree, paths, cached),
-			data: cached
 		}
 
 		return
 	}
 
-	yield { Page: compose(target, tree, paths, { url, params, data: [], loading: true }) }
+	yield { page: compose(target, tree, paths, { url, params, data: [], loading: true }) }
 
 	const server = data
 		? { data, head: undefined as Head | undefined }
@@ -243,8 +299,8 @@ export async function* resolve(
 	}
 
 	if ('error' in server && server.error) {
-		const state: State = { url, params, data: [], loading: false, error: server.error }
-		yield { Page: compose(target, tree, paths, state), data: state }
+		const state = { url, params, data: [], loading: false, error: server.error }
+		yield { page: compose(target, tree, paths, state), state }
 		return
 	}
 
@@ -254,17 +310,29 @@ export async function* resolve(
 		data: server.data,
 		loading: false,
 		head: server.head,
+		hash: server.hash,
+		topics: server.topics,
+		versions: server.versions,
 		rawServerData: [server.head, ...server.data]
 	}
 
+	if (state.hash) cache.set(url, state)
+
 	yield {
-		Page: compose(target, tree, paths, state),
+		page: compose(target, tree, paths, state),
 		recompose: () => compose(target, tree, paths, state),
-		data: state
+		state
 	}
 }
 
-function stream(onPatch: (patches: any[]) => void) {
+type LiveMessage = {
+	patches: any[]
+	hash?: string
+	topics?: string[]
+	versions?: Record<string, number>
+}
+
+function stream(onPatch: (message: LiveMessage) => void) {
 
 	let source: EventSource | null = null
 	let retries = 0
@@ -272,12 +340,16 @@ function stream(onPatch: (patches: any[]) => void) {
 	const connect = (path: string) => {
 
 		source?.close()
+
 		source = new EventSource(path)
-		source.onopen = () => { retries = 0 }
-		source.onmessage = (event) => {
+
+		source.onopen = () => retries = 0
+
+		source.onmessage = event => {
 			if (event.data === ':hb') return
-			const patches = JSON.parse(event.data) as any[]
-			if (patches.length) onPatch(patches)
+			const data = JSON.parse(event.data)
+			const message = Array.isArray(data) ? { patches: data } : data as LiveMessage
+			if (message.patches?.length) onPatch(message)
 		}
 
 		source.onerror = () => {
@@ -308,18 +380,22 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	let activeRecompose: (() => Component) | null = null
 	let generation = 0
 
-	const sse = stream((patches) => {
+	const sse = stream(message => {
 
-		if (!activeState || !activeState.rawServerData || patches.length === 0) return
+		if (!activeState || !activeState.rawServerData || message.patches.length === 0) return
 
-		applyPatch(activeState.rawServerData, patches)
+		applyPatch(activeState.rawServerData, message.patches)
+
 		const [head, ...entries] = activeState.rawServerData
-		activeState.data = entries as Data
 
-		if (head) {
-			activeState.head = head as Head
-			apply(head as Head)
-		}
+		activeState.data = entries
+		activeState.hash = message.hash ?? activeState.hash
+		activeState.topics = message.topics ?? activeState.topics
+		activeState.versions = message.versions ?? activeState.versions
+
+		if (head) apply(activeState.head = head)
+
+		if (activeState.hash) cache.set(activeState.url, activeState)
 
 		const recompose = activeRecompose
 
@@ -335,19 +411,21 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		try {
 
-			for await (const state of resolve(currentUrl, layouts, target)) {
+			for await (const { page, state, recompose } of resolve(currentUrl, layouts, target)) {
 
 				if (gen !== generation) return
-				if (hmr && !state.data) continue
+				if (hmr && !state) continue
 
-				this.next(() => Page = state.Page)
+				this.next(() => Page = page)
 
-				if (state.data?.head) apply(state.data.head)
+				if (state?.head) apply(state.head)
 
-				if (state.data && !state.data.loading) {
-					activeState = state.data
-					activeRecompose = state.recompose ?? null
-					if (!activeState.rawServerData) activeState.rawServerData = [state.data.head, ...state.data.data]
+				if (state && !state.loading) {
+
+					activeState = state
+					activeRecompose = recompose ?? null
+
+					if (!activeState.rawServerData) activeState.rawServerData = [state.head, ...state.data]
 				}
 			}
 
@@ -357,9 +435,11 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 			err = err instanceof AppError ? err : new AppError(500, err instanceof Error ? err.message : 'Navigation failed')
 
-			for await (const state of resolve(currentUrl, layouts, error(), undefined, err as AppError)) {
+			for await (const { page } of resolve(currentUrl, layouts, error(), undefined, err as AppError)) {
+
 				if (gen !== generation) return
-				this.next(() => Page = state.Page)
+
+				this.next(() => Page = page)
 			}
 
 			return
@@ -381,9 +461,19 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	router.listen()
 
-	if (import.meta.env.DEV) addEventListener('hmr', () => { hmr = true; router.run() }, { signal: this.signal })
+	if (import.meta.env.DEV) addEventListener(
+		'hmr',
+		() => {
+			hmr = true
+			router.run()
+		},
+		{ signal: this.signal }
+	)
 
-	this.signal.addEventListener('abort', () => { sse.close(); router.unlisten?.() })
+	this.signal.addEventListener('abort', () => {
+		sse.close()
+		router.unlisten?.()
+	})
 
 	while (true) yield <Page />
 }

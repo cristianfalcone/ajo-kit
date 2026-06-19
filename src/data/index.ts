@@ -1,7 +1,7 @@
 import { connect, db as base, sql } from '@kit/database'
 import type { DB } from './types'
 
-connect('./database.sqlite')
+connect(process.env.DATABASE_PATH ?? './database.sqlite')
 
 export const db = () => base<DB>()
 

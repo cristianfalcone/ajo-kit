@@ -1,6 +1,6 @@
 import { render } from 'ajo'
 import { current } from 'ajo/context'
-import App, { ssr } from './app'
+import App, { invalidateCache, ssr } from './app'
 import type { State, ActionState } from './constants'
 import { navigate } from './constants'
 
@@ -46,7 +46,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 			})
 
 			const json = await response.json().catch(() => null) as
-				| { redirect?: string; error?: { status?: number; message?: string; fields?: Record<string, string[] | undefined> }; message?: string; fields?: Record<string, string[] | undefined> }
+				| { redirect?: string; topics?: string[]; error?: { status?: number; message?: string; fields?: Record<string, string[] | undefined> }; message?: string; fields?: Record<string, string[] | undefined> }
 				| null
 
 			if (!response.ok) {
@@ -59,6 +59,8 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 
 				return
 			}
+
+			invalidateCache(json?.topics)
 
 			if (json?.redirect) {
 				navigate(json.redirect)
@@ -110,30 +112,20 @@ if (import.meta.hot) {
 	const Memo = Symbol.for('ajo.memo')
 
 	type HMRElement = Element & {
-		[Generator]?: { [HMR]?: string }
+		[Generator]?: { [HMR]?: string } | null
 		[Iterator]?: unknown
 		[Memo]?: unknown
 	}
 
-	const clear = (el: HMRElement): void => {
-		delete el[Memo]
-		Array.from(el.children).forEach(clear)
-	}
-
 	const walk = (el: HMRElement, path?: string): void => {
-
-		if (el[Generator]?.[HMR] === path || (!path && el[Generator])) {
-			el[Iterator] = null
-			delete el[Generator]
-			clear(el)
-		}
-
+		if (el[Generator]?.[HMR] == path) el[Iterator] = el[Generator] = null
+		el[Memo] = null
 		Array.from(el.children).forEach(child => walk(child, path))
 	}
 
-	const root = document.getElementById('root')
+	const root = document.getElementById('root');
 
-	;(globalThis as { __HMR__?: (path?: string) => void }).__HMR__ = path => {
+	(globalThis as { __HMR__?: (path?: string) => void }).__HMR__ = path => {
 		if (root) walk(root, path)
 		dispatchEvent(new CustomEvent('hmr'))
 	}

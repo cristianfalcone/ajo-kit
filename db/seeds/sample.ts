@@ -276,7 +276,7 @@ export async function seed(db: Kysely<any>): Promise<void> {
 		[james, 'Hey Cristian, quick question about the API'],
 		[cristian, 'Sure, what\'s up?'],
 		[james, 'How should I document the SSE events?'],
-		[cristian, 'Good question. Check docs/data.md for the pattern'],
+		[cristian, 'Good question. Check ai/data.md for the pattern'],
 		[james, 'Oh perfect, that covers everything I need'],
 		[cristian, 'Let me know if anything is unclear'],
 		[james, 'Will do, thanks!'],

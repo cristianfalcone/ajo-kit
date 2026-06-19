@@ -58,7 +58,7 @@
   "dependencies": {
     "@polka/parse": ">=1.0.0-next.28",
     "@polka/send": ">=1.0.0-next.28",
-    "better-sqlite3": ">=12.0.0",
+    "better-sqlite3": ">=12.11.1",
     "dotenv": ">=17.0.0",
     "kysely": ">=0.28.0",
     "kysely-ctl": ">=0.20.0",
@@ -74,6 +74,7 @@
     "vite": ">=7.0.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13"
+    "@types/better-sqlite3": "^7.6.13",
+    "ajo": "link:../../../ajo"
   }
 }

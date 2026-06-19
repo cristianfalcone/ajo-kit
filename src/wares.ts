@@ -7,20 +7,20 @@ import { db } from '/src/data'
 configure(() => db())
 
 export default [
+	/*
+	function timing(_, res, next) {
 
-	// function timing(_, res, next) {
+		const t0 = Date.now()
+		const writeHead = res.writeHead
 
-	// 	const t0 = Date.now()
-	// 	const writeHead = res.writeHead
+		res.writeHead = function () {
+			res.setHeader('x-response-time', `${Date.now() - t0}ms`)
+			return writeHead.apply(this, arguments as any)
+		}
 
-	// 	res.writeHead = function () {
-	// 		res.setHeader('x-response-time', `${Date.now() - t0}ms`)
-	// 		return writeHead.apply(this, arguments as any)
-	// 	}
-
-	// 	next()
-	// },
-
+		next()
+	},
+	*/
 	session(),
 
 	csrf,
