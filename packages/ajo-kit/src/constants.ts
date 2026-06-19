@@ -3,6 +3,7 @@ import type { Params } from 'navaid'
 import type { Request, Response, Middleware } from 'polka'
 export type { Request, Response, Middleware }
 import type { Head } from './head'
+import type { RouteTiming } from './timing'
 
 // Route errors with HTTP status codes
 
@@ -180,6 +181,10 @@ declare module 'polka' {
 		action?: Action
 		topics?: Set<string>
 		track?: (topic: string | string[]) => void
+		timing?: RouteTiming
+		revalidate?: () => Promise<any[]>
+		head?: Head
+		entries?: Data
 	}
 }
 

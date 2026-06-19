@@ -70,6 +70,7 @@ await seed()
 await close()
 
 process.env.DATABASE_PATH = database
+process.env.AJO_TIMING = '1'
 
 await listen(await dev(), 5180)
 

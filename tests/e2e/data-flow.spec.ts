@@ -48,6 +48,10 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 	expect(users.status()).toBe(200)
 	expect(users.headers()['cache-control']).toBe('no-store')
 	expect(users.headers()['x-ajo-cache']).toBe('miss')
+	expect(users.headers()['server-timing']).toContain('total;dur=')
+	expect(users.headers()['server-timing']).toContain('loader;dur=')
+	expect(users.headers()['server-timing']).toContain('render;dur=')
+	expect(Number(users.headers()['x-ajo-bytes'])).toBeGreaterThan(0)
 	expect(users.headers().etag).toBeTruthy()
 
 	const body = await users.json()
@@ -76,6 +80,9 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 	expect(cachedUsers.status()).toBe(304)
 	expect(cachedUsers.headers()['cache-control']).toBe('no-store')
 	expect(cachedUsers.headers()['x-ajo-cache']).toBe('fresh')
+	expect(cachedUsers.headers()['server-timing']).toContain('total;dur=')
+	expect(cachedUsers.headers()['server-timing']).toContain('loader;dur=0')
+	expect(cachedUsers.headers()['x-ajo-bytes']).toBe('0')
 	expect(await cachedUsers.text()).toBe('')
 })
 

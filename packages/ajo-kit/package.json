@@ -53,6 +53,10 @@
     "./migrate": {
       "types": "./src/migrate.ts",
       "default": "./src/migrate.ts"
+    },
+    "./timing": {
+      "types": "./src/timing.ts",
+      "default": "./src/timing.ts"
     }
   },
   "dependencies": {
