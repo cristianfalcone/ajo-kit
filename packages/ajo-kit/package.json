@@ -10,10 +10,6 @@
       "types": "./src/constants.ts",
       "default": "./src/constants.ts"
     },
-    "./app": {
-      "types": "./src/app.tsx",
-      "default": "./src/app.tsx"
-    },
     "./server": {
       "types": "./src/server.tsx",
       "default": "./src/server.tsx"
@@ -45,14 +41,6 @@
     "./database": {
       "types": "./src/database.ts",
       "default": "./src/database.ts"
-    },
-    "./discover": {
-      "types": "./src/discover.ts",
-      "default": "./src/discover.ts"
-    },
-    "./migrate": {
-      "types": "./src/migrate.ts",
-      "default": "./src/migrate.ts"
     },
     "./timing": {
       "types": "./src/timing.ts",

@@ -4,8 +4,8 @@ import sade from 'sade'
 import type { Kysely } from 'kysely'
 import { pathToFileURL } from 'node:url'
 import { dev, build, start, listen } from 'ajo-kit/node'
-import { discover } from 'ajo-kit/discover'
 import { defaults } from 'ajo-kit/vite'
+import { discover } from '../src/discover.ts'
 
 // Status markers:
 
@@ -60,7 +60,7 @@ cli.command('migrate up')
 	.option('-d, --database', 'Database path', defaults.database)
 	.action(async (opts: { database: string }) => {
 		await database(opts.database, async (db) => {
-			const { migrator } = await import('ajo-kit/migrate')
+			const { migrator } = await import('../src/migrate.ts')
 			const { results, error } = await migrator(db()).migrateToLatest()
 			report(results, error, 'No pending migrations')
 		})
@@ -71,7 +71,7 @@ cli.command('migrate down')
 	.option('-d, --database', 'Database path', defaults.database)
 	.action(async (opts: { database: string }) => {
 		await database(opts.database, async (db) => {
-			const { migrator } = await import('ajo-kit/migrate')
+			const { migrator } = await import('../src/migrate.ts')
 			const { results, error } = await migrator(db()).migrateDown()
 			report(results, error, 'No migrations to rollback', ' (rolled back)')
 		})
@@ -82,7 +82,7 @@ cli.command('migrate status')
 	.option('-d, --database', 'Database path', defaults.database)
 	.action(async (opts: { database: string }) => {
 		await database(opts.database, async (db) => {
-			const { migrator } = await import('ajo-kit/migrate')
+			const { migrator } = await import('../src/migrate.ts')
 			const migrations = await migrator(db()).getMigrations()
 			for (const m of migrations) console.log(`${m.executedAt ? ok : pending} ${m.name}`)
 		})
