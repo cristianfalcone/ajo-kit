@@ -66,23 +66,19 @@ async function unreadMeta(chatId: number, userId: number) {
 		.where('messages.user', '!=', userId)
 
 	if (participant?.seen) {
-		query = query.where(sql`julianday(messages.created)`, '>', sql`julianday(${participant.seen})`)
+		query = query.where('messages.created', '>', participant.seen)
 	}
 
-	const [count, oldest] = await Promise.all([
-		query
-			.select(eb => eb.fn.countAll<number>().as('count'))
-			.executeTakeFirst(),
-		query
-			.select('messages.id')
-			.orderBy('messages.id', 'asc')
-			.limit(1)
-			.executeTakeFirst(),
-	])
+	const meta = await query
+		.select(eb => [
+			eb.fn.countAll<number>().as('count'),
+			eb.fn.min<number>('messages.id').as('oldest')
+		])
+		.executeTakeFirst()
 
 	return {
-		unreadCount: Number(count?.count ?? 0),
-		oldestUnreadId: oldest?.id ?? null
+		unreadCount: Number(meta?.count ?? 0),
+		oldestUnreadId: meta?.oldest ?? null
 	}
 }
 

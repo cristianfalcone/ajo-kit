@@ -31,7 +31,7 @@ const chats = (userId: number) => db()
 			.where('messages.user', '!=', userId)
 			.where((qb) => qb.or([
 				qb('participants.seen', 'is', null),
-				qb(sql`julianday(messages.created)`, '>', sql`julianday(participants.seen)`)
+				qb('messages.created', '>', qb.ref('participants.seen'))
 			]))
 			.select(eb.fn.countAll<number>().as('count'))
 			.as('unread'),

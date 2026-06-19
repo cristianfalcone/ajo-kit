@@ -1,5 +1,12 @@
-import { expect, test } from '@playwright/test'
-import { gotoReady, loginPage } from './helpers'
+import { expect, request as playwrightRequest, test } from '@playwright/test'
+import {
+	actionHeaders,
+	adminCredentials,
+	gotoReady,
+	loginPage,
+	loginRequest,
+	userCredentials,
+} from './helpers'
 
 test('chat room sends a message and streams it to another active participant', async ({ browser }) => {
 	const adminContext = await browser.newContext()
@@ -47,4 +54,58 @@ test('chat list starts a new group conversation from selected users', async ({ p
 	await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
 	await expect(page.getByText('3 participants')).toBeVisible()
 	await expect(page.getByText('No messages yet. Start the conversation!')).toBeVisible()
+})
+
+test('chat unread metadata tracks oldest unseen message and clears when seen', async ({ baseURL }) => {
+	const admin = await playwrightRequest.newContext({ baseURL })
+	const user = await playwrightRequest.newContext({ baseURL })
+
+	try {
+		await loginRequest(admin, baseURL!, adminCredentials)
+		await loginRequest(user, baseURL!, userCredentials)
+
+		const before = await user.get('/account/chats/1', {
+			headers: { Accept: 'application/json' },
+		})
+		const beforeData = (await before.json()).data.at(-1)
+
+		expect(beforeData.unreadCount).toBe(0)
+		expect(beforeData.oldestUnreadId).toBeNull()
+
+		const text = `Unread metadata ${Date.now()}`
+		const send = await admin.post('/account/chats/1?/send', {
+			headers: actionHeaders(baseURL!),
+			data: { text },
+		})
+
+		expect(send.status()).toBe(200)
+
+		const after = await user.get('/account/chats/1', {
+			headers: { Accept: 'application/json' },
+		})
+		const afterData = (await after.json()).data.at(-1)
+		const message = afterData.messages.find((entry: { text: string }) => entry.text === text)
+
+		expect(message?.id).toBeTruthy()
+		expect(afterData.unreadCount).toBe(1)
+		expect(afterData.oldestUnreadId).toBe(message.id)
+
+		const seen = await user.post('/account/chats/1?/markAsSeen', {
+			headers: actionHeaders(baseURL!),
+			data: {},
+		})
+
+		expect(seen.status()).toBe(200)
+
+		const cleared = await user.get('/account/chats/1', {
+			headers: { Accept: 'application/json' },
+		})
+		const clearedData = (await cleared.json()).data.at(-1)
+
+		expect(clearedData.unreadCount).toBe(0)
+		expect(clearedData.oldestUnreadId).toBeNull()
+	} finally {
+		await admin.dispose()
+		await user.dispose()
+	}
 })

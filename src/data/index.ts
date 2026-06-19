@@ -1,4 +1,4 @@
-import { connect, db as base, sql } from '@kit/database'
+import { connect, db as base } from '@kit/database'
 import type { DB } from './types'
 
 connect(process.env.DATABASE_PATH ?? './database.sqlite')
@@ -13,7 +13,7 @@ export const unread = (userId: number, excludeChatId?: number) => {
 		.where('messages.user', '!=', userId)
 		.where((eb) => eb.or([
 			eb('participants.seen', 'is', null),
-			eb(sql`julianday(messages.created)`, '>', sql`julianday(participants.seen)`)
+			eb('messages.created', '>', eb.ref('participants.seen'))
 		]))
 
 	if (excludeChatId) query = query.where('messages.chat', '!=', excludeChatId)
