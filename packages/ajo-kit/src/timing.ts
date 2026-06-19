@@ -20,8 +20,6 @@ export type TimingResult = RouteTiming & {
 	cache?: string
 }
 
-export const timingEnabled = active
-
 export const startRouteTiming = (): RouteTiming | undefined =>
 	active() ? { start: performance.now() } : undefined
 

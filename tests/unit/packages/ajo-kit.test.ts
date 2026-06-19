@@ -23,7 +23,7 @@ import { object, parse, string, minLength, pipe } from '../../../packages/ajo-ki
 import {
 	finishRouteTiming,
 	serverTiming,
-	timingEnabled,
+	startRouteTiming,
 	type TimingResult,
 } from '../../../packages/ajo-kit/src/timing'
 import { compile, listen } from '../../../packages/ajo-kit/src/node'
@@ -354,10 +354,10 @@ describe('ajo-kit timing and database', () => {
 
 	test('timing flag honors disabled values and formats Server-Timing', () => {
 		process.env.AJO_TIMING = '0'
-		expect(timingEnabled()).toBe(false)
+		expect(startRouteTiming()).toBeUndefined()
 
 		process.env.AJO_TIMING = '1'
-		expect(timingEnabled()).toBe(true)
+		expect(startRouteTiming()).toMatchObject({ start: expect.any(Number) })
 
 		const result: TimingResult = {
 			start: 0,
