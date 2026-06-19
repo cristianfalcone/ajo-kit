@@ -8,16 +8,6 @@ import { parseSSR } from './ssr'
 
 export { formArrayFields, formDataBody } from './form'
 
-type ActionSuccess = {
-	redirect?: string
-	topics?: string[]
-	versions?: Record<string, number>
-}
-
-const emitActionSuccess = (detail: ActionSuccess) => {
-	globalThis.dispatchEvent?.(new CustomEvent('ajo:action', { detail }))
-}
-
 // Action helper for stateful generator components
 
 export function action<T = unknown>(name?: string, init?: RequestInit): ActionState<T> {
@@ -82,7 +72,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 			}
 
 			state.data = (json ?? {}) as T
-			emitActionSuccess(json ?? {})
+			globalThis.dispatchEvent?.(new CustomEvent('ajo:action', { detail: json ?? {} }))
 
 			return state.data
 
