@@ -118,6 +118,12 @@ export const defaults = {
 	seeds: 'db/seeds',
 } as const
 
+const serverOnlyDefaults = (found: ReturnType<typeof discover>): Pattern[] => [
+	/(handler|wares)\.[jt]sx?$/,
+	/\/src\/data\//,
+	...found.filter(p => p.serverOnly).map(p => new RegExp(`${p.name}/`)),
+]
+
 export function kit(options?: KitOptions): Plugin[] {
 
 	const routeGlob = options?.routes ?? '/src/**/{layout,page}.{j,t}s{,x}'
@@ -166,11 +172,7 @@ export function kit(options?: KitOptions): Plugin[] {
 				}
 			}
 		},
-		serverOnly(options?.serverOnly ?? [
-			/(handler|wares)\.[jt]sx?$/,
-			/\/src\/data\//,
-			...found.filter(p => p.serverOnly).map(p => new RegExp(`${p.name}/`)),
-		]),
+		serverOnly([...serverOnlyDefaults(found), ...(options?.serverOnly ?? [])]),
 		hmr(/(page|layout)\.[jt]sx?$/),
 		native(['better-sqlite3', 'argon2']),
 	]

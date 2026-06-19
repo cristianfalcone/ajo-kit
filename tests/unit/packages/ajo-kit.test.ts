@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test } from 'vitest'
 import { close, connect } from '../../../packages/ajo-kit/src/database'
 import { merge, render } from '../../../packages/ajo-kit/src/head'
 import { formDataBody } from '../../../packages/ajo-kit/src/form'
+import { applyPatch } from '../../../packages/ajo-kit/src/patch'
 import {
 	CACHE_MAX,
 	CACHE_TTL,
@@ -17,6 +18,7 @@ import {
 import { parseSSR, renderSSRScript, serializeSSR } from '../../../packages/ajo-kit/src/ssr'
 import { AppError, InvalidError, ip, normalize, trustedOrigin } from '../../../packages/ajo-kit/src/constants'
 import type { State } from '../../../packages/ajo-kit/src/constants'
+import { kit } from '../../../packages/ajo-kit/src/vite'
 import { object, parse, string, minLength, pipe } from '../../../packages/ajo-kit/src/validate'
 import {
 	finishRouteTiming,
@@ -205,6 +207,20 @@ describe('ajo-kit client actions', () => {
 	})
 })
 
+describe('ajo-kit vite plugin', () => {
+	test('custom serverOnly patterns are added to defaults', async () => {
+		const plugin = kit({ serverOnly: [/custom-only/] }).find(plugin => plugin.name === 'ajo-server-only')!
+		const resolveId = plugin.resolveId as { handler: (source: string, importer?: string) => Promise<void> }
+		const context = {
+			environment: { name: 'client' },
+			resolve: async (source: string) => ({ id: source }),
+		}
+
+		await expect(resolveId.handler.call(context, '/project/src/data/store.ts', '/project/src/page.tsx')).rejects.toThrow('Server-only module')
+		await expect(resolveId.handler.call(context, '/project/custom-only/secret.ts', '/project/src/page.tsx')).rejects.toThrow('Server-only module')
+	})
+})
+
 describe('ajo-kit SSR payload', () => {
 	test('serializeSSR is safe inside script tags and round-trips values', () => {
 		const value = {
@@ -246,6 +262,31 @@ describe('ajo-kit SSR payload', () => {
 		expect(script).toContain('type="application/json"')
 		expect(script).toContain('id="__SSR__"')
 		expect(script).not.toContain('globalThis.__SSR__')
+	})
+
+})
+
+describe('ajo-kit JSON patches', () => {
+	test('applyPatch unescapes JSON pointer object keys', () => {
+		const value = {
+			'tilde~key': {
+				'slash/key': 'old',
+			},
+			list: ['a'],
+		}
+
+		applyPatch(value, [
+			{ op: 'replace', path: '/tilde~0key/slash~1key', value: 'new' },
+			{ op: 'add', path: '/list/-', value: 'b' },
+			{ op: 'remove', path: '/list/0' },
+		])
+
+		expect(value).toEqual({
+			'tilde~key': {
+				'slash/key': 'new',
+			},
+			list: ['b'],
+		})
 	})
 })
 

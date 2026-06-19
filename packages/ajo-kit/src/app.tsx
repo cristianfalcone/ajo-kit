@@ -12,6 +12,7 @@ import type {
 } from './constants'
 import { apply, type Head } from './head'
 import { getCache, setCache } from './cache'
+import { applyPatch } from './patch'
 import { routes } from 'virtual:ajo/routes'
 
 export { cache, clearCache, invalidateCache } from './cache'
@@ -186,50 +187,6 @@ async function load(url: string): Promise<ServerLoad> {
 	}
 }
 
-function applyPatch(obj: any, patches: any[]) {
-	for (const { op, path, value } of patches) {
-
-		if (path === '/') {
-
-			if (Array.isArray(obj) && Array.isArray(value)) {
-				obj.length = 0
-				obj.push(...value)
-			} else {
-				Object.keys(obj).forEach(k => delete obj[k])
-				Object.assign(obj, value)
-			}
-
-			continue
-		}
-
-		const keys = path.split('/').filter(Boolean)
-		const last = keys.pop()!
-
-		let target = obj
-
-		for (const key of keys) target = target[key]
-
-		if (op === 'replace') {
-
-			target[last] = value
-
-		} else if (op === 'add') {
-
-			if (Array.isArray(target)) {
-				if (last === '-') target.push(value)
-				else target.splice(Number(last), 0, value)
-			} else {
-				target[last] = value
-			}
-
-		} else if (op === 'remove') {
-
-			if (Array.isArray(target)) target.splice(Number(last), 1)
-			else delete target[last]
-		}
-	}
-}
-
 // Resolve page: async generator yielding loading then data states
 
 export async function* resolve(
@@ -299,7 +256,6 @@ export async function* resolve(
 		hash: server.hash,
 		topics: server.topics,
 		versions: server.versions,
-		rawServerData: [server.head, ...server.data]
 	}
 
 	if (state.hash) setCache(url, state)
@@ -318,7 +274,9 @@ type LiveMessage = {
 	versions?: Record<string, number>
 }
 
-type LiveStatus = 'closed' | 'connecting' | 'open' | 'reconnecting'
+type RawData = [Head | undefined, ...Data]
+
+type LiveStatus = 'closed' | 'connecting' | 'open'
 
 type ActionDetail = {
 	topics?: string[]
@@ -328,56 +286,36 @@ type ActionDetail = {
 function stream(onPatch: (message: LiveMessage) => void, onStatus?: (status: LiveStatus) => void) {
 
 	let source: EventSource | null = null
-	let retry: ReturnType<typeof setTimeout> | null = null
-	let retries = 0
 
 	const status = (value: LiveStatus) => onStatus?.(value)
 
 	const connect = (path: string) => {
 
 		source?.close()
-		if (retry) clearTimeout(retry)
-		retry = null
 
 		if ((globalThis as { __AJO_DISABLE_SSE__?: boolean }).__AJO_DISABLE_SSE__) {
 			status('closed')
 			return
 		}
 
-		status(retries > 0 ? 'reconnecting' : 'connecting')
+		status('connecting')
 
 		source = new EventSource(path)
 
-		source.onopen = () => {
-			retries = 0
-			status('open')
-		}
+		source.onopen = () => status('open')
 
 		source.onmessage = event => {
-			if (event.data === ':hb') return
 			const data = JSON.parse(event.data)
 			const message = Array.isArray(data) ? { patches: data } : data as LiveMessage
 			if (message.patches?.length) onPatch(message)
 		}
 
-		source.onerror = () => {
-			source?.close()
-			retries++
-			if (retries > 10) {
-				status('closed')
-				return
-			}
-			status('reconnecting')
-			retry = setTimeout(() => connect(path), Math.min(1000 * 2 ** retries, 30000))
-		}
+		source.onerror = () => status('connecting')
 	}
 
 	const close = () => {
 		source?.close()
-		if (retry) clearTimeout(retry)
-		retry = null
 		source = null
-		retries = 0
 		status('closed')
 	}
 
@@ -392,6 +330,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	let hmr = false
 	let activeState: State | null = null
+	let activeRawData: RawData | null = null
 	let activeRecompose: (() => Component) | null = null
 	let activePage: Page | null = null
 	let actionRefresh: ReturnType<typeof setTimeout> | null = null
@@ -401,12 +340,12 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	const sse = stream(message => {
 
-		if (!activeState || !activeState.rawServerData || message.patches.length === 0) return
+		if (!activeState || !activeRawData || message.patches.length === 0) return
 		patchGeneration++
 
-		applyPatch(activeState.rawServerData, message.patches)
+		applyPatch(activeRawData, message.patches)
 
-		const [head, ...entries] = activeState.rawServerData
+		const [head, ...entries] = activeRawData
 
 		activeState.data = entries
 		activeState.hash = message.hash ?? activeState.hash
@@ -444,10 +383,9 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 				if (state && !state.loading) {
 
 					activeState = state
+					activeRawData = [state.head, ...state.data]
 					activeRecompose = recompose ?? null
 					activePage = target
-
-					if (!activeState.rawServerData) activeState.rawServerData = [state.head, ...state.data]
 				}
 			}
 
@@ -495,6 +433,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 			state.data = []
 			state.error = server.error
 			state.loading = false
+			activeRawData = [state.head, ...state.data]
 		} else {
 			state.data = server.data
 			state.error = undefined
@@ -502,7 +441,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 			state.hash = server.hash
 			state.topics = server.topics
 			state.versions = server.versions
-			state.rawServerData = [server.head, ...server.data]
+			activeRawData = [server.head, ...server.data]
 
 			if (server.head) apply(server.head)
 			if (state.hash) setCache(state.url, state)

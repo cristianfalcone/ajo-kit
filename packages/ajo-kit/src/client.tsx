@@ -18,14 +18,6 @@ const emitActionSuccess = (detail: ActionSuccess) => {
 	globalThis.dispatchEvent?.(new CustomEvent('ajo:action', { detail }))
 }
 
-const parseBootState = (value: string) => {
-	try {
-		return parseSSR<State>(value)
-	} catch {
-		return JSON.parse(value) as State
-	}
-}
-
 // Action helper for stateful generator components
 
 export function action<T = unknown>(name?: string, init?: RequestInit): ActionState<T> {
@@ -123,8 +115,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 
 if (!import.meta.env.SSR) {
 	const script = globalThis.document?.getElementById('__SSR__')
-	const packed = script?.textContent ?? (globalThis as { __SSR__?: string }).__SSR__
-	const data = packed ? parseBootState(packed) : null
+	const data = script?.textContent ? parseSSR<State>(script.textContent) : null
 	if (data) ssr.set(data.url, data)
 }
 

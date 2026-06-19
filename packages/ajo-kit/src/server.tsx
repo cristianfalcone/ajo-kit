@@ -24,6 +24,8 @@ const emitted = new AsyncLocalStorage<Set<string>>()
 
 const payload = (head: Head, entries: Data) => ({ data: entries, head })
 
+const digest = (head: Head, entries: Data) => routeHash(JSON.stringify(payload(head, entries)))
+
 const metadata = (topics: Set<string>) => {
 	const list = [...topics].sort()
 	return { topics: list, versions: versionsFor(list) }
@@ -77,7 +79,7 @@ const writeFresh = (req: Request, res: Response, hash?: string, early = false) =
 	res.end()
 }
 
-export function diff(a: any, b: any, path = ''): any[] {
+function diff(a: any, b: any, path = ''): any[] {
 
 	if (a === b) return []
 
@@ -158,7 +160,7 @@ export function diff(a: any, b: any, path = ''): any[] {
 	return patches
 }
 
-export type LiveConnection = {
+type LiveConnection = {
 	req: Request
 	topics: Set<string>
 	hash: string
@@ -169,7 +171,7 @@ export type LiveConnection = {
 	close: () => void
 }
 
-export const liveConnections = new Set<LiveConnection>()
+const liveConnections = new Set<LiveConnection>()
 
 const pendingTopics = new Set<string>()
 
@@ -284,16 +286,16 @@ const revalidateConnection = async (conn: LiveConnection) => {
 		const newData = await conn.revalidate()
 		conn.topics = conn.req.topics ?? new Set<string>()
 		const [head, ...entries] = newData as [Head, ...Data]
-		const digest = routeHash(JSON.stringify(payload(head, entries)))
+		const hash = digest(head, entries)
 
-		if (digest === conn.hash) return
+		if (hash === conn.hash) return
 
 		const patches = diff(conn.lastData, newData)
 
-		conn.hash = digest
+		conn.hash = hash
 		conn.lastData = clone(newData)
 
-		if (patches.length > 0) conn.send({ patches, hash: digest, ...metadata(conn.topics) })
+		if (patches.length > 0) conn.send({ patches, hash, ...metadata(conn.topics) })
 
 	} catch (err) {
 		console.error('[SSE] Live update failed:', err)
@@ -445,12 +447,12 @@ export async function create(template: Template) {
 
 		const head = (req.head ?? {}) as Head
 		const entries = (req.entries ?? []) as Data
-		const digest = routeHash(JSON.stringify(payload(head, entries)))
+		const hash = digest(head, entries)
 
 		const conn: LiveConnection = {
 			req,
 			topics: req.topics ?? new Set<string>(),
-			hash: digest,
+			hash,
 			lastData: clone([head, ...entries]),
 			verify: req.verifyLive,
 			revalidate: req.revalidate!,
@@ -498,21 +500,21 @@ export async function create(template: Template) {
 			}
 
 			const body = payload(head, entries)
-			const digest = routeHash(JSON.stringify(body))
-			const match = req.headers['x-have'] === digest || req.headers['if-none-match'] === `"${digest}"`
+			const hash = digest(head, entries)
+			const match = req.headers['x-have'] === hash || req.headers['if-none-match'] === `"${hash}"`
 			const meta = metadata(req.topics ?? new Set<string>())
 
-			res.setHeader('ETag', `"${digest}"`)
+			res.setHeader('ETag', `"${hash}"`)
 
 			if (match) {
 				if (req.timing) req.timing.render = elapsed(renderStart)
-				writeFresh(req, res, digest)
+				writeFresh(req, res, hash)
 				return
 			}
 
 			res.setHeader('X-Ajo-Cache', 'miss')
 
-			const response = JSON.stringify({ ...body, hash: digest, ...meta })
+			const response = JSON.stringify({ ...body, hash, ...meta })
 
 			if (req.timing) req.timing.render = elapsed(renderStart)
 			finishTiming(req, res, 200, byteLength(response), 'miss')
@@ -524,16 +526,15 @@ export async function create(template: Template) {
 
 		for await (const r of resolve(req.originalUrl, layouts, page, entries, error)) resolved = r
 
-		const digest = error ? undefined : routeHash(JSON.stringify(payload(head, entries)))
+		const hash = error ? undefined : digest(head, entries)
 		const meta = metadata(req.topics ?? new Set<string>())
 		const status = resolved?.state?.error?.status ?? error?.status ?? 200
 		const state = {
 			...resolved!.state,
 			error: resolved!.state?.error?.toJSON?.() ?? resolved!.state?.error,
 			head,
-			hash: digest,
+			hash,
 			...meta,
-			rawServerData: [head, ...entries],
 		}
 		const body = template({
 			head: renderHead(head as Head),

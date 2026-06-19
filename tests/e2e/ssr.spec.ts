@@ -21,6 +21,7 @@ test('SSR HTML uses no-store headers and a non-executable boot data script', asy
 
 	expect(html).toContain('<script type="application/json" id="__SSR__">')
 	expect(html).not.toContain('globalThis.__SSR__')
+	expect(html).not.toContain('rawServerData')
 })
 
 test('SSR boot payload keeps script-breaking user data inert', async ({ page }) => {

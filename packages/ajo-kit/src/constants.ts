@@ -96,7 +96,6 @@ export type Context = {
 
 export type Module = {
 	default: Component
-	handler?: (context: Context, parent: Parent) => Promise<Entry>
 	head?: (context: Context, parent: Parent) => Promise<Head>
 	defer?: boolean
 }
@@ -120,7 +119,6 @@ export interface State {
 	hash?: string
 	topics?: string[]
 	versions?: Record<string, number>
-	rawServerData?: [Head | undefined, ...Data]
 }
 
 // Form actions
