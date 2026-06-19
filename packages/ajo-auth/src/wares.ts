@@ -13,7 +13,7 @@ async function resolve(userId: number) {
 
 	const user = await db()
 		.selectFrom('users')
-		.select(['id', 'name', 'email'])
+		.select(['id', 'name', 'email', 'verified'])
 		.where('id', '=', userId)
 		.executeTakeFirst()
 
