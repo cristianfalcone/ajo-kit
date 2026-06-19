@@ -68,6 +68,10 @@ export class InvalidError extends AppError {
 const production = () => process.env.NODE_ENV === 'production'
 const errorMessage = (status: number, message: string) =>
 	production() && status >= 500 ? 'Internal Server Error' : message
+const productionConfigError = (message: string) => {
+	if (production()) console.error(`[security] ${message}`)
+	return new AppError(500, message)
+}
 
 export function normalize(error: unknown): AppError {
 	if (error instanceof AppError) return error
@@ -210,12 +214,12 @@ export const trustedOrigin = (req: Request) => {
 			if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error()
 			return url.origin
 		} catch {
-			throw new AppError(500, 'Invalid APP_URL')
+			throw productionConfigError('Invalid APP_URL')
 		}
 	}
 
-	if (process.env.NODE_ENV === 'production') {
-		throw new AppError(500, 'APP_URL is required in production')
+	if (production()) {
+		throw productionConfigError('APP_URL is required in production')
 	}
 
 	const host = req.headers.host

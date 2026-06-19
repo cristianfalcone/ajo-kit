@@ -47,6 +47,7 @@ afterEach(async () => {
 	restoreEnv('TRUST_PROXY', previousTrustProxy)
 	restoreEnv('NODE_ENV', previousNodeEnv)
 	restoreEnv('DATABASE_PATH', previousDatabasePath)
+	vi.restoreAllMocks()
 	vi.unstubAllGlobals()
 	clearCache()
 	await close()
@@ -178,10 +179,19 @@ describe('ajo-kit request security helpers', () => {
 
 		delete process.env.APP_URL
 		process.env.NODE_ENV = 'production'
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+
 		expect(() => trustedOrigin(req)).toThrow('APP_URL is required in production')
+		expect(log).toHaveBeenCalledWith('[security] APP_URL is required in production')
+
+		log.mockClear()
+		process.env.APP_URL = 'ftp://app.test'
+		expect(() => trustedOrigin(req)).toThrow('Invalid APP_URL')
+		expect(log).toHaveBeenCalledWith('[security] Invalid APP_URL')
 
 		process.env.NODE_ENV = 'development'
 		process.env.TRUST_PROXY = '1'
+		delete process.env.APP_URL
 		expect(trustedOrigin({ headers: { host: 'local.test', 'x-forwarded-proto': 'https' } } as any)).toBe('https://local.test')
 	})
 })

@@ -162,6 +162,7 @@ function diff(a: any, b: any, path = ''): any[] {
 
 type LiveConnection = {
 	req: Request
+	auth: 'anonymous' | 'bearer' | 'session' | 'user'
 	topics: Set<string>
 	hash: string
 	lastData: any[]
@@ -178,6 +179,13 @@ const pendingTopics = new Set<string>()
 let debounceTimeout: NodeJS.Timeout | null = null
 
 const sseConcurrency = 4
+
+const liveAuth = (req: Request): LiveConnection['auth'] => {
+	if (req.token) return 'bearer'
+	if (req.session) return 'session'
+	if (req.user) return 'user'
+	return 'anonymous'
+}
 
 const hasTopic = (conn: LiveConnection, topics: Set<string>) => {
 	for (const topic of topics) {
@@ -268,7 +276,15 @@ const forEachConcurrent = async <T,>(items: T[], limit: number, run: (item: T) =
 	await Promise.all(workers)
 }
 
-const closeConnection = (conn: LiveConnection) => {
+const closeConnection = (conn: LiveConnection, reason?: string) => {
+	if (reason) {
+		console.warn('[SSE] Closing live connection:', {
+			reason,
+			path: conn.req.path,
+			auth: conn.auth,
+		})
+	}
+
 	liveConnections.delete(conn)
 	conn.close()
 }
@@ -278,7 +294,7 @@ const revalidateConnection = async (conn: LiveConnection) => {
 		if (!liveConnections.has(conn)) return
 
 		if (conn.verify && !await conn.verify()) {
-			closeConnection(conn)
+			closeConnection(conn, 'credential revalidation failed')
 			return
 		}
 
@@ -451,6 +467,7 @@ export async function create(template: Template) {
 
 		const conn: LiveConnection = {
 			req,
+			auth: liveAuth(req),
 			topics: req.topics ?? new Set<string>(),
 			hash,
 			lastData: clone([head, ...entries]),
