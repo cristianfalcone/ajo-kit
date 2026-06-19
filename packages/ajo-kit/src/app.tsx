@@ -319,7 +319,6 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	let hmr = false
 	let activeState: State | null = null
-	let activePage: Page | null = null
 	let actionRefresh: ReturnType<typeof setTimeout> | null = null
 	let generation = 0
 	let liveGeneration = 0
@@ -365,9 +364,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 				if (state?.head) apply(state.head)
 
 				if (state && !state.loading) {
-
 					activeState = state
-					activePage = target
 				}
 			}
 
@@ -398,7 +395,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	}
 
 	const refreshActiveRoute = async () => {
-		if (!activeState || !activePage) return
+		if (!activeState) return
 
 		const gen = generation
 		const state = activeState
@@ -432,7 +429,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	const refreshAfterAction = (topics?: string[]) => {
 
-		if (!topics?.length || !activeState?.topics?.length || !activePage) return
+		if (!topics?.length || !activeState?.topics?.length) return
 
 		const changed = new Set(topics)
 
@@ -445,7 +442,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		actionRefresh = setTimeout(() => {
 			actionRefresh = null
-			if (liveGeneration !== seen || !activePage) return
+			if (liveGeneration !== seen) return
 			void refreshActiveRoute()
 		}, delay)
 	}
