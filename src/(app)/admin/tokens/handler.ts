@@ -1,6 +1,7 @@
 import type { Request } from '@kit'
 import { object, string } from '@kit/validate'
 import { db } from '/src/data'
+import { pageInfo, pageRows, paginate } from '/src/data/pagination'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
 
@@ -8,6 +9,7 @@ const Revoke = object({ id: string() })
 
 export async function page(req: Request) {
 	req.track?.('admin:tokens')
+	const pagination = paginate(req)
 
 	const tokens = await db()
 		.selectFrom('tokens')
@@ -23,14 +25,18 @@ export async function page(req: Request) {
 			'users.email'
 		])
 		.orderBy('tokens.created', 'desc')
+		.limit(pagination.size + 1)
+		.offset(pagination.offset)
 		.execute()
+	const rows = pageRows(pagination, tokens)
 
 	return {
-		tokens: tokens.map(t => ({
+		tokens: rows.map(t => ({
 			...t,
 			id: t.id.slice(-4),
 			abilities: JSON.parse(t.abilities)
-		}))
+		})),
+		page: pageInfo(req, pagination, tokens),
 	}
 }
 export const actions = {

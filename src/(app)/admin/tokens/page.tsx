@@ -1,6 +1,7 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, formatDate } from '@kit'
 import { action } from '@kit/client'
+import Pager from '/src/ui/pager'
 
 type Token = {
 	id: string
@@ -13,7 +14,8 @@ type Token = {
 	email: string
 }
 
-type Data = { tokens: Token[] }
+type PageInfo = Parameters<typeof Pager>[0]['page']
+type Data = { tokens: Token[]; page: PageInfo }
 type FormResult = { revoked: boolean }
 
 const Tokens: Stateful<PageArgs<Data>> = function* (args) {
@@ -28,7 +30,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 			<div class="space-y-6">
 				<div class="flex items-center justify-between">
 					<h2 class="text-lg font-semibold text-slate-900 dark:text-white">API Tokens</h2>
-					<span class="text-sm text-slate-500 dark:text-slate-400">{tokens.length} total</span>
+					<span class="text-sm text-slate-500 dark:text-slate-400">{tokens.length} shown</span>
 				</div>
 
 				{tokens.length === 0 ? (
@@ -84,6 +86,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 								))}
 							</tbody>
 						</table>
+						{args.data?.page && <Pager page={args.data.page} count={tokens.length} label="tokens" />}
 					</div>
 				)}
 			</div>

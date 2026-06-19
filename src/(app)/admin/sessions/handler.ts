@@ -1,6 +1,7 @@
 import type { Request } from '@kit'
 import { object, string, pipe, transform, number } from '@kit/validate'
 import { db } from '/src/data'
+import { pageInfo, pageRows, paginate } from '/src/data/pagination'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
 
@@ -9,6 +10,7 @@ const RevokeUser = object({ user: pipe(string(), transform(v => Number(v)), numb
 
 export async function page(req: Request) {
 	req.track?.('admin:sessions')
+	const pagination = paginate(req)
 
 	const sessions = await db()
 		.selectFrom('sessions')
@@ -25,13 +27,17 @@ export async function page(req: Request) {
 			'users.email'
 		])
 		.orderBy('sessions.created', 'desc')
+		.limit(pagination.size + 1)
+		.offset(pagination.offset)
 		.execute()
+	const rows = pageRows(pagination, sessions)
 
 	return {
-		sessions: sessions.map(s => ({
+		sessions: rows.map(s => ({
 			...s,
 			id: s.id.slice(0, 8)
-		}))
+		})),
+		page: pageInfo(req, pagination, sessions),
 	}
 }
 

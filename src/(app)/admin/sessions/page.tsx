@@ -1,6 +1,7 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, formatDate } from '@kit'
 import { action } from '@kit/client'
+import Pager from '/src/ui/pager'
 
 type Session = {
 	id: string
@@ -14,7 +15,8 @@ type Session = {
 	email: string
 }
 
-type Data = { sessions: Session[] }
+type PageInfo = Parameters<typeof Pager>[0]['page']
+type Data = { sessions: Session[]; page: PageInfo }
 type FormResult = { revoked: boolean | number }
 
 const dateTime = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } as const
@@ -48,7 +50,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 			<div class="space-y-6">
 				<div class="flex items-center justify-between">
 					<h2 class="text-lg font-semibold text-slate-900 dark:text-white">Sessions</h2>
-					<span class="text-sm text-slate-500 dark:text-slate-400">{sessions.length} active</span>
+					<span class="text-sm text-slate-500 dark:text-slate-400">{sessions.length} shown</span>
 				</div>
 
 				<div class="glass ring-0 rounded-lg overflow-hidden">
@@ -108,6 +110,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 							))}
 						</tbody>
 					</table>
+					{args.data?.page && <Pager page={args.data.page} count={sessions.length} label="sessions" />}
 				</div>
 			</div>
 		)

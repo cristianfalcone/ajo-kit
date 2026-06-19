@@ -1,4 +1,5 @@
 import { type PageArgs, formatDate } from '@kit'
+import Pager from '/src/ui/pager'
 
 type User = {
 	id: number
@@ -9,7 +10,8 @@ type User = {
 	role: string | null
 }
 
-type Data = { users: User[] }
+type PageInfo = Parameters<typeof Pager>[0]['page']
+type Data = { users: User[]; page: PageInfo }
 
 export default function Users({ data }: PageArgs<Data>) {
 
@@ -19,7 +21,7 @@ export default function Users({ data }: PageArgs<Data>) {
 		<div class="space-y-6">
 			<div class="flex items-center justify-between">
 				<h2 class="text-lg font-semibold text-slate-900 dark:text-white">Users</h2>
-				<span class="text-sm text-slate-500 dark:text-slate-400">{users.length} total</span>
+				<span class="text-sm text-slate-500 dark:text-slate-400">{users.length} shown</span>
 			</div>
 
 			<div class="glass ring-0 rounded-lg overflow-hidden">
@@ -62,6 +64,7 @@ export default function Users({ data }: PageArgs<Data>) {
 						))}
 					</tbody>
 				</table>
+				{data?.page && <Pager page={data.page} count={users.length} label="users" />}
 			</div>
 		</div>
 	)
