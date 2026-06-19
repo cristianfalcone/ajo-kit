@@ -1,10 +1,11 @@
 import { render } from 'ajo'
 import { current } from 'ajo/context'
-import App, { invalidateCache, setInitialState } from './app'
+import App, { setInitialState } from './app'
 import type { State, ActionState } from './constants'
 import { navigate } from './constants'
 import { formArrayFields, formDataBody } from './form'
 import { parseSSR } from './ssr'
+import { invalidateCache } from './cache'
 
 export { formArrayFields, formDataBody } from './form'
 

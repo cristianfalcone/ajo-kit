@@ -15,8 +15,6 @@ import { apply, type Head } from './head'
 import { getCache, setCache } from './cache'
 import { routes } from 'virtual:ajo/routes'
 
-export { cache, clearCache, invalidateCache } from './cache'
-
 // Pattern compilation
 
 const reGroup = /^\(.*\)$/

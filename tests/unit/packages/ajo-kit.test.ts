@@ -10,7 +10,6 @@ import { formDataBody } from '../../../packages/ajo-kit/src/form'
 import {
 	CACHE_MAX,
 	CACHE_TTL,
-	cache,
 	clearCache,
 	getCache,
 	invalidateCache,
@@ -295,7 +294,6 @@ describe('ajo-kit route cache', () => {
 
 		expect(getCache('/old', CACHE_TTL)).toBeTruthy()
 		expect(getCache('/old', CACHE_TTL + 1)).toBeUndefined()
-		expect(cache.has('/old')).toBe(false)
 	})
 
 	test('setCache prunes least recently used inactive entries', () => {
@@ -305,10 +303,9 @@ describe('ajo-kit route cache', () => {
 		setCache('/active', state('/active'), { activeUrl: '/active', now: CACHE_MAX + 2 })
 		setCache('/extra', state('/extra'), { activeUrl: '/active', now: CACHE_MAX + 3 })
 
-		expect(cache.has('/active')).toBe(true)
-		expect(cache.has('/page-0')).toBe(true)
-		expect(cache.size).toBeLessThanOrEqual(CACHE_MAX)
-		expect(cache.has('/page-1')).toBe(false)
+		expect(getCache('/active', CACHE_MAX + 3)).toBeTruthy()
+		expect(getCache('/page-0', CACHE_MAX + 3)).toBeTruthy()
+		expect(getCache('/page-1', CACHE_MAX + 3)).toBeUndefined()
 	})
 
 	test('invalidateCache removes only matching topic entries', () => {
@@ -317,8 +314,8 @@ describe('ajo-kit route cache', () => {
 
 		invalidateCache(['tokens:1'])
 
-		expect(cache.has('/tokens')).toBe(false)
-		expect(cache.has('/sessions')).toBe(true)
+		expect(getCache('/tokens')).toBeUndefined()
+		expect(getCache('/sessions')).toBeTruthy()
 	})
 })
 

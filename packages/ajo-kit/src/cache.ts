@@ -8,7 +8,7 @@ type Meta = {
 	lastUsed: number
 }
 
-export const cache = new Map<string, State>()
+const cache = new Map<string, State>()
 
 const meta = new Map<string, Meta>()
 
@@ -40,7 +40,7 @@ export const getCache = (url: string, time = now()) => {
 	return state
 }
 
-export const pruneCache = (activeUrl?: string, time = now()) => {
+const pruneCache = (activeUrl?: string, time = now()) => {
 	for (const [url, info] of meta) {
 		if (url !== activeUrl && time - info.cachedAt > CACHE_TTL) remove(url)
 	}
