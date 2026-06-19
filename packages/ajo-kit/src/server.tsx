@@ -1,5 +1,5 @@
 import { render as html } from 'ajo/html'
-import type { Component } from 'ajo'
+import { h as createElement, type Component } from 'ajo'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import polka from 'polka'
 import type { Request, Response, Middleware } from 'polka'
@@ -350,7 +350,7 @@ export async function create(template: Template) {
 			template({
 				head: renderHead(head as Head),
 				data: `<script>globalThis.__SSR__=${JSON.stringify(JSON.stringify({ ...resolved!.state, head, hash: digest, ...meta, rawServerData: [head, ...entries] }))}</script>`,
-				root: html(<App page={resolved!.page} />),
+				root: html(createElement(App, { page: resolved!.page })),
 			}),
 			{ 'Content-Type': 'text/html' }
 		)

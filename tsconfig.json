@@ -19,13 +19,12 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    "baseUrl": ".",
     "paths": {
-      "/src/*": ["src/*"],
-      "@kit": ["packages/ajo-kit/src/constants.ts"],
-      "@kit/auth": ["packages/ajo-auth/src/index.ts"],
-      "@kit/auth/*": ["packages/ajo-auth/src/*"],
-      "@kit/*": ["packages/ajo-kit/src/*"],
+      "/src/*": ["./src/*"],
+      "@kit": ["./packages/ajo-kit/src/constants.ts"],
+      "@kit/auth": ["./packages/ajo-auth/src/index.ts"],
+      "@kit/auth/*": ["./packages/ajo-auth/src/*"],
+      "@kit/*": ["./packages/ajo-kit/src/*"],
     },
   },
 }

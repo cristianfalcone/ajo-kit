@@ -19,11 +19,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    "baseUrl": ".",
     "paths": {
-      "/src/*": ["src/*"],
-      "@kit": ["node_modules/ajo-kit/src/constants.ts"],
-      "@kit/*": ["node_modules/ajo-kit/src/*"]
+      "/src/*": ["./src/*"],
+      "@kit": ["./node_modules/ajo-kit/src/constants.ts"],
+      "@kit/*": ["./node_modules/ajo-kit/src/*"]
     }
   }
 }

@@ -177,6 +177,7 @@ export function kit(options?: KitOptions): Plugin[] {
 }
 
 export const jsx = {
+	jsx: 'transform',
 	jsxFactory: 'h',
 	jsxFragment: 'Fragment',
 	jsxInject: `import { h, Fragment } from 'ajo'`,

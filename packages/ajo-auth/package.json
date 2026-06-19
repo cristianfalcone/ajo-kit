@@ -12,7 +12,7 @@
     "./*":  { "types": "./src/*.ts", "default": "./src/*.ts" }
   },
   "dependencies": {
-    "argon2": ">=0.40.0"
+    "argon2": "^0.44.0"
   },
   "devDependencies": {
     "ajo-kit": "workspace:*"

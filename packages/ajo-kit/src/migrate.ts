@@ -1,4 +1,5 @@
-import { Migrator, type Kysely } from 'kysely'
+import type { Kysely } from 'kysely'
+import { Migrator } from 'kysely/migration'
 import { TSFileMigrationProvider } from 'kysely-ctl'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
