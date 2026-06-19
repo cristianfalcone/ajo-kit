@@ -1,13 +1,15 @@
 import { mkdtempSync, rmSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { read, write, clear as clearCookie } from '../../../packages/ajo-auth/src/cookie'
 import { set as setCsrf, verify as verifyCsrf } from '../../../packages/ajo-auth/src/csrf'
 import { check as checkLimit, clear as clearLimit, hit, remaining } from '../../../packages/ajo-auth/src/limit'
-import { stamp, check as checkConfirm, clear as clearConfirm } from '../../../packages/ajo-auth/src/confirm'
+import { stamp, check as checkConfirm, clear as clearConfirm, clearUser as clearConfirmUser } from '../../../packages/ajo-auth/src/confirm'
+import { session as authSession } from '../../../packages/ajo-auth/src/wares'
 import { sign, url, validate } from '../../../packages/ajo-auth/src/verify'
-import { can, canAll } from '../../../packages/ajo-auth/src/token'
+import { can, canAll, create as createToken } from '../../../packages/ajo-auth/src/token'
 import { create as createSession, hash as hashSession, remove as removeSession, validate as validateSession } from '../../../packages/ajo-auth/src/session'
 import { configure } from '../../../packages/ajo-auth/src/store'
 import { close, connect, db } from '../../../packages/ajo-kit/src/database'
@@ -152,6 +154,15 @@ describe('ajo-auth session storage', () => {
 			.addColumn('agent', 'text')
 			.addColumn('last', 'text')
 			.execute()
+		await db<any>().schema
+			.createTable('tokens')
+			.addColumn('id', 'text', column => column.primaryKey())
+			.addColumn('user', 'integer')
+			.addColumn('name', 'text')
+			.addColumn('abilities', 'text')
+			.addColumn('last', 'text')
+			.addColumn('expiry', 'text')
+			.execute()
 	})
 
 	afterEach(async () => {
@@ -188,6 +199,52 @@ describe('ajo-auth session storage', () => {
 		await removeSession(plain)
 		await expect(validateSession(plain)).resolves.toBeNull()
 	})
+
+	test('auth middleware exposes validated credential ids', async () => {
+		const user = await db<any>()
+			.insertInto('users')
+			.values({
+				name: 'Credential User',
+				email: 'credential@example.com',
+				password: null,
+			})
+			.returning('id')
+			.executeTakeFirstOrThrow()
+		const find = async (id: number) => ({ id, name: 'Credential User', email: 'credential@example.com', verified: null, roles: [] })
+		const middleware = authSession(find)
+		const res = { setHeader: vi.fn() }
+
+		const plainSession = await createSession(user.id)
+		const sessionReq = {
+			path: '/dashboard',
+			headers: { cookie: `session=${plainSession}` },
+		} as any
+		let sessionNext = false
+
+		await middleware(sessionReq, res as any, (() => { sessionNext = true }) as any)
+
+		expect(sessionNext).toBe(true)
+		expect(sessionReq.user.id).toBe(user.id)
+		expect(sessionReq.session.id).toBe(hashSession(plainSession))
+
+		const plainToken = await createToken(user.id, 'Unit API', ['tokens:read'])
+		const tokenId = createHash('sha256').update(plainToken).digest('hex')
+		const apiReq = {
+			path: '/api/me',
+			headers: {
+				authorization: `Bearer ${plainToken}`,
+				cookie: `session=${plainSession}`,
+			},
+		} as any
+		let apiNext = false
+
+		await middleware(apiReq, res as any, (() => { apiNext = true }) as any)
+
+		expect(apiNext).toBe(true)
+		expect(apiReq.user.id).toBe(user.id)
+		expect(apiReq.token).toEqual({ id: tokenId, abilities: ['tokens:read'] })
+		expect(apiReq.session).toBeUndefined()
+	})
 })
 
 describe('ajo-auth in-memory gates', () => {
@@ -198,7 +255,7 @@ describe('ajo-auth in-memory gates', () => {
 
 	afterEach(() => {
 		clearLimit('login:test')
-		clearConfirm(123)
+		clearConfirmUser(123)
 		vi.useRealTimers()
 	})
 
@@ -220,17 +277,32 @@ describe('ajo-auth in-memory gates', () => {
 	})
 
 	test('password confirmation expires and can be cleared', () => {
-		expect(checkConfirm(123, 1000)).toBe(false)
+		const session = { user: { id: 123 }, session: { id: 'session-a' } } as any
+		const otherSession = { user: { id: 123 }, session: { id: 'session-b' } } as any
+		const token = { user: { id: 123 }, token: { id: 'token-a', abilities: ['*'] } } as any
+		const mixed = { user: { id: 123 }, session: { id: 'session-a' }, token: { id: 'token-a', abilities: ['*'] } } as any
 
-		stamp(123)
-		expect(checkConfirm(123, 1000)).toBe(true)
+		expect(checkConfirm(session, 1000)).toBe(false)
+
+		stamp(session)
+		expect(checkConfirm(session, 1000)).toBe(true)
+		expect(checkConfirm(otherSession, 1000)).toBe(false)
+		expect(checkConfirm(token, 1000)).toBe(false)
 
 		vi.advanceTimersByTime(1001)
-		expect(checkConfirm(123, 1000)).toBe(false)
+		expect(checkConfirm(session, 1000)).toBe(false)
 
-		stamp(123)
-		clearConfirm(123)
-		expect(checkConfirm(123, 1000)).toBe(false)
+		stamp(token)
+		expect(checkConfirm(token, 1000)).toBe(true)
+		expect(checkConfirm(mixed, 1000)).toBe(true)
+		clearConfirm(token)
+		expect(checkConfirm(token, 1000)).toBe(false)
+
+		stamp(session)
+		stamp({ user: { id: 456 }, session: { id: 'session-c' } } as any)
+		clearConfirmUser(123)
+		expect(checkConfirm(session, 1000)).toBe(false)
+		expect(checkConfirm({ user: { id: 456 }, session: { id: 'session-c' } } as any, 1000)).toBe(true)
 	})
 })
 

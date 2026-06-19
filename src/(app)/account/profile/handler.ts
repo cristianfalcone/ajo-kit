@@ -3,7 +3,7 @@ import { object, string, optional, pipe, forward, partialCheck } from '@kit/vali
 import { hash, verify } from '@kit/auth/password'
 import { generate, hash as hashSession } from '@kit/auth/session'
 import { write } from '@kit/auth/cookie'
-import { clear as clearConfirm } from '@kit/auth/confirm'
+import { clearUser as clearConfirmUser } from '@kit/auth/confirm'
 import { db, password as passwordField, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
 import { UnauthorizedError, ip } from '@kit'
@@ -108,7 +108,7 @@ export const actions = {
 		})
 
 		write(res, session)
-		clearConfirm(userId)
+		clearConfirmUser(userId)
 		emit([
 			`profile:${userId}`,
 			`sessions:${userId}`,

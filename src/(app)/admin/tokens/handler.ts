@@ -1,5 +1,6 @@
 import type { Request } from '@kit'
 import { object, string } from '@kit/validate'
+import { clearToken as clearConfirmToken } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { pageInfo, pageRows, paginate } from '/src/data/pagination'
 import { parse } from '@kit/validate'
@@ -55,6 +56,7 @@ export const actions = {
 			.deleteFrom('tokens')
 			.where('id', '=', token.id)
 			.execute()
+		clearConfirmToken(token.user, token.id)
 		emit(['admin:tokens', 'admin:stats', `tokens:${token.user}`, `dashboard:${token.user}`, `user:${token.user}`])
 
 		return { revoked: true }

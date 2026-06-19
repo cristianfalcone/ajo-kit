@@ -49,7 +49,7 @@ export function session(lookup?: Resolve): Middleware {
 				const user = await find(token.user)
 				if (user) {
 					req.user = user
-					req.token = { abilities: token.abilities }
+					req.token = { id: token.id, abilities: token.abilities }
 				}
 			}
 
@@ -66,7 +66,11 @@ export function session(lookup?: Resolve): Middleware {
 
 			if (valid) {
 				const user = await find(valid.user)
-				if (user) { req.user = user; return next() }
+				if (user) {
+					req.user = user
+					req.session = { id: valid.id }
+					return next()
+				}
 			}
 
 			clear(res)

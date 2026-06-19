@@ -242,7 +242,8 @@ export interface User {
 declare module 'polka' {
 	interface Request {
 		user?: User
-		token?: { abilities: string[] }
+		session?: { id: string }
+		token?: { id: string; abilities: string[] }
 		action?: Action
 		topics?: Set<string>
 		track?: (topic: string | string[]) => void

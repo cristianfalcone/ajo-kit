@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { object, string, pipe, forward, partialCheck } from '@kit/validate'
 import { validate } from '@kit/auth/reset'
 import { hash } from '@kit/auth/password'
-import { clear as clearConfirm } from '@kit/auth/confirm'
+import { clearUser as clearConfirmUser } from '@kit/auth/confirm'
 import { db, password } from '/src/data'
 import { parse } from '@kit/validate'
 import { AppError } from '@kit'
@@ -59,7 +59,7 @@ export const actions = {
 			await trx.deleteFrom('resets').where('user', '=', user).execute()
 		})
 
-		clearConfirm(user)
+		clearConfirmUser(user)
 		emit([
 			`profile:${user}`,
 			`sessions:${user}`,

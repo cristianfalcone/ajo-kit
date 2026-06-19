@@ -2,7 +2,7 @@ import type { Request } from '@kit'
 import { object, string } from '@kit/validate'
 import { read } from '@kit/auth/cookie'
 import { hash as hashSession } from '@kit/auth/session'
-import { clear as clearConfirm } from '@kit/auth/confirm'
+import { clearSession as clearConfirmSession } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
@@ -57,7 +57,7 @@ export const actions = {
 			.deleteFrom('sessions')
 			.where('id', '=', matches[0].id)
 			.execute()
-		clearConfirm(req.user!.id)
+		clearConfirmSession(req.user!.id, matches[0].id)
 		emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: true }
@@ -70,14 +70,15 @@ export const actions = {
 
 		if (!current) return { revoked: 0 }
 
-		const result = await db()
+		const revoked = await db()
 			.deleteFrom('sessions')
 			.where('user', '=', req.user!.id)
 			.where('id', '!=', current!)
+			.returning('id')
 			.execute()
-		clearConfirm(req.user!.id)
+		for (const session of revoked) clearConfirmSession(req.user!.id, session.id)
 		emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
-		return { revoked: Number(result[0].numDeletedRows) }
+		return { revoked: revoked.length }
 	}
 }

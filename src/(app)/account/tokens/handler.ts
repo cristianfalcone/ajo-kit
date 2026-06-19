@@ -1,6 +1,7 @@
 import type { Request } from '@kit'
 import { object, string, array, optional, pipe, minLength } from '@kit/validate'
 import { create, list } from '@kit/auth/token'
+import { clearToken as clearConfirmToken } from '@kit/auth/confirm'
 import { db, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
@@ -74,6 +75,7 @@ export const actions = {
 			.deleteFrom('tokens')
 			.where('id', '=', match.id)
 			.execute()
+		clearConfirmToken(req.user!.id, match.id)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		return { revoked: true }

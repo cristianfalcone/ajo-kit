@@ -183,6 +183,47 @@ test('non-admin account delete requires password confirmation and deletes the ac
 	expect(rowCount('users', 'email = ?', email)).toBe(0)
 })
 
+test('password confirmation is scoped to the current session', async ({ page, browser, baseURL }) => {
+	const email = `confirm-scope-${randomUUID()}@example.com`
+	const credentials = { email, password: 'password' }
+	await createUser({ email, name: 'Confirm Scope User' })
+
+	await loginPage(page, credentials)
+
+	const otherContext = await browser.newContext({ baseURL })
+	const other = await otherContext.newPage()
+	await loginPage(other, credentials)
+
+	await gotoReady(page, '/account/delete')
+	await expect(page).toHaveURL(/\/confirm\?redirect=/)
+	await page.locator('input[name="password"]').fill('password')
+	await page.getByRole('button', { name: 'Confirm' }).click()
+	await expect(page).toHaveURL(/\/account\/delete$/)
+
+	await gotoReady(other, '/account/delete')
+	await expect(other).toHaveURL(/\/confirm\?redirect=/)
+
+	await otherContext.close()
+})
+
+test('password confirmation rate limits failed attempts', async ({ page }) => {
+	const email = `confirm-limit-${randomUUID()}@example.com`
+	await createUser({ email, name: 'Confirm Limit User' })
+
+	await loginPage(page, { email, password: 'password' })
+	await gotoReady(page, '/confirm?redirect=/account/delete')
+
+	for (let i = 0; i < 5; i++) {
+		await page.locator('input[name="password"]').fill(`wrong-${i}`)
+		await page.getByRole('button', { name: 'Confirm' }).click()
+		await expect(page.getByText('Invalid password')).toBeVisible()
+	}
+
+	await page.locator('input[name="password"]').fill('wrong-final')
+	await page.getByRole('button', { name: 'Confirm' }).click()
+	await expect(page.getByText('Too many confirmation attempts. Try again later.')).toBeVisible()
+})
+
 test('admin API action rejects cross-site session mutation without same-origin proof', async ({ request }) => {
 	await request.post('/login?/default', {
 		headers: actionHeaders('http://127.0.0.1:5180'),

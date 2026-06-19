@@ -1,7 +1,7 @@
 import type { Middleware, Request, Response } from 'ajo-kit'
 import { UnauthorizedError, ForbiddenError, AppError, ajax } from 'ajo-kit'
 import { can } from './token'
-import { check as checkConfirm } from './confirm'
+import { check as checkConfirm, credential as confirmCredential } from './confirm'
 import { db } from './store'
 
 export const redirect = (to: string | ((req: Request) => string)): Middleware => (req, res) => {
@@ -65,7 +65,9 @@ export const confirmed = (window?: number): Middleware => (req, res, next) => {
 
 	if (!req.user) throw new UnauthorizedError()
 
-	if (!checkConfirm(req.user.id, window)) {
+	if (!confirmCredential(req)) throw new UnauthorizedError()
+
+	if (!checkConfirm(req, window)) {
 		const returnTo = encodeURIComponent(req.originalUrl)
 		return redirect(`/confirm?redirect=${returnTo}`)(req, res, next)
 	}

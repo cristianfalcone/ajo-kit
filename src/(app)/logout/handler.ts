@@ -29,7 +29,7 @@ export default {
 			}
 		}
 
-		clearConfirm(req.user!.id)
+		clearConfirm(req)
 		send(res, 200, { message: 'Logged out' })
 	}
 }

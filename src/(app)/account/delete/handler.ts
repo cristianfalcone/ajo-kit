@@ -1,7 +1,7 @@
 import type { Request, Response } from '@kit'
 import { object, literal } from '@kit/validate'
 import { clear as clearCookie } from '@kit/auth/cookie'
-import { clear as clearConfirm } from '@kit/auth/confirm'
+import { clearUser as clearConfirmUser } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { ForbiddenError } from '@kit'
@@ -37,7 +37,7 @@ export const actions = {
 		])
 
 		clearCookie(res)
-		clearConfirm(req.user!.id)
+		clearConfirmUser(req.user!.id)
 
 		return { deleted: true }
 	}

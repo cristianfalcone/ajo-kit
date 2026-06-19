@@ -4,6 +4,7 @@ import { object, string, array, optional } from '@kit/validate'
 import { create, list, canAll } from '@kit/auth/token'
 import { requireAbility } from '@kit/auth/guard'
 import { check, hit } from '@kit/auth/limit'
+import { clearToken as clearConfirmToken } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { NotFoundError, AppError, ForbiddenError } from '@kit'
@@ -102,6 +103,7 @@ export default {
 			.deleteFrom('tokens')
 			.where('id', '=', match.id)
 			.execute()
+		clearConfirmToken(req.user!.id, match.id)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		send(res, 200, { message: 'Token revoked' })

@@ -31,7 +31,7 @@ export const actions = {
 			await remove(token)
 			emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 		}
-		clearConfirm(req.user!.id)
+		clearConfirm(req)
 		clear(res)
 		return { redirect: '/login' }
 	}

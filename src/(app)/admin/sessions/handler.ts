@@ -1,6 +1,6 @@
 import type { Request } from '@kit'
 import { object, string, pipe, transform, number } from '@kit/validate'
-import { clear as clearConfirm } from '@kit/auth/confirm'
+import { clearSession as clearConfirmSession } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { pageInfo, pageRows, paginate } from '/src/data/pagination'
 import { parse } from '@kit/validate'
@@ -62,7 +62,7 @@ export const actions = {
 			.deleteFrom('sessions')
 			.where('id', '=', session.id)
 			.execute()
-		clearConfirm(session.user)
+		clearConfirmSession(session.user, session.id)
 		emit(['admin:sessions', 'admin:stats', `sessions:${session.user}`, `dashboard:${session.user}`, `user:${session.user}`])
 
 		return { revoked: true }
@@ -72,13 +72,14 @@ export const actions = {
 
 		const input = parse(RevokeUser, req.body)
 
-		const result = await db()
+		const revoked = await db()
 			.deleteFrom('sessions')
 			.where('user', '=', input.user)
+			.returning('id')
 			.execute()
-		clearConfirm(input.user)
+		for (const session of revoked) clearConfirmSession(input.user, session.id)
 		emit(['admin:sessions', 'admin:stats', `sessions:${input.user}`, `dashboard:${input.user}`, `user:${input.user}`])
 
-		return { revoked: Number(result[0].numDeletedRows) }
+		return { revoked: revoked.length }
 	}
 }
