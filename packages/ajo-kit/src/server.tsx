@@ -579,7 +579,7 @@ export async function create(template: Template) {
 		const path = `/${pattern || ''}`
 		const routeWares = collect(segments)
 
-		app.get(path, timing, json(), ...routeWares, data(page, routeWares), sse, (req, res) => render(req, res, page))
+		app.get(path, timing, ...routeWares, data(page, routeWares), sse, (req, res) => render(req, res, page))
 		app.post(path, json(), ...routeWares, action(segments))
 	}
 
