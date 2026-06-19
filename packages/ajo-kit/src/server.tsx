@@ -146,6 +146,49 @@ const pendingTopics = new Set<string>()
 
 let debounceTimeout: NodeJS.Timeout | null = null
 
+const sseConcurrency = 4
+
+const hasTopic = (conn: LiveConnection, topics: Set<string>) => {
+	for (const topic of topics) {
+		if (conn.topics.has(topic)) return true
+	}
+
+	return false
+}
+
+const forEachConcurrent = async <T,>(items: T[], limit: number, run: (item: T) => Promise<void>) => {
+	let index = 0
+	const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+		while (index < items.length) await run(items[index++])
+	})
+
+	await Promise.all(workers)
+}
+
+const revalidateConnection = async (conn: LiveConnection) => {
+	try {
+		if (!liveConnections.has(conn)) return
+
+		conn.req.topics = new Set<string>()
+		const newData = await conn.revalidate()
+		conn.topics = conn.req.topics ?? new Set<string>()
+		const [head, ...entries] = newData as [Head, ...Data]
+		const digest = routeHash(JSON.stringify(payload(head, entries)))
+
+		if (digest === conn.hash) return
+
+		const patches = diff(conn.lastData, newData)
+
+		conn.hash = digest
+		conn.lastData = clone(newData)
+
+		if (patches.length > 0) conn.send({ patches, hash: digest, ...metadata(conn.topics) })
+
+	} catch (err) {
+		console.error('[SSE] Live update failed:', err)
+	}
+}
+
 export function emit(topic: string | string[]) {
 
 	const topics = bumpTopics(topic)
@@ -166,40 +209,9 @@ export function emit(topic: string | string[]) {
 
 			debounceTimeout = null
 
-			for (const conn of liveConnections) {
+			const affected = [...liveConnections].filter(conn => hasTopic(conn, currentTopics))
 
-				let affected = false
-
-				for (const t of currentTopics) {
-					if (conn.topics.has(t)) {
-						affected = true
-						break
-					}
-				}
-
-				if (!affected) continue
-
-				try {
-
-					conn.req.topics = new Set<string>()
-					const newData = await conn.revalidate()
-					conn.topics = conn.req.topics ?? new Set<string>()
-					const [head, ...entries] = newData as [Head, ...Data]
-					const digest = routeHash(JSON.stringify(payload(head, entries)))
-
-					if (digest === conn.hash) continue
-
-					const patches = diff(conn.lastData, newData)
-
-					conn.hash = digest
-					conn.lastData = clone(newData)
-
-					if (patches.length > 0) conn.send({ patches, hash: digest, ...metadata(conn.topics) })
-
-				} catch (err) {
-					console.error('[SSE] Live update failed:', err)
-				}
-			}
+			await forEachConcurrent(affected, sseConcurrency, revalidateConnection)
 		}, 10)
 	}
 }
