@@ -58,6 +58,9 @@ const routeHeaders = (type?: string) => ({
 	...(type && { 'Content-Type': type }),
 })
 
+const headers = (res: Response, values: Record<string, string | number | readonly string[]>, missing = false) =>
+	Object.entries(values).forEach(([key, value]) => { if (!missing || !res.hasHeader(key)) res.setHeader(key, value) })
+
 const finishTiming = (req: Request, res: Response, status: number, bytes: number, cache?: string) => {
 	const result = finishRouteTiming(req.timing, { status, bytes, cache })
 
@@ -72,7 +75,7 @@ const writeFresh = (req: Request, res: Response, hash?: string, early = false) =
 	const cache = early ? 'fresh' : 'revalidated'
 
 	res.statusCode = 304
-	for (const [key, value] of Object.entries(routeHeaders())) res.setHeader(key, value)
+	headers(res, routeHeaders())
 	res.setHeader('X-Ajo-Cache', cache)
 	if (hash) res.setHeader('ETag', `"${hash}"`)
 	finishTiming(req, res, 304, 0, cache)
@@ -187,13 +190,7 @@ const liveAuth = (req: Request): LiveConnection['auth'] => {
 	return 'anonymous'
 }
 
-const hasTopic = (conn: LiveConnection, topics: Set<string>) => {
-	for (const topic of topics) {
-		if (conn.topics.has(topic)) return true
-	}
-
-	return false
-}
+const hasTopic = (conn: LiveConnection, topics: Set<string>) => [...topics].some(topic => conn.topics.has(topic))
 
 const liveProbeResponse = () => {
 	const headers = new Map<string, string | number | readonly string[]>()
@@ -329,21 +326,16 @@ export function emit(topic: string | string[]) {
 		store?.add(t)
 	})
 
-	if (!debounceTimeout) {
+	if (debounceTimeout) return
 
-		debounceTimeout = setTimeout(async () => {
+	debounceTimeout = setTimeout(async () => {
+		const currentTopics = new Set(pendingTopics)
+		pendingTopics.clear()
+		debounceTimeout = null
 
-			const currentTopics = new Set(pendingTopics)
-
-			pendingTopics.clear()
-
-			debounceTimeout = null
-
-			const affected = [...liveConnections].filter(conn => hasTopic(conn, currentTopics))
-
-			await forEachConcurrent(affected, sseConcurrency, revalidateConnection)
-		}, 10)
-	}
+		const affected = [...liveConnections].filter(conn => hasTopic(conn, currentTopics))
+		await forEachConcurrent(affected, sseConcurrency, revalidateConnection)
+	}, 10)
 }
 
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head'
@@ -364,9 +356,7 @@ type Template = (slots: Record<string, string>) => string
 export async function create(template: Template) {
 
 	const secure: Middleware = (_, res, next) => {
-		for (const [key, value] of Object.entries(securityHeaders())) {
-			if (!res.hasHeader(key)) res.setHeader(key, value)
-		}
+		headers(res, securityHeaders(), true)
 		next()
 	}
 
@@ -505,7 +495,7 @@ export async function create(template: Template) {
 
 		if (ajax(req)) {
 
-			for (const [key, value] of Object.entries(routeHeaders('application/json; charset=utf-8'))) res.setHeader(key, value)
+			headers(res, routeHeaders('application/json; charset=utf-8'))
 
 			if (error) {
 				const body = JSON.stringify({ error: error.toJSON() })
@@ -606,7 +596,7 @@ export async function create(template: Template) {
 				})
 			}
 
-			for (const [key, value] of Object.entries(routeHeaders('application/json; charset=utf-8'))) res.setHeader(key, value)
+			headers(res, routeHeaders('application/json; charset=utf-8'))
 
 			send(res, 200, JSON.stringify(payload))
 
