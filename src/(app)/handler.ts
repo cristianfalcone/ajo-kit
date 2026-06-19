@@ -13,7 +13,7 @@ export async function layout(req: Request) {
 	const activeChatId = match ? Number(match[1]) : undefined
 	const user = await db()
 		.selectFrom('users')
-		.select(['id', 'name', 'email', 'verified'])
+		.select(['id', 'name', 'email', 'verified', 'created'])
 		.where('id', '=', req.user.id)
 		.executeTakeFirst()
 

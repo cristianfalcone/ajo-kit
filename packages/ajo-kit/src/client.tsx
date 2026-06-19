@@ -4,8 +4,27 @@ import App, { invalidateCache, ssr } from './app'
 import type { State, ActionState } from './constants'
 import { navigate } from './constants'
 import { formArrayFields, formDataBody } from './form'
+import { parseSSR } from './ssr'
 
 export { formArrayFields, formDataBody } from './form'
+
+type ActionSuccess = {
+	redirect?: string
+	topics?: string[]
+	versions?: Record<string, number>
+}
+
+const emitActionSuccess = (detail: ActionSuccess) => {
+	globalThis.dispatchEvent?.(new CustomEvent('ajo:action', { detail }))
+}
+
+const parseBootState = (value: string) => {
+	try {
+		return parseSSR<State>(value)
+	} catch {
+		return JSON.parse(value) as State
+	}
+}
 
 // Action helper for stateful generator components
 
@@ -49,7 +68,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 			})
 
 			const json = await response.json().catch(() => null) as
-				| { redirect?: string; topics?: string[]; error?: { status?: number; message?: string; fields?: Record<string, string[] | undefined> }; message?: string; fields?: Record<string, string[] | undefined> }
+				| { redirect?: string; topics?: string[]; versions?: Record<string, number>; error?: { status?: number; message?: string; fields?: Record<string, string[] | undefined> }; message?: string; fields?: Record<string, string[] | undefined> }
 				| null
 
 			if (!response.ok) {
@@ -71,6 +90,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 			}
 
 			state.data = (json ?? {}) as T
+			emitActionSuccess(json ?? {})
 
 			return state.data
 
@@ -102,8 +122,9 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 }
 
 if (!import.meta.env.SSR) {
-	const packed = (globalThis as { __SSR__?: string }).__SSR__
-	const data = packed ? JSON.parse(packed) as State : null
+	const script = globalThis.document?.getElementById('__SSR__')
+	const packed = script?.textContent ?? (globalThis as { __SSR__?: string }).__SSR__
+	const data = packed ? parseBootState(packed) : null
 	if (data) ssr.set(data.url, data)
 }
 

@@ -11,7 +11,10 @@ import type {
 	State,
 } from './constants'
 import { apply, type Head } from './head'
+import { getCache, setCache } from './cache'
 import { routes } from 'virtual:ajo/routes'
+
+export { cache, clearCache, invalidateCache } from './cache'
 
 // Pattern compilation
 
@@ -33,23 +36,6 @@ export const toSegments = (path: string) => {
 export const getFileName = (path: string) => path.split('/').pop()?.split('.')[0]
 
 export const ssr = new Map<string, State>()
-
-export const cache = new Map<string, State>()
-
-export const clearCache = () => cache.clear()
-
-export const invalidateCache = (topics?: string[]) => {
-	if (!topics?.length) {
-		cache.clear()
-		return
-	}
-
-	const changed = new Set(topics)
-
-	for (const [url, state] of cache) {
-		if (!state.topics?.length || state.topics.some(topic => changed.has(topic))) cache.delete(url)
-	}
-}
 
 export const error: () => Page = () => ({
 	segments: [''],
@@ -152,7 +138,7 @@ type ServerLoad = {
 
 async function load(url: string): Promise<ServerLoad> {
 
-	const cached = cache.get(url)
+	const cached = getCache(url)
 	const versions = cached?.versions ? JSON.stringify(cached.versions) : undefined
 
 	const response = await fetch(url, {
@@ -274,7 +260,7 @@ export async function* resolve(
 	if (cached) {
 
 		ssr.delete(url)
-		if (cached.hash) cache.set(url, cached)
+		if (cached.hash) setCache(url, cached)
 
 		yield {
 			page: compose(target, tree, paths, cached),
@@ -316,7 +302,7 @@ export async function* resolve(
 		rawServerData: [server.head, ...server.data]
 	}
 
-	if (state.hash) cache.set(url, state)
+	if (state.hash) setCache(url, state)
 
 	yield {
 		page: compose(target, tree, paths, state),
@@ -332,18 +318,40 @@ type LiveMessage = {
 	versions?: Record<string, number>
 }
 
-function stream(onPatch: (message: LiveMessage) => void) {
+type LiveStatus = 'closed' | 'connecting' | 'open' | 'reconnecting'
+
+type ActionDetail = {
+	topics?: string[]
+	versions?: Record<string, number>
+}
+
+function stream(onPatch: (message: LiveMessage) => void, onStatus?: (status: LiveStatus) => void) {
 
 	let source: EventSource | null = null
+	let retry: ReturnType<typeof setTimeout> | null = null
 	let retries = 0
+
+	const status = (value: LiveStatus) => onStatus?.(value)
 
 	const connect = (path: string) => {
 
 		source?.close()
+		if (retry) clearTimeout(retry)
+		retry = null
+
+		if ((globalThis as { __AJO_DISABLE_SSE__?: boolean }).__AJO_DISABLE_SSE__) {
+			status('closed')
+			return
+		}
+
+		status(retries > 0 ? 'reconnecting' : 'connecting')
 
 		source = new EventSource(path)
 
-		source.onopen = () => retries = 0
+		source.onopen = () => {
+			retries = 0
+			status('open')
+		}
 
 		source.onmessage = event => {
 			if (event.data === ':hb') return
@@ -355,15 +363,22 @@ function stream(onPatch: (message: LiveMessage) => void) {
 		source.onerror = () => {
 			source?.close()
 			retries++
-			if (retries > 10) return
-			setTimeout(() => connect(path), Math.min(1000 * 2 ** retries, 30000))
+			if (retries > 10) {
+				status('closed')
+				return
+			}
+			status('reconnecting')
+			retry = setTimeout(() => connect(path), Math.min(1000 * 2 ** retries, 30000))
 		}
 	}
 
 	const close = () => {
 		source?.close()
+		if (retry) clearTimeout(retry)
+		retry = null
 		source = null
 		retries = 0
+		status('closed')
 	}
 
 	return { connect, close }
@@ -378,11 +393,16 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	let hmr = false
 	let activeState: State | null = null
 	let activeRecompose: (() => Component) | null = null
+	let activePage: Page | null = null
+	let actionRefresh: ReturnType<typeof setTimeout> | null = null
 	let generation = 0
+	let patchGeneration = 0
+	let sseStatus: LiveStatus = 'closed'
 
 	const sse = stream(message => {
 
 		if (!activeState || !activeState.rawServerData || message.patches.length === 0) return
+		patchGeneration++
 
 		applyPatch(activeState.rawServerData, message.patches)
 
@@ -395,17 +415,18 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		if (head) apply(activeState.head = head)
 
-		if (activeState.hash) cache.set(activeState.url, activeState)
+		if (activeState.hash) setCache(activeState.url, activeState)
 
 		const recompose = activeRecompose
 
 		if (recompose) this.next(() => Page = recompose())
-	})
+	}, status => sseStatus = status)
 
-	const go = async (target: Page) => {
+	const go = async (target: Page, options: { scroll?: boolean } = {}) => {
 
 		const gen = ++generation
 		const currentUrl = location.pathname + location.search
+		const scroll = options.scroll ?? true
 
 		sse.close()
 
@@ -424,6 +445,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 					activeState = state
 					activeRecompose = recompose ?? null
+					activePage = target
 
 					if (!activeState.rawServerData) activeState.rawServerData = [state.head, ...state.data]
 				}
@@ -449,10 +471,66 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		if (!hmr) {
 			sse.connect(currentUrl)
-			requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
+			if (scroll) requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
 		}
 
 		hmr = false
+	}
+
+	const refreshActiveRoute = async () => {
+		if (!activeState || !activePage) return
+
+		const gen = generation
+		const state = activeState
+		const server = await load(state.url)
+
+		if (gen !== generation || activeState !== state) return
+
+		if (server.redirect) {
+			navigate(server.redirect)
+			return
+		}
+
+		if (server.error) {
+			state.data = []
+			state.error = server.error
+			state.loading = false
+		} else {
+			state.data = server.data
+			state.error = undefined
+			state.head = server.head
+			state.hash = server.hash
+			state.topics = server.topics
+			state.versions = server.versions
+			state.rawServerData = [server.head, ...server.data]
+
+			if (server.head) apply(server.head)
+			if (state.hash) setCache(state.url, state)
+		}
+
+		const recompose = activeRecompose
+
+		if (recompose) this.next(() => Page = recompose())
+	}
+
+	const refreshAfterAction = (topics?: string[]) => {
+
+		if (!topics?.length || !activeState?.topics?.length || !activePage) return
+
+		const changed = new Set(topics)
+
+		if (!activeState.topics.some(topic => changed.has(topic))) return
+
+		const seen = patchGeneration
+		const delay = sseStatus === 'open' ? 250 : 0
+
+		if (actionRefresh) clearTimeout(actionRefresh)
+
+		actionRefresh = setTimeout(() => {
+			actionRefresh = null
+			if (patchGeneration !== seen || !activePage) return
+			void refreshActiveRoute()
+		}, delay)
 	}
 
 	const router = navaid('/', () => go(error()))
@@ -472,7 +550,14 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	addEventListener('ajo:navigate', () => router.run(), { signal: this.signal })
 
+	addEventListener(
+		'ajo:action',
+		event => refreshAfterAction((event as CustomEvent<ActionDetail>).detail?.topics),
+		{ signal: this.signal }
+	)
+
 	this.signal.addEventListener('abort', () => {
+		if (actionRefresh) clearTimeout(actionRefresh)
 		sse.close()
 		router.unlisten?.()
 	})

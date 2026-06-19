@@ -1,6 +1,9 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test'
 import { actionHeaders, adminCredentials, loginRequest } from './helpers'
 
+const varyIncludes = (value: string | undefined, token: string) =>
+	value?.toLowerCase().split(',').map(part => part.trim()).includes(token.toLowerCase())
+
 test('CSRF rejects cross-site JSON actions without same-origin proof', async ({ request }) => {
 	const response = await request.post('/login?/default', {
 		headers: { Accept: 'application/json' },
@@ -26,7 +29,10 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 	})
 
 	expect(users.status()).toBe(200)
+	expect(users.headers()['content-type']).toContain('application/json')
 	expect(users.headers()['cache-control']).toBe('no-store')
+	expect(varyIncludes(users.headers().vary, 'Accept')).toBe(true)
+	expect(varyIncludes(users.headers().vary, 'Cookie')).toBe(true)
 	expect(users.headers()['x-ajo-cache']).toBe('miss')
 	expect(users.headers()['server-timing']).toContain('total;dur=')
 	expect(users.headers()['server-timing']).toContain('loader;dur=')
@@ -59,6 +65,8 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 
 	expect(cachedUsers.status()).toBe(304)
 	expect(cachedUsers.headers()['cache-control']).toBe('no-store')
+	expect(varyIncludes(cachedUsers.headers().vary, 'Accept')).toBe(true)
+	expect(varyIncludes(cachedUsers.headers().vary, 'Cookie')).toBe(true)
 	expect(cachedUsers.headers()['x-ajo-cache']).toBe('fresh')
 	expect(cachedUsers.headers()['server-timing']).toContain('total;dur=')
 	expect(cachedUsers.headers()['server-timing']).toContain('loader;dur=0')
@@ -104,6 +112,12 @@ test('emitted action topics make stale route versions miss early 304', async ({ 
 	expect(await revoke.json()).toMatchObject({
 		revoked: true,
 		topics: expect.arrayContaining(['admin:sessions', 'admin:stats', 'sessions:1', 'user:1']),
+		versions: {
+			'admin:sessions': expect.any(Number),
+			'admin:stats': expect.any(Number),
+			'sessions:1': expect.any(Number),
+			'user:1': expect.any(Number),
+		},
 	})
 
 	await other.dispose()

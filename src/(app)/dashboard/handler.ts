@@ -1,18 +1,26 @@
-import type { Request } from '@kit'
-import { db, unread } from '/src/data'
+import type { Parent, Request } from '@kit'
+import { db } from '/src/data'
 import { read } from '@kit/auth/cookie'
 
-export async function page(req: Request) {
+type AppParent = {
+	user: {
+		id: number
+		name: string
+		email: string
+		verified: string | null
+		created: string
+		roles?: string[]
+	}
+	unread: number
+}
+
+export async function page(req: Request, parent: Parent) {
 	req.track?.([`dashboard:${req.user!.id}`, `user:${req.user!.id}`])
 
-	const userId = req.user!.id
+	const { user, unread } = await parent() as AppParent
+	const userId = user.id
 
-	const [user, sessions, tokens, chats, count, recentSessions, roles] = await Promise.all([
-		db()
-			.selectFrom('users')
-			.select(['id', 'name', 'email', 'verified', 'created'])
-			.where('id', '=', userId)
-			.executeTakeFirstOrThrow(),
+	const [sessions, tokens, chats, recentSessions] = await Promise.all([
 		db()
 			.selectFrom('sessions')
 			.select(db().fn.countAll().as('count'))
@@ -28,7 +36,6 @@ export async function page(req: Request) {
 			.select(db().fn.countAll().as('count'))
 			.where('user', '=', userId)
 			.executeTakeFirstOrThrow(),
-		unread(userId),
 		db()
 			.selectFrom('sessions')
 			.select(['id', 'ip', 'agent', 'last', 'created'])
@@ -36,21 +43,15 @@ export async function page(req: Request) {
 			.orderBy('last', 'desc')
 			.limit(5)
 			.execute(),
-		db()
-			.selectFrom('members')
-			.innerJoin('roles', 'roles.id', 'members.role')
-			.select(['roles.name'])
-			.where('members.user', '=', userId)
-			.execute(),
 	])
 
 	return {
-		user: { ...user, roles: roles.map(r => r.name) },
+		user: { ...user, roles: user.roles ?? [] },
 		stats: {
 			sessions: Number(sessions.count),
 			tokens: Number(tokens.count),
 			chats: Number(chats.count),
-			unread: Number(count),
+			unread,
 		},
 		recentSessions: recentSessions.map(s => ({
 			id: s.id.slice(0, 8),

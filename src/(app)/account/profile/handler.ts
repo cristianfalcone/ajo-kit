@@ -1,4 +1,4 @@
-import type { Request } from '@kit'
+import type { Parent, Request } from '@kit'
 import { object, string, optional, pipe, forward, partialCheck } from '@kit/validate'
 import { hash, verify } from '@kit/auth/password'
 import { db, password as passwordField, trimmed } from '/src/data'
@@ -26,16 +26,26 @@ const UpdatePassword = pipe(
 	)
 )
 
-export async function page(req: Request) {
+type AppParent = {
+	user: {
+		id: number
+		name: string
+		email: string
+	}
+}
+
+export async function page(req: Request, parent: Parent) {
 	req.track?.([`profile:${req.user!.id}`, `user:${req.user!.id}`])
 
-	const user = await db()
-		.selectFrom('users')
-		.select(['id', 'name', 'email'])
-		.where('id', '=', req.user!.id)
-		.executeTakeFirst()
+	const { user } = await parent() as AppParent
 
-	return { user }
+	return {
+		user: {
+			id: user.id,
+			name: user.name,
+			email: user.email,
+		}
+	}
 }
 
 export const actions = {

@@ -5,7 +5,18 @@ import { afterEach, describe, expect, test } from 'vitest'
 import { close, connect } from '../../../packages/ajo-kit/src/database'
 import { merge, render } from '../../../packages/ajo-kit/src/head'
 import { formDataBody } from '../../../packages/ajo-kit/src/form'
+import {
+	CACHE_MAX,
+	CACHE_TTL,
+	cache,
+	clearCache,
+	getCache,
+	invalidateCache,
+	setCache,
+} from '../../../packages/ajo-kit/src/cache'
+import { parseSSR, renderSSRScript, serializeSSR } from '../../../packages/ajo-kit/src/ssr'
 import { AppError, InvalidError } from '../../../packages/ajo-kit/src/constants'
+import type { State } from '../../../packages/ajo-kit/src/constants'
 import { object, parse, string, minLength, pipe } from '../../../packages/ajo-kit/src/validate'
 import {
 	finishRouteTiming,
@@ -18,6 +29,7 @@ const previousTiming = process.env.AJO_TIMING
 
 afterEach(async () => {
 	process.env.AJO_TIMING = previousTiming
+	clearCache()
 	await close()
 })
 
@@ -122,6 +134,91 @@ describe('ajo-kit client actions', () => {
 			name: 'Deploy key',
 			abilities: ['read'],
 		})
+	})
+})
+
+describe('ajo-kit SSR payload', () => {
+	test('serializeSSR is safe inside script tags and round-trips values', () => {
+		const value = {
+			text: '</script><script>globalThis.__xss=1</script>',
+			html: '<img src=x onerror=alert(1)>',
+			ampersand: '&',
+			line: '\u2028',
+			paragraph: '\u2029',
+			date: new Date('2026-06-19T00:00:00.000Z'),
+			map: new Map([['key', 'value']]),
+			set: new Set(['a', 'b']),
+			big: 10n,
+			missing: undefined,
+		}
+
+		const serialized = serializeSSR(value)
+
+		expect(serialized).not.toContain('</script>')
+		expect(serialized).not.toContain('<img')
+		expect(serialized).not.toContain('\u2028')
+		expect(serialized).not.toContain('\u2029')
+
+		const parsed = parseSSR<typeof value>(serialized)
+
+		expect(parsed.text).toBe(value.text)
+		expect(parsed.html).toBe(value.html)
+		expect(parsed.ampersand).toBe('&')
+		expect(parsed.date).toEqual(value.date)
+		expect(parsed.map.get('key')).toBe('value')
+		expect(parsed.set.has('a')).toBe(true)
+		expect(parsed.big).toBe(10n)
+		expect('missing' in parsed).toBe(true)
+		expect(parsed.missing).toBeUndefined()
+	})
+
+	test('renderSSRScript emits a data script, not executable boot code', () => {
+		const script = renderSSRScript({ url: '/dashboard' })
+
+		expect(script).toContain('type="application/json"')
+		expect(script).toContain('id="__SSR__"')
+		expect(script).not.toContain('globalThis.__SSR__')
+	})
+})
+
+describe('ajo-kit route cache', () => {
+	const state = (url: string, topics: string[] = ['topic']): State => ({
+		url,
+		params: {},
+		data: [],
+		loading: false,
+		topics,
+	})
+
+	test('getCache updates usage and expires stale entries', () => {
+		setCache('/old', state('/old'), { now: 0 })
+
+		expect(getCache('/old', CACHE_TTL)).toBeTruthy()
+		expect(getCache('/old', CACHE_TTL + 1)).toBeUndefined()
+		expect(cache.has('/old')).toBe(false)
+	})
+
+	test('setCache prunes least recently used inactive entries', () => {
+		for (let i = 0; i < CACHE_MAX; i++) setCache(`/page-${i}`, state(`/page-${i}`), { now: i })
+
+		getCache('/page-0', CACHE_MAX + 1)
+		setCache('/active', state('/active'), { activeUrl: '/active', now: CACHE_MAX + 2 })
+		setCache('/extra', state('/extra'), { activeUrl: '/active', now: CACHE_MAX + 3 })
+
+		expect(cache.has('/active')).toBe(true)
+		expect(cache.has('/page-0')).toBe(true)
+		expect(cache.size).toBeLessThanOrEqual(CACHE_MAX)
+		expect(cache.has('/page-1')).toBe(false)
+	})
+
+	test('invalidateCache removes only matching topic entries', () => {
+		setCache('/tokens', state('/tokens', ['tokens:1']))
+		setCache('/sessions', state('/sessions', ['sessions:1']))
+
+		invalidateCache(['tokens:1'])
+
+		expect(cache.has('/tokens')).toBe(false)
+		expect(cache.has('/sessions')).toBe(true)
 	})
 })
 

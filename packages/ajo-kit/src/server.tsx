@@ -13,6 +13,7 @@ import type { State, Data, Entry, Page, Parent } from './constants'
 import { merge, render as renderHead, type Head } from './head'
 import { bumpTopics, isFresh, normalizeTopics, parseVersions, routeHash, versionsFor, type TopicVersions } from './freshness'
 import { elapsed, finishRouteTiming, logRouteTiming, serverTiming, startRouteTiming } from './timing'
+import { renderSSRScript } from './ssr'
 import { handlers as handlerFiles, wares as wareFiles } from 'virtual:ajo/handlers'
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
@@ -30,6 +31,14 @@ const metadata = (topics: Set<string>) => {
 
 const byteLength = (body: string) => Buffer.byteLength(body)
 
+const routeVary = 'Accept, Cookie'
+
+const routeHeaders = (type?: string) => ({
+	'Cache-Control': 'no-store',
+	Vary: routeVary,
+	...(type && { 'Content-Type': type }),
+})
+
 const finishTiming = (req: Request, res: Response, status: number, bytes: number, cache?: string) => {
 	const result = finishRouteTiming(req.timing, { status, bytes, cache })
 
@@ -44,7 +53,7 @@ const writeFresh = (req: Request, res: Response, hash?: string, early = false) =
 	const cache = early ? 'fresh' : 'revalidated'
 
 	res.statusCode = 304
-	res.setHeader('Cache-Control', 'no-store')
+	for (const [key, value] of Object.entries(routeHeaders())) res.setHeader(key, value)
 	res.setHeader('X-Ajo-Cache', cache)
 	if (hash) res.setHeader('ETag', `"${hash}"`)
 	finishTiming(req, res, 304, 0, cache)
@@ -355,8 +364,7 @@ export async function create(template: Template) {
 
 		if (ajax(req)) {
 
-			res.setHeader('Cache-Control', 'no-store')
-			res.setHeader('Content-Type', 'application/json')
+			for (const [key, value] of Object.entries(routeHeaders('application/json; charset=utf-8'))) res.setHeader(key, value)
 
 			if (error) {
 				const body = JSON.stringify({ error: error.toJSON() })
@@ -397,9 +405,17 @@ export async function create(template: Template) {
 		const digest = error ? undefined : routeHash(JSON.stringify(payload(head, entries)))
 		const meta = metadata(req.topics ?? new Set<string>())
 		const status = resolved?.state?.error?.status ?? error?.status ?? 200
+		const state = {
+			...resolved!.state,
+			error: resolved!.state?.error?.toJSON?.() ?? resolved!.state?.error,
+			head,
+			hash: digest,
+			...meta,
+			rawServerData: [head, ...entries],
+		}
 		const body = template({
 			head: renderHead(head as Head),
-			data: `<script>globalThis.__SSR__=${JSON.stringify(JSON.stringify({ ...resolved!.state, head, hash: digest, ...meta, rawServerData: [head, ...entries] }))}</script>`,
+			data: renderSSRScript(state),
 			root: html(createElement(App, { page: resolved!.page })),
 		})
 
@@ -410,7 +426,7 @@ export async function create(template: Template) {
 			res,
 			status,
 			body,
-			{ 'Content-Type': 'text/html' }
+			routeHeaders('text/html; charset=utf-8')
 		)
 	}
 
@@ -441,13 +457,16 @@ export async function create(template: Template) {
 
 		if (ajax(req)) {
 			const body = result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true })
+			const emittedTopics = normalizeTopics([...topics])
 			const payload = {
 				...body,
-				...(topics.size > 0 && { topics: normalizeTopics([...topics]) })
+				...(emittedTopics.length > 0 && {
+					topics: emittedTopics,
+					versions: versionsFor(emittedTopics),
+				})
 			}
 
-			res.setHeader('Cache-Control', 'no-store')
-			res.setHeader('Content-Type', 'application/json')
+			for (const [key, value] of Object.entries(routeHeaders('application/json; charset=utf-8'))) res.setHeader(key, value)
 
 			send(res, 200, JSON.stringify(payload))
 
