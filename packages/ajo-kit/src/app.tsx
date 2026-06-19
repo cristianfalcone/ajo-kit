@@ -12,7 +12,7 @@ import type {
 } from './constants'
 import { apply, type Head } from './head'
 import { getCache, setCache } from './cache'
-import { applyPatch, type Patch } from './patch'
+import type { Patch } from './patch'
 import { routes } from 'virtual:ajo/routes'
 
 export { cache, clearCache, invalidateCache } from './cache'
@@ -267,8 +267,6 @@ type LiveMessage = {
 	versions?: Record<string, number>
 }
 
-type RawData = [Head | undefined, ...Data]
-
 type LiveStatus = 'closed' | 'connecting' | 'open'
 
 type ActionDetail = {
@@ -321,7 +319,6 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	let hmr = false
 	let activeState: State | null = null
-	let activeRawData: RawData | null = null
 	let activeRecompose: (() => Component) | null = null
 	let activePage: Page | null = null
 	let actionRefresh: ReturnType<typeof setTimeout> | null = null
@@ -331,12 +328,13 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	const sse = stream(message => {
 
-		if (!activeState || !activeRawData || message.patches.length === 0) return
+		const patch = message.patches.at(-1)
+
+		if (!activeState || !patch) return
+
 		patchGeneration++
 
-		applyPatch(activeRawData, message.patches)
-
-		const [head, ...entries] = activeRawData
+		const [head, ...entries] = patch.value as [Head | undefined, ...Data]
 
 		activeState.data = entries
 		activeState.hash = message.hash ?? activeState.hash
@@ -374,7 +372,6 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 				if (state && !state.loading) {
 
 					activeState = state
-					activeRawData = [state.head, ...state.data]
 					activeRecompose = recompose ?? null
 					activePage = target
 				}
@@ -424,7 +421,6 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 			state.data = []
 			state.error = server.error
 			state.loading = false
-			activeRawData = [state.head, ...state.data]
 		} else {
 			state.data = server.data
 			state.error = undefined
@@ -432,7 +428,6 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 			state.hash = server.hash
 			state.topics = server.topics
 			state.versions = server.versions
-			activeRawData = [server.head, ...server.data]
 
 			if (server.head) apply(server.head)
 			if (state.hash) setCache(state.url, state)

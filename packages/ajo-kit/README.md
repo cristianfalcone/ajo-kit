@@ -236,7 +236,7 @@ export const actions = {
 }
 ```
 
-The runtime maintains an SSE stream, revalidates affected routes, computes JSON patches, and applies them client-side.
+The runtime maintains an SSE stream, revalidates affected routes, and replaces the active route payload when tracked topics change.
 
 ## Database and Migrations
 
