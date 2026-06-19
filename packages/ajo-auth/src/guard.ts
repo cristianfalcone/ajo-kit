@@ -44,17 +44,20 @@ export const role = <R extends string>(...allowed: R[]): Middleware => (req, _, 
 export const protect = (to = '/login') => when(req => !req.user, redirect(to))
 export const guest = (to = '/dashboard') => when(req => !!req.user, redirect(to))
 
-export const ability = (...required: string[]): Middleware => (req, _, next) => {
+export function requireAbility(req: Request, ...required: string[]) {
 
 	if (!req.user) throw new UnauthorizedError()
-	if (!req.token) return next()
+	if (!req.token) return
 
 	for (const a of required) {
 		if (!can(req.token.abilities, a)) {
 			throw new ForbiddenError(`Missing ability: ${a}`)
 		}
 	}
+}
 
+export const ability = (...required: string[]): Middleware => (req, _, next) => {
+	requireAbility(req, ...required)
 	next()
 }
 

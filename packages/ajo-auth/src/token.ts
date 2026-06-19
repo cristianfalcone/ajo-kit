@@ -64,6 +64,9 @@ export function can(abilities: Ability[], required: Ability): boolean {
 	return abilities.includes(`${resource}:*`)
 }
 
+export const canAll = (abilities: Ability[], required: Ability[]) =>
+	required.every(ability => can(abilities, ability))
+
 export const revoke = (plain: string) =>
 	db().deleteFrom('tokens').where('id', '=', hash(plain)).execute()
 

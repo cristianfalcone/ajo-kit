@@ -1,20 +1,35 @@
 import type { Request, Response } from '@kit'
 import { send, emit } from '@kit/server'
 import { object, string, array, optional } from '@kit/validate'
-import { create, list } from '@kit/auth/token'
+import { create, list, canAll } from '@kit/auth/token'
+import { requireAbility } from '@kit/auth/guard'
 import { check, hit } from '@kit/auth/limit'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
-import { NotFoundError, AppError } from '@kit'
+import { NotFoundError, AppError, ForbiddenError } from '@kit'
+import { normalizeApiAbilities, unknownApiAbilities } from '/src/abilities'
 
 const Create = object({
 	name: string(),
 	abilities: optional(array(string()), ['*']),
 })
 
+const requestedAbilities = (abilities: string[]) => {
+	const requested = normalizeApiAbilities(abilities)
+	const unknown = unknownApiAbilities(requested)
+
+	if (unknown.length > 0) {
+		throw new AppError(400, `Unknown abilities: ${unknown.join(', ')}`)
+	}
+
+	return requested
+}
+
 export default {
 
 	async get(req: Request, res: Response) {
+
+		requireAbility(req, 'tokens:read')
 
 		const tokens = await list(req.user!.id)
 
@@ -32,6 +47,8 @@ export default {
 
 	async post(req: Request, res: Response) {
 
+		requireAbility(req, 'tokens:create')
+
 		const key = `token:${req.user!.id}`
 
 		if (!check(key)) {
@@ -41,11 +58,16 @@ export default {
 		hit(key)
 
 		const input = parse(Create, req.body)
+		const abilities = requestedAbilities(input.abilities)
+
+		if (req.token && !canAll(req.token.abilities, abilities)) {
+			throw new ForbiddenError('Requested abilities exceed bearer token abilities')
+		}
 
 		const token = await create(
 			req.user!.id,
 			input.name,
-			input.abilities
+			abilities
 		)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
@@ -59,6 +81,8 @@ export default {
 	},
 
 	async delete(req: Request, res: Response) {
+
+		requireAbility(req, 'tokens:delete')
 
 		const partialId = req.body.id
 

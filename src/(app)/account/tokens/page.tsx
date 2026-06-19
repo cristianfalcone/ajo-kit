@@ -2,6 +2,7 @@ import type { Stateful } from 'ajo'
 import { type PageArgs, formatDate } from '@kit'
 import { action } from '@kit/client'
 import Checkbox from '/src/ui/checkbox'
+import { apiAbilityOptions } from '/src/abilities'
 
 type Token = {
 	id: string
@@ -90,8 +91,8 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 								Leave empty for full access, or select specific abilities.
 							</p>
 							<div class="flex flex-wrap gap-3">
-								{['read', 'write', 'delete'].map(ability => (
-									<Checkbox key={ability} name="abilities" value={ability} label={ability} />
+								{apiAbilityOptions.map(ability => (
+									<Checkbox key={ability.value} name="abilities" value={ability.value} label={ability.label} />
 								))}
 							</div>
 						</div>

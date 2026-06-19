@@ -64,7 +64,7 @@ test('token actions refresh list data when SSE is unavailable', async ({ page })
 
 	await gotoReady(page, '/account/tokens')
 	await page.locator('input[name="name"]').fill(tokenName)
-	await page.locator('label', { hasText: 'read' }).click()
+	await page.locator('label', { hasText: 'tokens:read' }).click()
 	await page.getByRole('button', { name: 'Create Token' }).click()
 
 	await expect(page.getByText("Token created! Copy it now - it won't be shown again.")).toBeVisible()

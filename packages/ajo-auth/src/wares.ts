@@ -56,6 +56,8 @@ export function session(lookup?: Resolve): Middleware {
 
 		// 2. Bearer token (API/Mobile/CLI)
 
+		if (!api(req)) return next()
+
 		const auth = req.headers.authorization
 
 		if (auth?.startsWith('Bearer ')) {

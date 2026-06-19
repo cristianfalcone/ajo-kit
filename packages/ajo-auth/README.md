@@ -52,7 +52,7 @@ import { session, csrf } from '@kit/auth/wares'
 export default [session(), csrf]
 ```
 
-`session()` resolves `req.user` from cookie or bearer token.  
+`session()` resolves `req.user` from cookies, and from bearer tokens only on `/api/*` routes.
 `csrf` validates unsafe non-API requests (skips API routes, token-auth requests, and safe HTTP methods).
 
 ### 4. Set secret for verification links
@@ -120,7 +120,7 @@ Verification accepts:
 import { session, csrf } from '@kit/auth/wares'
 ```
 
-`session(lookup?)` accepts an optional custom user resolver.
+`session(lookup?)` accepts an optional custom user resolver. Bearer token auth is scoped to `/api/*`; route actions use cookie sessions and CSRF.
 
 ### Guards (`@kit/auth` or `@kit/auth/guard`)
 

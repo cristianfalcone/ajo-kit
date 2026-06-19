@@ -31,7 +31,7 @@ test('bearer API covers login, me, token create/list/delete and logout', async (
 		headers: auth,
 		data: {
 			name: 'Playwright API Token',
-			abilities: ['read'],
+			abilities: ['tokens:read'],
 		},
 	})
 
@@ -49,7 +49,7 @@ test('bearer API covers login, me, token create/list/delete and logout', async (
 
 	expect(apiToken).toMatchObject({
 		name: 'Playwright API Token',
-		abilities: ['read'],
+		abilities: ['tokens:read'],
 	})
 
 	const remove = await request.delete('/api/tokens', {
@@ -65,4 +65,97 @@ test('bearer API covers login, me, token create/list/delete and logout', async (
 
 	const afterLogout = await request.get('/api/me', { headers: auth })
 	expect(afterLogout.status()).toBe(401)
+})
+
+test('limited bearer tokens require matching API abilities', async ({ request }) => {
+	const auth = { Authorization: 'Bearer seed-api-token' }
+
+	const tokens = await request.get('/api/tokens', { headers: auth })
+	expect(tokens.status()).toBe(200)
+
+	const me = await request.get('/api/me', { headers: auth })
+	expect(me.status()).toBe(403)
+	await expect(me.json()).resolves.toMatchObject({ message: 'Missing ability: profile:read' })
+
+	const create = await request.post('/api/tokens', {
+		headers: auth,
+		data: {
+			name: 'Forbidden Token',
+			abilities: ['tokens:read'],
+		},
+	})
+
+	expect(create.status()).toBe(403)
+	await expect(create.json()).resolves.toMatchObject({ message: 'Missing ability: tokens:create' })
+
+	const remove = await request.delete('/api/tokens', {
+		headers: auth,
+		data: { id: 'none' },
+	})
+
+	expect(remove.status()).toBe(403)
+	await expect(remove.json()).resolves.toMatchObject({ message: 'Missing ability: tokens:delete' })
+})
+
+test('bearer tokens do not authenticate route actions outside api', async ({ request }) => {
+	const response = await request.post('/account/tokens?/make', {
+		headers: {
+			Accept: 'application/json',
+			Authorization: 'Bearer seed-api-token',
+		},
+		data: {
+			name: 'Route Action Token',
+			abilities: ['tokens:read'],
+		},
+	})
+
+	expect(response.status()).toBe(403)
+	await expect(response.json()).resolves.toMatchObject({ error: { message: 'Invalid CSRF token' } })
+})
+
+test('bearer token creation cannot exceed caller abilities', async ({ request }) => {
+	const login = await request.post('/api/login', {
+		data: {
+			email: 'cristian@example.com',
+			password: 'password',
+			device_name: 'Playwright API Subset',
+		},
+	})
+
+	expect(login.status()).toBe(200)
+
+	const full = await login.json()
+	const create = await request.post('/api/tokens', {
+		headers: { Authorization: `Bearer ${full.token}` },
+		data: {
+			name: 'Token Creator',
+			abilities: ['tokens:create'],
+		},
+	})
+
+	expect(create.status()).toBe(201)
+
+	const creator = await create.json()
+	const escalate = await request.post('/api/tokens', {
+		headers: { Authorization: `Bearer ${creator.token}` },
+		data: {
+			name: 'Escalated Token',
+			abilities: ['*'],
+		},
+	})
+
+	expect(escalate.status()).toBe(403)
+	await expect(escalate.json()).resolves.toMatchObject({
+		message: 'Requested abilities exceed bearer token abilities',
+	})
+
+	const sameScope = await request.post('/api/tokens', {
+		headers: { Authorization: `Bearer ${creator.token}` },
+		data: {
+			name: 'Same Scope Token',
+			abilities: ['tokens:create'],
+		},
+	})
+
+	expect(sameScope.status()).toBe(201)
 })

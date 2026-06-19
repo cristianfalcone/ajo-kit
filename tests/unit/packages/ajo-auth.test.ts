@@ -4,7 +4,7 @@ import { verify as verifyCsrf } from '../../../packages/ajo-auth/src/csrf'
 import { check as checkLimit, clear as clearLimit, hit, remaining } from '../../../packages/ajo-auth/src/limit'
 import { stamp, check as checkConfirm, clear as clearConfirm } from '../../../packages/ajo-auth/src/confirm'
 import { sign, url, validate } from '../../../packages/ajo-auth/src/verify'
-import { can } from '../../../packages/ajo-auth/src/token'
+import { can, canAll } from '../../../packages/ajo-auth/src/token'
 import { hash, verify } from '../../../packages/ajo-auth/src/password'
 
 const response = () => {
@@ -118,9 +118,18 @@ describe('ajo-auth tokens and signatures', () => {
 
 	test('ability checks support exact, resource wildcard and full wildcard grants', () => {
 		expect(can(['read'], 'read')).toBe(true)
+		expect(can(['read'], 'tokens:create')).toBe(false)
 		expect(can(['tokens:*'], 'tokens:delete')).toBe(true)
 		expect(can(['*'], 'anything')).toBe(true)
 		expect(can(['read'], 'write')).toBe(false)
+	})
+
+	test('ability subset checks require every requested ability to be granted', () => {
+		expect(canAll(['tokens:create'], ['tokens:create'])).toBe(true)
+		expect(canAll(['tokens:create'], ['*'])).toBe(false)
+		expect(canAll(['tokens:*'], ['tokens:read', 'tokens:delete'])).toBe(true)
+		expect(canAll(['*'], ['tokens:create', 'admin:write'])).toBe(true)
+		expect(canAll(['tokens:create'], ['tokens:read'])).toBe(false)
 	})
 
 	test('email verification signatures validate, reject tampering and expire', () => {

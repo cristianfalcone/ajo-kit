@@ -67,7 +67,7 @@ async function seed() {
 		id: createHash('sha256').update('seed-api-token').digest('hex'),
 		user: cristian.id,
 		name: 'Seed API Token',
-		abilities: JSON.stringify(['read']),
+		abilities: JSON.stringify(['tokens:read']),
 		last: null,
 		expiry: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
 	}).execute()

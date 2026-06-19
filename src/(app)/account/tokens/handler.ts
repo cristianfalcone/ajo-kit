@@ -4,6 +4,8 @@ import { create, list } from '@kit/auth/token'
 import { db, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
+import { AppError } from '@kit'
+import { normalizeApiAbilities, unknownApiAbilities } from '/src/abilities'
 
 const Create = object({
 	name: pipe(trimmed, minLength(1, 'Token name is required')),
@@ -11,6 +13,17 @@ const Create = object({
 })
 
 const Revoke = object({ id: string() })
+
+const requestedAbilities = (abilities: string[]) => {
+	const requested = normalizeApiAbilities(abilities)
+	const unknown = unknownApiAbilities(requested)
+
+	if (unknown.length > 0) {
+		throw new AppError(400, `Unknown abilities: ${unknown.join(', ')}`)
+	}
+
+	return requested
+}
 
 export async function page(req: Request) {
 	req.track?.([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`])
@@ -33,7 +46,7 @@ export const actions = {
 	make: async (req: Request) => {
 
 		const input = parse(Create, req.body)
-		const abilities = input.abilities.length > 0 ? input.abilities : ['*']
+		const abilities = requestedAbilities(input.abilities)
 
 		const plain = await create(req.user!.id, input.name, abilities)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
