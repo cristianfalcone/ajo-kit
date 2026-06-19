@@ -9,11 +9,8 @@ import type { RouteTiming } from './timing'
 
 export class AppError extends Error {
 
-	override message: string
-
 	constructor(public status: number, message: string) {
 		super(message)
-		this.message = message
 	}
 
 	toJSON() {
@@ -26,21 +23,15 @@ export class AppError extends Error {
 }
 
 export class NotFoundError extends AppError {
-	constructor(message = 'Page not found') {
-		super(404, message)
-	}
+	constructor(message = 'Page not found') { super(404, message) }
 }
 
 export class ForbiddenError extends AppError {
-	constructor(message = 'Access denied') {
-		super(403, message)
-	}
+	constructor(message = 'Access denied') { super(403, message) }
 }
 
 export class UnauthorizedError extends AppError {
-	constructor(message = 'Authentication required') {
-		super(401, message)
-	}
+	constructor(message = 'Authentication required') { super(401, message) }
 }
 
 export type ValidationFields = Record<string, string[] | undefined>
@@ -75,8 +66,7 @@ const productionConfigError = (message: string) => {
 
 export function normalize(error: unknown): AppError {
 	if (error instanceof AppError) return error
-	if (error instanceof Error) return new AppError(500, error.message)
-	return new AppError(500, 'Unknown error')
+	return new AppError(500, error instanceof Error ? error.message : 'Unknown error')
 }
 
 // Route path utilities
@@ -279,12 +269,8 @@ export function links(count: number): Link[] {
 
 		const promise = new Promise<Entry>((res, rej) => { resolve = res; reject = rej })
 
-		const parent = depth === 0
-			? async () => ({})
-			: async () => {
-				const ancestors = await Promise.all(chain.slice(0, depth).map(link => link.deferred.promise))
-				return ancestors.reduce((result, entry) => ({ ...result, ...entry }), {})
-			}
+		const parent = async () =>
+			Object.assign({}, ...await Promise.all(chain.slice(0, depth).map(link => link.deferred.promise)))
 
 		chain.push({ parent, deferred: { promise, resolve, reject } })
 	}
