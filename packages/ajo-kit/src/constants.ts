@@ -251,6 +251,7 @@ declare module 'polka' {
 		action?: Action
 		topics?: Set<string>
 		track?: (topic: string | string[]) => void
+		verifyLive?: () => Promise<boolean>
 		timing?: RouteTiming
 		revalidate?: () => Promise<any[]>
 		head?: Head

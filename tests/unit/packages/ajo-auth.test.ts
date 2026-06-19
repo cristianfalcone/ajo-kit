@@ -244,6 +244,26 @@ describe('ajo-auth session storage', () => {
 		expect(apiReq.user.id).toBe(user.id)
 		expect(apiReq.token).toEqual({ id: tokenId, abilities: ['tokens:read'] })
 		expect(apiReq.session).toBeUndefined()
+
+		await removeSession(plainSession)
+		let staleSessionNext = false
+
+		await middleware(sessionReq, res as any, (() => { staleSessionNext = true }) as any)
+
+		expect(staleSessionNext).toBe(true)
+		expect(sessionReq.user).toBeUndefined()
+		expect(sessionReq.session).toBeUndefined()
+		expect(sessionReq.token).toBeUndefined()
+
+		await db<any>().deleteFrom('tokens').where('id', '=', tokenId).execute()
+		let staleTokenNext = false
+
+		await middleware(apiReq, res as any, (() => { staleTokenNext = true }) as any)
+
+		expect(staleTokenNext).toBe(true)
+		expect(apiReq.user).toBeUndefined()
+		expect(apiReq.token).toBeUndefined()
+		expect(apiReq.session).toBeUndefined()
 	})
 })
 

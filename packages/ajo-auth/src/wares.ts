@@ -1,4 +1,4 @@
-import type { Middleware } from 'ajo-kit'
+import type { Middleware, Request } from 'ajo-kit'
 import { ForbiddenError, api } from 'ajo-kit'
 import { read, clear } from './cookie'
 import { validate } from './session'
@@ -31,11 +31,19 @@ async function resolve(userId: number) {
 
 type Resolve = typeof resolve
 
+const clearRequestAuth = (req: Request) => {
+	delete req.user
+	delete req.session
+	delete req.token
+}
+
 export function session(lookup?: Resolve): Middleware {
 
 	const find = lookup ?? resolve
 
 	return async (req, res, next) => {
+
+		clearRequestAuth(req)
 
 		// 1. Explicit bearer token for API/Mobile/CLI
 

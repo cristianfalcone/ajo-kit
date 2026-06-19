@@ -163,8 +163,10 @@ export type LiveConnection = {
 	topics: Set<string>
 	hash: string
 	lastData: any[]
+	verify?: () => Promise<boolean>
 	revalidate: () => Promise<any[]>
 	send: (message: { patches: any[]; hash: string; topics: string[]; versions: TopicVersions }) => void
+	close: () => void
 }
 
 export const liveConnections = new Set<LiveConnection>()
@@ -183,6 +185,78 @@ const hasTopic = (conn: LiveConnection, topics: Set<string>) => {
 	return false
 }
 
+const liveProbeResponse = () => {
+	const headers = new Map<string, string | number | readonly string[]>()
+	const res = {
+		statusCode: 200,
+		writableEnded: false,
+		setHeader(key: string, value: string | number | readonly string[]) {
+			headers.set(key.toLowerCase(), value)
+			return res
+		},
+		getHeader(key: string) {
+			return headers.get(key.toLowerCase())
+		},
+		hasHeader(key: string) {
+			return headers.has(key.toLowerCase())
+		},
+		removeHeader(key: string) {
+			headers.delete(key.toLowerCase())
+		},
+		writeHead(status: number, values?: Record<string, string | number | readonly string[]>) {
+			res.statusCode = status
+			if (values) {
+				for (const [key, value] of Object.entries(values)) {
+					if (value !== undefined) res.setHeader(key, value)
+				}
+			}
+			return res
+		},
+		write() {
+			res.writableEnded = true
+			return true
+		},
+		end() {
+			res.writableEnded = true
+			return res
+		}
+	}
+
+	return res as unknown as Response
+}
+
+const runLiveMiddleware = (ware: Middleware, req: Request) => new Promise<boolean>((resolve, reject) => {
+	const res = liveProbeResponse()
+	let settled = false
+	const settle = (value: boolean) => {
+		if (settled) return
+		settled = true
+		resolve(value)
+	}
+	const fail = (err: unknown) => {
+		if (settled) return
+		settled = true
+		reject(err)
+	}
+
+	try {
+		const result = ware(req, res, err => err ? fail(err) : settle(true))
+		Promise.resolve(result).then(() => {
+			if (!settled) settle(false)
+		}, fail)
+	} catch (err) {
+		fail(err)
+	}
+})
+
+const verifyLiveRequest = async (req: Request, wares: Middleware[]) => {
+	for (const ware of wares) {
+		if (!await runLiveMiddleware(ware, req)) return false
+	}
+
+	return true
+}
+
 const forEachConcurrent = async <T,>(items: T[], limit: number, run: (item: T) => Promise<void>) => {
 	let index = 0
 	const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -192,9 +266,19 @@ const forEachConcurrent = async <T,>(items: T[], limit: number, run: (item: T) =
 	await Promise.all(workers)
 }
 
+const closeConnection = (conn: LiveConnection) => {
+	liveConnections.delete(conn)
+	conn.close()
+}
+
 const revalidateConnection = async (conn: LiveConnection) => {
 	try {
 		if (!liveConnections.has(conn)) return
+
+		if (conn.verify && !await conn.verify()) {
+			closeConnection(conn)
+			return
+		}
 
 		conn.req.topics = new Set<string>()
 		const newData = await conn.revalidate()
@@ -213,6 +297,7 @@ const revalidateConnection = async (conn: LiveConnection) => {
 
 	} catch (err) {
 		console.error('[SSE] Live update failed:', err)
+		closeConnection(conn)
 	}
 }
 
@@ -272,9 +357,10 @@ export async function create(template: Template) {
 		next()
 	}
 
-	const data = (page: Page): Middleware => async (req, res, next) => {
+	const data = (page: Page, routeWares: Middleware[]): Middleware => async (req, res, next) => {
 
 		req.topics = new Set<string>()
+		req.verifyLive = () => verifyLiveRequest(req, routeWares)
 
 		req.track = (topic: string | string[]) => {
 			if (Array.isArray(topic)) topic.forEach(t => req.topics!.add(t))
@@ -366,18 +452,30 @@ export async function create(template: Template) {
 			topics: req.topics ?? new Set<string>(),
 			hash: digest,
 			lastData: clone([head, ...entries]),
+			verify: req.verifyLive,
 			revalidate: req.revalidate!,
-			send: (message) => res.write(`data: ${JSON.stringify(message)}\n\n`)
+			send: (message) => res.write(`data: ${JSON.stringify(message)}\n\n`),
+			close: () => {}
 		}
 
 		liveConnections.add(conn)
 
 		const heartbeat = setInterval(() => res.write(':hb\n\n'), 30000)
+		let closed = false
 
-		req.socket?.on('close', () => {
+		const cleanup = () => {
+			if (closed) return
+			closed = true
 			clearInterval(heartbeat)
 			liveConnections.delete(conn)
-		})
+		}
+
+		conn.close = () => {
+			cleanup()
+			if (!res.writableEnded) res.end()
+		}
+
+		req.socket?.on('close', cleanup)
 	}
 
 	const render = async (req: Request, res: Response, page: Page, error?: AppError) => {
@@ -565,7 +663,7 @@ export async function create(template: Template) {
 		const path = `/${pattern || ''}`
 		const routeWares = collect(segments)
 
-		app.get(path, timing, json(), ...routeWares, data(page), sse, (req, res) => render(req, res, page))
+		app.get(path, timing, json(), ...routeWares, data(page, routeWares), sse, (req, res) => render(req, res, page))
 		app.post(path, action(segments), json(), ...routeWares, invoke())
 	}
 
