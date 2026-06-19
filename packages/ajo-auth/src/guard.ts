@@ -7,14 +7,10 @@ import { db } from './store'
 export const redirect = (to: string | ((req: Request) => string)): Middleware => (req, res) => {
 
 	const target = typeof to === 'function' ? to(req) : to
+	const json = ajax(req)
 
-	if (ajax(req)) {
-		res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
-		res.end(JSON.stringify({ redirect: target }))
-	} else {
-		res.writeHead(302, { Location: target })
-		res.end()
-	}
+	res.writeHead(json ? 200 : 302, json ? { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } : { Location: target })
+	res.end(json ? JSON.stringify({ redirect: target }) : undefined)
 }
 
 export const when = (
@@ -49,11 +45,8 @@ export function requireAbility(req: Request, ...required: string[]) {
 	if (!req.user) throw new UnauthorizedError()
 	if (!req.token) return
 
-	for (const a of required) {
-		if (!can(req.token.abilities, a)) {
-			throw new ForbiddenError(`Missing ability: ${a}`)
-		}
-	}
+	const missing = required.find(ability => !can(req.token!.abilities, ability))
+	if (missing) throw new ForbiddenError(`Missing ability: ${missing}`)
 }
 
 export const ability = (...required: string[]): Middleware => (req, _, next) => {
@@ -63,9 +56,7 @@ export const ability = (...required: string[]): Middleware => (req, _, next) => 
 
 export const confirmed = (window?: number): Middleware => (req, res, next) => {
 
-	if (!req.user) throw new UnauthorizedError()
-
-	if (!confirmCredential(req)) throw new UnauthorizedError()
+	if (!req.user || !confirmCredential(req)) throw new UnauthorizedError()
 
 	if (!checkConfirm(req, window)) {
 		const returnTo = encodeURIComponent(req.originalUrl)
