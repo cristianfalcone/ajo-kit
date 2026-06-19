@@ -1,8 +1,40 @@
+import { get, type IncomingHttpHeaders } from 'node:http'
 import { expect, request as playwrightRequest, test } from '@playwright/test'
 import { actionHeaders, adminCredentials, loginRequest } from './helpers'
 
 const varyIncludes = (value: string | undefined, token: string) =>
 	value?.toLowerCase().split(',').map(part => part.trim()).includes(token.toLowerCase())
+
+const expectSecurityHeaders = (headers: Record<string, string | undefined> | IncomingHttpHeaders) => {
+	expect(headers['x-content-type-options']).toBe('nosniff')
+	expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin')
+	expect(headers['permissions-policy']).toContain('camera=()')
+	expect(headers['permissions-policy']).toContain('microphone=()')
+	expect(headers['content-security-policy']).toBe("frame-ancestors 'none'")
+	expect(headers['strict-transport-security']).toBeUndefined()
+}
+
+const eventStreamHeaders = (baseURL: string, path: string) =>
+	new Promise<IncomingHttpHeaders>((resolve, reject) => {
+		let settled = false
+		const req = get(new URL(path, baseURL), { headers: { Accept: 'text/event-stream' } }, res => {
+			if (settled) return
+			settled = true
+			resolve(res.headers)
+			req.destroy()
+			res.destroy()
+		})
+
+		req.setTimeout(5000, () => {
+			if (settled) return
+			settled = true
+			req.destroy()
+			reject(new Error('Timed out waiting for SSE headers'))
+		})
+		req.on('error', error => {
+			if (!settled) reject(error)
+		})
+	})
 
 test('CSRF rejects cross-site JSON actions without same-origin proof', async ({ request }) => {
 	const response = await request.post('/login?/default', {
@@ -11,12 +43,41 @@ test('CSRF rejects cross-site JSON actions without same-origin proof', async ({ 
 	})
 
 	expect(response.status()).toBe(403)
+	expectSecurityHeaders(response.headers())
 	expect(await response.json()).toMatchObject({
 		error: {
 			status: 403,
 			message: 'Invalid CSRF token',
 		},
 	})
+})
+
+test('security headers are applied to HTML, JSON, API and SSE responses', async ({ request, baseURL }) => {
+	const html = await request.get('/login', {
+		headers: { Accept: 'text/html' },
+	})
+	expect(html.status()).toBe(200)
+	expectSecurityHeaders(html.headers())
+
+	const json = await request.get('/login', {
+		headers: { Accept: 'application/json' },
+	})
+	expect(json.status()).toBe(200)
+	expectSecurityHeaders(json.headers())
+
+	const api = await request.get('/api/me')
+	expect(api.status()).toBe(401)
+	expectSecurityHeaders(api.headers())
+
+	const action = await request.post('/login?/default', {
+		headers: actionHeaders(baseURL!),
+		data: adminCredentials,
+	})
+	expect(action.status()).toBe(200)
+	expectSecurityHeaders(action.headers())
+
+	const sse = await eventStreamHeaders(baseURL!, '/login')
+	expectSecurityHeaders(sse)
 })
 
 test('route data uses no-store JSON, ETag, topics, versions and early 304', async ({ request, baseURL }) => {
@@ -71,6 +132,7 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 	expect(cachedUsers.headers()['server-timing']).toContain('total;dur=')
 	expect(cachedUsers.headers()['server-timing']).toContain('loader;dur=0')
 	expect(cachedUsers.headers()['x-ajo-bytes']).toBe('0')
+	expectSecurityHeaders(cachedUsers.headers())
 	expect(await cachedUsers.text()).toBe('')
 })
 

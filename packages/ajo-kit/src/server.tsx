@@ -33,6 +33,23 @@ const byteLength = (body: string) => Buffer.byteLength(body)
 
 const routeVary = 'Accept, Cookie'
 
+const configuredHttps = () => {
+	if (process.env.NODE_ENV !== 'production' || !process.env.APP_URL) return false
+	try {
+		return new URL(process.env.APP_URL).protocol === 'https:'
+	} catch {
+		return false
+	}
+}
+
+const securityHeaders = () => ({
+	'X-Content-Type-Options': 'nosniff',
+	'Referrer-Policy': 'strict-origin-when-cross-origin',
+	'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+	'Content-Security-Policy': "frame-ancestors 'none'",
+	...(configuredHttps() && { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' }),
+})
+
 const routeHeaders = (type?: string) => ({
 	'Cache-Control': 'no-store',
 	Vary: routeVary,
@@ -242,6 +259,13 @@ type PageHandler = {
 type Template = (slots: Record<string, string>) => string
 
 export async function create(template: Template) {
+
+	const secure: Middleware = (_, res, next) => {
+		for (const [key, value] of Object.entries(securityHeaders())) {
+			if (!res.hasHeader(key)) res.setHeader(key, value)
+		}
+		next()
+	}
 
 	const timing: Middleware = (req, _, next) => {
 		req.timing = startRouteTiming()
@@ -491,6 +515,8 @@ export async function create(template: Template) {
 			else render(req, res, error(), notFound)
 		}
 	})
+
+	app.use(secure)
 
 	const collect = (segments: string[]): Middleware[] => ancestors(segments).flatMap(path => wares.get(path) ?? [])
 

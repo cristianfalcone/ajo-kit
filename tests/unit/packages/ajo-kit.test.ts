@@ -15,7 +15,7 @@ import {
 	setCache,
 } from '../../../packages/ajo-kit/src/cache'
 import { parseSSR, renderSSRScript, serializeSSR } from '../../../packages/ajo-kit/src/ssr'
-import { AppError, InvalidError, ip, trustedOrigin } from '../../../packages/ajo-kit/src/constants'
+import { AppError, InvalidError, ip, normalize, trustedOrigin } from '../../../packages/ajo-kit/src/constants'
 import type { State } from '../../../packages/ajo-kit/src/constants'
 import { object, parse, string, minLength, pipe } from '../../../packages/ajo-kit/src/validate'
 import {
@@ -117,6 +117,24 @@ describe('ajo-kit validation and errors', () => {
 		expect(new AppError(418, 'Short and stout').toJSON()).toMatchObject({
 			status: 418,
 			message: 'Short and stout',
+		})
+	})
+
+	test('AppError masks internal production messages', () => {
+		process.env.NODE_ENV = 'production'
+
+		expect(new AppError(500, 'database exploded').toJSON()).toEqual({
+			status: 500,
+			message: 'Internal Server Error',
+		})
+		expect(normalize(new Error('secret stack detail')).toJSON()).toEqual({
+			status: 500,
+			message: 'Internal Server Error',
+		})
+		expect(new InvalidError({ name: ['Required'] }).toJSON()).toMatchObject({
+			status: 400,
+			message: 'Validation failed',
+			fields: { name: ['Required'] },
 		})
 	})
 })

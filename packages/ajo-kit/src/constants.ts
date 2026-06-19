@@ -18,9 +18,9 @@ export class AppError extends Error {
 
 	toJSON() {
 		return {
-			message: this.message,
+			message: errorMessage(this.status, this.message),
 			status: this.status,
-			...(import.meta.env.DEV && { stack: this.stack })
+			...(!production() && import.meta.env.DEV && { stack: this.stack })
 		}
 	}
 }
@@ -57,13 +57,17 @@ export class InvalidError extends AppError {
 	}
 	toJSON() {
 		return {
-			message: this.message,
+			message: errorMessage(this.status, this.message),
 			status: this.status,
 			fields: this.fields,
-			...(import.meta.env.DEV && { stack: this.stack })
+			...(!production() && import.meta.env.DEV && { stack: this.stack })
 		}
 	}
 }
+
+const production = () => process.env.NODE_ENV === 'production'
+const errorMessage = (status: number, message: string) =>
+	production() && status >= 500 ? 'Internal Server Error' : message
 
 export function normalize(error: unknown): AppError {
 	if (error instanceof AppError) return error
