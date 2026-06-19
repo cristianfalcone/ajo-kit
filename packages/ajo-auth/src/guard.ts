@@ -9,7 +9,12 @@ export const redirect = (to: string | ((req: Request) => string)): Middleware =>
 	const target = typeof to === 'function' ? to(req) : to
 	const json = ajax(req)
 
-	res.writeHead(json ? 200 : 302, json ? { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } : { Location: target })
+	res.writeHead(
+		json ? 200 : 302,
+		json
+			? { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+			: { Location: target }
+	)
 	res.end(json ? JSON.stringify({ redirect: target }) : undefined)
 }
 
@@ -18,7 +23,9 @@ export const when = (
 	middleware: Middleware,
 	otherwise?: Middleware
 ): Middleware => (req, res, next) => {
-	condition(req, res) ? middleware(req, res, next) : (otherwise ? otherwise(req, res, next) : next())
+	if (condition(req, res)) return middleware(req, res, next)
+	if (otherwise) return otherwise(req, res, next)
+	next()
 }
 
 export const auth = (): Middleware => (req, _, next) => {

@@ -1,16 +1,28 @@
+export type Patch =
+	| { op: 'replace'; path: string; value: any }
+	| { op: 'add'; path: string; value: any }
+	| { op: 'remove'; path: string }
+
 const pointerKey = (key: string) => key.replace(/~1/g, '/').replace(/~0/g, '~')
 
-export function applyPatch(obj: any, patches: any[]) {
-	for (const { op, path, value } of patches) {
+export const replacePatch = (value: any): Patch[] => [
+	{ op: 'replace', path: '/', value },
+]
+
+export function applyPatch(obj: any, patches: Patch[]) {
+	for (const patch of patches) {
+		const { op, path } = patch
 
 		if (path === '/') {
 
-			if (Array.isArray(obj) && Array.isArray(value)) {
+			if (op === 'remove') continue
+
+			if (Array.isArray(obj) && Array.isArray(patch.value)) {
 				obj.length = 0
-				obj.push(...value)
+				obj.push(...patch.value)
 			} else {
 				Object.keys(obj).forEach(k => delete obj[k])
-				Object.assign(obj, value)
+				Object.assign(obj, patch.value)
 			}
 
 			continue
@@ -25,15 +37,15 @@ export function applyPatch(obj: any, patches: any[]) {
 
 		if (op === 'replace') {
 
-			target[last] = value
+			target[last] = patch.value
 
 		} else if (op === 'add') {
 
 			if (Array.isArray(target)) {
-				if (last === '-') target.push(value)
-				else target.splice(Number(last), 0, value)
+				if (last === '-') target.push(patch.value)
+				else target.splice(Number(last), 0, patch.value)
 			} else {
-				target[last] = value
+				target[last] = patch.value
 			}
 
 		} else if (op === 'remove') {

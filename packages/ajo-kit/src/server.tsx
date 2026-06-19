@@ -14,11 +14,8 @@ import { merge, render as renderHead, type Head } from './head'
 import { bumpTopics, isFresh, normalizeTopics, parseVersions, routeHash, versionsFor, type TopicVersions } from './freshness'
 import { elapsed, finishRouteTiming, logRouteTiming, serverTiming, startRouteTiming } from './timing'
 import { renderSSRScript } from './ssr'
+import { replacePatch, type Patch } from './patch'
 import { handlers as handlerFiles, wares as wareFiles } from 'virtual:ajo/handlers'
-
-const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
-
-const joinPath = (path: string, key: string | number) => `${path || ''}/${String(key).replace(/~/g, '~0').replace(/\//g, '~1')}`
 
 const emitted = new AsyncLocalStorage<Set<string>>()
 
@@ -58,8 +55,11 @@ const routeHeaders = (type?: string) => ({
 	...(type && { 'Content-Type': type }),
 })
 
-const headers = (res: Response, values: Record<string, string | number | readonly string[]>, missing = false) =>
-	Object.entries(values).forEach(([key, value]) => { if (!missing || !res.hasHeader(key)) res.setHeader(key, value) })
+const headers = (res: Response, values: Record<string, string | number | readonly string[]>, missing = false) => {
+	for (const [key, value] of Object.entries(values)) {
+		if (!missing || !res.hasHeader(key)) res.setHeader(key, value)
+	}
+}
 
 const finishTiming = (req: Request, res: Response, status: number, bytes: number, cache?: string) => {
 	const result = finishRouteTiming(req.timing, { status, bytes, cache })
@@ -82,96 +82,14 @@ const writeFresh = (req: Request, res: Response, hash?: string, early = false) =
 	res.end()
 }
 
-function diff(a: any, b: any, path = ''): any[] {
-
-	if (a === b) return []
-
-	if (!a || !b || typeof a !== 'object' || typeof b !== 'object') {
-		return [{ op: 'replace', path: path || '/', value: b }]
-	}
-
-	if (Array.isArray(a) && Array.isArray(b)) {
-
-		let same = a.length === b.length
-
-		if (same) {
-			for (let i = 0; i < a.length; i++) {
-				if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) {
-					same = false
-					break
-				}
-			}
-		}
-
-		if (same) return []
-
-		if (b.length > a.length && JSON.stringify(a) === JSON.stringify(b.slice(0, a.length))) {
-
-			const patches: any[] = []
-
-			for (let i = a.length; i < b.length; i++) patches.push({ op: 'add', path: `${path || ''}/-`, value: b[i] })
-
-			return patches
-		}
-
-		if (b.length > a.length && JSON.stringify(a) === JSON.stringify(b.slice(b.length - a.length))) {
-
-			const patches: any[] = []
-
-			for (let i = 0; i < b.length - a.length; i++) patches.push({ op: 'add', path: joinPath(path, i), value: b[i] })
-
-			return patches
-		}
-
-		if (a.length === b.length && a.length > 0) {
-			for (let shift = 1; shift < Math.min(10, a.length); shift++) {
-				if (JSON.stringify(a.slice(shift)) === JSON.stringify(b.slice(0, b.length - shift))) {
-
-					const patches: any[] = []
-
-					for (let i = 0; i < shift; i++) patches.push({ op: 'remove', path: `${path || ''}/0` })
-					for (let i = b.length - shift; i < b.length; i++) patches.push({ op: 'add', path: `${path || ''}/-`, value: b[i] })
-
-					return patches
-				}
-			}
-		}
-
-		const patches: any[] = []
-
-		for (let i = 0; i < Math.max(a.length, b.length); i++) {
-			if (i >= a.length) patches.push({ op: 'add', path: joinPath(path, i), value: b[i] })
-			else if (i >= b.length) patches.push({ op: 'remove', path: joinPath(path, i) })
-			else patches.push(...diff(a[i], b[i], joinPath(path, i)))
-		}
-
-		return patches
-	}
-
-	const patches: any[] = []
-	const keys = new Set([...Object.keys(a), ...Object.keys(b)])
-
-	for (const key of keys) {
-
-		const currentPath = joinPath(path, key)
-
-		if (!(key in a)) patches.push({ op: 'add', path: currentPath, value: b[key] })
-		else if (!(key in b)) patches.push({ op: 'remove', path: currentPath })
-		else patches.push(...diff(a[key], b[key], currentPath))
-	}
-
-	return patches
-}
-
 type LiveConnection = {
 	req: Request
 	auth: 'anonymous' | 'bearer' | 'session' | 'user'
 	topics: Set<string>
 	hash: string
-	lastData: any[]
 	verify?: () => Promise<boolean>
 	revalidate: () => Promise<any[]>
-	send: (message: { patches: any[]; hash: string; topics: string[]; versions: TopicVersions }) => void
+	send: (message: { patches: Patch[]; hash: string; topics: string[]; versions: TopicVersions }) => void
 	close: () => void
 }
 
@@ -190,7 +108,9 @@ const liveAuth = (req: Request): LiveConnection['auth'] => {
 	return 'anonymous'
 }
 
-const hasTopic = (conn: LiveConnection, topics: Set<string>) => [...topics].some(topic => conn.topics.has(topic))
+const hasTopic = (conn: LiveConnection, topics: Set<string>) => {
+	return [...topics].some(topic => conn.topics.has(topic))
+}
 
 const liveProbeResponse = () => {
 	const headers = new Map<string, string | number | readonly string[]>()
@@ -303,12 +223,8 @@ const revalidateConnection = async (conn: LiveConnection) => {
 
 		if (hash === conn.hash) return
 
-		const patches = diff(conn.lastData, newData)
-
 		conn.hash = hash
-		conn.lastData = clone(newData)
-
-		if (patches.length > 0) conn.send({ patches, hash, ...metadata(conn.topics) })
+		conn.send({ patches: replacePatch(newData), hash, ...metadata(conn.topics) })
 
 	} catch (err) {
 		console.error('[SSE] Live update failed:', err)
@@ -460,7 +376,6 @@ export async function create(template: Template) {
 			auth: liveAuth(req),
 			topics: req.topics ?? new Set<string>(),
 			hash,
-			lastData: clone([head, ...entries]),
 			verify: req.verifyLive,
 			revalidate: req.revalidate!,
 			send: (message) => res.write(`data: ${JSON.stringify(message)}\n\n`),

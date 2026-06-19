@@ -23,15 +23,21 @@ export class AppError extends Error {
 }
 
 export class NotFoundError extends AppError {
-	constructor(message = 'Page not found') { super(404, message) }
+	constructor(message = 'Page not found') {
+		super(404, message)
+	}
 }
 
 export class ForbiddenError extends AppError {
-	constructor(message = 'Access denied') { super(403, message) }
+	constructor(message = 'Access denied') {
+		super(403, message)
+	}
 }
 
 export class UnauthorizedError extends AppError {
-	constructor(message = 'Authentication required') { super(401, message) }
+	constructor(message = 'Authentication required') {
+		super(401, message)
+	}
 }
 
 export type ValidationFields = Record<string, string[] | undefined>
@@ -267,7 +273,10 @@ export function links(count: number): Link[] {
 		let resolve!: (value: Entry) => void
 		let reject!: (error: Error) => void
 
-		const promise = new Promise<Entry>((res, rej) => { resolve = res; reject = rej })
+		const promise = new Promise<Entry>((res, rej) => {
+			resolve = res
+			reject = rej
+		})
 
 		const parent = async () =>
 			Object.assign({}, ...await Promise.all(chain.slice(0, depth).map(link => link.deferred.promise)))

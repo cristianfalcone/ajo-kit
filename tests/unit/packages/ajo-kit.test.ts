@@ -7,7 +7,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { close, connect } from '../../../packages/ajo-kit/src/database'
 import { merge, render } from '../../../packages/ajo-kit/src/head'
 import { formDataBody } from '../../../packages/ajo-kit/src/form'
-import { applyPatch } from '../../../packages/ajo-kit/src/patch'
+import { applyPatch, replacePatch } from '../../../packages/ajo-kit/src/patch'
 import {
 	CACHE_MAX,
 	CACHE_TTL,
@@ -283,6 +283,15 @@ describe('ajo-kit SSR payload', () => {
 })
 
 describe('ajo-kit JSON patches', () => {
+	test('replacePatch replaces the route data root', () => {
+		const current = [{ title: 'Old' }, { items: ['old'] }]
+		const next = [{ title: 'New' }, { items: ['new', 'newest'] }]
+
+		applyPatch(current, replacePatch(next))
+
+		expect(current).toEqual(next)
+	})
+
 	test('applyPatch unescapes JSON pointer object keys', () => {
 		const value = {
 			'tilde~key': {
