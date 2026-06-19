@@ -105,9 +105,6 @@ if(import.meta.hot)import.meta.hot.accept(m=>{
 })
 
 export interface KitOptions {
-	routes?: string
-	handlers?: string
-	wares?: string
 	serverOnly?: Pattern[]
 	css?: string[]
 }
@@ -126,9 +123,6 @@ const serverOnlyDefaults = (found: ReturnType<typeof discover>): Pattern[] => [
 
 export function kit(options?: KitOptions): Plugin[] {
 
-	const routeGlob = options?.routes ?? '/src/**/{layout,page}.{j,t}s{,x}'
-	const handlerGlob = options?.handlers ?? '/src/**/handler.{j,t}s{,x}'
-	const wareGlob = options?.wares ?? '/src/**/wares.{j,t}s{,x}'
 	const cssEntries = options?.css ?? []
 	const found = discover()
 
@@ -141,12 +135,12 @@ export function kit(options?: KitOptions): Plugin[] {
 			},
 			load(id) {
 				if (id === '\0virtual:ajo/routes') {
-					return `export const routes = import.meta.glob('${routeGlob}')`
+					return "export const routes = import.meta.glob('/src/**/{layout,page}.{j,t}s{,x}')"
 				}
 				if (id === '\0virtual:ajo/handlers') {
 					return [
-						`export const handlers = import.meta.glob('${handlerGlob}')`,
-						`export const wares = import.meta.glob('${wareGlob}')`,
+						"export const handlers = import.meta.glob('/src/**/handler.{j,t}s{,x}')",
+						"export const wares = import.meta.glob('/src/**/wares.{j,t}s{,x}')",
 					].join('\n')
 				}
 			},
