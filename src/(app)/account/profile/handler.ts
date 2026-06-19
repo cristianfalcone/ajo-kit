@@ -1,9 +1,12 @@
-import type { Parent, Request } from '@kit'
+import type { Parent, Request, Response } from '@kit'
 import { object, string, optional, pipe, forward, partialCheck } from '@kit/validate'
 import { hash, verify } from '@kit/auth/password'
+import { generate, hash as hashSession } from '@kit/auth/session'
+import { write } from '@kit/auth/cookie'
+import { clear as clearConfirm } from '@kit/auth/confirm'
 import { db, password as passwordField, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
-import { UnauthorizedError } from '@kit'
+import { UnauthorizedError, ip } from '@kit'
 import { emit } from '@kit/server'
 
 const UpdateName = object({
@@ -64,14 +67,15 @@ export const actions = {
 		return { success: true, name: input.name }
 	},
 
-	password: async (req: Request) => {
+	password: async (req: Request, res: Response) => {
 
 		const input = parse(UpdatePassword, req.body)
+		const userId = req.user!.id
 
 		const user = await db()
 			.selectFrom('users')
 			.select(['password'])
-			.where('id', '=', req.user!.id)
+			.where('id', '=', userId)
 			.executeTakeFirst()
 
 		if (!user?.password || !await verify(input.current, user.password)) {
@@ -79,13 +83,43 @@ export const actions = {
 		}
 
 		const hashed = await hash(input.password)
+		const session = generate()
+		const sessionId = hashSession(session)
+		const now = new Date().toISOString()
+		const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
-		await db()
-			.updateTable('users')
-			.set({ password: hashed, updated: new Date().toISOString() })
-			.where('id', '=', req.user!.id)
-			.execute()
-		emit([`profile:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`])
+		await db().transaction().execute(async trx => {
+			await trx.updateTable('users')
+				.set({ password: hashed, updated: now })
+				.where('id', '=', userId)
+				.execute()
+
+			await trx.deleteFrom('tokens').where('user', '=', userId).execute()
+			await trx.deleteFrom('sessions').where('user', '=', userId).execute()
+
+			await trx.insertInto('sessions').values({
+				id: sessionId,
+				user: userId,
+				expiry,
+				ip: ip(req),
+				agent: req.headers['user-agent'] ?? null,
+				last: now,
+			}).execute()
+		})
+
+		write(res, session)
+		clearConfirm(userId)
+		emit([
+			`profile:${userId}`,
+			`sessions:${userId}`,
+			`tokens:${userId}`,
+			`dashboard:${userId}`,
+			`user:${userId}`,
+			'admin:sessions',
+			'admin:tokens',
+			'admin:users',
+			'admin:stats',
+		])
 
 		return { success: true }
 	}

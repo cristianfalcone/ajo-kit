@@ -2,6 +2,7 @@ import type { Request } from '@kit'
 import { object, string } from '@kit/validate'
 import { read } from '@kit/auth/cookie'
 import { hash as hashSession } from '@kit/auth/session'
+import { clear as clearConfirm } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
@@ -56,6 +57,7 @@ export const actions = {
 			.deleteFrom('sessions')
 			.where('id', '=', matches[0].id)
 			.execute()
+		clearConfirm(req.user!.id)
 		emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: true }
@@ -73,6 +75,7 @@ export const actions = {
 			.where('user', '=', req.user!.id)
 			.where('id', '!=', current!)
 			.execute()
+		clearConfirm(req.user!.id)
 		emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: Number(result[0].numDeletedRows) }

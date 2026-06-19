@@ -3,6 +3,7 @@ import { send, emit } from '@kit/server'
 import { createHash } from 'node:crypto'
 import { db } from '/src/data'
 import { requireAbility } from '@kit/auth/guard'
+import { clear as clearConfirm } from '@kit/auth/confirm'
 
 export default {
 
@@ -28,6 +29,7 @@ export default {
 			}
 		}
 
+		clearConfirm(req.user!.id)
 		send(res, 200, { message: 'Logged out' })
 	}
 }

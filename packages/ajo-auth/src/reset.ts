@@ -32,17 +32,6 @@ export async function validate(plain: string): Promise<number | null> {
 	return reset.user
 }
 
-export async function consume(plain: string): Promise<number | null> {
-
-	const user = await validate(plain)
-
-	if (user) {
-		await db().deleteFrom('resets').where('id', '=', hash(plain)).execute()
-	}
-
-	return user
-}
-
 export function prune() {
 	return db().deleteFrom('resets').where('expiry', '<', new Date().toISOString()).execute()
 }

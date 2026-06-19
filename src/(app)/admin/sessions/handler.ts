@@ -1,5 +1,6 @@
 import type { Request } from '@kit'
 import { object, string, pipe, transform, number } from '@kit/validate'
+import { clear as clearConfirm } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { pageInfo, pageRows, paginate } from '/src/data/pagination'
 import { parse } from '@kit/validate'
@@ -61,6 +62,7 @@ export const actions = {
 			.deleteFrom('sessions')
 			.where('id', '=', session.id)
 			.execute()
+		clearConfirm(session.user)
 		emit(['admin:sessions', 'admin:stats', `sessions:${session.user}`, `dashboard:${session.user}`, `user:${session.user}`])
 
 		return { revoked: true }
@@ -74,6 +76,7 @@ export const actions = {
 			.deleteFrom('sessions')
 			.where('user', '=', input.user)
 			.execute()
+		clearConfirm(input.user)
 		emit(['admin:sessions', 'admin:stats', `sessions:${input.user}`, `dashboard:${input.user}`, `user:${input.user}`])
 
 		return { revoked: Number(result[0].numDeletedRows) }
