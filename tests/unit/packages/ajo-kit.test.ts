@@ -1,4 +1,6 @@
 import { mkdtempSync, rmSync } from 'node:fs'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
@@ -26,6 +28,7 @@ import {
 	timingEnabled,
 	type TimingResult,
 } from '../../../packages/ajo-kit/src/timing'
+import { listen } from '../../../packages/ajo-kit/src/node'
 
 const previousTiming = process.env.AJO_TIMING
 const previousAppUrl = process.env.APP_URL
@@ -44,6 +47,7 @@ afterEach(async () => {
 	restoreEnv('TRUST_PROXY', previousTrustProxy)
 	restoreEnv('NODE_ENV', previousNodeEnv)
 	restoreEnv('DATABASE_PATH', previousDatabasePath)
+	vi.unstubAllGlobals()
 	clearCache()
 	await close()
 })
@@ -334,6 +338,27 @@ describe('ajo-kit route cache', () => {
 })
 
 describe('ajo-kit timing and database', () => {
+	test('strict listen rejects an occupied port instead of incrementing', async () => {
+		const busy = createServer((_, res) => res.end('busy'))
+
+		await new Promise<void>((resolve, reject) => {
+			busy.listen(0, resolve).once('error', reject)
+		})
+
+		const address = busy.address()
+		if (!address || typeof address === 'string') throw new Error('Expected TCP test port')
+
+		try {
+			await expect(
+				listen({ handler: (_: unknown, res: { end: (body: string) => void }) => res.end('ok') }, (address as AddressInfo).port, { strict: true })
+			).rejects.toMatchObject({ code: 'EADDRINUSE' })
+		} finally {
+			await new Promise<void>((resolve, reject) => {
+				busy.close(error => error ? reject(error) : resolve())
+			})
+		}
+	})
+
 	test('timing flag honors disabled values and formats Server-Timing', () => {
 		process.env.AJO_TIMING = '0'
 		expect(timingEnabled()).toBe(false)
@@ -417,5 +442,17 @@ describe('ajo-kit timing and database', () => {
 			await close()
 			rmSync(dir, { recursive: true, force: true })
 		}
+	})
+
+	test('sample seed fetches remote data before deleting local tables', async () => {
+		const fetch = vi.fn(async () => ({ ok: false }))
+		const db = { deleteFrom: vi.fn() }
+		vi.stubGlobal('fetch', fetch)
+
+		const { seed } = await import('../../../db/seeds/sample')
+
+		await expect(seed(db as any)).rejects.toThrow('Failed to fetch')
+		expect(fetch).toHaveBeenCalledWith('https://dummyjson.com/users?limit=10')
+		expect(db.deleteFrom).not.toHaveBeenCalled()
 	})
 })

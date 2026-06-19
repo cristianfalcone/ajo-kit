@@ -13,6 +13,9 @@ const ago = (base: Date, minutes: number) => new Date(base.getTime() - minutes *
 
 export async function seed(db: Kysely<any>): Promise<void> {
 
+	const data = await fetchJson<{ users: any[] }>('https://dummyjson.com/users?limit=10')
+	const password = await hash('password')
+
 	// Clear existing data
 	await db.deleteFrom('messages').execute()
 	await db.deleteFrom('participants').execute()
@@ -34,8 +37,6 @@ export async function seed(db: Kysely<any>): Promise<void> {
 	console.log(`  ${roles.length} roles`)
 
 	// Admin user (cristian)
-	const password = await hash('password')
-
 	const { id: cristian } = await db.insertInto('users').values({
 		name: 'Cristian Falcone',
 		email: 'cristian@example.com',
@@ -47,7 +48,6 @@ export async function seed(db: Kysely<any>): Promise<void> {
 	console.log(`  1 admin (cristian@example.com)`)
 
 	// Fetch sample users from DummyJSON
-	const data = await fetchJson<{ users: any[] }>('https://dummyjson.com/users?limit=10')
 	const userIds: number[] = []
 
 	for (const u of data.users) {

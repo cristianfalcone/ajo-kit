@@ -20,9 +20,11 @@ test('dashboard, theme toggle and profile actions reflect account state', async 
 	await expect(page.getByText('Active Sessions')).toBeVisible()
 	await expect(page.getByText('Unread Messages')).toBeVisible()
 
-	await page.getByLabel('Change theme').click()
+	const theme = page.locator('button[aria-label="Change theme"]:visible')
+
+	await theme.click()
 	expect(await page.evaluate(() => localStorage.getItem('theme.v1'))).toBe('light')
-	await page.getByLabel('Change theme').click()
+	await theme.click()
 	await expect(page.locator('html')).toHaveClass(/dark/)
 
 	const name = `Cristian ${Date.now()}`

@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { createServer as createHttpServer } from 'node:http'
-import { createServer, build as viteBuild } from 'vite'
+import { createServer, build as viteBuild, type ServerOptions } from 'vite'
 import polka from 'polka'
 import sirv from 'sirv'
 
@@ -59,12 +59,16 @@ async function html() {
 	catch { return defaultHtml }
 }
 
-export async function dev() {
+export type DevOptions = {
+	hmr?: ServerOptions['hmr']
+}
+
+export async function dev(options: DevOptions = {}) {
 
 	const app = polka()
 
 	const vite = await createServer({
-		server: { middlewareMode: true },
+		server: { middlewareMode: true, ...(options.hmr !== undefined && { hmr: options.hmr }) },
 		appType: 'custom',
 	})
 
@@ -79,18 +83,23 @@ export async function dev() {
 
 	app.use((req: any, res: any) => inner.handler(req, res))
 
-	const reHandler = /(handler|wares)\.[jt]sx?$/
-	vite.watcher.on('change', async (file) => {
-		if (!reHandler.test(file)) return
+	const reRoute = /(handler|wares|page|layout)\.[jt]sx?$/
+	const reload = async (file: string) => {
+		if (!reRoute.test(file)) return
 		try {
 			const { create } = await vite.ssrLoadModule('ajo-kit/server')
 			inner = await create(template)
-			console.log('\x1b[32m✓\x1b[0m Server handlers reloaded')
+			console.log('\x1b[32m✓\x1b[0m Server routes reloaded')
+			if (/(page|layout)\.[jt]sx?$/.test(file)) vite.ws.send({ type: 'full-reload', path: '*' })
 		} catch (error) {
-			console.error('\x1b[31m✗\x1b[0m Failed to reload handlers:')
+			console.error('\x1b[31m✗\x1b[0m Failed to reload routes:')
 			console.error(error)
 		}
-	})
+	}
+
+	vite.watcher.on('change', reload)
+	vite.watcher.on('add', reload)
+	vite.watcher.on('unlink', reload)
 
 	return app
 }
@@ -119,11 +128,15 @@ export async function build() {
 	await viteBuild({ build: { outDir: 'dist/server', ssr: entry } })
 }
 
-export const listen = (app: any, port = 5173): Promise<number> => new Promise((resolve, reject) => {
+export const listen = (app: any, port = 5173, options: { strict?: boolean } = {}): Promise<number> => new Promise((resolve, reject) => {
 	createHttpServer(app.handler)
 		.listen(port, () => {
 			console.log(`Server started at http://localhost:${port}`)
 			resolve(port)
 		})
-		.once('error', (error: NodeJS.ErrnoException) => error.code === 'EADDRINUSE' ? resolve(listen(app, port + 1)) : reject(error))
+		.once('error', (error: NodeJS.ErrnoException) =>
+			error.code === 'EADDRINUSE' && !options.strict
+				? resolve(listen(app, port + 1, options))
+				: reject(error)
+		)
 })

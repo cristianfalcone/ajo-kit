@@ -102,6 +102,6 @@ await close()
 process.env.DATABASE_PATH = database
 process.env.AJO_TIMING = '1'
 
-await listen(await dev(), 5180)
+await listen(await dev({ hmr: { host: '127.0.0.1', protocol: 'ws' } }), 5180, { strict: true })
 
 await new Promise(() => {})
