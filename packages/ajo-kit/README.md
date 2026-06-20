@@ -249,6 +249,12 @@ The runtime maintains an SSE stream, revalidates affected routes, and replaces t
 - `Database` (better-sqlite3)
 - `sql` and Kysely types
 
+The first supported production topology is one `kit start` Node process with one
+SQLite database file on persistent local disk. Topic versions, active SSE
+connections, live fanout, and auth rate limits are process-local. Do not run
+multiple workers behind a load balancer without adding shared app-specific
+coordination for those pieces.
+
 `kit migrate` merges:
 
 - app migrations in `db/migrations`

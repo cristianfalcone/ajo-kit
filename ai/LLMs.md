@@ -127,6 +127,24 @@ Timing headers/logs:
 Use `AJO_TIMING=1` route headers/logs during investigations; do not import
 framework timing internals from app code.
 
+## Production Topology
+
+Assume one `kit start` Node process with one SQLite database file. Do not design
+new app features that rely on multi-instance coherence unless the app explicitly
+adds a shared topic bus and shared rate-limit store.
+
+Process-local framework state:
+
+- route topic versions
+- active SSE connections
+- pending live fanout
+- auth rate limits
+- password confirmation stamps
+
+Keep mutations durable in SQLite and emit topics after commit. Treat reverse
+proxy TLS/restart/edge limits as deployment concerns around the single app
+process.
+
 ## Topic Names
 
 - `user:<id>`

@@ -629,6 +629,21 @@ with reason, path, and auth mode.
 
 The app uses SQLite through `better-sqlite3` and Kysely.
 
+The first supported production topology is a single `kit start` Node process
+with one SQLite database file on persistent local disk. The following state is
+process-local and intentionally simple:
+
+- topic versions in `freshness.ts`
+- active SSE connections and pending fanout queues in `server.tsx`
+- `ajo-auth` rate-limit buckets
+- password confirmation stamps
+- configured mail transport
+
+This means multi-process or multi-instance deployments are not coherent by
+default. A load-balanced deployment needs a shared topic bus, shared rate-limit
+store, and explicit deployment semantics before it can be supported. Reverse
+proxies and process managers are fine when they keep a single app process.
+
 Runtime pragmas are set on connection:
 
 - WAL journal mode

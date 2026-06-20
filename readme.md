@@ -111,6 +111,25 @@ Defaults:
 `ajo-*` packages. Migration names are global; duplicate names fail before any
 migration runs.
 
+## Production Topology
+
+The first supported production topology is one `kit start` Node process with one
+SQLite database file on persistent local disk. Put TLS, compression, process
+restart, and optional edge rate limiting in a reverse proxy or process manager.
+
+In-process state is intentionally not distributed:
+
+- route topic versions
+- active SSE connections
+- pending live update fanout
+- auth rate limits
+- password confirmation stamps
+
+Do not run multiple `kit start` workers behind a load balancer unless your app
+adds a shared topic bus, shared rate limiter, and the deployment semantics that
+go with them. SQLite WAL supports many readers and one writer, but framework
+live state and rate limits are process-local by design.
+
 ## Routes
 
 Routes are filesystem based:

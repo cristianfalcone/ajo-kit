@@ -407,6 +407,12 @@ Acceptance:
 
 ## Phase 8: Production Mode Statement
 
+Status: implemented. Docs now state the first supported production topology:
+one `kit start` Node process plus one persistent local SQLite database. They
+also call out process-local topic versions, SSE fanout, rate limits, password
+confirmation stamps, and the shared coordination needed before multi-instance
+deployments are supported.
+
 Finding:
 
 - Topic versions, SSE fanout, and rate limiting are in-memory per process.

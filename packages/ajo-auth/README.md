@@ -175,7 +175,10 @@ limit.remaining(ip)
 limit.clear(ip)
 ```
 
-In-memory limiter (per-process, non-distributed).
+In-memory limiter (per-process, non-distributed). It matches the first supported
+`ajo-kit` production topology: one Node process and one SQLite database. For
+multi-process deployments, add an app-specific shared limiter before relying on
+these helpers for abuse protection.
 
 ### `confirm`
 
