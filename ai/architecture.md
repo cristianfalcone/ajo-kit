@@ -594,6 +594,12 @@ Password reset/change are credential boundaries:
 Login paths use dummy password verification where needed so missing users do not
 create obvious timing differences.
 
+Email verification signatures are HMAC-SHA256 tokens using `APP_SECRET`.
+Development can use the local fallback. Production fails closed before signing
+or validating when `APP_SECRET` is missing, shorter than 32 characters, or left
+as a sample placeholder; the failure logs a server-side security message and
+public responses mask it as a 500.
+
 ### Error Responses and Logging
 
 `Failure` carries an HTTP status and public message. The JSON body parser is

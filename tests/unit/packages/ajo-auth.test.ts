@@ -15,6 +15,9 @@ import { configure } from '../../../packages/ajo-auth/src/store'
 import { close, connect, db } from '../../../packages/ajo-kit/src/database'
 import { hash, verify } from '../../../packages/ajo-auth/src/password'
 
+const env = process.env.NODE_ENV
+const secret = process.env.APP_SECRET
+
 const response = () => {
 	const headers = new Map<string, string>()
 	return {
@@ -332,7 +335,12 @@ describe('ajo-auth tokens and signatures', () => {
 		vi.setSystemTime(new Date('2026-06-19T00:00:00Z'))
 	})
 
-	afterEach(() => vi.useRealTimers())
+	afterEach(() => {
+		restore('NODE_ENV', env)
+		restore('APP_SECRET', secret)
+		vi.restoreAllMocks()
+		vi.useRealTimers()
+	})
 
 	test('ability checks support exact, resource wildcard and full wildcard grants', () => {
 		expect(can(['read'], 'read')).toBe(true)
@@ -361,6 +369,28 @@ describe('ajo-auth tokens and signatures', () => {
 
 		vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1)
 		expect(validate(signature)).toBeNull()
+	})
+
+	test('email verification fails closed without a production secret', () => {
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+		process.env.NODE_ENV = 'production'
+		delete process.env.APP_SECRET
+
+		expect(() => sign(42)).toThrow('APP_SECRET must be set to a strong production secret')
+		expect(() => validate('anything')).toThrow('APP_SECRET must be set to a strong production secret')
+
+		process.env.APP_SECRET = 'change-in-production'
+		expect(() => sign(42)).toThrow('APP_SECRET must be set to a strong production secret')
+
+		process.env.APP_SECRET = 'your-secret-key'
+		expect(() => sign(42)).toThrow('APP_SECRET must be set to a strong production secret')
+
+		process.env.APP_SECRET = 'test-production-secret-0000000000'
+		const signature = sign(42)
+
+		expect(validate(signature)).toBe(42)
+		expect(log).toHaveBeenCalledWith('[security] APP_SECRET must be set to a strong production secret')
 	})
 
 	test('argon2id hashes verify correct passwords and reject wrong passwords', async () => {

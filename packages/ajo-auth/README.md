@@ -58,10 +58,11 @@ export default [wares.session(), wares.csrf]
 ### 4. Set secret for verification links
 
 ```env
-APP_SECRET=your-secret-key
+APP_SECRET=<32+ random characters from your secret manager>
 ```
 
-If missing, verification falls back to `change-in-production` (not safe for production).
+Development can run without this value. Production fails closed when
+`APP_SECRET` is missing, too short, or left as a sample placeholder.
 
 ## Main Exports
 
@@ -207,7 +208,8 @@ const link = verify.url(user, 'https://example.com')
 const verifiedUser = verify.validate(signature)
 ```
 
-HMAC-SHA256 signed token, default expiry 24 hours.
+HMAC-SHA256 signed token, default expiry 24 hours. Production requires a strong
+`APP_SECRET`.
 
 ## Types
 

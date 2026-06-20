@@ -186,6 +186,11 @@ Acceptance:
 
 ## Phase 3: Production Secret Fail-Closed
 
+Status: implemented. Email verification signatures now keep the development
+fallback outside production, but production `sign()` and `validate()` require a
+non-placeholder `APP_SECRET` of at least 32 characters and fail closed with a
+server-side security log otherwise.
+
 Finding:
 
 - `packages/ajo-auth/src/verify.ts` falls back to `change-in-production` when

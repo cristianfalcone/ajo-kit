@@ -551,8 +551,11 @@ kit migrate up
 Set a production secret for signed verification links:
 
 ```env
-APP_SECRET=your-secret-key
+APP_SECRET=<32+ random characters from your secret manager>
 ```
+
+Development can run without `APP_SECRET`. Production fails closed if it is
+missing, too short, or left as a sample placeholder.
 
 ## `@kit/auth`
 
@@ -763,6 +766,7 @@ function url(user: number, base: string): string
 ```
 
 Verification signatures are HMAC-SHA256 signed and expire after 24 hours.
+Production requires a strong `APP_SECRET`.
 
 ## Live Data Pattern
 
