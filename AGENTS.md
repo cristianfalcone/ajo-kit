@@ -46,7 +46,7 @@ pnpm test:all            # Unit + E2E
 - `ai/LLMs.md`: app-building guide for AI agents using Ajo and `ajo-kit`.
 - `ai/chat.md`: chat demo app behavior, data, scrolling, unread, and QA notes.
 - `ai/comparison.md`: framework/auth/routing comparison context.
-- `../ajo/LLMs.md`: Ajo UI syntax reference; load before writing TSX.
+- `node_modules/ajo/LLMs.md`: Ajo UI syntax reference; load before writing TSX.
 
 When documentation and code disagree, inspect the code and tests, update the docs
 that are supposed to describe the current behavior, and keep stale history out of
@@ -75,10 +75,11 @@ Core files:
 
 | File | Role |
 |---|---|
-| `packages/ajo-kit/src/server.tsx` | SSR, wares/loaders/actions/API dispatch, freshness, SSE, `emit()` |
+| `packages/ajo-kit/src/index.ts` | Curated universal `@kit` root API |
+| `packages/ajo-kit/src/server.tsx` | SSR, wares/loaders/actions/API dispatch, freshness, SSE, `send`, `emit` |
 | `packages/ajo-kit/src/app.tsx` | Client router, route cache, JSON navigation, SSE live updates |
 | `packages/ajo-kit/src/client.tsx` | Hydration and `action()` helper |
-| `packages/ajo-kit/src/constants.ts` | Public types, errors, request helpers, formatting |
+| `packages/ajo-kit/src/constants.ts` | Shared public/internal types, errors, request helpers, formatting |
 | `packages/ajo-kit/src/database.ts` | Kysely + SQLite connection |
 | `packages/ajo-kit/src/vite.ts` | Vite plugin, aliases, virtual modules, server-only guard |
 | `packages/ajo-auth/src/wares.ts` | Cookie session, bearer token, CSRF middleware |
@@ -106,7 +107,7 @@ Data contracts:
 
 ## Ajo UI Rules
 
-Load `../ajo/LLMs.md` before writing TSX. Key rules:
+Load `node_modules/ajo/LLMs.md` before writing TSX. Key rules:
 
 - Do not import React.
 - Use `class`, not `className`.

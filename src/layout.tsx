@@ -4,7 +4,7 @@ import type { Frame } from '@kit'
 import { ThemeContext, type ThemeMode } from '/src/contexts'
 import Spinner from '/src/ui/spinner'
 
-export const defer = true
+export const pending = true
 
 const Layout: Stateful<Frame> = function* (args) {
 

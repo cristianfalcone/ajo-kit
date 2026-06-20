@@ -7,8 +7,8 @@
   },
   "exports": {
     ".": {
-      "types": "./src/constants.ts",
-      "default": "./src/constants.ts"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
     },
     "./server": {
       "types": "./src/server.tsx",

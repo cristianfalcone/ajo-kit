@@ -110,7 +110,13 @@ export async function build() {
 
 	const entry = url.fileURLToPath(import.meta.resolve('ajo-kit/server'))
 
-	await vite.build({ build: { outDir: 'dist/server', ssr: entry } })
+	await vite.build({
+		build: {
+			outDir: 'dist/server',
+			ssr: entry,
+			rollupOptions: { output: { entryFileNames: 'server.js' } },
+		}
+	})
 }
 
 /** Starts an app, incrementing the port when it is busy unless strict is set. */

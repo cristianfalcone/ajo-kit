@@ -72,7 +72,7 @@ export default defineConfig({
     "strict": true,
     "paths": {
       "/src/*": ["./src/*"],
-      "@kit": ["./node_modules/ajo-kit/src/constants.ts"],
+      "@kit": ["./node_modules/ajo-kit/src/index.ts"],
       "@kit/*": ["./node_modules/ajo-kit/src/*"],
       "@kit/auth": ["./node_modules/ajo-auth/src/index.ts"]
     }
@@ -235,8 +235,14 @@ Rules:
 
 ## Page and Layout Components
 
+`page.tsx` and `layout.tsx` modules can export `pending = true`. During client
+navigation, the page wins first; otherwise the innermost pending layout receives
+`loading=true`.
+
 ```tsx
 import type { Frame, Props } from '@kit'
+
+export const pending = true
 
 type Data = { user: { id: number; name: string } }
 
@@ -286,6 +292,9 @@ import {
   type Request,
   type Response,
   type Middleware,
+  type Fields,
+  type Issue,
+  type Entry,
   type Parent,
   type Props,
   type Frame,
@@ -307,9 +316,11 @@ class Missing extends Failure        // 404
 class Forbidden extends Failure       // 403
 class Denied extends Failure    // 401
 class Invalid extends Failure {       // 400
-  fields: Record<string, string[] | undefined>
+  fields: Fields
 }
 
+type Fields = Record<string, string[] | undefined>
+type Issue = { status: number; message: string; fields?: Fields }
 function normalize(error: unknown): Failure
 ```
 
@@ -347,9 +358,9 @@ interface User {
 }
 ```
 
-## `@kit/server`
+## Server Helpers
 
-Server runtime helpers.
+Route-handler helpers exported from `@kit/server`.
 
 ```ts
 import { emit, send } from '@kit/server'
@@ -410,6 +421,8 @@ Behavior:
 - Resets successful forms submitted through `submit()`.
 - Navigates automatically when the action returns `{ redirect: '/path' }`.
 - Invalidates route cache topics returned by the server.
+- Dispatches `ajo:action` with the returned JSON detail after non-redirect success.
+- Sets `html[data-ajo-ready="true"]` after client boot; use it for e2e waits.
 
 ## Head Contract
 
@@ -551,6 +564,8 @@ const defaults = {
 
 `kit()` is the app integration plugin. It wires file routes, handlers, aliases,
 server-only protection, HMR, CSS entries, and production SSR support.
+Custom `guard` patterns are additive. `css` entries are imported by the client
+runtime before app hydration.
 
 ## `ajo-kit/node`
 
@@ -571,6 +586,9 @@ function start(): Promise<any>
 function build(): Promise<void>
 function listen(app: any, port?: number, options?: { strict?: boolean }): Promise<number>
 ```
+
+`compile()` replaces `<!-- ssr:name -->` slots and drops missing slots.
+`listen()` increments a busy port unless `strict` is true.
 
 ## Auth Setup
 
@@ -852,8 +870,8 @@ observe changed data. Emit after transactions commit.
 
 | Import | Use |
 |---|---|
-| `@kit` / `ajo-kit` | Core types, errors, request helpers, navigation helpers |
-| `@kit/server` / `ajo-kit/server` | `send`, `emit`, server runtime entry |
+| `@kit` / `ajo-kit` | Universal core types, errors, request helpers, navigation helpers |
+| `@kit/server` / `ajo-kit/server` | SSR runtime entry plus server-only `send` and `emit` |
 | `@kit/client` / `ajo-kit/client` | `action()` and client boot runtime |
 | `@kit/validate` / `ajo-kit/validate` | Valibot helpers and `parse()` |
 | `@kit/database` / `ajo-kit/database` | SQLite/Kysely helpers and types |

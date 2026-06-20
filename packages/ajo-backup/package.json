@@ -6,8 +6,7 @@
     "commands": "./src/commands.ts"
   },
   "exports": {
-    ".":    { "types": "./src/index.ts", "default": "./src/index.ts" },
-    "./*":  { "types": "./src/*.ts", "default": "./src/*.ts" }
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" }
   },
   "devDependencies": {
     "ajo-kit": "workspace:*"

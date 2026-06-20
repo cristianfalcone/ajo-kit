@@ -91,9 +91,9 @@ function compose(
 
 	const Page = page.default as Component<Props>
 
-	// Find who handles loading: page first, then innermost layout with defer
+	// Find who handles pending navigation: page first, then innermost layout.
 
-	const deferred = page.defer ? 'page' : tree.findLast(entry => entry.module.defer)?.path
+	const boundary = page.pending ? 'page' : tree.findLast(entry => entry.module.pending)?.path
 
 	return tree.reduceRight<Component>(
 		(Child, { path, module }, depth) => {
@@ -103,7 +103,7 @@ function compose(
 					key={path}
 					params={state.params}
 					data={state.data[depth]}
-					loading={state.loading && deferred === path}
+					loading={state.loading && boundary === path}
 					error={state.error}
 				>
 					<Child />
@@ -115,7 +115,7 @@ function compose(
 				key={paths.join('/')}
 				params={state.params}
 				data={state.data.at(-1)}
-				loading={state.loading && deferred === 'page'}
+				loading={state.loading && boundary === 'page'}
 				error={state.error}
 			/>
 		)

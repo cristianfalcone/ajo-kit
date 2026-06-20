@@ -22,7 +22,7 @@
 
     "paths": {
       "/src/*": ["./src/*"],
-      "@kit": ["./node_modules/ajo-kit/src/constants.ts"],
+      "@kit": ["./node_modules/ajo-kit/src/index.ts"],
       "@kit/*": ["./node_modules/ajo-kit/src/*"]
     }
   }

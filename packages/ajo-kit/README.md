@@ -59,7 +59,7 @@ export default defineConfig({
     "strict": true,
     "paths": {
       "/src/*": ["src/*"],
-      "@kit": ["node_modules/ajo-kit/src/constants.ts"],
+      "@kit": ["node_modules/ajo-kit/src/index.ts"],
       "@kit/*": ["node_modules/ajo-kit/src/*"]
     }
   }
@@ -137,6 +137,10 @@ Per-route files:
 - `handler.ts`: server loaders/actions/api handlers
 - `wares.ts`: middleware for that branch and descendants
 
+`page.tsx` and `layout.tsx` modules can export `pending = true` to receive
+`loading=true` while client navigation waits for route data. The page wins
+first; otherwise the innermost pending layout handles it.
+
 ## Server Handlers
 
 `handler.ts` supports:
@@ -206,6 +210,8 @@ await form.invoke({ title: 'Hello' })
 ```
 
 If an action returns `{ redirect: '/path' }`, client navigation is triggered automatically.
+Successful non-redirect actions dispatch `ajo:action` with returned JSON detail.
+After boot, the client sets `html[data-ajo-ready="true"]` for e2e waits.
 
 ## Middleware
 

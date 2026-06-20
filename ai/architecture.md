@@ -44,7 +44,8 @@ public subpaths. The CLI can use those internals directly.
 
 | File | Role |
 |---|---|
-| `packages/ajo-kit/src/server.tsx` | Polka server runtime, route wares/loaders/actions/API dispatch, SSR, JSON route data, route freshness, SSE, `emit()` |
+| `packages/ajo-kit/src/index.ts` | Curated universal root API for `@kit` / `ajo-kit` |
+| `packages/ajo-kit/src/server.tsx` | Polka SSR runtime, route wares/loaders/actions/API dispatch, JSON route data, route freshness, SSE fanout, `send`, `emit` |
 | `packages/ajo-kit/src/app.tsx` | Client router, route resolution, JSON navigation, route cache use, SSE live updates |
 | `packages/ajo-kit/src/client.tsx` | Hydration, SSR boot read, `action()` helper |
 | `packages/ajo-kit/src/cache.ts` | Private bounded client route cache helpers |
@@ -52,7 +53,7 @@ public subpaths. The CLI can use those internals directly.
 | `packages/ajo-kit/src/head.tsx` | Head merge/render/apply helpers |
 | `packages/ajo-kit/src/headers.ts` | Shared defensive response header policy |
 | `packages/ajo-kit/src/ssr.ts` | SSR boot payload serialization/parsing and data-script rendering |
-| `packages/ajo-kit/src/constants.ts` | Errors, request helpers, route types, auth request extensions, formatting |
+| `packages/ajo-kit/src/constants.ts` | Shared public/internal types, errors, request helpers, auth request extensions, formatting |
 | `packages/ajo-kit/src/vite.ts` | Vite plugin, virtual route modules, aliases, server-only guard, HMR, native externalization |
 | `packages/ajo-kit/src/node.ts` | `kit dev`, `kit build`, `kit start`, HTML template compiler, listener |
 | `packages/ajo-kit/src/database.ts` | SQLite connection and Kysely instance |
@@ -97,7 +98,7 @@ Custom `guard` patterns are additive, not replacements.
 `kit build`:
 
 - Builds `dist/client` with Vite.
-- Builds `dist/server` using `ajo-kit/server` as the SSR entry.
+- Builds `dist/server/server.js` using `ajo-kit/server` as the SSR entry.
 
 `kit start`:
 
@@ -111,6 +112,11 @@ Custom `guard` patterns are additive, not replacements.
 `listen(app, port, { strict })` starts an HTTP server. In normal mode it tries
 the next port on `EADDRINUSE`; in strict mode it rejects so e2e startup is
 deterministic.
+
+`ajo-kit/server` is the SSR runtime entry for the kit CLI/Vite build and the
+server-only helper module for route handlers. App code imports `send` and
+`emit` from `@kit/server`; `create()` is the runtime factory used by
+`ajo-kit/node`.
 
 ### HTML Template
 
@@ -153,6 +159,11 @@ export async function head(req: Request, parent: Parent) {}
 export const actions = { name: async (req, res) => {} }
 export default { get, post, put, patch, delete, options, head }
 ```
+
+Page and layout UI modules can export `pending = true`. During client
+navigation, the page receives `loading=true` first; otherwise the innermost
+pending layout receives it. This only controls loading UI ownership, not loader
+execution or fetch timing.
 
 `default` method handlers are mounted under `/api/<route>`. Page GET routes run
 route middleware and loaders, but do not run the JSON body parser. Page POST
@@ -256,6 +267,8 @@ HTML SSR does not use route-data `304`. JSON route-data requests can return
 
 The client runtime uses `navaid` for routing and Ajo generator components for
 stateful UI.
+After hydration/boot, it marks `html[data-ajo-ready="true"]` so e2e automation
+can wait for the app runtime without guessing network timing.
 
 Navigation flow:
 

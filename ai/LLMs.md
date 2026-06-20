@@ -18,7 +18,8 @@ Package setup is currently workspace/local: `ajo` is published on npm, but
 packages/
   ajo-kit/
     src/
-      server.tsx      # route data, actions, API dispatch, SSE, emit()
+      index.ts        # curated universal @kit root API
+      server.tsx      # SSR runtime, send(), emit(), SSE fanout
       app.tsx         # client router, route cache, JSON navigation, SSE live updates
       client.tsx      # action() helper and SSR hydration
       ssr.ts          # devalue-backed SSR boot payload helpers
@@ -54,6 +55,8 @@ Route `handler.ts` files can export:
 Loaders must track topics they read:
 
 ```ts
+import type { Request } from '@kit'
+
 export async function page(req: Request) {
   req.track?.('admin:tokens')
   return { tokens: await listTokens() }
@@ -63,6 +66,9 @@ export async function page(req: Request) {
 Mutations must emit topics they changed:
 
 ```ts
+import type { Request } from '@kit'
+import { emit } from '@kit/server'
+
 export const actions = {
   revoke: async (req: Request) => {
     await revokeToken(req.body.id)
@@ -101,7 +107,10 @@ topics.
 ## Client Rules
 
 - Use `action()` for form/mutation calls.
+- Wait for `html[data-ajo-ready="true"]` in browser/e2e automation.
 - Render server truth from `args.data`.
+- Use `export const pending = true` in the page or innermost layout that should
+  receive `loading=true` during client navigation.
 - Keep only UI-local state locally.
 - Avoid long-lived mirrors of server arrays unless the feature explicitly needs a
   bounded local window.
