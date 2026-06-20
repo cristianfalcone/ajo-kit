@@ -60,7 +60,7 @@ export default defineConfig({
       "/src/*": ["./src/*"],
       "@kit": ["./node_modules/ajo-kit/src/constants.ts"],
       "@kit/*": ["./node_modules/ajo-kit/src/*"],
-      "@kit/auth": ["./node_modules/ajo-auth/src/index.ts"],
+      "@kit/auth": ["./node_modules/ajo-auth/src/index.ts"]
     }
   }
 }

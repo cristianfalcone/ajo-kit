@@ -49,9 +49,9 @@ export default defineConfig({
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
+    "jsxImportSource": "ajo",
     "strict": true,
-    "baseUrl": ".",
     "paths": {
       "/src/*": ["src/*"],
       "@kit": ["node_modules/ajo-kit/src/constants.ts"],

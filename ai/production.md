@@ -362,6 +362,12 @@ Acceptance:
 
 ## Phase 7: Template and Published Package Reality
 
+Status: implemented. The template now matches the public JSX setup and
+`ajo@0.1.32`, the current published Ajo package version used by this repo.
+`ajo-kit` and `ajo-auth` are not published yet, so verification uses package
+dry-runs and a temp app install/build from a packed `ajo-kit` tarball to prove
+there are no monorepo path assumptions.
+
 Finding:
 
 - `packages/template` is behind `readme.md` on JSX settings and dependency
