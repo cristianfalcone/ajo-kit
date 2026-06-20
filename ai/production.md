@@ -449,6 +449,11 @@ Acceptance:
 
 ## Phase 9: Production Smoke and Release Gate
 
+Status: implemented. `pnpm test:prod` now runs `pnpm build`, starts the built
+production runtime against a migrated temporary SQLite database, and probes
+logged-out SSR, static asset headers, route JSON, and malformed JSON action
+error mapping.
+
 Finding:
 
 - The normal full suite is green, but production readiness needs a repeatable

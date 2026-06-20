@@ -15,6 +15,7 @@ pnpm start               # Run built server
 pnpm exec tsc --noEmit   # Typecheck
 pnpm test:unit           # Vitest unit suite
 pnpm test:e2e            # Playwright E2E suite
+pnpm test:prod           # Build + production smoke
 pnpm test:all            # Unit + E2E
 ```
 
