@@ -770,6 +770,11 @@ network failure does not destroy existing local data.
 Dev route reload watches handler, wares, page, and layout add/change/unlink
 events. Page/layout changes trigger full reload.
 
+Production smoke uses `playwright.production.config.ts`. It runs the built
+runtime through `tests/production-server.ts` with a migrated temporary SQLite
+database, then probes SSR, static asset headers, route JSON, and malformed JSON
+action error mapping.
+
 ## Verification
 
 For framework, security, data-flow, or runtime changes run:
@@ -779,6 +784,7 @@ pnpm exec tsc --noEmit
 pnpm test:unit
 pnpm test:e2e
 pnpm build
+pnpm test:prod
 ```
 
 Use focused e2e coverage for browser-visible flows and full e2e before closing

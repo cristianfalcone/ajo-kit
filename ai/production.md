@@ -487,6 +487,11 @@ Acceptance:
 
 ## Phase 10: Final Documentation Sync
 
+Status: implemented. Final docs now separate human app guidance, technical
+architecture contracts, AI-agent app-building guidance, package-local notes, and
+this completed production-readiness record. Production env requirements and the
+`pnpm test:prod` release smoke are documented where they belong.
+
 Research before implementation:
 
 - Re-read `AGENTS.md`, `readme.md`, package READMEs, `ai/architecture.md`,
@@ -521,12 +526,15 @@ Acceptance:
 
 ## Completion Criteria
 
-`ajo-kit` is production-ready for the first real app when:
+`ajo-kit` is production-ready for the first real app:
 
-- All phases are implemented or this plan records why a phase was changed,
-  merged, postponed, or made unnecessary by research.
-- Full verification passes.
-- Security phases have targeted tests and manual production-like probes.
+- All phases above are implemented.
+- Full verification passed across the final implementation phases.
+- Security phases have targeted tests and production-like probes.
 - Docs describe required production env vars, supported topology, package setup,
   and deployment assumptions.
 - No temporary hacks, stale compatibility paths, or contradictory docs remain.
+
+Residual follow-ups stay out of scope until research reopens them: multi-process
+coordination, richer CSP for a specific production app, serverless/edge runtime,
+database replacement, pre-rendering, and normalized client cache.

@@ -255,6 +255,10 @@ connections, live fanout, and auth rate limits are process-local. Do not run
 multiple workers behind a load balancer without adding shared app-specific
 coordination for those pieces.
 
+For non-local production, configure `APP_URL` to the public `http` or `https`
+origin. Apps that connect with `process.env.DATABASE_PATH` should point it at
+persistent local disk.
+
 `kit migrate` merges:
 
 - app migrations in `db/migrations`

@@ -64,6 +64,9 @@ APP_SECRET=<32+ random characters from your secret manager>
 Development can run without this value. Production fails closed when
 `APP_SECRET` is missing, too short, or left as a sample placeholder.
 
+For non-local production, also configure `APP_URL` in the app environment so
+same-origin checks and generated links use the trusted public origin.
+
 ## Main Exports
 
 Import namespaces from `@kit/auth`:

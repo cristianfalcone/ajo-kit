@@ -117,6 +117,15 @@ The first supported production topology is one `kit start` Node process with one
 SQLite database file on persistent local disk. Put TLS, compression, process
 restart, and optional edge rate limiting in a reverse proxy or process manager.
 
+Production environment:
+
+- `APP_URL=https://app.example.com` for non-local deployments.
+- `APP_SECRET=<32+ random characters>` when using `ajo-auth`.
+- `DATABASE_PATH=/persistent/path/app.sqlite` when your app connects from env.
+
+`APP_URL` is the trusted public origin for CSRF checks, HSTS, and generated
+email links. Local loopback `kit start` runs can work without it.
+
 In-process state is intentionally not distributed:
 
 - route topic versions

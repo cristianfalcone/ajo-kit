@@ -145,6 +145,12 @@ Keep mutations durable in SQLite and emit topics after commit. Treat reverse
 proxy TLS/restart/edge limits as deployment concerns around the single app
 process.
 
+Production env for apps:
+
+- `APP_URL`: public `http` or `https` origin for non-local deployments.
+- `APP_SECRET`: 32+ random characters when using `ajo-auth`.
+- `DATABASE_PATH`: persistent SQLite file path if the app connects from env.
+
 ## Topic Names
 
 - `user:<id>`
@@ -177,6 +183,7 @@ For framework/data changes:
 pnpm exec tsc --noEmit
 pnpm build
 pnpm test:all
+pnpm test:prod
 ```
 
 For docs-only changes, use consistency searches instead of running the full app.
