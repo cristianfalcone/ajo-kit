@@ -17,7 +17,7 @@
     "test:all": "pnpm test:unit && pnpm test:e2e"
   },
   "dependencies": {
-    "ajo": "link:../ajo",
+    "ajo": "0.1.32",
     "ajo-auth": "workspace:*",
     "ajo-backup": "workspace:*",
     "ajo-kit": "workspace:*",
