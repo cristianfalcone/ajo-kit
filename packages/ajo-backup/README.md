@@ -6,6 +6,11 @@ This package does not ship a standalone CLI binary. It extends the `kit` CLI via
 
 ## Install
 
+`ajo-backup` is currently consumed from this workspace, a `file:` dependency, or
+a packed tarball until it is published.
+
+After package publication:
+
 ```bash
 pnpm add ajo-backup
 ```

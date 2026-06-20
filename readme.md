@@ -9,11 +9,25 @@ updates, and optional auth through `ajo-auth`.
 ## Documentation Map
 
 - `readme.md`: human guide for building apps with Ajo and `ajo-kit`.
+- `packages/*/README.md`: package-local public docs.
 - `ai/architecture.md`: technical implementation and runtime architecture.
 - `ai/LLMs.md`: compact app-building guide for AI agents using Ajo and `ajo-kit`.
 - `ai/chat.md`: chat demo app behavior, data, and QA notes.
+- `ai/comparison.md`: framework/auth/routing comparison context.
 
 ## Install
+
+At this repo state, `ajo` is published on npm; `ajo-kit`, `ajo-auth`, and
+`ajo-backup` are consumed from this workspace, `file:` dependencies, or packed
+tarballs until they are published.
+
+For this repo:
+
+```bash
+pnpm install
+```
+
+For a separate app after package publication:
 
 ```bash
 pnpm add ajo ajo-kit ajo-auth

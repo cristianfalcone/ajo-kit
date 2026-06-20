@@ -14,6 +14,11 @@ Includes:
 
 ## Install
 
+`ajo-auth` is currently consumed from this workspace, a `file:` dependency, or a
+packed tarball until it is published.
+
+After package publication:
+
 ```bash
 pnpm add ajo-auth
 ```

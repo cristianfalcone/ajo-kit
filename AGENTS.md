@@ -43,7 +43,6 @@ pnpm test:all            # Unit + E2E
 - `readme.md`: human guide and public API for building apps with Ajo and `ajo-kit`.
 - `packages/*/README.md`: package-local public docs.
 - `ai/architecture.md`: canonical implementation architecture and runtime contracts.
-- `ai/production.md`: production-readiness refactor plan and phase checklist.
 - `ai/LLMs.md`: app-building guide for AI agents using Ajo and `ajo-kit`.
 - `ai/chat.md`: chat demo app behavior, data, scrolling, unread, and QA notes.
 - `ai/comparison.md`: framework/auth/routing comparison context.
@@ -103,12 +102,7 @@ Data contracts:
 - Do not reintroduce implicit table tracking, `tracker.ts`, `deps`, `events`, sums, seals, or normalized client stores.
 - Route JSON uses `hash`, `topics`, `versions`, `X-Have`, `X-Ajo-Versions`, and topic-version freshness.
 - SSE revalidates affected routes and sends full route payloads, not patches.
-
-Common topics:
-
-- `user:<id>`, `dashboard:<id>`, `profile:<id>`, `sessions:<id>`, `tokens:<id>`
-- `chats:<id>`, `chat:<chatId>`
-- `admin:users`, `admin:sessions`, `admin:tokens`, `admin:stats`
+- Topic ownership lives in `ai/architecture.md`; chat-specific topics live in `ai/chat.md`.
 
 ## Ajo UI Rules
 
@@ -166,6 +160,7 @@ pnpm exec tsc --noEmit
 pnpm test:unit
 pnpm test:e2e
 pnpm build
+pnpm test:prod
 ```
 
 For docs-only changes, run consistency searches and `git diff --check`.

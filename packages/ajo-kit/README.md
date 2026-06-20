@@ -4,6 +4,11 @@ Full-stack metaframework for [Ajo](https://github.com/cristianfalcone/ajo) with 
 
 ## Install
 
+`ajo-kit` is currently consumed from this workspace, a `file:` dependency, or a
+packed tarball until it is published.
+
+After package publication:
+
 ```bash
 pnpm add ajo ajo-kit
 pnpm add -D vite tsx typescript @types/node

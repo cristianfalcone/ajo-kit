@@ -10,6 +10,10 @@ chat demo app.
 
 ## Project Shape
 
+Package setup is currently workspace/local: `ajo` is published on npm, but
+`ajo-kit`, `ajo-auth`, and `ajo-backup` should be installed from workspace,
+`file:`, or packed tarball dependencies until they are published.
+
 ```text
 packages/
   ajo-kit/
@@ -153,18 +157,9 @@ Production env for apps:
 
 ## Topic Names
 
-- `user:<id>`
-- `dashboard:<id>`
-- `profile:<id>`
-- `sessions:<id>`
-- `tokens:<id>`
-- `admin:users`
-- `admin:sessions`
-- `admin:tokens`
-- `admin:stats`
-
-Prefer multiple precise topics over a broad catch-all. Chat-specific topic names
-live in `ai/chat.md`.
+Use the current app topic vocabulary from `ai/architecture.md`. Prefer multiple
+precise topics over a broad catch-all. Chat-specific topic names live in
+`ai/chat.md`.
 
 ## Common Pitfalls
 

@@ -141,10 +141,10 @@ Ajo-auth should keep these security boundaries:
   required.
 - Password reset/change are credential lifecycle boundaries.
 
-Production hardening beyond the current local app likely needs external or
-larger-surface features: 2FA/passkeys or an IdP, distributed rate limiting,
-audit events for auth operations, hash rehash-on-login policy, and final cookie
-flag review for the deployment topology.
+Higher-assurance or multi-instance apps likely need external or larger-surface
+features: 2FA/passkeys or an IdP, distributed rate limiting, audit events for
+auth operations, hash rehash-on-login policy, and app-specific cookie review for
+the deployment topology.
 
 ## React Router and Remix
 
@@ -161,7 +161,7 @@ unbundled runtime behavior.
 
 | Area | Ajo-kit | React Router v8 | Remix 3 beta |
 |---|---|---|---|
-| Status | Local experimental app/framework | Stable production React framework line | Beta/pre-release, not production-ready |
+| Status | Local small framework with single-process production topology | Stable production React framework line | Beta/pre-release, not production-ready |
 | UI runtime | Ajo TSX components | React | Remix 3 model/components |
 | Build model | Vite 8 + local Ajo compiler/runtime | Vite, ESM-only, modern Node/React baselines | Runtime-first/unbundled direction |
 | Routing | `handler.ts` filesystem routes | Route modules/framework mode | New `remix` routing primitives |
