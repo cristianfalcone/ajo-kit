@@ -1,6 +1,6 @@
 # ajo-kit
 
-Full-stack metaframework for [Ajo](https://github.com/cristianfalcone/ajo) with file-based routing, server handlers, form actions, middleware, migrations, and SSE topic updates.
+Full-stack metaframework for [Ajo](https://github.com/cristianfalcone/ajo) with file-based routing, server handlers, form actions, middleware, migrations, and SSE route payload updates.
 
 ## Install
 

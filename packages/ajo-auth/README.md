@@ -175,12 +175,16 @@ In-memory limiter (per-process, non-distributed).
 ```ts
 import { confirm } from '@kit/auth'
 
-confirm.stamp(user)
-confirm.check(user, 180_000)
-confirm.clear(user)
+confirm.stamp(req)
+confirm.check(req, 180_000)
+confirm.clear(req)
+confirm.clearSession(user, sessionId)
+confirm.clearToken(user, tokenId)
+confirm.clearUser(user)
 ```
 
-Tracks recent password confirmation in memory.
+Tracks recent password confirmation in memory, scoped to the current session or
+bearer token credential.
 
 ### `reset`
 
@@ -189,7 +193,6 @@ import { reset } from '@kit/auth'
 
 const plain = await reset.create(user)
 const user = await reset.validate(plain)
-const consumed = await reset.consume(plain)
 await reset.prune()
 ```
 

@@ -15,11 +15,15 @@ pnpm test:e2e            # Playwright E2E suite
 pnpm test:all            # Unit + E2E
 ```
 
-## Operating Principles
+## Operating Principles (ajo-way)
 
 - Keep code micro, simple, elegant and readable.
 - Prefer direct, concrete solutions over speculative architecture.
 - Remove unnecessary abstractions and dead code.
+- Use one complete, meaningful word for identifiers when file/module context is enough.
+- Use multi-word identifiers when one word is ambiguous in imports or public use, such as `clearSession`.
+- Do not rename Node or external-library imports just to match local naming style.
+- Add short TSDoc descriptions to public APIs so IDE imports explain themselves.
 - Apply TDD principles pragmatically: write tests for new features and bugs, but do not write tests for the sake of writing tests.
 - Apply DRY, YAGNI, KISS, POLA and SOLID pragmatically when they help produce simpler, clearer, more maintainable code.
 - Optimize after measuring, not before.
@@ -28,13 +32,12 @@ pnpm test:all            # Unit + E2E
 
 ## Documentation Index
 
+- `readme.md`: human guide and public API for building apps with Ajo and `ajo-kit`.
+- `packages/*/README.md`: package-local public docs.
+- `ai/architecture.md`: canonical implementation architecture, data flow, SSR, APIs, auth, security, persistence, build, and tests.
 - `ai/LLMs.md`: short operational guide for agents.
-- `ai/data.md`: canonical data pipeline, route freshness, live updates, topics.
-- `ai/api-endpoints.md`: route actions vs `/api/*` handlers.
 - `ai/chat.md`: chat-specific state, unread, pagination, scroll behavior.
-- `ai/improvements.md`: completed performance work and remaining follow-ups.
-- `ai/refactor.md`: historical tracker/deps/events refactor log.
-- `ai/*-comparison.md`: external framework comparisons.
+- `ai/comparison.md`: external framework comparisons.
 - `../ajo/LLMs.md`: Ajo UI syntax reference. Load this before writing TSX.
 
 ## Architecture
@@ -48,7 +51,7 @@ pnpm test:all            # Unit + E2E
 - SSR plus JSON navigation.
 - Route cache with ETag, `X-Have`, topic versions, and early `304`.
 - Explicit live data with `req.track(topic)` and `emit(topic)`.
-- SSE revalidation sends JSON patches to active routes.
+- SSE revalidation sends route payloads to active routes.
 - SQLite + Kysely for persistence.
 
 ### Packages
@@ -56,7 +59,7 @@ pnpm test:all            # Unit + E2E
 | Package | Alias | Role |
 |---|---|---|
 | `packages/ajo-kit` | `@kit`, `@kit/*` | Framework core, SSR, routing, data flow, database, validation |
-| `packages/ajo-auth` | `@kit/auth`, `@kit/auth/*` | Sessions, tokens, password, CSRF, guards, auth migrations |
+| `packages/ajo-auth` | `@kit/auth` | Sessions, tokens, password, CSRF, guards, auth migrations |
 | `packages/ajo-backup` | none | Google Drive backup tooling |
 
 ### Core Files
@@ -64,7 +67,7 @@ pnpm test:all            # Unit + E2E
 | File | Role |
 |---|---|
 | `packages/ajo-kit/src/server.tsx` | SSR, wares/loaders/actions/API dispatch, route freshness, SSE, `emit()` |
-| `packages/ajo-kit/src/app.tsx` | Client router, route cache, JSON navigation, SSE patch application |
+| `packages/ajo-kit/src/app.tsx` | Client router, route cache, JSON navigation, SSE live updates |
 | `packages/ajo-kit/src/client.tsx` | Hydration and `action()` helper |
 | `packages/ajo-kit/src/freshness.ts` | Route hash and topic-version helpers |
 | `packages/ajo-kit/src/database.ts` | Kysely + SQLite connection with runtime pragmas |
@@ -99,7 +102,7 @@ Route examples:
 
 ## Data Flow Rules
 
-The canonical source is `ai/data.md`.
+The canonical source is `ai/architecture.md`.
 
 - Loaders are server truth.
 - Components render from `args.data`.
@@ -116,7 +119,7 @@ Route freshness:
 - Client re-navigation sends `X-Have` and `X-Ajo-Versions`.
 - Fresh topic versions can return early `304` before loaders.
 - Stale topic versions re-run loaders and may still return hash-based `304`.
-- SSE patches refresh active route cache metadata.
+- SSE live payloads refresh active route cache metadata.
 
 Topic names:
 
@@ -171,12 +174,12 @@ Root wares configure auth:
 
 ```ts
 import { configure } from '@kit/auth'
-import { session, csrf } from '@kit/auth/wares'
+import { wares } from '@kit/auth'
 import { db } from '/src/data'
 
 configure(() => db())
 
-export default [session(), csrf]
+export default [wares.session(), wares.csrf]
 ```
 
 Rules:

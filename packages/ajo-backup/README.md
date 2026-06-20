@@ -126,6 +126,18 @@ const { stop } = syncer.start()
 await stop()
 ```
 
+Public types:
+
+```ts
+import type {
+  Drive,
+  DriveOptions,
+  Pusher,
+  PushOptions,
+  Watcher,
+} from 'ajo-backup'
+```
+
 ## How It Works
 
 1. WAL auto-checkpoint is disabled for incremental shipping.
