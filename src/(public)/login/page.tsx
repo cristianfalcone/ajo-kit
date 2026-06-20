@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { Props } from '@kit'
 import { action } from '@kit/client'
-import Checkbox from '/src/ui/checkbox'
+import { Button, Checkbox, Feedback, Input, Link } from '/src/ui'
 
 type Result = { redirect: string }
 
@@ -17,60 +17,50 @@ const Login: Stateful<Props> = function* () {
 
 			<form set:onsubmit={form.submit} class="space-y-4">
 
-				<div>
-					<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-						Email
-					</label>
-					<input
-						type="email"
-						name="email"
-						required
-						autocomplete="email"
-						class="w-full input"
-						disabled={form.loading}
-					/>
-				</div>
+				<Input
+					type="email"
+					name="email"
+					label="Email"
+					required
+					autocomplete="email"
+					disabled={form.loading}
+				/>
 
-				<div>
-					<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-						Password
-					</label>
-					<input
-						type="password"
-						name="password"
-						required
-						autocomplete="current-password"
-						class="w-full input"
-						disabled={form.loading}
-					/>
-				</div>
+				<Input
+					type="password"
+					name="password"
+					label="Password"
+					required
+					autocomplete="current-password"
+					disabled={form.loading}
+				/>
 
 				<div class="flex items-center justify-between">
 					<Checkbox name="remember" label="Remember me" disabled={form.loading} />
-					<a href="/forgot" class="text-sm text-accent hover:text-primary dark:text-accent dark:hover:text-accent/70">
+					<Link href="/forgot" weight="normal" class="text-sm">
 						Forgot password?
-					</a>
+					</Link>
 				</div>
 
 				{form.error && (
-					<p class="text-sm text-red-600 dark:text-red-400">{form.error.message}</p>
+					<Feedback>{form.error.message}</Feedback>
 				)}
 
-				<button
+				<Button
 					type="submit"
 					disabled={form.loading}
-					class="w-full btn py-2.5 shadow hover:shadow-lg"
+					wide
 				>
 					{form.loading ? 'Signing in...' : 'Sign In'}
-				</button>
+				</Button>
 
 			</form>
 
 			<p class="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
 				Don't have an account?{' '}
-				<a href="/register" class="text-accent hover:text-primary dark:text-accent dark:hover:text-accent/70 font-medium">
+				<Link href="/register">
 					Sign up
-				</a>
+				</Link>
 			</p>
 		</>
 	)

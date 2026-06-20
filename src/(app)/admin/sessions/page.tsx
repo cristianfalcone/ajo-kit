@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import { type Props, date } from '@kit'
 import { action } from '@kit/client'
-import Pager from '/src/ui/pager'
+import { Button, Pager, Panel, Table, type Column } from '/src/ui'
 
 type Session = {
 	id: string
@@ -45,6 +45,60 @@ const Sessions: Stateful<Props<Data>> = function* (args) {
 	for (args of this) {
 
 		const sessions = args.data?.sessions ?? []
+		const columns = [
+			{
+				header: 'User',
+				cell: (session) => (
+					<>
+						<div class="font-medium text-slate-900 dark:text-white">{session.name}</div>
+						<div class="text-slate-500 dark:text-slate-400 text-xs">{session.email}</div>
+					</>
+				),
+			},
+			{
+				header: 'Device',
+				tone: 'body',
+				cell: (session) => parseAgent(session.agent),
+			},
+			{
+				header: 'IP',
+				tone: 'code',
+				cell: (session) => session.ip ?? '-',
+			},
+			{
+				header: 'Last Active',
+				tone: 'muted',
+				cell: (session) => session.last ? date(session.last, dateTime) : date(session.created, dateTime),
+			},
+			{
+				header: 'Actions',
+				align: 'right',
+				cell: (session) => (
+					<div class="flex items-center justify-end gap-1">
+						<form set:onsubmit={revokeForm.submit}>
+							<input type="hidden" name="id" value={session.id} />
+							<Button
+								type="submit"
+								title="Revoke this session"
+								disabled={revokeForm.loading}
+								icon="i-lucide-x"
+								tone="danger"
+							/>
+						</form>
+						<form set:onsubmit={revokeUserForm.submit}>
+							<input type="hidden" name="user" value={session.user} />
+							<Button
+								type="submit"
+								title="Logout user from all sessions"
+								disabled={revokeUserForm.loading}
+								icon="i-lucide-log-out"
+								tone="warning"
+							/>
+						</form>
+					</div>
+				),
+			},
+		] satisfies Column<Session>[]
 
 		yield (
 			<div class="space-y-6">
@@ -53,65 +107,10 @@ const Sessions: Stateful<Props<Data>> = function* (args) {
 					<span class="text-sm text-slate-500 dark:text-slate-400">{sessions.length} shown</span>
 				</div>
 
-				<div class="glass ring-0 rounded-lg overflow-hidden">
-					<table class="w-full text-sm">
-						<thead>
-							<tr>
-								<th>User</th>
-								<th>Device</th>
-								<th>IP</th>
-								<th>Last Active</th>
-								<th class="text-right">Actions</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-							{sessions.map(session => (
-								<tr key={session.id} class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-									<td class="px-4 py-3">
-										<div class="font-medium text-slate-900 dark:text-white">{session.name}</div>
-										<div class="text-slate-500 dark:text-slate-400 text-xs">{session.email}</div>
-									</td>
-									<td class="px-4 py-3 text-slate-600 dark:text-slate-300">
-										{parseAgent(session.agent)}
-									</td>
-									<td class="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono text-xs">
-										{session.ip ?? '-'}
-									</td>
-									<td class="px-4 py-3 text-slate-500 dark:text-slate-400">
-										{session.last ? date(session.last, dateTime) : date(session.created, dateTime)}
-									</td>
-									<td class="px-4 py-3 text-right">
-										<div class="flex items-center justify-end gap-1">
-											<form set:onsubmit={revokeForm.submit}>
-												<input type="hidden" name="id" value={session.id} />
-												<button
-													type="submit"
-													title="Revoke this session"
-													disabled={revokeForm.loading}
-													class="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
-												>
-													<span class="i-lucide-x w-4 h-4 block" />
-												</button>
-											</form>
-											<form set:onsubmit={revokeUserForm.submit}>
-												<input type="hidden" name="user" value={session.user} />
-												<button
-													type="submit"
-													title="Logout user from all sessions"
-													disabled={revokeUserForm.loading}
-													class="p-1.5 rounded hover:bg-orange-50 dark:hover:bg-orange-500/10 text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors disabled:opacity-50"
-												>
-													<span class="i-lucide-log-out w-4 h-4 block" />
-												</button>
-											</form>
-										</div>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+				<Panel padding="none" clip>
+					<Table rows={sessions} columns={columns} getKey={session => session.id} />
 					{args.data?.page && <Pager page={args.data.page} count={sessions.length} label="sessions" />}
-				</div>
+				</Panel>
 			</div>
 		)
 	}

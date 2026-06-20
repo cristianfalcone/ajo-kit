@@ -1,6 +1,6 @@
-import clsx from 'clsx'
 import type { Stateful } from 'ajo'
 import type { Frame } from '@kit'
+import { Sidebar } from '/src/ui'
 
 const links: [string, string, string][] = [
 	['/admin', 'Overview', 'i-lucide-layout-dashboard'],
@@ -23,28 +23,16 @@ const AdminLayout: Stateful<Frame> = function* (args) {
 				</div>
 
 				<div class="flex flex-col lg:flex-row gap-8">
-					<aside class="lg:w-48 shrink-0">
-						<nav class="flex lg:flex-col gap-1">
-							{links.map(([path, label, icon]) => {
-								const active = path === '/admin' ? url === path : url.startsWith(path)
-								return (
-									<a
-										key={path}
-										href={path}
-										class={clsx([
-											'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-											active
-												? 'bg-accent/10 text-primary dark:bg-accent/15 dark:text-accent'
-												: 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'
-										])}
-									>
-										<span class={clsx(icon, 'w-5 h-5')} />
-										{label}
-									</a>
-								)
-							})}
-						</nav>
-					</aside>
+					<Sidebar
+						url={url}
+						width="sm"
+						items={links.map(([href, label, icon]) => ({
+							href,
+							label,
+							icon,
+							exact: href === '/admin',
+						}))}
+					/>
 					<div class="flex-1 min-w-0">
 						{args.children}
 					</div>

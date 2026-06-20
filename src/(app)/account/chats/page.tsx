@@ -1,6 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { Props } from '@kit'
 import { action } from '@kit/client'
+import { Button, CountBadge, Feedback, Input, Panel } from '/src/ui'
 
 type Chat = {
 	id: number
@@ -50,7 +51,7 @@ const Chats: Stateful<Props<Data>> = function* (args) {
 					<div class="space-y-6">
 
 						{/* New chat form */}
-						<form set:onsubmit={form.submit} class="rounded-xl glass p-4">
+						<Panel as="form" set:onsubmit={form.submit} radius="xl" padding="sm">
 							<p class="text-sm font-medium text-slate-700 dark:text-gray-300 mb-3">
 								Start a conversation
 							</p>
@@ -75,45 +76,45 @@ const Chats: Stateful<Props<Data>> = function* (args) {
 							</div>
 
 							{selected.length > 1 && (
-								<input
-									type="text"
+								<Input
 									name="name"
 									placeholder="Group name (optional)"
 									value={groupName}
 									set:oninput={(e: Event) => this.next(() => { groupName = (e.target as HTMLInputElement).value })}
-									class="w-full mb-3 input bg-slate-100 dark:bg-white/10"
+									tone="muted"
+									wrapper="mb-3"
 								/>
 							)}
 
 							<input type="hidden" name="users" value={JSON.stringify(selected)} />
 
-							<button
+							<Button
 								type="submit"
 								disabled={!selected.length || form.loading}
-								class="btn disabled:cursor-not-allowed"
 							>
 								{form.loading ? 'Starting...' : selected.length > 1 ? 'Create Group' : 'Start Chat'}
-							</button>
+							</Button>
 
 							{form.error && (
-								<p class="mt-2 text-sm text-red-500">{form.error.message}</p>
+								<Feedback class="mt-2">{form.error.message}</Feedback>
 							)}
-						</form>
+						</Panel>
 
 						{/* Chats list */}
 						<div class="space-y-2">
 							{data?.chats?.map(chat => (
-								<a
+								<Panel
+									as="a"
 									key={chat.id}
 									href={`/account/chats/${chat.id}`}
-									class="block rounded-xl glass p-4 hover:bg-white/80 dark:hover:bg-white/10 transition"
+									radius="xl"
+									padding="sm"
+									class="block hover:bg-white/80 dark:hover:bg-white/10 transition"
 								>
 									<div class="flex items-center gap-2 font-medium text-slate-900 dark:text-white">
 										<span>{chat.name || chat.others || 'Empty chat'}</span>
 										{!!chat.unread && (
-											<span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold bg-red-500 text-white">
-												{chat.unread}
-											</span>
+											<CountBadge count={chat.unread} />
 										)}
 									</div>
 									{chat.last && (
@@ -121,7 +122,7 @@ const Chats: Stateful<Props<Data>> = function* (args) {
 											{chat.last}
 										</p>
 									)}
-								</a>
+								</Panel>
 							))}
 							{!data?.chats?.length && (
 								<p class="text-center text-slate-500 dark:text-gray-400 py-8">

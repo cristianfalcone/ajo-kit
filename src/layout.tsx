@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
 import type { Frame } from '@kit'
 import { ThemeContext, type ThemeMode } from '/src/contexts'
-import Spinner from '/src/ui/spinner'
+import { Spinner } from '/src/ui'
 
 export const pending = true
 

@@ -1,6 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { Props } from '@kit'
 import { action } from '@kit/client'
+import { Alert } from '/src/ui'
 
 type Result = { sent: boolean }
 
@@ -21,17 +22,11 @@ const Verify: Stateful<Props> = function* () {
 				</p>
 
 				{form.data?.sent && (
-					<div class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-						<p class="text-green-800 dark:text-green-200">
-							Verification email sent!
-						</p>
-					</div>
+					<Alert>Verification email sent!</Alert>
 				)}
 
 				{form.error && (
-					<div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-						<p class="text-red-800 dark:text-red-200">{form.error.message}</p>
-					</div>
+					<Alert tone="danger">{form.error.message}</Alert>
 				)}
 
 				<form set:onsubmit={form.submit}>

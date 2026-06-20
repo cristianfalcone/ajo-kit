@@ -1,6 +1,7 @@
 import type { Stateful } from 'ajo'
 import { type Props, navigate } from '@kit'
 import { action } from '@kit/client'
+import { Button, Feedback, Input, Panel } from '/src/ui'
 
 type Result = { confirmed: boolean }
 
@@ -18,7 +19,7 @@ const Confirm: Stateful<Props> = function* () {
 
 		yield (
 			<div class="flex-1 flex items-center justify-center px-4">
-				<div class="glass rounded-lg p-6 w-full max-w-sm">
+				<Panel class="w-full max-w-sm">
 					<h1 class="text-xl font-bold text-slate-900 dark:text-white mb-2">
 						Confirm Password
 					</h1>
@@ -27,31 +28,28 @@ const Confirm: Stateful<Props> = function* () {
 					</p>
 
 					<form set:onsubmit={form.submit} class="space-y-4">
-						<div>
-							<input
-								type="password"
-								name="password"
-								required
-								autocomplete="current-password"
-								placeholder="Password"
-								class="w-full input"
-								disabled={form.loading}
-							/>
-						</div>
+						<Input
+							type="password"
+							name="password"
+							required
+							autocomplete="current-password"
+							placeholder="Password"
+							disabled={form.loading}
+						/>
 
 						{form.error && (
-							<p class="text-sm text-red-600 dark:text-red-400">{form.error.message}</p>
+							<Feedback>{form.error.message}</Feedback>
 						)}
 
-						<button
+						<Button
 							type="submit"
 							disabled={form.loading}
-							class="w-full btn"
+							wide
 						>
 							{form.loading ? 'Confirming...' : 'Confirm'}
-						</button>
+						</Button>
 					</form>
-				</div>
+				</Panel>
 			</div>
 		)
 	}

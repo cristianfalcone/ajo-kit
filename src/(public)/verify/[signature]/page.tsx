@@ -1,5 +1,6 @@
 import type { Stateful } from 'ajo'
 import type { Props } from '@kit'
+import { Alert, Link } from '/src/ui'
 
 interface Data {
 	error?: string
@@ -22,23 +23,17 @@ const VerifyResult: Stateful<Props<Data>> = function* (args) {
 			<div class="text-center">
 				{error ? (
 					<>
-						<div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-							<p class="text-red-800 dark:text-red-200">{error}</p>
-						</div>
-						<a href="/verify" class="text-accent hover:text-primary dark:text-accent dark:hover:text-accent/70 font-medium">
+						<Alert tone="danger" class="mb-4">{error}</Alert>
+						<Link href="/verify">
 							Request a new verification link
-						</a>
+						</Link>
 					</>
 				) : verified ? (
 					<>
-						<div class="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-							<p class="text-green-800 dark:text-green-200">
-								Your email has been verified!
-							</p>
-						</div>
-						<a href="/dashboard" class="text-accent hover:text-primary dark:text-accent dark:hover:text-accent/70 font-medium">
+						<Alert class="mb-4">Your email has been verified!</Alert>
+						<Link href="/dashboard">
 							Go to dashboard
-						</a>
+						</Link>
 					</>
 				) : null}
 			</div>

@@ -3,6 +3,7 @@ import type { Stateful } from 'ajo'
 import type { User, Frame, Action } from '@kit'
 import { ThemeContext, UnreadContext } from '/src/contexts'
 import { action } from '@kit/client'
+import { Button, CountBadge } from '/src/ui'
 
 type LinkOptions = { exact?: boolean, include?: string[] }
 
@@ -88,23 +89,16 @@ const Nav = ({ user, unread, signout }: { user: User, unread: number, signout: A
 								<span class="i-lucide-settings w-4 h-4" />
 								{user.name || user.email}
 								{unread > 0 && (
-									<span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold bg-red-500 text-white">
-										{unread}
-									</span>
+									<CountBadge count={unread} />
 								)}
 							</a>
 							<form set:onsubmit={signout.submit} class="inline">
-								<button
+								<Button
 									type="submit"
 									disabled={signout.loading}
 									title="Logout"
-									class={clsx([
-										'flex items-center justify-center w-7 h-7 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-900/5 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10 transition-colors',
-										signout.loading && 'opacity-50'
-									])}
-								>
-									<span class="i-lucide-log-out w-4 h-4" />
-								</button>
+									icon="i-lucide-log-out"
+								/>
 							</form>
 						</div>
 					</div>
@@ -117,16 +111,17 @@ const Nav = ({ user, unread, signout }: { user: User, unread: number, signout: A
 const ThemeToggle = () => {
 
 	const { mode, cycle } = ThemeContext()
+	const icon = mode === 'system'
+		? 'i-lucide-monitor'
+		: mode === 'light'
+			? 'i-lucide-sun'
+			: 'i-lucide-moon'
 
 	return (
-		<button
+		<Button
 			aria-label="Change theme"
-			class="flex items-center justify-center w-7 h-7 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-900/5 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
+			icon={icon}
 			set:onclick={cycle}
-		>
-			{mode === 'system' && <span class="i-lucide-monitor w-4 h-4" />}
-			{mode === 'light' && <span class="i-lucide-sun w-4 h-4" />}
-			{mode === 'dark' && <span class="i-lucide-moon w-4 h-4" />}
-		</button>
+		/>
 	)
 }

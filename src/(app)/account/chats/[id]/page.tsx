@@ -2,6 +2,7 @@ import type { Stateful } from 'ajo'
 import type { Props } from '@kit'
 import { action } from '@kit/client'
 import clsx from 'clsx'
+import { Button, Input, Panel } from '/src/ui'
 
 type Message = {
 	id: number
@@ -813,7 +814,7 @@ const ChatRoom: Stateful<Props<Data>> = function* (args) {
 				</div>
 
 				{/* Messages */}
-				<div class="flex-1 min-h-0 rounded-xl glass overflow-hidden relative">
+				<Panel radius="xl" padding="none" class="flex-1 min-h-0 overflow-hidden relative">
 					<div
 						class="h-full overflow-y-auto p-4 space-y-3"
 						ref={el => boxRef.current = el}
@@ -859,26 +860,25 @@ const ChatRoom: Stateful<Props<Data>> = function* (args) {
 							{unreadCount} new message{unreadCount !== 1 ? 's' : ''}
 						</button>
 					)}
-				</div>
+				</Panel>
 
 				{/* Input */}
 				<form set:onsubmit={onSend} class="mt-4 flex gap-2">
-					<input
-						type="text"
+					<Input
 						name="text"
 						value={text}
 						set:oninput={event => this.next(() => text = (event.target as HTMLInputElement).value)}
 						placeholder="Type a message..."
-						class="flex-1 input rounded-xl bg-slate-100 dark:bg-white/10"
 						autocomplete="off"
+						tone="muted"
+						wrapper="flex-1"
 					/>
-					<button
+					<Button
 						type="submit"
 						disabled={!text.trim() || send.loading}
-						class="btn px-6 py-3 rounded-xl disabled:cursor-not-allowed"
 					>
 						{send.loading ? '...' : 'Send'}
-					</button>
+					</Button>
 				</form>
 			</section>
 		)

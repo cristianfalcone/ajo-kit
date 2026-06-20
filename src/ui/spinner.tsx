@@ -1,3 +1,5 @@
+import Panel from '/src/ui/panel'
+
 interface SpinnerProps {
   loading: boolean
   duration?: number
@@ -22,11 +24,11 @@ export default function Spinner({ loading, duration = 300, delay = 400, label = 
       style={style}
     >
       {overlay && <div class="absolute inset-0 backdrop-blur-sm bg-white/60 dark:bg-black/40" />}
-      <div class="relative px-5 py-4 rounded-xl panel flex flex-col items-center gap-3 shadow-sm dark:shadow-none">
+      <Panel variant="solid" radius="xl" padding="none" class="relative px-5 py-4 flex flex-col items-center gap-3">
         <SpinnerVisual />
         <p class="text-xs tracking-wide uppercase font-medium text-slate-600/80 dark:text-muted" aria-hidden="true">{label}</p>
         <span class="sr-only">{label}</span>
-      </div>
+      </Panel>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { Props } from '@kit'
 import { action } from '@kit/client'
+import { Button, Feedback, Input } from '/src/ui'
 
 type Result = { deleted: boolean }
 
@@ -36,32 +37,28 @@ const Delete: Stateful<Props> = function* () {
 					</p>
 
 					<form set:onsubmit={form.submit} class="space-y-4">
-						<div>
-							<label class="block text-sm font-medium text-red-700 dark:text-red-300 mb-1">
-								Type DELETE to confirm
-							</label>
-							<input
-								type="text"
-								name="confirmation"
-								required
-								pattern="DELETE"
-								autocomplete="off"
-								class="w-full max-w-xs input border-red-300 dark:border-red-700 focus:ring-red-500"
-								disabled={form.loading}
-							/>
-						</div>
+						<Input
+							name="confirmation"
+							label="Type DELETE to confirm"
+							tone="danger"
+							width="xs"
+							required
+							pattern="DELETE"
+							autocomplete="off"
+							disabled={form.loading}
+						/>
 
 						{form.error && (
-							<p class="text-sm text-red-600">{form.error.message}</p>
+							<Feedback>{form.error.message}</Feedback>
 						)}
 
-						<button
+						<Button
 							type="submit"
 							disabled={form.loading}
-							class="btn-danger"
+							tone="danger"
 						>
 							{form.loading ? 'Deleting...' : 'Delete My Account'}
-						</button>
+						</Button>
 					</form>
 				</div>
 			</div>

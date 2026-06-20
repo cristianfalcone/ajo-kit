@@ -1,5 +1,5 @@
 import { type Props, date } from '@kit'
-import Pager from '/src/ui/pager'
+import { Badge, Pager, Panel, Table, type Column } from '/src/ui'
 
 type User = {
 	id: number
@@ -16,6 +16,38 @@ type Data = { users: User[]; page: Info }
 export default function Users({ data }: Props<Data>) {
 
 	const users = data?.users ?? []
+	const columns = [
+		{
+			header: 'User',
+			cell: (user) => (
+				<>
+					<div class="font-medium text-slate-900 dark:text-white">{user.name}</div>
+					<div class="text-slate-500 dark:text-slate-400">{user.email}</div>
+				</>
+			),
+		},
+		{
+			header: 'Role',
+			cell: (user) => (
+				<Badge tone={user.role === 'admin' ? 'primary' : 'neutral'}>
+					{user.role ?? 'none'}
+				</Badge>
+			),
+		},
+		{
+			header: 'Verified',
+			cell: (user) => user.verified ? (
+				<span class="i-lucide-check-circle w-5 h-5 text-green-500" />
+			) : (
+				<span class="i-lucide-x-circle w-5 h-5 text-slate-300 dark:text-slate-600" />
+			),
+		},
+		{
+			header: 'Created',
+			tone: 'muted',
+			cell: (user) => date(user.created),
+		},
+	] satisfies Column<User>[]
 
 	return (
 		<div class="space-y-6">
@@ -24,48 +56,10 @@ export default function Users({ data }: Props<Data>) {
 				<span class="text-sm text-slate-500 dark:text-slate-400">{users.length} shown</span>
 			</div>
 
-			<div class="glass ring-0 rounded-lg overflow-hidden">
-				<table class="w-full text-sm">
-					<thead>
-						<tr>
-							<th>User</th>
-							<th>Role</th>
-							<th>Verified</th>
-							<th>Created</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-						{users.map(user => (
-							<tr key={user.id} class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-								<td class="px-4 py-3">
-									<div class="font-medium text-slate-900 dark:text-white">{user.name}</div>
-									<div class="text-slate-500 dark:text-slate-400">{user.email}</div>
-								</td>
-								<td class="px-4 py-3">
-									<span class={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-										user.role === 'admin'
-											? 'bg-primary text-white dark:bg-accent dark:text-primary'
-											: 'bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300'
-									}`}>
-										{user.role ?? 'none'}
-									</span>
-								</td>
-								<td class="px-4 py-3">
-									{user.verified ? (
-										<span class="i-lucide-check-circle w-5 h-5 text-green-500" />
-									) : (
-										<span class="i-lucide-x-circle w-5 h-5 text-slate-300 dark:text-slate-600" />
-									)}
-								</td>
-								<td class="px-4 py-3 text-slate-500 dark:text-slate-400">
-									{date(user.created)}
-								</td>
-							</tr>
-						))}
-					</tbody>
-				</table>
+			<Panel padding="none" clip>
+				<Table rows={users} columns={columns} getKey={user => user.id} />
 				{data?.page && <Pager page={data.page} count={users.length} label="users" />}
-			</div>
+			</Panel>
 		</div>
 	)
 }

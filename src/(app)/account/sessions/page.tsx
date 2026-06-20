@@ -1,6 +1,7 @@
 import type { Stateful } from 'ajo'
 import { type Props, date } from '@kit'
 import { action } from '@kit/client'
+import { Badge, Button, Panel } from '/src/ui'
 
 type Session = {
 	id: string
@@ -72,16 +73,16 @@ const Sessions: Stateful<Props<Data>> = function* (args) {
 					{sessions.map(session => {
 						const device = parse(session.agent)
 						return (
-							<div key={session.id} class="glass rounded-lg p-4 flex items-center justify-between">
+							<Panel key={session.id} padding="sm" class="flex items-center justify-between">
 								<div class="flex items-center gap-4">
 									<div class="i-lucide-monitor w-8 h-8 text-slate-400" />
 									<div>
 										<div class="font-medium text-slate-900 dark:text-white">
 											{device.browser} on {device.os}
 											{session.current && (
-												<span class="ml-2 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 px-2 py-0.5 rounded">
+												<Badge tone="success" class="ml-2">
 													Current
-												</span>
+												</Badge>
 											)}
 										</div>
 										<div class="text-sm text-slate-500 dark:text-slate-400">
@@ -93,17 +94,16 @@ const Sessions: Stateful<Props<Data>> = function* (args) {
 								{!session.current && (
 									<form set:onsubmit={revokeForm.submit}>
 										<input type="hidden" name="id" value={session.id} />
-										<button
+										<Button
 											type="submit"
 											title="Revoke this session"
 											disabled={revokeForm.loading}
-											class="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
-										>
-											<span class="i-lucide-x w-4 h-4 block" />
-										</button>
+											icon="i-lucide-x"
+											tone="danger"
+										/>
 									</form>
 								)}
-							</div>
+							</Panel>
 						)
 					})}
 				</div>

@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import { type Props, date } from '@kit'
 import { action } from '@kit/client'
-import Pager from '/src/ui/pager'
+import { Button, Pager, Panel, Table, type Column } from '/src/ui'
 
 type Token = {
 	id: string
@@ -25,6 +25,55 @@ const Tokens: Stateful<Props<Data>> = function* (args) {
 	for (args of this) {
 
 		const tokens = args.data?.tokens ?? []
+		const columns = [
+			{
+				header: 'Token',
+				cell: (token) => (
+					<>
+						<div class="font-medium text-slate-900 dark:text-white">{token.name}</div>
+						<div class="text-slate-400 font-mono text-xs">****{token.id}</div>
+					</>
+				),
+			},
+			{
+				header: 'User',
+				cell: (token) => (
+					<>
+						<div class="text-slate-900 dark:text-white">{token.userName}</div>
+						<div class="text-slate-500 dark:text-slate-400 text-xs">{token.email}</div>
+					</>
+				),
+			},
+			{
+				header: 'Abilities',
+				cell: (token) => (
+					<span class="text-slate-600 dark:text-slate-300">
+						{token.abilities.includes('*') ? 'Full access' : token.abilities.join(', ')}
+					</span>
+				),
+			},
+			{
+				header: 'Last Used',
+				tone: 'muted',
+				cell: (token) => token.last ? date(token.last) : 'Never',
+			},
+			{
+				header: 'Actions',
+				align: 'right',
+				cell: (token) => (
+					<form set:onsubmit={form.submit}>
+						<input type="hidden" name="id" value={token.id} />
+						<Button
+							type="submit"
+							title="Revoke this token"
+							disabled={form.loading}
+							icon="i-lucide-trash-2"
+							tone="danger"
+						/>
+					</form>
+				),
+			},
+		] satisfies Column<Token>[]
 
 		yield (
 			<div class="space-y-6">
@@ -34,60 +83,15 @@ const Tokens: Stateful<Props<Data>> = function* (args) {
 				</div>
 
 				{tokens.length === 0 ? (
-					<div class="glass rounded-lg p-8 text-center">
+					<Panel padding="lg" class="text-center">
 						<span class="i-lucide-key w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
 						<p class="text-slate-500 dark:text-slate-400">No API tokens created yet</p>
-					</div>
+					</Panel>
 				) : (
-					<div class="glass ring-0 rounded-lg overflow-hidden">
-						<table class="w-full text-sm">
-							<thead>
-								<tr>
-									<th>Token</th>
-									<th>User</th>
-									<th>Abilities</th>
-									<th>Last Used</th>
-									<th class="text-right">Actions</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-								{tokens.map(token => (
-									<tr key={token.id} class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-										<td class="px-4 py-3">
-											<div class="font-medium text-slate-900 dark:text-white">{token.name}</div>
-											<div class="text-slate-400 font-mono text-xs">****{token.id}</div>
-										</td>
-										<td class="px-4 py-3">
-											<div class="text-slate-900 dark:text-white">{token.userName}</div>
-											<div class="text-slate-500 dark:text-slate-400 text-xs">{token.email}</div>
-										</td>
-										<td class="px-4 py-3">
-											<span class="text-slate-600 dark:text-slate-300">
-												{token.abilities.includes('*') ? 'Full access' : token.abilities.join(', ')}
-											</span>
-										</td>
-										<td class="px-4 py-3 text-slate-500 dark:text-slate-400">
-											{token.last ? date(token.last) : 'Never'}
-										</td>
-										<td class="px-4 py-3 text-right">
-											<form set:onsubmit={form.submit}>
-												<input type="hidden" name="id" value={token.id} />
-												<button
-													type="submit"
-													title="Revoke this token"
-													disabled={form.loading}
-													class="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
-												>
-													<span class="i-lucide-trash-2 w-4 h-4 block" />
-												</button>
-											</form>
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
+					<Panel padding="none" clip>
+						<Table rows={tokens} columns={columns} getKey={token => token.id} />
 						{args.data?.page && <Pager page={args.data.page} count={tokens.length} label="tokens" />}
-					</div>
+					</Panel>
 				)}
 			</div>
 		)

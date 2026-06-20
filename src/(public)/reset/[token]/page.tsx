@@ -1,6 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { Props } from '@kit'
 import { action } from '@kit/client'
+import { Alert, Button, Feedback, Input, Link } from '/src/ui'
 
 type Result = { redirect: string }
 
@@ -22,61 +23,47 @@ const Reset: Stateful<Props<Data>> = function* (args) {
 
 			{!valid ? (
 				<div class="text-center">
-					<div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-						<p class="text-red-800 dark:text-red-200">
-							This reset link is invalid or has expired.
-						</p>
-					</div>
-					<a href="/forgot" class="text-accent hover:text-primary dark:text-accent dark:hover:text-accent/70 font-medium">
+					<Alert tone="danger" class="mb-4">
+						This reset link is invalid or has expired.
+					</Alert>
+					<Link href="/forgot">
 						Request a new link
-					</a>
+					</Link>
 				</div>
 			) : (
 				<form set:onsubmit={form.submit} class="space-y-4">
-					<div>
-						<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-							New Password
-						</label>
-						<input
-							type="password"
-							name="password"
-							required
-							minlength={8}
-							autocomplete="new-password"
-							class="w-full input"
-							disabled={form.loading}
-						/>
-						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-							At least 8 characters
-						</p>
-					</div>
+					<Input
+						type="password"
+						name="password"
+						label="New Password"
+						hint="At least 8 characters"
+						required
+						minlength={8}
+						autocomplete="new-password"
+						disabled={form.loading}
+					/>
 
-					<div>
-						<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-							Confirm Password
-						</label>
-						<input
-							type="password"
-							name="confirm"
-							required
-							minlength={8}
-							autocomplete="new-password"
-							class="w-full input"
-							disabled={form.loading}
-						/>
-					</div>
+					<Input
+						type="password"
+						name="confirm"
+						label="Confirm Password"
+						required
+						minlength={8}
+						autocomplete="new-password"
+						disabled={form.loading}
+					/>
 
 					{form.error && (
-						<p class="text-sm text-red-600 dark:text-red-400">{form.error.message}</p>
+						<Feedback>{form.error.message}</Feedback>
 					)}
 
-					<button
+					<Button
 						type="submit"
 						disabled={form.loading}
-						class="w-full btn py-2.5 shadow hover:shadow-lg"
+						wide
 					>
 						{form.loading ? 'Resetting...' : 'Reset Password'}
-					</button>
+					</Button>
 				</form>
 			)}
 		</>
