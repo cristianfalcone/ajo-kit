@@ -130,7 +130,7 @@ Route files:
 
 ```ts
 import type { Parent, Request, Response, Entry } from '@kit'
-import type { Head } from '@kit/head'
+import type { Head } from '@kit'
 import { send } from '@kit/server'
 
 export async function layout(req: Request, parent: Parent): Promise<Entry> {
@@ -365,16 +365,13 @@ Behavior:
 - Navigates automatically when the action returns `{ redirect: '/path' }`.
 - Invalidates route cache topics returned by the server.
 
-## `@kit/head`
+## Head Contract
 
-Document head contract.
-
-```ts
-import type { Head } from '@kit/head'
-import { merge, render, apply } from '@kit/head'
-```
+Route `head()` loaders return the root `Head` type from `@kit`. The framework merges ancestor/page heads, renders them during SSR, and applies changes during client navigation.
 
 ```ts
+import type { Head } from '@kit'
+
 type Head = {
   title?: string
   meta?: (
@@ -384,14 +381,7 @@ type Head = {
   )[]
   link?: { rel: string; href: string; [key: string]: string | undefined }[]
 }
-
-function merge(...heads: (Head | undefined)[]): Head
-function render(head?: Head): string
-function apply(head?: Head): void
 ```
-
-`merge()` dedupes `meta` and `link` entries; later heads win. `render()` is for
-SSR. `apply()` updates `document.head` on the client.
 
 ## `@kit/validate`
 
@@ -804,7 +794,6 @@ observe changed data. Emit after transactions commit.
 | `@kit` / `ajo-kit` | Core types, errors, request helpers, navigation helpers |
 | `@kit/server` / `ajo-kit/server` | `send`, `emit`, server runtime entry |
 | `@kit/client` / `ajo-kit/client` | `action()` and client boot runtime |
-| `@kit/head` / `ajo-kit/head` | Head type, merge/render/apply |
 | `@kit/validate` / `ajo-kit/validate` | Valibot helpers and `parse()` |
 | `@kit/database` / `ajo-kit/database` | SQLite/Kysely helpers and types |
 | `@kit/mail` / `ajo-kit/mail` | Mail transport configure/send |

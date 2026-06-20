@@ -22,10 +22,6 @@
       "types": "./src/node.ts",
       "default": "./src/node.ts"
     },
-    "./head": {
-      "types": "./src/head.tsx",
-      "default": "./src/head.tsx"
-    },
     "./validate": {
       "types": "./src/validate.ts",
       "default": "./src/validate.ts"

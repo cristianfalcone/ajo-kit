@@ -2,6 +2,7 @@ import type { Children, Component } from 'ajo'
 import type { Params } from 'navaid'
 import type { Request, Response, Middleware } from 'polka'
 export type { Request, Response, Middleware }
+export type { Head } from './head'
 import type { Head } from './head'
 import type { Timing } from './timing'
 

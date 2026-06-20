@@ -139,7 +139,7 @@ Per-route files:
 ```ts
 import type { Request, Response } from '@kit'
 import { send } from '@kit/server'
-import type { Head } from '@kit/head'
+import type { Head } from '@kit'
 
 export async function layout(req: Request, parent: () => Promise<Record<string, unknown>>) {
   return {}
