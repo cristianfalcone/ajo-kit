@@ -7,6 +7,7 @@ type Meta =
 
 type Link = { rel: string; href: string; [key: string]: string | undefined }
 
+/** Document head fields route modules can return from head(). */
 export type Head = {
 	title?: string
 	meta?: Meta[]
@@ -34,6 +35,7 @@ const append = <T,>(items: T[], index: Map<string, number>, entry: T, id: string
 
 // Merge: dedupe by key, last wins
 
+/** Merges route heads, letting later meta/link entries win by key. */
 export function merge(...heads: (Head | undefined)[]): Head {
 
 	const result: Head = {}
@@ -75,6 +77,7 @@ const attrs = (entries: Record<string, string | undefined>) =>
 const tag = (name: 'meta' | 'link', entries: Record<string, string | undefined>) =>
 	`<${name} ${attrs(entries)}>`
 
+/** Renders a Head object into SSR-safe HTML tags. */
 export function render(head: Head = {}): string {
 
 	const tags: string[] = []
@@ -89,6 +92,7 @@ export function render(head: Head = {}): string {
 
 // CSR: update document.head (diff before mutate)
 
+/** Applies a Head object to document.head during client navigation. */
 export function apply(head: Head = {}): void {
 
 	if (head.title && document.title !== head.title) document.title = head.title

@@ -5,6 +5,7 @@ import { db } from './store'
 const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 const hours = 1
 
+/** Creates a password reset token and returns its plaintext value. */
 export async function create(user: number): Promise<string> {
 
 	await db().deleteFrom('resets').where('user', '=', user).execute()
@@ -18,6 +19,7 @@ export async function create(user: number): Promise<string> {
 	return plain
 }
 
+/** Resolves a plaintext reset token to its user id when active. */
 export async function validate(plain: string): Promise<number | null> {
 
 	const id = hash(plain)
@@ -32,6 +34,7 @@ export async function validate(plain: string): Promise<number | null> {
 	return reset.user
 }
 
+/** Deletes expired password reset tokens. */
 export function prune() {
 	return db().deleteFrom('resets').where('expiry', '<', new Date().toISOString()).execute()
 }

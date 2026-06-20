@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Sqlite } from 'ajo-kit/database'
 
-interface Config {
+/** SQLite backup source and remote write hooks. */
+export interface Options {
 	database: Sqlite
 	snapshot: (path: string) => Promise<void>
 	changes: (path: string) => Promise<void>
@@ -12,7 +13,21 @@ interface Config {
 	debounce?: number
 }
 
-export function push(config: Config) {
+/** Active backup watcher returned by `start`. */
+export interface Watcher {
+	stop(): Promise<void>
+	rotate(): Promise<void>
+}
+
+/** SQLite WAL backup controller. */
+export interface Pusher {
+	start(): Watcher
+	rotate(): Promise<void>
+	once(): Promise<void>
+}
+
+/** Create a WAL backup controller for snapshots and incremental changes. */
+export function push(config: Options): Pusher {
 
 	const path = config.database.name
 	const walpath = `${path}-wal`

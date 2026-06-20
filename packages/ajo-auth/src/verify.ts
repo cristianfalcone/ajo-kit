@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 const secret = process.env.APP_SECRET || 'change-in-production'
 const hours = 24
 
+/** Signs a user id into a time-limited email verification signature. */
 export function sign(user: number): string {
 
 	const expiry = Date.now() + hours * 60 * 60 * 1000
@@ -12,6 +13,7 @@ export function sign(user: number): string {
 	return Buffer.from(`${data}:${sig}`).toString('base64url')
 }
 
+/** Validates an email verification signature and returns its user id. */
 export function validate(signature: string): number | null {
 
 	try {
@@ -34,6 +36,7 @@ export function validate(signature: string): number | null {
 	}
 }
 
+/** Builds an absolute email verification URL for a user. */
 export function url(user: number, base: string): string {
 	return `${base}/verify/${sign(user)}`
 }

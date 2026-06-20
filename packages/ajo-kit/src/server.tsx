@@ -5,6 +5,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import polka from 'polka'
 import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
+/** Sends an HTTP response using Polka's send helper. */
 export { default as send } from '@polka/send'
 import send from '@polka/send'
 import App, { resolve, layouts, pages, error, match, parts, parents } from './app'
@@ -235,6 +236,7 @@ const revalidate = async (conn: Connection) => {
 	}
 }
 
+/** Marks live data topics as changed and notifies matching SSE clients. */
 export function emit(topic: string | string[]) {
 
 	const topics = bump(topic)
@@ -272,6 +274,7 @@ type Handler = {
 
 type Template = (slots: Record<string, string>) => string
 
+/** Creates the SSR Polka app from an HTML slot template. */
 export async function create(template: Template) {
 
 	const secure: Middleware = (_, res, next) => {

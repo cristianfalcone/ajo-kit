@@ -105,7 +105,7 @@ export const actions = {
 		})
 
 		auth.cookie.write(res, plain)
-		auth.confirm.user(id)
+		auth.confirm.clearUser(id)
 		emit([
 			`profile:${id}`,
 			`sessions:${id}`,

@@ -36,7 +36,7 @@ export const actions = {
 		])
 
 		auth.cookie.clear(res)
-		auth.confirm.user(req.user!.id)
+		auth.confirm.clearUser(req.user!.id)
 
 		return { deleted: true }
 	}

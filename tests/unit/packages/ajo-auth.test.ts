@@ -6,11 +6,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { read, write, clear as cookie } from '../../../packages/ajo-auth/src/cookie'
 import { set as xsrf, verify as valid } from '../../../packages/ajo-auth/src/csrf'
 import { check as limit, clear as free, hit, remaining } from '../../../packages/ajo-auth/src/limit'
-import { stamp, check as confirm, clear as clear, user as forget } from '../../../packages/ajo-auth/src/confirm'
-import { session as session } from '../../../packages/ajo-auth/src/wares'
+import { stamp, check as confirm, clear, clearUser } from '../../../packages/ajo-auth/src/confirm'
+import { session } from '../../../packages/ajo-auth/src/wares'
 import { sign, url, validate } from '../../../packages/ajo-auth/src/verify'
 import { can, all, create as token } from '../../../packages/ajo-auth/src/token'
-import { create as create, hash as digest, remove as remove, validate as check } from '../../../packages/ajo-auth/src/session'
+import { create, hash as digest, remove, validate as check } from '../../../packages/ajo-auth/src/session'
 import { configure } from '../../../packages/ajo-auth/src/store'
 import { close, connect, db } from '../../../packages/ajo-kit/src/database'
 import { hash, verify } from '../../../packages/ajo-auth/src/password'
@@ -275,7 +275,7 @@ describe('ajo-auth in-memory gates', () => {
 
 	afterEach(() => {
 		free('login:test')
-		forget(123)
+		clearUser(123)
 		vi.useRealTimers()
 	})
 
@@ -320,7 +320,7 @@ describe('ajo-auth in-memory gates', () => {
 
 		stamp(session)
 		stamp({ user: { id: 456 }, session: { id: 'session-c' } } as any)
-		forget(123)
+		clearUser(123)
 		expect(confirm(session, 1000)).toBe(false)
 		expect(confirm({ user: { id: 456 }, session: { id: 'session-c' } } as any, 1000)).toBe(true)
 	})

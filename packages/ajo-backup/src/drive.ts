@@ -6,6 +6,20 @@ interface Credentials {
 	refresh_token: string
 }
 
+/** Google Drive backup destination and OAuth credentials file. */
+export interface Options {
+	credentials: string
+	folder: string
+	name?: string
+}
+
+/** Google Drive file storage adapter used by backup tasks. */
+export interface Drive {
+	upload(path: string, name?: string): Promise<void>
+	remove(name: string): Promise<void>
+	download(name: string, dest: string): Promise<boolean>
+}
+
 interface Token {
 	value: string
 	expires: number
@@ -62,7 +76,8 @@ async function request(url: string, options: RequestInit, retries = 3): Promise<
 	throw new Error(`Request failed: ${response.status} ${body}`)
 }
 
-export function drive(config: { credentials: string; folder: string; name?: string }) {
+/** Create a Google Drive adapter for upload, remove, and download operations. */
+export function drive(config: Options): Drive {
 
 	const credentials: Credentials = JSON.parse(readFileSync(config.credentials, 'utf8'))
 	const cache = new Map<string, string>() // name → file id

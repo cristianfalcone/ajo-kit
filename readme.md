@@ -741,7 +741,7 @@ function check(req: Request, window?: number): boolean
 function clear(req: Request): void
 function clearSession(user: number, id: string): void
 function clearToken(user: number, id: string): void
-function user(user: number): void
+function clearUser(user: number): void
 ```
 
 Confirmation is scoped to the current session or bearer token credential.

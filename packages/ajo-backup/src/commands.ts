@@ -6,6 +6,7 @@ import { drive } from './drive'
 
 const { DRIVE_CREDENTIALS = './drive.json', DRIVE_FOLDER = '', DATABASE_PATH = './database.sqlite' } = process.env
 
+/** Register backup CLI commands on a kit command runner. */
 export function register(cli: any) {
 
 	cli.command('backup auth')

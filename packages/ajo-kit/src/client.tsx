@@ -9,6 +9,7 @@ import { invalidate } from './cache'
 
 // Action helper for stateful generator components
 
+/** Creates state and submit/invoke helpers for a route action. */
 export function action<T = unknown>(name?: string, init?: RequestInit): Action<T> {
 
 	const component = current()

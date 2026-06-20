@@ -2,10 +2,12 @@ import { createHash } from 'node:crypto'
 import { db } from './store'
 import { generate } from './session'
 
+/** Ability string accepted by bearer API tokens. */
 export type Ability = string
 
 const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 
+/** Creates an API token and returns its plaintext credential once. */
 export async function create(
 	user: number,
 	name: string,
@@ -29,6 +31,7 @@ export async function create(
 	return plain
 }
 
+/** Resolves a plaintext API token to its stored bearer identity. */
 export async function validate(plain: string) {
 
 	const id = hash(plain)
@@ -54,6 +57,7 @@ export async function validate(plain: string) {
 	return { ...token, abilities: JSON.parse(token.abilities) as Ability[] }
 }
 
+/** Returns true when abilities include the required ability. */
 export function can(abilities: Ability[], required: Ability): boolean {
 
 	if (abilities.includes('*')) return true
@@ -64,21 +68,26 @@ export function can(abilities: Ability[], required: Ability): boolean {
 	return abilities.includes(`${resource}:*`)
 }
 
+/** Returns true when abilities include every required ability. */
 export const all = (abilities: Ability[], required: Ability[]) =>
 	required.every(ability => can(abilities, ability))
 
+/** Deletes the API token matching a plaintext credential. */
 export const revoke = (plain: string) =>
 	db().deleteFrom('tokens').where('id', '=', hash(plain)).execute()
 
+/** Deletes every API token owned by a user. */
 export const purge = (user: number) =>
 	db().deleteFrom('tokens').where('user', '=', user).execute()
 
+/** Lists stored API tokens for a user without plaintext secrets. */
 export const list = (user: number) =>
 	db().selectFrom('tokens')
 		.select(['id', 'name', 'abilities', 'last', 'expiry', 'created'])
 		.where('user', '=', user)
 		.execute()
 
+/** Deletes expired API tokens. */
 export const prune = () =>
 	db().deleteFrom('tokens')
 		.where('expiry', '<', new Date().toISOString())

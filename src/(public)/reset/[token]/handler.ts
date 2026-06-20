@@ -57,7 +57,7 @@ export const actions = {
 			await trx.deleteFrom('resets').where('user', '=', user).execute()
 		})
 
-		auth.confirm.user(user)
+		auth.confirm.clearUser(user)
 		emit([
 			`profile:${user}`,
 			`sessions:${user}`,

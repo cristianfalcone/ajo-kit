@@ -1,21 +1,23 @@
 import {
-	safeParse as safe,
+	safeParse,
 	flatten,
-	type GenericSchema as Schema,
-	type InferOutput as Output,
+	type GenericSchema,
+	type InferOutput,
 } from 'valibot'
 import { Invalid, type Fields } from './constants'
 
+/** Valibot schema builders and type helpers re-exported for app validation. */
 export {
 	object, string, number, boolean, array, optional, literal,
 	pipe, trim, toLowerCase, transform, forward, partialCheck,
 	email, minLength, maxLength, unknown,
-	type GenericSchema as Schema, type InferOutput as Output,
+	type GenericSchema, type InferOutput,
 } from 'valibot'
 
-export function parse<T extends Schema>(schema: T, data: unknown): Output<T> {
+/** Parses data with Valibot and throws Invalid with field errors on failure. */
+export function parse<T extends GenericSchema>(schema: T, data: unknown): InferOutput<T> {
 
-	const result = safe(schema, data)
+	const result = safeParse(schema, data)
 
 	if (result.success) return result.output
 

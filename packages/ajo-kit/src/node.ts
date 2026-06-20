@@ -22,6 +22,7 @@ const fallback = `<!DOCTYPE html>
 
 const markers = /<!--\s*ssr:([A-Za-z0-9_]+)\s*-->/g
 
+/** Compiles an HTML file with ssr:* comments into a slot renderer. */
 export function compile(html: string) {
 
 	const parts = html.split(markers)
@@ -35,10 +36,12 @@ async function html() {
 	catch { return fallback }
 }
 
+/** Development server options accepted by dev(). */
 export type Options = {
 	hmr?: vite.ServerOptions['hmr']
 }
 
+/** Creates the development Polka app with Vite middleware and route reloads. */
 export async function dev(options: Options = {}) {
 
 	const app = polka()
@@ -80,6 +83,7 @@ export async function dev(options: Options = {}) {
 	return app
 }
 
+/** Creates the production Polka app from dist/client and dist/server. */
 export async function start() {
 
 	const app = polka()
@@ -95,6 +99,7 @@ export async function start() {
 	return app
 }
 
+/** Builds client and server bundles into dist/. */
 export async function build() {
 
 	await vite.build({ build: { outDir: 'dist/client' } })
@@ -104,6 +109,7 @@ export async function build() {
 	await vite.build({ build: { outDir: 'dist/server', ssr: entry } })
 }
 
+/** Starts an app, incrementing the port when it is busy unless strict is set. */
 export const listen = (app: any, port = 5173, options: { strict?: boolean } = {}): Promise<number> => new Promise((resolve, reject) => {
 	http.createServer(app.handler)
 		.listen(port, () => {

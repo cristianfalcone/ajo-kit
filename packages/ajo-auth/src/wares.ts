@@ -37,6 +37,7 @@ const reset = (req: Request) => {
 	delete req.token
 }
 
+/** Authenticates requests from bearer API tokens or session cookies. */
 export function session(lookup?: Resolve): Middleware {
 
 	const find = lookup ?? resolve
@@ -89,6 +90,7 @@ export function session(lookup?: Resolve): Middleware {
 	}
 }
 
+/** Rejects unsafe cookie-auth requests without CSRF proof. */
 export const csrf: Middleware = (req, _, next) => {
 
 	if (req.token) return next()

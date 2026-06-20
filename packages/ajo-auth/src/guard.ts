@@ -4,6 +4,7 @@ import { can } from './token'
 import { check as confirm, credential } from './confirm'
 import { db } from './store'
 
+/** Redirects HTML requests or returns a JSON redirect envelope for AJAX. */
 export const redirect = (to: string | ((req: Request) => string)): Middleware => (req, res) => {
 
 	const target = typeof to === 'function' ? to(req) : to
@@ -18,6 +19,7 @@ export const redirect = (to: string | ((req: Request) => string)): Middleware =>
 	res.end(json ? JSON.stringify({ redirect: target }) : undefined)
 }
 
+/** Runs middleware only when a request condition matches. */
 export const when = (
 	condition: (req: Request, res: Response) => boolean,
 	middleware: Middleware,
@@ -28,11 +30,13 @@ export const when = (
 	next()
 }
 
+/** Requires an authenticated request user. */
 export const auth = (): Middleware => (req, _, next) => {
 	if (!req.user) throw new Denied()
 	next()
 }
 
+/** Requires the authenticated user to have one of the allowed roles. */
 export const role = <R extends string>(...allowed: R[]): Middleware => (req, _, next) => {
 
 	if (!req.user) throw new Denied()
@@ -44,9 +48,12 @@ export const role = <R extends string>(...allowed: R[]): Middleware => (req, _, 
 	next()
 }
 
+/** Redirects guests away from protected browser routes. */
 export const protect = (to = '/login') => when(req => !req.user, redirect(to))
+/** Redirects authenticated users away from guest-only routes. */
 export const guest = (to = '/dashboard') => when(req => !!req.user, redirect(to))
 
+/** Throws when the current bearer token lacks required abilities. */
 export function authorize(req: Request, ...required: string[]) {
 
 	if (!req.user) throw new Denied()
@@ -56,11 +63,13 @@ export function authorize(req: Request, ...required: string[]) {
 	if (missing) throw new Forbidden(`Missing ability: ${missing}`)
 }
 
+/** Middleware variant of authorize() for route stacks. */
 export const ability = (...required: string[]): Middleware => (req, _, next) => {
 	authorize(req, ...required)
 	next()
 }
 
+/** Requires recent password confirmation for the current credential. */
 export const confirmed = (window?: number): Middleware => (req, res, next) => {
 
 	if (!req.user || !credential(req)) throw new Denied()
@@ -73,6 +82,7 @@ export const confirmed = (window?: number): Middleware => (req, res, next) => {
 	next()
 }
 
+/** Requires the authenticated user to have a verified timestamp. */
 export const verified = (): Middleware => async (req, res, next) => {
 
 	if (!req.user) throw new Denied()

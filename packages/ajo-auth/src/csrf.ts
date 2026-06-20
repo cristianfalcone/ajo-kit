@@ -5,12 +5,14 @@ import { parse } from './cookie'
 const NAME = 'XSRF-TOKEN'
 const secure = () => process.env.NODE_ENV === 'production' ? '; Secure' : ''
 
+/** Sets a readable XSRF cookie and returns its token. */
 export function set(res: Response) {
 	const token = generate()
 	res.setHeader('Set-Cookie', `${NAME}=${token}; Path=/; SameSite=Lax${secure()}`)
 	return token
 }
 
+/** Validates double-submit CSRF or same-origin proof. */
 export function verify(req: Request): boolean {
 
 	// 1. Check XSRF token (double-submit cookie)

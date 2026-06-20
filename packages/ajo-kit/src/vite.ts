@@ -105,11 +105,13 @@ if(import.meta.hot)import.meta.hot.accept(m=>{
 	}
 })
 
+/** Options for the ajo-kit Vite plugin. */
 export interface Options {
 	guard?: Pattern[]
 	css?: string[]
 }
 
+/** Default file locations used by the kit CLI. */
 export const defaults = {
 	database: './database.sqlite',
 	migrations: 'db/migrations',
@@ -122,6 +124,7 @@ const guards = (found: ReturnType<typeof discover>): Pattern[] => [
 	...found.filter(p => p.serverOnly).map(p => new RegExp(`${p.name}/`)),
 ]
 
+/** Returns the Vite plugins required by an ajo-kit app. */
 export function kit(options?: Options): Plugin[] {
 
 	const css = options?.css ?? []
@@ -173,6 +176,7 @@ export function kit(options?: Options): Plugin[] {
 	]
 }
 
+/** Vite esbuild JSX settings for Ajo components. */
 export const jsx = {
 	jsx: 'automatic',
 	jsxImportSource: 'ajo',
