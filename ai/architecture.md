@@ -50,6 +50,7 @@ public subpaths. The CLI can use those internals directly.
 | `packages/ajo-kit/src/cache.ts` | Private bounded client route cache helpers |
 | `packages/ajo-kit/src/freshness.ts` | Route hashes, topic normalization, topic versions, freshness parsing |
 | `packages/ajo-kit/src/head.tsx` | Head merge/render/apply helpers |
+| `packages/ajo-kit/src/headers.ts` | Shared defensive response header policy |
 | `packages/ajo-kit/src/ssr.ts` | SSR boot payload serialization/parsing and data-script rendering |
 | `packages/ajo-kit/src/constants.ts` | Errors, request helpers, route types, auth request extensions, formatting |
 | `packages/ajo-kit/src/vite.ts` | Vite plugin, virtual route modules, aliases, server-only guard, HMR, native externalization |
@@ -104,6 +105,7 @@ Custom `guard` patterns are additive, not replacements.
 - Reads `dist/client/index.html`.
 - Compiles SSR slots.
 - Serves static client assets through `sirv`.
+- Applies shared defensive headers to static client assets.
 - Proxies dynamic requests to the built server.
 
 `listen(app, port, { strict })` starts an HTTP server. In normal mode it tries
@@ -243,6 +245,9 @@ Global defensive headers are applied before route handling:
 - `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()`
 - `Content-Security-Policy: frame-ancestors 'none'`
 - `Strict-Transport-Security` only in production when `APP_URL` is HTTPS
+
+`kit start` applies the same defensive header policy to static client assets
+served from `dist/client`.
 
 HTML SSR does not use route-data `304`. JSON route-data requests can return
 `304` with cache/freshness headers.

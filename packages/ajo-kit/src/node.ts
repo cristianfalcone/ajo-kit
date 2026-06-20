@@ -5,6 +5,7 @@ import * as http from 'node:http'
 import * as vite from 'vite'
 import polka from 'polka'
 import sirv from 'sirv'
+import * as headers from './headers'
 
 const fallback = `<!DOCTYPE html>
 <html lang="en">
@@ -93,7 +94,10 @@ export async function start() {
 
 	const inner = await create(compile(await fs.readFile(join(process.cwd(), 'dist/client/index.html'), 'utf-8')))
 
-	app.use(sirv(join(process.cwd(), 'dist/client'), { extensions: [] }))
+	app.use(sirv(join(process.cwd(), 'dist/client'), {
+		extensions: [],
+		setHeaders: res => headers.set(res, headers.security(), true),
+	}))
 	app.use((req: any, res: any) => inner.handler(req, res))
 
 	return app

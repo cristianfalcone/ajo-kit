@@ -98,6 +98,10 @@ while satisfying the real security or production requirement.
 
 ## Phase 1: Static Asset Security Headers
 
+Status: implemented. `kit start` now applies the shared defensive header policy
+to static client assets through `sirv`; dynamic SSR/API/SSE responses continue
+to use the same policy.
+
 Finding:
 
 - `packages/ajo-kit/src/server.tsx` applies defensive headers to dynamic

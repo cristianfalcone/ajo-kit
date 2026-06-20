@@ -12,6 +12,7 @@ import App, { resolve, layouts, pages, error, match, parts, parents } from './ap
 import { Failure, links, ancestors, normalize, ajax, api } from './constants'
 import type { State, Data, Entry, Page, Parent, Payload } from './constants'
 import { merge, render as view, type Head } from './head'
+import * as headers from './headers'
 import { bump, fresh, topics as sorted, parse, hash, snapshot, type Versions } from './freshness'
 import { elapsed, finish, log, header, start } from './timing'
 import { script } from './ssr'
@@ -32,34 +33,11 @@ const size = (body: string) => Buffer.byteLength(body)
 
 const vary = 'Accept, Cookie'
 
-const https = () => {
-	if (process.env.NODE_ENV !== 'production' || !process.env.APP_URL) return false
-	try {
-		return new URL(process.env.APP_URL).protocol === 'https:'
-	} catch {
-		return false
-	}
-}
-
-const security = () => ({
-	'X-Content-Type-Options': 'nosniff',
-	'Referrer-Policy': 'strict-origin-when-cross-origin',
-	'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
-	'Content-Security-Policy': "frame-ancestors 'none'",
-	...(https() && { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' }),
-})
-
 const base = (type?: string) => ({
 	'Cache-Control': 'no-store',
 	Vary: vary,
 	...(type && { 'Content-Type': type }),
 })
-
-const headers = (res: Response, values: Record<string, string | number | readonly string[]>, missing = false) => {
-	for (const [key, value] of Object.entries(values)) {
-		if (!missing || !res.hasHeader(key)) res.setHeader(key, value)
-	}
-}
 
 const done = (req: Request, res: Response, status: number, bytes: number, cache?: string) => {
 	const result = finish(req.timing, { status, bytes, cache })
@@ -75,7 +53,7 @@ const write = (req: Request, res: Response, hash?: string, early = false) => {
 	const cache = early ? 'fresh' : 'revalidated'
 
 	res.statusCode = 304
-	headers(res, base())
+	headers.set(res, base())
 	res.setHeader('X-Ajo-Cache', cache)
 	if (hash) res.setHeader('ETag', `"${hash}"`)
 	done(req, res, 304, 0, cache)
@@ -278,7 +256,7 @@ type Template = (slots: Record<string, string>) => string
 export async function create(template: Template) {
 
 	const secure: Middleware = (_, res, next) => {
-		headers(res, security(), true)
+		headers.set(res, headers.security(), true)
 		next()
 	}
 
@@ -416,7 +394,7 @@ export async function create(template: Template) {
 
 		if (ajax(req)) {
 
-			headers(res, base('application/json; charset=utf-8'))
+			headers.set(res, base('application/json; charset=utf-8'))
 
 			if (error) {
 				const body = JSON.stringify({ error: error.toJSON() })
@@ -507,7 +485,7 @@ export async function create(template: Template) {
 				})
 			}
 
-			headers(res, base('application/json; charset=utf-8'))
+			headers.set(res, base('application/json; charset=utf-8'))
 
 			send(res, 200, JSON.stringify(payload))
 
