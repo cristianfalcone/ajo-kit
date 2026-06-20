@@ -185,6 +185,8 @@ describe('ajo-kit request security helpers', () => {
 
 		expect(() => trustedOrigin(req)).toThrow('APP_URL is required in production')
 		expect(log).toHaveBeenCalledWith('[security] APP_URL is required in production')
+		expect(trustedOrigin({ headers: { host: 'localhost:5173' } } as any)).toBe('http://localhost:5173')
+		expect(trustedOrigin({ headers: { host: '127.0.0.1:5173' } } as any)).toBe('http://127.0.0.1:5173')
 
 		log.mockClear()
 		process.env.APP_URL = 'ftp://app.test'

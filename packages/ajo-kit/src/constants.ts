@@ -174,6 +174,14 @@ const isIPv4 = (value: string) => {
 const isIPv6 = (value: string) =>
 	value.includes(':') && /^[0-9a-f:.]+$/i.test(value)
 
+const isLocalHost = (host: string) => {
+	try {
+		return normalizeIp(new URL(`http://${host}`).hostname) === 'localhost'
+	} catch {
+		return false
+	}
+}
+
 const firstForwardedIp = (header: string | string[] | undefined) => {
 	const value = firstHeader(header)
 	if (!value) return
@@ -203,12 +211,12 @@ export const trustedOrigin = (req: Request) => {
 		}
 	}
 
-	if (production()) {
-		throw productionConfigError('APP_URL is required in production')
-	}
-
 	const host = req.headers.host
 	if (!host) throw new AppError(400, 'Missing Host header')
+
+	if (production() && !isLocalHost(host)) {
+		throw productionConfigError('APP_URL is required in production')
+	}
 
 	const forwarded = firstHeader(req.headers['x-forwarded-proto'])?.split(',')[0]?.trim()
 	const protocol = trustProxy() && (forwarded === 'http' || forwarded === 'https') ? forwarded : 'http'

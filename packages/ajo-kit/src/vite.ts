@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import type { Plugin } from 'vite'
 import { discover } from './discover'
 
@@ -12,7 +13,7 @@ const native = (modules: string[]): Plugin => ({
 		order: 'pre',
 		handler(source) {
 			if (!modules.includes(source)) return
-			try { return { id: require.resolve(source), external: true } }
+			try { return { id: pathToFileURL(require.resolve(source)).href, external: true } }
 			catch { return }
 		}
 	}
