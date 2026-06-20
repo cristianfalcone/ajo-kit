@@ -1,10 +1,10 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '@kit'
+import type { Props } from '@kit'
 import { action } from '@kit/client'
 
 type Result = { message: string }
 
-const Forgot: Stateful<PageArgs> = function* () {
+const Forgot: Stateful<Props> = function* () {
 
 	const form = action<Result>()
 

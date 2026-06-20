@@ -1,12 +1,12 @@
 import type { Request } from '@kit'
 import { object, string, array, optional, pipe, minLength } from '@kit/validate'
 import { create, list } from '@kit/auth/token'
-import { clearToken as clearConfirmToken } from '@kit/auth/confirm'
+import { token as forget } from '@kit/auth/confirm'
 import { db, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
-import { AppError } from '@kit'
-import { normalizeApiAbilities, unknownApiAbilities } from '/src/abilities'
+import { Failure } from '@kit'
+import { normalize, unknown as invalid } from '/src/abilities'
 
 const Create = object({
 	name: pipe(trimmed, minLength(1, 'Token name is required')),
@@ -15,12 +15,12 @@ const Create = object({
 
 const Revoke = object({ id: string() })
 
-const requestedAbilities = (abilities: string[]) => {
-	const requested = normalizeApiAbilities(abilities)
-	const unknown = unknownApiAbilities(requested)
+const requested = (abilities: string[]) => {
+	const requested = normalize(abilities)
+	const bad = invalid(requested)
 
-	if (unknown.length > 0) {
-		throw new AppError(400, `Unknown abilities: ${unknown.join(', ')}`)
+	if (bad.length > 0) {
+		throw new Failure(400, `Unknown abilities: ${bad.join(', ')}`)
 	}
 
 	return requested
@@ -47,7 +47,7 @@ export const actions = {
 	make: async (req: Request) => {
 
 		const input = parse(Create, req.body)
-		const abilities = requestedAbilities(input.abilities)
+		const abilities = requested(input.abilities)
 
 		const plain = await create(req.user!.id, input.name, abilities)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
@@ -75,7 +75,7 @@ export const actions = {
 			.deleteFrom('tokens')
 			.where('id', '=', match.id)
 			.execute()
-		clearConfirmToken(req.user!.id, match.id)
+		forget(req.user!.id, match.id)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		return { revoked: true }

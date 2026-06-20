@@ -1,111 +1,112 @@
-import { expect, request as playwrightRequest, test } from '@playwright/test'
+import { expect, request as pw, test } from '@playwright/test'
 import {
-	actionHeaders,
-	adminCredentials,
-	gotoReady,
-	loginPage,
-	loginRequest,
-	userCredentials,
+	proof,
+	admin as creds,
+	goto,
+	signin,
+	login,
+	member,
 } from './helpers'
 
 test('chat room sends a message and streams it to another active participant', async ({ browser }) => {
-	const adminContext = await browser.newContext()
-	const userContext = await browser.newContext()
-	const admin = await adminContext.newPage()
-	const user = await userContext.newPage()
+	const ctx = await browser.newContext()
+	const peer = await browser.newContext()
+	const root = await ctx.newPage()
+	const client = await peer.newPage()
 
 	try {
-		await loginPage(admin)
-		await loginPage(user, { email: 'emily@example.com', password: 'password' })
+		await signin(root)
+		await signin(client, { email: 'emily@example.com', password: 'password' })
 
-		await gotoReady(admin, '/account/chats')
-		await admin.getByRole('link', { name: /Emily Stone/ }).click()
-		await expect(admin).toHaveURL(/\/account\/chats\/\d+$/)
+		await goto(root, '/account/chats')
+		await root.getByRole('link', { name: /Emily Stone/ }).click()
+		await expect(root).toHaveURL(/\/account\/chats\/\d+$/)
 
-		const roomUrl = admin.url()
+		const room = root.url()
 		const message = `E2E live message ${Date.now()}`
 
-		await gotoReady(user, roomUrl)
-		await expect(user.getByPlaceholder('Type a message...')).toBeVisible()
+		await goto(client, room)
+		await expect(client.getByPlaceholder('Type a message...')).toBeVisible()
 
-		await admin.getByPlaceholder('Type a message...').fill(message)
-		await admin.getByRole('button', { name: 'Send' }).click()
+		await root.getByPlaceholder('Type a message...').fill(message)
+		await root.getByRole('button', { name: 'Send' }).click()
 
-		await expect(admin.getByText(message)).toBeVisible()
-		await expect(user.getByText(message)).toBeVisible()
+		await expect(root.getByText(message)).toBeVisible()
+		await expect(client.getByText(message)).toBeVisible()
 	} finally {
-		await adminContext.close()
-		await userContext.close()
+		await root.close()
+		await ctx.close()
+		await client.close()
+		await peer.close()
 	}
 })
 
 test('chat list starts a new group conversation from selected users', async ({ page }) => {
-	await loginPage(page)
+	await signin(page)
 
-	const groupName = `E2E Group ${Date.now()}`
+	const group = `E2E Group ${Date.now()}`
 
-	await gotoReady(page, '/account/chats')
+	await goto(page, '/account/chats')
 	await page.getByRole('button', { name: 'Test User 01' }).click()
 	await page.getByRole('button', { name: 'Test User 02' }).click()
-	await page.getByPlaceholder('Group name (optional)').fill(groupName)
+	await page.getByPlaceholder('Group name (optional)').fill(group)
 	await page.getByRole('button', { name: 'Create Group' }).click()
 
 	await expect(page).toHaveURL(/\/account\/chats\/\d+$/)
-	await expect(page.getByRole('heading', { name: groupName })).toBeVisible()
+	await expect(page.getByRole('heading', { name: group })).toBeVisible()
 	await expect(page.getByText('3 participants')).toBeVisible()
 	await expect(page.getByText('No messages yet. Start the conversation!')).toBeVisible()
 })
 
-test('chat unread metadata tracks oldest unseen message and clears when seen', async ({ baseURL }) => {
-	const admin = await playwrightRequest.newContext({ baseURL })
-	const user = await playwrightRequest.newContext({ baseURL })
+test('chat unread metadata tracks oldest unseen message and clears when seen', async ({ baseURL: base }) => {
+	const root = await pw.newContext({ baseURL: base })
+	const client = await pw.newContext({ baseURL: base })
 
 	try {
-		await loginRequest(admin, baseURL!, adminCredentials)
-		await loginRequest(user, baseURL!, userCredentials)
+		await login(root, base!, creds)
+		await login(client, base!, member)
 
-		const before = await user.get('/account/chats/1', {
+		const before = await client.get('/account/chats/1', {
 			headers: { Accept: 'application/json' },
 		})
-		const beforeData = (await before.json()).data.at(-1)
+		const initial = (await before.json()).data.at(-1)
 
-		expect(beforeData.unreadCount).toBe(0)
-		expect(beforeData.oldestUnreadId).toBeNull()
+		expect(initial.unreadCount).toBe(0)
+		expect(initial.oldestUnreadId).toBeNull()
 
 		const text = `Unread metadata ${Date.now()}`
-		const send = await admin.post('/account/chats/1?/send', {
-			headers: actionHeaders(baseURL!),
+		const send = await root.post('/account/chats/1?/send', {
+			headers: proof(base!),
 			data: { text },
 		})
 
 		expect(send.status()).toBe(200)
 
-		const after = await user.get('/account/chats/1', {
+		const after = await client.get('/account/chats/1', {
 			headers: { Accept: 'application/json' },
 		})
-		const afterData = (await after.json()).data.at(-1)
-		const message = afterData.messages.find((entry: { text: string }) => entry.text === text)
+		const later = (await after.json()).data.at(-1)
+		const message = later.messages.find((entry: { text: string }) => entry.text === text)
 
 		expect(message?.id).toBeTruthy()
-		expect(afterData.unreadCount).toBe(1)
-		expect(afterData.oldestUnreadId).toBe(message.id)
+		expect(later.unreadCount).toBe(1)
+		expect(later.oldestUnreadId).toBe(message.id)
 
-		const seen = await user.post('/account/chats/1?/markAsSeen', {
-			headers: actionHeaders(baseURL!),
-			data: {},
+		const seen = await client.post('/account/chats/1?/markAsSeen', {
+			headers: proof(base!),
 		})
 
 		expect(seen.status()).toBe(200)
 
-		const cleared = await user.get('/account/chats/1', {
+		const cleared = await client.get('/account/chats/1', {
 			headers: { Accept: 'application/json' },
 		})
-		const clearedData = (await cleared.json()).data.at(-1)
+		const empty = (await cleared.json()).data.at(-1)
 
-		expect(clearedData.unreadCount).toBe(0)
-		expect(clearedData.oldestUnreadId).toBeNull()
+		expect(empty.unreadCount).toBe(0)
+		expect(empty.oldestUnreadId).toBeNull()
 	} finally {
-		await admin.dispose()
-		await user.dispose()
+		await root.dispose()
+		await client.dispose()
 	}
 })

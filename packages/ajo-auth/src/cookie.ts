@@ -4,7 +4,7 @@ const name = 'session'
 const secure = () => process.env.NODE_ENV === 'production' ? '; Secure' : ''
 const base = () => `HttpOnly; SameSite=Lax; Path=/${secure()}`
 
-export const readCookie = (header: string | undefined, key: string) => {
+export const parse = (header: string | undefined, key: string) => {
 	let value: string | undefined
 
 	for (const part of header?.split(';') ?? []) {
@@ -19,11 +19,11 @@ export const readCookie = (header: string | undefined, key: string) => {
 	return value
 }
 
-export const read = (req: Request) => readCookie(req.headers.cookie, name)
+export const read = (req: Request) => parse(req.headers.cookie, name)
 
 export const write = (res: Response, value: string, remember = false) => {
-	const maxAge = remember ? 31536000 : 2592000
-	res.setHeader('Set-Cookie', `${name}=${value}; ${base()}; Max-Age=${maxAge}`)
+	const age = remember ? 31536000 : 2592000
+	res.setHeader('Set-Cookie', `${name}=${value}; ${base()}; Max-Age=${age}`)
 }
 
 export const clear = (res: Response) =>

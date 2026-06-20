@@ -1,6 +1,6 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig as config } from 'vitest/config'
 
-export default defineConfig({
+export default config({
 	test: {
 		environment: 'node',
 		include: ['tests/unit/**/*.test.ts'],

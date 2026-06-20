@@ -5,12 +5,12 @@ connect(process.env.DATABASE_PATH ?? './database.sqlite')
 
 export const db = () => base<DB>()
 
-export const unread = (userId: number, excludeChatId?: number) => {
+export const unread = (user: number, excludeChatId?: number) => {
 	let query = db()
 		.selectFrom('messages')
 		.innerJoin('participants', 'participants.chat', 'messages.chat')
-		.where('participants.user', '=', userId)
-		.where('messages.user', '!=', userId)
+		.where('participants.user', '=', user)
+		.where('messages.user', '!=', user)
 		.where((eb) => eb.or([
 			eb('participants.seen', 'is', null),
 			eb('messages.created', '>', eb.ref('participants.seen'))

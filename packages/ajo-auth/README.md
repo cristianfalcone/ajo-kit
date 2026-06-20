@@ -80,7 +80,7 @@ Argon2id hash/verify helpers.
 ```ts
 import * as session from '@kit/auth/session'
 
-const id = await session.create(userId, remember, ip, agent)
+const id = await session.create(user, remember, ip, agent)
 const active = await session.validate(id)
 await session.touch(id)
 await session.remove(id)
@@ -146,12 +146,12 @@ import { auth, role, ability, protect, guest, confirmed, verified, redirect, whe
 ```ts
 import * as token from '@kit/auth/token'
 
-const plain = await token.create(userId, 'My token', ['posts:*'])
+const plain = await token.create(user, 'My token', ['posts:*'])
 const valid = await token.validate(plain)
 const canWrite = token.can(valid?.abilities ?? [], 'posts:write')
 await token.revoke(plain)
-await token.revokeAll(userId)
-const all = await token.list(userId)
+await token.purge(user)
+const all = await token.list(user)
 await token.prune()
 ```
 
@@ -175,9 +175,9 @@ In-memory limiter (per-process, non-distributed).
 ```ts
 import * as confirm from '@kit/auth/confirm'
 
-confirm.stamp(userId)
-confirm.check(userId, 180_000)
-confirm.clear(userId)
+confirm.stamp(user)
+confirm.check(user, 180_000)
+confirm.clear(user)
 ```
 
 Tracks recent password confirmation in memory.
@@ -187,7 +187,7 @@ Tracks recent password confirmation in memory.
 ```ts
 import * as reset from '@kit/auth/reset'
 
-const plain = await reset.create(userId)
+const plain = await reset.create(user)
 const user = await reset.validate(plain)
 const consumed = await reset.consume(plain)
 await reset.prune()
@@ -200,7 +200,7 @@ Reset tokens are SHA-256 hashed in DB and expire in 1 hour.
 ```ts
 import * as verify from '@kit/auth/verify'
 
-const link = verify.url(userId, 'https://example.com')
+const link = verify.url(user, 'https://example.com')
 const verifiedUser = verify.validate(signature)
 ```
 
@@ -209,5 +209,5 @@ HMAC-SHA256 signed token, default expiry 24 hours.
 ## Types
 
 ```ts
-import type { User, NewUser, Session, Token, Role, AuthDB } from '@kit/auth'
+import type { User, New, Session, Token, Role, Auth } from '@kit/auth'
 ```

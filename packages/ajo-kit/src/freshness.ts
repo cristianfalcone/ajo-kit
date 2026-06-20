@@ -1,8 +1,8 @@
-export type TopicVersions = Record<string, number>
+export type Versions = Record<string, number>
 
 const versions = new Map<string, number>()
 
-export function routeHash(value: string) {
+export function hash(value: string) {
 	let h = 2166136261
 
 	for (let i = 0; i < value.length; i++) {
@@ -13,34 +13,34 @@ export function routeHash(value: string) {
 	return (h >>> 0).toString(36)
 }
 
-export function normalizeTopics(topic: string | string[]) {
+export function topics(topic: string | string[]) {
 	return [...new Set(Array.isArray(topic) ? topic : [topic])].filter(Boolean).sort()
 }
 
-export function bumpTopics(topic: string | string[]) {
-	const topics = normalizeTopics(topic)
+export function bump(topic: string | string[]) {
+	const list = topics(topic)
 
-	for (const t of topics) versions.set(t, (versions.get(t) ?? 0) + 1)
+	for (const t of list) versions.set(t, (versions.get(t) ?? 0) + 1)
 
-	return topics
+	return list
 }
 
-export function versionsFor(topics: Iterable<string>): TopicVersions {
-	const result: TopicVersions = {}
+export function snapshot(keys: Iterable<string>): Versions {
+	const result: Versions = {}
 
-	for (const topic of [...topics].sort()) result[topic] = versions.get(topic) ?? 0
+	for (const topic of [...keys].sort()) result[topic] = versions.get(topic) ?? 0
 
 	return result
 }
 
-export function parseVersions(raw: string | string[] | undefined): TopicVersions | null {
+export function parse(raw: string | string[] | undefined): Versions | null {
 	if (!raw || Array.isArray(raw)) return null
 
 	try {
 		const parsed = JSON.parse(raw) as unknown
 		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
 
-		const result: TopicVersions = {}
+		const result: Versions = {}
 
 		for (const [topic, version] of Object.entries(parsed)) {
 			if (typeof version !== 'number' || !Number.isFinite(version)) return null
@@ -53,11 +53,11 @@ export function parseVersions(raw: string | string[] | undefined): TopicVersions
 	}
 }
 
-export function isFresh(client: TopicVersions | null) {
+export function fresh(client: Versions | null) {
 	const entries = Object.entries(client ?? {})
 	return entries.length > 0 && entries.every(([topic, version]) => (versions.get(topic) ?? 0) === version)
 }
 
-export function resetTopicVersions() {
+export function reset() {
 	versions.clear()
 }

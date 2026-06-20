@@ -1,5 +1,5 @@
 import type { Request, Response } from '@kit'
-import { AppError, ip, trustedOrigin } from '@kit'
+import { Failure, ip, origin } from '@kit'
 import { object, optional, string, forward, partialCheck, pipe } from '@kit/validate'
 import { hash } from '@kit/auth/password'
 import { create } from '@kit/auth/session'
@@ -34,10 +34,10 @@ export const actions = {
 
 		const addr = ip(req)
 		const key = `register:${addr}`
-		const base = trustedOrigin(req)
+		const base = origin(req)
 
 		if (!check(key)) {
-			throw new AppError(429, 'Too many registration attempts. Try again later.')
+			throw new Failure(429, 'Too many registration attempts. Try again later.')
 		}
 
 		hit(key)
@@ -50,7 +50,7 @@ export const actions = {
 			.where('email', '=', input.email)
 			.executeTakeFirst()
 
-		if (exists) throw new AppError(400, 'Email already registered')
+		if (exists) throw new Failure(400, 'Email already registered')
 
 		const hashed = await hash(input.password)
 		const { confirm, ...user } = input

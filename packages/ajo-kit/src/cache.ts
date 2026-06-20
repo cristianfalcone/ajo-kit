@@ -1,11 +1,11 @@
 import type { State } from './constants'
 
-export const CACHE_MAX = 50
-export const CACHE_TTL = 5 * 60 * 1000
+export const max = 50
+export const ttl = 5 * 60 * 1000
 
 type Meta = {
-	cachedAt: number
-	lastUsed: number
+	cached: number
+	used: number
 }
 
 const cache = new Map<string, State>()
@@ -19,61 +19,61 @@ const remove = (url: string) => {
 	meta.delete(url)
 }
 
-export const clearCache = () => {
+export const clear = () => {
 	cache.clear()
 	meta.clear()
 }
 
-export const getCache = (url: string, time = now()) => {
+export const get = (url: string, time = now()) => {
 	const state = cache.get(url)
 	const info = meta.get(url)
 
 	if (!state || !info) return
 
-	if (time - info.cachedAt > CACHE_TTL) {
+	if (time - info.cached > ttl) {
 		remove(url)
 		return
 	}
 
-	info.lastUsed = time
+	info.used = time
 
 	return state
 }
 
-const pruneCache = (activeUrl?: string, time = now()) => {
+const prune = (active?: string, time = now()) => {
 	for (const [url, info] of meta) {
-		if (url !== activeUrl && time - info.cachedAt > CACHE_TTL) remove(url)
+		if (url !== active && time - info.cached > ttl) remove(url)
 	}
 
-	while (cache.size > CACHE_MAX) {
-		let oldestUrl: string | undefined
+	while (cache.size > max) {
+		let candidate: string | undefined
 		let oldest = Infinity
 
 		for (const [url, info] of meta) {
-			if (url === activeUrl) continue
-			if (info.lastUsed < oldest) {
-				oldest = info.lastUsed
-				oldestUrl = url
+			if (url === active) continue
+			if (info.used < oldest) {
+				oldest = info.used
+				candidate = url
 			}
 		}
 
-		if (!oldestUrl) break
+		if (!candidate) break
 
-		remove(oldestUrl)
+		remove(candidate)
 	}
 }
 
-export const setCache = (url: string, state: State, options?: { activeUrl?: string; now?: number }) => {
+export const set = (url: string, state: State, options?: { active?: string; now?: number }) => {
 	const time = options?.now ?? now()
 
 	cache.set(url, state)
-	meta.set(url, { cachedAt: time, lastUsed: time })
-	pruneCache(options?.activeUrl ?? url, time)
+	meta.set(url, { cached: time, used: time })
+	prune(options?.active ?? url, time)
 }
 
-export const invalidateCache = (topics?: string[]) => {
+export const invalidate = (topics?: string[]) => {
 	if (!topics?.length) {
-		clearCache()
+		clear()
 		return
 	}
 

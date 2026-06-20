@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '@kit'
+import type { Props } from '@kit'
 import { action } from '@kit/client'
 
 type Chat = {
@@ -17,7 +17,7 @@ type Data = {
 	users: User[]
 }
 
-const Chats: Stateful<PageArgs<Data>> = function* (args) {
+const Chats: Stateful<Props<Data>> = function* (args) {
 
 	const form = action<void>('start')
 

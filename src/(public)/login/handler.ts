@@ -8,7 +8,7 @@ import { write } from '@kit/auth/cookie'
 import { check, hit, clear } from '@kit/auth/limit'
 import { db, email } from '/src/data'
 import { parse } from '@kit/validate'
-import { UnauthorizedError, AppError, ip } from '@kit'
+import { Denied, Failure, ip } from '@kit'
 
 const checkbox = pipe(unknown(), transform(v => v === 'true' || v === true))
 
@@ -30,7 +30,7 @@ export const actions = {
 		const key = `login:${input.email}:${addr}`
 
 		if (!check(key)) {
-			throw new AppError(429, 'Too many login attempts. Try again later.')
+			throw new Failure(429, 'Too many login attempts. Try again later.')
 		}
 
 		hit(key)
@@ -43,7 +43,7 @@ export const actions = {
 
 		const valid = await verify(input.password, user?.password ?? DUMMY_HASH)
 
-		if (!user?.password || !valid) throw new UnauthorizedError('Invalid credentials')
+		if (!user?.password || !valid) throw new Denied('Invalid credentials')
 
 		clear(key)
 
@@ -72,7 +72,7 @@ export default {
 		const key = `login:${input.email}:${addr}`
 
 		if (!check(key)) {
-			throw new AppError(429, 'Too many attempts')
+			throw new Failure(429, 'Too many attempts')
 		}
 
 		hit(key)
@@ -85,7 +85,7 @@ export default {
 
 		const valid = await verify(input.password, user?.password ?? DUMMY_HASH)
 
-		if (!user?.password || !valid) throw new UnauthorizedError('Invalid credentials')
+		if (!user?.password || !valid) throw new Denied('Invalid credentials')
 
 		clear(key)
 

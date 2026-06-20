@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, formatDate } from '@kit'
+import { type Props, date } from '@kit'
 import { action } from '@kit/client'
 
 type Session = {
@@ -13,7 +13,7 @@ type Session = {
 
 type Data = { sessions: Session[] }
 type RevokeResult = { revoked: boolean }
-type RevokeAllResult = { revoked: number }
+type Purge = { revoked: number }
 
 function parse(agent: string | null) {
 
@@ -35,10 +35,10 @@ function parse(agent: string | null) {
 
 const dateTime = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } as const
 
-const Sessions: Stateful<PageArgs<Data>> = function* (args) {
+const Sessions: Stateful<Props<Data>> = function* (args) {
 
 	const revokeForm = action<RevokeResult>('revoke')
-	const revokeAllForm = action<RevokeAllResult>('revokeAll')
+	const purge = action<Purge>('purge')
 
 	for (args of this) {
 		const sessions = args.data?.sessions ?? []
@@ -56,13 +56,13 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 
 				{sessions.length > 1 && (
 					<div class="flex justify-end">
-						<form set:onsubmit={revokeAllForm.submit}>
+						<form set:onsubmit={purge.submit}>
 							<button
 								type="submit"
-								disabled={revokeAllForm.loading}
+								disabled={purge.loading}
 								class="text-sm text-red-600 hover:text-red-500 dark:text-red-400"
 							>
-								{revokeAllForm.loading ? 'Revoking...' : 'Revoke All Other Sessions'}
+								{purge.loading ? 'Revoking...' : 'Revoke All Other Sessions'}
 							</button>
 						</form>
 					</div>
@@ -85,7 +85,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 											)}
 										</div>
 										<div class="text-sm text-slate-500 dark:text-slate-400">
-											{session.ip ?? 'Unknown IP'} · Last active {formatDate(session.last ?? session.created, dateTime)}
+											{session.ip ?? 'Unknown IP'} · Last active {date(session.last ?? session.created, dateTime)}
 										</div>
 									</div>
 								</div>

@@ -1,4 +1,4 @@
-export const apiAbilities = [
+export const abilities = [
 	'tokens:read',
 	'tokens:create',
 	'tokens:delete',
@@ -13,12 +13,12 @@ export const apiAbilities = [
 	'admin:write',
 ] as const
 
-export const apiAbilityOptions = apiAbilities.map(value => ({ value, label: value }))
+export const options = abilities.map(value => ({ value, label: value }))
 
-const knownApiAbilities = new Set<string>(apiAbilities)
+const known = new Set<string>(abilities)
 
-export const normalizeApiAbilities = (abilities: string[]) =>
+export const normalize = (abilities: string[]) =>
 	[...new Set(abilities.length > 0 ? abilities : ['*'])]
 
-export const unknownApiAbilities = (abilities: string[]) =>
-	abilities.filter(ability => ability !== '*' && !knownApiAbilities.has(ability))
+export const unknown = (abilities: string[]) =>
+	abilities.filter(ability => ability !== '*' && !known.has(ability))

@@ -1,5 +1,5 @@
 import type { Middleware } from '@kit'
-import { ForbiddenError } from '@kit'
+import { Forbidden } from '@kit'
 import { db } from '/src/data'
 
 export default [
@@ -12,7 +12,7 @@ export default [
 			.select('user')
 			.executeTakeFirst()
 
-		if (!participant) throw new ForbiddenError('Not a participant')
+		if (!participant) throw new Forbidden('Not a participant')
 
 		next()
 	}

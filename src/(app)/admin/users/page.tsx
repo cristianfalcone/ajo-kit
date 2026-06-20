@@ -1,4 +1,4 @@
-import { type PageArgs, formatDate } from '@kit'
+import { type Props, date } from '@kit'
 import Pager from '/src/ui/pager'
 
 type User = {
@@ -10,10 +10,10 @@ type User = {
 	role: string | null
 }
 
-type PageInfo = Parameters<typeof Pager>[0]['page']
-type Data = { users: User[]; page: PageInfo }
+type Info = Parameters<typeof Pager>[0]['page']
+type Data = { users: User[]; page: Info }
 
-export default function Users({ data }: PageArgs<Data>) {
+export default function Users({ data }: Props<Data>) {
 
 	const users = data?.users ?? []
 
@@ -58,7 +58,7 @@ export default function Users({ data }: PageArgs<Data>) {
 									)}
 								</td>
 								<td class="px-4 py-3 text-slate-500 dark:text-slate-400">
-									{formatDate(user.created)}
+									{date(user.created)}
 								</td>
 							</tr>
 						))}

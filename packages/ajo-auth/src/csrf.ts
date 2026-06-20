@@ -1,6 +1,6 @@
-import { trustedOrigin, type Request, type Response } from 'ajo-kit'
+import { origin as trusted, type Request, type Response } from 'ajo-kit'
 import { generate } from './session'
-import { readCookie } from './cookie'
+import { parse } from './cookie'
 
 const NAME = 'XSRF-TOKEN'
 const secure = () => process.env.NODE_ENV === 'production' ? '; Secure' : ''
@@ -15,7 +15,7 @@ export function verify(req: Request): boolean {
 
 	// 1. Check XSRF token (double-submit cookie)
 
-	const cookie = readCookie(req.headers.cookie, NAME)
+	const cookie = parse(req.headers.cookie, NAME)
 	const header = req.headers['x-xsrf-token'] as string | undefined
 
 	if (cookie && cookie === header) return true
@@ -27,19 +27,19 @@ export function verify(req: Request): boolean {
 
 	if (!origin && !referer) return false
 
-	const trusted = trustedOrigin(req)
+	const base = trusted(req)
 
 	if (origin) {
 		try {
 			const url = new URL(origin)
-			if (url.origin === trusted) return true
+			if (url.origin === base) return true
 		} catch {}
 	}
 
 	if (referer) {
 		try {
 			const url = new URL(referer)
-			if (url.origin === trusted) return true
+			if (url.origin === base) return true
 		} catch {}
 	}
 

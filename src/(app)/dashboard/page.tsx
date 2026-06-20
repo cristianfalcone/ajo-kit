@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, formatDate } from '@kit'
+import { type Props, date } from '@kit'
 
 type Session = {
 	id: string
@@ -45,7 +45,7 @@ function timeAgo(iso: string) {
 	return `${days}d ago`
 }
 
-const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
+const Dashboard: Stateful<Props<Data>> = function* (args) {
 
 	for (args of this) {
 		const data = args.data
@@ -96,7 +96,7 @@ const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
 									</span>
 								)}
 								<span class="text-xs text-slate-400 dark:text-slate-500">
-									Member since {formatDate(user.created)}
+									Member since {date(user.created)}
 								</span>
 							</div>
 						</div>

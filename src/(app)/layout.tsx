@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { User, LayoutArgs, ActionState } from '@kit'
+import type { User, Frame, Action } from '@kit'
 import { ThemeContext, UnreadContext } from '/src/contexts'
 import { action } from '@kit/client'
 
@@ -18,7 +18,7 @@ const isActive = (path: string, url: string, options?: LinkOptions): boolean => 
 
 type LayoutData = { user: User; unread: number }
 
-const AppLayout: Stateful<LayoutArgs<LayoutData>> = function* (args) {
+const AppLayout: Stateful<Frame<LayoutData>> = function* (args) {
 
 	const signout = action<void>('signout')
 
@@ -44,7 +44,7 @@ AppLayout.attrs = { class: 'flex-1 flex flex-col' }
 
 export default AppLayout
 
-const Nav = ({ user, unread, signout }: { user: User, unread: number, signout: ActionState<void> }) => {
+const Nav = ({ user, unread, signout }: { user: User, unread: number, signout: Action<void> }) => {
 
 	const url = globalThis.location?.pathname ?? '/'
 

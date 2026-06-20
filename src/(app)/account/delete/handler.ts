@@ -1,10 +1,10 @@
 import type { Request, Response } from '@kit'
 import { object, literal } from '@kit/validate'
 import { clear as clearCookie } from '@kit/auth/cookie'
-import { clearUser as clearConfirmUser } from '@kit/auth/confirm'
+import { user as forget } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
-import { ForbiddenError } from '@kit'
+import { Forbidden } from '@kit'
 import { emit } from '@kit/server'
 
 const Confirm = object({
@@ -16,7 +16,7 @@ export const actions = {
 	default: async (req: Request, res: Response) => {
 
 		if (req.user!.roles?.includes('admin')) {
-			throw new ForbiddenError('Admins cannot delete their own account')
+			throw new Forbidden('Admins cannot delete their own account')
 		}
 
 		parse(Confirm, req.body)
@@ -37,7 +37,7 @@ export const actions = {
 		])
 
 		clearCookie(res)
-		clearConfirmUser(req.user!.id)
+		forget(req.user!.id)
 
 		return { deleted: true }
 	}

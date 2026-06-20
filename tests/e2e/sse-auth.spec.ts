@@ -1,18 +1,18 @@
-import { createHash } from 'node:crypto'
-import { get, type ClientRequest, type IncomingMessage } from 'node:http'
-import { expect, request as playwrightRequest, test } from '@playwright/test'
-import { actionHeaders, adminCredentials, createUser, loginRequest } from './helpers'
+import { createHash as sha } from 'node:crypto'
+import { get, type ClientRequest as Client, type IncomingMessage as Incoming } from 'node:http'
+import { expect, request as pw, test } from '@playwright/test'
+import { proof, admin as creds, make, login } from './helpers'
 
-type EventStream = {
-	req: ClientRequest
-	res: IncomingMessage
+type Stream = {
+	req: Client
+	res: Incoming
 	messages: string[]
 	waitForMessage: (timeout?: number) => Promise<string>
 	waitForClose: (timeout?: number) => Promise<void>
 	close: () => void
 }
 
-const waitFor = <T,>(promise: Promise<T>, timeout: number, message: string) =>
+const wait = <T,>(promise: Promise<T>, timeout: number, message: string) =>
 	new Promise<T>((resolve, reject) => {
 		const timer = setTimeout(() => reject(new Error(message)), timeout)
 		promise.then(
@@ -27,13 +27,13 @@ const waitFor = <T,>(promise: Promise<T>, timeout: number, message: string) =>
 		)
 	})
 
-const cookieHeader = (state: { cookies: Array<{ name: string; value: string }> }) =>
+const cookie = (state: { cookies: Array<{ name: string; value: string }> }) =>
 	state.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
 
-const openEventStream = (baseURL: string, path: string, cookie: string) =>
-	new Promise<EventStream>((resolve, reject) => {
+const open = (base: string, path: string, cookie: string) =>
+	new Promise<Stream>((resolve, reject) => {
 		let settled = false
-		const req = get(new URL(path, baseURL), {
+		const req = get(new URL(path, base), {
 			headers: {
 				Accept: 'text/event-stream',
 				Cookie: cookie,
@@ -42,14 +42,14 @@ const openEventStream = (baseURL: string, path: string, cookie: string) =>
 			const messages: string[] = []
 			const waiters: Array<(message: string) => void> = []
 			let buffer = ''
-			let closed = false
-			let resolveClosed!: () => void
-			const closePromise = new Promise<void>(resolve => { resolveClosed = resolve })
+			let ended = false
+			let release!: () => void
+			const closed = new Promise<void>(resolve => { release = resolve })
 
 			const done = () => {
-				if (closed) return
-				closed = true
-				resolveClosed()
+				if (ended) return
+				ended = true
+				release()
 			}
 
 			res.setEncoding('utf8')
@@ -82,10 +82,10 @@ const openEventStream = (baseURL: string, path: string, cookie: string) =>
 				messages,
 				waitForMessage: (timeout = 5_000) => {
 					if (messages.length > 0) return Promise.resolve(messages[0])
-					return waitFor(new Promise<string>(resolve => waiters.push(resolve)), timeout, 'Timed out waiting for SSE message')
+					return wait(new Promise<string>(resolve => waiters.push(resolve)), timeout, 'Timed out waiting for SSE message')
 				},
 				waitForClose: (timeout = 5_000) =>
-					waitFor(closePromise, timeout, 'Timed out waiting for SSE close'),
+					wait(closed, timeout, 'Timed out waiting for SSE close'),
 				close: () => {
 					req.destroy()
 					res.destroy()
@@ -107,20 +107,20 @@ const openEventStream = (baseURL: string, path: string, cookie: string) =>
 		})
 	})
 
-const hashCredential = (plain: string) => createHash('sha256').update(plain).digest('hex')
+const hash = (plain: string) => sha('sha256').update(plain).digest('hex')
 
-test('SSE updates private routes while the session remains valid', async ({ baseURL }) => {
-	const admin = await playwrightRequest.newContext({ baseURL })
-	const other = await playwrightRequest.newContext({ baseURL })
-	let stream: EventStream | undefined
+test('SSE updates private routes while the session remains valid', async ({ baseURL: base }) => {
+	const root = await pw.newContext({ baseURL: base })
+	const other = await pw.newContext({ baseURL: base })
+	let stream: Stream | undefined
 
 	try {
-		await loginRequest(admin, baseURL!, adminCredentials)
+		await login(root, base!, creds)
 
-		stream = await openEventStream(baseURL!, '/admin/sessions', cookieHeader(await admin.storageState()))
+		stream = await open(base!, '/admin/sessions', cookie(await root.storageState()))
 		expect(stream.res.statusCode).toBe(200)
 
-		await loginRequest(other, baseURL!, adminCredentials)
+		await login(other, base!, creds)
 
 		const message = JSON.parse(await stream.waitForMessage()) as { data?: unknown[]; hash?: string }
 
@@ -128,35 +128,35 @@ test('SSE updates private routes while the session remains valid', async ({ base
 		expect(message.data?.length).toBeGreaterThan(0)
 	} finally {
 		stream?.close()
-		await admin.dispose()
+		await root.dispose()
 		await other.dispose()
 	}
 })
 
-test('SSE closes without revalidating private data after its session is revoked', async ({ baseURL }) => {
+test('SSE closes without revalidating private data after its session is revoked', async ({ baseURL: base }) => {
 	const email = `sse-revoke-${Date.now()}@example.com`
 	const credentials = { email, password: 'password' }
-	await createUser({ email, name: 'SSE Revoked User' })
+	await make({ email, name: 'SSE Revoked User' })
 
-	const admin = await playwrightRequest.newContext({ baseURL })
-	const user = await playwrightRequest.newContext({ baseURL })
-	let stream: EventStream | undefined
+	const root = await pw.newContext({ baseURL: base })
+	const client = await pw.newContext({ baseURL: base })
+	let stream: Stream | undefined
 
 	try {
-		await loginRequest(admin, baseURL!, adminCredentials)
-		await loginRequest(user, baseURL!, credentials)
+		await login(root, base!, creds)
+		await login(client, base!, credentials)
 
-		const userState = await user.storageState()
-		const session = userState.cookies.find(cookie => cookie.name === 'session')?.value
+		const state = await client.storageState()
+		const session = state.cookies.find(cookie => cookie.name === 'session')?.value
 
 		expect(session).toBeTruthy()
 
-		stream = await openEventStream(baseURL!, '/dashboard', cookieHeader(userState))
+		stream = await open(base!, '/dashboard', cookie(state))
 		expect(stream.res.statusCode).toBe(200)
 
-		const revoke = await admin.post('/admin/sessions?/revoke', {
-			headers: actionHeaders(baseURL!),
-			data: { id: hashCredential(session!) },
+		const revoke = await root.post('/admin/sessions?/revoke', {
+			headers: proof(base!),
+			data: { id: hash(session!) },
 		})
 
 		expect(revoke.status()).toBe(200)
@@ -166,7 +166,7 @@ test('SSE closes without revalidating private data after its session is revoked'
 		expect(stream.messages).toHaveLength(0)
 	} finally {
 		stream?.close()
-		await admin.dispose()
-		await user.dispose()
+		await root.dispose()
+		await client.dispose()
 	}
 })

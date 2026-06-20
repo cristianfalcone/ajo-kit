@@ -1,37 +1,37 @@
 import navaid from 'navaid'
 import type { Component, Stateful } from 'ajo'
-import { AppError, navigate, ancestors } from './constants'
+import { Failure, navigate, ancestors } from './constants'
 import type {
-	PageArgs,
-	LayoutArgs,
+	Props,
+	Frame,
 	Data,
 	Module,
 	Loader,
 	Page,
 	State,
-	RoutePayload,
+	Payload,
 } from './constants'
 import { apply, type Head } from './head'
-import { getCache, setCache } from './cache'
+import { get, set } from './cache'
 import { routes } from 'virtual:ajo/routes'
 
 // Pattern compilation
 
-const reGroup = /^\(.*\)$/
-const reDynamic = /^\[(.+?)\]$/
+const group = /^\(.*\)$/
+const dynamic = /^\[(.+?)\]$/
 
-export const toPattern = (segments: string[]) =>
+export const match = (segments: string[]) =>
 	segments
-		.filter(segment => segment && !reGroup.test(segment))
-		.map(segment => segment.replace(reDynamic, (_, name) => name === '...' ? '*' : `:${name}`))
+		.filter(segment => segment && !group.test(segment))
+		.map(segment => segment.replace(dynamic, (_, name) => name === '...' ? '*' : `:${name}`))
 		.join('/')
 
-export const toSegments = (path: string) => path.slice(4).split('/').slice(0, -1)
+export const parts = (path: string) => path.slice(4).split('/').slice(0, -1)
 
-let initialState: State | undefined
+let initial: State | undefined
 
-export function setInitialState(state: State | null) {
-	initialState = state ?? undefined
+export function init(state: State | null) {
+	initial = state ?? undefined
 }
 
 export const error: () => Page = () => ({
@@ -46,15 +46,15 @@ export const pages: Page[] = []
 
 // Path helpers
 
-export const layoutPaths = (segments: string[]) => ancestors(segments).filter(path => layouts.has(path))
+export const parents = (segments: string[]) => ancestors(segments).filter(path => layouts.has(path))
 
 for (const [path, loader] of Object.entries(routes as Record<string, Loader>)) {
 
-	const segments = toSegments(path)
+	const segments = parts(path)
 	const kind = path.split('/').pop()?.split('.')[0]
 
 	if (kind === 'layout') layouts.set(segments.join('/'), loader)
-	if (kind === 'page') pages.push({ pattern: toPattern(segments), segments, loader })
+	if (kind === 'page') pages.push({ pattern: match(segments), segments, loader })
 }
 
 // HMR: wrap loaders to use hot-updated modules
@@ -89,7 +89,7 @@ function compose(
 	state: State
 ): Component {
 
-	const Page = page.default as Component<PageArgs>
+	const Page = page.default as Component<Props>
 
 	// Find who handles loading: page first, then innermost layout with defer
 
@@ -97,7 +97,7 @@ function compose(
 
 	return tree.reduceRight<Component>(
 		(Child, { path, module }, depth) => {
-			const Layout = module.default as Component<LayoutArgs>
+			const Layout = module.default as Component<Frame>
 			return () => (
 				<Layout
 					key={path}
@@ -122,19 +122,19 @@ function compose(
 	)
 }
 
-type ServerLoad = {
+type Load = {
 	data: Data
 	head?: Head
 	hash?: string
 	topics?: string[]
 	versions?: Record<string, number>
 	redirect?: string
-	error?: AppError
+	error?: Failure
 }
 
-async function load(url: string): Promise<ServerLoad> {
+async function load(url: string): Promise<Load> {
 
-	const cached = getCache(url)
+	const cached = get(url)
 	const versions = cached?.versions ? JSON.stringify(cached.versions) : undefined
 
 	const response = await fetch(url, {
@@ -164,7 +164,7 @@ async function load(url: string): Promise<ServerLoad> {
 	if (!json || !response.ok) {
 		return {
 			data: [],
-			error: new AppError(
+			error: new Failure(
 				json?.error?.status ?? response.status,
 				json?.error?.message ?? 'Load failed'
 			)
@@ -189,12 +189,12 @@ export async function* resolve(
 	layouts: Map<string, Loader>,
 	page: Page,
 	data?: Data,
-	error?: AppError
+	error?: Failure
 ): AsyncGenerator<{ page: Component; state?: State }> {
 
 	const { loader, segments, params = {} } = page
 
-	const paths = layoutPaths(segments)
+	const paths = parents(segments)
 
 	const [target, ...tree] = await Promise.all([
 		loader(),
@@ -207,12 +207,12 @@ export async function* resolve(
 		return
 	}
 
-	const cached = initialState?.url === url ? initialState : undefined
+	const cached = initial?.url === url ? initial : undefined
 
 	if (cached) {
 
-		initialState = undefined
-		if (cached.hash) setCache(url, cached)
+		initial = undefined
+		if (cached.hash) set(url, cached)
 
 		yield {
 			page: compose(target, tree, paths, cached),
@@ -224,7 +224,7 @@ export async function* resolve(
 
 	yield { page: compose(target, tree, paths, { url, params, data: [], loading: true }) }
 
-	const server: ServerLoad = data
+	const server: Load = data
 		? { data }
 		: import.meta.env.SSR
 			? { data: [] }
@@ -252,7 +252,7 @@ export async function* resolve(
 		versions: server.versions,
 	}
 
-	if (state.hash) setCache(url, state)
+	if (state.hash) set(url, state)
 
 	yield {
 		page: compose(target, tree, paths, state),
@@ -260,24 +260,24 @@ export async function* resolve(
 	}
 }
 
-type LiveMessage = {
-	data: RoutePayload
+type Message = {
+	data: Payload
 	hash?: string
 	topics?: string[]
 	versions?: Record<string, number>
 }
 
-type LiveStatus = 'closed' | 'connecting' | 'open'
+type Status = 'closed' | 'connecting' | 'open'
 
-type ActionDetail = {
+type Detail = {
 	topics?: string[]
 }
 
-function stream(onUpdate: (message: LiveMessage) => void, onStatus?: (status: LiveStatus) => void) {
+function stream(update: (message: Message) => void, notify?: (status: Status) => void) {
 
 	let source: EventSource | null = null
 
-	const status = (value: LiveStatus) => onStatus?.(value)
+	const status = (value: Status) => notify?.(value)
 
 	const connect = (path: string) => {
 
@@ -295,8 +295,8 @@ function stream(onUpdate: (message: LiveMessage) => void, onStatus?: (status: Li
 		source.onopen = () => status('open')
 
 		source.onmessage = event => {
-			const message = JSON.parse(event.data) as LiveMessage
-			if (message.data) onUpdate(message)
+			const message = JSON.parse(event.data) as Message
+			if (message.data) update(message)
 		}
 
 		source.onerror = () => status('connecting')
@@ -318,43 +318,43 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 	if (page) return <Page />
 
 	let hmr = false
-	let activeState: State | null = null
-	let actionRefresh: ReturnType<typeof setTimeout> | null = null
+	let active: State | null = null
+	let timer: ReturnType<typeof setTimeout> | null = null
 	let generation = 0
-	let liveGeneration = 0
-	let sseStatus: LiveStatus = 'closed'
+	let live = 0
+	let phase: Status = 'closed'
 
 	const sse = stream(message => {
 
-		if (!activeState || !message.data) return
+		if (!active || !message.data) return
 
-		liveGeneration++
+		live++
 
 		const [head, ...entries] = message.data
 
-		activeState.data = entries
-		activeState.hash = message.hash ?? activeState.hash
-		activeState.topics = message.topics ?? activeState.topics
-		activeState.versions = message.versions ?? activeState.versions
+		active.data = entries
+		active.hash = message.hash ?? active.hash
+		active.topics = message.topics ?? active.topics
+		active.versions = message.versions ?? active.versions
 
-		if (head) apply(activeState.head = head)
+		if (head) apply(active.head = head)
 
-		if (activeState.hash) setCache(activeState.url, activeState)
+		if (active.hash) set(active.url, active)
 
 		this.next()
-	}, status => sseStatus = status)
+	}, status => phase = status)
 
 	const go = async (target: Page, options: { scroll?: boolean } = {}) => {
 
 		const gen = ++generation
-		const currentUrl = location.pathname + location.search
+		const url = location.pathname + location.search
 		const scroll = options.scroll ?? true
 
 		sse.close()
 
 		try {
 
-			for await (const { page, state } of resolve(currentUrl, layouts, target)) {
+			for await (const { page, state } of resolve(url, layouts, target)) {
 
 				if (gen !== generation) return
 				if (hmr && !state) continue
@@ -364,7 +364,7 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 				if (state?.head) apply(state.head)
 
 				if (state && !state.loading) {
-					activeState = state
+					active = state
 				}
 			}
 
@@ -372,9 +372,9 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 			if (gen !== generation) return
 
-			err = err instanceof AppError ? err : new AppError(500, err instanceof Error ? err.message : 'Navigation failed')
+			err = err instanceof Failure ? err : new Failure(500, err instanceof Error ? err.message : 'Navigation failed')
 
-			for await (const { page } of resolve(currentUrl, layouts, error(), undefined, err as AppError)) {
+			for await (const { page } of resolve(url, layouts, error(), undefined, err as Failure)) {
 
 				if (gen !== generation) return
 
@@ -387,21 +387,21 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		if (gen !== generation) return
 
 		if (!hmr) {
-			sse.connect(currentUrl)
+			sse.connect(url)
 			if (scroll) requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
 		}
 
 		hmr = false
 	}
 
-	const refreshActiveRoute = async () => {
-		if (!activeState) return
+	const refresh = async () => {
+		if (!active) return
 
 		const gen = generation
-		const state = activeState
+		const state = active
 		const server = await load(state.url)
 
-		if (gen !== generation || activeState !== state) return
+		if (gen !== generation || active !== state) return
 
 		if (server.redirect) {
 			navigate(server.redirect)
@@ -421,29 +421,29 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 			state.versions = server.versions
 
 			if (server.head) apply(server.head)
-			if (state.hash) setCache(state.url, state)
+			if (state.hash) set(state.url, state)
 		}
 
 		this.next()
 	}
 
-	const refreshAfterAction = (topics?: string[]) => {
+	const reconcile = (topics?: string[]) => {
 
-		if (!topics?.length || !activeState?.topics?.length) return
+		if (!topics?.length || !active?.topics?.length) return
 
 		const changed = new Set(topics)
 
-		if (!activeState.topics.some(topic => changed.has(topic))) return
+		if (!active.topics.some(topic => changed.has(topic))) return
 
-		const seen = liveGeneration
-		const delay = sseStatus === 'open' ? 250 : 0
+		const seen = live
+		const delay = phase === 'open' ? 250 : 0
 
-		if (actionRefresh) clearTimeout(actionRefresh)
+		if (timer) clearTimeout(timer)
 
-		actionRefresh = setTimeout(() => {
-			actionRefresh = null
-			if (liveGeneration !== seen) return
-			void refreshActiveRoute()
+		timer = setTimeout(() => {
+			timer = null
+			if (live !== seen) return
+			void refresh()
 		}, delay)
 	}
 
@@ -466,12 +466,12 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 	addEventListener(
 		'ajo:action',
-		event => refreshAfterAction((event as CustomEvent<ActionDetail>).detail?.topics),
+		event => reconcile((event as CustomEvent<Detail>).detail?.topics),
 		{ signal: this.signal }
 	)
 
 	this.signal.addEventListener('abort', () => {
-		if (actionRefresh) clearTimeout(actionRefresh)
+		if (timer) clearTimeout(timer)
 		sse.close()
 		router.unlisten?.()
 	})

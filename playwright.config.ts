@@ -1,6 +1,6 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig as config, devices } from '@playwright/test'
 
-export default defineConfig({
+export default config({
 	testDir: './tests/e2e',
 	timeout: 30_000,
 	expect: { timeout: 5_000 },

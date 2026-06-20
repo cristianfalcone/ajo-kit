@@ -5,7 +5,7 @@ import { check, hit } from '@kit/auth/limit'
 import { send } from '@kit/mail'
 import { db, email } from '/src/data'
 import { parse } from '@kit/validate'
-import { AppError, ip, trustedOrigin } from '@kit'
+import { Failure, ip, origin } from '@kit'
 
 const Forgot = object({ email })
 
@@ -16,10 +16,10 @@ export const actions = {
 		const input = parse(Forgot, req.body)
 		const addr = ip(req)
 		const key = `forgot:${input.email}:${addr}`
-		const base = trustedOrigin(req)
+		const base = origin(req)
 
 		if (!check(key)) {
-			throw new AppError(429, 'Too many reset attempts. Try again later.')
+			throw new Failure(429, 'Too many reset attempts. Try again later.')
 		}
 
 		hit(key)

@@ -1,31 +1,31 @@
 import {
-	safeParse,
+	safeParse as safe,
 	flatten,
-	type GenericSchema,
-	type InferOutput,
+	type GenericSchema as Schema,
+	type InferOutput as Output,
 } from 'valibot'
-import { InvalidError, type ValidationFields } from './constants'
+import { Invalid, type Fields } from './constants'
 
 export {
 	object, string, number, boolean, array, optional, literal,
 	pipe, trim, toLowerCase, transform, forward, partialCheck,
 	email, minLength, maxLength, unknown,
-	type GenericSchema, type InferOutput,
+	type GenericSchema as Schema, type InferOutput as Output,
 } from 'valibot'
 
-export function parse<T extends GenericSchema>(schema: T, data: unknown): InferOutput<T> {
+export function parse<T extends Schema>(schema: T, data: unknown): Output<T> {
 
-	const result = safeParse(schema, data)
+	const result = safe(schema, data)
 
 	if (result.success) return result.output
 
 	const flat = flatten<T>(result.issues)
-	const fields: ValidationFields = { ...flat.nested }
+	const fields: Fields = { ...flat.nested }
 
 	if (flat.root?.length) fields._form = flat.root
 
 	const nested = flat.nested as Record<string, string[]> | undefined
 	const message = flat.root?.[0] ?? Object.values(nested ?? {})[0]?.[0] ?? 'Validation failed'
 
-	throw new InvalidError(fields, message)
+	throw new Invalid(fields, message)
 }

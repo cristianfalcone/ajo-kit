@@ -1,7 +1,7 @@
 import type { Kysely } from 'ajo-kit/database'
-import type { AuthDatabase } from './types'
+import type { Auth } from './types'
 
-let accessor: (() => Kysely<AuthDatabase>) | null = null
+let accessor: (() => Kysely<Auth>) | null = null
 
 export const configure = (fn: () => Kysely<any>) => { accessor = fn }
 

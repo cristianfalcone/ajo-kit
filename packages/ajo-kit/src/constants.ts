@@ -3,11 +3,11 @@ import type { Params } from 'navaid'
 import type { Request, Response, Middleware } from 'polka'
 export type { Request, Response, Middleware }
 import type { Head } from './head'
-import type { RouteTiming } from './timing'
+import type { Timing } from './timing'
 
 // Route errors with HTTP status codes
 
-export class AppError extends Error {
+export class Failure extends Error {
 
 	constructor(public status: number, message: string) {
 		super(message)
@@ -15,46 +15,46 @@ export class AppError extends Error {
 
 	toJSON() {
 		return {
-			message: errorMessage(this.status, this.message),
+			message: mask(this.status, this.message),
 			status: this.status,
 			...(!production() && import.meta.env.DEV && { stack: this.stack })
 		}
 	}
 }
 
-export class NotFoundError extends AppError {
+export class Missing extends Failure {
 	constructor(message = 'Page not found') {
 		super(404, message)
 	}
 }
 
-export class ForbiddenError extends AppError {
+export class Forbidden extends Failure {
 	constructor(message = 'Access denied') {
 		super(403, message)
 	}
 }
 
-export class UnauthorizedError extends AppError {
+export class Denied extends Failure {
 	constructor(message = 'Authentication required') {
 		super(401, message)
 	}
 }
 
-export type ValidationFields = Record<string, string[] | undefined>
+export type Fields = Record<string, string[] | undefined>
 
-export type ActionError = {
+export type Issue = {
 	status: number
 	message: string
-	fields?: ValidationFields
+	fields?: Fields
 }
 
-export class InvalidError extends AppError {
-	constructor(public fields: ValidationFields, message = 'Validation failed') {
+export class Invalid extends Failure {
+	constructor(public fields: Fields, message = 'Validation failed') {
 		super(400, message)
 	}
 	toJSON() {
 		return {
-			message: errorMessage(this.status, this.message),
+			message: mask(this.status, this.message),
 			status: this.status,
 			fields: this.fields,
 			...(!production() && import.meta.env.DEV && { stack: this.stack })
@@ -63,16 +63,16 @@ export class InvalidError extends AppError {
 }
 
 const production = () => process.env.NODE_ENV === 'production'
-const errorMessage = (status: number, message: string) =>
+const mask = (status: number, message: string) =>
 	production() && status >= 500 ? 'Internal Server Error' : message
-const productionConfigError = (message: string) => {
+const config = (message: string) => {
 	if (production()) console.error(`[security] ${message}`)
-	return new AppError(500, message)
+	return new Failure(500, message)
 }
 
-export function normalize(error: unknown): AppError {
-	if (error instanceof AppError) return error
-	return new AppError(500, error instanceof Error ? error.message : 'Unknown error')
+export function normalize(error: unknown): Failure {
+	if (error instanceof Failure) return error
+	return new Failure(500, error instanceof Error ? error.message : 'Unknown error')
 }
 
 // Route path utilities
@@ -85,7 +85,7 @@ export type Entry = Record<string, unknown>
 
 export type Data = Entry[]
 
-export type RoutePayload = [Head, ...Data]
+export type Payload = [Head, ...Data]
 
 export type Parent = () => Promise<Entry>
 
@@ -110,17 +110,17 @@ export interface State {
 	params: Params
 	data: Data
 	loading: boolean
-	error?: AppError
+	error?: Failure
 	head?: Head
 	hash?: string
 	topics?: string[]
 	versions?: Record<string, number>
 }
 
-export type ActionState<T> = {
+export type Action<T> = {
 	loading: boolean
 	data?: T
-	error?: ActionError
+	error?: Issue
 	submit: (event: SubmitEvent) => void
 	invoke: (body?: unknown) => Promise<T | undefined>
 	reset: () => void
@@ -128,14 +128,14 @@ export type ActionState<T> = {
 
 // Page and layout args
 
-export type PageArgs<T = Entry> = {
+export type Props<T = Entry> = {
 	params: Params
 	data?: T
 	loading: boolean
-	error?: AppError
+	error?: Failure
 }
 
-export type LayoutArgs<T = Entry> = PageArgs<T> & {
+export type Frame<T = Entry> = Props<T> & {
 	children: Children
 }
 
@@ -152,17 +152,17 @@ export const ajax = (req: Request) => !!req.headers.accept?.includes('applicatio
 export const api = (req: Request) => req.path.startsWith('/api/')
 
 const enabled = (value: string | undefined) => value === '1' || value?.toLowerCase() === 'true'
-const trustProxy = () => enabled(process.env.TRUST_PROXY)
+const proxy = () => enabled(process.env.TRUST_PROXY)
 
-const firstHeader = (value: string | string[] | undefined) =>
+const first = (value: string | string[] | undefined) =>
 	Array.isArray(value) ? value[0] : value
 
-const normalizeIp = (value: string) => {
+const address = (value: string) => {
 	const raw = value.trim().replace(/^\[/, '').replace(/\]$/, '').replace(/^::ffff:/, '')
 	return raw === '::1' || raw === '127.0.0.1' ? 'localhost' : raw
 }
 
-const isIPv4 = (value: string) => {
+const ipv4 = (value: string) => {
 	const parts = value.split('.')
 	return parts.length === 4 && parts.every(part => {
 		if (!/^\d{1,3}$/.test(part)) return false
@@ -171,34 +171,34 @@ const isIPv4 = (value: string) => {
 	})
 }
 
-const isIPv6 = (value: string) =>
+const ipv6 = (value: string) =>
 	value.includes(':') && /^[0-9a-f:.]+$/i.test(value)
 
-const isLocalHost = (host: string) => {
+const local = (host: string) => {
 	try {
-		return normalizeIp(new URL(`http://${host}`).hostname) === 'localhost'
+		return address(new URL(`http://${host}`).hostname) === 'localhost'
 	} catch {
 		return false
 	}
 }
 
-const firstForwardedIp = (header: string | string[] | undefined) => {
-	const value = firstHeader(header)
+const forwarded = (header: string | string[] | undefined) => {
+	const value = first(header)
 	if (!value) return
 
-	const address = normalizeIp(value.split(',')[0])
-	if (address === 'localhost' || isIPv4(address) || isIPv6(address)) return address
+	const addr = address(value.split(',')[0])
+	if (addr === 'localhost' || ipv4(addr) || ipv6(addr)) return addr
 }
 
 export const ip = (req: Request) => {
-	const raw = trustProxy()
-		? firstForwardedIp(req.headers['x-forwarded-for']) ?? req.socket?.remoteAddress
+	const raw = proxy()
+		? forwarded(req.headers['x-forwarded-for']) ?? req.socket?.remoteAddress
 		: req.socket?.remoteAddress
 
-	return raw ? normalizeIp(raw) : 'unknown'
+	return raw ? address(raw) : 'unknown'
 }
 
-export const trustedOrigin = (req: Request) => {
+export const origin = (req: Request) => {
 	const configured = process.env.APP_URL
 
 	if (configured) {
@@ -207,24 +207,24 @@ export const trustedOrigin = (req: Request) => {
 			if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error()
 			return url.origin
 		} catch {
-			throw productionConfigError('Invalid APP_URL')
+			throw config('Invalid APP_URL')
 		}
 	}
 
 	const host = req.headers.host
-	if (!host) throw new AppError(400, 'Missing Host header')
+	if (!host) throw new Failure(400, 'Missing Host header')
 
-	if (production() && !isLocalHost(host)) {
-		throw productionConfigError('APP_URL is required in production')
+	if (production() && !local(host)) {
+		throw config('APP_URL is required in production')
 	}
 
-	const forwarded = firstHeader(req.headers['x-forwarded-proto'])?.split(',')[0]?.trim()
-	const protocol = trustProxy() && (forwarded === 'http' || forwarded === 'https') ? forwarded : 'http'
+	const forwarded = first(req.headers['x-forwarded-proto'])?.split(',')[0]?.trim()
+	const protocol = proxy() && (forwarded === 'http' || forwarded === 'https') ? forwarded : 'http'
 
 	try {
 		return new URL(`${protocol}://${host}`).origin
 	} catch {
-		throw new AppError(400, 'Invalid Host header')
+		throw new Failure(400, 'Invalid Host header')
 	}
 }
 
@@ -246,8 +246,8 @@ declare module 'polka' {
 		topics?: Set<string>
 		track?: (topic: string | string[]) => void
 		verifyLive?: () => Promise<boolean>
-		timing?: RouteTiming
-		revalidate?: () => Promise<RoutePayload>
+		timing?: Timing
+		revalidate?: () => Promise<Payload>
 		head?: Head
 		entries?: Data
 	}
@@ -285,5 +285,5 @@ export function links(count: number): Link[] {
 
 // Formatting
 
-export const formatDate = (iso: string, options?: Intl.DateTimeFormatOptions) =>
+export const date = (iso: string, options?: Intl.DateTimeFormatOptions) =>
 	new Date(iso).toLocaleDateString(undefined, options ?? { month: 'short', day: 'numeric', year: 'numeric' })

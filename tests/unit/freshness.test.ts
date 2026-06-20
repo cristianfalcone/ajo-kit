@@ -1,55 +1,55 @@
-import { beforeEach, expect, test } from 'vitest'
+import { beforeEach as before, expect, test } from 'vitest'
 import {
-	bumpTopics,
-	isFresh,
-	normalizeTopics,
-	parseVersions,
-	resetTopicVersions,
-	routeHash,
-	versionsFor,
+	bump,
+	fresh,
+	topics,
+	parse,
+	reset,
+	hash,
+	snapshot,
 } from '../../packages/ajo-kit/src/freshness'
 
-beforeEach(() => resetTopicVersions())
+before(() => reset())
 
-test('routeHash is stable for identical payloads', () => {
-	expect(routeHash('{"data":[1],"head":{}}')).toBe(routeHash('{"data":[1],"head":{}}'))
-	expect(routeHash('{"data":[1],"head":{}}')).not.toBe(routeHash('{"data":[2],"head":{}}'))
+test('hash is stable for identical payloads', () => {
+	expect(hash('{"data":[1],"head":{}}')).toBe(hash('{"data":[1],"head":{}}'))
+	expect(hash('{"data":[1],"head":{}}')).not.toBe(hash('{"data":[2],"head":{}}'))
 })
 
 test('topic versions start at zero and bump only emitted topics', () => {
-	expect(versionsFor(['admin:users', 'user:1'])).toEqual({
+	expect(snapshot(['admin:users', 'user:1'])).toEqual({
 		'admin:users': 0,
 		'user:1': 0,
 	})
 
-	bumpTopics(['admin:users', 'admin:users'])
+	bump(['admin:users', 'admin:users'])
 
-	expect(versionsFor(['admin:users', 'user:1'])).toEqual({
+	expect(snapshot(['admin:users', 'user:1'])).toEqual({
 		'admin:users': 1,
 		'user:1': 0,
 	})
 })
 
 test('freshness compares client versions with current topic versions', () => {
-	const fresh = versionsFor(['admin:users'])
+	const state = snapshot(['admin:users'])
 
-	expect(isFresh(fresh)).toBe(true)
+	expect(fresh(state)).toBe(true)
 
-	bumpTopics('admin:users')
+	bump('admin:users')
 
-	expect(isFresh(fresh)).toBe(false)
-	expect(isFresh(versionsFor(['admin:users']))).toBe(true)
+	expect(fresh(state)).toBe(false)
+	expect(fresh(snapshot(['admin:users']))).toBe(true)
 })
 
-test('parseVersions rejects invalid header values', () => {
-	expect(parseVersions(undefined)).toBeNull()
-	expect(parseVersions(['{}'])).toBeNull()
-	expect(parseVersions('not json')).toBeNull()
-	expect(parseVersions('[]')).toBeNull()
-	expect(parseVersions('{"topic":"1"}')).toBeNull()
-	expect(parseVersions('{"topic":1}')).toEqual({ topic: 1 })
+test('parse rejects invalid header values', () => {
+	expect(parse(undefined)).toBeNull()
+	expect(parse(['{}'])).toBeNull()
+	expect(parse('not json')).toBeNull()
+	expect(parse('[]')).toBeNull()
+	expect(parse('{"topic":"1"}')).toBeNull()
+	expect(parse('{"topic":1}')).toEqual({ topic: 1 })
 })
 
-test('normalizeTopics deduplicates and sorts topics', () => {
-	expect(normalizeTopics(['user:1', 'admin:users', 'user:1'])).toEqual(['admin:users', 'user:1'])
+test('topics deduplicates and sorts topics', () => {
+	expect(topics(['user:1', 'admin:users', 'user:1'])).toEqual(['admin:users', 'user:1'])
 })

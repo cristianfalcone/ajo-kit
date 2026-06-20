@@ -1,8 +1,8 @@
 import type { Request } from '@kit'
 import { object, string } from '@kit/validate'
-import { clearToken as clearConfirmToken } from '@kit/auth/confirm'
+import { token as forget } from '@kit/auth/confirm'
 import { db } from '/src/data'
-import { pageInfo, pageRows, paginate } from '/src/data/pagination'
+import { info, rows as trim, paginate } from '/src/data/pagination'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
 
@@ -29,7 +29,7 @@ export async function page(req: Request) {
 		.limit(pagination.size + 1)
 		.offset(pagination.offset)
 		.execute()
-	const rows = pageRows(pagination, tokens)
+	const rows = trim(pagination, tokens)
 
 	return {
 		tokens: rows.map(t => ({
@@ -37,7 +37,7 @@ export async function page(req: Request) {
 			id: t.id.slice(-4),
 			abilities: JSON.parse(t.abilities)
 		})),
-		page: pageInfo(req, pagination, tokens),
+		page: info(req, pagination, tokens),
 	}
 }
 export const actions = {
@@ -56,7 +56,7 @@ export const actions = {
 			.deleteFrom('tokens')
 			.where('id', '=', token.id)
 			.execute()
-		clearConfirmToken(token.user, token.id)
+		forget(token.user, token.id)
 		emit(['admin:tokens', 'admin:stats', `tokens:${token.user}`, `dashboard:${token.user}`, `user:${token.user}`])
 
 		return { revoked: true }

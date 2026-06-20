@@ -1,8 +1,8 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, formatDate } from '@kit'
+import { type Props, date } from '@kit'
 import { action } from '@kit/client'
 import Checkbox from '/src/ui/checkbox'
-import { apiAbilityOptions } from '/src/abilities'
+import { options } from '/src/abilities'
 
 type Token = {
 	id: string
@@ -18,7 +18,7 @@ type RevokeResult = { revoked: boolean }
 
 const shortDate = { month: 'short', day: 'numeric' } as const
 
-const Tokens: Stateful<PageArgs<Data>> = function* (args) {
+const Tokens: Stateful<Props<Data>> = function* (args) {
 
 	const createForm = action<CreateResult>('make')
 	const revokeForm = action<RevokeResult>('revoke')
@@ -91,7 +91,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 								Leave empty for full access, or select specific abilities.
 							</p>
 							<div class="flex flex-wrap gap-3">
-								{apiAbilityOptions.map(ability => (
+								{options.map(ability => (
 									<Checkbox key={ability.value} name="abilities" value={ability.value} label={ability.label} />
 								))}
 							</div>
@@ -140,7 +140,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 												</span>
 											</td>
 											<td class="px-4 py-3 text-slate-500 dark:text-slate-400">
-												{token.last ? formatDate(token.last, shortDate) : 'Never'}
+												{token.last ? date(token.last, shortDate) : 'Never'}
 											</td>
 											<td class="px-6 py-3 text-right">
 												<form set:onsubmit={revokeForm.submit}>

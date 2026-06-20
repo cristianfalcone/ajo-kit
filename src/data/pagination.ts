@@ -6,16 +6,16 @@ export type Pagination = {
 	offset: number
 }
 
-export type PageInfo = {
+export type Info = {
 	page: number
 	size: number
-	hasPrev: boolean
-	hasNext: boolean
+	back: boolean
+	more: boolean
 	prev?: string
 	next?: string
 }
 
-const numberParam = (value: string | null, fallback: number) => {
+const num = (value: string | null, fallback: number) => {
 	const number = Number(value)
 	return Number.isInteger(number) && number > 0 ? number : fallback
 }
@@ -29,10 +29,10 @@ const href = (url: URL, page: number) => {
 	return `${next.pathname}${next.search}`
 }
 
-export function paginate(req: Pick<Request, 'originalUrl'>, fallbackSize = 25, maxSize = 100): Pagination {
+export function paginate(req: Pick<Request, 'originalUrl'>, fallback = 25, max = 100): Pagination {
 	const url = new URL(req.originalUrl, 'http://ajo.local')
-	const size = Math.min(numberParam(url.searchParams.get('size'), fallbackSize), maxSize)
-	const page = numberParam(url.searchParams.get('page'), 1)
+	const size = Math.min(num(url.searchParams.get('size'), fallback), max)
+	const page = num(url.searchParams.get('page'), 1)
 
 	return {
 		page,
@@ -41,19 +41,19 @@ export function paginate(req: Pick<Request, 'originalUrl'>, fallbackSize = 25, m
 	}
 }
 
-export function pageInfo<T>(req: Pick<Request, 'originalUrl'>, pagination: Pagination, rows: T[]): PageInfo {
+export function info<T>(req: Pick<Request, 'originalUrl'>, page: Pagination, data: T[]): Info {
 	const url = new URL(req.originalUrl, 'http://ajo.local')
-	const hasPrev = pagination.page > 1
-	const hasNext = rows.length > pagination.size
+	const back = page.page > 1
+	const more = data.length > page.size
 
 	return {
-		page: pagination.page,
-		size: pagination.size,
-		hasPrev,
-		hasNext,
-		...(hasPrev && { prev: href(url, pagination.page - 1) }),
-		...(hasNext && { next: href(url, pagination.page + 1) }),
+		page: page.page,
+		size: page.size,
+		back,
+		more,
+		...(back && { prev: href(url, page.page - 1) }),
+		...(more && { next: href(url, page.page + 1) }),
 	}
 }
 
-export const pageRows = <T>(pagination: Pagination, rows: T[]) => rows.slice(0, pagination.size)
+export const rows = <T>(page: Pagination, data: T[]) => data.slice(0, page.size)

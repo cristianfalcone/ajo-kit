@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '@kit'
+import type { Props } from '@kit'
 import { action } from '@kit/client'
 import clsx from 'clsx'
 
@@ -7,7 +7,7 @@ type Message = {
 	id: number
 	text: string
 	created: string
-	userId: number
+	user: number
 	userName: string
 }
 
@@ -54,7 +54,7 @@ const UNREAD_HIGHLIGHT_HOLD_MS = 1800
 const UNREAD_HIGHLIGHT_FADE_MS = 4200
 const DAY_IN_MS = 86_400_000
 
-const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
+const ChatRoom: Stateful<Props<Data>> = function* (args) {
 
 	const send = action<{ ok: true }>('send')
 	const load = action<LoadPage>('load')
@@ -196,7 +196,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 		if (typeof meId !== 'number') return fallbackId
 
-		const incomingIds = items.filter(message => message.userId !== meId).map(message => message.id)
+		const incomingIds = items.filter(message => message.user !== meId).map(message => message.id)
 
 		if (incomingIds.length < unreadCount) return fallbackId
 
@@ -281,7 +281,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		if (anchorId === null || typeof meId !== 'number') return []
 
 		return items
-			.filter(message => message.userId !== meId && message.id >= anchorId)
+			.filter(message => message.user !== meId && message.id >= anchorId)
 			.map(message => message.id)
 	}
 
@@ -468,13 +468,13 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		const unreadCount = data?.unreadCount ?? 0
 		const oldestUnreadId = data?.oldestUnreadId ?? null
 		const meId = data?.me
-		const chatId = data?.chat?.id ?? null
+		const chat = data?.chat?.id ?? null
 		const initialUnreadAnchorId = resolveUnreadAnchorId(incoming, meId, unreadCount, oldestUnreadId, false)
 		const shouldJumpToUnreadOnOpen = unreadCount > 0 && initialUnreadAnchorId !== null
 
-		if (chatId !== activeChatId) {
+		if (chat !== activeChatId) {
 
-			activeChatId = chatId
+			activeChatId = chat
 
 			resetWindowForChat(
 				incoming,
@@ -751,13 +751,13 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 					data-message-id={msg.id}
 					class={clsx(
 						'w-full px-2 py-1 rounded-xl flex flex-col transition-colors ease-out',
-						msg.userId === data?.me ? 'items-end' : 'items-start',
-						msg.userId !== data?.me && unreadHighlightIds.has(msg.id) && 'bg-amber-100/70 dark:bg-amber-300/12',
+						msg.user === data?.me ? 'items-end' : 'items-start',
+						msg.user !== data?.me && unreadHighlightIds.has(msg.id) && 'bg-amber-100/70 dark:bg-amber-300/12',
 						index === timeline.length - 1 ? 'last-message' : '',
 					)}
-					style={msg.userId !== data?.me ? { transitionDuration: `${UNREAD_HIGHLIGHT_FADE_MS}ms` } : undefined}
+					style={msg.user !== data?.me ? { transitionDuration: `${UNREAD_HIGHLIGHT_FADE_MS}ms` } : undefined}
 				>
-					{msg.userId !== data?.me && (
+					{msg.user !== data?.me && (
 						<span class="text-xs text-slate-500 dark:text-gray-400 mb-1">
 							{msg.userName}
 						</span>
@@ -766,7 +766,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 						class={
 							clsx(
 								'max-w-[80%] px-4 py-2 rounded-2xl',
-								msg.userId === data?.me
+								msg.user === data?.me
 									? 'bg-primary text-white dark:bg-accent dark:text-primary rounded-br-md'
 									: 'bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white rounded-bl-md'
 							)

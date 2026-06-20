@@ -1,11 +1,11 @@
-import { get, type IncomingHttpHeaders } from 'node:http'
-import { expect, request as playwrightRequest, test } from '@playwright/test'
-import { actionHeaders, adminCredentials, loginRequest } from './helpers'
+import { get, type IncomingHttpHeaders as Raw } from 'node:http'
+import { expect, request as pw, test } from '@playwright/test'
+import { proof, admin, login } from './helpers'
 
-const varyIncludes = (value: string | undefined, token: string) =>
+const vary = (value: string | undefined, token: string) =>
 	value?.toLowerCase().split(',').map(part => part.trim()).includes(token.toLowerCase())
 
-const expectSecurityHeaders = (headers: Record<string, string | undefined> | IncomingHttpHeaders) => {
+const secure = (headers: Record<string, string | undefined> | Raw) => {
 	expect(headers['x-content-type-options']).toBe('nosniff')
 	expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin')
 	expect(headers['permissions-policy']).toContain('camera=()')
@@ -14,10 +14,10 @@ const expectSecurityHeaders = (headers: Record<string, string | undefined> | Inc
 	expect(headers['strict-transport-security']).toBeUndefined()
 }
 
-const eventStreamHeaders = (baseURL: string, path: string) =>
-	new Promise<IncomingHttpHeaders>((resolve, reject) => {
+const event = (base: string, path: string) =>
+	new Promise<Raw>((resolve, reject) => {
 		let settled = false
-		const req = get(new URL(path, baseURL), { headers: { Accept: 'text/event-stream' } }, res => {
+		const req = get(new URL(path, base), { headers: { Accept: 'text/event-stream' } }, res => {
 			if (settled) return
 			settled = true
 			resolve(res.headers)
@@ -39,11 +39,11 @@ const eventStreamHeaders = (baseURL: string, path: string) =>
 test('CSRF rejects cross-site JSON actions without same-origin proof', async ({ request }) => {
 	const response = await request.post('/login?/default', {
 		headers: { Accept: 'application/json' },
-		data: adminCredentials,
+		data: admin,
 	})
 
 	expect(response.status()).toBe(403)
-	expectSecurityHeaders(response.headers())
+	secure(response.headers())
 	expect(await response.json()).toMatchObject({
 		error: {
 			status: 403,
@@ -52,38 +52,38 @@ test('CSRF rejects cross-site JSON actions without same-origin proof', async ({ 
 	})
 })
 
-test('security headers are applied to HTML, JSON, API and SSE responses', async ({ request, baseURL }) => {
+test('security headers are applied to HTML, JSON, API and SSE responses', async ({ request, baseURL: base }) => {
 	const html = await request.get('/login', {
 		headers: { Accept: 'text/html' },
 	})
 	expect(html.status()).toBe(200)
-	expectSecurityHeaders(html.headers())
+	secure(html.headers())
 
 	const json = await request.get('/login', {
 		headers: { Accept: 'application/json' },
 	})
 	expect(json.status()).toBe(200)
-	expectSecurityHeaders(json.headers())
+	secure(json.headers())
 
 	const api = await request.get('/api/me')
 	expect(api.status()).toBe(401)
-	expectSecurityHeaders(api.headers())
+	secure(api.headers())
 
 	const action = await request.post('/login?/default', {
-		headers: actionHeaders(baseURL!),
-		data: adminCredentials,
+		headers: proof(base!),
+		data: admin,
 	})
 	expect(action.status()).toBe(200)
-	expectSecurityHeaders(action.headers())
+	secure(action.headers())
 
-	const sse = await eventStreamHeaders(baseURL!, '/login')
-	expectSecurityHeaders(sse)
+	const sse = await event(base!, '/login')
+	secure(sse)
 })
 
-test('route data uses no-store JSON, ETag, topics, versions and early 304', async ({ request, baseURL }) => {
-	const login = await loginRequest(request, baseURL!)
-	expect(login.redirect).toBe('/dashboard')
-	expect(login.topics).toEqual(expect.arrayContaining(['admin:sessions', 'admin:stats', 'user:1']))
+test('route data uses no-store JSON, ETag, topics, versions and early 304', async ({ request, baseURL: base }) => {
+	const auth = await login(request, base!)
+	expect(auth.redirect).toBe('/dashboard')
+	expect(auth.topics).toEqual(expect.arrayContaining(['admin:sessions', 'admin:stats', 'user:1']))
 
 	const users = await request.get('/admin/users', {
 		headers: { Accept: 'application/json' },
@@ -92,8 +92,8 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 	expect(users.status()).toBe(200)
 	expect(users.headers()['content-type']).toContain('application/json')
 	expect(users.headers()['cache-control']).toBe('no-store')
-	expect(varyIncludes(users.headers().vary, 'Accept')).toBe(true)
-	expect(varyIncludes(users.headers().vary, 'Cookie')).toBe(true)
+	expect(vary(users.headers().vary, 'Accept')).toBe(true)
+	expect(vary(users.headers().vary, 'Cookie')).toBe(true)
 	expect(users.headers()['x-ajo-cache']).toBe('miss')
 	expect(users.headers()['server-timing']).toContain('total;dur=')
 	expect(users.headers()['server-timing']).toContain('loader;dur=')
@@ -116,7 +116,7 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 
 	expect(sessions.status()).toBe(200)
 
-	const cachedUsers = await request.get('/admin/users', {
+	const cached = await request.get('/admin/users', {
 		headers: {
 			Accept: 'application/json',
 			'X-Have': body.hash,
@@ -124,59 +124,59 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 		},
 	})
 
-	expect(cachedUsers.status()).toBe(304)
-	expect(cachedUsers.headers()['cache-control']).toBe('no-store')
-	expect(varyIncludes(cachedUsers.headers().vary, 'Accept')).toBe(true)
-	expect(varyIncludes(cachedUsers.headers().vary, 'Cookie')).toBe(true)
-	expect(cachedUsers.headers()['x-ajo-cache']).toBe('fresh')
-	expect(cachedUsers.headers()['server-timing']).toContain('total;dur=')
-	expect(cachedUsers.headers()['server-timing']).toContain('loader;dur=0')
-	expect(cachedUsers.headers()['x-ajo-bytes']).toBe('0')
-	expectSecurityHeaders(cachedUsers.headers())
-	expect(await cachedUsers.text()).toBe('')
+	expect(cached.status()).toBe(304)
+	expect(cached.headers()['cache-control']).toBe('no-store')
+	expect(vary(cached.headers().vary, 'Accept')).toBe(true)
+	expect(vary(cached.headers().vary, 'Cookie')).toBe(true)
+	expect(cached.headers()['x-ajo-cache']).toBe('fresh')
+	expect(cached.headers()['server-timing']).toContain('total;dur=')
+	expect(cached.headers()['server-timing']).toContain('loader;dur=0')
+	expect(cached.headers()['x-ajo-bytes']).toBe('0')
+	secure(cached.headers())
+	expect(await cached.text()).toBe('')
 })
 
-test('emitted action topics make stale route versions miss early 304', async ({ request, baseURL }) => {
-	await loginRequest(request, baseURL!)
+test('emitted action topics make stale route versions miss early 304', async ({ request, baseURL: base }) => {
+	await login(request, base!)
 
 	const before = await request.get('/admin/sessions', {
 		headers: { Accept: 'application/json' },
 	})
-	const beforeBody = await before.json()
-	const beforeSessionIds = new Set(
-		beforeBody.data.at(-1).sessions.map((session: { id: string }) => session.id)
+	const body = await before.json()
+	const ids = new Set(
+		body.data.at(-1).sessions.map((session: { id: string }) => session.id)
 	)
 
-	const other = await playwrightRequest.newContext({ baseURL })
-	await loginRequest(other, baseURL!)
+	const ctx = await pw.newContext({ baseURL: base })
+	await login(ctx, base!)
 
-	const otherState = await other.storageState()
-	const otherSession = otherState.cookies.find(cookie => cookie.name === 'session')
+	const state = await ctx.storageState()
+	const cookie = state.cookies.find(cookie => cookie.name === 'session')
 
-	expect(otherSession?.value).toBeTruthy()
+	expect(cookie?.value).toBeTruthy()
 
-	const staleAfterLogin = await request.get('/admin/sessions', {
+	const stale = await request.get('/admin/sessions', {
 		headers: {
 			Accept: 'application/json',
-			'X-Have': beforeBody.hash,
-			'X-Ajo-Versions': JSON.stringify(beforeBody.versions),
+			'X-Have': body.hash,
+			'X-Ajo-Versions': JSON.stringify(body.versions),
 		},
 	})
 
-	expect(staleAfterLogin.status()).toBe(200)
-	expect(staleAfterLogin.headers()['x-ajo-cache']).toBe('miss')
-	const staleBody = await staleAfterLogin.json()
-	const otherSessionRow = staleBody.data.at(-1).sessions.find((session: { id: string; email: string }) =>
-		session.email === adminCredentials.email && !beforeSessionIds.has(session.id)
+	expect(stale.status()).toBe(200)
+	expect(stale.headers()['x-ajo-cache']).toBe('miss')
+	const data = await stale.json()
+	const row = data.data.at(-1).sessions.find((session: { id: string; email: string }) =>
+		session.email === admin.email && !ids.has(session.id)
 	)
 
-	expect(otherSessionRow?.id).toBeTruthy()
+	expect(row?.id).toBeTruthy()
 
 	const revoke = await request.post('/admin/sessions?/revoke', {
 		headers: {
-			...actionHeaders(baseURL!),
+			...proof(base!),
 		},
-		data: { id: otherSessionRow.id },
+		data: { id: row.id },
 	})
 
 	expect(revoke.status()).toBe(200)
@@ -191,5 +191,5 @@ test('emitted action topics make stale route versions miss early 304', async ({ 
 		},
 	})
 
-	await other.dispose()
+	await ctx.dispose()
 })

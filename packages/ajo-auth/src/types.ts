@@ -1,6 +1,6 @@
 import type { Generated, Selectable, Insertable } from 'ajo-kit/database'
 
-export interface UsersTable {
+export interface Users {
 	id: Generated<number>
 	name: Generated<string>
 	email: string
@@ -10,7 +10,7 @@ export interface UsersTable {
 	updated: string | null
 }
 
-export interface SessionsTable {
+export interface Sessions {
 	id: string
 	user: number
 	expiry: string
@@ -20,17 +20,17 @@ export interface SessionsTable {
 	created: Generated<string>
 }
 
-export interface RolesTable {
+export interface Roles {
 	id: number
 	name: string
 }
 
-export interface MembersTable {
+export interface Members {
 	user: number
 	role: number
 }
 
-export interface TokensTable {
+export interface Tokens {
 	id: string
 	user: number
 	name: string
@@ -40,7 +40,7 @@ export interface TokensTable {
 	created: Generated<string>
 }
 
-export interface ResetsTable {
+export interface Resets {
 	id: string
 	user: number
 	expiry: string
@@ -49,17 +49,17 @@ export interface ResetsTable {
 
 // Schema parcial — solo las tablas de auth
 
-export interface AuthDatabase {
-	users: UsersTable
-	sessions: SessionsTable
-	roles: RolesTable
-	members: MembersTable
-	tokens: TokensTable
-	resets: ResetsTable
+export interface Auth {
+	users: Users
+	sessions: Sessions
+	roles: Roles
+	members: Members
+	tokens: Tokens
+	resets: Resets
 }
 
-export type User = Selectable<UsersTable>
-export type NewUser = Insertable<UsersTable>
-export type Session = Selectable<SessionsTable>
-export type Token = Selectable<TokensTable>
+export type User = Selectable<Users>
+export type New = Insertable<Users>
+export type Session = Selectable<Sessions>
+export type Token = Selectable<Tokens>
 export type Role = 'admin' | 'user'

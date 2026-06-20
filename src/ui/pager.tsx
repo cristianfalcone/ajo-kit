@@ -1,14 +1,14 @@
-type PageInfo = {
+type Info = {
 	page: number
 	size: number
-	hasPrev: boolean
-	hasNext: boolean
+	back: boolean
+	more: boolean
 	prev?: string
 	next?: string
 }
 
 type Props = {
-	page: PageInfo
+	page: Info
 	count: number
 	label: string
 }
@@ -17,12 +17,12 @@ const base = 'inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs fo
 const active = 'text-slate-700 hover:bg-slate-900/5 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10 dark:hover:text-white'
 const disabled = 'pointer-events-none text-slate-300 dark:text-slate-600'
 
-const Control = ({ href, icon, text, iconEnd }: { href?: string; icon: string; text: string; iconEnd?: boolean }) => {
+const Control = ({ href, icon, text, end }: { href?: string; icon: string; text: string; end?: boolean }) => {
 	const content = (
 		<>
-			{!iconEnd && <span class={`${icon} h-4 w-4`} />}
+			{!end && <span class={`${icon} h-4 w-4`} />}
 			{text}
-			{iconEnd && <span class={`${icon} h-4 w-4`} />}
+			{end && <span class={`${icon} h-4 w-4`} />}
 		</>
 	)
 
@@ -32,7 +32,7 @@ const Control = ({ href, icon, text, iconEnd }: { href?: string; icon: string; t
 }
 
 export default function Pager({ page, count, label }: Props) {
-	if (!page.hasPrev && !page.hasNext) return null
+	if (!page.back && !page.more) return null
 
 	return (
 		<div class="flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-700">
@@ -41,7 +41,7 @@ export default function Pager({ page, count, label }: Props) {
 			</span>
 			<div class="flex items-center gap-1">
 				<Control href={page.prev} icon="i-lucide-chevron-left" text="Prev" />
-				<Control href={page.next} icon="i-lucide-chevron-right" text="Next" iconEnd />
+				<Control href={page.next} icon="i-lucide-chevron-right" text="Next" end />
 			</div>
 		</div>
 	)

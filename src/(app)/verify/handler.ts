@@ -3,7 +3,7 @@ import { url } from '@kit/auth/verify'
 import { check, hit } from '@kit/auth/limit'
 import { send } from '@kit/mail'
 import { db } from '/src/data'
-import { AppError, trustedOrigin } from '@kit'
+import { Failure, origin } from '@kit'
 
 export const actions = {
 
@@ -12,7 +12,7 @@ export const actions = {
 		const key = `verify:${req.user!.id}`
 
 		if (!check(key)) {
-			throw new AppError(429, 'Too many verification requests. Try again later.')
+			throw new Failure(429, 'Too many verification requests. Try again later.')
 		}
 
 		hit(key)
@@ -23,10 +23,10 @@ export const actions = {
 			.where('id', '=', req.user!.id)
 			.executeTakeFirst()
 
-		if (!user) throw new AppError(404, 'User not found')
-		if (user.verified) throw new AppError(400, 'Email already verified')
+		if (!user) throw new Failure(404, 'User not found')
+		if (user.verified) throw new Failure(400, 'Email already verified')
 
-		const base = trustedOrigin(req)
+		const base = origin(req)
 		const link = url(user.id, base)
 
 		await send({

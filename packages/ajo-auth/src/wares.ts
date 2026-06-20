@@ -1,20 +1,20 @@
 import type { Middleware, Request } from 'ajo-kit'
-import { ForbiddenError, api } from 'ajo-kit'
+import { Forbidden, api } from 'ajo-kit'
 import { read, clear } from './cookie'
 import { validate } from './session'
-import { validate as validateToken } from './token'
-import { verify as verifyCsrf } from './csrf'
+import { validate as bearer } from './token'
+import { verify as valid } from './csrf'
 import { db } from './store'
 import type { Role } from './types'
 
 // Default: carga user + roles de las tablas auth
 
-async function resolve(userId: number) {
+async function resolve(id: number) {
 
 	const user = await db()
 		.selectFrom('users')
 		.select(['id', 'name', 'email', 'verified'])
-		.where('id', '=', userId)
+		.where('id', '=', id)
 		.executeTakeFirst()
 
 	if (!user) return null
@@ -31,7 +31,7 @@ async function resolve(userId: number) {
 
 type Resolve = typeof resolve
 
-const clearRequestAuth = (req: Request) => {
+const reset = (req: Request) => {
 	delete req.user
 	delete req.session
 	delete req.token
@@ -43,7 +43,7 @@ export function session(lookup?: Resolve): Middleware {
 
 	return async (req, res, next) => {
 
-		clearRequestAuth(req)
+		reset(req)
 
 		// 1. Explicit bearer token for API/Mobile/CLI
 
@@ -51,13 +51,13 @@ export function session(lookup?: Resolve): Middleware {
 
 		if (api(req) && auth?.startsWith('Bearer ')) {
 
-			const token = await validateToken(auth.slice(7))
+			const authz = await bearer(auth.slice(7))
 
-			if (token) {
-				const user = await find(token.user)
+			if (authz) {
+				const user = await find(authz.user)
 				if (user) {
 					req.user = user
-					req.token = { id: token.id, abilities: token.abilities }
+					req.token = { id: authz.id, abilities: authz.abilities }
 				}
 			}
 
@@ -95,7 +95,7 @@ export const csrf: Middleware = (req, _, next) => {
 	if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
 	if (api(req) && !req.user) return next()
 
-	if (!verifyCsrf(req)) throw new ForbiddenError('Invalid CSRF token')
+	if (!valid(req)) throw new Forbidden('Invalid CSRF token')
 
 	next()
 }

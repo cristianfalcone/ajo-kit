@@ -1,4 +1,4 @@
-export function formArrayFields(form: HTMLFormElement): Set<string> {
+export function fields(form: HTMLFormElement): Set<string> {
 
 	const seen = new Set<string>()
 	const arrays = new Set<string>()
@@ -17,9 +17,9 @@ export function formArrayFields(form: HTMLFormElement): Set<string> {
 	return arrays
 }
 
-export function formDataBody(
+export function body(
 	data: FormData,
-	arrayFields: Set<string> = new Set()
+	arrays: Set<string> = new Set()
 ): Record<string, string | string[]> {
 
 	const body: Record<string, string | string[]> = {}
@@ -30,7 +30,7 @@ export function formDataBody(
 
 		const current = body[name]
 
-		if (current === undefined) body[name] = arrayFields.has(name) ? [value] : value
+		if (current === undefined) body[name] = arrays.has(name) ? [value] : value
 		else if (Array.isArray(current)) current.push(value)
 		else body[name] = [current, value]
 	}

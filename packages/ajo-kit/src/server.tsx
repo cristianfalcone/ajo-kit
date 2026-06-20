@@ -1,37 +1,37 @@
 import { render as html } from 'ajo/html'
-import { h as createElement } from 'ajo/jsx-runtime'
+import { h } from 'ajo/jsx-runtime'
 import type { Component } from 'ajo'
-import { AsyncLocalStorage } from 'node:async_hooks'
+import { AsyncLocalStorage as Storage } from 'node:async_hooks'
 import polka from 'polka'
 import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
 export { default as send } from '@polka/send'
 import send from '@polka/send'
-import App, { resolve, layouts, pages, error, toPattern, toSegments, layoutPaths } from './app'
-import { AppError, links, ancestors, normalize, ajax, api } from './constants'
-import type { State, Data, Entry, Page, Parent, RoutePayload } from './constants'
-import { merge, render as renderHead, type Head } from './head'
-import { bumpTopics, isFresh, normalizeTopics, parseVersions, routeHash, versionsFor, type TopicVersions } from './freshness'
-import { elapsed, finishRouteTiming, logRouteTiming, serverTiming, startRouteTiming } from './timing'
-import { renderSSRScript } from './ssr'
-import { handlers as handlerFiles, wares as wareFiles } from 'virtual:ajo/handlers'
+import App, { resolve, layouts, pages, error, match, parts, parents } from './app'
+import { Failure, links, ancestors, normalize, ajax, api } from './constants'
+import type { State, Data, Entry, Page, Parent, Payload } from './constants'
+import { merge, render as view, type Head } from './head'
+import { bump, fresh, topics as sorted, parse, hash, snapshot, type Versions } from './freshness'
+import { elapsed, finish, log, header, start } from './timing'
+import { script } from './ssr'
+import { handlers as files, wares as stacks } from 'virtual:ajo/handlers'
 
-const emitted = new AsyncLocalStorage<Set<string>>()
+const emitted = new Storage<Set<string>>()
 
 const payload = (head: Head, entries: Data) => ({ data: entries, head })
 
-const digest = (head: Head, entries: Data) => routeHash(JSON.stringify(payload(head, entries)))
+const digest = (head: Head, entries: Data) => hash(JSON.stringify(payload(head, entries)))
 
 const metadata = (topics: Set<string>) => {
 	const list = [...topics].sort()
-	return { topics: list, versions: versionsFor(list) }
+	return { topics: list, versions: snapshot(list) }
 }
 
-const byteLength = (body: string) => Buffer.byteLength(body)
+const size = (body: string) => Buffer.byteLength(body)
 
-const routeVary = 'Accept, Cookie'
+const vary = 'Accept, Cookie'
 
-const configuredHttps = () => {
+const https = () => {
 	if (process.env.NODE_ENV !== 'production' || !process.env.APP_URL) return false
 	try {
 		return new URL(process.env.APP_URL).protocol === 'https:'
@@ -40,17 +40,17 @@ const configuredHttps = () => {
 	}
 }
 
-const securityHeaders = () => ({
+const security = () => ({
 	'X-Content-Type-Options': 'nosniff',
 	'Referrer-Policy': 'strict-origin-when-cross-origin',
 	'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
 	'Content-Security-Policy': "frame-ancestors 'none'",
-	...(configuredHttps() && { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' }),
+	...(https() && { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' }),
 })
 
-const routeHeaders = (type?: string) => ({
+const base = (type?: string) => ({
 	'Cache-Control': 'no-store',
-	Vary: routeVary,
+	Vary: vary,
 	...(type && { 'Content-Type': type }),
 })
 
@@ -60,58 +60,58 @@ const headers = (res: Response, values: Record<string, string | number | readonl
 	}
 }
 
-const finishTiming = (req: Request, res: Response, status: number, bytes: number, cache?: string) => {
-	const result = finishRouteTiming(req.timing, { status, bytes, cache })
+const done = (req: Request, res: Response, status: number, bytes: number, cache?: string) => {
+	const result = finish(req.timing, { status, bytes, cache })
 
 	if (!result) return
 
-	res.setHeader('Server-Timing', serverTiming(result))
+	res.setHeader('Server-Timing', header(result))
 	res.setHeader('X-Ajo-Bytes', String(bytes))
-	logRouteTiming(`${req.method} ${req.originalUrl}`, result)
+	log(`${req.method} ${req.originalUrl}`, result)
 }
 
-const writeFresh = (req: Request, res: Response, hash?: string, early = false) => {
+const write = (req: Request, res: Response, hash?: string, early = false) => {
 	const cache = early ? 'fresh' : 'revalidated'
 
 	res.statusCode = 304
-	headers(res, routeHeaders())
+	headers(res, base())
 	res.setHeader('X-Ajo-Cache', cache)
 	if (hash) res.setHeader('ETag', `"${hash}"`)
-	finishTiming(req, res, 304, 0, cache)
+	done(req, res, 304, 0, cache)
 	res.end()
 }
 
-type LiveConnection = {
+type Connection = {
 	req: Request
 	auth: 'anonymous' | 'bearer' | 'session' | 'user'
 	topics: Set<string>
 	hash: string
 	verify?: () => Promise<boolean>
-	revalidate: () => Promise<RoutePayload>
-	send: (message: { data: RoutePayload; hash: string; topics: string[]; versions: TopicVersions }) => void
+	revalidate: () => Promise<Payload>
+	send: (message: { data: Payload; hash: string; topics: string[]; versions: Versions }) => void
 	close: () => void
 }
 
-const liveConnections = new Set<LiveConnection>()
+const connections = new Set<Connection>()
 
-const pendingTopics = new Set<string>()
+const pending = new Set<string>()
 
-let debounceTimeout: NodeJS.Timeout | null = null
+let debounce: NodeJS.Timeout | null = null
 
-const sseConcurrency = 4
+const limit = 4
 
-const liveAuth = (req: Request): LiveConnection['auth'] => {
+const mode = (req: Request): Connection['auth'] => {
 	if (req.token) return 'bearer'
 	if (req.session) return 'session'
 	if (req.user) return 'user'
 	return 'anonymous'
 }
 
-const hasTopic = (conn: LiveConnection, topics: Set<string>) => {
+const matches = (conn: Connection, topics: Set<string>) => {
 	return [...topics].some(topic => conn.topics.has(topic))
 }
 
-const liveProbeResponse = () => {
+const probe = () => {
 	const headers = new Map<string, string | number | readonly string[]>()
 	const res = {
 		statusCode: 200,
@@ -151,8 +151,8 @@ const liveProbeResponse = () => {
 	return res as unknown as Response
 }
 
-const runLiveMiddleware = (ware: Middleware, req: Request) => new Promise<boolean>((resolve, reject) => {
-	const res = liveProbeResponse()
+const run = (ware: Middleware, req: Request) => new Promise<boolean>((resolve, reject) => {
+	const res = probe()
 	let settled = false
 	const settle = (value: boolean) => {
 		if (settled) return
@@ -175,15 +175,15 @@ const runLiveMiddleware = (ware: Middleware, req: Request) => new Promise<boolea
 	}
 })
 
-const verifyLiveRequest = async (req: Request, wares: Middleware[]) => {
+const verify = async (req: Request, wares: Middleware[]) => {
 	for (const ware of wares) {
-		if (!await runLiveMiddleware(ware, req)) return false
+		if (!await run(ware, req)) return false
 	}
 
 	return true
 }
 
-const forEachConcurrent = async <T,>(items: T[], limit: number, run: (item: T) => Promise<void>) => {
+const each = async <T,>(items: T[], limit: number, run: (item: T) => Promise<void>) => {
 	let index = 0
 	const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
 		while (index < items.length) await run(items[index++])
@@ -192,7 +192,7 @@ const forEachConcurrent = async <T,>(items: T[], limit: number, run: (item: T) =
 	await Promise.all(workers)
 }
 
-const closeConnection = (conn: LiveConnection, reason?: string) => {
+const close = (conn: Connection, reason?: string) => {
 	if (reason) {
 		console.warn('[SSE] Closing live connection:', {
 			reason,
@@ -201,69 +201,69 @@ const closeConnection = (conn: LiveConnection, reason?: string) => {
 		})
 	}
 
-	liveConnections.delete(conn)
+	connections.delete(conn)
 	conn.close()
 }
 
-const revalidateConnection = async (conn: LiveConnection) => {
+const revalidate = async (conn: Connection) => {
 	try {
-		if (!liveConnections.has(conn)) return
+		if (!connections.has(conn)) return
 
 		if (conn.verify && !await conn.verify()) {
-			closeConnection(conn, 'credential revalidation failed')
+			close(conn, 'credential revalidation failed')
 			return
 		}
 
 		conn.req.topics = new Set<string>()
-		const newData = await conn.revalidate()
+		const data = await conn.revalidate()
 		conn.topics = conn.req.topics ?? new Set<string>()
-		const [head, ...entries] = newData
+		const [head, ...entries] = data
 		const hash = digest(head, entries)
 
 		if (hash === conn.hash) return
 
 		conn.hash = hash
 		conn.send({
-			data: newData,
+			data: data,
 			hash,
 			...metadata(conn.topics)
 		})
 
 	} catch (err) {
 		console.error('[SSE] Live update failed:', err)
-		closeConnection(conn)
+		close(conn)
 	}
 }
 
 export function emit(topic: string | string[]) {
 
-	const topics = bumpTopics(topic)
+	const topics = bump(topic)
 	const store = emitted.getStore()
 
 	topics.forEach(t => {
-		pendingTopics.add(t)
+		pending.add(t)
 		store?.add(t)
 	})
 
-	if (debounceTimeout) return
+	if (debounce) return
 
-	debounceTimeout = setTimeout(async () => {
-		const currentTopics = new Set(pendingTopics)
-		pendingTopics.clear()
-		debounceTimeout = null
+	debounce = setTimeout(async () => {
+		const current = new Set(pending)
+		pending.clear()
+		debounce = null
 
-		const affected = [...liveConnections].filter(conn => hasTopic(conn, currentTopics))
-		await forEachConcurrent(affected, sseConcurrency, revalidateConnection)
+		const affected = [...connections].filter(conn => matches(conn, current))
+		await each(affected, limit, revalidate)
 	}, 10)
 }
 
-type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head'
+type Method = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head'
 
-const methods: HttpMethod[] = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head']
+const methods: Method[] = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head']
 
-type ApiModule = Partial<Record<HttpMethod, Middleware>>
+type Api = Partial<Record<Method, Middleware>>
 
-type PageHandler = {
+type Handler = {
 	page?: (req: Request, parent: Parent) => Promise<Entry>
 	layout?: (req: Request, parent: Parent) => Promise<Entry>
 	head?: (req: Request, parent: Parent) => Promise<Head>
@@ -275,35 +275,35 @@ type Template = (slots: Record<string, string>) => string
 export async function create(template: Template) {
 
 	const secure: Middleware = (_, res, next) => {
-		headers(res, securityHeaders(), true)
+		headers(res, security(), true)
 		next()
 	}
 
 	const timing: Middleware = (req, _, next) => {
-		req.timing = startRouteTiming()
+		req.timing = start()
 		next()
 	}
 
-	const data = (page: Page, routeWares: Middleware[]): Middleware => async (req, res, next) => {
+	const data = (page: Page, stack: Middleware[]): Middleware => async (req, res, next) => {
 
 		req.topics = new Set<string>()
-		req.verifyLive = () => verifyLiveRequest(req, routeWares)
+		req.verifyLive = () => verify(req, stack)
 
 		req.track = (topic: string | string[]) => {
 			if (Array.isArray(topic)) topic.forEach(t => req.topics!.add(t))
 			else req.topics!.add(topic)
 		}
 
-		const paths = layoutPaths(page.segments)
+		const paths = parents(page.segments)
 		const key = page.segments.join('/')
 
-		if (ajax(req) && isFresh(parseVersions(req.headers['x-ajo-versions']))) {
+		if (ajax(req) && fresh(parse(req.headers['x-ajo-versions']))) {
 			if (req.timing) req.timing.loader = 0
-			writeFresh(req, res, req.headers['x-have']?.toString(), true)
+			write(req, res, req.headers['x-have']?.toString(), true)
 			return
 		}
 
-		const executeLoaders = async () => {
+		const execute = async () => {
 
 			req.topics!.clear()
 
@@ -327,33 +327,33 @@ export async function create(template: Template) {
 				}
 			}
 
-			const layoutData = await Promise.all(paths.map((path, depth) => run(handlers.get(path)?.layout, depth)))
-			const pageData = await run(handlers.get(key)?.page, paths.length)
-			const allData = [...layoutData, pageData]
+			const layout = await Promise.all(paths.map((path, depth) => run(handlers.get(path)?.layout, depth)))
+			const entry = await run(handlers.get(key)?.page, paths.length)
+			const data = [...layout, entry]
 
-			const headData = await Promise.all([
-				...paths.map((path, index) => handlers.get(path)?.head?.(req, async () => allData[index]) ?? Promise.resolve({})),
-				handlers.get(key)?.head?.(req, async () => pageData) ?? Promise.resolve({})
+			const heads = await Promise.all([
+				...paths.map((path, index) => handlers.get(path)?.head?.(req, async () => data[index]) ?? Promise.resolve({})),
+				handlers.get(key)?.head?.(req, async () => entry) ?? Promise.resolve({})
 			])
 
-			return [merge(...headData), ...allData] as RoutePayload
+			return [merge(...heads), ...data] as Payload
 		}
 
-		const loaderStart = performance.now()
+		const begun = performance.now()
 
 		try {
 
-			const result = await executeLoaders();
-			if (req.timing) req.timing.loader = elapsed(loaderStart)
+			const result = await execute();
+			if (req.timing) req.timing.loader = elapsed(begun)
 
-			req.revalidate = executeLoaders
+			req.revalidate = execute
 			req.head = result[0]
 			req.entries = result.slice(1)
 
 			next()
 
 		} catch (err) {
-			if (req.timing) req.timing.loader = elapsed(loaderStart)
+			if (req.timing) req.timing.loader = elapsed(begun)
 			next(normalize(err))
 		}
 	}
@@ -374,9 +374,9 @@ export async function create(template: Template) {
 		const entries = (req.entries ?? []) as Data
 		const hash = digest(head, entries)
 
-		const conn: LiveConnection = {
+		const conn: Connection = {
 			req,
-			auth: liveAuth(req),
+			auth: mode(req),
 			topics: req.topics ?? new Set<string>(),
 			hash,
 			verify: req.verifyLive,
@@ -385,7 +385,7 @@ export async function create(template: Template) {
 			close: () => {}
 		}
 
-		liveConnections.add(conn)
+		connections.add(conn)
 
 		const heartbeat = setInterval(() => res.write(':hb\n\n'), 30000)
 		let closed = false
@@ -394,7 +394,7 @@ export async function create(template: Template) {
 			if (closed) return
 			closed = true
 			clearInterval(heartbeat)
-			liveConnections.delete(conn)
+			connections.delete(conn)
 		}
 
 		conn.close = () => {
@@ -405,21 +405,21 @@ export async function create(template: Template) {
 		req.socket?.on('close', cleanup)
 	}
 
-	const render = async (req: Request, res: Response, page: Page, error?: AppError) => {
+	const render = async (req: Request, res: Response, page: Page, error?: Failure) => {
 
-		const renderStart = performance.now()
+		const begun = performance.now()
 		const head = (req.head ?? {}) as Head
 		const entries = (req.entries ?? []) as Data
 
 		if (ajax(req)) {
 
-			headers(res, routeHeaders('application/json; charset=utf-8'))
+			headers(res, base('application/json; charset=utf-8'))
 
 			if (error) {
 				const body = JSON.stringify({ error: error.toJSON() })
 
-				if (req.timing) req.timing.render = elapsed(renderStart)
-				finishTiming(req, res, error.status, byteLength(body))
+				if (req.timing) req.timing.render = elapsed(begun)
+				done(req, res, error.status, size(body))
 
 				return send(res, error.status, body)
 			}
@@ -432,8 +432,8 @@ export async function create(template: Template) {
 			res.setHeader('ETag', `"${hash}"`)
 
 			if (match) {
-				if (req.timing) req.timing.render = elapsed(renderStart)
-				writeFresh(req, res, hash)
+				if (req.timing) req.timing.render = elapsed(begun)
+				write(req, res, hash)
 				return
 			}
 
@@ -441,8 +441,8 @@ export async function create(template: Template) {
 
 			const response = JSON.stringify({ ...body, hash, ...meta })
 
-			if (req.timing) req.timing.render = elapsed(renderStart)
-			finishTiming(req, res, 200, byteLength(response), 'miss')
+			if (req.timing) req.timing.render = elapsed(begun)
+			done(req, res, 200, size(response), 'miss')
 
 			return send(res, 200, response)
 		}
@@ -462,19 +462,19 @@ export async function create(template: Template) {
 			...meta,
 		}
 		const body = template({
-			head: renderHead(head as Head),
-			data: renderSSRScript(state),
-			root: html(createElement(App, { page: resolved!.page })),
+			head: view(head as Head),
+			data: script(state),
+			root: html(h(App, { page: resolved!.page })),
 		})
 
-		if (req.timing) req.timing.render = elapsed(renderStart)
-		finishTiming(req, res, status, byteLength(body))
+		if (req.timing) req.timing.render = elapsed(begun)
+		done(req, res, status, size(body))
 
 		send(
 			res,
 			status,
 			body,
-			routeHeaders('text/html; charset=utf-8')
+			base('text/html; charset=utf-8')
 		)
 	}
 
@@ -488,23 +488,23 @@ export async function create(template: Template) {
 			if (handler) break
 		}
 
-		if (!handler) throw new AppError(400, `Action '${name}' not found`)
+		if (!handler) throw new Failure(400, `Action '${name}' not found`)
 
 		const topics = new Set<string>()
 		const result = await emitted.run(topics, () => handler(req, res)) as { redirect?: string } | void
 
 		if (ajax(req)) {
 			const body = result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true })
-			const emittedTopics = normalizeTopics([...topics])
+			const sent = sorted([...topics])
 			const payload = {
 				...body,
-				...(emittedTopics.length > 0 && {
-					topics: emittedTopics,
-					versions: versionsFor(emittedTopics),
+				...(sent.length > 0 && {
+					topics: sent,
+					versions: snapshot(sent),
 				})
 			}
 
-			headers(res, routeHeaders('application/json; charset=utf-8'))
+			headers(res, base('application/json; charset=utf-8'))
 
 			send(res, 200, JSON.stringify(payload))
 
@@ -518,15 +518,15 @@ export async function create(template: Template) {
 
 	const app = polka({
 		onError: (err, req, res) => {
-			if (!(err instanceof AppError)) console.error(err)
+			if (!(err instanceof Failure)) console.error(err)
 			const normalized = normalize(err)
 			if (api(req)) send(res, normalized.status, normalized.toJSON())
 			else render(req, res, error(), normalized)
 		},
 		onNoMatch: (req, res) => {
-			const notFound = new AppError(404, 'Not found')
-			if (api(req)) send(res, 404, notFound.toJSON())
-			else render(req, res, error(), notFound)
+			const missing = new Failure(404, 'Not found')
+			if (api(req)) send(res, 404, missing.toJSON())
+			else render(req, res, error(), missing)
 		}
 	})
 
@@ -536,37 +536,37 @@ export async function create(template: Template) {
 
 	const wares = new Map<string, Middleware[]>()
 
-	for (const [file, loader] of Object.entries(wareFiles as Record<string, () => Promise<Record<string, unknown>>>)) {
+	for (const [file, loader] of Object.entries(stacks as Record<string, () => Promise<Record<string, unknown>>>)) {
 		
 		const exports = await loader()
-		const key = toSegments(file).join('/')
+		const key = parts(file).join('/')
 		const items = Array.isArray(exports.default) ? exports.default : [exports.default]
 		
 		wares.set(key, (wares.get(key) ?? []).concat(items as Middleware[]))
 	}
 
-	const handlers = new Map<string, PageHandler>()
+	const handlers = new Map<string, Handler>()
 
-	for (const [file, loader] of Object.entries(handlerFiles as Record<string, () => Promise<Record<string, unknown>>>)) {
+	for (const [file, loader] of Object.entries(files as Record<string, () => Promise<Record<string, unknown>>>)) {
 
 		const exports = await loader()
-		const segments = toSegments(file)
+		const segments = parts(file)
 		const key = segments.join('/')
-		const pattern = toPattern(segments)
+		const pattern = match(segments)
 
-		const { default: apiHandlers, page, layout, head, actions } = exports as {
-			default?: ApiModule
-			page?: PageHandler['page']
-			layout?: PageHandler['layout']
-			head?: PageHandler['head']
-			actions?: PageHandler['actions']
+		const { default: api, page, layout, head, actions } = exports as {
+			default?: Api
+			page?: Handler['page']
+			layout?: Handler['layout']
+			head?: Handler['head']
+			actions?: Handler['actions']
 		}
 
 		handlers.set(key, { page, layout, head, actions })
 
-		if (apiHandlers) {
+		if (api) {
 			for (const method of methods) {
-				const route = apiHandlers[method]
+				const route = api[method]
 				if (!route) continue
 				app[method](`api/${pattern}`, json(), ...collect(segments), route)
 			}
@@ -577,10 +577,10 @@ export async function create(template: Template) {
 
 		const { pattern, segments } = page
 		const path = `/${pattern || ''}`
-		const routeWares = collect(segments)
+		const stack = collect(segments)
 
-		app.get(path, timing, ...routeWares, data(page, routeWares), sse, (req, res) => render(req, res, page))
-		app.post(path, json(), ...routeWares, action(segments))
+		app.get(path, timing, ...stack, data(page, stack), sse, (req, res) => render(req, res, page))
+		app.post(path, json(), ...stack, action(segments))
 	}
 
 	return app

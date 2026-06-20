@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync as scan, readFileSync as read } from 'node:fs'
 import { join } from 'node:path'
 
 export interface Plugin {
@@ -16,7 +16,7 @@ export function discover(root = process.cwd()): Plugin[] {
 	const plugins: Plugin[] = []
 
 	let entries: string[]
-	try { entries = readdirSync(modules) } catch { return plugins }
+	try { entries = scan(modules) } catch { return plugins }
 
 	for (const entry of entries) {
 
@@ -25,7 +25,7 @@ export function discover(root = process.cwd()): Plugin[] {
 		const dir = join(modules, entry)
 		let pkg: any
 
-		try { pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) } catch { continue }
+		try { pkg = JSON.parse(read(join(dir, 'package.json'), 'utf8')) } catch { continue }
 
 		if (!pkg.kit) continue
 

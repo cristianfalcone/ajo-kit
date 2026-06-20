@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { actionHeaders, createUser, loginRequest } from './helpers'
+import { proof, make, login } from './helpers'
 
 test('bearer API covers login, me, token create/list/delete and logout', async ({ request }) => {
-	const login = await request.post('/api/login', {
+	const res = await request.post('/api/login', {
 		data: {
 			email: 'cristian@example.com',
 			password: 'password',
@@ -10,18 +10,18 @@ test('bearer API covers login, me, token create/list/delete and logout', async (
 		},
 	})
 
-	expect(login.status()).toBe(200)
+	expect(res.status()).toBe(200)
 
-	const loginBody = await login.json()
-	const token = loginBody.token as string
-	const auth = { Authorization: `Bearer ${token}` }
+	const body = await res.json()
+	const token = body.token as string
+	const headers = { Authorization: `Bearer ${token}` }
 
 	expect(token).toBeTruthy()
-	expect(loginBody.user).toMatchObject({
+	expect(body.user).toMatchObject({
 		email: 'cristian@example.com',
 	})
 
-	const me = await request.get('/api/me', { headers: auth })
+	const me = await request.get('/api/me', { headers })
 	expect(me.status()).toBe(200)
 	await expect(me.json()).resolves.toMatchObject({
 		email: 'cristian@example.com',
@@ -29,7 +29,7 @@ test('bearer API covers login, me, token create/list/delete and logout', async (
 	})
 
 	const create = await request.post('/api/tokens', {
-		headers: auth,
+		headers,
 		data: {
 			name: 'Playwright API Token',
 			abilities: ['tokens:read'],
@@ -42,44 +42,44 @@ test('bearer API covers login, me, token create/list/delete and logout', async (
 	expect(created.token).toBeTruthy()
 	expect(created.message).toContain('Save this token securely')
 
-	const tokens = await request.get('/api/tokens', { headers: auth })
+	const tokens = await request.get('/api/tokens', { headers })
 	expect(tokens.status()).toBe(200)
 
-	const tokenList = await tokens.json()
-	const apiToken = tokenList.tokens.find((entry: { name: string }) => entry.name === 'Playwright API Token')
+	const list = await tokens.json()
+	const bearer = list.tokens.find((entry: { name: string }) => entry.name === 'Playwright API Token')
 
-	expect(apiToken).toMatchObject({
+	expect(bearer).toMatchObject({
 		name: 'Playwright API Token',
 		abilities: ['tokens:read'],
 	})
 
 	const remove = await request.delete('/api/tokens', {
-		headers: auth,
-		data: { id: apiToken.id },
+		headers,
+		data: { id: bearer.id },
 	})
 
 	expect(remove.status()).toBe(200)
 	await expect(remove.json()).resolves.toMatchObject({ message: 'Token revoked' })
 
-	const logout = await request.post('/api/logout', { headers: auth })
+	const logout = await request.post('/api/logout', { headers })
 	expect(logout.status()).toBe(200)
 
-	const afterLogout = await request.get('/api/me', { headers: auth })
-	expect(afterLogout.status()).toBe(401)
+	const gone = await request.get('/api/me', { headers })
+	expect(gone.status()).toBe(401)
 })
 
 test('limited bearer tokens require matching API abilities', async ({ request }) => {
-	const auth = { Authorization: 'Bearer seed-api-token' }
+	const headers = { Authorization: 'Bearer seed-api-token' }
 
-	const tokens = await request.get('/api/tokens', { headers: auth })
+	const tokens = await request.get('/api/tokens', { headers })
 	expect(tokens.status()).toBe(200)
 
-	const me = await request.get('/api/me', { headers: auth })
+	const me = await request.get('/api/me', { headers })
 	expect(me.status()).toBe(403)
 	await expect(me.json()).resolves.toMatchObject({ message: 'Missing ability: profile:read' })
 
 	const create = await request.post('/api/tokens', {
-		headers: auth,
+		headers,
 		data: {
 			name: 'Forbidden Token',
 			abilities: ['tokens:read'],
@@ -90,7 +90,7 @@ test('limited bearer tokens require matching API abilities', async ({ request })
 	await expect(create.json()).resolves.toMatchObject({ message: 'Missing ability: tokens:create' })
 
 	const remove = await request.delete('/api/tokens', {
-		headers: auth,
+		headers,
 		data: { id: 'none' },
 	})
 
@@ -114,10 +114,10 @@ test('bearer tokens do not authenticate route actions outside api', async ({ req
 	await expect(response.json()).resolves.toMatchObject({ error: { message: 'Invalid CSRF token' } })
 })
 
-test('cookie-auth API mutations require CSRF proof', async ({ request, baseURL }) => {
+test('cookie-auth API mutations require CSRF proof', async ({ request, baseURL: base }) => {
 	const email = `csrf-api-${Date.now()}@example.com`
-	await createUser({ email, name: 'CSRF API User' })
-	await loginRequest(request, baseURL!, { email, password: 'password' })
+	await make({ email, name: 'CSRF API User' })
+	await login(request, base!, { email, password: 'password' })
 
 	const blocked = await request.post('/api/tokens', {
 		data: {
@@ -130,7 +130,7 @@ test('cookie-auth API mutations require CSRF proof', async ({ request, baseURL }
 	await expect(blocked.json()).resolves.toMatchObject({ message: 'Invalid CSRF token' })
 
 	const allowed = await request.post('/api/tokens', {
-		headers: actionHeaders(baseURL!),
+		headers: proof(base!),
 		data: {
 			name: 'Cookie API Token Allowed',
 			abilities: ['tokens:read'],
@@ -144,14 +144,14 @@ test('cookie-auth API mutations require CSRF proof', async ({ request, baseURL }
 	})
 })
 
-test('api authorization header takes precedence over session cookies', async ({ request, baseURL }) => {
+test('api authorization header takes precedence over session cookies', async ({ request, baseURL: base }) => {
 	const email = `mixed-api-${Date.now()}@example.com`
-	await createUser({ email, name: 'Mixed API User' })
-	await loginRequest(request, baseURL!, { email, password: 'password' })
+	await make({ email, name: 'Mixed API User' })
+	await login(request, base!, { email, password: 'password' })
 
 	const response = await request.post('/api/tokens', {
 		headers: {
-			...actionHeaders(baseURL!),
+			...proof(base!),
 			Authorization: 'Bearer seed-api-token',
 		},
 		data: {
@@ -165,7 +165,7 @@ test('api authorization header takes precedence over session cookies', async ({ 
 })
 
 test('bearer token creation cannot exceed caller abilities', async ({ request }) => {
-	const login = await request.post('/api/login', {
+	const res = await request.post('/api/login', {
 		data: {
 			email: 'cristian@example.com',
 			password: 'password',
@@ -173,9 +173,9 @@ test('bearer token creation cannot exceed caller abilities', async ({ request })
 		},
 	})
 
-	expect(login.status()).toBe(200)
+	expect(res.status()).toBe(200)
 
-	const full = await login.json()
+	const full = await res.json()
 	const create = await request.post('/api/tokens', {
 		headers: { Authorization: `Bearer ${full.token}` },
 		data: {
@@ -200,7 +200,7 @@ test('bearer token creation cannot exceed caller abilities', async ({ request })
 		message: 'Requested abilities exceed bearer token abilities',
 	})
 
-	const sameScope = await request.post('/api/tokens', {
+	const scoped = await request.post('/api/tokens', {
 		headers: { Authorization: `Bearer ${creator.token}` },
 		data: {
 			name: 'Same Scope Token',
@@ -208,5 +208,5 @@ test('bearer token creation cannot exceed caller abilities', async ({ request })
 		},
 	})
 
-	expect(sameScope.status()).toBe(201)
+	expect(scoped.status()).toBe(201)
 })

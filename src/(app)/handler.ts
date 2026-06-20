@@ -1,13 +1,13 @@
 import type { Request, Response } from '@kit'
-import { UnauthorizedError } from '@kit'
+import { Denied } from '@kit'
 import { db, unread } from '/src/data'
 import { read, clear } from '@kit/auth/cookie'
 import { remove } from '@kit/auth/session'
-import { clear as clearConfirm } from '@kit/auth/confirm'
+import { clear as forget } from '@kit/auth/confirm'
 import { emit } from '@kit/server'
 
 export async function layout(req: Request) {
-	if (!req.user) throw new UnauthorizedError()
+	if (!req.user) throw new Denied()
 	req.track?.(`user:${req.user.id}`)
 
 	const match = req.path.match(/^\/account\/chats\/(\d+)/)
@@ -31,7 +31,7 @@ export const actions = {
 			await remove(token)
 			emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 		}
-		clearConfirm(req)
+		forget(req)
 		clear(res)
 		return { redirect: '/login' }
 	}

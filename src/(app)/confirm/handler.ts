@@ -5,7 +5,7 @@ import { credential, stamp } from '@kit/auth/confirm'
 import { check, hit, clear } from '@kit/auth/limit'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
-import { AppError, UnauthorizedError, ip } from '@kit'
+import { Failure, Denied, ip } from '@kit'
 
 const Confirm = object({ password: string() })
 
@@ -16,12 +16,12 @@ export const actions = {
 		const input = parse(Confirm, req.body)
 		const current = credential(req)
 
-		if (!current) throw new UnauthorizedError()
+		if (!current) throw new Denied()
 
 		const limit = `confirm:${req.user!.id}:${current}:${ip(req)}`
 
 		if (!check(limit)) {
-			throw new AppError(429, 'Too many confirmation attempts. Try again later.')
+			throw new Failure(429, 'Too many confirmation attempts. Try again later.')
 		}
 
 		hit(limit)
@@ -33,12 +33,12 @@ export const actions = {
 			.executeTakeFirst()
 
 		if (!user?.password || !await verify(input.password, user.password)) {
-			throw new UnauthorizedError('Invalid password')
+			throw new Denied('Invalid password')
 		}
 
 		clear(limit)
 
-		if (!stamp(req)) throw new UnauthorizedError()
+		if (!stamp(req)) throw new Denied()
 
 		return { confirmed: true }
 	}

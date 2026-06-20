@@ -1,16 +1,16 @@
-import { mkdtempSync, rmSync } from 'node:fs'
-import { createHash } from 'node:crypto'
+import { mkdtempSync as temp, rmSync as rm } from 'node:fs'
+import { createHash as sha } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { read, write, clear as clearCookie } from '../../../packages/ajo-auth/src/cookie'
-import { set as setCsrf, verify as verifyCsrf } from '../../../packages/ajo-auth/src/csrf'
-import { check as checkLimit, clear as clearLimit, hit, remaining } from '../../../packages/ajo-auth/src/limit'
-import { stamp, check as checkConfirm, clear as clearConfirm, clearUser as clearConfirmUser } from '../../../packages/ajo-auth/src/confirm'
-import { session as authSession } from '../../../packages/ajo-auth/src/wares'
+import { afterEach as after, beforeEach as before, describe, expect, test, vi } from 'vitest'
+import { read, write, clear as cookie } from '../../../packages/ajo-auth/src/cookie'
+import { set as xsrf, verify as valid } from '../../../packages/ajo-auth/src/csrf'
+import { check as limit, clear as free, hit, remaining } from '../../../packages/ajo-auth/src/limit'
+import { stamp, check as confirm, clear as clear, user as forget } from '../../../packages/ajo-auth/src/confirm'
+import { session as session } from '../../../packages/ajo-auth/src/wares'
 import { sign, url, validate } from '../../../packages/ajo-auth/src/verify'
-import { can, canAll, create as createToken } from '../../../packages/ajo-auth/src/token'
-import { create as createSession, hash as hashSession, remove as removeSession, validate as validateSession } from '../../../packages/ajo-auth/src/session'
+import { can, all, create as token } from '../../../packages/ajo-auth/src/token'
+import { create as create, hash as digest, remove as remove, validate as check } from '../../../packages/ajo-auth/src/session'
 import { configure } from '../../../packages/ajo-auth/src/store'
 import { close, connect, db } from '../../../packages/ajo-kit/src/database'
 import { hash, verify } from '../../../packages/ajo-auth/src/password'
@@ -27,7 +27,7 @@ const response = () => {
 	}
 }
 
-const restoreEnv = (key: string, value: string | undefined) => {
+const restore = (key: string, value: string | undefined) => {
 	if (value === undefined) delete process.env[key]
 	else process.env[key] = value
 }
@@ -45,7 +45,7 @@ describe('ajo-auth cookies and csrf', () => {
 		expect(read({ headers: { cookie: 'session_id=wrong; xsession=wrong' } } as any)).toBeUndefined()
 		expect(read({ headers: { cookie: 'session=first; session=second' } } as any)).toBeUndefined()
 
-		clearCookie(res as any)
+		cookie(res as any)
 
 		expect(headers.get('Set-Cookie')).toBe('session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0')
 	})
@@ -60,28 +60,28 @@ describe('ajo-auth cookies and csrf', () => {
 			expect(session.headers.get('Set-Cookie')).toBe('session=session-token; HttpOnly; SameSite=Lax; Path=/; Secure; Max-Age=2592000')
 
 			const csrf = response()
-			setCsrf(csrf.res as any)
+			xsrf(csrf.res as any)
 			expect(csrf.headers.get('Set-Cookie')).toContain('; Secure')
 		} finally {
-			restoreEnv('NODE_ENV', previous)
+			restore('NODE_ENV', previous)
 		}
 	})
 
 	test('accepts double-submit csrf and same-origin requests only', () => {
-		const previousAppUrl = process.env.APP_URL
-		const previousNodeEnv = process.env.NODE_ENV
+		const app = process.env.APP_URL
+		const env = process.env.NODE_ENV
 
 		delete process.env.APP_URL
 		process.env.NODE_ENV = 'development'
 
-		expect(verifyCsrf({
+		expect(valid({
 			headers: {
 				cookie: 'XSRF-TOKEN=abc',
 				'x-xsrf-token': 'abc',
 			},
 		} as any)).toBe(true)
 
-		expect(verifyCsrf({
+		expect(valid({
 			headers: {
 				host: 'app.test',
 				cookie: 'not_XSRF-TOKEN=abc',
@@ -89,21 +89,21 @@ describe('ajo-auth cookies and csrf', () => {
 			},
 		} as any)).toBe(false)
 
-		expect(verifyCsrf({
+		expect(valid({
 			headers: {
 				host: 'app.test',
 				origin: 'http://app.test',
 			},
 		} as any)).toBe(true)
 
-		expect(verifyCsrf({
+		expect(valid({
 			headers: {
 				host: 'app.test',
 				referer: 'http://app.test/account/profile',
 			},
 		} as any)).toBe(true)
 
-		expect(verifyCsrf({
+		expect(valid({
 			headers: {
 				host: 'app.test',
 				origin: 'https://evil.test',
@@ -112,21 +112,21 @@ describe('ajo-auth cookies and csrf', () => {
 
 		try {
 			process.env.APP_URL = 'https://app.test'
-			expect(verifyCsrf({
+			expect(valid({
 				headers: {
 					host: 'evil.test',
 					origin: 'https://app.test',
 				},
 			} as any)).toBe(true)
-			expect(verifyCsrf({
+			expect(valid({
 				headers: {
 					host: 'app.test',
 					origin: 'https://evil.test',
 				},
 			} as any)).toBe(false)
 		} finally {
-			restoreEnv('APP_URL', previousAppUrl)
-			restoreEnv('NODE_ENV', previousNodeEnv)
+			restore('APP_URL', app)
+			restore('NODE_ENV', env)
 		}
 	})
 })
@@ -134,8 +134,8 @@ describe('ajo-auth cookies and csrf', () => {
 describe('ajo-auth session storage', () => {
 	let dir: string
 
-	beforeEach(async () => {
-		dir = mkdtempSync(join(tmpdir(), 'ajo-auth-session-'))
+	before(async () => {
+		dir = temp(join(tmpdir(), 'ajo-auth-session-'))
 		connect(join(dir, 'test.sqlite'))
 		configure(() => db())
 		await db<any>().schema
@@ -165,9 +165,9 @@ describe('ajo-auth session storage', () => {
 			.execute()
 	})
 
-	afterEach(async () => {
+	after(async () => {
 		await close()
-		rmSync(dir, { recursive: true, force: true })
+		rm(dir, { recursive: true, force: true })
 	})
 
 	test('stores hashed session ids and validates only plaintext cookie values', async () => {
@@ -181,23 +181,23 @@ describe('ajo-auth session storage', () => {
 			.returning('id')
 			.executeTakeFirstOrThrow()
 
-		const plain = await createSession(user.id)
+		const plain = await create(user.id)
 		const stored = await db<any>()
 			.selectFrom('sessions')
 			.select(['id', 'user'])
 			.executeTakeFirstOrThrow()
 
-		expect(stored.id).toBe(hashSession(plain))
+		expect(stored.id).toBe(digest(plain))
 		expect(stored.id).not.toBe(plain)
 
-		await expect(validateSession(plain)).resolves.toMatchObject({
+		await expect(check(plain)).resolves.toMatchObject({
 			id: stored.id,
 			user: user.id,
 		})
-		await expect(validateSession(stored.id)).resolves.toBeNull()
+		await expect(check(stored.id)).resolves.toBeNull()
 
-		await removeSession(plain)
-		await expect(validateSession(plain)).resolves.toBeNull()
+		await remove(plain)
+		await expect(check(plain)).resolves.toBeNull()
 	})
 
 	test('auth middleware exposes validated credential ids', async () => {
@@ -211,128 +211,128 @@ describe('ajo-auth session storage', () => {
 			.returning('id')
 			.executeTakeFirstOrThrow()
 		const find = async (id: number) => ({ id, name: 'Credential User', email: 'credential@example.com', verified: null, roles: [] })
-		const middleware = authSession(find)
+		const middleware = session(find)
 		const res = { setHeader: vi.fn() }
 
-		const plainSession = await createSession(user.id)
-		const sessionReq = {
+		const plain = await create(user.id)
+		const req = {
 			path: '/dashboard',
-			headers: { cookie: `session=${plainSession}` },
+			headers: { cookie: `session=${plain}` },
 		} as any
-		let sessionNext = false
+		let next = false
 
-		await middleware(sessionReq, res as any, (() => { sessionNext = true }) as any)
+		await middleware(req, res as any, (() => { next = true }) as any)
 
-		expect(sessionNext).toBe(true)
-		expect(sessionReq.user.id).toBe(user.id)
-		expect(sessionReq.session.id).toBe(hashSession(plainSession))
+		expect(next).toBe(true)
+		expect(req.user.id).toBe(user.id)
+		expect(req.session.id).toBe(digest(plain))
 
-		const plainToken = await createToken(user.id, 'Unit API', ['tokens:read'])
-		const tokenId = createHash('sha256').update(plainToken).digest('hex')
-		const apiReq = {
+		const secret = await token(user.id, 'Unit API', ['tokens:read'])
+		const id = sha('sha256').update(secret).digest('hex')
+		const api = {
 			path: '/api/me',
 			headers: {
-				authorization: `Bearer ${plainToken}`,
-				cookie: `session=${plainSession}`,
+				authorization: `Bearer ${secret}`,
+				cookie: `session=${plain}`,
 			},
 		} as any
-		let apiNext = false
+		let done = false
 
-		await middleware(apiReq, res as any, (() => { apiNext = true }) as any)
+		await middleware(api, res as any, (() => { done = true }) as any)
 
-		expect(apiNext).toBe(true)
-		expect(apiReq.user.id).toBe(user.id)
-		expect(apiReq.token).toEqual({ id: tokenId, abilities: ['tokens:read'] })
-		expect(apiReq.session).toBeUndefined()
+		expect(done).toBe(true)
+		expect(api.user.id).toBe(user.id)
+		expect(api.token).toEqual({ id: id, abilities: ['tokens:read'] })
+		expect(api.session).toBeUndefined()
 
-		await removeSession(plainSession)
-		let staleSessionNext = false
+		await remove(plain)
+		let expired = false
 
-		await middleware(sessionReq, res as any, (() => { staleSessionNext = true }) as any)
+		await middleware(req, res as any, (() => { expired = true }) as any)
 
-		expect(staleSessionNext).toBe(true)
-		expect(sessionReq.user).toBeUndefined()
-		expect(sessionReq.session).toBeUndefined()
-		expect(sessionReq.token).toBeUndefined()
+		expect(expired).toBe(true)
+		expect(req.user).toBeUndefined()
+		expect(req.session).toBeUndefined()
+		expect(req.token).toBeUndefined()
 
-		await db<any>().deleteFrom('tokens').where('id', '=', tokenId).execute()
-		let staleTokenNext = false
+		await db<any>().deleteFrom('tokens').where('id', '=', id).execute()
+		let revoked = false
 
-		await middleware(apiReq, res as any, (() => { staleTokenNext = true }) as any)
+		await middleware(api, res as any, (() => { revoked = true }) as any)
 
-		expect(staleTokenNext).toBe(true)
-		expect(apiReq.user).toBeUndefined()
-		expect(apiReq.token).toBeUndefined()
-		expect(apiReq.session).toBeUndefined()
+		expect(revoked).toBe(true)
+		expect(api.user).toBeUndefined()
+		expect(api.token).toBeUndefined()
+		expect(api.session).toBeUndefined()
 	})
 })
 
 describe('ajo-auth in-memory gates', () => {
-	beforeEach(() => {
+	before(() => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2026-06-19T00:00:00Z'))
 	})
 
-	afterEach(() => {
-		clearLimit('login:test')
-		clearConfirmUser(123)
+	after(() => {
+		free('login:test')
+		forget(123)
 		vi.useRealTimers()
 	})
 
 	test('rate limit check/hit/remaining/reset follows the configured window', () => {
-		expect(checkLimit('login:test', 2)).toBe(true)
+		expect(limit('login:test', 2)).toBe(true)
 		expect(remaining('login:test', 2)).toBe(2)
 
 		hit('login:test', 1000)
 		expect(remaining('login:test', 2)).toBe(1)
-		expect(checkLimit('login:test', 2)).toBe(true)
+		expect(limit('login:test', 2)).toBe(true)
 
 		hit('login:test', 1000)
 		expect(remaining('login:test', 2)).toBe(0)
-		expect(checkLimit('login:test', 2)).toBe(false)
+		expect(limit('login:test', 2)).toBe(false)
 
 		vi.advanceTimersByTime(1001)
-		expect(checkLimit('login:test', 2)).toBe(true)
+		expect(limit('login:test', 2)).toBe(true)
 		expect(remaining('login:test', 2)).toBe(2)
 	})
 
 	test('password confirmation expires and can be cleared', () => {
 		const session = { user: { id: 123 }, session: { id: 'session-a' } } as any
-		const otherSession = { user: { id: 123 }, session: { id: 'session-b' } } as any
+		const other = { user: { id: 123 }, session: { id: 'session-b' } } as any
 		const token = { user: { id: 123 }, token: { id: 'token-a', abilities: ['*'] } } as any
 		const mixed = { user: { id: 123 }, session: { id: 'session-a' }, token: { id: 'token-a', abilities: ['*'] } } as any
 
-		expect(checkConfirm(session, 1000)).toBe(false)
+		expect(confirm(session, 1000)).toBe(false)
 
 		stamp(session)
-		expect(checkConfirm(session, 1000)).toBe(true)
-		expect(checkConfirm(otherSession, 1000)).toBe(false)
-		expect(checkConfirm(token, 1000)).toBe(false)
+		expect(confirm(session, 1000)).toBe(true)
+		expect(confirm(other, 1000)).toBe(false)
+		expect(confirm(token, 1000)).toBe(false)
 
 		vi.advanceTimersByTime(1001)
-		expect(checkConfirm(session, 1000)).toBe(false)
+		expect(confirm(session, 1000)).toBe(false)
 
 		stamp(token)
-		expect(checkConfirm(token, 1000)).toBe(true)
-		expect(checkConfirm(mixed, 1000)).toBe(true)
-		clearConfirm(token)
-		expect(checkConfirm(token, 1000)).toBe(false)
+		expect(confirm(token, 1000)).toBe(true)
+		expect(confirm(mixed, 1000)).toBe(true)
+		clear(token)
+		expect(confirm(token, 1000)).toBe(false)
 
 		stamp(session)
 		stamp({ user: { id: 456 }, session: { id: 'session-c' } } as any)
-		clearConfirmUser(123)
-		expect(checkConfirm(session, 1000)).toBe(false)
-		expect(checkConfirm({ user: { id: 456 }, session: { id: 'session-c' } } as any, 1000)).toBe(true)
+		forget(123)
+		expect(confirm(session, 1000)).toBe(false)
+		expect(confirm({ user: { id: 456 }, session: { id: 'session-c' } } as any, 1000)).toBe(true)
 	})
 })
 
 describe('ajo-auth tokens and signatures', () => {
-	beforeEach(() => {
+	before(() => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2026-06-19T00:00:00Z'))
 	})
 
-	afterEach(() => vi.useRealTimers())
+	after(() => vi.useRealTimers())
 
 	test('ability checks support exact, resource wildcard and full wildcard grants', () => {
 		expect(can(['read'], 'read')).toBe(true)
@@ -343,11 +343,11 @@ describe('ajo-auth tokens and signatures', () => {
 	})
 
 	test('ability subset checks require every requested ability to be granted', () => {
-		expect(canAll(['tokens:create'], ['tokens:create'])).toBe(true)
-		expect(canAll(['tokens:create'], ['*'])).toBe(false)
-		expect(canAll(['tokens:*'], ['tokens:read', 'tokens:delete'])).toBe(true)
-		expect(canAll(['*'], ['tokens:create', 'admin:write'])).toBe(true)
-		expect(canAll(['tokens:create'], ['tokens:read'])).toBe(false)
+		expect(all(['tokens:create'], ['tokens:create'])).toBe(true)
+		expect(all(['tokens:create'], ['*'])).toBe(false)
+		expect(all(['tokens:*'], ['tokens:read', 'tokens:delete'])).toBe(true)
+		expect(all(['*'], ['tokens:create', 'admin:write'])).toBe(true)
+		expect(all(['tokens:create'], ['tokens:read'])).toBe(false)
 	})
 
 	test('email verification signatures validate, reject tampering and expire', () => {

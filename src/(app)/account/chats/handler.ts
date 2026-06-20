@@ -3,10 +3,10 @@ import { db } from '/src/data'
 import { sql } from '@kit/database'
 import { emit } from '@kit/server'
 
-const chats = (userId: number) => db()
+const chats = (user: number) => db()
 	.selectFrom('chats')
 	.innerJoin('participants', 'participants.chat', 'chats.id')
-	.where('participants.user', '=', userId)
+	.where('participants.user', '=', user)
 	.select((eb) => [
 		'chats.id',
 		'chats.name',
@@ -15,7 +15,7 @@ const chats = (userId: number) => db()
 		eb.selectFrom('participants as p')
 			.innerJoin('users', 'users.id', 'p.user')
 			.whereRef('p.chat', '=', 'chats.id')
-			.where('p.user', '!=', userId)
+			.where('p.user', '!=', user)
 			.select(sql<string>`group_concat(users.name, ', ')`.as('names'))
 			.as('others'),
 		// Subquery: last message
@@ -28,7 +28,7 @@ const chats = (userId: number) => db()
 		// Subquery: unread count
 		eb.selectFrom('messages')
 			.whereRef('messages.chat', '=', 'chats.id')
-			.where('messages.user', '!=', userId)
+			.where('messages.user', '!=', user)
 			.where((qb) => qb.or([
 				qb('participants.seen', 'is', null),
 				qb('messages.created', '>', qb.ref('participants.seen'))
@@ -87,7 +87,7 @@ export const actions = {
 		}
 
 		const participants = [req.user!.id, ...users]
-		const chatId = await db().transaction().execute(async trx => {
+		const chat = await db().transaction().execute(async trx => {
 			const chat = await trx
 				.insertInto('chats')
 				.values({ name: name || null })
@@ -103,11 +103,11 @@ export const actions = {
 		})
 
 		emit([
-			`chat:${chatId}`,
+			`chat:${chat}`,
 			...participants.map(user => `chats:${user}`),
 			...participants.map(user => `user:${user}`)
 		])
 
-		return { redirect: `/account/chats/${chatId}` }
+		return { redirect: `/account/chats/${chat}` }
 	}
 }

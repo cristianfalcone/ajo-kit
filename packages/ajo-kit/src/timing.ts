@@ -7,40 +7,40 @@ const active = () => {
 
 const round = (value: number) => Math.round(value * 10) / 10
 
-export type RouteTiming = {
+export type Timing = {
 	start: number
 	loader?: number
 	render?: number
 }
 
-export type TimingResult = RouteTiming & {
+export type Result = Timing & {
 	total: number
 	status: number
 	bytes: number
 	cache?: string
 }
 
-export const startRouteTiming = (): RouteTiming | undefined =>
+export const start = (): Timing | undefined =>
 	active() ? { start: performance.now() } : undefined
 
 export const elapsed = (start: number) => round(performance.now() - start)
 
-export const finishRouteTiming = (
-	timing: RouteTiming | undefined,
-	result: Omit<TimingResult, keyof RouteTiming | 'total'>,
-): TimingResult | undefined => timing && {
+export const finish = (
+	timing: Timing | undefined,
+	result: Omit<Result, keyof Timing | 'total'>,
+): Result | undefined => timing && {
 	...timing,
 	...result,
 	total: elapsed(timing.start),
 }
 
-export const serverTiming = (result: TimingResult) => [
+export const header = (result: Result) => [
 	`total;dur=${result.total}`,
 	result.loader !== undefined && `loader;dur=${result.loader}`,
 	result.render !== undefined && `render;dur=${result.render}`,
 ].filter(Boolean).join(', ')
 
-export const logRouteTiming = (label: string, result: TimingResult) => {
+export const log = (label: string, result: Result) => {
 	const cache = result.cache ? ` ${result.cache}` : ''
 	const loader = result.loader === undefined ? '-' : `${result.loader}ms`
 	const render = result.render === undefined ? '-' : `${result.render}ms`

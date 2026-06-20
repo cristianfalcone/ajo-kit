@@ -1,6 +1,6 @@
-import { rmSync, mkdirSync } from 'node:fs'
+import { rmSync as rm, mkdirSync as mkdir } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash as sha } from 'node:crypto'
 import { hash } from '../packages/ajo-auth/src/password'
 import { connect, db, close } from '../packages/ajo-kit/src/database'
 import { migrator } from '../packages/ajo-kit/src/migrate'
@@ -43,7 +43,7 @@ async function seed() {
 		verified: new Date().toISOString(),
 	}).returning('id').executeTakeFirstOrThrow()
 
-	const extraUsers = []
+	const extras = []
 
 	for (let i = 1; i <= 30; i++) {
 		const user = await store.insertInto('users').values({
@@ -54,17 +54,17 @@ async function seed() {
 			created: ago(100 + i),
 		}).returning('id').executeTakeFirstOrThrow()
 
-		extraUsers.push(user)
+		extras.push(user)
 	}
 
 	await store.insertInto('members').values([
 		{ user: cristian.id, role: 1 },
 		{ user: emily.id, role: 2 },
-		...extraUsers.map(user => ({ user: user.id, role: 2 })),
+		...extras.map(user => ({ user: user.id, role: 2 })),
 	]).execute()
 
 	await store.insertInto('tokens').values({
-		id: createHash('sha256').update('seed-api-token').digest('hex'),
+		id: sha('sha256').update('seed-api-token').digest('hex'),
 		user: cristian.id,
 		name: 'Seed API Token',
 		abilities: JSON.stringify(['tokens:read']),
@@ -89,10 +89,10 @@ async function seed() {
 	}))).execute()
 }
 
-rmSync(database, { force: true })
-rmSync(`${database}-shm`, { force: true })
-rmSync(`${database}-wal`, { force: true })
-mkdirSync(dirname(database), { recursive: true })
+rm(database, { force: true })
+rm(`${database}-shm`, { force: true })
+rm(`${database}-wal`, { force: true })
+mkdir(dirname(database), { recursive: true })
 
 connect(database)
 await migrator(db()).migrateToLatest()

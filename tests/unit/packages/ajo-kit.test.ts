@@ -1,53 +1,53 @@
-import { mkdtempSync, rmSync } from 'node:fs'
-import { createServer } from 'node:http'
-import type { AddressInfo } from 'node:net'
+import { mkdtempSync as temp, rmSync as rm } from 'node:fs'
+import { createServer as server } from 'node:http'
+import type { AddressInfo as Address } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach as after, describe, expect, test, vi } from 'vitest'
 import { close, connect } from '../../../packages/ajo-kit/src/database'
 import { merge, render } from '../../../packages/ajo-kit/src/head'
-import { formDataBody } from '../../../packages/ajo-kit/src/form'
+import { body } from '../../../packages/ajo-kit/src/form'
 import {
-	CACHE_MAX,
-	CACHE_TTL,
-	clearCache,
-	getCache,
-	invalidateCache,
-	setCache,
+	max,
+	ttl,
+	clear,
+	get,
+	invalidate,
+	set,
 } from '../../../packages/ajo-kit/src/cache'
-import { parseSSR, renderSSRScript, serializeSSR } from '../../../packages/ajo-kit/src/ssr'
-import { AppError, InvalidError, ip, normalize, trustedOrigin } from '../../../packages/ajo-kit/src/constants'
+import * as ssr from '../../../packages/ajo-kit/src/ssr'
+import { Failure, Invalid, ip, normalize, origin } from '../../../packages/ajo-kit/src/constants'
 import type { State } from '../../../packages/ajo-kit/src/constants'
 import { kit } from '../../../packages/ajo-kit/src/vite'
-import { object, parse, string, minLength, pipe } from '../../../packages/ajo-kit/src/validate'
+import { object, parse, string, minLength as min, pipe } from '../../../packages/ajo-kit/src/validate'
 import {
-	finishRouteTiming,
-	serverTiming,
-	startRouteTiming,
-	type TimingResult,
+	finish,
+	header,
+	start,
+	type Result,
 } from '../../../packages/ajo-kit/src/timing'
 import { compile, listen } from '../../../packages/ajo-kit/src/node'
 
-const previousTiming = process.env.AJO_TIMING
-const previousAppUrl = process.env.APP_URL
-const previousTrustProxy = process.env.TRUST_PROXY
-const previousNodeEnv = process.env.NODE_ENV
-const previousDatabasePath = process.env.DATABASE_PATH
+const timing = process.env.AJO_TIMING
+const app = process.env.APP_URL
+const proxy = process.env.TRUST_PROXY
+const env = process.env.NODE_ENV
+const dbpath = process.env.DATABASE_PATH
 
-const restoreEnv = (key: string, value: string | undefined) => {
+const restore = (key: string, value: string | undefined) => {
 	if (value === undefined) delete process.env[key]
 	else process.env[key] = value
 }
 
-afterEach(async () => {
-	restoreEnv('AJO_TIMING', previousTiming)
-	restoreEnv('APP_URL', previousAppUrl)
-	restoreEnv('TRUST_PROXY', previousTrustProxy)
-	restoreEnv('NODE_ENV', previousNodeEnv)
-	restoreEnv('DATABASE_PATH', previousDatabasePath)
+after(async () => {
+	restore('AJO_TIMING', timing)
+	restore('APP_URL', app)
+	restore('TRUST_PROXY', proxy)
+	restore('NODE_ENV', env)
+	restore('DATABASE_PATH', dbpath)
 	vi.restoreAllMocks()
 	vi.unstubAllGlobals()
-	clearCache()
+	clear()
 	await close()
 })
 
@@ -109,8 +109,8 @@ describe('ajo-kit head', () => {
 })
 
 describe('ajo-kit validation and errors', () => {
-	test('parse returns typed output and throws InvalidError with field details', () => {
-		const Schema = object({ name: pipe(string(), minLength(3, 'Name too short')) })
+	test('parse returns typed output and throws Invalid with field details', () => {
+		const Schema = object({ name: pipe(string(), min(3, 'Name too short')) })
 
 		expect(parse(Schema, { name: 'Ajo' })).toEqual({ name: 'Ajo' })
 
@@ -118,23 +118,23 @@ describe('ajo-kit validation and errors', () => {
 			parse(Schema, { name: 'Aj' })
 			throw new Error('expected parse to throw')
 		} catch (error) {
-			expect(error).toBeInstanceOf(InvalidError)
-			expect((error as InvalidError).status).toBe(400)
-			expect((error as InvalidError).fields.name).toContain('Name too short')
+			expect(error).toBeInstanceOf(Invalid)
+			expect((error as Invalid).status).toBe(400)
+			expect((error as Invalid).fields.name).toContain('Name too short')
 		}
 	})
 
-	test('AppError serializes stable status and message', () => {
-		expect(new AppError(418, 'Short and stout').toJSON()).toMatchObject({
+	test('Failure serializes stable status and message', () => {
+		expect(new Failure(418, 'Short and stout').toJSON()).toMatchObject({
 			status: 418,
 			message: 'Short and stout',
 		})
 	})
 
-	test('AppError masks internal production messages', () => {
+	test('Failure masks internal production messages', () => {
 		process.env.NODE_ENV = 'production'
 
-		expect(new AppError(500, 'database exploded').toJSON()).toEqual({
+		expect(new Failure(500, 'database exploded').toJSON()).toEqual({
 			status: 500,
 			message: 'Internal Server Error',
 		})
@@ -142,7 +142,7 @@ describe('ajo-kit validation and errors', () => {
 			status: 500,
 			message: 'Internal Server Error',
 		})
-		expect(new InvalidError({ name: ['Required'] }).toJSON()).toMatchObject({
+		expect(new Invalid({ name: ['Required'] }).toJSON()).toMatchObject({
 			status: 400,
 			message: 'Validation failed',
 			fields: { name: ['Required'] },
@@ -177,50 +177,50 @@ describe('ajo-kit request security helpers', () => {
 		} as any
 
 		process.env.APP_URL = 'https://app.test/base'
-		expect(trustedOrigin(req)).toBe('https://app.test')
+		expect(origin(req)).toBe('https://app.test')
 
 		delete process.env.APP_URL
 		process.env.NODE_ENV = 'production'
 		const log = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-		expect(() => trustedOrigin(req)).toThrow('APP_URL is required in production')
+		expect(() => origin(req)).toThrow('APP_URL is required in production')
 		expect(log).toHaveBeenCalledWith('[security] APP_URL is required in production')
-		expect(trustedOrigin({ headers: { host: 'localhost:5173' } } as any)).toBe('http://localhost:5173')
-		expect(trustedOrigin({ headers: { host: '127.0.0.1:5173' } } as any)).toBe('http://127.0.0.1:5173')
+		expect(origin({ headers: { host: 'localhost:5173' } } as any)).toBe('http://localhost:5173')
+		expect(origin({ headers: { host: '127.0.0.1:5173' } } as any)).toBe('http://127.0.0.1:5173')
 
 		log.mockClear()
 		process.env.APP_URL = 'ftp://app.test'
-		expect(() => trustedOrigin(req)).toThrow('Invalid APP_URL')
+		expect(() => origin(req)).toThrow('Invalid APP_URL')
 		expect(log).toHaveBeenCalledWith('[security] Invalid APP_URL')
 
 		process.env.NODE_ENV = 'development'
 		process.env.TRUST_PROXY = '1'
 		delete process.env.APP_URL
-		expect(trustedOrigin({ headers: { host: 'local.test', 'x-forwarded-proto': 'https' } } as any)).toBe('https://local.test')
+		expect(origin({ headers: { host: 'local.test', 'x-forwarded-proto': 'https' } } as any)).toBe('https://local.test')
 	})
 })
 
 describe('ajo-kit client actions', () => {
-	test('formDataBody preserves repeated field names as arrays', () => {
+	test('body preserves repeated field names as arrays', () => {
 		const data = new FormData()
 
 		data.set('name', 'Deploy key')
 		data.append('abilities', 'read')
 		data.append('abilities', 'write')
 
-		expect(formDataBody(data)).toEqual({
+		expect(body(data)).toEqual({
 			name: 'Deploy key',
 			abilities: ['read', 'write'],
 		})
 	})
 
-	test('formDataBody keeps a single selected value as an array for known array fields', () => {
+	test('body keeps a single selected value as an array for known array fields', () => {
 		const data = new FormData()
 
 		data.set('name', 'Deploy key')
 		data.append('abilities', 'read')
 
-		expect(formDataBody(data, new Set(['abilities']))).toEqual({
+		expect(body(data, new Set(['abilities']))).toEqual({
 			name: 'Deploy key',
 			abilities: ['read'],
 		})
@@ -228,21 +228,21 @@ describe('ajo-kit client actions', () => {
 })
 
 describe('ajo-kit vite plugin', () => {
-	test('custom serverOnly patterns are added to defaults', async () => {
-		const plugin = kit({ serverOnly: [/custom-only/] }).find(plugin => plugin.name === 'ajo-server-only')!
-		const resolveId = plugin.resolveId as { handler: (source: string, importer?: string) => Promise<void> }
+	test('custom guard patterns are added to defaults', async () => {
+		const plugin = kit({ guard: [/custom-only/] }).find(plugin => plugin.name === 'ajo-server-only')!
+		const hook = plugin.resolveId as { handler: (source: string, importer?: string) => Promise<void> }
 		const context = {
 			environment: { name: 'client' },
 			resolve: async (source: string) => ({ id: source }),
 		}
 
-		await expect(resolveId.handler.call(context, '/project/src/data/store.ts', '/project/src/page.tsx')).rejects.toThrow('Server-only module')
-		await expect(resolveId.handler.call(context, '/project/custom-only/secret.ts', '/project/src/page.tsx')).rejects.toThrow('Server-only module')
+		await expect(hook.handler.call(context, '/project/src/data/store.ts', '/project/src/page.tsx')).rejects.toThrow('Server-only module')
+		await expect(hook.handler.call(context, '/project/custom-only/secret.ts', '/project/src/page.tsx')).rejects.toThrow('Server-only module')
 	})
 })
 
 describe('ajo-kit SSR payload', () => {
-	test('serializeSSR is safe inside script tags and round-trips values', () => {
+	test('ssr.serialize is safe inside script tags and round-trips values', () => {
 		const value = {
 			text: '</script><script>globalThis.__xss=1</script>',
 			html: '<img src=x onerror=alert(1)>',
@@ -256,14 +256,14 @@ describe('ajo-kit SSR payload', () => {
 			missing: undefined,
 		}
 
-		const serialized = serializeSSR(value)
+		const serialized = ssr.serialize(value)
 
 		expect(serialized).not.toContain('</script>')
 		expect(serialized).not.toContain('<img')
 		expect(serialized).not.toContain('\u2028')
 		expect(serialized).not.toContain('\u2029')
 
-		const parsed = parseSSR<typeof value>(serialized)
+		const parsed = ssr.parse<typeof value>(serialized)
 
 		expect(parsed.text).toBe(value.text)
 		expect(parsed.html).toBe(value.html)
@@ -276,8 +276,8 @@ describe('ajo-kit SSR payload', () => {
 		expect(parsed.missing).toBeUndefined()
 	})
 
-	test('renderSSRScript emits a data script, not executable boot code', () => {
-		const script = renderSSRScript({ url: '/dashboard' })
+	test('ssr.script emits a data script, not executable boot code', () => {
+		const script = ssr.script({ url: '/dashboard' })
 
 		expect(script).toContain('type="application/json"')
 		expect(script).toContain('id="__SSR__"')
@@ -295,33 +295,33 @@ describe('ajo-kit route cache', () => {
 		topics,
 	})
 
-	test('getCache updates usage and expires stale entries', () => {
-		setCache('/old', state('/old'), { now: 0 })
+	test('get updates usage and expires stale entries', () => {
+		set('/old', state('/old'), { now: 0 })
 
-		expect(getCache('/old', CACHE_TTL)).toBeTruthy()
-		expect(getCache('/old', CACHE_TTL + 1)).toBeUndefined()
+		expect(get('/old', ttl)).toBeTruthy()
+		expect(get('/old', ttl + 1)).toBeUndefined()
 	})
 
-	test('setCache prunes least recently used inactive entries', () => {
-		for (let i = 0; i < CACHE_MAX; i++) setCache(`/page-${i}`, state(`/page-${i}`), { now: i })
+	test('set prunes least recently used inactive entries', () => {
+		for (let i = 0; i < max; i++) set(`/page-${i}`, state(`/page-${i}`), { now: i })
 
-		getCache('/page-0', CACHE_MAX + 1)
-		setCache('/active', state('/active'), { activeUrl: '/active', now: CACHE_MAX + 2 })
-		setCache('/extra', state('/extra'), { activeUrl: '/active', now: CACHE_MAX + 3 })
+		get('/page-0', max + 1)
+		set('/active', state('/active'), { active: '/active', now: max + 2 })
+		set('/extra', state('/extra'), { active: '/active', now: max + 3 })
 
-		expect(getCache('/active', CACHE_MAX + 3)).toBeTruthy()
-		expect(getCache('/page-0', CACHE_MAX + 3)).toBeTruthy()
-		expect(getCache('/page-1', CACHE_MAX + 3)).toBeUndefined()
+		expect(get('/active', max + 3)).toBeTruthy()
+		expect(get('/page-0', max + 3)).toBeTruthy()
+		expect(get('/page-1', max + 3)).toBeUndefined()
 	})
 
-	test('invalidateCache removes only matching topic entries', () => {
-		setCache('/tokens', state('/tokens', ['tokens:1']))
-		setCache('/sessions', state('/sessions', ['sessions:1']))
+	test('invalidate removes only matching topic entries', () => {
+		set('/tokens', state('/tokens', ['tokens:1']))
+		set('/sessions', state('/sessions', ['sessions:1']))
 
-		invalidateCache(['tokens:1'])
+		invalidate(['tokens:1'])
 
-		expect(getCache('/tokens')).toBeUndefined()
-		expect(getCache('/sessions')).toBeTruthy()
+		expect(get('/tokens')).toBeUndefined()
+		expect(get('/sessions')).toBeTruthy()
 	})
 })
 
@@ -334,7 +334,7 @@ describe('ajo-kit timing and database', () => {
 	})
 
 	test('strict listen rejects an occupied port instead of incrementing', async () => {
-		const busy = createServer((_, res) => res.end('busy'))
+		const busy = server((_, res) => res.end('busy'))
 
 		await new Promise<void>((resolve, reject) => {
 			busy.listen(0, resolve).once('error', reject)
@@ -345,7 +345,7 @@ describe('ajo-kit timing and database', () => {
 
 		try {
 			await expect(
-				listen({ handler: (_: unknown, res: { end: (body: string) => void }) => res.end('ok') }, (address as AddressInfo).port, { strict: true })
+				listen({ handler: (_: unknown, res: { end: (body: string) => void }) => res.end('ok') }, (address as Address).port, { strict: true })
 			).rejects.toMatchObject({ code: 'EADDRINUSE' })
 		} finally {
 			await new Promise<void>((resolve, reject) => {
@@ -356,12 +356,12 @@ describe('ajo-kit timing and database', () => {
 
 	test('timing flag honors disabled values and formats Server-Timing', () => {
 		process.env.AJO_TIMING = '0'
-		expect(startRouteTiming()).toBeUndefined()
+		expect(start()).toBeUndefined()
 
 		process.env.AJO_TIMING = '1'
-		expect(startRouteTiming()).toMatchObject({ start: expect.any(Number) })
+		expect(start()).toMatchObject({ start: expect.any(Number) })
 
-		const result: TimingResult = {
+		const result: Result = {
 			start: 0,
 			total: 12.3,
 			loader: 4.5,
@@ -370,12 +370,12 @@ describe('ajo-kit timing and database', () => {
 			bytes: 123,
 		}
 
-		expect(serverTiming(result)).toBe('total;dur=12.3, loader;dur=4.5, render;dur=6.7')
-		expect(finishRouteTiming(undefined, { status: 304, bytes: 0 })).toBeUndefined()
+		expect(header(result)).toBe('total;dur=12.3, loader;dur=4.5, render;dur=6.7')
+		expect(finish(undefined, { status: 304, bytes: 0 })).toBeUndefined()
 	})
 
 	test('connect applies runtime SQLite pragmas', async () => {
-		const dir = mkdtempSync(join(tmpdir(), 'ajo-kit-db-'))
+		const dir = temp(join(tmpdir(), 'ajo-kit-db-'))
 		const path = join(dir, 'test.sqlite')
 
 		try {
@@ -387,12 +387,12 @@ describe('ajo-kit timing and database', () => {
 			expect(sqlite.pragma('synchronous', { simple: true })).toBe(1)
 		} finally {
 			await close()
-			rmSync(dir, { recursive: true, force: true })
+			rm(dir, { recursive: true, force: true })
 		}
 	})
 
 	test('app unread count uses ISO timestamp ordering and active chat exclusion', async () => {
-		const dir = mkdtempSync(join(tmpdir(), 'ajo-kit-unread-'))
+		const dir = temp(join(tmpdir(), 'ajo-kit-unread-'))
 		const path = join(dir, 'test.sqlite')
 
 		process.env.DATABASE_PATH = path
@@ -400,8 +400,8 @@ describe('ajo-kit timing and database', () => {
 		try {
 			vi.doMock('@kit/database', () => import('../../../packages/ajo-kit/src/database'))
 			vi.doMock('@kit/validate', () => import('../../../packages/ajo-kit/src/validate'))
-			const { db: appDb, unread } = await import('../../../src/data/index')
-			const store = appDb()
+			const { db: open, unread } = await import('../../../src/data/index')
+			const store = open()
 
 			await store.schema
 				.createTable('participants')
@@ -435,7 +435,7 @@ describe('ajo-kit timing and database', () => {
 			vi.doUnmock('@kit/database')
 			vi.doUnmock('@kit/validate')
 			await close()
-			rmSync(dir, { recursive: true, force: true })
+			rm(dir, { recursive: true, force: true })
 		}
 	})
 

@@ -1,9 +1,9 @@
-import { createRequire } from 'node:module'
-import { pathToFileURL } from 'node:url'
+import { createRequire as loader } from 'node:module'
+import { pathToFileURL as url } from 'node:url'
 import type { Plugin } from 'vite'
 import { discover } from './discover'
 
-const require = createRequire(import.meta.url)
+const require = loader(import.meta.url)
 
 /** Externalize native addons to their resolved absolute path (pnpm-safe) */
 const native = (modules: string[]): Plugin => ({
@@ -13,7 +13,7 @@ const native = (modules: string[]): Plugin => ({
 		order: 'pre',
 		handler(source) {
 			if (!modules.includes(source)) return
-			try { return { id: pathToFileURL(require.resolve(source)).href, external: true } }
+			try { return { id: url(require.resolve(source)).href, external: true } }
 			catch { return }
 		}
 	}
@@ -26,14 +26,14 @@ const match = (id: string, pattern: Pattern) =>
 		typeof pattern === 'string' ? id.includes(pattern) :
 			pattern.test(id)
 
-const matchAny = (id: string, patterns: Pattern[]) =>
+const any = (id: string, patterns: Pattern[]) =>
 	patterns.some(p => match(id, p))
 
 /**
  * Prevents server-only modules from being imported into client code.
  * Tracks the import chain to catch transitive imports through barrel files.
  */
-const serverOnly = (patterns: Pattern[]): Plugin => {
+const guard = (patterns: Pattern[]): Plugin => {
 
 	const chain = new Map<string, string>()
 
@@ -58,7 +58,7 @@ const serverOnly = (patterns: Pattern[]): Plugin => {
 				chain.set(id, importer)
 
 				// Check if this module is server-only
-				if (matchAny(id, patterns)) {
+				if (any(id, patterns)) {
 
 					// Build the import chain for error message
 					const trace = [id]
@@ -105,8 +105,8 @@ if(import.meta.hot)import.meta.hot.accept(m=>{
 	}
 })
 
-export interface KitOptions {
-	serverOnly?: Pattern[]
+export interface Options {
+	guard?: Pattern[]
 	css?: string[]
 }
 
@@ -116,15 +116,15 @@ export const defaults = {
 	seeds: 'db/seeds',
 } as const
 
-const serverOnlyDefaults = (found: ReturnType<typeof discover>): Pattern[] => [
+const guards = (found: ReturnType<typeof discover>): Pattern[] => [
 	/(handler|wares)\.[jt]sx?$/,
 	/\/src\/data\//,
 	...found.filter(p => p.serverOnly).map(p => new RegExp(`${p.name}/`)),
 ]
 
-export function kit(options?: KitOptions): Plugin[] {
+export function kit(options?: Options): Plugin[] {
 
-	const cssEntries = options?.css ?? []
+	const css = options?.css ?? []
 	const found = discover()
 
 	return [
@@ -146,8 +146,8 @@ export function kit(options?: KitOptions): Plugin[] {
 				}
 			},
 			transform(code, id) {
-				if (cssEntries.length && id.includes('ajo-kit') && id.endsWith('client.tsx')) {
-					return cssEntries.map(c => `import '${c}'`).join('\n') + '\n' + code
+				if (css.length && id.includes('ajo-kit') && id.endsWith('client.tsx')) {
+					return css.map(c => `import '${c}'`).join('\n') + '\n' + code
 				}
 			},
 			config() {
@@ -167,7 +167,7 @@ export function kit(options?: KitOptions): Plugin[] {
 				}
 			}
 		},
-		serverOnly([...serverOnlyDefaults(found), ...(options?.serverOnly ?? [])]),
+		guard([...guards(found), ...(options?.guard ?? [])]),
 		hmr(/(page|layout)\.[jt]sx?$/),
 		native(['better-sqlite3', 'argon2']),
 	]

@@ -1,9 +1,9 @@
 import type { Parent, Request } from '@kit'
 import { db } from '/src/data'
 import { read } from '@kit/auth/cookie'
-import { hash as hashSession } from '@kit/auth/session'
+import { hash as digest } from '@kit/auth/session'
 
-type AppParent = {
+type Shell = {
 	user: {
 		id: number
 		name: string
@@ -18,51 +18,51 @@ type AppParent = {
 export async function page(req: Request, parent: Parent) {
 	req.track?.([`dashboard:${req.user!.id}`, `user:${req.user!.id}`])
 
-	const { user, unread } = await parent() as AppParent
-	const userId = user.id
+	const { user: account, unread } = await parent() as Shell
+	const user = account.id
 	const cookie = read(req)
-	const currentSession = cookie ? hashSession(cookie) : undefined
+	const session = cookie ? digest(cookie) : undefined
 
-	const [sessions, tokens, chats, recentSessions] = await Promise.all([
+	const [sessions, tokens, chats, recent] = await Promise.all([
 		db()
 			.selectFrom('sessions')
 			.select(db().fn.countAll().as('count'))
-			.where('user', '=', userId)
+			.where('user', '=', user)
 			.executeTakeFirstOrThrow(),
 		db()
 			.selectFrom('tokens')
 			.select(db().fn.countAll().as('count'))
-			.where('user', '=', userId)
+			.where('user', '=', user)
 			.executeTakeFirstOrThrow(),
 		db()
 			.selectFrom('participants')
 			.select(db().fn.countAll().as('count'))
-			.where('user', '=', userId)
+			.where('user', '=', user)
 			.executeTakeFirstOrThrow(),
 		db()
 			.selectFrom('sessions')
 			.select(['id', 'ip', 'agent', 'last', 'created'])
-			.where('user', '=', userId)
+			.where('user', '=', user)
 			.orderBy('last', 'desc')
 			.limit(5)
 			.execute(),
 	])
 
 	return {
-		user: { ...user, roles: user.roles ?? [] },
+		user: { ...account, roles: account.roles ?? [] },
 		stats: {
 			sessions: Number(sessions.count),
 			tokens: Number(tokens.count),
 			chats: Number(chats.count),
 			unread,
 		},
-		recentSessions: recentSessions.map(s => ({
+		recentSessions: recent.map(s => ({
 			id: s.id.slice(0, 8),
 			ip: s.ip,
 			agent: s.agent,
 			last: s.last,
 			created: s.created,
-			current: s.id === currentSession,
+			current: s.id === session,
 		})),
 	}
 }

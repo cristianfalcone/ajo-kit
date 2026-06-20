@@ -1,5 +1,5 @@
 import type { Generated } from '@kit/database'
-import type { AuthDatabase } from '@kit/auth/types'
+import type { Auth } from '@kit/auth/types'
 
 export interface ChatsTable {
 	id: Generated<number>
@@ -22,7 +22,7 @@ export interface MessagesTable {
 	created: Generated<string>
 }
 
-export type DB = AuthDatabase & {
+export type DB = Auth & {
 	chats: ChatsTable
 	participants: ParticipantsTable
 	messages: MessagesTable

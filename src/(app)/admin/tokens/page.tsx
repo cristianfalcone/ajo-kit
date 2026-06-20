@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, formatDate } from '@kit'
+import { type Props, date } from '@kit'
 import { action } from '@kit/client'
 import Pager from '/src/ui/pager'
 
@@ -14,11 +14,11 @@ type Token = {
 	email: string
 }
 
-type PageInfo = Parameters<typeof Pager>[0]['page']
-type Data = { tokens: Token[]; page: PageInfo }
+type Info = Parameters<typeof Pager>[0]['page']
+type Data = { tokens: Token[]; page: Info }
 type FormResult = { revoked: boolean }
 
-const Tokens: Stateful<PageArgs<Data>> = function* (args) {
+const Tokens: Stateful<Props<Data>> = function* (args) {
 
 	const form = action<FormResult>()
 
@@ -67,7 +67,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 											</span>
 										</td>
 										<td class="px-4 py-3 text-slate-500 dark:text-slate-400">
-											{token.last ? formatDate(token.last) : 'Never'}
+											{token.last ? date(token.last) : 'Never'}
 										</td>
 										<td class="px-4 py-3 text-right">
 											<form set:onsubmit={form.submit}>

@@ -1,10 +1,10 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '@kit'
+import type { Props } from '@kit'
 import { action } from '@kit/client'
 
 type Result = { deleted: boolean }
 
-const Delete: Stateful<PageArgs> = function* () {
+const Delete: Stateful<Props> = function* () {
 
 	const form = action<Result>()
 

@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, formatDate } from '@kit'
+import { type Props, date } from '@kit'
 import { action } from '@kit/client'
 import Pager from '/src/ui/pager'
 
@@ -15,8 +15,8 @@ type Session = {
 	email: string
 }
 
-type PageInfo = Parameters<typeof Pager>[0]['page']
-type Data = { sessions: Session[]; page: PageInfo }
+type Info = Parameters<typeof Pager>[0]['page']
+type Data = { sessions: Session[]; page: Info }
 type FormResult = { revoked: boolean | number }
 
 const dateTime = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } as const
@@ -37,7 +37,7 @@ function parseAgent(agent: string | null) {
 	return `${browser}${os ? ` / ${os}` : ''}`
 }
 
-const Sessions: Stateful<PageArgs<Data>> = function* (args) {
+const Sessions: Stateful<Props<Data>> = function* (args) {
 
 	const revokeForm = action<FormResult>('revoke')
 	const revokeUserForm = action<FormResult>('revokeUser')
@@ -78,7 +78,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 										{session.ip ?? '-'}
 									</td>
 									<td class="px-4 py-3 text-slate-500 dark:text-slate-400">
-										{session.last ? formatDate(session.last, dateTime) : formatDate(session.created, dateTime)}
+										{session.last ? date(session.last, dateTime) : date(session.created, dateTime)}
 									</td>
 									<td class="px-4 py-3 text-right">
 										<div class="flex items-center justify-end gap-1">

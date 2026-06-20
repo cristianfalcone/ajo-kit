@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { LayoutArgs } from '@kit'
+import type { Frame } from '@kit'
 
 const links: [string, string, string][] = [
 	['/admin', 'Overview', 'i-lucide-layout-dashboard'],
@@ -9,7 +9,7 @@ const links: [string, string, string][] = [
 	['/admin/tokens', 'Tokens', 'i-lucide-key'],
 ]
 
-const AdminLayout: Stateful<LayoutArgs> = function* (args) {
+const AdminLayout: Stateful<Frame> = function* (args) {
 
 	for (args of this) {
 

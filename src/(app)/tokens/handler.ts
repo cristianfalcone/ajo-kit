@@ -1,26 +1,26 @@
 import type { Request, Response } from '@kit'
 import { send, emit } from '@kit/server'
 import { object, string, array, optional } from '@kit/validate'
-import { create, list, canAll } from '@kit/auth/token'
-import { requireAbility } from '@kit/auth/guard'
+import { create, list, all } from '@kit/auth/token'
+import { authorize } from '@kit/auth/guard'
 import { check, hit } from '@kit/auth/limit'
-import { clearToken as clearConfirmToken } from '@kit/auth/confirm'
+import { token as forget } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
-import { NotFoundError, AppError, ForbiddenError } from '@kit'
-import { normalizeApiAbilities, unknownApiAbilities } from '/src/abilities'
+import { Missing, Failure, Forbidden } from '@kit'
+import { normalize, unknown as invalid } from '/src/abilities'
 
 const Create = object({
 	name: string(),
 	abilities: optional(array(string()), ['*']),
 })
 
-const requestedAbilities = (abilities: string[]) => {
-	const requested = normalizeApiAbilities(abilities)
-	const unknown = unknownApiAbilities(requested)
+const requested = (abilities: string[]) => {
+	const requested = normalize(abilities)
+	const bad = invalid(requested)
 
-	if (unknown.length > 0) {
-		throw new AppError(400, `Unknown abilities: ${unknown.join(', ')}`)
+	if (bad.length > 0) {
+		throw new Failure(400, `Unknown abilities: ${bad.join(', ')}`)
 	}
 
 	return requested
@@ -30,7 +30,7 @@ export default {
 
 	async get(req: Request, res: Response) {
 
-		requireAbility(req, 'tokens:read')
+		authorize(req, 'tokens:read')
 
 		const tokens = await list(req.user!.id)
 
@@ -48,21 +48,21 @@ export default {
 
 	async post(req: Request, res: Response) {
 
-		requireAbility(req, 'tokens:create')
+		authorize(req, 'tokens:create')
 
 		const key = `token:${req.user!.id}`
 
 		if (!check(key)) {
-			throw new AppError(429, 'Too many token creation attempts. Try again later.')
+			throw new Failure(429, 'Too many token creation attempts. Try again later.')
 		}
 
 		hit(key)
 
 		const input = parse(Create, req.body)
-		const abilities = requestedAbilities(input.abilities)
+		const abilities = requested(input.abilities)
 
-		if (req.token && !canAll(req.token.abilities, abilities)) {
-			throw new ForbiddenError('Requested abilities exceed bearer token abilities')
+		if (req.token && !all(req.token.abilities, abilities)) {
+			throw new Forbidden('Requested abilities exceed bearer token abilities')
 		}
 
 		const token = await create(
@@ -83,11 +83,11 @@ export default {
 
 	async delete(req: Request, res: Response) {
 
-		requireAbility(req, 'tokens:delete')
+		authorize(req, 'tokens:delete')
 
 		const partialId = req.body.id
 
-		if (!partialId) throw new AppError(400, 'Token ID required')
+		if (!partialId) throw new Failure(400, 'Token ID required')
 
 		const tokens = await db()
 			.selectFrom('tokens')
@@ -97,13 +97,13 @@ export default {
 
 		const match = tokens.find(t => t.id.slice(-4) === partialId)
 
-		if (!match) throw new NotFoundError('Token not found')
+		if (!match) throw new Missing('Token not found')
 
 		await db()
 			.deleteFrom('tokens')
 			.where('id', '=', match.id)
 			.execute()
-		clearConfirmToken(req.user!.id, match.id)
+		forget(req.user!.id, match.id)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		send(res, 200, { message: 'Token revoked' })

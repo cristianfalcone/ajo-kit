@@ -1,12 +1,12 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
-import type { LayoutArgs } from '@kit'
+import type { Frame } from '@kit'
 import { ThemeContext, type ThemeMode } from '/src/contexts'
 import Spinner from '/src/ui/spinner'
 
 export const defer = true
 
-const Layout: Stateful<LayoutArgs> = function* (args) {
+const Layout: Stateful<Frame> = function* (args) {
 
 	let mode: ThemeMode = globalThis.localStorage?.getItem('theme.v1') as ThemeMode ?? 'system'
 	let previous: Children = args.children
@@ -56,7 +56,7 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 		} else if (args.error) {
 			yield (
 				<Wrapper>
-					<AppError error={args.error} />
+					<Failure error={args.error} />
 				</Wrapper>
 			)
 		} else {
@@ -68,7 +68,7 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 
 		yield (
 			<Wrapper>
-				<AppError error={error instanceof Error ? error : new Error('An unknown error occurred')} />
+				<Failure error={error instanceof Error ? error : new Error('An unknown error occurred')} />
 			</Wrapper>
 		)
 	}
@@ -86,7 +86,7 @@ const Wrapper = ({ children }: { children: Children }) => (
 	</>
 )
 
-export const AppError = ({ error }: { error: Error }) => {
+export const Failure = ({ error }: { error: Error }) => {
 
 	const isNotFound = 'status' in error && error.status === 404
 

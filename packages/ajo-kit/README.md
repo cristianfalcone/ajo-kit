@@ -264,7 +264,7 @@ export async function seed(db) {
 
 ## Validation
 
-`@kit/validate` re-exports common Valibot helpers and provides `parse(schema, data)`, which throws `InvalidError` with field-level details.
+`@kit/validate` re-exports common Valibot helpers and provides `parse(schema, data)`, which throws `Invalid` with field-level details.
 
 ## Plugin Discovery
 

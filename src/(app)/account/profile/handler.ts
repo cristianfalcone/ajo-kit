@@ -1,12 +1,12 @@
 import type { Parent, Request, Response } from '@kit'
 import { object, string, optional, pipe, forward, partialCheck } from '@kit/validate'
 import { hash, verify } from '@kit/auth/password'
-import { generate, hash as hashSession } from '@kit/auth/session'
+import { generate, hash as digest } from '@kit/auth/session'
 import { write } from '@kit/auth/cookie'
-import { clearUser as clearConfirmUser } from '@kit/auth/confirm'
+import { user as confirm } from '@kit/auth/confirm'
 import { db, password as passwordField, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
-import { UnauthorizedError, ip } from '@kit'
+import { Denied, ip } from '@kit'
 import { emit } from '@kit/server'
 
 const UpdateName = object({
@@ -29,7 +29,7 @@ const UpdatePassword = pipe(
 	)
 )
 
-type AppParent = {
+type Shell = {
 	user: {
 		id: number
 		name: string
@@ -40,7 +40,7 @@ type AppParent = {
 export async function page(req: Request, parent: Parent) {
 	req.track?.([`profile:${req.user!.id}`, `user:${req.user!.id}`])
 
-	const { user } = await parent() as AppParent
+	const { user } = await parent() as Shell
 
 	return {
 		user: {
@@ -70,36 +70,36 @@ export const actions = {
 	password: async (req: Request, res: Response) => {
 
 		const input = parse(UpdatePassword, req.body)
-		const userId = req.user!.id
+		const id = req.user!.id
 
-		const user = await db()
+		const account = await db()
 			.selectFrom('users')
 			.select(['password'])
-			.where('id', '=', userId)
+			.where('id', '=', id)
 			.executeTakeFirst()
 
-		if (!user?.password || !await verify(input.current, user.password)) {
-			throw new UnauthorizedError('Current password is incorrect')
+		if (!account?.password || !await verify(input.current, account.password)) {
+			throw new Denied('Current password is incorrect')
 		}
 
 		const hashed = await hash(input.password)
-		const session = generate()
-		const sessionId = hashSession(session)
+		const plain = generate()
+		const session = digest(plain)
 		const now = new Date().toISOString()
 		const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
 		await db().transaction().execute(async trx => {
 			await trx.updateTable('users')
 				.set({ password: hashed, updated: now })
-				.where('id', '=', userId)
+				.where('id', '=', id)
 				.execute()
 
-			await trx.deleteFrom('tokens').where('user', '=', userId).execute()
-			await trx.deleteFrom('sessions').where('user', '=', userId).execute()
+			await trx.deleteFrom('tokens').where('user', '=', id).execute()
+			await trx.deleteFrom('sessions').where('user', '=', id).execute()
 
 			await trx.insertInto('sessions').values({
-				id: sessionId,
-				user: userId,
+				id: session,
+				user: id,
 				expiry,
 				ip: ip(req),
 				agent: req.headers['user-agent'] ?? null,
@@ -107,14 +107,14 @@ export const actions = {
 			}).execute()
 		})
 
-		write(res, session)
-		clearConfirmUser(userId)
+		write(res, plain)
+		confirm(id)
 		emit([
-			`profile:${userId}`,
-			`sessions:${userId}`,
-			`tokens:${userId}`,
-			`dashboard:${userId}`,
-			`user:${userId}`,
+			`profile:${id}`,
+			`sessions:${id}`,
+			`tokens:${id}`,
+			`dashboard:${id}`,
+			`user:${id}`,
 			'admin:sessions',
 			'admin:tokens',
 			'admin:users',

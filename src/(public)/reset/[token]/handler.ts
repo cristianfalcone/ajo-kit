@@ -1,12 +1,12 @@
 import type { Request } from '@kit'
-import { createHash } from 'node:crypto'
+import { createHash as sha } from 'node:crypto'
 import { object, string, pipe, forward, partialCheck } from '@kit/validate'
 import { validate } from '@kit/auth/reset'
 import { hash } from '@kit/auth/password'
-import { clearUser as clearConfirmUser } from '@kit/auth/confirm'
+import { user as forget } from '@kit/auth/confirm'
 import { db, password } from '/src/data'
 import { parse } from '@kit/validate'
-import { AppError } from '@kit'
+import { Failure } from '@kit'
 import { emit } from '@kit/server'
 
 const Reset = pipe(
@@ -37,7 +37,7 @@ export const actions = {
 		const token = req.params.token
 		const input = parse(Reset, req.body)
 		const hashed = await hash(input.password)
-		const reset = createHash('sha256').update(token).digest('hex')
+		const reset = sha('sha256').update(token).digest('hex')
 		const now = new Date().toISOString()
 		let user!: number
 
@@ -49,7 +49,7 @@ export const actions = {
 				.returning('user')
 				.executeTakeFirst()
 
-			if (!consumed) throw new AppError(400, 'Invalid or expired reset link')
+			if (!consumed) throw new Failure(400, 'Invalid or expired reset link')
 
 			user = consumed.user
 
@@ -59,7 +59,7 @@ export const actions = {
 			await trx.deleteFrom('resets').where('user', '=', user).execute()
 		})
 
-		clearConfirmUser(user)
+		forget(user)
 		emit([
 			`profile:${user}`,
 			`sessions:${user}`,

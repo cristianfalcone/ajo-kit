@@ -1,11 +1,11 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '@kit'
+import type { Props } from '@kit'
 import { action } from '@kit/client'
 import Checkbox from '/src/ui/checkbox'
 
 type Result = { redirect: string }
 
-const Login: Stateful<PageArgs> = function* () {
+const Login: Stateful<Props> = function* () {
 
 	const form = action<Result>()
 

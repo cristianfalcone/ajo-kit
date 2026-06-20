@@ -1,21 +1,21 @@
-import { createHash } from 'node:crypto'
+import { createHash as sha } from 'node:crypto'
 import { db } from './store'
 import { generate } from './session'
 
 export type Ability = string
 
-const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
+const hash = (plain: string) => sha('sha256').update(plain).digest('hex')
 
 export async function create(
 	user: number,
 	name: string,
 	abilities: Ability[] = ['*'],
-	expiresMs: number | null = 90 * 24 * 60 * 60 * 1000 // 90 días default
+	ttl: number | null = 90 * 24 * 60 * 60 * 1000 // 90 días default
 ) {
 
 	const plain = generate()
 	const id = hash(plain)
-	const expiry = expiresMs ? new Date(Date.now() + expiresMs).toISOString() : null
+	const expiry = ttl ? new Date(Date.now() + ttl).toISOString() : null
 
 	await db().insertInto('tokens').values({
 		id,
@@ -64,13 +64,13 @@ export function can(abilities: Ability[], required: Ability): boolean {
 	return abilities.includes(`${resource}:*`)
 }
 
-export const canAll = (abilities: Ability[], required: Ability[]) =>
+export const all = (abilities: Ability[], required: Ability[]) =>
 	required.every(ability => can(abilities, ability))
 
 export const revoke = (plain: string) =>
 	db().deleteFrom('tokens').where('id', '=', hash(plain)).execute()
 
-export const revokeAll = (user: number) =>
+export const purge = (user: number) =>
 	db().deleteFrom('tokens').where('user', '=', user).execute()
 
 export const list = (user: number) =>

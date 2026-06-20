@@ -1,26 +1,26 @@
 import { render } from 'ajo'
 import { current } from 'ajo/context'
-import App, { setInitialState } from './app'
-import type { State, ActionState } from './constants'
+import App, { init } from './app'
+import type { State, Action } from './constants'
 import { navigate } from './constants'
-import { formArrayFields, formDataBody } from './form'
-import { parseSSR } from './ssr'
-import { invalidateCache } from './cache'
+import { fields, body as make } from './form'
+import { parse } from './ssr'
+import { invalidate } from './cache'
 
 // Action helper for stateful generator components
 
-export function action<T = unknown>(name?: string, init?: RequestInit): ActionState<T> {
+export function action<T = unknown>(name?: string, init?: RequestInit): Action<T> {
 
 	const component = current()
 
 	let controller: AbortController
 
-	const state: ActionState<T> = {
+	const state: Action<T> = {
 		loading: false,
 		data: undefined,
 		error: undefined,
 		submit: () => { },
-		invoke: (body?) => run(body),
+		invoke: (value?) => run(value),
 		reset: () => {
 			state.data = undefined
 			state.error = undefined
@@ -28,7 +28,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 		}
 	}
 
-	const run = async (body: unknown): Promise<T | undefined> => {
+	const run = async (value: unknown): Promise<T | undefined> => {
 
 		controller?.abort()
 		controller = new AbortController()
@@ -43,7 +43,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 				method: 'POST',
 				credentials: 'include',
 				headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-				body: JSON.stringify(body),
+				body: JSON.stringify(value),
 				signal: controller.signal,
 				...init,
 			})
@@ -63,7 +63,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 				return
 			}
 
-			invalidateCache(json?.topics)
+			invalidate(json?.topics)
 
 			if (json?.redirect) {
 				navigate(json.redirect)
@@ -95,8 +95,8 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 	state.submit = (event: SubmitEvent) => {
 		event.preventDefault()
 		const form = event.target as HTMLFormElement
-		const body = formDataBody(new FormData(form), formArrayFields(form))
-		run(body).then(() => { if (!state.error) form.reset() })
+		const data = make(new FormData(form), fields(form))
+		run(data).then(() => { if (!state.error) form.reset() })
 	}
 
 	return state
@@ -104,8 +104,8 @@ export function action<T = unknown>(name?: string, init?: RequestInit): ActionSt
 
 if (!import.meta.env.SSR) {
 	const script = globalThis.document?.getElementById('__SSR__')
-	const data = script?.textContent ? parseSSR<State>(script.textContent) : null
-	setInitialState(data)
+	const data = script?.textContent ? parse<State>(script.textContent) : null
+	init(data)
 }
 
 if (import.meta.hot) {

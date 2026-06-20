@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { LayoutArgs } from '@kit'
+import type { Frame } from '@kit'
 import { UnreadContext } from '/src/contexts'
 
 const links: [string, string, string][] = [
@@ -11,7 +11,7 @@ const links: [string, string, string][] = [
 	['/account/delete', 'Delete Account', 'i-lucide-trash-2'],
 ]
 
-const AccountLayout: Stateful<LayoutArgs> = function* (args) {
+const AccountLayout: Stateful<Frame> = function* (args) {
 
 	for (args of this) {
 

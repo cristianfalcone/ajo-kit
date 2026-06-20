@@ -1,8 +1,8 @@
 import type { Request } from '@kit'
 import { object, string } from '@kit/validate'
 import { read } from '@kit/auth/cookie'
-import { hash as hashSession } from '@kit/auth/session'
-import { clearSession as clearConfirmSession } from '@kit/auth/confirm'
+import { hash as digest } from '@kit/auth/session'
+import { session as forget } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
@@ -13,7 +13,7 @@ export async function page(req: Request) {
 	req.track?.([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`])
 
 	const cookie = read(req)
-	const current = cookie ? hashSession(cookie) : undefined
+	const current = cookie ? digest(cookie) : undefined
 
 	const sessions = await db()
 		.selectFrom('sessions')
@@ -40,7 +40,7 @@ export const actions = {
 
 		const input = parse(Revoke, req.body)
 		const cookie = read(req)
-		const current = cookie ? hashSession(cookie) : undefined
+		const current = cookie ? digest(cookie) : undefined
 
 		const matches = await db()
 			.selectFrom('sessions')
@@ -57,16 +57,16 @@ export const actions = {
 			.deleteFrom('sessions')
 			.where('id', '=', matches[0].id)
 			.execute()
-		clearConfirmSession(req.user!.id, matches[0].id)
+		forget(req.user!.id, matches[0].id)
 		emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: true }
 	},
 
-	revokeAll: async (req: Request) => {
+	purge: async (req: Request) => {
 
 		const cookie = read(req)
-		const current = cookie ? hashSession(cookie) : undefined
+		const current = cookie ? digest(cookie) : undefined
 
 		if (!current) return { revoked: 0 }
 
@@ -76,7 +76,7 @@ export const actions = {
 			.where('id', '!=', current!)
 			.returning('id')
 			.execute()
-		for (const session of revoked) clearConfirmSession(req.user!.id, session.id)
+		for (const session of revoked) forget(req.user!.id, session.id)
 		emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: revoked.length }

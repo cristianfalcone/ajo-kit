@@ -1,12 +1,12 @@
 import fs from 'node:fs/promises'
-import { pathToFileURL, fileURLToPath } from 'node:url'
+import { pathToFileURL as url, fileURLToPath as file } from 'node:url'
 import { join } from 'node:path'
-import { createServer as createHttpServer } from 'node:http'
-import { createServer, build as viteBuild, type ServerOptions } from 'vite'
+import { createServer as http } from 'node:http'
+import { createServer as serve, build as bundle, type ServerOptions as Server } from 'vite'
 import polka from 'polka'
 import sirv from 'sirv'
 
-const defaultHtml = `<!DOCTYPE html>
+const fallback = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -20,11 +20,11 @@ const defaultHtml = `<!DOCTYPE html>
 </body>
 </html>`
 
-const reMarkers = /<!--\s*ssr:([A-Za-z0-9_]+)\s*-->/g
+const markers = /<!--\s*ssr:([A-Za-z0-9_]+)\s*-->/g
 
 export function compile(html: string) {
 
-	const parts = html.split(reMarkers)
+	const parts = html.split(markers)
 
 	return (slots: Record<string, string>) =>
 		parts.map((part, index) => index % 2 ? slots[part] ?? '' : part).join('')
@@ -32,18 +32,18 @@ export function compile(html: string) {
 
 async function html() {
 	try { return await fs.readFile('./index.html', 'utf-8') }
-	catch { return defaultHtml }
+	catch { return fallback }
 }
 
-export type DevOptions = {
-	hmr?: ServerOptions['hmr']
+export type Options = {
+	hmr?: Server['hmr']
 }
 
-export async function dev(options: DevOptions = {}) {
+export async function dev(options: Options = {}) {
 
 	const app = polka()
 
-	const vite = await createServer({
+	const vite = await serve({
 		server: { middlewareMode: true, ...(options.hmr !== undefined && { hmr: options.hmr }) },
 		appType: 'custom',
 	})
@@ -59,9 +59,9 @@ export async function dev(options: DevOptions = {}) {
 
 	app.use((req: any, res: any) => inner.handler(req, res))
 
-	const reRoute = /(handler|wares|page|layout)\.[jt]sx?$/
+	const route = /(handler|wares|page|layout)\.[jt]sx?$/
 	const reload = async (file: string) => {
-		if (!reRoute.test(file)) return
+		if (!route.test(file)) return
 		try {
 			const { create } = await vite.ssrLoadModule('ajo-kit/server')
 			inner = await create(template)
@@ -84,7 +84,7 @@ export async function start() {
 
 	const app = polka()
 
-	const entry = pathToFileURL(join(process.cwd(), 'dist/server/server.js')).href
+	const entry = url(join(process.cwd(), 'dist/server/server.js')).href
 	const { create } = await import(entry)
 
 	const inner = await create(compile(await fs.readFile(join(process.cwd(), 'dist/client/index.html'), 'utf-8')))
@@ -97,15 +97,15 @@ export async function start() {
 
 export async function build() {
 
-	await viteBuild({ build: { outDir: 'dist/client' } })
+	await bundle({ build: { outDir: 'dist/client' } })
 
-	const entry = fileURLToPath(import.meta.resolve('ajo-kit/server'))
+	const entry = file(import.meta.resolve('ajo-kit/server'))
 
-	await viteBuild({ build: { outDir: 'dist/server', ssr: entry } })
+	await bundle({ build: { outDir: 'dist/server', ssr: entry } })
 }
 
 export const listen = (app: any, port = 5173, options: { strict?: boolean } = {}): Promise<number> => new Promise((resolve, reject) => {
-	createHttpServer(app.handler)
+	http(app.handler)
 		.listen(port, () => {
 			console.log(`Server started at http://localhost:${port}`)
 			resolve(port)

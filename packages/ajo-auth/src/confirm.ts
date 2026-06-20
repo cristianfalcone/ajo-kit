@@ -3,7 +3,7 @@ import type { Request } from 'ajo-kit'
 const stamps = new Map<string, number>()
 
 const key = (user: number, kind: 'session' | 'token', id: string) => `${kind}:${user}:${id}`
-const userSegment = (user: number) => `:${user}:`
+const segment = (user: number) => `:${user}:`
 
 export function credential(req: Request): string | null {
 	if (!req.user) return null
@@ -32,16 +32,16 @@ export function clear(req: Request): void {
 	if (id) stamps.delete(id)
 }
 
-export function clearSession(user: number, id: string): void {
+export function session(user: number, id: string): void {
 	stamps.delete(key(user, 'session', id))
 }
 
-export function clearToken(user: number, id: string): void {
+export function token(user: number, id: string): void {
 	stamps.delete(key(user, 'token', id))
 }
 
-export function clearUser(user: number): void {
+export function user(user: number): void {
 	for (const id of stamps.keys()) {
-		if (id.includes(userSegment(user))) stamps.delete(id)
+		if (id.includes(segment(user))) stamps.delete(id)
 	}
 }

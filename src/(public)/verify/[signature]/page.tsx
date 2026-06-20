@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '@kit'
+import type { Props } from '@kit'
 
 interface Data {
 	error?: string
@@ -7,7 +7,7 @@ interface Data {
 	redirect?: string
 }
 
-const VerifyResult: Stateful<PageArgs<Data>> = function* (args) {
+const VerifyResult: Stateful<Props<Data>> = function* (args) {
 
 	for (args of this) {
 		const error = args.data?.error
