@@ -164,6 +164,36 @@ test('api authorization header takes precedence over session cookies', async ({ 
 	await expect(response.json()).resolves.toMatchObject({ message: 'Missing ability: tokens:create' })
 })
 
+test('api body parser returns client errors for malformed and oversized JSON', async ({ baseURL }) => {
+	const headers = {
+		Accept: 'application/json',
+		'Content-Type': 'application/json',
+	}
+	const invalid = await fetch(`${baseURL}/api/login`, {
+		method: 'POST',
+		headers,
+		body: '{bad',
+	})
+
+	expect(invalid.status).toBe(422)
+	await expect(invalid.json()).resolves.toMatchObject({
+		status: 422,
+		message: 'Invalid content',
+	})
+
+	const large = await fetch(`${baseURL}/api/login`, {
+		method: 'POST',
+		headers,
+		body: JSON.stringify({ value: 'x'.repeat(101 * 1024) }),
+	})
+
+	expect(large.status).toBe(413)
+	await expect(large.json()).resolves.toMatchObject({
+		status: 413,
+		message: 'Content Too Large',
+	})
+})
+
 test('bearer token creation cannot exceed caller abilities', async ({ request }) => {
 	const res = await request.post('/api/login', {
 		data: {

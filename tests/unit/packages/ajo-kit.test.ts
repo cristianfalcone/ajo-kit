@@ -149,6 +149,28 @@ describe('ajo-kit validation and errors', () => {
 			fields: { name: ['Required'] },
 		})
 	})
+
+	test('normalize preserves safe middleware status codes', () => {
+		const invalid = Object.assign(new Error('Invalid content'), {
+			status: 422,
+			details: 'Unexpected token',
+		})
+		const large = Object.assign(new Error('Exceeded "Content-Length" limit'), { status: 413 })
+		const hidden = Object.assign(new Error('teapot'), { status: 399 })
+
+		expect(normalize(invalid).toJSON()).toMatchObject({
+			status: 422,
+			message: 'Invalid content',
+		})
+		expect(normalize(large).toJSON()).toMatchObject({
+			status: 413,
+			message: 'Content Too Large',
+		})
+		expect(normalize(hidden).toJSON()).toMatchObject({
+			status: 500,
+			message: 'teapot',
+		})
+	})
 })
 
 describe('ajo-kit request security helpers', () => {

@@ -52,6 +52,25 @@ test('CSRF rejects cross-site JSON actions without same-origin proof', async ({ 
 	})
 })
 
+test('action body parser returns JSON client errors for malformed JSON', async ({ baseURL: base }) => {
+	const response = await fetch(`${base}/login?/default`, {
+		method: 'POST',
+		headers: {
+			...proof(base!),
+			'Content-Type': 'application/json',
+		},
+		body: '{bad',
+	})
+
+	expect(response.status).toBe(422)
+	await expect(response.json()).resolves.toMatchObject({
+		error: {
+			status: 422,
+			message: 'Invalid content',
+		},
+	})
+})
+
 test('security headers are applied to HTML, JSON, API and SSE responses', async ({ request, baseURL: base }) => {
 	const html = await request.get('/login', {
 		headers: { Accept: 'text/html' },

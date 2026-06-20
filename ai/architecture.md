@@ -596,13 +596,18 @@ create obvious timing differences.
 
 ### Error Responses and Logging
 
-`Failure` carries an HTTP status and public message. In production, 500+ error
-messages serialize as `Internal Server Error`. 4xx validation/auth messages stay
-public. Development keeps detailed messages and stack where available.
+`Failure` carries an HTTP status and public message. The JSON body parser is
+wrapped so parser bugs or oversized bodies cannot call the route continuation
+twice. `normalize()` preserves safe 400-599 statuses from middleware errors such
+as JSON parser failures, so malformed JSON returns `422` and over-limit JSON
+returns `413` instead of a server error. In production, 500+ messages serialize as
+`Internal Server Error`. 4xx validation/auth/body messages stay public.
+Development keeps detailed messages and stack where available.
 
-Server `onError` logs non-`Failure` failures. Production `APP_URL`
-misconfiguration logs server-side before throwing a masked 500. SSE credential
-revalidation closures are logged with reason, path, and auth mode.
+Server `onError` logs non-`Failure` failures only after normalization and only
+for 500+ responses. Production `APP_URL` misconfiguration logs server-side
+before throwing a masked 500. SSE credential revalidation closures are logged
+with reason, path, and auth mode.
 
 ## Database and Persistence
 

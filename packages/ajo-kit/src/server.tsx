@@ -252,6 +252,23 @@ type Handler = {
 
 type Template = (slots: Record<string, string>) => string
 
+const parser = json()
+
+const body: Middleware = (req, res, next) => {
+	let called = false
+	const done = (err?: Parameters<typeof next>[0]) => {
+		if (called) return
+		called = true
+		next(err)
+	}
+
+	try {
+		parser(req, res, done)
+	} catch (err) {
+		done(err as Parameters<typeof next>[0])
+	}
+}
+
 /** Creates the SSR Polka app from an HTML slot template. */
 export async function create(template: Template) {
 
@@ -499,8 +516,8 @@ export async function create(template: Template) {
 
 	const app = polka({
 		onError: (err, req, res) => {
-			if (!(err instanceof Failure)) console.error(err)
 			const normalized = normalize(err)
+			if (!(err instanceof Failure) && normalized.status >= 500) console.error(err)
 			if (api(req)) send(res, normalized.status, normalized.toJSON())
 			else render(req, res, error(), normalized)
 		},
@@ -549,7 +566,7 @@ export async function create(template: Template) {
 			for (const method of methods) {
 				const route = api[method]
 				if (!route) continue
-				app[method](`api/${pattern}`, json(), ...collect(segments), route)
+				app[method](`api/${pattern}`, body, ...collect(segments), route)
 			}
 		}
 	}
@@ -561,7 +578,7 @@ export async function create(template: Template) {
 		const stack = collect(segments)
 
 		app.get(path, timing, ...stack, data(page, stack), sse, (req, res) => render(req, res, page))
-		app.post(path, json(), ...stack, action(segments))
+		app.post(path, body, ...stack, action(segments))
 	}
 
 	return app

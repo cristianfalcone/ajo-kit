@@ -79,11 +79,26 @@ const config = (message: string) => {
 	if (production()) console.error(`[security] ${message}`)
 	return new Failure(500, message)
 }
+const code = (error: unknown) => {
+	if (!error || typeof error !== 'object') return 500
+
+	const value = (error as { status?: unknown }).status ?? (error as { statusCode?: unknown }).statusCode
+
+	return Number.isInteger(value) && (value as number) >= 400 && (value as number) <= 599
+		? value as number
+		: 500
+}
+const message = (error: unknown, status: number) => {
+	if (status === 413) return 'Content Too Large'
+	if (error instanceof Error && error.message) return error.message
+	return status < 500 ? 'Request failed' : 'Unknown error'
+}
 
 /** Converts any thrown value into a framework Failure. */
 export function normalize(error: unknown): Failure {
 	if (error instanceof Failure) return error
-	return new Failure(500, error instanceof Error ? error.message : 'Unknown error')
+	const status = code(error)
+	return new Failure(status, message(error, status))
 }
 
 // Route path utilities

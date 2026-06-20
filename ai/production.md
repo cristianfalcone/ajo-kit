@@ -144,6 +144,12 @@ Acceptance:
 
 ## Phase 2: Body Parser Error Mapping
 
+Status: implemented. `normalize()` now preserves safe middleware HTTP statuses,
+maps body-size failures to a short public `413 Content Too Large` message, keeps
+parser `422 Invalid content` public, and logs only normalized 500+ non-`Failure`
+errors. The server also wraps `@polka/parse` so oversized bodies cannot trigger
+multiple `next(err)` calls and crash the process after the first response.
+
 Finding:
 
 - Invalid JSON or body-size errors from `@polka/parse` can reach Polka
