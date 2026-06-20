@@ -129,6 +129,28 @@ test('cookie-auth API mutations require CSRF proof', async ({ request, baseURL: 
 	expect(blocked.status()).toBe(403)
 	await expect(blocked.json()).resolves.toMatchObject({ message: 'Invalid CSRF token' })
 
+	const state = await request.storageState()
+	const session = state.cookies.find(cookie => cookie.name === 'session')
+
+	expect(session?.value).toBeTruthy()
+
+	const forged = await fetch(`${base}/api/tokens`, {
+		method: 'POST',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+			'Cookie': `session=${session?.value}; XSRF-TOKEN=forged`,
+			'X-XSRF-TOKEN': 'forged',
+		},
+		body: JSON.stringify({
+			name: 'Cookie API Token Forged',
+			abilities: ['tokens:read'],
+		}),
+	})
+
+	expect(forged.status).toBe(403)
+	await expect(forged.json()).resolves.toMatchObject({ message: 'Invalid CSRF token' })
+
 	const allowed = await request.post('/api/tokens', {
 		headers: proof(base!),
 		data: {

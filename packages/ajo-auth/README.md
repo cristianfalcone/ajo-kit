@@ -109,13 +109,14 @@ in production.
 ```ts
 import { csrf } from '@kit/auth'
 
-const token = csrf.set(res)
+const token = csrf.set(req, res)
 const ok = csrf.verify(req)
 ```
 
 Verification accepts:
 
-- double-submit (`XSRF-TOKEN` cookie + `X-XSRF-TOKEN` header)
+- signed double-submit bound to the current session
+  (`XSRF-TOKEN` cookie + `X-XSRF-TOKEN` header)
 - same-origin check (`Origin`/`Referer` host matches request host)
 
 ### `wares`

@@ -523,8 +523,9 @@ Default user resolution loads `id`, `name`, `email`, `verified`, and `roles`.
 - safe methods: `GET`, `HEAD`, `OPTIONS`
 - unauthenticated `/api/*` requests
 
-All other unsafe cookie-auth requests need either a double-submit XSRF token or
-same-origin proof.
+All other unsafe cookie-auth requests need either same-origin proof or a
+double-submit XSRF token. Double-submit tokens are HMAC signed with `APP_SECRET`
+and bound to `req.session.id`; naive matching cookie/header values are rejected.
 
 ### Cookies and Secret Storage
 

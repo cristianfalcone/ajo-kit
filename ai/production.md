@@ -229,6 +229,11 @@ Acceptance:
 
 ## Phase 4: Session-Bound CSRF Tokens
 
+Status: implemented. `csrf.set(req, res)` now issues an HMAC signed
+double-submit token bound to `req.session.id`, `csrf.verify(req)` rejects naive
+matching cookie/header values, and same-origin proof remains the fallback used
+by the app flows.
+
 Finding:
 
 - Current CSRF supports same-origin proof and a naive double-submit

@@ -55,7 +55,9 @@ describe('ajo-auth cookies and csrf', () => {
 
 	test('sets Secure on auth cookies in production', () => {
 		const previous = process.env.NODE_ENV
+		const key = process.env.APP_SECRET
 		process.env.NODE_ENV = 'production'
+		process.env.APP_SECRET = 'test-production-secret-0000000000'
 
 		try {
 			const session = response()
@@ -63,26 +65,49 @@ describe('ajo-auth cookies and csrf', () => {
 			expect(session.headers.get('Set-Cookie')).toBe('session=session-token; HttpOnly; SameSite=Lax; Path=/; Secure; Max-Age=2592000')
 
 			const csrf = response()
-			xsrf(csrf.res as any)
+			xsrf({ session: { id: 'session-a' } } as any, csrf.res as any)
 			expect(csrf.headers.get('Set-Cookie')).toContain('; Secure')
 		} finally {
 			restore('NODE_ENV', previous)
+			restore('APP_SECRET', key)
 		}
 	})
 
-	test('accepts double-submit csrf and same-origin requests only', () => {
+	test('accepts signed session-bound csrf and same-origin requests only', () => {
 		const app = process.env.APP_URL
 		const env = process.env.NODE_ENV
+		const session = { session: { id: 'session-a' } }
+		const other = { session: { id: 'session-b' } }
+		const csrf = response()
 
 		delete process.env.APP_URL
 		process.env.NODE_ENV = 'development'
 
+		const token = xsrf(session as any, csrf.res as any)
+
 		expect(valid({
+			...session,
+			headers: {
+				cookie: `XSRF-TOKEN=${token}`,
+				'x-xsrf-token': token,
+			},
+		} as any)).toBe(true)
+
+		expect(valid({
+			...other,
+			headers: {
+				cookie: `XSRF-TOKEN=${token}`,
+				'x-xsrf-token': token,
+			},
+		} as any)).toBe(false)
+
+		expect(valid({
+			...session,
 			headers: {
 				cookie: 'XSRF-TOKEN=abc',
 				'x-xsrf-token': 'abc',
 			},
-		} as any)).toBe(true)
+		} as any)).toBe(false)
 
 		expect(valid({
 			headers: {

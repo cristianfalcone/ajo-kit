@@ -658,8 +658,8 @@ falls back to cookie sessions for browser routes. On API requests, an explicit
 Bearer token wins over cookies.
 
 `csrf` skips safe methods, bearer-token requests, and unauthenticated public API
-requests. Unsafe cookie-auth requests need a valid double-submit token or
-same-origin proof.
+requests. Unsafe cookie-auth requests need same-origin proof or a signed
+double-submit token bound to the current session.
 
 ## Auth Low-Level Modules
 
@@ -694,7 +694,7 @@ function clear(res: Response): void
 
 ```ts
 // csrf
-function set(res: Response): string
+function set(req: Request, res: Response): string
 function verify(req: Request): boolean
 ```
 
