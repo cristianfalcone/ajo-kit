@@ -55,7 +55,7 @@ export const actions = {
 			.deleteFrom('sessions')
 			.where('id', '=', matches[0].id)
 			.execute()
-		auth.confirm.session(req.user!.id, matches[0].id)
+		auth.confirm.clearSession(req.user!.id, matches[0].id)
 		emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: true }
@@ -74,7 +74,7 @@ export const actions = {
 			.where('id', '!=', current!)
 			.returning('id')
 			.execute()
-		for (const session of revoked) auth.confirm.session(req.user!.id, session.id)
+		for (const session of revoked) auth.confirm.clearSession(req.user!.id, session.id)
 		emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: revoked.length }

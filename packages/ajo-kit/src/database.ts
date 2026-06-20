@@ -1,16 +1,17 @@
-import { Kysely, SqliteDialect as Dialect } from 'kysely'
-import Sqlite, { type Database as Handle } from 'better-sqlite3'
+import { Kysely, SqliteDialect } from 'kysely'
+import Sqlite from 'better-sqlite3'
+import type * as BetterSqlite3 from 'better-sqlite3'
 
 export { sql } from 'kysely'
 export type { Kysely, Generated, Selectable, Insertable } from 'kysely'
 export { default as Database } from 'better-sqlite3'
-export type Database = Handle
-export type Sqlite = Handle
+export type Database = BetterSqlite3.Database
+export type Sqlite = Database
 
-let sqlite: Handle | null = null
+let sqlite: Sqlite | null = null
 let instance: Kysely<any> | null = null
 
-export function connect(path = './database.sqlite'): Handle {
+export function connect(path = './database.sqlite'): Sqlite {
 	sqlite = new Sqlite(path)
 	sqlite.pragma('journal_mode = WAL')
 	sqlite.pragma('foreign_keys = ON')
@@ -22,11 +23,11 @@ export function connect(path = './database.sqlite'): Handle {
 export function db<T = any>(): Kysely<T> {
 	if (!sqlite) connect()
 	return instance ??= new Kysely<T>({
-		dialect: new Dialect({ database: sqlite! })
+		dialect: new SqliteDialect({ database: sqlite! })
 	})
 }
 
-export function raw(): Handle {
+export function raw(): Sqlite {
 	if (!sqlite) connect()
 	return sqlite!
 }

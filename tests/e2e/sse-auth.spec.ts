@@ -1,11 +1,11 @@
-import { createHash as sha } from 'node:crypto'
-import { get, type ClientRequest as Client, type IncomingMessage as Incoming } from 'node:http'
-import { expect, request as pw, test } from '@playwright/test'
+import { createHash } from 'node:crypto'
+import { get, type ClientRequest, type IncomingMessage } from 'node:http'
+import { expect, request, test } from '@playwright/test'
 import { proof, admin as creds, make, login } from './helpers'
 
 type Stream = {
-	req: Client
-	res: Incoming
+	req: ClientRequest
+	res: IncomingMessage
 	messages: string[]
 	waitForMessage: (timeout?: number) => Promise<string>
 	waitForClose: (timeout?: number) => Promise<void>
@@ -107,11 +107,11 @@ const open = (base: string, path: string, cookie: string) =>
 		})
 	})
 
-const hash = (plain: string) => sha('sha256').update(plain).digest('hex')
+const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 
 test('SSE updates private routes while the session remains valid', async ({ baseURL: base }) => {
-	const root = await pw.newContext({ baseURL: base })
-	const other = await pw.newContext({ baseURL: base })
+	const root = await request.newContext({ baseURL: base })
+	const other = await request.newContext({ baseURL: base })
 	let stream: Stream | undefined
 
 	try {
@@ -138,8 +138,8 @@ test('SSE closes without revalidating private data after its session is revoked'
 	const credentials = { email, password: 'password' }
 	await make({ email, name: 'SSE Revoked User' })
 
-	const root = await pw.newContext({ baseURL: base })
-	const client = await pw.newContext({ baseURL: base })
+	const root = await request.newContext({ baseURL: base })
+	const client = await request.newContext({ baseURL: base })
 	let stream: Stream | undefined
 
 	try {

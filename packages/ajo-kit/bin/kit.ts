@@ -2,7 +2,7 @@
 import 'dotenv/config'
 import sade from 'sade'
 import type { Kysely } from 'kysely'
-import { pathToFileURL as url } from 'node:url'
+import * as url from 'node:url'
 import { dev, build, start, listen } from 'ajo-kit/node'
 import { defaults } from 'ajo-kit/vite'
 import { discover } from '../src/discover.ts'
@@ -131,7 +131,7 @@ cli.command('seed')
 			if (!files.length) { console.log('No seed files found'); return }
 
 			for (const file of files) {
-				const mod = await import(url(join(dir, file)).href)
+				const mod = await import(url.pathToFileURL(join(dir, file)).href)
 				if (typeof mod.seed === 'function') {
 					await mod.seed(db())
 					console.log(`${ok} ${file}`)
@@ -147,7 +147,7 @@ for (const plugin of discover()) {
 	if (!plugin.commands) continue
 
 	try {
-		const mod = await import(url(plugin.commands).href)
+		const mod = await import(url.pathToFileURL(plugin.commands).href)
 		if (typeof mod.register === 'function') mod.register(cli)
 	} catch (error) {
 		console.error(`Failed to load commands from ${plugin.name}:`, error)

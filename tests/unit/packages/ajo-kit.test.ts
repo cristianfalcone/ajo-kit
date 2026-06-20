@@ -1,9 +1,9 @@
-import { mkdtempSync as temp, rmSync as rm } from 'node:fs'
-import { createServer as server } from 'node:http'
-import type { AddressInfo as Address } from 'node:net'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach as after, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { close, connect } from '../../../packages/ajo-kit/src/database'
 import { merge, render } from '../../../packages/ajo-kit/src/head'
 import { body } from '../../../packages/ajo-kit/src/form'
@@ -39,7 +39,7 @@ const restore = (key: string, value: string | undefined) => {
 	else process.env[key] = value
 }
 
-after(async () => {
+afterEach(async () => {
 	restore('AJO_TIMING', timing)
 	restore('APP_URL', app)
 	restore('TRUST_PROXY', proxy)
@@ -334,7 +334,7 @@ describe('ajo-kit timing and database', () => {
 	})
 
 	test('strict listen rejects an occupied port instead of incrementing', async () => {
-		const busy = server((_, res) => res.end('busy'))
+		const busy = createServer((_, res) => res.end('busy'))
 
 		await new Promise<void>((resolve, reject) => {
 			busy.listen(0, resolve).once('error', reject)
@@ -345,7 +345,7 @@ describe('ajo-kit timing and database', () => {
 
 		try {
 			await expect(
-				listen({ handler: (_: unknown, res: { end: (body: string) => void }) => res.end('ok') }, (address as Address).port, { strict: true })
+				listen({ handler: (_: unknown, res: { end: (body: string) => void }) => res.end('ok') }, (address as AddressInfo).port, { strict: true })
 			).rejects.toMatchObject({ code: 'EADDRINUSE' })
 		} finally {
 			await new Promise<void>((resolve, reject) => {
@@ -375,7 +375,7 @@ describe('ajo-kit timing and database', () => {
 	})
 
 	test('connect applies runtime SQLite pragmas', async () => {
-		const dir = temp(join(tmpdir(), 'ajo-kit-db-'))
+		const dir = mkdtempSync(join(tmpdir(), 'ajo-kit-db-'))
 		const path = join(dir, 'test.sqlite')
 
 		try {
@@ -387,12 +387,12 @@ describe('ajo-kit timing and database', () => {
 			expect(sqlite.pragma('synchronous', { simple: true })).toBe(1)
 		} finally {
 			await close()
-			rm(dir, { recursive: true, force: true })
+			rmSync(dir, { recursive: true, force: true })
 		}
 	})
 
 	test('app unread count uses ISO timestamp ordering and active chat exclusion', async () => {
-		const dir = temp(join(tmpdir(), 'ajo-kit-unread-'))
+		const dir = mkdtempSync(join(tmpdir(), 'ajo-kit-unread-'))
 		const path = join(dir, 'test.sqlite')
 
 		process.env.DATABASE_PATH = path
@@ -435,7 +435,7 @@ describe('ajo-kit timing and database', () => {
 			vi.doUnmock('@kit/database')
 			vi.doUnmock('@kit/validate')
 			await close()
-			rm(dir, { recursive: true, force: true })
+			rmSync(dir, { recursive: true, force: true })
 		}
 	})
 

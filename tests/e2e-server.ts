@@ -1,6 +1,6 @@
-import { rmSync as rm, mkdirSync as mkdir } from 'node:fs'
+import { rmSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { createHash as sha } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { hash } from '../packages/ajo-auth/src/password'
 import { connect, db, close } from '../packages/ajo-kit/src/database'
 import { migrator } from '../packages/ajo-kit/src/migrate'
@@ -64,7 +64,7 @@ async function seed() {
 	]).execute()
 
 	await store.insertInto('tokens').values({
-		id: sha('sha256').update('seed-api-token').digest('hex'),
+		id: createHash('sha256').update('seed-api-token').digest('hex'),
 		user: cristian.id,
 		name: 'Seed API Token',
 		abilities: JSON.stringify(['tokens:read']),
@@ -89,10 +89,10 @@ async function seed() {
 	}))).execute()
 }
 
-rm(database, { force: true })
-rm(`${database}-shm`, { force: true })
-rm(`${database}-wal`, { force: true })
-mkdir(dirname(database), { recursive: true })
+rmSync(database, { force: true })
+rmSync(`${database}-shm`, { force: true })
+rmSync(`${database}-wal`, { force: true })
+mkdirSync(dirname(database), { recursive: true })
 
 connect(database)
 await migrator(db()).migrateToLatest()

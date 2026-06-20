@@ -1,10 +1,10 @@
-import { createHash as sha } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { db } from './store'
 import { generate } from './session'
 
 export type Ability = string
 
-const hash = (plain: string) => sha('sha256').update(plain).digest('hex')
+const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 
 export async function create(
 	user: number,

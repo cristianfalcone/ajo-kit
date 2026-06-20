@@ -1,7 +1,7 @@
-import { render as html } from 'ajo/html'
+import * as html from 'ajo/html'
 import { h } from 'ajo/jsx-runtime'
 import type { Component } from 'ajo'
-import { AsyncLocalStorage as Storage } from 'node:async_hooks'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import polka from 'polka'
 import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
@@ -16,7 +16,7 @@ import { elapsed, finish, log, header, start } from './timing'
 import { script } from './ssr'
 import { handlers as files, wares as stacks } from 'virtual:ajo/handlers'
 
-const emitted = new Storage<Set<string>>()
+const emitted = new AsyncLocalStorage<Set<string>>()
 
 const payload = (head: Head, entries: Data) => ({ data: entries, head })
 
@@ -464,7 +464,7 @@ export async function create(template: Template) {
 		const body = template({
 			head: view(head as Head),
 			data: script(state),
-			root: html(h(App, { page: resolved!.page })),
+			root: html.render(h(App, { page: resolved!.page })),
 		})
 
 		if (req.timing) req.timing.render = elapsed(begun)

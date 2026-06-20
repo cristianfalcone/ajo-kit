@@ -56,7 +56,7 @@ export const actions = {
 			.deleteFrom('tokens')
 			.where('id', '=', token.id)
 			.execute()
-		auth.confirm.token(token.user, token.id)
+		auth.confirm.clearToken(token.user, token.id)
 		emit(['admin:tokens', 'admin:stats', `tokens:${token.user}`, `dashboard:${token.user}`, `user:${token.user}`])
 
 		return { revoked: true }

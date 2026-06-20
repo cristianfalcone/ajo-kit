@@ -1,5 +1,5 @@
-import { randomUUID as uuid } from 'node:crypto'
-import { expect, request as pw, test } from '@playwright/test'
+import { randomUUID } from 'node:crypto'
+import { expect, request as playwright, test } from '@playwright/test'
 import {
 	proof,
 	admin,
@@ -45,14 +45,14 @@ test('dashboard, theme toggle and profile actions reflect account state', async 
 })
 
 test('password change rotates current session and revokes old credentials', async ({ page, request, baseURL: base }) => {
-	const email = `password-${uuid()}@example.com`
+	const email = `password-${randomUUID()}@example.com`
 	const user = await make({ email, name: 'Password Lifecycle User' })
 	const credentials = { email, password: 'password' }
 
 	await signin(page, credentials)
 	const old = (await page.context().cookies()).find(cookie => cookie.name === 'session')?.value
 
-	const other = await pw.newContext({ baseURL: base })
+	const other = await playwright.newContext({ baseURL: base })
 	await login(other, base!, credentials)
 	expect((await other.get('/api/me')).status()).toBe(200)
 
@@ -127,7 +127,7 @@ test('session page revokes other sessions but keeps the current browser session'
 
 	await signin(page, credentials)
 
-	const other = await pw.newContext({ baseURL: base })
+	const other = await playwright.newContext({ baseURL: base })
 	await login(other, base!, credentials)
 
 	await goto(page, '/account/sessions')
@@ -186,7 +186,7 @@ test('non-admin account delete requires password confirmation and deletes the ac
 })
 
 test('password confirmation is scoped to the current session', async ({ page, browser, baseURL: base }) => {
-	const email = `confirm-scope-${uuid()}@example.com`
+	const email = `confirm-scope-${randomUUID()}@example.com`
 	const credentials = { email, password: 'password' }
 	await make({ email, name: 'Confirm Scope User' })
 
@@ -210,7 +210,7 @@ test('password confirmation is scoped to the current session', async ({ page, br
 })
 
 test('password confirmation rate limits failed attempts', async ({ page }) => {
-	const email = `confirm-limit-${uuid()}@example.com`
+	const email = `confirm-limit-${randomUUID()}@example.com`
 	await make({ email, name: 'Confirm Limit User' })
 
 	await signin(page, { email, password: 'password' })

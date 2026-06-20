@@ -1,4 +1,4 @@
-import { expect, request as pw, test } from '@playwright/test'
+import { expect, request, test } from '@playwright/test'
 import {
 	proof,
 	admin as creds,
@@ -59,8 +59,8 @@ test('chat list starts a new group conversation from selected users', async ({ p
 })
 
 test('chat unread metadata tracks oldest unseen message and clears when seen', async ({ baseURL: base }) => {
-	const root = await pw.newContext({ baseURL: base })
-	const client = await pw.newContext({ baseURL: base })
+	const root = await request.newContext({ baseURL: base })
+	const client = await request.newContext({ baseURL: base })
 
 	try {
 		await login(root, base!, creds)

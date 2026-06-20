@@ -1,6 +1,6 @@
-import { createHash as sha } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { resolve } from 'node:path'
-import { expect, type APIRequestContext as Context, type Page } from '@playwright/test'
+import { expect, type APIRequestContext, type Page } from '@playwright/test'
 import { hash } from '../../packages/ajo-auth/src/password'
 import { Database } from '../../packages/ajo-kit/src/database'
 
@@ -21,7 +21,7 @@ export const proof = (base: string) => ({
 	Origin: base,
 })
 
-export async function login(request: Context, base: string, credentials = admin) {
+export async function login(request: APIRequestContext, base: string, credentials = admin) {
 	const response = await request.post('/login?/default', {
 		headers: proof(base),
 		data: credentials,
@@ -87,7 +87,7 @@ export function reset(user: number, plain: string, expiry = new Date(Date.now() 
 	const sqlite = new Database(database)
 
 	try {
-		const id = sha('sha256').update(plain).digest('hex')
+		const id = createHash('sha256').update(plain).digest('hex')
 
 		sqlite.prepare('delete from resets where user = ?').run(user)
 		sqlite.prepare('insert into resets (id, user, expiry) values (?, ?, ?)').run(id, user, expiry)

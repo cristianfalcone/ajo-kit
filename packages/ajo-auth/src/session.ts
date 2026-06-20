@@ -1,8 +1,8 @@
-import { createHash as sha, randomBytes as bytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { db } from './store'
 
-export const generate = () => bytes(32).toString('base64url')
-export const hash = (plain: string) => sha('sha256').update(plain).digest('hex')
+export const generate = () => randomBytes(32).toString('base64url')
+export const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 
 export const create = async (
 	user: number,

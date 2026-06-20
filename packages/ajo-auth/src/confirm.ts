@@ -32,11 +32,11 @@ export function clear(req: Request): void {
 	if (id) stamps.delete(id)
 }
 
-export function session(user: number, id: string): void {
+export function clearSession(user: number, id: string): void {
 	stamps.delete(key(user, 'session', id))
 }
 
-export function token(user: number, id: string): void {
+export function clearToken(user: number, id: string): void {
 	stamps.delete(key(user, 'token', id))
 }
 

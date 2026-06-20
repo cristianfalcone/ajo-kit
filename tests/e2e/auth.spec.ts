@@ -1,5 +1,5 @@
-import { randomUUID as uuid } from 'node:crypto'
-import { expect, request as pw, test } from '@playwright/test'
+import { randomUUID } from 'node:crypto'
+import { expect, request as playwright, test } from '@playwright/test'
 import { sign } from '../../packages/ajo-auth/src/verify'
 import {
 	proof,
@@ -45,14 +45,14 @@ test('registration creates a non-admin account and signs it in', async ({ page }
 })
 
 test('forgot and reset password flow revokes old credentials', async ({ page, request, baseURL: base }) => {
-	const email = `reset-${uuid()}@example.com`
+	const email = `reset-${randomUUID()}@example.com`
 	const user = await make({ email, name: 'Reset Flow User' })
-	const token = `reset-token-${uuid()}`
+	const token = `reset-token-${randomUUID()}`
 	const credentials = { email, password: 'password' }
 
 	reset(user, token)
 
-	const stale = await pw.newContext({ baseURL: base })
+	const stale = await playwright.newContext({ baseURL: base })
 	await login(stale, base!, credentials)
 	expect((await stale.get('/api/me')).status()).toBe(200)
 

@@ -1,4 +1,4 @@
-import { beforeEach as before, expect, test } from 'vitest'
+import { beforeEach, expect, test } from 'vitest'
 import {
 	bump,
 	fresh,
@@ -9,7 +9,7 @@ import {
 	snapshot,
 } from '../../packages/ajo-kit/src/freshness'
 
-before(() => reset())
+beforeEach(() => reset())
 
 test('hash is stable for identical payloads', () => {
 	expect(hash('{"data":[1],"head":{}}')).toBe(hash('{"data":[1],"head":{}}'))

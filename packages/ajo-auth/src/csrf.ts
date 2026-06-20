@@ -1,4 +1,4 @@
-import { origin as trusted, type Request, type Response } from 'ajo-kit'
+import { origin, type Request, type Response } from 'ajo-kit'
 import { generate } from './session'
 import { parse } from './cookie'
 
@@ -22,16 +22,16 @@ export function verify(req: Request): boolean {
 
 	// 2. Check same-origin (Origin or Referer matches host)
 
-	const origin = req.headers.origin
+	const source = req.headers.origin
 	const referer = req.headers.referer
 
-	if (!origin && !referer) return false
+	if (!source && !referer) return false
 
-	const base = trusted(req)
+	const base = origin(req)
 
-	if (origin) {
+	if (source) {
 		try {
-			const url = new URL(origin)
+			const url = new URL(source)
 			if (url.origin === base) return true
 		} catch {}
 	}

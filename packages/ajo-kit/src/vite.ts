@@ -1,9 +1,9 @@
-import { createRequire as loader } from 'node:module'
-import { pathToFileURL as url } from 'node:url'
+import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import type { Plugin } from 'vite'
 import { discover } from './discover'
 
-const require = loader(import.meta.url)
+const require = createRequire(import.meta.url)
 
 /** Externalize native addons to their resolved absolute path (pnpm-safe) */
 const native = (modules: string[]): Plugin => ({
@@ -13,7 +13,7 @@ const native = (modules: string[]): Plugin => ({
 		order: 'pre',
 		handler(source) {
 			if (!modules.includes(source)) return
-			try { return { id: url(require.resolve(source)).href, external: true } }
+			try { return { id: pathToFileURL(require.resolve(source)).href, external: true } }
 			catch { return }
 		}
 	}

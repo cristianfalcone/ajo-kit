@@ -739,8 +739,8 @@ function credential(req: Request): string | null
 function stamp(req: Request): boolean
 function check(req: Request, window?: number): boolean
 function clear(req: Request): void
-function session(user: number, id: string): void
-function token(user: number, id: string): void
+function clearSession(user: number, id: string): void
+function clearToken(user: number, id: string): void
 function user(user: number): void
 ```
 

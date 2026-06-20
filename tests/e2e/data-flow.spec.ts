@@ -1,11 +1,11 @@
-import { get, type IncomingHttpHeaders as Raw } from 'node:http'
-import { expect, request as pw, test } from '@playwright/test'
+import { get, type IncomingHttpHeaders } from 'node:http'
+import { expect, request as playwright, test } from '@playwright/test'
 import { proof, admin, login } from './helpers'
 
 const vary = (value: string | undefined, token: string) =>
 	value?.toLowerCase().split(',').map(part => part.trim()).includes(token.toLowerCase())
 
-const secure = (headers: Record<string, string | undefined> | Raw) => {
+const secure = (headers: Record<string, string | undefined> | IncomingHttpHeaders) => {
 	expect(headers['x-content-type-options']).toBe('nosniff')
 	expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin')
 	expect(headers['permissions-policy']).toContain('camera=()')
@@ -15,7 +15,7 @@ const secure = (headers: Record<string, string | undefined> | Raw) => {
 }
 
 const event = (base: string, path: string) =>
-	new Promise<Raw>((resolve, reject) => {
+	new Promise<IncomingHttpHeaders>((resolve, reject) => {
 		let settled = false
 		const req = get(new URL(path, base), { headers: { Accept: 'text/event-stream' } }, res => {
 			if (settled) return
@@ -147,7 +147,7 @@ test('emitted action topics make stale route versions miss early 304', async ({ 
 		body.data.at(-1).sessions.map((session: { id: string }) => session.id)
 	)
 
-	const ctx = await pw.newContext({ baseURL: base })
+	const ctx = await playwright.newContext({ baseURL: base })
 	await login(ctx, base!)
 
 	const state = await ctx.storageState()

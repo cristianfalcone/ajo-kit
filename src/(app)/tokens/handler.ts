@@ -100,7 +100,7 @@ export default {
 			.deleteFrom('tokens')
 			.where('id', '=', match.id)
 			.execute()
-		auth.confirm.token(req.user!.id, match.id)
+		auth.confirm.clearToken(req.user!.id, match.id)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		send(res, 200, { message: 'Token revoked' })

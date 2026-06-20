@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises'
-import { pathToFileURL as url, fileURLToPath as file } from 'node:url'
+import * as url from 'node:url'
 import { join } from 'node:path'
-import { createServer as http } from 'node:http'
-import { createServer as serve, build as bundle, type ServerOptions as Server } from 'vite'
+import * as http from 'node:http'
+import * as vite from 'vite'
 import polka from 'polka'
 import sirv from 'sirv'
 
@@ -36,25 +36,25 @@ async function html() {
 }
 
 export type Options = {
-	hmr?: Server['hmr']
+	hmr?: vite.ServerOptions['hmr']
 }
 
 export async function dev(options: Options = {}) {
 
 	const app = polka()
 
-	const vite = await serve({
+	const server = await vite.createServer({
 		server: { middlewareMode: true, ...(options.hmr !== undefined && { hmr: options.hmr }) },
 		appType: 'custom',
 	})
 
-	app.use(vite.middlewares)
+	app.use(server.middlewares)
 
 	let raw = await html()
-	raw = await vite.transformIndexHtml('/', raw)
+	raw = await server.transformIndexHtml('/', raw)
 	const template = compile(raw)
 
-	const { create } = await vite.ssrLoadModule('ajo-kit/server')
+	const { create } = await server.ssrLoadModule('ajo-kit/server')
 	let inner = await create(template)
 
 	app.use((req: any, res: any) => inner.handler(req, res))
@@ -63,19 +63,19 @@ export async function dev(options: Options = {}) {
 	const reload = async (file: string) => {
 		if (!route.test(file)) return
 		try {
-			const { create } = await vite.ssrLoadModule('ajo-kit/server')
+			const { create } = await server.ssrLoadModule('ajo-kit/server')
 			inner = await create(template)
 			console.log('\x1b[32m✓\x1b[0m Server routes reloaded')
-			if (/(page|layout)\.[jt]sx?$/.test(file)) vite.ws.send({ type: 'full-reload', path: '*' })
+			if (/(page|layout)\.[jt]sx?$/.test(file)) server.ws.send({ type: 'full-reload', path: '*' })
 		} catch (error) {
 			console.error('\x1b[31m✗\x1b[0m Failed to reload routes:')
 			console.error(error)
 		}
 	}
 
-	vite.watcher.on('change', reload)
-	vite.watcher.on('add', reload)
-	vite.watcher.on('unlink', reload)
+	server.watcher.on('change', reload)
+	server.watcher.on('add', reload)
+	server.watcher.on('unlink', reload)
 
 	return app
 }
@@ -84,7 +84,7 @@ export async function start() {
 
 	const app = polka()
 
-	const entry = url(join(process.cwd(), 'dist/server/server.js')).href
+	const entry = url.pathToFileURL(join(process.cwd(), 'dist/server/server.js')).href
 	const { create } = await import(entry)
 
 	const inner = await create(compile(await fs.readFile(join(process.cwd(), 'dist/client/index.html'), 'utf-8')))
@@ -97,15 +97,15 @@ export async function start() {
 
 export async function build() {
 
-	await bundle({ build: { outDir: 'dist/client' } })
+	await vite.build({ build: { outDir: 'dist/client' } })
 
-	const entry = file(import.meta.resolve('ajo-kit/server'))
+	const entry = url.fileURLToPath(import.meta.resolve('ajo-kit/server'))
 
-	await bundle({ build: { outDir: 'dist/server', ssr: entry } })
+	await vite.build({ build: { outDir: 'dist/server', ssr: entry } })
 }
 
 export const listen = (app: any, port = 5173, options: { strict?: boolean } = {}): Promise<number> => new Promise((resolve, reject) => {
-	http(app.handler)
+	http.createServer(app.handler)
 		.listen(port, () => {
 			console.log(`Server started at http://localhost:${port}`)
 			resolve(port)

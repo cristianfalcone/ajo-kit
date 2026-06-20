@@ -1,8 +1,8 @@
-import { mkdtempSync as temp, rmSync as rm } from 'node:fs'
-import { createHash as sha } from 'node:crypto'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach as after, beforeEach as before, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { read, write, clear as cookie } from '../../../packages/ajo-auth/src/cookie'
 import { set as xsrf, verify as valid } from '../../../packages/ajo-auth/src/csrf'
 import { check as limit, clear as free, hit, remaining } from '../../../packages/ajo-auth/src/limit'
@@ -134,8 +134,8 @@ describe('ajo-auth cookies and csrf', () => {
 describe('ajo-auth session storage', () => {
 	let dir: string
 
-	before(async () => {
-		dir = temp(join(tmpdir(), 'ajo-auth-session-'))
+	beforeEach(async () => {
+		dir = mkdtempSync(join(tmpdir(), 'ajo-auth-session-'))
 		connect(join(dir, 'test.sqlite'))
 		configure(() => db())
 		await db<any>().schema
@@ -165,9 +165,9 @@ describe('ajo-auth session storage', () => {
 			.execute()
 	})
 
-	after(async () => {
+	afterEach(async () => {
 		await close()
-		rm(dir, { recursive: true, force: true })
+		rmSync(dir, { recursive: true, force: true })
 	})
 
 	test('stores hashed session ids and validates only plaintext cookie values', async () => {
@@ -228,7 +228,7 @@ describe('ajo-auth session storage', () => {
 		expect(req.session.id).toBe(digest(plain))
 
 		const secret = await token(user.id, 'Unit API', ['tokens:read'])
-		const id = sha('sha256').update(secret).digest('hex')
+		const id = createHash('sha256').update(secret).digest('hex')
 		const api = {
 			path: '/api/me',
 			headers: {
@@ -268,12 +268,12 @@ describe('ajo-auth session storage', () => {
 })
 
 describe('ajo-auth in-memory gates', () => {
-	before(() => {
+	beforeEach(() => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2026-06-19T00:00:00Z'))
 	})
 
-	after(() => {
+	afterEach(() => {
 		free('login:test')
 		forget(123)
 		vi.useRealTimers()
@@ -327,12 +327,12 @@ describe('ajo-auth in-memory gates', () => {
 })
 
 describe('ajo-auth tokens and signatures', () => {
-	before(() => {
+	beforeEach(() => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2026-06-19T00:00:00Z'))
 	})
 
-	after(() => vi.useRealTimers())
+	afterEach(() => vi.useRealTimers())
 
 	test('ability checks support exact, resource wildcard and full wildcard grants', () => {
 		expect(can(['read'], 'read')).toBe(true)

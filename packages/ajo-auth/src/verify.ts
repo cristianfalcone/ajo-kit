@@ -1,4 +1,4 @@
-import { createHmac as hmac, timingSafeEqual as equal } from 'node:crypto'
+import { createHmac, timingSafeEqual } from 'node:crypto'
 
 const secret = process.env.APP_SECRET || 'change-in-production'
 const hours = 24
@@ -7,7 +7,7 @@ export function sign(user: number): string {
 
 	const expiry = Date.now() + hours * 60 * 60 * 1000
 	const data = `${user}:${expiry}`
-	const sig = hmac('sha256', secret).update(data).digest('hex')
+	const sig = createHmac('sha256', secret).update(data).digest('hex')
 
 	return Buffer.from(`${data}:${sig}`).toString('base64url')
 }
@@ -21,11 +21,11 @@ export function validate(signature: string): number | null {
 
 		if (Date.now() > Number(expiry)) return null
 
-		const expected = hmac('sha256', secret).update(`${user}:${expiry}`).digest('hex')
+		const expected = createHmac('sha256', secret).update(`${user}:${expiry}`).digest('hex')
 		const actual = Buffer.from(sig, 'hex')
 		const wanted = Buffer.from(expected, 'hex')
 
-		if (!equal(actual, wanted)) return null
+		if (!timingSafeEqual(actual, wanted)) return null
 
 		return Number(user)
 
