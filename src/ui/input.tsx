@@ -20,7 +20,7 @@ const label = {
 
 const hint = 'mt-1 text-xs text-slate-500 dark:text-slate-400'
 
-const base = 'border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-1 focus:ring-accent focus:border-transparent'
+const base = 'rounded-lg bg-[#fbfdfb]/88 text-slate-900 shadow-xs shadow-slate-900/5 inset-ring inset-ring-slate-900/12 transition placeholder:text-slate-400 focus:inset-ring-2 focus:inset-ring-accent/70 disabled:cursor-not-allowed disabled:bg-[#e5eceb] disabled:text-slate-500 dark:bg-white/8 dark:text-white dark:shadow-none dark:inset-ring-white/12 dark:placeholder:text-slate-500'
 
 const heightClass = {
 	md: 'h-10 px-4 py-2',
@@ -29,8 +29,8 @@ const heightClass = {
 
 const toneClass = {
 	default: '',
-	danger: 'border-red-300 dark:border-red-700 focus:ring-red-500',
-	muted: 'bg-slate-100 dark:bg-white/10',
+	danger: 'inset-ring-red-500/30 focus:inset-ring-red-500/70 dark:inset-ring-red-400/30 dark:focus:inset-ring-red-400/70',
+	muted: 'bg-[#e8f0ef]/80 dark:bg-white/10',
 }
 
 const widthClass = {

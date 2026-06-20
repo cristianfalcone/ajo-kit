@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
 import type { Frame } from '@kit'
 import { ThemeContext, type ThemeMode } from '/src/contexts'
-import { Spinner } from '/src/ui'
+import { Button, Spinner } from '/src/ui'
 
 export const pending = true
 
@@ -74,7 +74,7 @@ const Layout: Stateful<Frame> = function* (args) {
 	}
 }
 
-Layout.attrs = { class: 'min-h-screen flex flex-col bg-white text-slate-800 relative dark:bg-[#0e1a2e] dark:text-gray-100 transition-colors duration-300' }
+Layout.attrs = { class: 'min-h-screen flex flex-col bg-[#edf4f3] text-slate-800 relative dark:bg-[#0e1a2e] dark:text-gray-100 transition-colors duration-300' }
 
 export default Layout
 
@@ -93,9 +93,9 @@ export const Failure = ({ error }: { error: Error }) => {
 	return (
 		<div class="flex-1 flex items-center justify-center px-4 py-16">
 			<div class="text-center max-w-md">
-				<div class={clsx('inline-flex items-center justify-center size-16 rounded-2xl mb-6 ring-1', isNotFound
-					? 'bg-amber-500/10 text-amber-400 ring-amber-500/20'
-					: 'bg-red-500/10 text-red-400 ring-red-500/20'
+				<div class={clsx('inline-flex items-center justify-center size-16 rounded-2xl mb-6 shadow-xs inset-ring dark:shadow-none', isNotFound
+					? 'bg-amber-500/10 text-amber-400 shadow-amber-900/5 inset-ring-amber-500/20'
+					: 'bg-red-500/10 text-red-400 shadow-red-900/5 inset-ring-red-500/20'
 				)}>
 					<div class={clsx('size-8', isNotFound ? 'i-lucide-search-x' : 'i-lucide-alert-triangle')} />
 				</div>
@@ -108,8 +108,8 @@ export const Failure = ({ error }: { error: Error }) => {
 						: (import.meta.env.DEV ? '' : 'Something went wrong. Please try again later.')}
 				</p>
 				{import.meta.env.DEV && !isNotFound && (
-					<div class="text-left rounded-xl bg-white/5 ring-1 ring-white/10 mb-8 overflow-hidden">
-						<div class="flex items-center gap-2 px-4 py-2.5 border-b border-white/10">
+					<div class="text-left rounded-xl bg-[#f8fbf9]/75 shadow-xs shadow-slate-900/7 inset-ring inset-ring-slate-900/10 dark:bg-white/5 dark:shadow-none dark:inset-ring-white/10 mb-8 overflow-hidden">
+						<div class="flex items-center gap-2 px-4 py-2.5 shadow-[inset_0_-1px_0_rgb(15_23_42_/_0.08)] dark:shadow-[inset_0_-1px_0_rgb(255_255_255_/_0.08)]">
 							<div class="i-lucide-code size-3.5 text-red-400/60" />
 							<span class="text-xs font-medium text-gray-400">Stack trace</span>
 						</div>
@@ -118,10 +118,9 @@ export const Failure = ({ error }: { error: Error }) => {
 						</pre>
 					</div>
 				)}
-				<a href="/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 ring-1 ring-white/15 text-sm font-medium text-slate-700 dark:text-gray-200 hover:bg-white/20 transition">
-					<div class="i-lucide-home size-4" />
+				<Button to="/" icon="i-lucide-home" tone="neutral">
 					Back to home
-				</a>
+				</Button>
 			</div>
 		</div>
 	)

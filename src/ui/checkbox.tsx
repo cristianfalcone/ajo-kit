@@ -1,35 +1,58 @@
-import type { Stateful } from 'ajo'
+import type { Children, Stateful } from 'ajo'
+import clsx from 'clsx'
 
 type CheckboxProps = {
 	name: string
 	value?: string
-	label: string
+	label: Children
+	note?: Children
 	disabled?: boolean
 	checked?: boolean
+	onToggle?: () => void
+	labelClass?: string
+	noteClass?: string
 }
 
 const Checkbox: Stateful<CheckboxProps, 'label'> = function* (args) {
 
 	let checked = args.checked ?? false
+	let props = args
 
-	const toggle = () => this.next(() => checked = !checked)
+	const toggle = () => {
+		if (props.disabled) return
 
-	for (const props of this) {
+		if (props.checked === undefined) {
+			this.next(() => checked = !checked)
+		}
+
+		props.onToggle?.()
+	}
+
+	for (props of this) {
+		const active = props.checked ?? checked
+
 		yield (
 			<>
 				<input
 					type="checkbox"
 					name={props.name}
 					value={props.value ?? 'true'}
-					checked={checked}
+					checked={active}
 					disabled={props.disabled}
 					class="sr-only peer"
+					set:checked={active}
 					set:onchange={toggle}
 				/>
-				<span class={`flex items-center justify-center w-4.5 h-4.5 rounded ring-1 transition-colors ${checked ? 'bg-primary ring-primary dark:bg-accent dark:ring-accent' : 'bg-white ring-slate-300 dark:bg-white/5 dark:ring-white/15 group-hover:ring-accent/50'}`}>
-					{checked && <div class="i-lucide-check w-3.5 h-3.5 text-white dark:text-primary" />}
+				<span class={clsx(
+					'flex items-center justify-center w-4.5 h-4.5 rounded shadow-xs inset-ring transition-colors dark:shadow-none',
+					active
+						? 'bg-accent/100 shadow-accent/15 inset-ring-accent'
+						: 'bg-[#fbfdfb]/92 shadow-slate-900/10 inset-ring-slate-900/18 dark:bg-white/5 dark:inset-ring-white/15 group-hover:inset-ring-accent/50',
+				)}>
+					{active && <span class="i-lucide-check w-3.5 h-3.5 text-white" />}
 				</span>
-				<span class="text-sm text-slate-700 dark:text-slate-300">{props.label}</span>
+				<span class={clsx('text-sm text-slate-700 dark:text-slate-300', props.labelClass)}>{props.label}</span>
+				{props.note && <span class={clsx('text-xs text-slate-500 dark:text-slate-400', props.noteClass)}>{props.note}</span>}
 			</>
 		)
 	}

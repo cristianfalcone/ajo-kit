@@ -23,7 +23,7 @@ export default function Spinner({ loading, duration = 300, delay = 400, label = 
       class={`${base} keyframes-fade-in`}
       style={style}
     >
-      {overlay && <div class="absolute inset-0 backdrop-blur-sm bg-white/60 dark:bg-black/40" />}
+      {overlay && <div class="absolute inset-0 backdrop-blur-sm bg-[#edf4f3]/60 dark:bg-black/40" />}
       <Panel variant="solid" radius="xl" padding="none" class="relative px-5 py-4 flex flex-col items-center gap-3">
         <SpinnerVisual />
         <p class="text-xs tracking-wide uppercase font-medium text-slate-600/80 dark:text-muted" aria-hidden="true">{label}</p>
@@ -36,7 +36,7 @@ export default function Spinner({ loading, duration = 300, delay = 400, label = 
 const SpinnerVisual = () => (
   <div class="relative h-10 w-10">
     <div class="absolute inset-0 rounded-full border-2 border-slate-300/40 dark:border-white/10 border-t-accent dark:border-t-accent animate-spin motion-reduce:animate-none [animation-duration:900ms]" />
-    <div class="absolute inset-2 rounded-full bg-white/80 dark:bg-primary flex items-center justify-center">
+    <div class="absolute inset-2 rounded-full bg-[#fbfdfb]/85 dark:bg-primary flex items-center justify-center">
       <div class="h-2.5 w-2.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
     </div>
   </div>

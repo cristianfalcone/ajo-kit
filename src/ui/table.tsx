@@ -94,21 +94,21 @@ export const Table = <T,>({
 
 /** Shared table header band. */
 export const Thead: Stateless<HeadProps> = ({ class: classes, children, ...props }) => (
-	<thead {...props} class={clsx('bg-primary/10 dark:bg-slate-700/50', classes)}>
+	<thead {...props} class={clsx('bg-[#d7e4e8]/85 dark:bg-white/12', classes)}>
 		{children}
 	</thead>
 )
 
 /** Shared table body with row dividers. */
 export const Tbody: Stateless<BodyProps> = ({ class: classes, children, ...props }) => (
-	<tbody {...props} class={clsx('divide-y divide-slate-200 dark:divide-slate-700', classes)}>
+	<tbody {...props} class={clsx('divide-y divide-slate-900/10 dark:divide-white/8', classes)}>
 		{children}
 	</tbody>
 )
 
 /** Shared data row with hover treatment. */
 export const Tr: Stateless<RowProps> = ({ class: classes, children, ...props }) => (
-	<tr {...props} class={clsx('bg-slate-50 hover:bg-slate-100 dark:bg-transparent dark:hover:bg-white/10', classes)}>
+	<tr {...props} class={clsx('bg-[#f8fbf9]/30 hover:bg-[#edf4f3]/70 dark:bg-transparent dark:hover:bg-white/5', classes)}>
 		{children}
 	</tr>
 )
@@ -122,7 +122,7 @@ export const Th: Stateless<HeaderProps> = ({
 }) => (
 	<th
 		{...props}
-		class={clsx('px-4 py-3', align[text], 'text-sm font-medium text-slate-600 dark:text-slate-200', classes)}
+		class={clsx('px-4 py-3', align[text], 'text-sm font-medium text-slate-700 dark:text-slate-200', classes)}
 	>
 		{children}
 	</th>

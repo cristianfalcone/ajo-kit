@@ -164,10 +164,10 @@ const Dashboard: Stateful<Props<Data>> = function* (args) {
 export default Dashboard
 
 const ActionCard = ({ href, icon, label, description }: { href: string; icon: string; label: string; description: string }) => (
-	<Panel as="a" href={href} padding="sm" class="hover:shadow-md transition group">
+	<Panel as="a" href={href} padding="sm" class="transition-colors hover:bg-[#edf4f3]/70 dark:hover:bg-white/12">
 		<div class="flex items-center gap-3 mb-2">
 			<span class={`${icon} w-5 h-5 text-accent`} />
-			<span class="font-medium text-slate-900 dark:text-white group-hover:text-accent transition-colors">{label}</span>
+			<span class="font-medium text-slate-900 dark:text-white">{label}</span>
 		</div>
 		<p class="text-xs text-slate-500 dark:text-slate-400">{description}</p>
 	</Panel>

@@ -39,9 +39,9 @@ const Sidebar: Stateless<SidebarProps> = ({ items, url, width = 'md' }) => (
 						class={clsx([
 							'flex shrink-0 items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
 							active
-								? 'bg-accent/10 text-primary dark:bg-accent/15 dark:text-accent'
-								: 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5',
-							item.tone === 'danger' && !active && 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10'
+								? 'bg-[#f8fbf9]/78 text-primary shadow-xs shadow-slate-900/5 inset-ring inset-ring-accent/20 dark:bg-accent/15 dark:text-accent dark:shadow-none dark:inset-ring-accent/20'
+								: 'text-slate-600 hover:bg-[#f8fbf9]/65 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white',
+							item.tone === 'danger' && !active && 'text-red-600 dark:text-red-400 hover:bg-red-50/70 dark:hover:bg-red-500/10'
 						])}
 					>
 						<span class={clsx(item.icon, 'w-5 h-5')} />

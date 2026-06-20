@@ -13,12 +13,12 @@ type StatProps = IntrinsicElements['div'] & {
 
 const toneClass = {
 	accent: {
-		icon: 'bg-accent/10 dark:bg-accent/15',
+		icon: 'bg-accent/10 inset-ring-accent/15 dark:bg-accent/15 dark:inset-ring-accent/20',
 		text: 'text-accent',
 		value: 'text-slate-900 dark:text-white',
 	},
 	danger: {
-		icon: 'bg-red-500/10 dark:bg-red-400/15',
+		icon: 'bg-red-500/10 inset-ring-red-500/15 dark:bg-red-400/15 dark:inset-ring-red-300/20',
 		text: 'text-red-500 dark:text-red-400',
 		value: 'text-red-600 dark:text-red-400',
 	},
@@ -39,9 +39,9 @@ const Stat: Stateless<StatProps> = ({
 		as={href ? 'a' : 'div'}
 		href={href}
 		padding="none"
-		class={clsx('p-5 flex items-center gap-4', href && 'hover:shadow-md transition-shadow', classes)}
+		class={clsx('p-5 flex items-center gap-4', href && 'hover:shadow-sm hover:shadow-slate-900/10 transition-shadow', classes)}
 	>
-		<div class={clsx('flex items-center justify-center w-12 h-12 rounded-lg', toneClass[tone].icon)}>
+		<div class={clsx('flex items-center justify-center w-12 h-12 rounded-lg inset-ring', toneClass[tone].icon)}>
 			<span class={clsx(icon, 'w-6 h-6', toneClass[tone].text)} />
 		</div>
 		<div>

@@ -738,7 +738,7 @@ const ChatRoom: Stateful<Props<Data>> = function* (args) {
 					<div key={`day-${marker}`} class="my-2 flex justify-center">
 						<time
 							dateTime={messageDate.toISOString()}
-							class="px-3 py-1 rounded-full text-[11px] font-medium bg-slate-200/80 dark:bg-white/10 text-slate-600 dark:text-gray-300 backdrop-blur"
+							class="px-3 py-1 rounded-full text-[11px] font-medium bg-[#dfe9ed]/80 dark:bg-white/10 text-slate-600 dark:text-gray-300 backdrop-blur"
 						>
 							{formatDaySeparator(messageDate, now)}
 						</time>
@@ -769,7 +769,7 @@ const ChatRoom: Stateful<Props<Data>> = function* (args) {
 								'max-w-[80%] px-4 py-2 rounded-2xl',
 								msg.user === data?.me
 									? 'bg-primary text-white dark:bg-accent dark:text-primary rounded-br-md'
-									: 'bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white rounded-bl-md'
+									: 'bg-[#dfe9ed]/90 text-slate-900 shadow-xs shadow-slate-900/8 inset-ring inset-ring-slate-900/8 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/8 rounded-bl-md'
 							)
 						}
 					>

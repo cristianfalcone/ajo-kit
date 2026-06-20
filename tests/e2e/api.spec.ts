@@ -42,15 +42,30 @@ test('bearer API covers login, me, token create/list/delete and logout', async (
 	expect(created.token).toBeTruthy()
 	expect(created.message).toContain('Save this token securely')
 
+	const wildcard = await request.post('/api/tokens', {
+		headers,
+		data: {
+			name: 'Playwright Wildcard API Token',
+			abilities: ['tokens:*', 'tokens:read'],
+		},
+	})
+
+	expect(wildcard.status()).toBe(201)
+
 	const tokens = await request.get('/api/tokens', { headers })
 	expect(tokens.status()).toBe(200)
 
 	const list = await tokens.json()
 	const bearer = list.tokens.find((entry: { name: string }) => entry.name === 'Playwright API Token')
+	const broad = list.tokens.find((entry: { name: string }) => entry.name === 'Playwright Wildcard API Token')
 
 	expect(bearer).toMatchObject({
 		name: 'Playwright API Token',
 		abilities: ['tokens:read'],
+	})
+	expect(broad).toMatchObject({
+		name: 'Playwright Wildcard API Token',
+		abilities: ['tokens:*'],
 	})
 
 	const remove = await request.delete('/api/tokens', {
@@ -60,6 +75,13 @@ test('bearer API covers login, me, token create/list/delete and logout', async (
 
 	expect(remove.status()).toBe(200)
 	await expect(remove.json()).resolves.toMatchObject({ message: 'Token revoked' })
+
+	const removeWildcard = await request.delete('/api/tokens', {
+		headers,
+		data: { id: broad.id },
+	})
+
+	expect(removeWildcard.status()).toBe(200)
 
 	const logout = await request.post('/api/logout', { headers })
 	expect(logout.status()).toBe(200)

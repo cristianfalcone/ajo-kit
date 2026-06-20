@@ -7,8 +7,8 @@ type AlertProps = WithChildren<IntrinsicElements['div'] & {
 }>
 
 const toneClass = {
-	success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200',
-	danger: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200',
+	success: 'bg-green-50/85 text-green-800 shadow-green-900/5 inset-ring-green-700/18 dark:bg-green-900/20 dark:text-green-200 dark:shadow-none dark:inset-ring-green-300/18',
+	danger: 'bg-red-50/85 text-red-800 shadow-red-900/5 inset-ring-red-700/18 dark:bg-red-900/20 dark:text-red-200 dark:shadow-none dark:inset-ring-red-300/18',
 }
 
 /** Shows a boxed status message. */
@@ -18,7 +18,7 @@ const Alert: Stateless<AlertProps> = ({
 	children,
 	...props
 }) => (
-	<div {...props} class={clsx('p-4 border rounded-lg', toneClass[tone], classes)}>
+	<div {...props} class={clsx('p-4 rounded-lg shadow-xs inset-ring', toneClass[tone], classes)}>
 		{children}
 	</div>
 )

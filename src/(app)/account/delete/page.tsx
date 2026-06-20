@@ -27,7 +27,7 @@ const Delete: Stateful<Props> = function* () {
 					</p>
 				</div>
 
-				<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+				<div class="bg-red-50/85 text-red-800 shadow-xs shadow-red-900/5 inset-ring inset-ring-red-700/18 dark:bg-red-900/20 dark:shadow-none dark:inset-ring-red-300/18 rounded-lg p-6">
 					<h2 class="text-lg font-semibold text-red-800 dark:text-red-300 mb-4">
 						Danger Zone
 					</h2>

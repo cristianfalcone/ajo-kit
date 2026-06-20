@@ -64,7 +64,7 @@ const Chats: Stateful<Props<Data>> = function* (args) {
 										set:onclick={() => toggle(user.id)}
 										class={`px-3 py-1.5 text-sm rounded-full transition ${selected.includes(user.id)
 											? 'bg-primary text-white dark:bg-accent dark:text-primary'
-											: 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-white/20'
+											: 'bg-[#e8f0ef]/80 dark:bg-white/10 text-slate-700 dark:text-gray-300 hover:bg-[#dfe9ed]/80 dark:hover:bg-white/20'
 											}`}
 									>
 										{user.name}
@@ -109,7 +109,7 @@ const Chats: Stateful<Props<Data>> = function* (args) {
 									href={`/account/chats/${chat.id}`}
 									radius="xl"
 									padding="sm"
-									class="block hover:bg-white/80 dark:hover:bg-white/10 transition"
+									class="block hover:bg-[#fbfdfb]/85 dark:hover:bg-white/10 transition"
 								>
 									<div class="flex items-center gap-2 font-medium text-slate-900 dark:text-white">
 										<span>{chat.name || chat.others || 'Empty chat'}</span>
