@@ -1,6 +1,6 @@
+import * as auth from '@kit/auth'
 import type { Request } from '@kit'
 import { object, string, pipe, transform, number } from '@kit/validate'
-import { session as forget } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { info, rows as trim, paginate } from '/src/data/pagination'
 import { parse } from '@kit/validate'
@@ -62,7 +62,7 @@ export const actions = {
 			.deleteFrom('sessions')
 			.where('id', '=', session.id)
 			.execute()
-		forget(session.user, session.id)
+		auth.confirm.session(session.user, session.id)
 		emit(['admin:sessions', 'admin:stats', `sessions:${session.user}`, `dashboard:${session.user}`, `user:${session.user}`])
 
 		return { revoked: true }
@@ -77,7 +77,7 @@ export const actions = {
 			.where('user', '=', input.user)
 			.returning('id')
 			.execute()
-		for (const session of revoked) forget(input.user, session.id)
+		for (const session of revoked) auth.confirm.session(input.user, session.id)
 		emit(['admin:sessions', 'admin:stats', `sessions:${input.user}`, `dashboard:${input.user}`, `user:${input.user}`])
 
 		return { revoked: revoked.length }

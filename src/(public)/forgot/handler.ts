@@ -1,7 +1,6 @@
+import * as auth from '@kit/auth'
 import type { Request } from '@kit'
 import { object } from '@kit/validate'
-import { create } from '@kit/auth/reset'
-import { check, hit } from '@kit/auth/limit'
 import { send } from '@kit/mail'
 import { db, email } from '/src/data'
 import { parse } from '@kit/validate'
@@ -18,11 +17,11 @@ export const actions = {
 		const key = `forgot:${input.email}:${addr}`
 		const base = origin(req)
 
-		if (!check(key)) {
+		if (!auth.limit.check(key)) {
 			throw new Failure(429, 'Too many reset attempts. Try again later.')
 		}
 
-		hit(key)
+		auth.limit.hit(key)
 
 		const user = await db()
 			.selectFrom('users')
@@ -32,7 +31,7 @@ export const actions = {
 
 		if (user) {
 
-			const token = await create(user.id)
+			const token = await auth.reset.create(user.id)
 			const url = `${base}/reset/${token}`
 
 			await send({

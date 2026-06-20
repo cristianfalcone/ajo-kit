@@ -1,9 +1,6 @@
+import * as auth from '@kit/auth'
 import type { Parent, Request, Response } from '@kit'
 import { object, string, optional, pipe, forward, partialCheck } from '@kit/validate'
-import { hash, verify } from '@kit/auth/password'
-import { generate, hash as digest } from '@kit/auth/session'
-import { write } from '@kit/auth/cookie'
-import { user as confirm } from '@kit/auth/confirm'
 import { db, password as passwordField, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
 import { Denied, ip } from '@kit'
@@ -78,13 +75,13 @@ export const actions = {
 			.where('id', '=', id)
 			.executeTakeFirst()
 
-		if (!account?.password || !await verify(input.current, account.password)) {
+		if (!account?.password || !await auth.password.verify(input.current, account.password)) {
 			throw new Denied('Current password is incorrect')
 		}
 
-		const hashed = await hash(input.password)
-		const plain = generate()
-		const session = digest(plain)
+		const hashed = await auth.password.hash(input.password)
+		const plain = auth.session.generate()
+		const session = auth.session.hash(plain)
 		const now = new Date().toISOString()
 		const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
@@ -107,8 +104,8 @@ export const actions = {
 			}).execute()
 		})
 
-		write(res, plain)
-		confirm(id)
+		auth.cookie.write(res, plain)
+		auth.confirm.user(id)
 		emit([
 			`profile:${id}`,
 			`sessions:${id}`,

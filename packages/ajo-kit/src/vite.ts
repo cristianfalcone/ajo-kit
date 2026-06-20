@@ -153,7 +153,7 @@ export function kit(options?: Options): Plugin[] {
 			config() {
 				const aliases = found
 					.filter(p => p.alias)
-					.map(p => ({ find: new RegExp(`^@kit/${p.alias}(/|$)`), replacement: `${p.name}$1` }))
+					.map(p => ({ find: new RegExp(`^@kit/${p.alias}$`), replacement: p.name }))
 
 				return {
 					ssr: { noExternal: [/^ajo-/] },

@@ -1,5 +1,5 @@
+import type { Auth } from '@kit/auth'
 import type { Generated } from '@kit/database'
-import type { Auth } from '@kit/auth/types'
 
 export interface ChatsTable {
 	id: Generated<number>

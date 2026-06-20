@@ -1,13 +1,13 @@
+import * as auth from '@kit/auth'
 import type { Request, Response } from '@kit'
 import { send } from '@kit/server'
-import { authorize } from '@kit/auth/guard'
 import { db } from '/src/data'
 
 export default {
 
 	async get(req: Request, res: Response) {
 
-		authorize(req, 'profile:read')
+		auth.authorize(req, 'profile:read')
 
 		const extra = await db()
 			.selectFrom('users')

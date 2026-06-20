@@ -1,8 +1,6 @@
+import * as auth from '@kit/auth'
 import type { Request } from '@kit'
 import { object, string } from '@kit/validate'
-import { verify } from '@kit/auth/password'
-import { credential, stamp } from '@kit/auth/confirm'
-import { check, hit, clear } from '@kit/auth/limit'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { Failure, Denied, ip } from '@kit'
@@ -14,17 +12,17 @@ export const actions = {
 	default: async (req: Request) => {
 
 		const input = parse(Confirm, req.body)
-		const current = credential(req)
+		const current = auth.confirm.credential(req)
 
 		if (!current) throw new Denied()
 
 		const limit = `confirm:${req.user!.id}:${current}:${ip(req)}`
 
-		if (!check(limit)) {
+		if (!auth.limit.check(limit)) {
 			throw new Failure(429, 'Too many confirmation attempts. Try again later.')
 		}
 
-		hit(limit)
+		auth.limit.hit(limit)
 
 		const user = await db()
 			.selectFrom('users')
@@ -32,13 +30,13 @@ export const actions = {
 			.where('id', '=', req.user!.id)
 			.executeTakeFirst()
 
-		if (!user?.password || !await verify(input.password, user.password)) {
+		if (!user?.password || !await auth.password.verify(input.password, user.password)) {
 			throw new Denied('Invalid password')
 		}
 
-		clear(limit)
+		auth.limit.clear(limit)
 
-		if (!stamp(req)) throw new Denied()
+		if (!auth.confirm.stamp(req)) throw new Denied()
 
 		return { confirmed: true }
 	}

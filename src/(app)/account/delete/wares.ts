@@ -1,3 +1,2 @@
-import { confirmed } from '@kit/auth/guard'
-
-export default [confirmed()]
+import * as auth from '@kit/auth'
+export default [auth.confirmed()]

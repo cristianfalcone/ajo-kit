@@ -1,10 +1,7 @@
+import * as auth from '@kit/auth'
 import type { Request, Response } from '@kit'
 import { send, emit } from '@kit/server'
 import { object, string, array, optional } from '@kit/validate'
-import { create, list, all } from '@kit/auth/token'
-import { authorize } from '@kit/auth/guard'
-import { check, hit } from '@kit/auth/limit'
-import { token as forget } from '@kit/auth/confirm'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { Missing, Failure, Forbidden } from '@kit'
@@ -30,9 +27,9 @@ export default {
 
 	async get(req: Request, res: Response) {
 
-		authorize(req, 'tokens:read')
+		auth.authorize(req, 'tokens:read')
 
-		const tokens = await list(req.user!.id)
+		const tokens = await auth.token.list(req.user!.id)
 
 		const masked = tokens.map(t => ({
 			id: t.id.slice(-4),
@@ -48,24 +45,24 @@ export default {
 
 	async post(req: Request, res: Response) {
 
-		authorize(req, 'tokens:create')
+		auth.authorize(req, 'tokens:create')
 
 		const key = `token:${req.user!.id}`
 
-		if (!check(key)) {
+		if (!auth.limit.check(key)) {
 			throw new Failure(429, 'Too many token creation attempts. Try again later.')
 		}
 
-		hit(key)
+		auth.limit.hit(key)
 
 		const input = parse(Create, req.body)
 		const abilities = requested(input.abilities)
 
-		if (req.token && !all(req.token.abilities, abilities)) {
+		if (req.token && !auth.token.all(req.token.abilities, abilities)) {
 			throw new Forbidden('Requested abilities exceed bearer token abilities')
 		}
 
-		const token = await create(
+		const token = await auth.token.create(
 			req.user!.id,
 			input.name,
 			abilities
@@ -83,7 +80,7 @@ export default {
 
 	async delete(req: Request, res: Response) {
 
-		authorize(req, 'tokens:delete')
+		auth.authorize(req, 'tokens:delete')
 
 		const partialId = req.body.id
 
@@ -103,7 +100,7 @@ export default {
 			.deleteFrom('tokens')
 			.where('id', '=', match.id)
 			.execute()
-		forget(req.user!.id, match.id)
+		auth.confirm.token(req.user!.id, match.id)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		send(res, 200, { message: 'Token revoked' })

@@ -1,7 +1,6 @@
+import * as auth from '@kit/auth'
 import type { Parent, Request } from '@kit'
 import { db } from '/src/data'
-import { read } from '@kit/auth/cookie'
-import { hash as digest } from '@kit/auth/session'
 
 type Shell = {
 	user: {
@@ -20,8 +19,8 @@ export async function page(req: Request, parent: Parent) {
 
 	const { user: account, unread } = await parent() as Shell
 	const user = account.id
-	const cookie = read(req)
-	const session = cookie ? digest(cookie) : undefined
+	const cookie = auth.cookie.read(req)
+	const session = cookie ? auth.session.hash(cookie) : undefined
 
 	const [sessions, tokens, chats, recent] = await Promise.all([
 		db()

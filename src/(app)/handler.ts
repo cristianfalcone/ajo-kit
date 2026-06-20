@@ -1,9 +1,7 @@
+import * as auth from '@kit/auth'
 import type { Request, Response } from '@kit'
 import { Denied } from '@kit'
 import { db, unread } from '/src/data'
-import { read, clear } from '@kit/auth/cookie'
-import { remove } from '@kit/auth/session'
-import { clear as forget } from '@kit/auth/confirm'
 import { emit } from '@kit/server'
 
 export async function layout(req: Request) {
@@ -26,13 +24,13 @@ export async function layout(req: Request) {
 
 export const actions = {
 	signout: async (req: Request, res: Response) => {
-		const token = read(req)
+		const token = auth.cookie.read(req)
 		if (token) {
-			await remove(token)
+			await auth.session.remove(token)
 			emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 		}
-		forget(req)
-		clear(res)
+		auth.confirm.clear(req)
+		auth.cookie.clear(res)
 		return { redirect: '/login' }
 	}
 }

@@ -1,16 +1,14 @@
+import * as auth from '@kit/auth'
 import type { Middleware } from '@kit'
-import { configure } from '@kit/auth'
-import { session, csrf } from '@kit/auth/wares'
-import { when, redirect } from '@kit/auth/guard'
 import { db } from '/src/data'
 
-configure(() => db())
+auth.configure(() => db())
 
 export default [
-	session(),
+	auth.wares.session(),
 
-	csrf,
+	auth.wares.csrf,
 
-	when(req => req.path === '/', redirect(req => req.user ? '/dashboard' : '/login')),
+	auth.when(req => req.path === '/', auth.redirect(req => req.user ? '/dashboard' : '/login')),
 
 ] satisfies Middleware[]

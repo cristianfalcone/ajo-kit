@@ -1,11 +1,7 @@
+import * as auth from '@kit/auth'
 import type { Request, Response } from '@kit'
 import { Failure, ip, origin } from '@kit'
 import { object, optional, string, forward, partialCheck, pipe } from '@kit/validate'
-import { hash } from '@kit/auth/password'
-import { create } from '@kit/auth/session'
-import { write } from '@kit/auth/cookie'
-import { check, hit } from '@kit/auth/limit'
-import { url } from '@kit/auth/verify'
 import { send } from '@kit/mail'
 import { emit } from '@kit/server'
 import { db, email, password, trimmed } from '/src/data'
@@ -36,11 +32,11 @@ export const actions = {
 		const key = `register:${addr}`
 		const base = origin(req)
 
-		if (!check(key)) {
+		if (!auth.limit.check(key)) {
 			throw new Failure(429, 'Too many registration attempts. Try again later.')
 		}
 
-		hit(key)
+		auth.limit.hit(key)
 
 		const input = parse(Signup, req.body)
 
@@ -52,7 +48,7 @@ export const actions = {
 
 		if (exists) throw new Failure(400, 'Email already registered')
 
-		const hashed = await hash(input.password)
+		const hashed = await auth.password.hash(input.password)
 		const { confirm, ...user } = input
 
 		const id = await db().transaction().execute(async trx => {
@@ -78,7 +74,7 @@ export const actions = {
 			return created.id
 		})
 
-		const link = url(id, base)
+		const link = auth.verify.url(id, base)
 
 		await send({
 			to: input.email,
@@ -87,7 +83,7 @@ export const actions = {
 		})
 
 		const agent = req.headers['user-agent']
-		const token = await create(id, false, ip(req), agent)
+		const token = await auth.session.create(id, false, ip(req), agent)
 		emit([
 			`sessions:${id}`,
 			`dashboard:${id}`,
@@ -97,7 +93,7 @@ export const actions = {
 			'admin:stats',
 		])
 
-		write(res, token)
+		auth.cookie.write(res, token)
 
 		return { redirect: '/dashboard' }
 	}

@@ -41,10 +41,6 @@
     "./database": {
       "types": "./src/database.ts",
       "default": "./src/database.ts"
-    },
-    "./timing": {
-      "types": "./src/timing.ts",
-      "default": "./src/timing.ts"
     }
   },
   "dependencies": {

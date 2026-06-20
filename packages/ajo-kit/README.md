@@ -207,9 +207,9 @@ If an action returns `{ redirect: '/path' }`, client navigation is triggered aut
 `wares.ts` exports one middleware or an array:
 
 ```ts
-import { session, csrf } from '@kit/auth/wares'
+import { wares } from '@kit/auth'
 
-export default [session(), csrf]
+export default [wares.session(), wares.csrf]
 ```
 
 Middlewares are collected from route ancestors and applied to both page and API handlers.

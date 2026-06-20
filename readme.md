@@ -61,7 +61,6 @@ export default defineConfig({
       "@kit": ["./node_modules/ajo-kit/src/constants.ts"],
       "@kit/*": ["./node_modules/ajo-kit/src/*"],
       "@kit/auth": ["./node_modules/ajo-auth/src/index.ts"],
-      "@kit/auth/*": ["./node_modules/ajo-auth/src/*"]
     }
   }
 }
@@ -537,31 +536,6 @@ function build(): Promise<void>
 function listen(app: any, port?: number, options?: { strict?: boolean }): Promise<number>
 ```
 
-## `@kit/timing`
-
-Opt-in timing helpers. Enabled when `AJO_TIMING` is not empty, `0`, `false`, or
-`off`.
-
-```ts
-import {
-  measure,
-  start,
-  finish,
-  header,
-  log,
-  elapsed,
-  type Timing,
-  type Result,
-} from '@kit/timing'
-```
-
-```ts
-function measure<T>(label: string, run: () => T | Promise<T>): Promise<T>
-```
-
-Use `measure()` around focused SQL-heavy or CPU-heavy blocks while investigating
-performance.
-
 ## Auth Setup
 
 `ajo-auth` is a kit plugin. It provides auth tables, route middleware, guards,
@@ -570,13 +544,12 @@ in-memory rate limiting.
 
 ```ts
 // src/wares.ts
-import { configure } from '@kit/auth'
-import { session, csrf } from '@kit/auth/wares'
+import { configure, wares } from '@kit/auth'
 import { db } from '/src/data'
 
 configure(() => db())
 
-export default [session(), csrf]
+export default [wares.session(), wares.csrf]
 ```
 
 Run migrations after installing `ajo-auth`:
@@ -607,6 +580,17 @@ import {
   verified,
   redirect,
   when,
+  authorize,
+  wares,
+  password,
+  session,
+  cookie,
+  csrf,
+  token,
+  limit,
+  confirm,
+  reset,
+  verify,
   type User,
   type New,
   type Session,
@@ -654,24 +638,26 @@ Guard behavior:
 For handler-local ability checks:
 
 ```ts
-import { authorize } from '@kit/auth/guard'
+import { authorize } from '@kit/auth'
 
 authorize(req, 'tokens:read')
 ```
 
-## `@kit/auth/wares`
+## `@kit/auth` Middleware
 
 Authentication and CSRF middleware.
 
 ```ts
-import { session, csrf } from '@kit/auth/wares'
+import { wares } from '@kit/auth'
 ```
 
 ```ts
 type ResolveUser = (user: number) => Promise<import('@kit').User | null>
 
-function session(lookup?: ResolveUser): Middleware
-const csrf: Middleware
+const wares: {
+  session(lookup?: ResolveUser): Middleware
+  csrf: Middleware
+}
 ```
 
 `session()` clears auth state, authenticates bearer tokens only on `/api/*`, and
@@ -687,13 +673,13 @@ same-origin proof.
 These are useful when implementing custom auth routes.
 
 ```ts
-// @kit/auth/password
+// password
 function hash(plain: string): Promise<string>
 function verify(plain: string, hashed: string): Promise<boolean>
 ```
 
 ```ts
-// @kit/auth/session
+// session
 function generate(): string
 function hash(plain: string): string
 function create(user: number, remember?: boolean, ip?: string, agent?: string): Promise<string>
@@ -706,7 +692,7 @@ Sessions return a plaintext cookie value. The database stores only
 `sha256(plain)`.
 
 ```ts
-// @kit/auth/cookie
+// cookie
 function parse(header: string | undefined, key: string): string | undefined
 function read(req: Request): string | undefined
 function write(res: Response, value: string, remember?: boolean): void
@@ -714,13 +700,13 @@ function clear(res: Response): void
 ```
 
 ```ts
-// @kit/auth/csrf
+// csrf
 function set(res: Response): string
 function verify(req: Request): boolean
 ```
 
 ```ts
-// @kit/auth/token
+// token
 type Ability = string
 
 function create(
@@ -748,7 +734,7 @@ function prune(): Promise<unknown>
 Abilities support `*`, exact matches, and resource wildcards like `posts:*`.
 
 ```ts
-// @kit/auth/limit
+// limit
 function check(key: string, max?: number): boolean
 function hit(key: string, window?: number): void
 function clear(key: string): void
@@ -758,7 +744,7 @@ function remaining(key: string, max?: number): number
 This limiter is in-memory and per-process.
 
 ```ts
-// @kit/auth/confirm
+// confirm
 function credential(req: Request): string | null
 function stamp(req: Request): boolean
 function check(req: Request, window?: number): boolean
@@ -771,7 +757,7 @@ function user(user: number): void
 Confirmation is scoped to the current session or bearer token credential.
 
 ```ts
-// @kit/auth/reset
+// reset
 function create(user: number): Promise<string>
 function validate(plain: string): Promise<number | null>
 function prune(): Promise<unknown>
@@ -780,7 +766,7 @@ function prune(): Promise<unknown>
 Reset tokens are hashed in the database and expire after one hour.
 
 ```ts
-// @kit/auth/verify
+// verify
 function sign(user: number): string
 function validate(signature: string): number | null
 function url(user: number, base: string): string
@@ -824,8 +810,4 @@ observe changed data. Emit after transactions commit.
 | `@kit/mail` / `ajo-kit/mail` | Mail transport configure/send |
 | `ajo-kit/vite` | Vite plugin, JSX config, defaults |
 | `ajo-kit/node` | Programmatic dev/build/start/listen |
-| `@kit/timing` / `ajo-kit/timing` | Opt-in timing helpers |
-| `@kit/auth` / `ajo-auth` | Auth setup, types, guards |
-| `@kit/auth/wares` | `session()` and `csrf` middleware |
-| `@kit/auth/guard` | Guards plus `authorize()` |
-| `@kit/auth/*` | Low-level auth helpers for custom auth routes |
+| `@kit/auth` / `ajo-auth` | Auth setup, guards, middleware, and low-level namespaces |

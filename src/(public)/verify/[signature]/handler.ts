@@ -1,11 +1,11 @@
+import * as auth from '@kit/auth'
 import type { Request } from '@kit'
-import { validate } from '@kit/auth/verify'
 import { db } from '/src/data'
 import { emit } from '@kit/server'
 
 export async function page(req: Request) {
 
-	const user = validate(req.params.signature)
+	const user = auth.verify.validate(req.params.signature)
 
 	if (!user) {
 		return { error: 'Invalid or expired verification link' }

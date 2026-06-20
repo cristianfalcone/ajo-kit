@@ -1,6 +1,5 @@
+import * as auth from '@kit/auth'
 import type { Request } from '@kit'
-import { url } from '@kit/auth/verify'
-import { check, hit } from '@kit/auth/limit'
 import { send } from '@kit/mail'
 import { db } from '/src/data'
 import { Failure, origin } from '@kit'
@@ -11,11 +10,11 @@ export const actions = {
 
 		const key = `verify:${req.user!.id}`
 
-		if (!check(key)) {
+		if (!auth.limit.check(key)) {
 			throw new Failure(429, 'Too many verification requests. Try again later.')
 		}
 
-		hit(key)
+		auth.limit.hit(key)
 
 		const user = await db()
 			.selectFrom('users')
@@ -27,7 +26,7 @@ export const actions = {
 		if (user.verified) throw new Failure(400, 'Email already verified')
 
 		const base = origin(req)
-		const link = url(user.id, base)
+		const link = auth.verify.url(user.id, base)
 
 		await send({
 			to: user.email,

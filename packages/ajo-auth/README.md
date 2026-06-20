@@ -27,7 +27,7 @@ pnpm add ajo-auth
 Call `configure()` once during app boot so auth modules can access your Kysely instance.
 
 ```ts
-import { configure } from '@kit/auth/store'
+import { configure } from '@kit/auth'
 import { db } from '/src/data'
 
 configure(() => db())
@@ -47,9 +47,9 @@ This creates auth tables (`users`, `sessions`, `roles`, `members`, `tokens`, `re
 
 ```ts
 // src/wares.ts
-import { session, csrf } from '@kit/auth/wares'
+import { wares } from '@kit/auth'
 
-export default [session(), csrf]
+export default [wares.session(), wares.csrf]
 ```
 
 `session()` resolves `req.user` from cookies, and from bearer tokens only on `/api/*` routes. On API requests, an explicit Bearer token takes precedence over session cookies.
@@ -65,12 +65,12 @@ If missing, verification falls back to `change-in-production` (not safe for prod
 
 ## Main Exports
 
-You can import from `@kit/auth/*`:
+Import namespaces from `@kit/auth`:
 
 ### `password`
 
 ```ts
-import { hash, verify } from '@kit/auth/password'
+import { password } from '@kit/auth'
 ```
 
 Argon2id hash/verify helpers.
@@ -78,7 +78,7 @@ Argon2id hash/verify helpers.
 ### `session`
 
 ```ts
-import * as session from '@kit/auth/session'
+import { session } from '@kit/auth'
 
 const id = await session.create(user, remember, ip, agent)
 const active = await session.validate(id)
@@ -93,7 +93,7 @@ SHA-256 hash of that value in `sessions.id`. Session lifetime: 30 days
 ### `cookie`
 
 ```ts
-import * as cookie from '@kit/auth/cookie'
+import { cookie } from '@kit/auth'
 
 const id = cookie.read(req)
 cookie.write(res, id, remember)
@@ -106,7 +106,7 @@ in production.
 ### `csrf`
 
 ```ts
-import * as csrf from '@kit/auth/csrf'
+import { csrf } from '@kit/auth'
 
 const token = csrf.set(res)
 const ok = csrf.verify(req)
@@ -120,12 +120,12 @@ Verification accepts:
 ### `wares`
 
 ```ts
-import { session, csrf } from '@kit/auth/wares'
+import { wares } from '@kit/auth'
 ```
 
 `session(lookup?)` accepts an optional custom user resolver. Bearer token auth is scoped to `/api/*`; route actions use cookie sessions and CSRF.
 
-### Guards (`@kit/auth` or `@kit/auth/guard`)
+### Guards
 
 ```ts
 import { auth, role, ability, protect, guest, confirmed, verified, redirect, when } from '@kit/auth'
@@ -144,7 +144,7 @@ import { auth, role, ability, protect, guest, confirmed, verified, redirect, whe
 ### `token`
 
 ```ts
-import * as token from '@kit/auth/token'
+import { token } from '@kit/auth'
 
 const plain = await token.create(user, 'My token', ['posts:*'])
 const valid = await token.validate(plain)
@@ -160,7 +160,7 @@ Abilities support `*`, exact matches, and resource wildcards like `posts:*`.
 ### `limit`
 
 ```ts
-import * as limit from '@kit/auth/limit'
+import { limit } from '@kit/auth'
 
 if (!limit.check(ip)) throw new Error('Too many attempts')
 limit.hit(ip, 60_000)
@@ -173,7 +173,7 @@ In-memory limiter (per-process, non-distributed).
 ### `confirm`
 
 ```ts
-import * as confirm from '@kit/auth/confirm'
+import { confirm } from '@kit/auth'
 
 confirm.stamp(user)
 confirm.check(user, 180_000)
@@ -185,7 +185,7 @@ Tracks recent password confirmation in memory.
 ### `reset`
 
 ```ts
-import * as reset from '@kit/auth/reset'
+import { reset } from '@kit/auth'
 
 const plain = await reset.create(user)
 const user = await reset.validate(plain)
@@ -198,7 +198,7 @@ Reset tokens are SHA-256 hashed in DB and expire in 1 hour.
 ### `verify`
 
 ```ts
-import * as verify from '@kit/auth/verify'
+import { verify } from '@kit/auth'
 
 const link = verify.url(user, 'https://example.com')
 const verifiedUser = verify.validate(signature)

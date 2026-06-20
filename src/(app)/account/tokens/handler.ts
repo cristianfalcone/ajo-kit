@@ -1,7 +1,6 @@
+import * as auth from '@kit/auth'
 import type { Request } from '@kit'
 import { object, string, array, optional, pipe, minLength } from '@kit/validate'
-import { create, list } from '@kit/auth/token'
-import { token as forget } from '@kit/auth/confirm'
 import { db, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
@@ -29,7 +28,7 @@ const requested = (abilities: string[]) => {
 export async function page(req: Request) {
 	req.track?.([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`])
 
-	const tokens = await list(req.user!.id)
+	const tokens = await auth.token.list(req.user!.id)
 
 	return {
 		tokens: tokens.map(t => ({
@@ -49,7 +48,7 @@ export const actions = {
 		const input = parse(Create, req.body)
 		const abilities = requested(input.abilities)
 
-		const plain = await create(req.user!.id, input.name, abilities)
+		const plain = await auth.token.create(req.user!.id, input.name, abilities)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		return { token: plain }
@@ -75,7 +74,7 @@ export const actions = {
 			.deleteFrom('tokens')
 			.where('id', '=', match.id)
 			.execute()
-		forget(req.user!.id, match.id)
+		auth.confirm.token(req.user!.id, match.id)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		return { revoked: true }

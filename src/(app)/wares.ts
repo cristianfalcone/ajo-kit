@@ -1,6 +1,6 @@
-import { protect, auth, when } from '@kit/auth/guard'
+import * as auth from '@kit/auth'
 import { api } from '@kit'
 
 export default [
-	when(api, auth(), protect())
+	auth.when(api, auth.auth(), auth.protect())
 ]

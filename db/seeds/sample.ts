@@ -1,6 +1,6 @@
 import type { Kysely } from 'ajo-kit/database'
 
-import { hash } from 'ajo-auth/password'
+import { password as auth } from 'ajo-auth'
 
 async function fetchJson<T>(url: string): Promise<T> {
 	const response = await fetch(url)
@@ -14,7 +14,7 @@ const ago = (base: Date, minutes: number) => new Date(base.getTime() - minutes *
 export async function seed(db: Kysely<any>): Promise<void> {
 
 	const data = await fetchJson<{ users: any[] }>('https://dummyjson.com/users?limit=10')
-	const password = await hash('password')
+	const password = await auth.hash('password')
 
 	// Clear existing data
 	await db.deleteFrom('messages').execute()

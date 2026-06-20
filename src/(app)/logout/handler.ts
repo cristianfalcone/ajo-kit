@@ -1,15 +1,14 @@
+import * as auth from '@kit/auth'
 import type { Request, Response } from '@kit'
 import { send, emit } from '@kit/server'
 import { createHash } from 'node:crypto'
 import { db } from '/src/data'
-import { authorize } from '@kit/auth/guard'
-import { clear as forget } from '@kit/auth/confirm'
 
 export default {
 
 	async post(req: Request, res: Response) {
 
-		authorize(req, 'tokens:delete')
+		auth.authorize(req, 'tokens:delete')
 
 		if (req.token) {
 
@@ -29,7 +28,7 @@ export default {
 			}
 		}
 
-		forget(req)
+		auth.confirm.clear(req)
 		send(res, 200, { message: 'Logged out' })
 	}
 }
