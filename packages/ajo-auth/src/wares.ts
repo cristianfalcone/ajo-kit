@@ -71,7 +71,7 @@ export function session(lookup?: Resolve): Middleware {
 
 		if (cookie) {
 
-			const valid = await validate(cookie)
+			const valid = await validate(cookie, req.headers.accept !== 'text/event-stream')
 
 			if (valid) {
 				const user = await find(valid.user)

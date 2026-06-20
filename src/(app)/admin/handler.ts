@@ -1,8 +1,11 @@
+import * as auth from '@kit/auth'
 import type { Request } from '@kit'
 import { db } from '/src/data'
 
 export async function page(req: Request) {
 	req.track?.('admin:stats')
+
+	await auth.session.prune()
 
 	const [users, sessions, tokens] = await Promise.all([
 		db().selectFrom('users').select(db().fn.countAll().as('count')).executeTakeFirstOrThrow(),

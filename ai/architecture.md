@@ -533,6 +533,15 @@ Session cookies store plaintext random values. The database stores only
 `sha256(cookiePlain)` in `sessions.id`. A database-only leak cannot be reused as
 a cookie value.
 
+Session validation enforces both absolute expiry and a 30-minute server-side
+idle timeout. Expired session rows are deleted during validation. Active
+sessions update `last` at most once every 5 minutes, so session/account/admin UI
+shows real activity without writing on every request. Background credential
+checks such as SSE freshness validate without renewing activity. Session list
+and admin/dashboard loaders call `session.prune()` before counting/listing so
+expired rows that are no longer presented by a browser cookie do not appear as
+active sessions.
+
 API tokens and reset tokens are stored hashed. Plaintext API tokens are shown
 only once at creation.
 

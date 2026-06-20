@@ -21,6 +21,7 @@ export async function page(req: Request, parent: Parent) {
 	const user = account.id
 	const cookie = auth.cookie.read(req)
 	const session = cookie ? auth.session.hash(cookie) : undefined
+	await auth.session.prune()
 
 	const [sessions, tokens, chats, recent] = await Promise.all([
 		db()
@@ -59,7 +60,7 @@ export async function page(req: Request, parent: Parent) {
 			id: s.id.slice(0, 8),
 			ip: s.ip,
 			agent: s.agent,
-			last: s.last,
+			last: s.last ?? s.created,
 			created: s.created,
 			current: s.id === session,
 		})),

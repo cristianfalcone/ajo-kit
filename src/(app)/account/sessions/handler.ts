@@ -10,6 +10,8 @@ const Revoke = object({ id: string() })
 export async function page(req: Request) {
 	req.track?.([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`])
 
+	await auth.session.prune()
+
 	const cookie = auth.cookie.read(req)
 	const current = cookie ? auth.session.hash(cookie) : undefined
 

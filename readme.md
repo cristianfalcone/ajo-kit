@@ -676,13 +676,24 @@ function verify(plain: string, hashed: string): Promise<boolean>
 function generate(): string
 function hash(plain: string): string
 function create(user: number, remember?: boolean, ip?: string, agent?: string): Promise<string>
-function validate(plain: string): Promise<{ id: string; user: number; expiry: string } | null>
+function validate(plain: string, activity?: boolean): Promise<{
+  id: string
+  user: number
+  expiry: string
+  last: string | null
+  created: string
+} | null>
 function remove(plain: string): Promise<unknown>
 function touch(plain: string): Promise<unknown>
+function prune(): Promise<unknown>
 ```
 
 Sessions return a plaintext cookie value. The database stores only
-`sha256(plain)`.
+`sha256(plain)`. Validation enforces the absolute session expiry plus a
+30-minute idle timeout, deletes expired session rows, and updates `last` at most
+once every 5 minutes. Pass `activity = false` for background checks that should
+not renew activity. `prune()` removes expired rows that are no longer presented
+by a browser cookie.
 
 ```ts
 // cookie

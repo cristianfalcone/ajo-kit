@@ -10,7 +10,7 @@ import { stamp, check as confirm, clear, clearUser } from '../../../packages/ajo
 import { session } from '../../../packages/ajo-auth/src/wares'
 import { sign, url, validate } from '../../../packages/ajo-auth/src/verify'
 import { can, all, create as token } from '../../../packages/ajo-auth/src/token'
-import { create, hash as digest, remove, validate as check } from '../../../packages/ajo-auth/src/session'
+import { create, hash as digest, prune, remove, validate as check } from '../../../packages/ajo-auth/src/session'
 import { configure } from '../../../packages/ajo-auth/src/store'
 import { close, connect, db } from '../../../packages/ajo-kit/src/database'
 import { hash, verify } from '../../../packages/ajo-auth/src/password'
@@ -181,6 +181,7 @@ describe('ajo-auth session storage', () => {
 			.addColumn('ip', 'text')
 			.addColumn('agent', 'text')
 			.addColumn('last', 'text')
+			.addColumn('created', 'text')
 			.execute()
 		await db<any>().schema
 			.createTable('tokens')
@@ -292,6 +293,183 @@ describe('ajo-auth session storage', () => {
 		expect(api.user).toBeUndefined()
 		expect(api.token).toBeUndefined()
 		expect(api.session).toBeUndefined()
+	})
+
+	test('auth middleware rejects idle sessions and clears their cookie', async () => {
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date('2026-06-19T00:31:00Z'))
+
+		try {
+			const user = await db<any>()
+				.insertInto('users')
+				.values({
+					name: 'Idle User',
+					email: 'idle@example.com',
+					password: null,
+				})
+				.returning('id')
+				.executeTakeFirstOrThrow()
+			const plain = 'idle-session'
+			const id = digest(plain)
+			const find = async () => ({ id: user.id, name: 'Idle User', email: 'idle@example.com', verified: null, roles: [] })
+			const middleware = session(find)
+			const res = { setHeader: vi.fn() }
+			const req = {
+				path: '/dashboard',
+				headers: { cookie: `session=${plain}` },
+			} as any
+			let next = false
+
+			await db<any>().insertInto('sessions').values({
+				id,
+				user: user.id,
+				expiry: '2026-06-20T00:00:00.000Z',
+				ip: null,
+				agent: null,
+				last: '2026-06-19T00:00:00.000Z',
+				created: '2026-06-19T00:00:00.000Z',
+			}).execute()
+
+			await middleware(req, res as any, (() => { next = true }) as any)
+
+			const stored = await db<any>()
+				.selectFrom('sessions')
+				.select('id')
+				.where('id', '=', id)
+				.executeTakeFirst()
+
+			expect(next).toBe(true)
+			expect(req.user).toBeUndefined()
+			expect(req.session).toBeUndefined()
+			expect(stored).toBeUndefined()
+			expect(res.setHeader).toHaveBeenCalledWith(
+				'Set-Cookie',
+				'session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'
+			)
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	test('session validation touches stale activity at a throttled pace', async () => {
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date('2026-06-19T00:00:00Z'))
+
+		try {
+			const user = await db<any>()
+				.insertInto('users')
+				.values({
+					name: 'Active User',
+					email: 'active@example.com',
+					password: null,
+				})
+				.returning('id')
+				.executeTakeFirstOrThrow()
+			const plain = await create(user.id)
+			const id = digest(plain)
+			const last = async () => db<any>()
+				.selectFrom('sessions')
+				.select('last')
+				.where('id', '=', id)
+				.executeTakeFirstOrThrow()
+
+			await db<any>()
+				.updateTable('sessions')
+				.set({
+					last: '2026-06-18T23:54:00.000Z',
+					created: '2026-06-18T23:54:00.000Z',
+				})
+				.where('id', '=', id)
+				.execute()
+
+			await check(plain, false)
+			expect((await last()).last).toBe('2026-06-18T23:54:00.000Z')
+
+			await expect(check(plain)).resolves.toMatchObject({
+				id,
+				user: user.id,
+				last: '2026-06-19T00:00:00.000Z',
+			})
+			expect((await last()).last).toBe('2026-06-19T00:00:00.000Z')
+
+			vi.setSystemTime(new Date('2026-06-19T00:04:59Z'))
+			await check(plain)
+			expect((await last()).last).toBe('2026-06-19T00:00:00.000Z')
+
+			vi.setSystemTime(new Date('2026-06-19T00:05:01Z'))
+			await check(plain)
+			expect((await last()).last).toBe('2026-06-19T00:05:01.000Z')
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	test('session pruning removes absolute and idle expired rows', async () => {
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date('2026-06-19T00:40:00Z'))
+
+		try {
+			const user = await db<any>()
+				.insertInto('users')
+				.values({
+					name: 'Prune User',
+					email: 'prune@example.com',
+					password: null,
+				})
+				.returning('id')
+				.executeTakeFirstOrThrow()
+
+			await db<any>().insertInto('sessions').values([
+				{
+					id: 'active',
+					user: user.id,
+					expiry: '2026-06-20T00:00:00.000Z',
+					ip: null,
+					agent: null,
+					last: '2026-06-19T00:30:00.000Z',
+					created: '2026-06-19T00:00:00.000Z',
+				},
+				{
+					id: 'idle',
+					user: user.id,
+					expiry: '2026-06-20T00:00:00.000Z',
+					ip: null,
+					agent: null,
+					last: '2026-06-19T00:09:00.000Z',
+					created: '2026-06-19T00:00:00.000Z',
+				},
+				{
+					id: 'legacy',
+					user: user.id,
+					expiry: '2026-06-20T00:00:00.000Z',
+					ip: null,
+					agent: null,
+					last: null,
+					created: '2026-06-19T00:09:00.000Z',
+				},
+				{
+					id: 'absolute',
+					user: user.id,
+					expiry: '2026-06-19T00:39:00.000Z',
+					ip: null,
+					agent: null,
+					last: '2026-06-19T00:30:00.000Z',
+					created: '2026-06-19T00:00:00.000Z',
+				},
+			]).execute()
+
+			await prune()
+
+			const rows = await db<any>()
+				.selectFrom('sessions')
+				.select('id')
+				.orderBy('id')
+				.execute()
+
+			expect(rows).toEqual([{ id: 'active' }])
+		} finally {
+			vi.useRealTimers()
+		}
 	})
 })
 

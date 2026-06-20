@@ -85,11 +85,16 @@ const id = await session.create(user, remember, ip, agent)
 const active = await session.validate(id)
 await session.touch(id)
 await session.remove(id)
+await session.prune()
 ```
 
 `create()` returns the plaintext cookie value. The database stores only a
-SHA-256 hash of that value in `sessions.id`. Session lifetime: 30 days
-(default) or 365 days (`remember = true`).
+SHA-256 hash of that value in `sessions.id`. Session lifetime is a 30-day
+absolute expiry by default or 365 days with `remember = true`. `validate()`
+also enforces a 30-minute idle timeout, deletes expired session rows, and
+updates `last` at most once every 5 minutes. Pass `activity = false` for
+background checks such as SSE freshness. `prune()` removes expired rows that are
+no longer presented by a browser cookie.
 
 ### `cookie`
 

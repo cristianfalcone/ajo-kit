@@ -278,6 +278,13 @@ Acceptance:
 
 ## Phase 5: Session Idle Timeout and Last-Seen Touch
 
+Status: implemented. `session.validate()` now enforces absolute expiry and a
+30-minute server-side idle timeout, deletes expired rows, and throttles `last`
+updates to at most once every 5 minutes. Background checks such as SSE freshness
+can validate without renewing activity. `session.prune()` removes expired rows
+before session dashboards/counts list active sessions. Cookie auth keeps using
+the existing middleware clear path when validation fails.
+
 Finding:
 
 - Sessions have absolute expiry and store `last`.

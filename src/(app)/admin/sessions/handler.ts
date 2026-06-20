@@ -11,6 +11,8 @@ const RevokeUser = object({ user: pipe(string(), transform(v => Number(v)), numb
 
 export async function page(req: Request) {
 	req.track?.('admin:sessions')
+	await auth.session.prune()
+
 	const pagination = paginate(req)
 
 	const sessions = await db()
