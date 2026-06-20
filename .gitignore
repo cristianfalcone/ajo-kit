@@ -6,6 +6,5 @@ database.sqlite-wal
 database.sqlite-shm
 drive.json
 .env
-.claude
 .tmp
 test-results

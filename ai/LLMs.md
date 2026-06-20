@@ -1,10 +1,12 @@
-# Ajo-kit LLM Guide
+# Ajo App LLM Guide
 
 Last updated: 2026-06-20
 
-This is the short operational guide for coding agents building apps with Ajo and
-`ajo-kit`. Use `readme.md` for the human public API guide, `ai/architecture.md`
-for implementation internals, and `ai/chat.md` for the chat demo app.
+This is the short app-building guide for AI agents using Ajo and `ajo-kit`.
+It is not the repo maintenance guide; use `AGENTS.md` for working on this
+repository itself. Use `readme.md` for the human public API guide,
+`ai/architecture.md` for implementation internals, and `ai/chat.md` for the
+chat demo app.
 
 ## Project Shape
 

@@ -10,7 +10,7 @@ updates, and optional auth through `ajo-auth`.
 
 - `readme.md`: human guide for building apps with Ajo and `ajo-kit`.
 - `ai/architecture.md`: technical implementation and runtime architecture.
-- `ai/LLMs.md`: compact operating guide for AI coding agents.
+- `ai/LLMs.md`: compact app-building guide for AI agents using Ajo and `ajo-kit`.
 - `ai/chat.md`: chat demo app behavior, data, and QA notes.
 
 ## Install
