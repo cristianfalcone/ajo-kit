@@ -107,6 +107,10 @@ Defaults:
 - Migrations: `db/migrations`
 - Seeds: `db/seeds`
 
+`kit migrate` loads app migrations plus plugin migrations from installed
+`ajo-*` packages. Migration names are global; duplicate names fail before any
+migration runs.
+
 ## Routes
 
 Routes are filesystem based:

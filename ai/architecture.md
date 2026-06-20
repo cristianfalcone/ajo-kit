@@ -636,6 +636,11 @@ Runtime pragmas are set on connection:
 - busy timeout: 5000 ms
 - `synchronous = NORMAL`
 
+`kit migrate` combines app migrations from `db/migrations` with plugin
+migrations discovered from installed `ajo-*` packages. Migration names are
+global because Kysely orders and records migrations by name. Duplicate names
+fail while collecting migrations, before any migration executes.
+
 Use Kysely with explicit selected columns. Avoid `selectAll()` unless the full
 row is intentionally needed.
 

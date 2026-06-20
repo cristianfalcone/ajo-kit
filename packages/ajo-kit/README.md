@@ -254,6 +254,9 @@ The runtime maintains an SSE stream, revalidates affected routes, and replaces t
 - app migrations in `db/migrations`
 - plugin migrations discovered from installed `ajo-*` packages that expose `package.json#kit.migrations`
 
+Migration names are global across the app and all plugins. Duplicate names fail
+before any migration runs.
+
 `kit seed` runs sorted `db/seeds/*.ts` files that export:
 
 ```ts

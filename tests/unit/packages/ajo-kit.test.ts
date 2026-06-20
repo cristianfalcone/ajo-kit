@@ -1,10 +1,10 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { close, connect } from '../../../packages/ajo-kit/src/database'
+import { close, connect, db } from '../../../packages/ajo-kit/src/database'
 import { merge, render } from '../../../packages/ajo-kit/src/head'
 import * as headers from '../../../packages/ajo-kit/src/headers'
 import { body } from '../../../packages/ajo-kit/src/form'
@@ -28,6 +28,7 @@ import {
 	type Result,
 } from '../../../packages/ajo-kit/src/timing'
 import { compile, listen } from '../../../packages/ajo-kit/src/node'
+import { migrator } from '../../../packages/ajo-kit/src/migrate'
 
 const timing = process.env.AJO_TIMING
 const app = process.env.APP_URL
@@ -389,6 +390,43 @@ describe('ajo-kit route cache', () => {
 
 		expect(get('/tokens')).toBeUndefined()
 		expect(get('/sessions')).toBeTruthy()
+	})
+})
+
+describe('ajo-kit migrations', () => {
+	test('duplicate migration names fail before execution', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'ajo-kit-migrate-'))
+		const app = join(root, 'db/migrations')
+		const plugin = join(root, 'node_modules/ajo-dupe')
+		const folder = join(plugin, 'migrations')
+		const path = join(root, 'test.sqlite')
+		const migration = [
+			'export async function up() {',
+			'}',
+			'',
+			'export async function down() {',
+			'}',
+			''
+		].join('\n')
+
+		mkdirSync(app, { recursive: true })
+		mkdirSync(folder, { recursive: true })
+		writeFileSync(join(plugin, 'package.json'), JSON.stringify({
+			name: 'ajo-dupe',
+			kit: { migrations: './migrations' },
+		}))
+		writeFileSync(join(app, '0001_same.ts'), migration)
+		writeFileSync(join(folder, '0001_same.ts'), migration)
+
+		try {
+			connect(path)
+
+			await expect(migrator(db(), root).getMigrations())
+				.rejects.toThrow('Duplicate migration "0001_same"')
+		} finally {
+			await close()
+			rmSync(root, { recursive: true, force: true })
+		}
 	})
 })
 

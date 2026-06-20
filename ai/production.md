@@ -323,6 +323,10 @@ Acceptance:
 
 ## Phase 6: Migration Collision Safety
 
+Status: implemented. Migration collection now fails before execution when app
+and plugin migration providers expose the same migration name. The error names
+the duplicate migration and both source folders.
+
 Finding:
 
 - `packages/ajo-kit/src/migrate.ts` merges migration maps with
