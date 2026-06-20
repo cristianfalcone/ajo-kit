@@ -42,6 +42,7 @@ pnpm test:all            # Unit + E2E
 - `readme.md`: human guide and public API for building apps with Ajo and `ajo-kit`.
 - `packages/*/README.md`: package-local public docs.
 - `ai/architecture.md`: canonical implementation architecture and runtime contracts.
+- `ai/production.md`: production-readiness refactor plan and phase checklist.
 - `ai/LLMs.md`: app-building guide for AI agents using Ajo and `ajo-kit`.
 - `ai/chat.md`: chat demo app behavior, data, scrolling, unread, and QA notes.
 - `ai/comparison.md`: framework/auth/routing comparison context.
