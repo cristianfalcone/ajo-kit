@@ -5,14 +5,14 @@ import { object, string, array, optional } from '@kit/validate'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { Missing, Failure, Forbidden } from '@kit'
-import { normalize, unknown as invalid } from '/src/abilities'
+import { delegate, grantable, normalize, unknown as invalid } from '/src/abilities'
 
 const Create = object({
 	name: string(),
 	abilities: optional(array(string()), ['*']),
 })
 
-const requested = (abilities: string[]) => {
+const requested = (abilities: string[], grants: string[]) => {
 	const requested = normalize(abilities)
 	const bad = invalid(requested)
 
@@ -20,7 +20,7 @@ const requested = (abilities: string[]) => {
 		throw new Failure(400, `Unknown abilities: ${bad.join(', ')}`)
 	}
 
-	return requested
+	return delegate(abilities, grants)
 }
 
 export default {
@@ -56,7 +56,12 @@ export default {
 		auth.limit.hit(key)
 
 		const input = parse(Create, req.body)
-		const abilities = requested(input.abilities)
+		const grants = grantable(req.user!.abilities)
+		const abilities = requested(input.abilities, grants)
+
+		if (!auth.all(grants, abilities)) {
+			throw new Forbidden('Requested abilities exceed account abilities')
+		}
 
 		if (req.token && !auth.all(req.token.abilities, abilities)) {
 			throw new Forbidden('Requested abilities exceed bearer token abilities')

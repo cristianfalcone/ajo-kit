@@ -85,10 +85,11 @@ export default {
 
 		auth.limit.clear(key)
 
+		const abilities = await auth.account.abilities(user.id)
 		const token = await auth.token.create(
 			user.id,
 			input.device_name || 'API Client',
-			['*']
+			abilities
 		)
 		emit([`tokens:${user.id}`, `dashboard:${user.id}`, `user:${user.id}`, 'admin:tokens', 'admin:stats'])
 

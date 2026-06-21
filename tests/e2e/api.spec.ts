@@ -90,6 +90,62 @@ test('bearer API covers login, me, token create/list/delete and logout', async (
 	expect(gone.status()).toBe(401)
 })
 
+test('api login token is bounded by non-admin account abilities', async ({ request }) => {
+	const email = `api-member-${Date.now()}@example.com`
+	await make({ email, name: 'API Member' })
+
+	const res = await request.post('/api/login', {
+		data: {
+			email,
+			password: 'password',
+			device_name: 'Playwright Member API',
+		},
+	})
+
+	expect(res.status()).toBe(200)
+
+	const body = await res.json()
+	const headers = { Authorization: `Bearer ${body.token}` }
+	const me = await request.get('/api/me', { headers })
+
+	expect(me.status()).toBe(200)
+	await expect(me.json()).resolves.toMatchObject({
+		email,
+		abilities: expect.arrayContaining(['profile:read', 'tokens:create']),
+	})
+
+	const admin = await request.post('/api/tokens', {
+		headers,
+		data: {
+			name: 'Member Admin Token',
+			abilities: ['admin:read'],
+		},
+	})
+
+	expect(admin.status()).toBe(403)
+	await expect(admin.json()).resolves.toMatchObject({
+		message: 'Requested abilities exceed account abilities',
+	})
+
+	const full = await request.post('/api/tokens', {
+		headers,
+		data: {
+			name: 'Member Full Token',
+			abilities: ['*'],
+		},
+	})
+
+	expect(full.status()).toBe(201)
+
+	const tokens = await request.get('/api/tokens', { headers })
+	const list = await tokens.json()
+	const created = list.tokens.find((entry: { name: string }) => entry.name === 'Member Full Token')
+
+	expect(created.abilities).toContain('tokens:create')
+	expect(created.abilities).not.toContain('*')
+	expect(created.abilities).not.toContain('admin:read')
+})
+
 test('limited bearer tokens require matching API abilities', async ({ request }) => {
 	const headers = { Authorization: 'Bearer seed-api-token' }
 

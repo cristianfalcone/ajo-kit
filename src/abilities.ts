@@ -76,6 +76,24 @@ const matches = (grant: string, ability: string) =>
 export const can = (abilities: readonly string[] | undefined, ability: string) =>
 	abilities?.some(grant => matches(grant, ability)) ?? false
 
+export const grantable = (abilities: readonly string[] | undefined) => {
+	if (abilities?.includes('*')) return ['*']
+
+	return compact(groups.flatMap(group =>
+		can(abilities, group.wildcard)
+			? [group.wildcard]
+			: group.abilities.filter(ability => can(abilities, ability))
+	))
+}
+
+export const delegate = (abilities: string[], grantable: readonly string[]) => {
+	const requested = normalize(abilities)
+
+	return requested.includes('*') && !grantable.includes('*')
+		? [...grantable]
+		: requested
+}
+
 export const normalize = (abilities: string[]) =>
 	compact([...new Set(abilities.length > 0 ? abilities : ['*'])])
 

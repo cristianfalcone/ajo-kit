@@ -5,8 +5,8 @@ import { validate } from './session'
 import { validate as bearer } from './token'
 import { verify as valid } from './csrf'
 import { db } from './store'
-import type { Role } from './types'
-import { merge, type Ability } from './ability'
+import { grants } from './account'
+import { merge } from './ability'
 
 async function resolve(id: number) {
 
@@ -18,30 +18,12 @@ async function resolve(id: number) {
 
 	if (!user) return null
 
-	const roles = await db()
-		.selectFrom('members')
-		.innerJoin('roles', 'roles.id', 'members.role')
-		.select(['roles.name', 'roles.abilities'])
-		.where('members.user', '=', user.id)
-		.orderBy('roles.id')
-		.execute()
+	const roles = await grants(user.id)
 
 	return {
 		...user,
-		roles: roles.map(r => r.name as Role),
-		abilities: merge(...roles.map(r => parse(r.abilities))),
-	}
-}
-
-function parse(value: string): Ability[] {
-	try {
-		const abilities = JSON.parse(value)
-
-		return Array.isArray(abilities) && abilities.every(ability => typeof ability === 'string')
-			? abilities
-			: []
-	} catch {
-		return []
+		roles: roles.map(r => r.name),
+		abilities: merge(...roles.map(r => r.abilities)),
 	}
 }
 

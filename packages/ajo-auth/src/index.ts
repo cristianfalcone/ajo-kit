@@ -2,6 +2,8 @@
 export { auth, protect, guest, ability, confirmed, verified, redirect, when, authorize } from './guard'
 /** Ability matching and set helpers. */
 export { all, can, compact, intersect, merge, type Ability } from './ability'
+/** Account role grant helpers. */
+export * as account from './account'
 /** Configures the auth package database accessor. */
 export { configure } from './store'
 /** Password confirmation stamp helpers. */

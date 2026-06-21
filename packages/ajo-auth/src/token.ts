@@ -9,7 +9,7 @@ const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 export async function create(
 	user: number,
 	name: string,
-	abilities: Ability[] = ['*'],
+	abilities: Ability[],
 	ttl: number | null = 90 * 24 * 60 * 60 * 1000 // 90 días default
 ) {
 

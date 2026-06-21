@@ -4,8 +4,8 @@ import { object, string, array, optional, pipe, minLength } from '@kit/validate'
 import { db, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
 import { emit } from '@kit/server'
-import { Failure } from '@kit'
-import { normalize, unknown as invalid } from '/src/abilities'
+import { Failure, Forbidden } from '@kit'
+import { delegate, grantable, normalize, unknown as invalid } from '/src/abilities'
 
 const Create = object({
 	name: pipe(trimmed, minLength(1, 'Token name is required')),
@@ -14,7 +14,7 @@ const Create = object({
 
 const Revoke = object({ id: string() })
 
-const requested = (abilities: string[]) => {
+const requested = (abilities: string[], grants: string[]) => {
 	const requested = normalize(abilities)
 	const bad = invalid(requested)
 
@@ -22,10 +22,11 @@ const requested = (abilities: string[]) => {
 		throw new Failure(400, `Unknown abilities: ${bad.join(', ')}`)
 	}
 
-	return requested
+	return delegate(abilities, grants)
 }
 
 export async function page(req: Request) {
+	auth.authorize(req, 'tokens:read')
 	req.track?.([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`])
 
 	const tokens = await auth.token.list(req.user!.id)
@@ -37,7 +38,8 @@ export async function page(req: Request) {
 			abilities: JSON.parse(t.abilities),
 			last: t.last,
 			created: t.created
-		}))
+		})),
+		grantable: grantable(req.user!.abilities),
 	}
 }
 
@@ -45,8 +47,15 @@ export const actions = {
 
 	make: async (req: Request) => {
 
+		auth.authorize(req, 'tokens:create')
+
 		const input = parse(Create, req.body)
-		const abilities = requested(input.abilities)
+		const grants = grantable(req.user!.abilities)
+		const abilities = requested(input.abilities, grants)
+
+		if (!auth.all(grants, abilities)) {
+			throw new Forbidden('Requested abilities exceed account abilities')
+		}
 
 		const plain = await auth.token.create(req.user!.id, input.name, abilities)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
@@ -55,6 +64,8 @@ export const actions = {
 	},
 
 	revoke: async (req: Request) => {
+
+		auth.authorize(req, 'tokens:delete')
 
 		const input = parse(Revoke, req.body)
 

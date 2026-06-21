@@ -3,7 +3,7 @@ import clsx from 'clsx'
 import { type Props, date } from '@kit'
 import { action } from '@kit/client'
 import { Alert, Button, Checkbox, Feedback, Input, Panel, Table, type Column } from '/src/ui'
-import { groups } from '/src/abilities'
+import { can, groups } from '/src/abilities'
 
 type Token = {
 	id: string
@@ -13,7 +13,7 @@ type Token = {
 	created: string
 }
 
-type Data = { tokens: Token[] }
+type Data = { tokens: Token[], grantable: string[] }
 type CreateResult = { token: string }
 type RevokeResult = { revoked: boolean }
 
@@ -22,14 +22,15 @@ const shortDate = { month: 'short', day: 'numeric' } as const
 type FullProps = {
 	checked: boolean
 	disabled?: boolean
+	literal?: boolean
 	onToggle: () => void
 }
 
-const FullAccess: Stateless<FullProps> = ({ checked, disabled, onToggle }) => (
+const FullAccess: Stateless<FullProps> = ({ checked, disabled, literal, onToggle }) => (
 	<Checkbox
-		name="abilities"
+		name="selected"
 		value="*"
-		label={<>Full access <span class="font-medium text-slate-500 dark:text-slate-400">(*)</span></>}
+		label={<>Full access {literal && <span class="font-medium text-slate-500 dark:text-slate-400">(*)</span>}</>}
 		checked={checked}
 		disabled={disabled}
 		onToggle={onToggle}
@@ -44,18 +45,29 @@ const FullAccess: Stateless<FullProps> = ({ checked, disabled, onToggle }) => (
 	/>
 )
 
-const AbilityPicker: Stateful<{ error?: string, loading?: boolean }> = function* () {
+const options = (grantable: readonly string[]) => groups
+	.map(group => ({
+		label: group.label,
+		wildcard: group.wildcard,
+		abilities: grantable.includes('*')
+			? [...group.abilities]
+			: group.abilities.filter(ability => can(grantable, ability)),
+	}))
+	.filter(group => group.abilities.length > 0)
 
-	const abilities = groups.flatMap(group => group.abilities)
+const AbilityPicker: Stateful<{ grantable: string[], error?: string, loading?: boolean }> = function* ({ grantable }) {
+
+	const available = options(grantable)
+	const abilities = available.flatMap(group => group.abilities)
 	let selected = new Set<string>(abilities)
 
 	const complete = (items: readonly string[], source = selected) =>
 		items.every(ability => source.has(ability))
 	const grants = () => {
-		if (complete(abilities)) return ['*']
+		if (grantable.includes('*') && complete(abilities)) return ['*']
 
-		return groups.flatMap(group =>
-			complete(group.abilities)
+		return available.flatMap(group =>
+			complete(group.abilities) && can(grantable, group.wildcard)
 				? [group.wildcard]
 				: group.abilities.filter(ability => selected.has(ability))
 		)
@@ -88,8 +100,9 @@ const AbilityPicker: Stateful<{ error?: string, loading?: boolean }> = function*
 		const full = complete(abilities)
 		const grant = grants()
 		const empty = grant.length === 0
+		const literal = grantable.includes('*')
 		const status = full
-			? 'Full access - token can perform every action.'
+			? (literal ? 'Full access - token can perform every action.' : 'All grantable abilities selected.')
 			: empty
 				? 'Select at least one ability.'
 				: `${grant.length} ${grant.length === 1 ? 'ability' : 'abilities'} selected.`
@@ -109,6 +122,7 @@ const AbilityPicker: Stateful<{ error?: string, loading?: boolean }> = function*
 						<FullAccess
 							checked={full}
 							disabled={loading}
+							literal={literal}
 							onToggle={toggleFull}
 						/>
 						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -116,6 +130,9 @@ const AbilityPicker: Stateful<{ error?: string, loading?: boolean }> = function*
 						</p>
 					</div>
 				</div>
+				{grant.map(ability => (
+					<input key={ability} type="hidden" name="abilities" value={ability} />
+				))}
 
 				<div class="space-y-4">
 					<div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -130,7 +147,7 @@ const AbilityPicker: Stateful<{ error?: string, loading?: boolean }> = function*
 					</div>
 
 					<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-						{groups.map(group => {
+						{available.map(group => {
 							const broad = complete(group.abilities)
 
 							return (
@@ -146,7 +163,7 @@ const AbilityPicker: Stateful<{ error?: string, loading?: boolean }> = function*
 										</h3>
 										<Checkbox
 											key={group.wildcard}
-											name="abilities"
+											name="selected"
 											value={group.wildcard}
 											label={group.wildcard}
 											checked={broad}
@@ -159,7 +176,7 @@ const AbilityPicker: Stateful<{ error?: string, loading?: boolean }> = function*
 										{group.abilities.map(value => (
 											<Checkbox
 												key={value}
-												name="abilities"
+												name="selected"
 												value={value}
 												label={value}
 												checked={selected.has(value)}
@@ -290,6 +307,8 @@ const Tokens: Stateful<Props<Data>> = function* (args) {
 
 					<form set:onsubmit={createForm.submit} class="space-y-6">
 						<AbilityPicker
+							key={(args.data?.grantable ?? []).join('|')}
+							grantable={args.data?.grantable ?? []}
 							loading={createForm.loading}
 							error={createForm.error?.message}
 						/>
