@@ -36,30 +36,20 @@ export const auth = (): Middleware => (req, _, next) => {
 	next()
 }
 
-/** Requires the authenticated user to have one of the allowed roles. */
-export const role = <R extends string>(...allowed: R[]): Middleware => (req, _, next) => {
-
-	if (!req.user) throw new Denied()
-
-	const roles = (req.user as { roles?: string[] }).roles ?? []
-
-	if (!allowed.some(r => roles.includes(r))) throw new Forbidden()
-
-	next()
-}
-
 /** Redirects guests away from protected browser routes. */
 export const protect = (to = '/login') => when(req => !req.user, redirect(to))
 /** Redirects authenticated users away from guest-only routes. */
 export const guest = (to = '/dashboard') => when(req => !!req.user, redirect(to))
 
-/** Throws when the current bearer token lacks required abilities. */
+/** Throws when the current account or bearer token lacks required abilities. */
 export function authorize(req: Request, ...required: string[]) {
 
 	if (!req.user) throw new Denied()
-	if (!req.token) return
 
-	const missing = required.find(ability => !can(req.token!.abilities, ability))
+	const abilities = req.user.abilities ?? []
+	const missing = required.find(ability => !can(abilities, ability))
+		?? (req.token ? required.find(ability => !can(req.token!.abilities, ability)) : undefined)
+
 	if (missing) throw new Forbidden(`Missing ability: ${missing}`)
 }
 

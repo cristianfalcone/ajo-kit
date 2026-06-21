@@ -7,6 +7,7 @@ import { read, write, clear as cookie } from '../../../packages/ajo-auth/src/coo
 import { set as xsrf, verify as valid } from '../../../packages/ajo-auth/src/csrf'
 import { check as limit, clear as free, hit, remaining } from '../../../packages/ajo-auth/src/limit'
 import { stamp, check as confirm, clear, clearUser } from '../../../packages/ajo-auth/src/confirm'
+import { authorize } from '../../../packages/ajo-auth/src/guard'
 import { session } from '../../../packages/ajo-auth/src/wares'
 import { sign, url, validate } from '../../../packages/ajo-auth/src/verify'
 import { all, can, compact, intersect, merge } from '../../../packages/ajo-auth/src/ability'
@@ -601,6 +602,36 @@ describe('ajo-auth in-memory gates', () => {
 		clearUser(123)
 		expect(confirm(session, 1000)).toBe(false)
 		expect(confirm({ user: { id: 456 }, session: { id: 'session-c' } } as any, 1000)).toBe(true)
+	})
+
+	test('authorization requires account abilities for cookie requests', () => {
+		const allowed = { user: { id: 123, abilities: ['tokens:*'] } } as any
+		const denied = { user: { id: 123, abilities: ['tokens:read'] } } as any
+		const empty = { user: { id: 123 } } as any
+
+		expect(() => authorize(allowed, 'tokens:create')).not.toThrow()
+		expect(() => authorize(denied, 'tokens:create')).toThrow('Missing ability: tokens:create')
+		expect(() => authorize(empty, 'tokens:create')).toThrow('Missing ability: tokens:create')
+	})
+
+	test('authorization intersects account and bearer token abilities', () => {
+		const allowed = {
+			user: { id: 123, abilities: ['tokens:*', 'profile:read'] },
+			token: { id: 'token-a', abilities: ['tokens:create'] },
+		} as any
+		const userDenied = {
+			user: { id: 123, abilities: ['tokens:read'] },
+			token: { id: 'token-a', abilities: ['tokens:create'] },
+		} as any
+		const tokenDenied = {
+			user: { id: 123, abilities: ['tokens:*'] },
+			token: { id: 'token-a', abilities: ['tokens:read'] },
+		} as any
+
+		expect(() => authorize(allowed, 'tokens:create')).not.toThrow()
+		expect(() => authorize(userDenied, 'tokens:create')).toThrow('Missing ability: tokens:create')
+		expect(() => authorize(tokenDenied, 'tokens:create')).toThrow('Missing ability: tokens:create')
+		expect(() => authorize({} as any, 'tokens:create')).toThrow()
 	})
 })
 
