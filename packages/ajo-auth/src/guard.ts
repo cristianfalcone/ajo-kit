@@ -1,6 +1,6 @@
 import type { Middleware, Request, Response } from 'ajo-kit'
 import { Denied, Forbidden, Failure, ajax } from 'ajo-kit'
-import { can } from './token'
+import { can } from './ability'
 import { check as confirm, credential } from './confirm'
 import { db } from './store'
 

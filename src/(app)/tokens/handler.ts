@@ -58,7 +58,7 @@ export default {
 		const input = parse(Create, req.body)
 		const abilities = requested(input.abilities)
 
-		if (req.token && !auth.token.all(req.token.abilities, abilities)) {
+		if (req.token && !auth.all(req.token.abilities, abilities)) {
 			throw new Forbidden('Requested abilities exceed bearer token abilities')
 		}
 

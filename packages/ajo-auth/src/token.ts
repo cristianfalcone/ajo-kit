@@ -1,9 +1,7 @@
 import { createHash } from 'node:crypto'
 import { db } from './store'
 import { generate } from './session'
-
-/** Ability string accepted by bearer API tokens. */
-export type Ability = string
+import type { Ability } from './ability'
 
 const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 
@@ -56,21 +54,6 @@ export async function validate(plain: string) {
 
 	return { ...token, abilities: JSON.parse(token.abilities) as Ability[] }
 }
-
-/** Returns true when abilities include the required ability. */
-export function can(abilities: Ability[], required: Ability): boolean {
-
-	if (abilities.includes('*')) return true
-	if (abilities.includes(required)) return true
-
-	const [resource] = required.split(':')
-
-	return abilities.includes(`${resource}:*`)
-}
-
-/** Returns true when abilities include every required ability. */
-export const all = (abilities: Ability[], required: Ability[]) =>
-	required.every(ability => can(abilities, ability))
 
 /** Deletes the API token matching a plaintext credential. */
 export const revoke = (plain: string) =>

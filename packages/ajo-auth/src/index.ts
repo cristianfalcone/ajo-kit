@@ -1,5 +1,7 @@
 /** Route guards and imperative authorization helpers. */
 export { auth, role, protect, guest, ability, confirmed, verified, redirect, when, authorize } from './guard'
+/** Ability matching and set helpers. */
+export { all, can, compact, intersect, merge, type Ability } from './ability'
 /** Configures the auth package database accessor. */
 export { configure } from './store'
 /** Password confirmation stamp helpers. */
@@ -18,7 +20,7 @@ export * as password from './password'
 export * as reset from './reset'
 /** Cookie session lifecycle helpers. */
 export * as session from './session'
-/** API token lifecycle and ability helpers. */
+/** API token lifecycle helpers. */
 export * as token from './token'
 /** Email verification signature helpers. */
 export * as verify from './verify'

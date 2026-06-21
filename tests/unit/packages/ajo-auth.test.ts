@@ -9,7 +9,8 @@ import { check as limit, clear as free, hit, remaining } from '../../../packages
 import { stamp, check as confirm, clear, clearUser } from '../../../packages/ajo-auth/src/confirm'
 import { session } from '../../../packages/ajo-auth/src/wares'
 import { sign, url, validate } from '../../../packages/ajo-auth/src/verify'
-import { can, all, create as token } from '../../../packages/ajo-auth/src/token'
+import { all, can, compact, intersect, merge } from '../../../packages/ajo-auth/src/ability'
+import { create as token } from '../../../packages/ajo-auth/src/token'
 import { create, hash as digest, prune, remove, validate as check } from '../../../packages/ajo-auth/src/session'
 import { configure } from '../../../packages/ajo-auth/src/store'
 import { close, connect, db } from '../../../packages/ajo-kit/src/database'
@@ -559,6 +560,16 @@ describe('ajo-auth tokens and signatures', () => {
 		expect(all(['tokens:*'], ['tokens:read', 'tokens:delete'])).toBe(true)
 		expect(all(['*'], ['tokens:create', 'admin:write'])).toBe(true)
 		expect(all(['tokens:create'], ['tokens:read'])).toBe(false)
+	})
+
+	test('ability sets compact, merge and intersect wildcard grants', () => {
+		expect(compact(['tokens:read', 'tokens:*', 'tokens:delete'])).toEqual(['tokens:*'])
+		expect(compact(['tokens:read', '*'])).toEqual(['*'])
+		expect(merge(['tokens:read'], ['tokens:read', 'sessions:*'])).toEqual(['tokens:read', 'sessions:*'])
+		expect(intersect(['*'], ['tokens:read', 'sessions:*'])).toEqual(['tokens:read', 'sessions:*'])
+		expect(intersect(['tokens:*'], ['tokens:read', 'admin:read'])).toEqual(['tokens:read'])
+		expect(intersect(['tokens:*', 'profile:read'], ['tokens:read', 'profile:*'])).toEqual(['tokens:read', 'profile:read'])
+		expect(intersect(['tokens:*'], ['sessions:*'])).toEqual([])
 	})
 
 	test('email verification signatures validate, reject tampering and expire', () => {
