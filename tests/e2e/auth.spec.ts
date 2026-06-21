@@ -125,7 +125,19 @@ test('authenticated users can request a new verification email until verified', 
 
 	await signin(page, { email, password: 'password' })
 	await goto(page, '/verify')
-	await page.getByRole('button', { name: "Didn't receive the email? Click to resend" }).click()
+	await page.getByRole('button', { name: 'Resend verification email' }).click()
 
-	await expect(page.getByText('Verification email sent!')).toBeVisible()
+	await expect(page.getByText('Verification email sent.')).toBeVisible()
+})
+
+test('dashboard unverified status links to verification page', async ({ page }) => {
+	const email = `dashboard-verify-${Date.now()}@example.com`
+	await make({ email, name: 'Dashboard Verify User', verified: false })
+
+	await signin(page, { email, password: 'password' })
+
+	await page.getByRole('link', { name: 'Unverified' }).click()
+
+	await expect(page).toHaveURL(/\/verify$/)
+	await expect(page.getByRole('button', { name: 'Resend verification email' })).toBeVisible()
 })

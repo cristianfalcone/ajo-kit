@@ -31,8 +31,13 @@ test('chat room sends a message and streams it to another active participant', a
 		await root.getByPlaceholder('Type a message...').fill(message)
 		await root.getByRole('button', { name: 'Send' }).click()
 
-		await expect(root.getByText(message)).toBeVisible()
-		await expect(client.getByText(message)).toBeVisible()
+		const live = client.locator('[data-message-id]').filter({ hasText: message })
+
+		await expect(root.locator('[data-message-id]').filter({ hasText: message })).toBeVisible()
+		await expect(live).toBeVisible()
+
+		await client.waitForTimeout(200)
+		expect(await live.getAttribute('class')).not.toContain('bg-amber')
 	} finally {
 		await root.close()
 		await ctx.close()
@@ -41,12 +46,67 @@ test('chat room sends a message and streams it to another active participant', a
 	}
 })
 
-test('chat list starts a new group conversation from selected users', async ({ page }) => {
+test('chat sender sees first message and recipient unread badge clears after opening', async ({ browser }) => {
+	const senderContext = await browser.newContext()
+	const recipientContext = await browser.newContext()
+	const sender = await senderContext.newPage()
+	const recipient = await recipientContext.newPage()
+
+	try {
+		await signin(recipient)
+		await signin(sender, { email: 'user01@example.com', password: 'password' })
+
+		await goto(sender, '/account/chats')
+		await sender.getByRole('button', { name: 'New chat' }).click()
+		await sender.getByRole('button', { name: 'Cristian Falcone' }).click()
+		await sender.getByRole('button', { name: 'Start chat' }).click()
+		await expect(sender).toHaveURL(/\/account\/chats\/\d+$/)
+
+		const room = new URL(sender.url()).pathname
+		const message = `First direct message ${Date.now()}`
+		const navBadge = recipient
+			.getByRole('link', { name: /Cristian Falcone/ })
+			.locator('span')
+			.filter({ hasText: /^1$/ })
+
+		await sender.getByPlaceholder('Type a message...').fill(message)
+		await sender.getByRole('button', { name: 'Send' }).click()
+
+		await expect(sender.locator('[data-message-id]').filter({ hasText: message })).toBeVisible()
+		await expect(navBadge).toBeVisible()
+
+		await goto(recipient, '/account/chats')
+
+		const link = recipient.locator(`a[href="${room}"]`)
+		const unread = link.locator('span').filter({ hasText: /^1$/ })
+
+		await expect(link).toContainText('Test User 01')
+		await expect(unread).toBeVisible()
+
+		await link.click()
+
+		const received = recipient.locator('[data-message-id]').filter({ hasText: message })
+
+		await expect(recipient).toHaveURL(new RegExp(`${room}$`))
+		await expect(received).toBeVisible()
+		await expect(received).toHaveClass(/bg-amber/)
+		await expect(unread).toHaveCount(0)
+		await expect(navBadge).toHaveCount(0)
+	} finally {
+		await sender.close()
+		await senderContext.close()
+		await recipient.close()
+		await recipientContext.close()
+	}
+})
+
+test('chat section starts a new group conversation from selected users', async ({ page }) => {
 	await signin(page)
 
 	const group = `E2E Group ${Date.now()}`
 
-	await goto(page, '/account/chats')
+	await goto(page, '/account/chats/1')
+	await page.getByRole('button', { name: 'New chat' }).click()
 	await page.getByRole('button', { name: 'Test User 01' }).click()
 	await page.getByRole('button', { name: 'Test User 02' }).click()
 	await page.getByPlaceholder('Group name (optional)').fill(group)

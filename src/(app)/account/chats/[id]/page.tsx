@@ -2,7 +2,8 @@ import type { Stateful } from 'ajo'
 import type { Props } from '@kit'
 import { action } from '@kit/client'
 import clsx from 'clsx'
-import { Button, Input, Panel } from '/src/ui'
+import { Button, Input } from '/src/ui'
+import { ChatAvatar } from '../view'
 
 type Message = {
 	id: number
@@ -37,6 +38,11 @@ type LoadPage = {
 	hasMore: boolean
 }
 
+type SendResult = {
+	ok: true
+	message: Message
+}
+
 type LoadDirection = 'older' | 'newer'
 
 type RestoreSnapshot = {
@@ -57,7 +63,7 @@ const DAY_IN_MS = 86_400_000
 
 const ChatRoom: Stateful<Props<Data>> = function* (args) {
 
-	const send = action<{ ok: true }>('send')
+	const send = action<SendResult>('send')
 	const load = action<LoadPage>('load')
 	const markAsSeen = action<{ ok: true }>('markAsSeen')
 	const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US'
@@ -410,11 +416,38 @@ const ChatRoom: Stateful<Props<Data>> = function* (args) {
 
 	const onSend = (event: SubmitEvent) => {
 
-		send.submit(event)
+		event.preventDefault()
+
+		const form = event.currentTarget as HTMLFormElement
+		const value = text.trim()
+
+		if (!value || send.loading) return
 
 		this.next(() => {
 			text = ''
 			shouldJumpToBottom = true
+		})
+		form.reset()
+
+		void send.invoke({ text: value }).then(result => {
+
+			if (!result?.message) return
+
+			this.next(() => {
+
+				if (!timeline.some(message => message.id === result.message.id)) {
+					growPageSize(1)
+
+					const windowed = trimWindow([...timeline, result.message], 'newer')
+
+					timeline = windowed.messages
+					canLoadNewer = false
+
+					if (windowed.droppedOlder) canLoadOlder = true
+				}
+
+				shouldJumpToBottom = true
+			})
 		})
 	}
 
@@ -673,14 +706,7 @@ const ChatRoom: Stateful<Props<Data>> = function* (args) {
 
 		if (unreadAnchorId !== null && !import.meta.env.SSR) {
 
-			const unreadIds = unreadIdsFromAnchor(timeline, meId, unreadAnchorId)
-
 			oldestUnreadVisible = isMessageVisible(unreadAnchorId)
-
-			if (oldestUnreadVisible || unreadIds.some(id => isMessageVisible(id))) {
-				const idsToHighlight = unreadIds.filter(id => !unreadHighlightedOnceIds.has(id))
-				startUnreadHighlight(idsToHighlight)
-			}
 		}
 
 		if ((oldestUnreadVisible || atConversationBottom) && unreadCount > 0) {
@@ -756,7 +782,7 @@ const ChatRoom: Stateful<Props<Data>> = function* (args) {
 						msg.user !== data?.me && unreadHighlightIds.has(msg.id) && 'bg-amber-100/70 dark:bg-amber-300/12',
 						index === timeline.length - 1 ? 'last-message' : '',
 					)}
-					style={msg.user !== data?.me ? { transitionDuration: `${UNREAD_HIGHLIGHT_FADE_MS}ms` } : undefined}
+					style={msg.user !== data?.me ? `transition-duration:${UNREAD_HIGHLIGHT_FADE_MS}ms` : undefined}
 				>
 					{msg.user !== data?.me && (
 						<span class="text-xs text-slate-500 dark:text-gray-400 mb-1">
@@ -794,29 +820,39 @@ const ChatRoom: Stateful<Props<Data>> = function* (args) {
 			'Chat'
 
 		yield (
-			<section class="py-8 max-w-2xl mx-auto h-[calc(100vh-8rem)] flex flex-col">
+			<>
+				<header class="flex items-center gap-4 px-6 py-5 shadow-[inset_0_-1px_0_rgb(15_23_42_/_0.1)] dark:shadow-[inset_0_-1px_0_rgb(255_255_255_/_0.08)]">
+					{loading ? (
+						<p class="text-slate-500 dark:text-slate-400">
+							Loading conversation...
+						</p>
+					) : (
+						<>
+							<ChatAvatar name={title} />
+							<div class="min-w-0">
+								<h2 class="truncate text-lg font-semibold text-slate-900 dark:text-white">
+									{title}
+								</h2>
+								{data?.participants && (
+									<p class="text-sm text-slate-500 dark:text-slate-400">
+										{data.participants.length} participant{data.participants.length !== 1 ? 's' : ''}
+									</p>
+								)}
+							</div>
+							<Button
+								type="button"
+								icon="i-lucide-more-vertical"
+								title="Chat options"
+								tone="neutral"
+								class="ml-auto"
+							/>
+						</>
+					)}
+				</header>
 
-				{/* Header */}
-				<div class="flex items-center gap-4 mb-4">
-					<a href="/account/chats" class="text-slate-500 hover:text-slate-700 dark:text-gray-300 dark:hover:text-accent/70">
-						<div class="i-lucide-chevron-left w-5 h-5" />
-					</a>
-					<div>
-						<h1 class="text-xl font-bold text-slate-900 dark:text-white">
-							{loading ? 'Loading...' : title}
-						</h1>
-						{!loading && data?.participants && (
-							<p class="text-sm text-slate-500 dark:text-gray-400">
-								{data.participants.length} participant{data.participants.length !== 1 ? 's' : ''}
-							</p>
-						)}
-					</div>
-				</div>
-
-				{/* Messages */}
-				<Panel radius="xl" padding="none" class="flex-1 min-h-0 overflow-hidden relative">
+				<div class="relative min-h-0 flex-1">
 					<div
-						class="h-full overflow-y-auto p-4 space-y-3"
+						class="h-full space-y-3 overflow-y-auto p-5"
 						ref={el => boxRef.current = el}
 						set:onscroll={onScroll}
 					>
@@ -855,34 +891,39 @@ const ChatRoom: Stateful<Props<Data>> = function* (args) {
 						<button
 							type="button"
 							set:onclick={onJumpToUnread}
-							class="absolute left-1/2 -translate-x-1/2 bottom-4 px-3 py-1.5 rounded-full bg-primary text-white text-xs font-semibold shadow-lg hover:opacity-90 transition"
+							class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-lg transition hover:opacity-90 dark:bg-accent dark:text-primary"
 						>
 							{unreadCount} new message{unreadCount !== 1 ? 's' : ''}
 						</button>
 					)}
-				</Panel>
+				</div>
 
-				{/* Input */}
-				<form set:onsubmit={onSend} class="mt-4 flex gap-2">
+				<form set:onsubmit={onSend} class="flex gap-3 p-4 shadow-[inset_0_1px_0_rgb(15_23_42_/_0.1)] dark:shadow-[inset_0_1px_0_rgb(255_255_255_/_0.08)]">
 					<Input
 						name="text"
 						value={text}
 						set:oninput={event => this.next(() => text = (event.target as HTMLInputElement).value)}
 						placeholder="Type a message..."
 						autocomplete="off"
-						tone="muted"
+						tone="default"
 						wrapper="flex-1"
 					/>
 					<Button
 						type="submit"
+						title="Send"
+						class="w-10 px-0"
+						style="padding-left:0;padding-right:0"
 						disabled={!text.trim() || send.loading}
 					>
-						{send.loading ? '...' : 'Send'}
+						<span class="i-lucide-send-horizontal block" style="width:1.25rem;height:1.25rem" />
+						<span class="sr-only">Send</span>
 					</Button>
 				</form>
-			</section>
+			</>
 		)
 	}
 }
+
+ChatRoom.attrs = { class: 'flex h-full min-h-0 min-w-0 flex-col' }
 
 export default ChatRoom

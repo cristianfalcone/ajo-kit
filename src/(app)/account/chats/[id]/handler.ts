@@ -97,14 +97,13 @@ export async function page(req: Request) {
 
 	if (!chat) throw new Missing('Chat not found')
 
-	const participants = await db()
-		.selectFrom('participants')
-		.innerJoin('users', 'users.id', 'participants.user')
-		.where('participants.chat', '=', room)
-		.select(['users.id', 'users.name'])
-		.execute()
-
-	const [messages, meta] = await Promise.all([
+	const [participants, messages, meta] = await Promise.all([
+		db()
+			.selectFrom('participants')
+			.innerJoin('users', 'users.id', 'participants.user')
+			.where('participants.chat', '=', room)
+			.select(['users.id', 'users.name'])
+			.execute(),
 		listMessages(room),
 		unreadMeta(room, user)
 	])
@@ -129,8 +128,8 @@ export const actions = {
 
 		if (!text?.trim()) throw new Error('Message cannot be empty')
 
-		const participants = await db().transaction().execute(async trx => {
-			await trx
+		const result = await db().transaction().execute(async trx => {
+			const inserted = await trx
 				.insertInto('messages')
 				.values({
 					chat: room,
@@ -138,22 +137,38 @@ export const actions = {
 					text: text.trim(),
 					created: now()
 				})
-				.execute()
+				.returning('id')
+				.executeTakeFirstOrThrow()
 
-			return trx
+			const participants = await trx
 				.selectFrom('participants')
 				.where('chat', '=', room)
 				.select('user')
 				.execute()
+
+			const message = await trx
+				.selectFrom('messages')
+				.innerJoin('users', 'users.id', 'messages.user')
+				.where('messages.id', '=', inserted.id)
+				.select([
+					'messages.id',
+					'messages.text',
+					sql<string>`strftime('%Y-%m-%dT%H:%M:%fZ', messages.created)`.as('created'),
+					'users.id as user',
+					'users.name as userName'
+				])
+				.executeTakeFirstOrThrow()
+
+			return { message, participants }
 		})
 
 		emit([
 			`chat:${room}`,
-			...participants.map(p => `chats:${p.user}`),
-			...participants.map(p => `user:${p.user}`),
+			...result.participants.map(p => `chats:${p.user}`),
+			...result.participants.map(p => `user:${p.user}`),
 		])
 
-		return { ok: true }
+		return { ok: true, message: result.message }
 	},
 
 	load: async (req: Request) => {
@@ -194,7 +209,7 @@ export const actions = {
 			.where('user', '=', user)
 			.execute()
 
-		emit(`user:${user}`)
+		emit([`user:${user}`, `chats:${user}`])
 
 		return { ok: true }
 	}

@@ -115,10 +115,10 @@ const Dashboard: Stateful<Props<Data>> = function* (args) {
 										Verified
 									</span>
 								) : (
-									<span class="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+									<a href="/verify" class="inline-flex items-center gap-1 text-xs text-amber-600 hover:underline hover:underline-offset-2 dark:text-amber-400">
 										<span class="i-lucide-alert-circle w-3.5 h-3.5" />
 										Unverified
-									</span>
+									</a>
 								)}
 								<span class="text-xs text-slate-400 dark:text-slate-500">
 									Member since {date(user.created)}

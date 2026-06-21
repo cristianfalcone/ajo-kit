@@ -1,9 +1,9 @@
 import type { Request } from '@kit'
-import { db } from '/src/data'
 import { sql } from '@kit/database'
 import { emit } from '@kit/server'
+import { db } from '/src/data'
 
-const chats = (user: number) => db()
+const listChats = (user: number) => db()
 	.selectFrom('chats')
 	.innerJoin('participants', 'participants.chat', 'chats.id')
 	.where('participants.user', '=', user)
@@ -11,21 +11,24 @@ const chats = (user: number) => db()
 		'chats.id',
 		'chats.name',
 		'chats.created',
-		// Subquery: other participants' names (for direct chats)
 		eb.selectFrom('participants as p')
 			.innerJoin('users', 'users.id', 'p.user')
 			.whereRef('p.chat', '=', 'chats.id')
 			.where('p.user', '!=', user)
 			.select(sql<string>`group_concat(users.name, ', ')`.as('names'))
 			.as('others'),
-		// Subquery: last message
 		eb.selectFrom('messages')
 			.whereRef('messages.chat', '=', 'chats.id')
 			.orderBy('messages.id', 'desc')
 			.limit(1)
 			.select('messages.text')
 			.as('last'),
-		// Subquery: unread count
+		eb.selectFrom('messages')
+			.whereRef('messages.chat', '=', 'chats.id')
+			.orderBy('messages.id', 'desc')
+			.limit(1)
+			.select(sql<string>`strftime('%Y-%m-%dT%H:%M:%fZ', messages.created)`.as('created'))
+			.as('lastAt'),
 		eb.selectFrom('messages')
 			.whereRef('messages.chat', '=', 'chats.id')
 			.where('messages.user', '!=', user)
@@ -36,29 +39,30 @@ const chats = (user: number) => db()
 			.select(eb.fn.countAll<number>().as('count'))
 			.as('unread'),
 	])
-	.orderBy('chats.created', 'desc')
+	.orderBy(sql<string>`coalesce((select max(messages.created) from messages where messages.chat = chats.id), chats.created)`, 'desc')
 	.execute()
 
-export async function page(req: Request) {
+const listUsers = (user: number) => db()
+	.selectFrom('users')
+	.select(['id', 'name'])
+	.where('id', '!=', user)
+	.orderBy('name')
+	.execute()
+
+export async function layout(req: Request) {
 
 	req.track?.([`chats:${req.user!.id}`, 'users:list'])
 
-	const [chatList, users] = await Promise.all([
-		chats(req.user!.id),
-		db()
-			.selectFrom('users')
-			.select(['id', 'name'])
-			.where('id', '!=', req.user!.id)
-			.orderBy('name')
-			.execute()
+	const [chats, users] = await Promise.all([
+		listChats(req.user!.id),
+		listUsers(req.user!.id)
 	])
 
-	return { chats: chatList, users }
+	return { chats, users }
 }
 
 export const actions = {
 
-	// Start a new chat (direct or group)
 	start: async (req: Request) => {
 
 		const { users: raw, name } = req.body as { users: string; name?: string }
@@ -66,7 +70,6 @@ export const actions = {
 
 		if (!users?.length) throw new Error('Select at least one user')
 
-		// Check if direct chat already exists
 		if (users.length === 1 && !name) {
 
 			const existing = await db()
@@ -78,7 +81,8 @@ export const actions = {
 				.where('p2.user', '=', users[0])
 				.where((eb) => eb(
 					eb.selectFrom('participants').whereRef('participants.chat', '=', 'chats.id').select(eb.fn.countAll().as('c')),
-					'=', 2
+					'=',
+					2
 				))
 				.select('chats.id')
 				.executeTakeFirst()
