@@ -137,7 +137,8 @@ Rules:
 - Cookie sessions and bearer tokens both populate `req.user`.
 - Bearer tokens authenticate only `/api/*`; explicit Bearer wins over cookies on API requests.
 - CSRF protects unsafe cookie-auth writes; bearer-token requests bypass CSRF.
-- `ability(...)` and `authorize(...)` restrict bearer-token abilities when `req.token` exists.
+- `ability(...)` and `authorize(...)` require account abilities; bearer requests
+  must also carry those abilities on `req.token`.
 - Never return secrets from public endpoints.
 - Session/API/reset tokens are stored hashed; plaintext is shown only once.
 - Password reset/change/logout/revocation clear old credentials and confirmation state.

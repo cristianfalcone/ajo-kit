@@ -189,8 +189,8 @@ Rules:
 Current ownership:
 
 - Root layout owns shell concerns.
-- `(app)` layout owns authenticated user snapshot, roles, and mutable profile
-  shell fields.
+- `(app)` layout owns authenticated user snapshot, roles, abilities, and mutable
+  profile shell fields.
 - Dashboard and profile reuse app-layout user data through `parent()`.
 - Admin and account list pages keep bounded route-specific data.
 
@@ -494,19 +494,22 @@ have different credential policy:
   auth/public response.
 
 Protected API methods enforce abilities close to the method they protect.
-`ability(...)` and `authorize(...)` restrict bearer-token requests only;
-cookie sessions rely on route auth/role guards unless handler-local policy says
-otherwise.
+`ability(...)` and `authorize(...)` require matching account abilities. Bearer
+requests must also carry the required abilities on the presented token, so the
+effective permission is account grants intersected with token grants.
 
-Current API ability vocabulary is small and endpoint-driven, including:
+Current app ability vocabulary is resource-action based:
 
-- `profile:read`
-- `tokens:read`
-- `tokens:create`
-- `tokens:delete`
+- `profile:*`
+- `sessions:*`
+- `tokens:*`
+- `chats:*`
+- `admin:*`
 
-Bearer token creation cannot request abilities outside the caller token's
-coverage. Only `*` can mint `*`.
+Bearer token creation cannot request abilities outside the account grants or,
+when the caller is a bearer token, outside the caller token's coverage. A full
+access request from a non-admin account expands to that account's grantable
+abilities instead of minting literal `*`.
 
 ## Auth and Security
 
@@ -528,7 +531,8 @@ export default [wares.session(), wares.csrf]
 1. Bearer token only for `/api/*` requests with `Authorization: Bearer ...`.
 2. Cookie session for browser requests.
 
-Default user resolution loads `id`, `name`, `email`, `verified`, and `roles`.
+Default user resolution loads `id`, `name`, `email`, `verified`, `roles`, and
+compact effective `abilities` from role ability bundles.
 
 `csrf` allows:
 
@@ -586,7 +590,6 @@ Loopback addresses normalize to `localhost` for IP helper purposes.
 - `protect(to?)`
 - `guest(to?)`
 - `auth()`
-- `role(...allowed)`
 - `ability(...required)`
 - `confirmed(window?)`
 - `verified()`

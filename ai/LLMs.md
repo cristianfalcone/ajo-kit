@@ -1,6 +1,6 @@
 # Ajo App LLM Guide
 
-Last updated: 2026-06-20
+Last updated: 2026-06-21
 
 This is the short app-building guide for AI agents using Ajo and `ajo-kit`.
 It is not the repo maintenance guide; use `AGENTS.md` for working on this
@@ -30,7 +30,7 @@ packages/
   ajo-auth/
     src/
       wares.ts        # session(), csrf
-      guard.ts        # protect(), guest(), role(), ability(), confirmed(), verified()
+      guard.ts        # protect(), guest(), ability(), confirmed(), verified()
 
 src/
   (public)/**/handler.ts

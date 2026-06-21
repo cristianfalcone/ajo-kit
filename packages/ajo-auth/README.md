@@ -143,12 +143,12 @@ import { wares } from '@kit/auth'
 ### Guards
 
 ```ts
-import { auth, role, ability, protect, guest, confirmed, verified, redirect, when } from '@kit/auth'
+import { auth, ability, protect, guest, confirmed, verified, redirect, when } from '@kit/auth'
 ```
 
 - `auth()` -> requires authenticated user
-- `role(...names)` -> requires any matching role
-- `ability(...abilities)` -> checks token abilities (when bearer token is present)
+- `ability(...abilities)` -> requires account abilities; bearer requests must
+  also have the abilities on the token
 - `protect('/login')` -> redirect guests
 - `guest('/dashboard')` -> redirect authenticated users
 - `confirmed(window?)` -> requires recent password confirmation
@@ -159,11 +159,11 @@ import { auth, role, ability, protect, guest, confirmed, verified, redirect, whe
 ### `token`
 
 ```ts
-import { token } from '@kit/auth'
+import { can, token } from '@kit/auth'
 
 const plain = await token.create(user, 'My token', ['posts:*'])
 const valid = await token.validate(plain)
-const canWrite = token.can(valid?.abilities ?? [], 'posts:write')
+const canWrite = can(valid?.abilities ?? [], 'posts:write')
 await token.revoke(plain)
 await token.purge(user)
 const all = await token.list(user)
@@ -171,6 +171,20 @@ await token.prune()
 ```
 
 Abilities support `*`, exact matches, and resource wildcards like `posts:*`.
+`token.create()` requires explicit abilities; app routes should bound requested
+abilities by the authenticated account and bearer token before creating one.
+
+### `account`
+
+```ts
+import { account } from '@kit/auth'
+
+const grants = await account.grants(user)
+const abilities = await account.abilities(user)
+```
+
+Loads role ability bundles for a user and resolves compact effective account
+abilities.
 
 ### `limit`
 

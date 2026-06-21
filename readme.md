@@ -354,6 +354,7 @@ interface Request {
 interface User {
   id: number
   roles?: string[]
+  abilities?: string[]
   [key: string]: unknown
 }
 ```
@@ -629,7 +630,6 @@ Main auth exports.
 import {
   configure,
   auth,
-  role,
   protect,
   guest,
   ability,
@@ -638,12 +638,15 @@ import {
   redirect,
   when,
   authorize,
+  all,
+  can,
   wares,
   password,
   session,
   cookie,
   csrf,
   token,
+  account,
   limit,
   confirm,
   reset,
@@ -667,7 +670,6 @@ Guards:
 
 ```ts
 function auth(): Middleware
-function role<R extends string>(...allowed: R[]): Middleware
 function protect(to?: string): Middleware
 function guest(to?: string): Middleware
 function ability(...required: string[]): Middleware
@@ -684,10 +686,10 @@ function when(
 Guard behavior:
 
 - `auth()` requires `req.user`.
-- `role()` requires any matching role.
 - `protect()` redirects guests.
 - `guest()` redirects authenticated users.
-- `ability()` checks bearer-token abilities when a bearer token is present.
+- `ability()` requires matching account abilities; bearer requests must also
+  have the abilities on the token.
 - `confirmed()` requires recent password confirmation for the current credential.
 - `verified()` requires `users.verified`.
 - `redirect()` returns JSON redirects for AJAX requests and 302 for normal pages.
@@ -698,6 +700,13 @@ For handler-local ability checks:
 import { authorize } from '@kit/auth'
 
 authorize(req, 'tokens:read')
+```
+
+Ability helpers:
+
+```ts
+function can(abilities: string[], required: string): boolean
+function all(abilities: string[], required: string[]): boolean
 ```
 
 ## `@kit/auth` Middleware
@@ -780,7 +789,7 @@ type Ability = string
 function create(
   user: number,
   name: string,
-  abilities?: Ability[],
+  abilities: Ability[],
   ttl?: number | null,
 ): Promise<string>
 
@@ -791,8 +800,6 @@ function validate(plain: string): Promise<{
   expiry: string | null
 } | null>
 
-function can(abilities: Ability[], required: Ability): boolean
-function all(abilities: Ability[], required: Ability[]): boolean
 function revoke(plain: string): Promise<unknown>
 function purge(user: number): Promise<unknown>
 function list(user: number): Promise<Token[]>
@@ -800,6 +807,14 @@ function prune(): Promise<unknown>
 ```
 
 Abilities support `*`, exact matches, and resource wildcards like `posts:*`.
+`token.create()` requires an explicit ability set; application token routes
+must bound requested abilities by the authenticated account and bearer token.
+
+```ts
+// account
+function grants(user: number): Promise<{ name: Role; abilities: Ability[] }[]>
+function abilities(user: number): Promise<Ability[]>
+```
 
 ```ts
 // limit
