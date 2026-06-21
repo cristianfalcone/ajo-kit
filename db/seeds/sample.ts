@@ -1,7 +1,7 @@
 import type { Kysely } from 'ajo-kit/database'
 
 import { password } from 'ajo-auth'
-import { bundles } from '/src/abilities'
+import { bundles } from '../../src/abilities'
 
 async function fetchJson<T>(url: string): Promise<T> {
 	const response = await fetch(url)
