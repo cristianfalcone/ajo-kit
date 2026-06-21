@@ -173,6 +173,18 @@ describe('ajo-auth session storage', () => {
 			.addColumn('name', 'text')
 			.addColumn('email', 'text')
 			.addColumn('password', 'text')
+			.addColumn('verified', 'text')
+			.execute()
+		await db<any>().schema
+			.createTable('roles')
+			.addColumn('id', 'integer', column => column.primaryKey())
+			.addColumn('name', 'text')
+			.addColumn('abilities', 'text')
+			.execute()
+		await db<any>().schema
+			.createTable('members')
+			.addColumn('user', 'integer')
+			.addColumn('role', 'integer')
 			.execute()
 		await db<any>().schema
 			.createTable('sessions')
@@ -240,7 +252,14 @@ describe('ajo-auth session storage', () => {
 			})
 			.returning('id')
 			.executeTakeFirstOrThrow()
-		const find = async (id: number) => ({ id, name: 'Credential User', email: 'credential@example.com', verified: null, roles: [] })
+		const find = async (id: number) => ({
+			id,
+			name: 'Credential User',
+			email: 'credential@example.com',
+			verified: null,
+			roles: [],
+			abilities: [],
+		})
 		const middleware = session(find)
 		const res = { setHeader: vi.fn() }
 
@@ -296,6 +315,51 @@ describe('ajo-auth session storage', () => {
 		expect(api.session).toBeUndefined()
 	})
 
+	test('default auth resolver loads compact role ability bundles', async () => {
+		const user = await db<any>()
+			.insertInto('users')
+			.values({
+				name: 'Ability User',
+				email: 'ability@example.com',
+				password: null,
+				verified: null,
+			})
+			.returning('id')
+			.executeTakeFirstOrThrow()
+		const roles = await db<any>()
+			.insertInto('roles')
+			.values([
+				{ name: 'user', abilities: JSON.stringify(['tokens:read', 'tokens:*', 'sessions:read']) },
+				{ name: 'admin', abilities: 'not-json' },
+			])
+			.returning(['id', 'name'])
+			.execute()
+
+		await db<any>().insertInto('members').values(
+			roles.map(role => ({ user: user.id, role: role.id }))
+		).execute()
+
+		const middleware = session()
+		const res = { setHeader: vi.fn() }
+		const plain = await create(user.id)
+		const req = {
+			path: '/dashboard',
+			headers: { cookie: `session=${plain}` },
+		} as any
+		let next = false
+
+		await middleware(req, res as any, (() => { next = true }) as any)
+
+		expect(next).toBe(true)
+		expect(req.user).toMatchObject({
+			id: user.id,
+			name: 'Ability User',
+			email: 'ability@example.com',
+			roles: ['user', 'admin'],
+			abilities: ['tokens:*', 'sessions:read'],
+		})
+	})
+
 	test('auth middleware rejects idle sessions and clears their cookie', async () => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2026-06-19T00:31:00Z'))
@@ -312,7 +376,14 @@ describe('ajo-auth session storage', () => {
 				.executeTakeFirstOrThrow()
 			const plain = 'idle-session'
 			const id = digest(plain)
-			const find = async () => ({ id: user.id, name: 'Idle User', email: 'idle@example.com', verified: null, roles: [] })
+			const find = async () => ({
+				id: user.id,
+				name: 'Idle User',
+				email: 'idle@example.com',
+				verified: null,
+				roles: [],
+				abilities: [],
+			})
 			const middleware = session(find)
 			const res = { setHeader: vi.fn() }
 			const req = {

@@ -6,6 +6,7 @@ export const abilities = [
 	'sessions:delete',
 	'profile:read',
 	'profile:update',
+	'profile:delete',
 	'chats:read',
 	'chats:create',
 	'chats:send',
@@ -29,7 +30,7 @@ export const groups = [
 	{
 		label: 'Profile',
 		wildcard: 'profile:*',
-		abilities: ['profile:read', 'profile:update'],
+		abilities: ['profile:read', 'profile:update', 'profile:delete'],
 	},
 	{
 		label: 'Chats',
@@ -46,6 +47,23 @@ export const groups = [
 	wildcard: `${string}:*`
 	abilities: readonly Ability[]
 }[]
+
+export const bundles = {
+	admin: ['*'],
+	user: [
+		'profile:read',
+		'profile:update',
+		'profile:delete',
+		'sessions:read',
+		'sessions:delete',
+		'tokens:read',
+		'tokens:create',
+		'tokens:delete',
+		'chats:read',
+		'chats:create',
+		'chats:send',
+	],
+} as const satisfies Record<'admin' | 'user', readonly string[]>
 
 const wildcards = groups.map(group => group.wildcard)
 const known = new Set<string>(['*', ...abilities, ...wildcards])

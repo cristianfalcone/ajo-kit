@@ -6,8 +6,7 @@ import { validate as bearer } from './token'
 import { verify as valid } from './csrf'
 import { db } from './store'
 import type { Role } from './types'
-
-// Default: carga user + roles de las tablas auth
+import { merge, type Ability } from './ability'
 
 async function resolve(id: number) {
 
@@ -22,11 +21,28 @@ async function resolve(id: number) {
 	const roles = await db()
 		.selectFrom('members')
 		.innerJoin('roles', 'roles.id', 'members.role')
-		.select('roles.name')
+		.select(['roles.name', 'roles.abilities'])
 		.where('members.user', '=', user.id)
+		.orderBy('roles.id')
 		.execute()
 
-	return { ...user, roles: roles.map(r => r.name as Role) }
+	return {
+		...user,
+		roles: roles.map(r => r.name as Role),
+		abilities: merge(...roles.map(r => parse(r.abilities))),
+	}
+}
+
+function parse(value: string): Ability[] {
+	try {
+		const abilities = JSON.parse(value)
+
+		return Array.isArray(abilities) && abilities.every(ability => typeof ability === 'string')
+			? abilities
+			: []
+	} catch {
+		return []
+	}
 }
 
 type Resolve = typeof resolve

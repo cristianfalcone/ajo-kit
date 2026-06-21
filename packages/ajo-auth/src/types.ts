@@ -26,6 +26,7 @@ export interface Sessions {
 export interface Roles {
 	id: number
 	name: string
+	abilities: string
 }
 
 /** members table shape linking users to roles. */

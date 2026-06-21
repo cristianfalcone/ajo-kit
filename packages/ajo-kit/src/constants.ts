@@ -278,6 +278,7 @@ export const origin = (req: Request) => {
 export interface User {
 	id: number
 	roles?: string[]
+	abilities?: string[]
 	[key: string]: unknown
 }
 

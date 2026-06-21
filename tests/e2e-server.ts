@@ -5,6 +5,7 @@ import { hash } from '../packages/ajo-auth/src/password'
 import { connect, db, close } from '../packages/ajo-kit/src/database'
 import { migrator } from '../packages/ajo-kit/src/migrate'
 import { dev, listen } from '../packages/ajo-kit/src/node'
+import { bundles } from '../src/abilities'
 
 const database = resolve('.tmp/e2e.sqlite')
 
@@ -25,8 +26,8 @@ async function seed() {
 	await store.deleteFrom('users').execute()
 
 	await store.insertInto('roles').values([
-		{ id: 1, name: 'admin' },
-		{ id: 2, name: 'user' },
+		{ id: 1, name: 'admin', abilities: JSON.stringify(bundles.admin) },
+		{ id: 2, name: 'user', abilities: JSON.stringify(bundles.user) },
 	]).execute()
 
 	const cristian = await store.insertInto('users').values({

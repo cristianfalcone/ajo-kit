@@ -1,6 +1,7 @@
 import type { Kysely } from 'ajo-kit/database'
 
 import { password } from 'ajo-auth'
+import { bundles } from '/src/abilities'
 
 async function fetchJson<T>(url: string): Promise<T> {
 	const response = await fetch(url)
@@ -29,8 +30,8 @@ export async function seed(db: Kysely<any>): Promise<void> {
 
 	// Roles
 	const roles = [
-		{ id: 1, name: 'admin' },
-		{ id: 2, name: 'user' },
+		{ id: 1, name: 'admin', abilities: JSON.stringify(bundles.admin) },
+		{ id: 2, name: 'user', abilities: JSON.stringify(bundles.user) },
 	]
 
 	await db.insertInto('roles').values(roles).execute()
