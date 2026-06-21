@@ -1,77 +1,70 @@
-export const abilities = [
-	'tokens:read',
-	'tokens:create',
-	'tokens:delete',
-	'sessions:read',
-	'sessions:delete',
-	'profile:read',
-	'profile:update',
-	'profile:delete',
-	'chats:read',
-	'chats:create',
-	'chats:send',
-	'admin:read',
-	'admin:write',
-] as const
+const catalog = {
+	tokens: ['read', 'create', 'delete'],
+	sessions: ['read', 'delete'],
+	profile: ['read', 'update', 'delete'],
+	chats: ['read', 'create', 'send'],
+	admin: ['read', 'write'],
+} as const
 
-export type Ability = typeof abilities[number]
+type Catalog = typeof catalog
+type Resource = keyof Catalog
+type Action<R extends Resource> = Catalog[R][number]
 
-export const groups = [
-	{
-		label: 'Tokens',
-		wildcard: 'tokens:*',
-		abilities: ['tokens:read', 'tokens:create', 'tokens:delete'],
-	},
-	{
-		label: 'Sessions',
-		wildcard: 'sessions:*',
-		abilities: ['sessions:read', 'sessions:delete'],
-	},
-	{
-		label: 'Profile',
-		wildcard: 'profile:*',
-		abilities: ['profile:read', 'profile:update', 'profile:delete'],
-	},
-	{
-		label: 'Chats',
-		wildcard: 'chats:*',
-		abilities: ['chats:read', 'chats:create', 'chats:send'],
-	},
-	{
-		label: 'Admin',
-		wildcard: 'admin:*',
-		abilities: ['admin:read', 'admin:write'],
-	},
-] as const satisfies readonly {
+export type Ability = {
+	[R in Resource]: `${R}:${Action<R>}`
+}[Resource]
+
+type Wildcard = `${Resource}:*`
+
+const resources = Object.keys(catalog) as Resource[]
+const titled = (value: string) => `${value[0].toUpperCase()}${value.slice(1)}`
+const ability = (resource: Resource, action: string) => `${resource}:${action}` as Ability
+const wildcard = (resource: Resource) => `${resource}:*` as Wildcard
+const bundle = (resources: readonly Resource[]) =>
+	resources.flatMap(resource => catalog[resource].map(action => ability(resource, action)))
+
+export const abilities = bundle(resources)
+
+export const groups = resources.map(resource => ({
+	label: titled(resource),
+	wildcard: wildcard(resource),
+	abilities: bundle([resource]),
+})) satisfies readonly {
 	label: string
-	wildcard: `${string}:*`
+	wildcard: Wildcard
 	abilities: readonly Ability[]
 }[]
 
 export const bundles = {
 	admin: ['*'],
-	user: [
-		'profile:read',
-		'profile:update',
-		'profile:delete',
-		'sessions:read',
-		'sessions:delete',
-		'tokens:read',
-		'tokens:create',
-		'tokens:delete',
-		'chats:read',
-		'chats:create',
-		'chats:send',
-	],
-} as const satisfies Record<'admin' | 'user', readonly string[]>
+	user: bundle(resources.filter(resource => resource !== 'admin')),
+} satisfies Record<'admin' | 'user', readonly string[]>
 
-const wildcards = groups.map(group => group.wildcard)
+const wildcards = resources.map(wildcard)
 const known = new Set<string>(['*', ...abilities, ...wildcards])
-const wildcarded = (ability: string) => ability.endsWith(':*') ? ability.slice(0, -2) : null
-const matches = (grant: string, ability: string) =>
-	grant === '*'
-	|| grant === ability
-	|| (grant.endsWith(':*') && ability.startsWith(`${grant.slice(0, -2)}:`))
+
+function parts(ability: string) {
+	const [resource, action, extra] = ability.split(':')
+
+	return extra === undefined && resource && action
+		? { resource, action }
+		: null
+}
+
+const wildcarded = (ability: string) => {
+	const grant = parts(ability)
+
+	return grant?.action === '*' ? grant.resource : null
+}
+
+const matches = (grant: string, ability: string) => {
+	if (grant === '*' || grant === ability) return true
+
+	const wildcard = wildcarded(grant)
+	const required = parts(ability)
+
+	return !!wildcard && required?.resource === wildcard
+}
 
 export const can = (abilities: readonly string[] | undefined, ability: string) =>
 	abilities?.some(grant => matches(grant, ability)) ?? false
@@ -104,12 +97,12 @@ function compact(abilities: string[]) {
 
 	if (abilities.includes('*')) return ['*']
 
-	const resources = new Set(abilities.map(wildcarded).filter(resource => resource !== null))
+	const broad = new Set(abilities.map(wildcarded).filter(resource => resource !== null))
 
 	return abilities.filter(ability => {
 		const resource = wildcarded(ability)
 		if (resource) return true
 
-		return !resources.has(ability.split(':')[0])
+		return !broad.has(parts(ability)?.resource ?? '')
 	})
 }
