@@ -80,7 +80,7 @@ export default Layout
 
 const Wrapper = ({ children }: { children: Children }) => (
 	<>
-		<div class="flex-1 flex flex-col">
+		<div key="content" class="flex-1 flex flex-col">
 			{children}
 		</div>
 	</>

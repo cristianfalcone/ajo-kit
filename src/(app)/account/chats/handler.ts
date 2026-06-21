@@ -51,7 +51,7 @@ const listUsers = (user: number) => db()
 
 export async function layout(req: Request) {
 
-	req.track?.([`chats:${req.user!.id}`, 'users:list'])
+	req.track?.([`chats:${req.user!.id}`, `user:${req.user!.id}`, 'users:list'])
 
 	const [chats, users] = await Promise.all([
 		listChats(req.user!.id),
