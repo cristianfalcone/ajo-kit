@@ -68,6 +68,13 @@ export const bundles = {
 const wildcards = groups.map(group => group.wildcard)
 const known = new Set<string>(['*', ...abilities, ...wildcards])
 const wildcarded = (ability: string) => ability.endsWith(':*') ? ability.slice(0, -2) : null
+const matches = (grant: string, ability: string) =>
+	grant === '*'
+	|| grant === ability
+	|| (grant.endsWith(':*') && ability.startsWith(`${grant.slice(0, -2)}:`))
+
+export const can = (abilities: readonly string[] | undefined, ability: string) =>
+	abilities?.some(grant => matches(grant, ability)) ?? false
 
 export const normalize = (abilities: string[]) =>
 	compact([...new Set(abilities.length > 0 ? abilities : ['*'])])

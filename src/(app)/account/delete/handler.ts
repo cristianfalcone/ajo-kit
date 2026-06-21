@@ -5,6 +5,7 @@ import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { Forbidden } from '@kit'
 import { emit } from '@kit/server'
+import { can } from '/src/abilities'
 
 const Confirm = object({
 	confirmation: literal('DELETE', 'Type DELETE to confirm')
@@ -14,7 +15,7 @@ export const actions = {
 
 	default: async (req: Request, res: Response) => {
 
-		if (req.user!.roles?.includes('admin')) {
+		if (can(req.user!.abilities, 'admin:read')) {
 			throw new Forbidden('Admins cannot delete their own account')
 		}
 

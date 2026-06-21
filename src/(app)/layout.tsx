@@ -3,6 +3,7 @@ import type { Stateful } from 'ajo'
 import type { User, Frame, Action } from '@kit'
 import { ThemeContext, UnreadContext } from '/src/contexts'
 import { action } from '@kit/client'
+import { can } from '/src/abilities'
 import { Button, CountBadge } from '/src/ui'
 
 type LinkOptions = { exact?: boolean, include?: string[] }
@@ -73,7 +74,7 @@ const Nav = ({ user, unread, signout }: { user: User, unread: number, signout: A
 								)
 							})}
 
-							{user.roles?.includes('admin') && (
+							{can(user.abilities, 'admin:read') && (
 								<a href="/admin" class={linkClass(url.startsWith('/admin'))}>
 									<span class="i-lucide-shield w-4 h-4" />
 									Admin

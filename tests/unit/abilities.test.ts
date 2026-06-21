@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { bundles, groups, normalize, unknown } from '../../src/abilities'
+import { bundles, can, groups, normalize, unknown } from '../../src/abilities'
 
 test('ability groups expose resource wildcards', () => {
 	expect(groups.map(group => group.wildcard)).toEqual([
@@ -15,6 +15,14 @@ test('standard role bundles expose full admin and app user abilities', () => {
 	expect(bundles.admin).toEqual(['*'])
 	expect(bundles.user).toContain('profile:delete')
 	expect(bundles.user).not.toContain('admin:read')
+})
+
+test('can matches exact, resource wildcard and full wildcard grants', () => {
+	expect(can(['tokens:read'], 'tokens:read')).toBe(true)
+	expect(can(['tokens:*'], 'tokens:delete')).toBe(true)
+	expect(can(['*'], 'admin:write')).toBe(true)
+	expect(can(['tokens:read'], 'tokens:create')).toBe(false)
+	expect(can(undefined, 'tokens:read')).toBe(false)
 })
 
 test('normalize defaults to full access and compacts overlapping grants', () => {

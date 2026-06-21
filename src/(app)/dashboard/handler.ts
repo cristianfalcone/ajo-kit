@@ -10,6 +10,7 @@ type Shell = {
 		verified: string | null
 		created: string
 		roles?: string[]
+		abilities?: string[]
 	}
 	unread: number
 }

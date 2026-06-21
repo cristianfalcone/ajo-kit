@@ -1,5 +1,6 @@
 import type { Stateful } from 'ajo'
 import { type Props, date } from '@kit'
+import { can } from '/src/abilities'
 import { Badge, Panel, Stat, Table, type Column } from '/src/ui'
 
 type Session = {
@@ -19,6 +20,7 @@ type Data = {
 		verified: string | null
 		created: string
 		roles: string[]
+		abilities?: string[]
 	}
 	stats: {
 		sessions: number
@@ -60,7 +62,7 @@ const Dashboard: Stateful<Props<Data>> = function* (args) {
 		}
 
 		const { user, stats, recentSessions } = data
-		const isAdmin = user.roles.includes('admin')
+		const isAdmin = can(user.abilities, 'admin:read')
 		const sessionColumns = [
 			{
 				header: 'Device',
