@@ -1,12 +1,5 @@
 {
   "type": "module",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "argon2",
-      "better-sqlite3",
-      "esbuild"
-    ]
-  },
   "scripts": {
     "kit": "kit",
     "dev": "kit dev",
