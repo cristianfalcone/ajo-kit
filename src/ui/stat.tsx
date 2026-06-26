@@ -33,22 +33,27 @@ const Stat: Stateless<StatProps> = ({
 	tone = 'accent',
 	class: classes,
 	...props
-}) => (
-	<Panel
-		{...props}
-		as={href ? 'a' : 'div'}
-		href={href}
-		padding="none"
-		class={clsx('p-5 flex items-center gap-4', href && 'hover:shadow-sm hover:shadow-slate-900/10 transition-shadow', classes)}
-	>
-		<div class={clsx('flex items-center justify-center w-12 h-12 rounded-lg inset-ring', toneClass[tone].icon)}>
-			<span class={clsx(icon, 'w-6 h-6', toneClass[tone].text)} />
-		</div>
-		<div>
-			<p class={clsx('text-2xl font-bold', toneClass[tone].value)}>{value}</p>
-			<p class="text-sm text-slate-500 dark:text-slate-400">{label}</p>
-		</div>
-	</Panel>
-)
+}) => {
+	const styles = clsx('p-5 flex items-center gap-4', href && 'hover:shadow-sm hover:shadow-slate-900/10 transition-shadow', classes)
+	const content = (
+		<>
+			<div class={clsx('flex items-center justify-center w-12 h-12 rounded-lg inset-ring', toneClass[tone].icon)}>
+				<span class={clsx(icon, 'w-6 h-6', toneClass[tone].text)} />
+			</div>
+			<div>
+				<p class={clsx('text-2xl font-bold', toneClass[tone].value)}>{value}</p>
+				<p class="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+			</div>
+		</>
+	)
+
+	if (href) {
+		const anchor = props as IntrinsicElements['a']
+
+		return <Panel {...anchor} as="a" href={href} padding="none" class={styles}>{content}</Panel>
+	}
+
+	return <Panel {...props} padding="none" class={styles}>{content}</Panel>
+}
 
 export default Stat

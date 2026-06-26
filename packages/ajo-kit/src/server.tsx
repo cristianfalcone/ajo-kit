@@ -1,5 +1,4 @@
 import * as html from 'ajo/html'
-import { h } from 'ajo/jsx-runtime'
 import type { Component } from 'ajo'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import polka from 'polka'
@@ -462,7 +461,7 @@ export async function create(template: Template) {
 		const body = template({
 			head: view(head as Head),
 			data: script(state),
-			root: html.render(h(App, { page: resolved!.page })),
+			root: html.render(<App page={resolved!.page} />),
 		})
 
 		if (req.timing) req.timing.render = elapsed(begun)
