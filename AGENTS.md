@@ -21,15 +21,29 @@ pnpm test:all            # Unit + E2E
 
 ## Operating Principles
 
-- Keep code micro, simple, cohesive, robust, and readable.
+- Keep code micro, simple, cohesive, robust, reliable, performant, elegant, and readable.
 - Prefer direct concrete solutions over speculative architecture.
-- Remove unnecessary abstractions, compatibility fallbacks, and dead code.
+- Remove unnecessary abstractions and dead code.
 - Make changes in small honest slices; leave code looking intentional, not iterative.
 - Read current implementation, tests, docs, migrations, and package boundaries before non-trivial edits.
 - Preserve user work: do not revert, overwrite, or stage unrelated uncommitted changes.
 - Optimize after measuring; add indexes or data structures only for measured or obvious hot paths.
 - Test behavior, contracts, security boundaries, and regressions; do not test implementation trivia.
 - Add short TSDoc descriptions to public APIs so IDE imports explain themselves.
+
+## Compatibility Stance
+
+`ajo-kit` is not in production yet, so backward compatibility is not a design
+constraint for refactors.
+
+Prefer the smallest cohesive final surface over migration shims, compatibility
+aliases, fallback behavior, or public APIs that only exist because of the
+current implementation. The goal is a metaframework that feels designed as one
+piece, not an accumulated development trail.
+
+Refactors are acceptable when they reduce total code surface, remove duplicate
+concepts, improve security guarantees, and keep the framework simple, robust,
+reliable, performant, and elegant.
 
 ## Naming
 
@@ -43,6 +57,7 @@ pnpm test:all            # Unit + E2E
 - `readme.md`: human guide and public API for building apps with Ajo and `ajo-kit`.
 - `packages/*/README.md`: package-local public docs.
 - `ai/architecture.md`: canonical implementation architecture and runtime contracts.
+- `ai/plan.md`: active feature source of truth for current development status, phases, slices, decisions, and handoff.
 - `ai/LLMs.md`: app-building guide for AI agents using Ajo and `ajo-kit`.
 - `ai/chat.md`: chat demo app behavior, data, scrolling, unread, and QA notes.
 - `ai/comparison.md`: framework/auth/routing comparison context.
@@ -83,7 +98,7 @@ Core files:
 | `packages/ajo-kit/src/database.ts` | Kysely + SQLite connection |
 | `packages/ajo-kit/src/vite.ts` | Vite plugin, aliases, virtual modules, server-only guard |
 | `packages/ajo-auth/src/wares.ts` | Cookie session, bearer token, CSRF middleware |
-| `packages/ajo-auth/src/guard.ts` | `protect`, `guest`, `auth`, `role`, `ability`, `confirmed`, `verified` |
+| `packages/ajo-auth/src/guard.ts` | `protect`, `guest`, `auth`, `ability`, `confirmed`, `verified` |
 
 ## Route and Data Rules
 

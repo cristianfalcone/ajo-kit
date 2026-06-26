@@ -1,6 +1,6 @@
 # Ajo Kit Architecture
 
-Last updated: 2026-06-20
+Last updated: 2026-06-26
 
 This is the canonical architecture document for `ajo-kit`. It describes the
 current implementation and operating contracts for the framework, app runtime,
@@ -59,7 +59,7 @@ public subpaths. The CLI can use those internals directly.
 | `packages/ajo-kit/src/database.ts` | SQLite connection and Kysely instance |
 | `packages/ajo-kit/src/timing.ts` | `AJO_TIMING=1` measurement helpers |
 | `packages/ajo-auth/src/wares.ts` | Session/bearer auth and CSRF middleware |
-| `packages/ajo-auth/src/guard.ts` | Redirect, auth, role, ability, confirmation, verified guards |
+| `packages/ajo-auth/src/guard.ts` | Redirect, auth, ability, confirmation, verified guards |
 
 ## Build and Runtime
 
@@ -498,6 +498,11 @@ Protected API methods enforce abilities close to the method they protect.
 requests must also carry the required abilities on the presented token, so the
 effective permission is account grants intersected with token grants.
 
+Abilities are function-level gates. They do not replace object ownership or
+field-level authorization; constrain self-owned queries by `req.user.id`, use
+explicit selects, and keep admin response objects limited to fields the UI
+needs.
+
 Current app ability vocabulary is resource-action based:
 
 - `profile:*`
@@ -533,6 +538,11 @@ export default [wares.session(), wares.csrf]
 
 Default user resolution loads `id`, `name`, `email`, `verified`, `roles`, and
 compact effective `abilities` from role ability bundles.
+
+Roles are assignment and display labels backed by ability bundles. Application
+code authorizes abilities, not role names. The built-in `admin` bundle grants
+`["*"]`; the app `user` bundle grants the standard non-admin abilities from
+`src/abilities.ts`. Keep role labels for admin/account UI only.
 
 `csrf` allows:
 

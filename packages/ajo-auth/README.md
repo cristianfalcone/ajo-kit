@@ -185,6 +185,8 @@ const abilities = await account.abilities(user)
 
 Loads role ability bundles for a user and resolves compact effective account
 abilities.
+Treat role names as assignment/display labels; authorize with abilities through
+`ability()` or `authorize()`.
 
 ### `limit`
 

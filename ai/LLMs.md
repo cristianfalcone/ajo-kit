@@ -1,6 +1,6 @@
 # Ajo App LLM Guide
 
-Last updated: 2026-06-21
+Last updated: 2026-06-26
 
 This is the short app-building guide for AI agents using Ajo and `ajo-kit`.
 It is not the repo maintenance guide; use `AGENTS.md` for working on this
@@ -35,6 +35,7 @@ packages/
 src/
   (public)/**/handler.ts
   (app)/**/handler.ts
+  abilities.ts
   data/index.ts
   data/pagination.ts
   ui/pager.tsx
@@ -49,6 +50,22 @@ Route `handler.ts` files can export:
 - `head(req, parent?)`
 - `actions = { name: async (req, res?) => ... }`
 - `default { get, post, put, patch, delete, options, head }` for `/api/*`
+
+## Auth And Abilities
+
+- Root wares populate `req.user` through `@kit/auth`; bearer auth applies only
+  to `/api/*`, and an explicit Bearer token wins over cookies there.
+- Use `ability(...)` in route `wares.ts` and `authorize(req, ...)` inside
+  handlers/actions. Do not check role names for access.
+- Roles are assignment/display bundles. `req.user.abilities` is the account
+  authorization surface.
+- Cookie requests require account abilities. Bearer API requests require both
+  account abilities and token abilities.
+- Token creation must bound requested abilities by the authenticated account and
+  by the current token when the caller is using bearer auth.
+- Keep object ownership and field checks close to data reads/writes; constrain
+  queries by owner where possible and use explicit `select([...])`.
+- Admin reads use `admin:read`; admin mutations use `admin:write`.
 
 ## Live Data Contract
 
