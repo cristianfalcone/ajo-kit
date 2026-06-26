@@ -41,8 +41,8 @@ test('built production server serves core smoke paths', async ({ request, baseUR
 	expect(route.status()).toBe(200)
 	expect(route.headers()['cache-control']).toBe('no-store')
 	expect(payload.hash).toBeTruthy()
-	expect(payload.topics).toEqual([])
-	expect(payload.versions).toEqual({})
+	expect(payload.topics).toEqual(['registration:policy'])
+	expect(payload.versions).toEqual({ 'registration:policy': 0 })
 
 	const malformed = await fetch(`${baseURL}/login?/default`, {
 		method: 'POST',

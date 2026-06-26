@@ -67,6 +67,22 @@ Route `handler.ts` files can export:
   queries by owner where possible and use explicit `select([...])`.
 - Admin reads use `admin:read`; admin mutations use `admin:write`.
 
+## Registration And Invitations
+
+- Signup policy and invitations use `src/data/registration.ts`.
+- Public signup defaults to `open`. Public `/register` must enforce invite-only
+  mode in the server action before parsing or writing; UI links are not a
+  security boundary.
+- Public login/register loaders that read signup mode must track
+  `registration:policy`.
+- Admin registration loaders track `admin:registration`; mode changes emit both
+  `admin:registration` and `registration:policy`.
+- Invitation tokens are bearer credentials. Generate plaintext once, store only
+  the SHA-256 hash, expire them, and consume them in the same transaction that
+  creates the user.
+- Invitation acceptance creates a verified standard `user`, creates a session
+  after commit, and emits user/session/admin topics plus `admin:registration`.
+
 ## Live Data Contract
 
 Loaders must track topics they read:
@@ -185,7 +201,8 @@ Production env for apps:
 
 Use the current app topic vocabulary from `ai/architecture.md`. Prefer multiple
 precise topics over a broad catch-all. Chat-specific topic names live in
-`ai/chat.md`.
+`ai/chat.md`. Registration-specific topics are `registration:policy` for public
+signup affordances and `admin:registration` for admin mode/invitation reads.
 
 ## Common Pitfalls
 

@@ -3,6 +3,7 @@ import type { Request, Response } from '@kit'
 import { send, emit } from '@kit/server'
 import { object, string, optional, pipe, unknown, transform } from '@kit/validate'
 import { db, email } from '/src/data'
+import * as registration from '/src/data/registration'
 import { parse } from '@kit/validate'
 import { Denied, Failure, ip } from '@kit'
 
@@ -16,6 +17,12 @@ const Login = object({
 	password: string(),
 	remember: optional(checkbox, false),
 })
+
+export async function page(req: Request) {
+	req.track?.('registration:policy')
+
+	return { signup: await registration.policy() }
+}
 
 export const actions = {
 

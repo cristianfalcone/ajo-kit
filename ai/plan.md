@@ -17,11 +17,12 @@ user asks.
 - Active feature: admin-controlled user onboarding.
 - User-facing goal: admins can choose between public signup and invite-only
   signup.
-- Current phase: planning complete, implementation not started.
-- Current slice: Slice 1, schema and data helpers.
-- Current sub-slice: Slice 1A, migration and DB types.
-- Current implementation status: no feature code has been written yet.
-- Blockers: none known for Slice 1.
+- Current phase: feature implemented and verified.
+- Current slice: none; all planned implementation slices are complete.
+- Current sub-slice: none.
+- Current implementation status: admin-controlled user onboarding is implemented
+  end-to-end and documented in canonical docs.
+- Blockers: none.
 - Default product behavior to preserve: public registration stays open until an
   admin changes the policy.
 - Core security rule: signup policy is enforced by server actions, not only by
@@ -32,6 +33,12 @@ Last known working-tree context at this update:
 - The auth ability refactor is implemented and its current truth lives in
   canonical docs.
 - `AGENTS.md` contains the repo-wide Compatibility Stance.
+- Slice 1 added durable registration/invitation state and app-owned data
+  helpers in `db/migrations/0006_signup_invitations.ts`,
+  `src/data/types.ts`, `src/data/registration.ts`, and
+  `tests/unit/registration.test.ts`.
+- Slices 2-4 added public policy enforcement, invitation acceptance, and admin
+  registration management. Slice 5 moved implemented truth into canonical docs.
 
 Always verify live state with:
 
@@ -70,13 +77,13 @@ Status meanings:
 | Slice | Status | Purpose | Gate |
 |---|---|---|---|
 | 0. Research and plan | Done | Research signup patterns and define the local design | `git diff --check` |
-| 1. Schema and data helpers | Ready | Durable policy/invitation state plus app-owned helper module | `pnpm exec tsc --noEmit`, `pnpm test:unit` |
-| 2. Public registration policy gate | Pending | Close `/register` when policy is invite-only | Unit + E2E |
-| 3. Invitation acceptance | Pending | `/register/[token]` creates invited users | Unit + E2E |
-| 4. Admin registration UI | Pending | Admin mode toggle, invite list, create/revoke invite | Unit + E2E |
-| 5. Docs and full verification | Pending | Move implemented truth to canonical docs and run full gate | Full gate |
+| 1. Schema and data helpers | Done | Durable policy/invitation state plus app-owned helper module | `pnpm exec tsc --noEmit`, `pnpm test:unit` |
+| 2. Public registration policy gate | Done | Close `/register` when policy is invite-only | Unit + E2E |
+| 3. Invitation acceptance | Done | `/register/[token]` creates invited users | Unit + E2E |
+| 4. Admin registration UI | Done | Admin mode toggle, invite list, create/revoke invite | Unit + E2E |
+| 5. Docs and full verification | Done | Move implemented truth to canonical docs and run full gate | Full gate |
 
-Progress: 0 of 5 implementation slices complete.
+Progress: 5 of 5 implementation slices complete.
 
 ## Maintenance Rules
 
@@ -165,50 +172,63 @@ Avoid:
 - "signup disabled" when the intended state is invite-only.
 - "role invite" in the first implementation; invites do not carry roles.
 
-## Current Local Baseline
+## Implemented Local Surface
 
 Important current files:
 
+- `db/migrations/0006_signup_invitations.ts`
+- `src/data/registration.ts`
+- `src/data/types.ts`
 - `src/(public)/register/handler.ts`
 - `src/(public)/register/page.tsx`
+- `src/(public)/register/[token]/handler.ts`
+- `src/(public)/register/[token]/page.tsx`
+- `src/(public)/login/handler.ts`
 - `src/(public)/login/page.tsx`
 - `src/(app)/admin/wares.ts`
 - `src/(app)/admin/layout.tsx`
-- `src/(app)/admin/handler.ts`
-- `src/(app)/admin/users/handler.ts`
+- `src/(app)/admin/registration/handler.ts`
+- `src/(app)/admin/registration/page.tsx`
 - `packages/ajo-auth/src/session.ts`
-- `packages/ajo-auth/src/reset.ts`
 - `packages/ajo-auth/src/types.ts`
-- `src/data/types.ts`
+- `tests/unit/registration.test.ts`
 - `tests/e2e/auth.spec.ts`
 - `tests/e2e/account-admin.spec.ts`
+- `tests/production/smoke.spec.ts`
 
 Current behavior:
 
 - `/register` is a public guest route.
-- The register action always accepts a new email, creates a `users` row, hashes
-  the password, assigns the `user` role when present, sends a verification
-  email, creates a cookie session, emits user/session/admin topics, and
-  redirects to `/dashboard`.
-- The registration page always shows the create-account form.
-- The login page always links to `/register`.
+- Public registration defaults to `open`.
+- Public `/register` tracks `registration:policy`; when signup mode is
+  `invite`, the page shows a closed-registration state and the action rejects
+  direct registration with `403`.
+- Public `/login` tracks `registration:policy` and hides the `/register` link
+  in invite-only mode.
+- `/register/[token]` accepts active invitations, creates verified non-admin
+  users, assigns the `user` role, creates a session, emits user/session/admin
+  topics plus `admin:registration`, and redirects to `/dashboard`.
+- Expired, revoked, accepted, missing, reused, or existing-email invitations
+  fail closed.
+- `/admin/registration` lets admins switch signup mode, create invitation
+  emails, view bounded recent invitations, and revoke pending invitations.
 - Admin routes require `auth.ability('admin:read')`.
-- Admin mutations should use handler-local `auth.authorize(req, 'admin:write')`.
+- Admin registration mutations use handler-local
+  `auth.authorize(req, 'admin:write')`.
 - Admin list routes use bounded pagination and explicit topics.
-- There is no existing app settings table or feature flag abstraction.
-- Auth token patterns already exist:
+- The app owns concrete `registration` and `invitations` tables, not a generic
+  settings table or public `@kit/auth` invitation API.
+- Auth token patterns reused by this feature:
   - `session.generate()` creates high-entropy plaintext credentials.
-  - sessions, reset tokens, and API tokens store hashes in SQLite.
-  - reset tokens expire and plaintext is returned only once.
+  - sessions, reset tokens, API tokens, and invitation tokens store hashes in
+    SQLite.
+  - invitation plaintext is emailed once and never stored.
 
-Migration state at last inspection:
+Migration state:
 
-- App migrations currently end at `db/migrations/0003_performance_indexes.ts`.
+- App migrations currently include `db/migrations/0006_signup_invitations.ts`.
 - `ajo-auth` migrations already include `0004_hash_sessions.ts` and
   `0005_role_abilities.ts`.
-- Use a non-conflicting app migration name such as
-  `db/migrations/0006_signup_invitations.ts`, adjusted if newer migrations
-  exist when implementation starts.
 
 ## Research Notes
 
@@ -430,7 +450,7 @@ registration
   id          integer primary key check id = 1
   signup      text not null default 'open' -- open | invite
   updated     text
-  updated_by  integer null references users.id on delete set null
+  updater  integer null references users.id on delete set null
 
 invitations
   id           text primary key              -- sha256(plain token)
@@ -439,7 +459,7 @@ invitations
   inviter      integer null references users.id on delete set null
   expiry       text not null
   accepted     text null
-  accepted_by  integer null references users.id on delete set null
+  acceptor  integer null references users.id on delete set null
   revoked      text null
   created      text default CURRENT_TIMESTAMP
 ```
@@ -467,20 +487,20 @@ Recommended helper surface:
 export type Signup = 'open' | 'invite'
 
 export async function policy(): Promise<Signup>
-export async function setPolicy(signup: Signup, user: number): Promise<void>
-export async function createInvite(input: InviteInput): Promise<string>
-export async function getInvite(token: string): Promise<Invite | null>
-export async function acceptInvite(token: string, input: AcceptInput): Promise<number>
-export async function revokeInvite(id: string): Promise<void>
+export async function set(signup: Signup, user: number): Promise<void>
+export async function create(input: Input): Promise<string>
+export async function get(token: string): Promise<Invitation | null>
+export async function accept(token: string, input: Acceptance): Promise<number>
+export async function revoke(id: string): Promise<void>
 ```
 
 Design constraints:
 
 - Keep schemas route-local unless shared shapes clearly remove duplication.
 - Keep hashing inside the helper.
-- Return plaintext invite token only from `createInvite()`.
+- Return plaintext invite token only from `create()`.
 - Return no token hash from public loaders.
-- Make `acceptInvite()` consume the invite in the same transaction that creates
+- Make `accept()` consume the invite in the same transaction that creates
   the user.
 - Do not emit topics inside data helpers; route actions should emit after
   durable writes commit.
@@ -531,7 +551,7 @@ Action:
 - In one transaction:
   - create user with invited email, name, password hash, and `verified` set;
   - assign the `user` role;
-  - mark invitation accepted and `accepted_by`;
+  - mark invitation accepted and `acceptor`;
   - return user id.
 - After commit:
   - create session;
@@ -687,9 +707,29 @@ rg -n "auth\\.role|role\\(" AGENTS.md ai readme.md packages src tests
 
 ### Slice 1: Schema And Data Helpers
 
-Status: Ready.
+Status: Done.
 
-Current sub-slice: 1A, migration and DB types.
+Completed:
+
+- Added `db/migrations/0006_signup_invitations.ts` with singleton
+  `registration` policy state, `invitations`, and invitation lookup indexes.
+- Extended `src/data/types.ts` with registration and invitation table types.
+- Added `src/data/registration.ts` with policy, invite creation, active invite
+  validation, single-use acceptance, and revoke helpers.
+- Added `tests/unit/registration.test.ts` covering default policy, policy
+  persistence, token hashing, active invite replacement, expired/revoked
+  invalidation, verified user creation, role assignment, and single-use
+  acceptance.
+- Added Vitest aliases in `vitest.config.ts` so unit tests resolve the same
+  `@kit/*` imports used by app modules.
+
+Verification:
+
+```bash
+pnpm exec vitest run tests/unit/registration.test.ts # passed, 6 tests
+pnpm exec tsc --noEmit                              # passed
+pnpm test:unit                                      # passed, 7 files / 70 tests
+```
 
 Completion criterion:
 
@@ -727,7 +767,16 @@ pnpm test:unit
 
 ### Slice 2: Public Registration Policy Gate
 
-Status: Pending.
+Status: Done.
+
+Completed:
+
+- `/register` tracks signup policy, shows a closed state in invite-only mode,
+  and rejects direct public registration actions server-side with `403`.
+- `/login` tracks signup policy and hides the public signup link in invite-only
+  mode.
+- E2E coverage proves default-open registration still works and invite-only
+  mode hides/blocks public signup.
 
 Completion criterion:
 
@@ -763,7 +812,16 @@ E2E scenarios:
 
 ### Slice 3: Invitation Acceptance
 
-Status: Pending.
+Status: Done.
+
+Completed:
+
+- Added `/register/[token]` loader/page/action for invitation acceptance.
+- Valid invite links create verified non-admin users, assign the `user` role,
+  create a session, emit user/session/admin topics plus `admin:registration`,
+  and redirect to `/dashboard`.
+- Invalid, expired, revoked, missing, reused, and existing-email invitations
+  fail closed without creating extra users or consuming existing-email invites.
 
 Completion criterion:
 
@@ -799,7 +857,17 @@ E2E scenarios:
 
 ### Slice 4: Admin Registration UI
 
-Status: Pending.
+Status: Done.
+
+Completed:
+
+- Added `/admin/registration` with signup mode controls, invite creation,
+  bounded recent invitation list, and pending invite revoke action.
+- Added the admin navigation item.
+- Admin mutations require `admin:write`; non-admin users cannot access the page
+  or actions.
+- Invite creation is rate-limited by inviter and invited email, sends email via
+  `@kit/mail`, and emits `admin:registration`.
 
 Completion criterion:
 
@@ -841,7 +909,29 @@ E2E scenarios:
 
 ### Slice 5: Documentation And Full Verification
 
-Status: Pending.
+Status: Done.
+
+Completed:
+
+- Updated `ai/architecture.md` with implemented onboarding behavior, schema
+  ownership, security boundaries, and topics.
+- Updated `ai/LLMs.md` with app-building rules for registration policy and
+  invitations.
+- Updated `readme.md` to clarify that onboarding/invitation policy remains
+  app-owned while using `ajo-auth` credential primitives.
+- Updated production smoke expectations for the new `registration:policy`
+  route topic.
+
+Verification:
+
+```bash
+git diff --check           # passed
+pnpm exec tsc --noEmit     # passed
+pnpm test:unit             # passed, 7 files / 70 tests
+pnpm test:e2e              # passed, 47 tests
+pnpm build                 # passed
+pnpm test:prod             # passed, includes build + production smoke
+```
 
 Completion criterion:
 
@@ -942,13 +1032,11 @@ shape.
 
 If resuming now:
 
-1. Start with Slice 1A.
-2. Verify current migration filenames.
-3. Read current DB test setup before adding tests.
-4. Add migration/types/helpers as one cohesive slice.
-5. Run `pnpm exec tsc --noEmit` and `pnpm test:unit`.
-6. Update this file with actual files changed, verification results, and next
-   slice status.
+1. The planned feature is complete.
+2. For follow-up work, start from the Future Options section and keep the same
+   app-owned boundary unless a second app proves reusable package surface.
+3. Re-run the full gate after touching registration, auth, route freshness, or
+   admin flows.
 
 Suggested workflow for future agents:
 
@@ -967,6 +1055,9 @@ Update log:
   consolidated into canonical docs.
 - 2026-06-26: Active plan refactored into this file with agent-operable status,
   slices, decisions, and research.
+- 2026-06-26: Slice 1 schema/data helpers implemented and verified with
+  typecheck plus unit suite.
+- 2026-06-26: Slices 2-5 implemented; full verification gate passed.
 
 ## Future Options
 

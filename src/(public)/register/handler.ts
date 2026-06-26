@@ -1,10 +1,11 @@
 import * as auth from '@kit/auth'
 import type { Request, Response } from '@kit'
-import { Failure, ip, origin } from '@kit'
+import { Failure, Forbidden, ip, origin } from '@kit'
 import { object, optional, string, forward, partialCheck, pipe } from '@kit/validate'
 import { send } from '@kit/mail'
 import { emit } from '@kit/server'
 import { db, email, password, trimmed } from '/src/data'
+import * as registration from '/src/data/registration'
 import { parse } from '@kit/validate'
 
 const Signup = pipe(
@@ -24,9 +25,19 @@ const Signup = pipe(
 	)
 )
 
+export async function page(req: Request) {
+	req.track?.('registration:policy')
+
+	return { signup: await registration.policy() }
+}
+
 export const actions = {
 
 	default: async (req: Request, res: Response) => {
+
+		if (await registration.policy() === 'invite') {
+			throw new Forbidden('Registration is by invitation only')
+		}
 
 		const addr = ip(req)
 		const key = `register:${addr}`

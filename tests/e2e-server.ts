@@ -18,6 +18,8 @@ async function seed() {
 	await store.deleteFrom('messages').execute()
 	await store.deleteFrom('participants').execute()
 	await store.deleteFrom('chats').execute()
+	await store.deleteFrom('invitations').execute()
+	await store.updateTable('registration').set({ signup: 'open', updated: null, updater: null }).where('id', '=', 1).execute()
 	await store.deleteFrom('members').execute()
 	await store.deleteFrom('sessions').execute()
 	await store.deleteFrom('tokens').execute()

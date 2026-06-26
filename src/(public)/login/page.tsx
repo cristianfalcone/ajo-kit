@@ -1,15 +1,17 @@
 import type { Stateful } from 'ajo'
 import type { Props } from '@kit'
 import { action } from '@kit/client'
+import type { Signup } from '/src/data/registration'
 import { Button, Checkbox, Feedback, Input, Link } from '/src/ui'
 
 type Result = { redirect: string }
+type Data = { signup: Signup }
 
-const Login: Stateful<Props> = function* () {
+const Login: Stateful<Props<Data>> = function* () {
 
 	const form = action<Result>()
 
-	while (true) yield (
+	for (const { data } of this) yield (
 		<>
 			<h1 class="text-2xl font-bold text-center mb-8 text-slate-900 dark:text-white">
 				Sign In
@@ -56,12 +58,14 @@ const Login: Stateful<Props> = function* () {
 
 			</form>
 
-			<p class="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
-				Don't have an account?{' '}
-				<Link href="/register">
-					Sign up
-				</Link>
-			</p>
+			{data?.signup !== 'invite' && (
+				<p class="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+					Don't have an account?{' '}
+					<Link href="/register">
+						Sign up
+					</Link>
+				</p>
+			)}
 		</>
 	)
 }

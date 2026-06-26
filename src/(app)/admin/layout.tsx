@@ -5,6 +5,7 @@ import { Sidebar } from '/src/ui'
 const links: [string, string, string][] = [
 	['/admin', 'Overview', 'i-lucide-layout-dashboard'],
 	['/admin/users', 'Users', 'i-lucide-users'],
+	['/admin/registration', 'Registration', 'i-lucide-user-plus'],
 	['/admin/sessions', 'Sessions', 'i-lucide-monitor'],
 	['/admin/tokens', 'Tokens', 'i-lucide-key'],
 ]

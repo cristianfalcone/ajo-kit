@@ -3,11 +3,14 @@ import { expect, request as playwright, test } from '@playwright/test'
 import {
 	proof,
 	admin,
+	member,
 	make,
 	goto,
 	signin,
 	login,
 	count,
+	setSignup,
+	getSignup,
 } from './helpers'
 
 test('dashboard, theme toggle and profile actions reflect account state', async ({ page }) => {
@@ -164,6 +167,70 @@ test('admin pages expose bounded lists, pagination and admin-only actions', asyn
 	await goto(page, '/admin/tokens?size=5')
 	await expect(page.getByRole('heading', { name: 'API Tokens' })).toBeVisible()
 	await expect(page.getByText('Seed API Token')).toBeVisible()
+})
+
+test('admin manages registration policy and invitations', async ({ page, browser, baseURL: base }) => {
+	const email = `admin-invite-${Date.now()}@example.com`
+	const guest = await browser.newContext({ baseURL: base })
+	const tab = await guest.newPage()
+
+	setSignup('open')
+
+	try {
+		await signin(page)
+		await goto(page, '/admin/registration')
+		await expect(page.getByRole('heading', { name: 'Registration' })).toBeVisible()
+
+		await page.getByRole('button', { name: 'Invite only' }).click()
+		await expect.poll(() => getSignup()).toBe('invite')
+
+		await goto(tab, '/login')
+		await expect(tab.getByRole('link', { name: 'Sign up' })).toHaveCount(0)
+		await goto(tab, '/register')
+		await expect(tab.getByRole('heading', { name: 'Registration is by invitation only' })).toBeVisible()
+
+		await goto(page, '/admin/registration')
+		await page.locator('input[name="email"]').fill(email)
+		await page.locator('input[name="name"]').fill('Admin Invited User')
+		await page.getByRole('button', { name: 'Send Invitation' }).click()
+
+		await expect.poll(() => count('invitations', 'email = ?', email)).toBe(1)
+		await expect(page.getByText(email)).toBeVisible()
+
+		const row = page.locator('tr', { hasText: email })
+		await row.getByTitle('Revoke invitation').click()
+		await expect.poll(() => count('invitations', 'email = ? and revoked is not null', email)).toBe(1)
+		await expect(row.getByText('Revoked')).toBeVisible()
+
+		await page.getByRole('button', { name: 'Open' }).click()
+		await expect.poll(() => getSignup()).toBe('open')
+
+		await goto(tab, '/login')
+		await expect(tab.getByRole('link', { name: 'Sign up' })).toBeVisible()
+	} finally {
+		setSignup('open')
+		await guest.close()
+	}
+})
+
+test('non-admin cannot access admin registration page or actions', async ({ page, baseURL: base }) => {
+	await signin(page, member)
+	await goto(page, '/admin/registration')
+	await expect(page.getByRole('heading', { name: 'Missing ability: admin:read' })).toBeVisible()
+
+	const api = await playwright.newContext({ baseURL: base })
+
+	try {
+		await login(api, base!, member)
+		const response = await api.post('/admin/registration?/mode', {
+			headers: proof(base!),
+			data: { signup: 'invite' },
+		})
+
+		expect(response.status()).toBe(403)
+	} finally {
+		await api.dispose()
+	}
 })
 
 test('non-admin account delete requires password confirmation and deletes the account', async ({ page }) => {

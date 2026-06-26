@@ -140,7 +140,7 @@ Production environment:
 `APP_URL` is the trusted public origin for CSRF checks, HSTS, and generated
 email links. Local loopback `kit start` runs can work without it.
 
-In-process state is intentionally not distributed:
+In-process state is not distributed:
 
 - route topic versions
 - active SSE connections
@@ -621,6 +621,12 @@ APP_SECRET=<32+ random characters from your secret manager>
 
 Development can run without `APP_SECRET`. Production fails closed if it is
 missing, too short, or left as a sample placeholder.
+
+Onboarding uses a durable signup policy, invitation audit rows, and `ajo-auth`
+credential primitives. Registration handlers enforce signup mode before writes,
+invitation links are hashed bearer secrets generated with
+`session.generate()`/`session.hash()`, and mutations emit route topics after
+database commits.
 
 ## `@kit/auth`
 

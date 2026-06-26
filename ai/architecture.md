@@ -5,8 +5,8 @@ Last updated: 2026-06-26
 This is the canonical architecture document for `ajo-kit`. It describes the
 current implementation and operating contracts for the framework, app runtime,
 data flow, SSR, actions, APIs, auth, security, persistence, build, and tests.
-It is intentionally factual: no historical phase log, migration story, or future
-roadmap is included here.
+It is factual: no historical phase log, migration story, or future roadmap is
+included here.
 
 ## Operating Principles
 
@@ -17,7 +17,7 @@ kept direct and explicit:
 - Components render server data from `args.data`.
 - Live data is explicit through `req.track(topic)` and `emit(topic)`.
 - Protocol boundaries stay small and stable.
-- Public package surface is intentionally narrow.
+- Public package surface is narrow.
 - Security policy is route-owned where possible and credential-aware where
   needed.
 - Measurements justify performance changes; speculative architecture is avoided.
@@ -569,8 +569,8 @@ and admin/dashboard loaders call `session.prune()` before counting/listing so
 expired rows that are no longer presented by a browser cookie do not appear as
 active sessions.
 
-API tokens and reset tokens are stored hashed. Plaintext API tokens are shown
-only once at creation.
+API tokens, reset tokens, and invitation tokens are stored hashed. Plaintext API
+tokens and invitation tokens are shown or sent only once at creation.
 
 Cookies are exact-parsed by name. Duplicate same-name cookies are rejected. The
 session cookie is `HttpOnly`, `SameSite=Lax`, path-scoped, and `Secure` in
@@ -636,6 +636,37 @@ or validating when `APP_SECRET` is missing, shorter than 32 characters, or left
 as a sample placeholder; the failure logs a server-side security message and
 public responses mask it as a 500.
 
+### Registration Policy And Invitations
+
+User onboarding runs through the registration routes and data module.
+
+The app stores a singleton `registration` row with `signup = 'open' | 'invite'`.
+The default migrated state is `open`, preserving public self-service
+registration. Public `/register` and `/login` loaders track
+`registration:policy`; admin mode changes emit `registration:policy` so public
+signup affordances update through normal route freshness.
+
+`/register` enforces the policy server-side before parsing or writing. In
+`invite` mode direct public registration fails with `403`; hiding links is only
+UI, not the security boundary.
+
+Invitations live in `invitations` and are managed through
+`/admin/registration`. Admin reads require the admin subtree `admin:read`
+boundary, and mutation actions call `authorize(req, 'admin:write')`. Invite
+creation is rate-limited by inviter and invited email, revokes any previous
+active invitation for the normalized email in the same transaction, stores only
+`sha256(plainToken)`, emails the plaintext accept link once, and emits
+`admin:registration` after the durable write.
+
+`/register/[token]` is the accept flow. The loader returns only the invited
+email/name when the token is active. The action validates the token again,
+rejects existing user emails without consuming the invitation, hashes the
+password, then accepts the invitation in the same transaction that creates the
+verified user and assigns the standard `user` role. After commit it creates a
+session cookie, emits user/session/admin topics plus `admin:registration`, and
+redirects to `/dashboard`. Accepted, revoked, expired, missing, or reused
+invites fail closed.
+
 ### Error Responses and Logging
 
 `Failure` carries an HTTP status and public message. The JSON body parser is
@@ -657,7 +688,7 @@ The app uses SQLite through `better-sqlite3` and Kysely.
 
 The first supported production topology is a single `kit start` Node process
 with one SQLite database file on persistent local disk. The following state is
-process-local and intentionally simple:
+process-local:
 
 - topic versions in `freshness.ts`
 - active SSE connections and pending fanout queues in `server.tsx`
@@ -683,7 +714,7 @@ global because Kysely orders and records migrations by name. Duplicate names
 fail while collecting migrations, before any migration executes.
 
 Use Kysely with explicit selected columns. Avoid `selectAll()` unless the full
-row is intentionally needed.
+row is needed.
 
 Admin list pages are bounded through `src/data/pagination.ts`:
 
@@ -701,6 +732,9 @@ Indexes currently cover confirmed hot paths:
 - `members(user)`
 - `members(role)`
 - `users(created)`
+- `invitations(email)`
+- `invitations(created)`
+- `invitations(expiry)`
 
 Avoid more indexes or denormalized state until realistic data measurements show
 a need.
@@ -717,10 +751,12 @@ Topic names are explicit stable domains:
 - `profile:<id>`: account profile data
 - `sessions:<id>`: account sessions page
 - `tokens:<id>`: account tokens page
+- `registration:policy`: public login/register policy reads
 - `admin:users`: admin users list
 - `admin:sessions`: admin sessions list
 - `admin:tokens`: admin tokens list
 - `admin:stats`: admin overview counters
+- `admin:registration`: admin registration mode and invitation list
 
 Emit every topic whose readers observe a mutation. Prefer a few precise topics
 over one broad catch-all.
@@ -732,6 +768,9 @@ Common mutation topics:
 | Profile update | `profile:<id>`, `dashboard:<id>`, `user:<id>`, `admin:users` |
 | Session create/revoke | `sessions:<id>`, `dashboard:<id>`, `user:<id>`, `admin:sessions`, `admin:stats` |
 | Token create/revoke | `tokens:<id>`, `dashboard:<id>`, `user:<id>`, `admin:tokens`, `admin:stats` |
+| Signup mode change | `admin:registration`, `registration:policy` |
+| Invitation create/revoke | `admin:registration` |
+| Invitation accept | `sessions:<id>`, `dashboard:<id>`, `user:<id>`, `admin:sessions`, `admin:users`, `admin:stats`, `admin:registration` |
 
 ## Head Management
 
@@ -741,11 +780,11 @@ Common mutation topics:
 winning. `render(head)` produces SSR tags. `apply(head)` diffs before mutating
 `document.head` and `document.title`.
 
-The head payload is intentionally compact: use `title`, `meta[]`, and `link[]`.
+The head payload is compact: use `title`, `meta[]`, and `link[]`.
 
 ## Mail and Outbound URLs
 
-Email flows such as reset, register, and verify build links from
+Email flows such as reset, register, verify, and invitations build links from
 `origin(req)`. Production non-local deployments must configure `APP_URL`;
 local loopback `kit start` runs can use the request host.
 
