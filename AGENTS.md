@@ -67,6 +67,20 @@ When documentation and code disagree, inspect the code and tests, update the doc
 that are supposed to describe the current behavior, and keep stale history out of
 architecture docs.
 
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues for `cristianfalcone/ajo-kit`; external PRs are not a triage surface. See `ai/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default five-label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `ai/agents/triage-labels.md`.
+
+### Domain docs
+
+This repo uses a single-context layout with canonical domain and architecture context in `ai/*.md`. See `ai/agents/domain.md`.
+
 ## Architecture Snapshot
 
 `ajo-kit` is a full-stack metaframework for Ajo:
