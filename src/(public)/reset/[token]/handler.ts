@@ -34,7 +34,6 @@ export const actions = {
 
 		const token = req.params.token
 		const input = parse(Reset, req.body)
-		const hashed = await auth.password.hash(input.password)
 		const reset = createHash('sha256').update(token).digest('hex')
 		const now = new Date().toISOString()
 		let user!: number
@@ -51,6 +50,7 @@ export const actions = {
 
 			user = consumed.user
 
+			const hashed = await auth.password.hash(input.password)
 			await trx.updateTable('users').set({ password: hashed, updated: now }).where('id', '=', user).execute()
 			await trx.deleteFrom('sessions').where('user', '=', user).execute()
 			await trx.deleteFrom('tokens').where('user', '=', user).execute()
