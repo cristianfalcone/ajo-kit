@@ -840,6 +840,16 @@ runtime through `tests/production-server.ts` with a migrated temporary SQLite
 database, then probes SSR, static asset headers, route JSON, and malformed JSON
 action error mapping.
 
+UI component stories live under `tests/stories/*.stories.tsx` and run through
+the Ajo-native stories harness. `tests/stories-server.ts` owns the Sade-powered Node
+CLI, Vite server, and Playwright runner. `tests/stories/app.tsx` owns the browser
+manager, canvas, controls, story index, theme toggle, and shared story types.
+`tests/stories/index.html` is the served shell. The stories harness uses Vite, Ajo, UnoCSS,
+and Playwright without Storybook. It is intentionally client-only and limited to
+`src/ui` components plus pure fixtures. It exposes a manager UI through
+`pnpm stories`, a smoke runner through `pnpm stories:test`, and opt-in screenshots in
+`.tmp/stories-screenshots` through `pnpm stories:test:visual`.
+
 ## Verification
 
 For framework, security, data-flow, or runtime changes run:

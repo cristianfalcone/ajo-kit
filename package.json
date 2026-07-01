@@ -3,6 +3,9 @@
   "scripts": {
     "kit": "kit",
     "dev": "kit dev",
+    "stories": "tsx tests/stories-server.ts dev",
+    "stories:test": "tsx tests/stories-server.ts test",
+    "stories:test:visual": "tsx tests/stories-server.ts test --screenshots",
     "build": "kit build",
     "start": "kit start",
     "test": "vitest run",
@@ -26,6 +29,7 @@
     "@unocss/preset-wind4": "66.7.2",
     "@vitest/browser-playwright": "4.1.9",
     "playwright": "1.61.0",
+    "sade": "^1.8.1",
     "tsx": "4.22.4",
     "typescript": "6.0.3",
     "unocss": "66.7.2",

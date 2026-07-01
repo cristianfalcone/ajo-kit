@@ -10,6 +10,9 @@ with `ai/*.md`, `readme.md`, and the implementation in `packages/`, `src/`,
 
 ```bash
 pnpm dev                 # Dev server
+pnpm stories             # Ajo UI component stories harness
+pnpm stories:test        # Stories smoke suite
+pnpm stories:test:visual # Stories smoke suite with screenshots in .tmp
 pnpm build               # Production build
 pnpm start               # Run built server
 pnpm exec tsc --noEmit   # Typecheck
@@ -61,6 +64,7 @@ reliable, performant, and elegant.
 - `ai/LLMs.md`: app-building guide for AI agents using Ajo and `ajo-kit`.
 - `ai/chat.md`: chat demo app behavior, data, scrolling, unread, and QA notes.
 - `ai/comparison.md`: framework/auth/routing comparison context.
+- `ai/stories.md`: supporting research and design notes for the UI stories harness.
 - `node_modules/ajo/LLMs.md`: Ajo UI syntax reference; load before writing TSX.
 
 When documentation and code disagree, inspect the code and tests, update the docs

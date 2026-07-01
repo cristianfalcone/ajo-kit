@@ -79,11 +79,9 @@ Layout.attrs = { class: 'min-h-screen flex flex-col bg-[#edf4f3] text-slate-800 
 export default Layout
 
 const Wrapper = ({ children }: { children: Children }) => (
-	<>
-		<div key="content" class="flex-1 flex flex-col">
-			{children}
-		</div>
-	</>
+	<div key="content" class="flex-1 flex flex-col">
+		{children}
+	</div>
 )
 
 export const Failure = ({ error }: { error: Error }) => {

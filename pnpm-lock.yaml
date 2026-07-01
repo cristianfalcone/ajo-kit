@@ -45,6 +45,9 @@ importers:
       playwright:
         specifier: 1.61.0
         version: 1.61.0
+      sade:
+        specifier: ^1.8.1
+        version: 1.8.1
       tsx:
         specifier: 4.22.4
         version: 4.22.4
