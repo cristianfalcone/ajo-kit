@@ -13,7 +13,7 @@ const dark = '(prefers-color-scheme: dark)'
  * ```
  */
 export const scheme = (host: Host) => {
-	const query = media(host, () => dark)
+	const query = media(host, { query: () => dark })
 
 	query.sync()
 

@@ -49,7 +49,7 @@ test('shape has exactly the documented fields', () => {
 	let view: View | undefined
 
 	function* Gen(this: Host) {
-		view = label(this, () => 'unit-label-shape')
+		view = label(this, { prefix: () => 'unit-label-shape' })
 		yield jsx('span', { children: 'ready' })
 	}
 
@@ -73,7 +73,7 @@ test('ids and label attrs use deterministic field suffixes', () => {
 	let view: View | undefined
 
 	function* Gen(this: Host) {
-		view = label(this, () => 'unit-label-ids')
+		view = label(this, { prefix: () => 'unit-label-ids' })
 		yield jsx('span', { children: 'ready' })
 	}
 
@@ -95,7 +95,7 @@ test('control attrs omit relationship attrs when no description or error is pres
 	let view: View | undefined
 
 	function* Gen(this: Host) {
-		view = label(this, () => 'unit-label-empty')
+		view = label(this, { prefix: () => 'unit-label-empty' })
 		yield jsx('span', { children: 'ready' })
 	}
 
@@ -112,7 +112,7 @@ test('describe true wires earlier controls after one queued render', async () =>
 	let renders = 0
 
 	function* Gen(this: Host) {
-		view = label(this, () => 'unit-label-describe')
+		view = label(this, { prefix: () => 'unit-label-describe' })
 
 		while (true) {
 			needView(view).reset()
@@ -143,7 +143,7 @@ test('reset plus a missing description removes describedby after one queued rend
 	let show = true
 
 	function* Gen(this: Host) {
-		view = label(this, () => 'unit-label-toggle')
+		view = label(this, { prefix: () => 'unit-label-toggle' })
 
 		while (true) {
 			needView(view).reset()
@@ -178,7 +178,7 @@ test('repeated describe true calls schedule no extra invalidations', async () =>
 	let renders = 0
 
 	function* Gen(this: Host) {
-		view = label(this, () => 'unit-label-repeat')
+		view = label(this, { prefix: () => 'unit-label-repeat' })
 
 		while (true) {
 			needView(view).reset()
@@ -207,7 +207,7 @@ test('sync true marks controls invalid and joins description plus error ids', ()
 	let view: View | undefined
 
 	function* Gen(this: Host) {
-		view = label(this, () => 'unit-label-invalid')
+		view = label(this, { prefix: () => 'unit-label-invalid' })
 		needView(view).describe(true)
 		needView(view).sync(true)
 		yield jsx('span', { children: 'ready' })
@@ -227,7 +227,7 @@ test('button and group attrs expose the accessible relationship shapes', () => {
 	let view: View | undefined
 
 	function* Gen(this: Host) {
-		view = label(this, () => 'unit-label-surfaces')
+		view = label(this, { prefix: () => 'unit-label-surfaces' })
 		needView(view).describe(true)
 		needView(view).sync(true)
 		yield jsx('span', { children: 'ready' })
@@ -252,7 +252,7 @@ test('button and group attrs expose the accessible relationship shapes', () => {
 
 test('SSR emits label, description, and invalid error relationships without DOM access', () => {
 	function* Gen(this: Host) {
-		const view = label(this, () => 'unit-label-ssr')
+		const view = label(this, { prefix: () => 'unit-label-ssr' })
 		view.reset()
 		view.describe(true)
 		view.sync(true)
@@ -282,7 +282,7 @@ test('reset recreates ids and unmount ignores queued invalidations', async () =>
 
 	function* Gen(this: Host) {
 		created++
-		view = label(this, () => 'unit-label-reset')
+		view = label(this, { prefix: () => 'unit-label-reset' })
 
 		while (true) {
 			needView(view).reset()

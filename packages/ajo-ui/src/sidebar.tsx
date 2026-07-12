@@ -177,7 +177,7 @@ const SidebarProviderRoot: Stateful<SidebarProviderArgs> = function* ({ defaultO
 	let onOpenChange: SidebarProviderArgs['onOpenChange']
 	let persist: SidebarProviderArgs['persist']
 	let shortcut: SidebarProviderArgs['shortcut'] = defaultShortcut
-	const mobile = media(this, () => mobileQuery)
+	const mobile = media(this, { query: () => mobileQuery })
 
 	const state = controlled<boolean>(this, {
 		fallback: Boolean(open ?? defaultOpen),

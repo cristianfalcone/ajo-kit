@@ -39,6 +39,12 @@ export type LabelGroupAttrs = {
 	'aria-labelledby': string
 }
 
+/** Reactive inputs used to configure one field-labelling view. */
+export type LabelOptions = {
+	/** Prefix used for the stable ids. Default: `field`. */
+	prefix?: () => string | undefined
+}
+
 /** Live field-labelling view returned by the label clove. */
 export type LabelView = {
 	/** Stable ids for the field parts. */
@@ -64,8 +70,8 @@ export type LabelView = {
 }
 
 /** Field labelling: stable ids and label/control/description/error wiring for one form field. */
-export const label = (host: Host, prefix?: () => string | undefined): LabelView => {
-	const base = id(prefix?.() ?? 'field')
+export const label = (host: Host, options: LabelOptions = {}): LabelView => {
+	const base = id(options.prefix?.() ?? 'field')
 	const ids = {
 		control: base,
 		description: `${base}-description`,

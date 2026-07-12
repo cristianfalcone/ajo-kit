@@ -30,7 +30,7 @@ export const FieldContext = context<FieldContextValue | null>(null)
 
 /** Unstyled behavior root for one field's label, description, and error wiring. */
 const FieldRoot: Stateful<FieldRootArgs> = function* (args) {
-	const view = label(this, () => args.name)
+	const view = label(this, { prefix: () => args.name })
 
 	for (const next of this) {
 		view.reset()

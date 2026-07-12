@@ -78,7 +78,7 @@ test('shape has exactly the documented fields', () => {
 	let view: View | undefined
 
 	function* Gen(this: Host) {
-		view = media(this, () => '(min-width: 1px)')
+		view = media(this, { query: () => '(min-width: 1px)' })
 		needView(view).sync()
 		yield jsx('span', { children: 'ready' })
 	}
@@ -94,7 +94,7 @@ test('two hosts share one MediaQueryList and stop it after the last unsubscribe'
 	let hostB: Host | null = null
 
 	function* Child(this: Host, args: { name: string }) {
-		const view = media(this, () => '(min-width: 700px)')
+		const view = media(this, { query: () => '(min-width: 700px)' })
 
 		while (true) {
 			view.sync()
@@ -138,7 +138,7 @@ test('sync retargets a changed query string and old query changes no longer inva
 	let renders = 0
 
 	function* Gen(this: Host) {
-		view = media(this, () => query)
+		view = media(this, { query: () => query })
 
 		while (true) {
 			needView(view).sync()
@@ -176,7 +176,7 @@ test('reset recreates a fresh subscription', () => {
 
 	function* Gen(this: Host) {
 		created++
-		const view = media(this, () => '(orientation: portrait)')
+		const view = media(this, { query: () => '(orientation: portrait)' })
 
 		while (true) {
 			view.sync()
@@ -202,10 +202,11 @@ test('reset recreates a fresh subscription', () => {
 
 test('SSR uses fallback and does not evaluate the query', () => {
 	function* Gen(this: Host) {
-		const view = media(this, () => {
-			throw new Error('query should not run on the server')
-		}, {
+		const view = media(this, {
 			fallback: () => true,
+			query: () => {
+				throw new Error('query should not run on the server')
+			},
 		})
 
 		view.sync()
