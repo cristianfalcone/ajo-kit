@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { Frame } from '@kit'
+import type { LayoutArgs } from '@kit'
 import { action } from '@kit/client'
 import { Button, Feedback, Input, Panel } from '/src/ui'
 import { ChatList, type ChatItem } from './view'
@@ -11,7 +11,7 @@ type Data = {
 	users: User[]
 }
 
-const ChatsLayout: Stateful<Frame<Data>> = function* (args) {
+const ChatsLayout: Stateful<LayoutArgs<Data>> = function* (args) {
 
 	const form = action<void>('start')
 

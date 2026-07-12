@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { Frame } from '@kit'
+import type { LayoutArgs } from '@kit'
 import { UnreadContext } from '/src/contexts'
 import { Sidebar } from '/src/ui'
 
@@ -11,7 +11,7 @@ const links: [string, string, string][] = [
 	['/account/delete', 'Delete Account', 'i-lucide-trash-2'],
 ]
 
-const AccountLayout: Stateful<Frame> = function* (args) {
+const AccountLayout: Stateful<LayoutArgs> = function* (args) {
 
 	for (args of this) {
 

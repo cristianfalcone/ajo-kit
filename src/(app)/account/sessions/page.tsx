@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import { type Props, date } from '@kit'
+import { type PageArgs, date } from '@kit'
 import { action } from '@kit/client'
 import { Badge, Button, Panel } from '/src/ui'
 
@@ -36,7 +36,7 @@ function parse(agent: string | null) {
 
 const dateTime = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } as const
 
-const Sessions: Stateful<Props<Data>> = function* (args) {
+const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 
 	const revokeForm = action<RevokeResult>('revoke')
 	const purge = action<Purge>('purge')

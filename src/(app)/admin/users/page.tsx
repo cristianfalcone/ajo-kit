@@ -1,4 +1,4 @@
-import { type Props, date } from '@kit'
+import { type PageArgs, date } from '@kit'
 import { Badge, Pager, Panel, Table, type Column } from '/src/ui'
 
 type User = {
@@ -13,7 +13,7 @@ type User = {
 type Info = Parameters<typeof Pager>[0]['page']
 type Data = { users: User[]; page: Info }
 
-export default function Users({ data }: Props<Data>) {
+export default function Users({ data }: PageArgs<Data>) {
 
 	const users = data?.users ?? []
 	const columns = [

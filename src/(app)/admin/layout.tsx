@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { Frame } from '@kit'
+import type { LayoutArgs } from '@kit'
 import { Sidebar } from '/src/ui'
 
 const links: [string, string, string][] = [
@@ -10,7 +10,7 @@ const links: [string, string, string][] = [
 	['/admin/tokens', 'Tokens', 'i-lucide-key'],
 ]
 
-const AdminLayout: Stateful<Frame> = function* (args) {
+const AdminLayout: Stateful<LayoutArgs> = function* (args) {
 
 	for (args of this) {
 

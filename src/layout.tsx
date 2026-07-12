@@ -1,12 +1,12 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
-import type { Frame } from '@kit'
+import type { LayoutArgs } from '@kit'
 import { ThemeContext, type ThemeMode } from '/src/contexts'
 import { Button, Spinner } from '/src/ui'
 
 export const pending = true
 
-const Layout: Stateful<Frame> = function* (args) {
+const Layout: Stateful<LayoutArgs> = function* (args) {
 
 	let mode: ThemeMode = globalThis.localStorage?.getItem('theme.v1') as ThemeMode ?? 'system'
 	let previous: Children = args.children

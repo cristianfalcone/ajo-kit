@@ -1,11 +1,11 @@
 import type { Stateful } from 'ajo'
-import { type Props, navigate } from '@kit'
+import { type PageArgs, navigate } from '@kit'
 import { action } from '@kit/client'
 import { Button, Feedback, Input, Panel } from '/src/ui'
 
 type Result = { confirmed: boolean }
 
-const Confirm: Stateful<Props> = function* () {
+const Confirm: Stateful<PageArgs> = function* () {
 
 	const form = action<Result>()
 

@@ -1,4 +1,4 @@
-import type { Props } from '@kit'
+import type { PageArgs } from '@kit'
 import { Stat } from '/src/ui'
 
 type Data = {
@@ -15,7 +15,7 @@ const stats = [
 	{ key: 'tokens', label: 'API Tokens', icon: 'i-lucide-key', href: '/admin/tokens' },
 ] as const
 
-export default function Overview({ data }: Props<Data>) {
+export default function Overview({ data }: PageArgs<Data>) {
 	return (
 		<div class="space-y-6">
 			<h2 class="text-lg font-semibold text-slate-900 dark:text-white">Overview</h2>

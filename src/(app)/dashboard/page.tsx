@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import { type Props, date } from '@kit'
+import { type PageArgs, date } from '@kit'
 import { can } from '/src/abilities'
 import { Badge, Panel, Stat, Table, type Column } from '/src/ui'
 
@@ -48,7 +48,7 @@ function timeAgo(iso: string) {
 	return `${days}d ago`
 }
 
-const Dashboard: Stateful<Props<Data>> = function* (args) {
+const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
 
 	for (args of this) {
 		const data = args.data

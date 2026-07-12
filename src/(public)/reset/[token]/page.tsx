@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { Props } from '@kit'
+import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
 import { Alert, Button, Feedback, Input, Link } from '/src/ui'
 
@@ -9,7 +9,7 @@ interface Data {
 	valid: boolean
 }
 
-const Reset: Stateful<Props<Data>> = function* (args) {
+const Reset: Stateful<PageArgs<Data>> = function* (args) {
 
 	const form = action<Result>()
 	for (args of this) {

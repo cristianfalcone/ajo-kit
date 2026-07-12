@@ -1,10 +1,10 @@
 import type { Stateful } from 'ajo'
-import type { Props } from '@kit'
+import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
 import { Alert, Button, Panel } from '/src/ui'
 import type { VerificationResult } from '/src/verification'
 
-const Verify: Stateful<Props> = function* () {
+const Verify: Stateful<PageArgs> = function* () {
 
 	const form = action<VerificationResult>()
 

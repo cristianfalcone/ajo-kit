@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import { type Props, date } from '@kit'
+import { type PageArgs, date } from '@kit'
 import { action } from '@kit/client'
 import { Badge, Button, Feedback, Input, Pager, Panel, Table, type Column } from '/src/ui'
 import type { Signup } from '/src/data/registration'
@@ -47,7 +47,7 @@ const option = (active: boolean) =>
 			: 'bg-[#fbfdfb]/55 text-slate-700 inset-ring-slate-900/12 hover:bg-[#fbfdfb]/85 dark:bg-white/4 dark:text-slate-200 dark:inset-ring-white/12 dark:hover:bg-white/8',
 	].join(' ')
 
-const Registration: Stateful<Props<Data>> = function* (args) {
+const Registration: Stateful<PageArgs<Data>> = function* (args) {
 	const mode = action<ModeResult>('mode')
 	const invite = action<InviteResult>('invite')
 	const revoke = action<RevokeResult>('revoke')

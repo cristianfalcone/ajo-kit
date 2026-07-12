@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { Props } from '@kit'
+import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
 import { Button, Feedback, Input, Panel } from '/src/ui'
 
@@ -10,7 +10,7 @@ interface Data {
 	user?: { id: number; name: string; email: string }
 }
 
-const Profile: Stateful<Props<Data>> = function* (args) {
+const Profile: Stateful<PageArgs<Data>> = function* (args) {
 
 	const nameForm = action<NameResult>('name')
 	const passwordForm = action<PasswordResult>('password')

@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import { type Props, date } from '@kit'
+import { type PageArgs, date } from '@kit'
 import { action } from '@kit/client'
 import { Button, Pager, Panel, Table, type Column } from '/src/ui'
 
@@ -37,7 +37,7 @@ function parseAgent(agent: string | null) {
 	return `${browser}${os ? ` / ${os}` : ''}`
 }
 
-const Sessions: Stateful<Props<Data>> = function* (args) {
+const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 
 	const revokeForm = action<FormResult>('revoke')
 	const revokeUserForm = action<FormResult>('revokeUser')

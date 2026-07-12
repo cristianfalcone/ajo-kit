@@ -165,16 +165,16 @@ export type Action<T> = {
 
 // Page and layout args
 
-/** Props passed to page components. */
-export type Props<T = Entry> = {
+/** Route page component args. */
+export type PageArgs<T = Entry> = {
 	params: Params
 	data?: T
 	loading: boolean
 	error?: Failure
 }
 
-/** Props passed to layout components, including children. */
-export type Frame<T = Entry> = Props<T> & {
+/** Route layout component args, including children. */
+export type LayoutArgs<T = Entry> = PageArgs<T> & {
 	children: Children
 }
 

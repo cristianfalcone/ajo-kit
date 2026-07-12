@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import { type Props, date } from '@kit'
+import { type PageArgs, date } from '@kit'
 import { action } from '@kit/client'
 import { Button, Pager, Panel, Table, type Column } from '/src/ui'
 
@@ -18,7 +18,7 @@ type Info = Parameters<typeof Pager>[0]['page']
 type Data = { tokens: Token[]; page: Info }
 type FormResult = { revoked: boolean }
 
-const Tokens: Stateful<Props<Data>> = function* (args) {
+const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 
 	const form = action<FormResult>()
 

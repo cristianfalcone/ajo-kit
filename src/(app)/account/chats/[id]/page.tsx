@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { Props } from '@kit'
+import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
 import clsx from 'clsx'
 import { Button, Input } from '/src/ui'
@@ -61,7 +61,7 @@ const UNREAD_HIGHLIGHT_HOLD_MS = 1800
 const UNREAD_HIGHLIGHT_FADE_MS = 4200
 const DAY_IN_MS = 86_400_000
 
-const ChatRoom: Stateful<Props<Data>> = function* (args) {
+const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 	const send = action<SendResult>('send')
 	const load = action<LoadPage>('load')

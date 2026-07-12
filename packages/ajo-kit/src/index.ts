@@ -23,7 +23,7 @@ export type {
 	Entry,
 	Parent,
 	Action,
-	Props,
-	Frame,
+	PageArgs,
+	LayoutArgs,
 	User,
 } from './constants'

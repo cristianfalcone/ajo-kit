@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { Stateful } from 'ajo'
-import type { User, Frame, Action } from '@kit'
+import type { User, LayoutArgs, Action } from '@kit'
 import { ThemeContext, UnreadContext } from '/src/contexts'
 import { action } from '@kit/client'
 import { can } from '/src/abilities'
@@ -20,7 +20,7 @@ const isActive = (path: string, url: string, options?: LinkOptions): boolean => 
 
 type LayoutData = { user: User; unread: number }
 
-const AppLayout: Stateful<Frame<LayoutData>> = function* (args) {
+const AppLayout: Stateful<LayoutArgs<LayoutData>> = function* (args) {
 
 	const signout = action<void>('signout')
 

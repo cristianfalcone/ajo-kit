@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { Props } from '@kit'
+import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
 import { Alert, Button, Feedback, Input, Link } from '/src/ui'
 
@@ -12,7 +12,7 @@ type Data = {
 	} | null
 }
 
-const Invite: Stateful<Props<Data>> = function* () {
+const Invite: Stateful<PageArgs<Data>> = function* () {
 	const form = action<Result>()
 
 	for (const { data } of this) {

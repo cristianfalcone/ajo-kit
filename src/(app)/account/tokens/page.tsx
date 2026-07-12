@@ -1,6 +1,6 @@
 import type { Stateful, Stateless } from 'ajo'
 import clsx from 'clsx'
-import { type Props, date } from '@kit'
+import { type PageArgs, date } from '@kit'
 import { action } from '@kit/client'
 import { Alert, Button, Checkbox, Feedback, Input, Panel, Table, type Column } from '/src/ui'
 import { can, groups } from '/src/abilities'
@@ -215,7 +215,7 @@ const AbilityPicker: Stateful<{ grantable: string[], error?: string, loading?: b
 
 AbilityPicker.attrs = { class: 'space-y-6' }
 
-const Tokens: Stateful<Props<Data>> = function* (args) {
+const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 
 	const createForm = action<CreateResult>('make')
 	const revokeForm = action<RevokeResult>('revoke')

@@ -96,13 +96,13 @@ the server-rendered view layer with React, Vue, or Svelte page components.
 Laravel's React/Svelte/Vue starter kits use Inertia 3 and can opt into Inertia
 SSR. Inertia's protocol uses `X-Inertia` JSON page responses after the initial
 HTML boot, asset version checks, and partial reload headers for same-component
-prop subsets.
+data subsets.
 
 | Area | Ajo-kit | Laravel Routing | Laravel Folio | Inertia + Laravel |
 |---|---|---|---|---|
 | Route definition | Filesystem `page/layout/handler/wares` files | Explicit PHP route files and route registration | Blade page files | Laravel routes/controllers plus JS page components |
 | SSR | Built into `ajo-kit` | Blade/controller dependent | Blade page rendering | Optional Node SSR server for JS pages |
-| Data loaders | `layout/page/head` loaders with `parent()` | Controller methods, requests, services | Page render closures / view data | Controller props |
+| Data loaders | `layout/page/head` loaders with `parent()` | Controller methods, requests, services | Page render closures / view data | Controller data |
 | Mutations | Route `actions` and `/api/*` handlers | Controllers, form requests, actions | Standard Laravel forms/controllers | Controllers/API endpoints through Inertia forms/visits |
 | Client navigation | JSON route payloads, cache, head updates | Full page unless SPA added | Full page unless SPA added | XHR Inertia page object protocol |
 | Freshness | Topic versions + route hash + `ETag` + early `304` | HTTP/framework/app-specific caching | HTTP/framework/app-specific caching | Asset version checks plus partial reloads; app-specific data freshness |

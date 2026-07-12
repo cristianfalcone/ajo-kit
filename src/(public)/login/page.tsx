@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { Props } from '@kit'
+import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
 import type { Signup } from '/src/data/registration'
 import { Button, Checkbox, Feedback, Input, Link } from '/src/ui'
@@ -7,7 +7,7 @@ import { Button, Checkbox, Feedback, Input, Link } from '/src/ui'
 type Result = { redirect: string }
 type Data = { signup: Signup }
 
-const Login: Stateful<Props<Data>> = function* () {
+const Login: Stateful<PageArgs<Data>> = function* () {
 
 	const form = action<Result>()
 

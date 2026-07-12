@@ -240,18 +240,18 @@ navigation, the page wins first; otherwise the innermost pending layout receives
 `loading=true`.
 
 ```tsx
-import type { Frame, Props } from '@kit'
+import type { LayoutArgs, PageArgs } from '@kit'
 
 export const pending = true
 
 type Data = { user: { id: number; name: string } }
 
-export default function Page({ data, params, loading, error }: Props<Data>) {
+export default function Page({ data, params, loading, error }: PageArgs<Data>) {
   if (error) return <p>{error.message}</p>
   return <h1>{data?.user.name}</h1>
 }
 
-export function Layout({ data, children }: Frame<Data>) {
+export function Layout({ data, children }: LayoutArgs<Data>) {
   return <main>{children}</main>
 }
 ```
@@ -259,14 +259,14 @@ export function Layout({ data, children }: Frame<Data>) {
 Types:
 
 ```ts
-type Props<T = Entry> = {
+type PageArgs<T = Entry> = {
   params: Record<string, string>
   data?: T
   loading: boolean
   error?: Failure
 }
 
-type Frame<T = Entry> = Props<T> & {
+type LayoutArgs<T = Entry> = PageArgs<T> & {
   children: import('ajo').Children
 }
 ```
@@ -296,8 +296,8 @@ import {
   type Issue,
   type Entry,
   type Parent,
-  type Props,
-  type Frame,
+  type PageArgs,
+  type LayoutArgs,
   type Action,
   type User,
 } from '@kit'

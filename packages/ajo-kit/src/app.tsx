@@ -2,8 +2,8 @@ import navaid from 'navaid'
 import type { Component, Stateful } from 'ajo'
 import { Failure, navigate, ancestors } from './constants'
 import type {
-	Props,
-	Frame,
+	PageArgs,
+	LayoutArgs,
 	Data,
 	Module,
 	Loader,
@@ -89,7 +89,7 @@ function compose(
 	state: State
 ): Component {
 
-	const Page = page.default as Component<Props>
+	const Page = page.default as Component<PageArgs>
 
 	// Find who handles pending navigation: page first, then innermost layout.
 
@@ -97,7 +97,7 @@ function compose(
 
 	return tree.reduceRight<Component>(
 		(Child, { path, module }, depth) => {
-			const Layout = module.default as Component<Frame>
+			const Layout = module.default as Component<LayoutArgs>
 			return () => (
 				<Layout
 					key={path}
