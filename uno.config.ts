@@ -112,6 +112,7 @@ export default defineConfig({
       getCSS: () => [
         ':root{--radius:0.625rem;--background:#f3f0e9;--foreground:#1b3c53;--card:#fefdfb;--card-foreground:#1b3c53;--popover:#fefdfb;--popover-foreground:#1b3c53;--primary:#234c6a;--primary-foreground:#f5fafc;--secondary:#dce7ec;--secondary-foreground:#1b3c53;--muted:#e9e6dc;--muted-foreground:#54687c;--accent:rgb(35 76 106 / 0.09);--accent-foreground:#1b3c53;--danger:#a94b4c;--danger-foreground:#fcf6f3;--success:#5f7238;--success-foreground:#f7faf0;--warning:#96650c;--warning-foreground:#fff9ec;--info:#276e7e;--info-foreground:#f0fafb;--border:rgb(27 60 83 / 0.14);--input:rgb(27 60 83 / 0.26);--ring:#3596ac}',
         '.dark{--background:#0f2334;--foreground:#eae4da;--card:#1b3c53;--card-foreground:#eae4da;--popover:#204359;--popover-foreground:#eae4da;--primary:#d2c1b6;--primary-foreground:#1b3c53;--secondary:#234c6a;--secondary-foreground:#eae4da;--muted:#173349;--muted-foreground:#9fb3c1;--accent:rgb(210 193 182 / 0.12);--accent-foreground:#f0ebe2;--danger:#d98e85;--danger-foreground:#0f2334;--success:#9db36a;--success-foreground:#0f2334;--warning:#fcb53b;--warning-foreground:#0f2334;--info:#6cc3d5;--info-foreground:#0f2334;--border:rgb(210 193 182 / 0.16);--input:rgb(210 193 182 / 0.26);--ring:#6cc3d5}',
+        '@keyframes progress-slide{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}',
         '@keyframes enter{from{opacity:var(--un-enter-opacity,1);transform:translate3d(var(--un-enter-translate-x,0),var(--un-enter-translate-y,0),0) scale3d(var(--un-enter-scale,1),var(--un-enter-scale,1),var(--un-enter-scale,1))}}',
         '@keyframes exit{to{opacity:var(--un-exit-opacity,1);transform:translate3d(var(--un-exit-translate-x,0),var(--un-exit-translate-y,0),0) scale3d(var(--un-exit-scale,1),var(--un-exit-scale,1),var(--un-exit-scale,1))}}',
         '*,::before,::after{border-color:var(--border)}',
@@ -184,6 +185,7 @@ export default defineConfig({
     },
     animation: {
       keyframes: {
+        'caret-blink': '{0%,70%,100%{opacity:1}20%,50%{opacity:0}}',
         'fade-in': '{from{opacity:0}to{opacity:1}}',
       },
     },
