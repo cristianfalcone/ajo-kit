@@ -44,6 +44,10 @@ export const text = (value: unknown): string => {
 export const strings = (value: unknown): string[] =>
 	Array.isArray(value) ? value.map(String) : []
 
+/** Joins conditional class names, returning undefined when empty. */
+export const clx = (...values: Array<string | false | null | undefined>) =>
+	values.filter(Boolean).join(' ') || undefined
+
 /** Coerces to a finite number, falling back otherwise. */
 export const toNumber = (value: unknown, fallback: number) => {
 	const next = Number(value)
@@ -55,3 +59,56 @@ export const emptyChildren = (children: unknown) =>
 	children == null ||
 	children === false ||
 	(Array.isArray(children) && children.every(child => child == null || child === false))
+
+type DomStyleProperty = Exclude<{
+	[Key in keyof CSSStyleDeclaration]-?: Key extends string
+		? CSSStyleDeclaration[Key] extends string ? Key : never
+		: never
+}[keyof CSSStyleDeclaration], 'cssText'>
+
+type KebabCase<Value extends string> = Value extends `${infer Head}${infer Tail}`
+	? Head extends Lowercase<Head>
+		? `${Head}${KebabCase<Tail>}`
+		: `-${Lowercase<Head>}${KebabCase<Tail>}`
+	: Value
+
+type StyleProperty = DomStyleProperty | KebabCase<DomStyleProperty>
+export type StyleValue = string | number | false | null | undefined
+export type StyleObject = {
+	[Key in StyleProperty]?: StyleValue
+} & {
+	[Key in `--${string}`]?: StyleValue
+}
+
+export type StyleInput = StyleValue | true | StyleObject | readonly StyleInput[]
+
+const property = (key: string) => {
+	if (key === 'cssFloat') return 'float'
+	if (key.startsWith('--')) return key
+	const css = key.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
+	return css.startsWith('ms-') ? `-${css}` : css
+}
+
+const collectStyles = (input: StyleInput, result: string[]) => {
+	if (!input || input === true || typeof input === 'number') return
+	if (typeof input === 'string') {
+		const value = input.trim().replace(/;+$/, '')
+		if (value) result.push(value)
+		return
+	}
+	if (Array.isArray(input)) {
+		for (const item of input) collectStyles(item, result)
+		return
+	}
+	for (const [key, value] of Object.entries(input)) {
+		if (value == null || value === false) continue
+		result.push(`${property(key)}:${value}`)
+	}
+}
+
+/** Build an inline style string from strings, objects, arrays, and falsey entries. */
+export const stlx = (...input: StyleInput[]) => {
+	const result: string[] = []
+	for (const item of input) collectStyles(item, result)
+	return result.join(';')
+}
