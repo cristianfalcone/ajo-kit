@@ -1,6 +1,7 @@
 export * from './accordion'
 export * from './avatar'
 export * from './carousel'
+export * from './chart'
 export * from './checkbox'
 export * from './checkbox-group'
 export * from './collapsible'
