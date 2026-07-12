@@ -68,7 +68,9 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 	}
 }
 
-Layout.attrs = { class: 'min-h-screen flex flex-col bg-background bg-gradient-to-b from-background to-muted text-foreground relative transition-colors duration-300' }
+// `isolate` scopes the water canvas's negative z-index to this host, so it
+// paints above the layout background but below all in-flow content.
+Layout.attrs = { class: 'min-h-screen flex flex-col bg-background bg-gradient-to-b from-background to-muted text-foreground relative isolate transition-colors duration-300' }
 
 export default Layout
 
