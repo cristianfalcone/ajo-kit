@@ -1,0 +1,31 @@
+{
+  "name": "ajo-ui",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "pnpm -w exec vitest run packages/ajo-ui/tests"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./utils": {
+      "types": "./src/utils.ts",
+      "default": "./src/utils.ts"
+    },
+    "./*": {
+      "types": "./src/*.tsx",
+      "default": "./src/*.tsx"
+    }
+  },
+  "dependencies": {
+    "ajo-cloves": "workspace:*"
+  },
+  "peerDependencies": {
+    "ajo": ">=0.1.35"
+  },
+  "devDependencies": {
+    "ajo": "0.1.35"
+  }
+}

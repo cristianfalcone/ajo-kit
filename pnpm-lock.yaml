@@ -23,6 +23,9 @@ importers:
       ajo-kit:
         specifier: workspace:*
         version: link:packages/ajo-kit
+      ajo-ui:
+        specifier: workspace:*
+        version: link:packages/ajo-ui
       clsx:
         specifier: 2.1.1
         version: 2.1.1
@@ -143,6 +146,16 @@ importers:
       vite:
         specifier: 8.0.16
         version: 8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)
+
+  packages/ajo-ui:
+    dependencies:
+      ajo-cloves:
+        specifier: workspace:*
+        version: link:../ajo-cloves
+    devDependencies:
+      ajo:
+        specifier: 0.1.35
+        version: 0.1.35
 
 packages:
 

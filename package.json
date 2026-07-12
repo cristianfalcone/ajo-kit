@@ -20,6 +20,7 @@
     "ajo-backup": "workspace:*",
     "ajo-cloves": "workspace:*",
     "ajo-kit": "workspace:*",
+    "ajo-ui": "workspace:*",
     "clsx": "2.1.1"
   },
   "devDependencies": {

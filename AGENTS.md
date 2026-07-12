@@ -103,6 +103,7 @@ Packages:
 | `packages/ajo-kit` | `@kit`, `@kit/*` | Framework core, SSR, routing, data flow, database, validation |
 | `packages/ajo-auth` | `@kit/auth` | Sessions, tokens, password, CSRF, guards, auth migrations |
 | `packages/ajo-cloves` | `ajo-cloves` | Reusable Ajo component behavior cloves |
+| `packages/ajo-ui` | `ajo-ui` | Unstyled base UI components; `src/ui/` keeps the themed layer |
 | `packages/ajo-backup` | none | Google Drive backup tooling |
 
 Package unit tests live in `packages/<name>/tests/` (run one package with
