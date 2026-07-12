@@ -1,3 +1,5 @@
+export { announce } from './announce'
+export { anchor } from './anchor'
 export {
 	browser,
 	callHandler,
@@ -14,6 +16,8 @@ export {
 } from './core'
 export { controlled } from './controlled'
 export { dismiss } from './dismiss'
+export { follow } from './follow'
+export { hotkey } from './hotkey'
 export { hover } from './hover'
 export { restore } from './restore'
 export { roving } from './roving'
