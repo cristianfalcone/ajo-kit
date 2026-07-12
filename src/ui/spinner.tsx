@@ -1,43 +1,41 @@
-import Panel from '/src/ui/panel'
+import type { IntrinsicElements, Stateless } from 'ajo'
+import clsx from 'clsx'
+import { bool, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 
-interface SpinnerProps {
-  loading: boolean
-  duration?: number
-  delay?: number
-  label?: string
-  overlay?: boolean
+export type SpinnerArgs = OmitArg<IntrinsicElements['span'], 'children'> & FixedArgs<'children'> & {
+	/** Accessible label when the spinner is exposed as a status. */
+	label?: string
 }
 
-export default function Spinner({ loading, duration = 300, delay = 400, label = 'Loading', overlay = true }: SpinnerProps) {
+/** Animated circular progress indicator. */
+const Spinner: Stateless<SpinnerArgs> = ({
+	'aria-hidden': ariaHidden,
+	'aria-label': ariaLabel,
+	class: classes,
+	label = 'Loading',
+	role = 'status',
+	...attrs
+}) => {
+	const decorative = bool(ariaHidden) || role === 'none' || role === 'presentation'
+	const text = String(ariaLabel ?? label)
 
-  const base = 'fixed inset-0 flex items-center justify-center z-50'
-  const style = loading
-    ? `opacity:0;animation:fade-in ${duration}ms ease-out ${delay}ms forwards`
-    : `opacity:0;pointer-events:none;transition:opacity ${duration}ms ease-in-out`
-
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      aria-busy={loading ? 'true' : 'false'}
-      class={`${base} keyframes-fade-in`}
-      style={style}
-    >
-      {overlay && <div class="absolute inset-0 backdrop-blur-sm bg-[#edf4f3]/60 dark:bg-black/40" />}
-      <Panel variant="solid" radius="xl" padding="none" class="relative px-5 py-4 flex flex-col items-center gap-3">
-        <SpinnerVisual />
-        <p class="text-xs tracking-wide uppercase font-medium text-slate-600/80 dark:text-muted" aria-hidden="true">{label}</p>
-        <span class="sr-only">{label}</span>
-      </Panel>
-    </div>
-  )
+	return (
+		<span
+			{...attrs}
+			aria-hidden={ariaHidden}
+			aria-label={decorative ? undefined : text}
+			class={clsx('inline-flex size-4 shrink-0 items-center justify-center text-primary', classes)}
+			data-slot="spinner"
+			role={role}
+		>
+			<span
+				aria-hidden="true"
+				class="block size-full animate-spin rounded-full border-2 border-current border-r-transparent border-t-transparent motion-reduce:animate-none [animation-duration:900ms]"
+				data-slot="spinner-ring"
+			/>
+			{decorative ? null : <span class="sr-only">{text}</span>}
+		</span>
+	)
 }
 
-const SpinnerVisual = () => (
-  <div class="relative h-10 w-10">
-    <div class="absolute inset-0 rounded-full border-2 border-slate-300/40 dark:border-white/10 border-t-accent dark:border-t-accent animate-spin motion-reduce:animate-none [animation-duration:900ms]" />
-    <div class="absolute inset-2 rounded-full bg-[#fbfdfb]/85 dark:bg-primary flex items-center justify-center">
-      <div class="h-2.5 w-2.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
-    </div>
-  </div>
-)
+export default Spinner

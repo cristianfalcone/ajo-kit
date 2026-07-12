@@ -37,7 +37,24 @@ test('chat room sends a message and streams it to another active participant', a
 		await expect(live).toBeVisible()
 
 		await client.waitForTimeout(200)
-		expect(await live.getAttribute('class')).not.toContain('bg-amber')
+		expect(await live.getAttribute('class')).not.toContain('bg-warning')
+
+		// Alternating-runs regression: reply and follow up so the timeline has
+		// consecutive same-day runs per sender, then assert every rendered
+		// message is unique (duplicate sibling keys once collapsed runs).
+		const reply = `E2E alternating reply ${Date.now()}`
+		await client.getByPlaceholder('Type a message...').fill(reply)
+		await client.getByRole('button', { name: /^Send$/ }).click()
+		await expect(root.locator('[data-message-id]').filter({ hasText: reply })).toBeVisible()
+
+		const followUp = `E2E alternating follow-up ${Date.now()}`
+		await root.getByPlaceholder('Type a message...').fill(followUp)
+		await root.getByRole('button', { name: /^Send$/ }).click()
+		await expect(client.locator('[data-message-id]').filter({ hasText: followUp })).toBeVisible()
+
+		const ids = await root.locator('[data-message-id]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-message-id')))
+		expect(new Set(ids).size).toBe(ids.length)
+		expect(ids.length).toBeGreaterThanOrEqual(3)
 	} finally {
 		await root.close()
 		await ctx.close()
@@ -89,7 +106,7 @@ test('chat sender sees first message and recipient unread badge clears after ope
 
 		await expect(recipient).toHaveURL(new RegExp(`${room}$`))
 		await expect(received).toBeVisible()
-		await expect(received).toHaveClass(/bg-amber/)
+		await expect(received).toHaveClass(/bg-warning/)
 		await expect(unread).toHaveCount(0)
 		await expect(navBadge).toHaveCount(0)
 	} finally {

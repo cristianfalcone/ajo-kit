@@ -1,6 +1,6 @@
 # Ajo UI Stories Research And Plan
 
-Last updated: 2026-07-01
+Last updated: 2026-07-12
 
 This file records the research and implementation plan for a small
 Storybook-like component stories harness for `ajo-kit` UI components. It is planning
@@ -28,7 +28,7 @@ The target shape is:
 
 - Do not install Storybook, Ladle, Histoire, VitePress, or a docs platform.
 - Do not clone Storybook addons.
-- Do not support MDX, doc blocks, auto-generated prop docs, source extraction,
+- Do not support MDX, doc blocks, auto-generated args docs, source extraction,
   story editing from the browser UI, global decorators, background/viewport
   toolbars, or CSF Next in the first version.
 - Do not infer controls from TypeScript/docgen in the first version.
@@ -253,6 +253,10 @@ Optional query params:
 - `?canvas=1`: render only the story surface, no sidebar or controls.
 - `?theme=dark`: force dark class for screenshots.
 - `?args=<encoded-json>`: overrides JSON-serializable args for manual control.
+- `?screenshot=1`: freeze CSS animation, transitions, and smooth scrolling for
+  deterministic captures; the visual runner adds it automatically.
+- `?preview=1`: internal manager preview mode; renders the canvas without
+  replaying interaction-heavy `play` functions in the embedded iframe.
 
 ## Story Module Format
 
@@ -321,6 +325,7 @@ import type { Children, Component } from 'ajo'
 export type Control =
   | 'boolean'
   | 'color'
+  | 'multi-select'
   | 'number'
   | 'object'
   | 'radio'
@@ -429,9 +434,15 @@ Manager UI:
 - Search input for title/story name.
 - Theme toggle cycling `system`, `light`, and `dark` with the same `theme.v1`
   localStorage key as the app shell.
-- Canvas area.
+- Canvas area isolated in a preview iframe.
 - Controls panel for current story args.
 - Docs tab or docs route for the selected component.
+
+The manager keeps one iframe per active story id and sends live args and theme
+updates through `postMessage`. An arg edit rerenders the existing story
+instance without navigating or replacing the iframe; changing story id creates
+the new preview. The preview reports readiness back before the manager sends
+its current render state.
 
 Canvas-only UI:
 
@@ -453,7 +464,7 @@ Visual style should match the app but stay utilitarian:
 
 ## Controls
 
-Support explicit controls only:
+Control kinds:
 
 | Control | UI | Value |
 |---|---|---|
@@ -463,17 +474,35 @@ Support explicit controls only:
 | `range` | range input + number | number |
 | `select` | select | one option |
 | `radio` | segmented radio buttons | one option |
+| `multi-select` | segmented toggle buttons | many options |
 | `color` | color input | string |
 | `object` | textarea JSON | parsed JSON |
+
+The controls panel renders the union of declared `argTypes` and merged args:
+declared argTypes first (in declaration order), then every remaining arg whose
+control is inferable from its current value (boolean/number/string → matching
+control, plain object or array → `object`; `children` and non-plain values are
+skipped). An argType without `control` but with `options` defaults to `select`.
+`control: false` hides an otherwise inferable control a story does not consume
+— every arg a story render hardcodes or ignores must be hidden this way so the
+panel never shows dead controls.
 
 Rules:
 
 - Merge args as `{ ...meta.args, ...story.args, ...urlArgs, ...liveArgs }`.
-- Keep controls JSON-serializable.
-- Invalid object JSON should show a local error and keep the previous value.
-- Changing args should remount the story by default for deterministic state.
+- Keep args JSON-serializable; JSX never goes in args, composition stays in
+  render functions driven by string/boolean args.
+- Invalid object JSON shows a local error and keeps the previous value.
+- Changing args rerenders the same keyed story instance in the existing
+  preview iframe; a Reset button clears live overrides for the active story.
+- Story renders receive `(args, context)` where `context.setArg(name, value)`
+  writes one live arg. Controlled stories two-way bind DISCRETE state (checked,
+  open, selected values) through their change callbacks so interacting with the
+  component updates the controls panel.
+- `play` functions run once per story id and do not re-run on arg changes;
+  replaying interactions against setArg-bound state would loop.
 - Stateful Ajo stories may keep state during manual interaction; screenshot
-  mode should always mount from clean args.
+  mode always mounts from clean args.
 
 ## Play Functions
 
@@ -498,8 +527,11 @@ can use plain DOM APIs.
 1. Start the stories server on a deterministic port, with strict failure on port
    conflict unless a `--port` override is given.
 2. Load the manager page and wait for `html[data-ajo-ready="true"]`.
-3. Collect story ids from the stories runtime or `/index.json`.
-4. For every story:
+3. Smoke the manager protocol by editing a control, observing the iframe and
+   Args panel, resetting it, persisting a search in the URL, and navigating to
+   a filtered story.
+4. Collect story ids from the stories runtime.
+5. For every story:
    - navigate to `/story/<id>?canvas=1`
    - fail on page errors
    - fail on console errors
@@ -507,8 +539,8 @@ can use plain DOM APIs.
    - assert `[data-story-root]` exists
    - assert the story root has non-empty bounding box unless the story is marked
      `parameters.empty = true`
-5. Optionally take screenshots when `--screenshots` is passed.
-6. Close browser and server.
+6. Optionally take screenshots when `--screenshots` is passed.
+7. Close browser and server.
 
 Screenshot mode should initially be opt-in because visual baselines are
 environment-sensitive. Smoke mode should be default and cheap.
@@ -529,9 +561,16 @@ Package scripts:
 
 These scripts are part of the implemented harness.
 
-## Initial Story Coverage
+Use `pnpm stories:test --match <text>` to run only stories whose title, name,
+or id contains the text. The manager smoke still runs once against the full
+discovered index, so a focused canvas run also verifies the shared shell.
 
-Create one story file per current UI component:
+## Original Story Slice (historical)
+
+The following list records the harness's original bootstrap only; it is not
+the current catalog. Discovery of `tests/stories/*.stories.tsx` is the source
+of truth. Badge, Feedback, Link, Pager, Panel, and Stat were later removed with
+their superseded wrappers and must not be treated as available surfaces.
 
 - `tests/stories/alert.stories.tsx`
 - `tests/stories/badge.stories.tsx`

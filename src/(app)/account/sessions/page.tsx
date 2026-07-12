@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, date } from '@kit'
 import { action } from '@kit/client'
-import { Badge, Button, Panel } from '/src/ui'
+import { buttonVariants, Chip, Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle, Tooltip, TooltipContent, TooltipTrigger } from '/src/ui'
 
 type Session = {
 	id: string
@@ -46,66 +46,76 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 
 		yield (
 			<div class="space-y-8">
-				<div>
-					<h1 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+				<div class="space-y-2">
+					<h1 class="text-2xl font-semibold tracking-tight">
 						Browser Sessions
 					</h1>
-					<p class="text-sm text-slate-600 dark:text-slate-400">
+					<p class="text-sm text-muted-foreground">
 						Manage and revoke your active sessions across devices.
 					</p>
 				</div>
 
-				{sessions.length > 1 && (
-					<div class="flex justify-end">
-						<form set:onsubmit={purge.submit}>
-							<button
-								type="submit"
-								disabled={purge.loading}
-								class="text-sm text-red-600 hover:text-red-500 dark:text-red-400"
-							>
-								{purge.loading ? 'Revoking...' : 'Revoke All Other Sessions'}
-							</button>
-						</form>
-					</div>
-				)}
-
 				<div class="space-y-4">
-					{sessions.map(session => {
-						const device = parse(session.agent)
-						return (
-							<Panel key={session.id} padding="sm" class="flex items-center justify-between">
-								<div class="flex items-center gap-4">
-									<div class="i-lucide-monitor w-8 h-8 text-slate-400" />
-									<div>
-										<div class="font-medium text-slate-900 dark:text-white">
+					{sessions.length > 1 && (
+						<div class="flex justify-end">
+							<form set:onsubmit={purge.submit}>
+								<button
+									type="submit"
+									disabled={purge.loading}
+									class="text-sm text-danger hover:underline"
+								>
+									{purge.loading ? 'Revoking...' : 'Revoke All Other Sessions'}
+								</button>
+							</form>
+						</div>
+					)}
+
+					<ItemGroup class="gap-4">
+						{sessions.map(session => {
+							const device = parse(session.agent)
+							return (
+								<Item key={session.id} variant="outline">
+									<ItemMedia>
+										<div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 inset-ring inset-ring-primary/25">
+											<span class="i-lucide-monitor size-5 text-primary" />
+										</div>
+									</ItemMedia>
+									<ItemContent class="min-w-0">
+										<ItemTitle>
 											{device.browser} on {device.os}
 											{session.current && (
-												<Badge tone="success" class="ml-2">
+												<Chip variant="success">
 													Current
-												</Badge>
+												</Chip>
 											)}
-										</div>
-										<div class="text-sm text-slate-500 dark:text-slate-400">
+										</ItemTitle>
+										<ItemDescription class="truncate">
 											{session.ip ?? 'Unknown IP'} · Last active {date(session.last ?? session.created, dateTime)}
-										</div>
-									</div>
-								</div>
+										</ItemDescription>
+									</ItemContent>
 
-								{!session.current && (
-									<form set:onsubmit={revokeForm.submit}>
-										<input type="hidden" name="id" value={session.id} />
-										<Button
-											type="submit"
-											title="Revoke this session"
-											disabled={revokeForm.loading}
-											icon="i-lucide-x"
-											tone="danger"
-										/>
-									</form>
-								)}
-							</Panel>
-						)
-					})}
+									{!session.current && (
+										<ItemActions>
+											<form set:onsubmit={revokeForm.submit}>
+												<input type="hidden" name="id" value={session.id} />
+												<Tooltip delayDuration={500}>
+													<TooltipTrigger
+														type="submit"
+														aria-label="Revoke this session"
+														disabled={revokeForm.loading}
+												class={buttonVariants({ variant: 'danger-ghost', size: 'icon-sm' })}
+													>
+														<span class="i-lucide-x size-4" />
+													</TooltipTrigger>
+													<TooltipContent>Revoke this session</TooltipContent>
+												</Tooltip>
+											</form>
+										</ItemActions>
+									)}
+								</Item>
+							)
+						})}
+					</ItemGroup>
 				</div>
 			</div>
 		)

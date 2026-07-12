@@ -3,7 +3,7 @@ import type { Children, Stateful } from 'ajo'
 import type { LayoutArgs } from '@kit'
 import { scheme, storage } from 'ajo-cloves'
 import { ThemeContext, type ThemeMode } from '/src/contexts'
-import { Button, Spinner } from '/src/ui'
+import { Button, Spinner, Toaster } from '/src/ui'
 
 export const pending = true
 
@@ -43,7 +43,7 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 		if (args.loading) {
 			yield (
 				<>
-					<Spinner loading={true} />
+					<RouteLoading />
 					<Wrapper>{previous}</Wrapper>
 				</>
 			)
@@ -68,13 +68,34 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 	}
 }
 
-Layout.attrs = { class: 'min-h-screen flex flex-col bg-[#edf4f3] text-slate-800 relative dark:bg-[#0e1a2e] dark:text-gray-100 transition-colors duration-300' }
+Layout.attrs = { class: 'min-h-screen flex flex-col bg-background bg-gradient-to-b from-background to-muted text-foreground relative transition-colors duration-300' }
 
 export default Layout
 
 const Wrapper = ({ children }: { children: Children }) => (
 	<div key="content" class="flex-1 flex flex-col">
 		{children}
+		<Toaster />
+	</div>
+)
+
+const RouteLoading = ({ label = 'Loading' }: { label?: string }) => (
+	<div
+		aria-busy="true"
+		aria-label={label}
+		aria-live="polite"
+		class="fixed inset-0 z-50 flex items-center justify-center keyframes-fade-in"
+		data-slot="route-loading"
+		role="status"
+		style="opacity:0;animation:fade-in 300ms ease-out 400ms forwards"
+	>
+		<div class="absolute inset-0 bg-black/40 backdrop-blur-xs" data-slot="route-loading-overlay" />
+		<div class="relative flex flex-col items-center gap-3 rounded-xl glass edge px-5 py-4 shadow-xs" data-slot="route-loading-card">
+			<Spinner aria-hidden="true" class="size-10" role="presentation" />
+			<p aria-hidden="true" class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+				{label}
+			</p>
+		</div>
 	</div>
 )
 
@@ -85,32 +106,33 @@ export const Failure = ({ error }: { error: Error }) => {
 	return (
 		<div class="flex-1 flex items-center justify-center px-4 py-16">
 			<div class="text-center max-w-md">
-				<div class={clsx('inline-flex items-center justify-center size-16 rounded-2xl mb-6 shadow-xs inset-ring dark:shadow-none', isNotFound
-					? 'bg-amber-500/10 text-amber-400 shadow-amber-900/5 inset-ring-amber-500/20'
-					: 'bg-red-500/10 text-red-400 shadow-red-900/5 inset-ring-red-500/20'
+				<div class={clsx('inline-flex items-center justify-center size-16 rounded-2xl mb-6 shadow-xs inset-ring', isNotFound
+					? 'bg-warning/10 text-warning inset-ring-warning/25'
+					: 'bg-danger/10 text-danger inset-ring-danger/25'
 				)}>
 					<div class={clsx('size-8', isNotFound ? 'i-lucide-search-x' : 'i-lucide-alert-triangle')} />
 				</div>
-				<h1 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+				<h1 class="text-2xl font-bold text-foreground mb-2">
 					{isNotFound ? 'Page not found' : error.message}
 				</h1>
-				<p class="text-slate-500 dark:text-gray-400 mb-8">
+				<p class="text-muted-foreground mb-8">
 					{isNotFound
 						? 'The page you are looking for doesn\u2019t exist or has been moved.'
 						: (import.meta.env.DEV ? '' : 'Something went wrong. Please try again later.')}
 				</p>
 				{import.meta.env.DEV && !isNotFound && (
-					<div class="text-left rounded-xl bg-[#f8fbf9]/75 shadow-xs shadow-slate-900/7 inset-ring inset-ring-slate-900/10 dark:bg-white/5 dark:shadow-none dark:inset-ring-white/10 mb-8 overflow-hidden">
-						<div class="flex items-center gap-2 px-4 py-2.5 shadow-[inset_0_-1px_0_rgb(15_23_42_/_0.08)] dark:shadow-[inset_0_-1px_0_rgb(255_255_255_/_0.08)]">
-							<div class="i-lucide-code size-3.5 text-red-400/60" />
-							<span class="text-xs font-medium text-gray-400">Stack trace</span>
+					<div class="text-left rounded-xl glass edge mb-8 overflow-hidden">
+						<div class="flex items-center gap-2 px-4 py-2.5 border-b">
+							<div class="i-lucide-code size-3.5 text-danger/60" />
+							<span class="text-xs font-medium text-muted-foreground">Stack trace</span>
 						</div>
-						<pre class="text-xs text-red-400/80 p-4 overflow-auto max-h-48 leading-relaxed">
+						<pre class="text-xs text-danger/80 p-4 overflow-auto max-h-48 leading-relaxed">
 							{error.stack ?? error.message}
 						</pre>
 					</div>
 				)}
-				<Button to="/" icon="i-lucide-home" tone="neutral">
+				<Button as="a" href="/" variant="outline">
+					<span class="i-lucide-home size-4" />
 					Back to home
 				</Button>
 			</div>

@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, navigate } from '@kit'
 import { action } from '@kit/client'
-import { Button, Feedback, Input, Panel } from '/src/ui'
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, FieldError, Input } from '/src/ui'
 
 type Result = { confirmed: boolean }
 
@@ -18,38 +18,43 @@ const Confirm: Stateful<PageArgs> = function* () {
 		}
 
 		yield (
-			<div class="flex-1 flex items-center justify-center px-4">
-				<Panel class="w-full max-w-sm">
-					<h1 class="text-xl font-bold text-slate-900 dark:text-white mb-2">
-						Confirm Password
-					</h1>
-					<p class="text-sm text-slate-600 dark:text-slate-400 mb-6">
-						Please enter your password to continue.
-					</p>
+			<div class="flex-1 flex items-center justify-center px-4 py-8">
+				<Card class="w-full max-w-sm">
+					<CardHeader>
+						<CardTitle class="text-2xl tracking-tight">
+							Confirm Password
+						</CardTitle>
+						<CardDescription>
+							Please enter your password to continue.
+						</CardDescription>
+					</CardHeader>
 
-					<form set:onsubmit={form.submit} class="space-y-4">
-						<Input
-							type="password"
-							name="password"
-							required
-							autocomplete="current-password"
-							placeholder="Password"
-							disabled={form.loading}
-						/>
+					<CardContent>
+						<form set:onsubmit={form.submit} class="space-y-4">
+							<Input
+								type="password"
+								name="password"
+								required
+								autocomplete="current-password"
+								placeholder="Password"
+								aria-label="Password"
+								disabled={form.loading}
+							/>
 
-						{form.error && (
-							<Feedback>{form.error.message}</Feedback>
-						)}
+							{form.error && (
+								<FieldError>{form.error.message}</FieldError>
+							)}
 
-						<Button
-							type="submit"
-							disabled={form.loading}
-							wide
-						>
-							{form.loading ? 'Confirming...' : 'Confirm'}
-						</Button>
-					</form>
-				</Panel>
+							<Button
+								type="submit"
+								disabled={form.loading}
+								class="w-full"
+							>
+								{form.loading ? 'Confirming...' : 'Confirm'}
+							</Button>
+						</form>
+					</CardContent>
+				</Card>
 			</div>
 		)
 	}

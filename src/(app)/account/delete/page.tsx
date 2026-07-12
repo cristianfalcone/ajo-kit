@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
-import { Button, Feedback, Input } from '/src/ui'
+import { Button, Field, FieldError, FieldLabel, Input } from '/src/ui'
 
 type Result = { deleted: boolean }
 
@@ -18,44 +18,46 @@ const Delete: Stateful<PageArgs> = function* () {
 
 		yield (
 			<div class="space-y-8">
-				<div>
-					<h1 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+				<div class="space-y-2">
+					<h1 class="text-2xl font-semibold tracking-tight">
 						Delete Account
 					</h1>
-					<p class="text-sm text-slate-600 dark:text-slate-400">
+					<p class="text-sm text-muted-foreground">
 						This action is permanent and cannot be undone.
 					</p>
 				</div>
 
-				<div class="bg-red-50/85 text-red-800 shadow-xs shadow-red-900/5 inset-ring inset-ring-red-700/18 dark:bg-red-900/20 dark:shadow-none dark:inset-ring-red-300/18 rounded-lg p-6">
-					<h2 class="text-lg font-semibold text-red-800 dark:text-red-300 mb-4">
+				<div class="space-y-4 rounded-lg bg-danger/10 p-6 text-danger inset-ring inset-ring-danger/25">
+					<h2 class="text-base font-semibold">
 						Danger Zone
 					</h2>
 
-					<p class="text-sm text-red-700 dark:text-red-400 mb-4">
+					<p class="text-sm text-danger/85">
 						Deleting your account will permanently remove all your data, including sessions, API tokens, and role memberships.
 					</p>
 
 					<form set:onsubmit={form.submit} class="space-y-4">
-						<Input
-							name="confirmation"
-							label="Type DELETE to confirm"
-							tone="danger"
-							width="xs"
-							required
-							pattern="DELETE"
-							autocomplete="off"
-							disabled={form.loading}
-						/>
+						<Field invalid class="max-w-xs">
+							<FieldLabel for="confirmation" class="text-danger">Type DELETE to confirm</FieldLabel>
+							<Input
+								id="confirmation"
+								name="confirmation"
+								required
+								pattern="DELETE"
+								autocomplete="off"
+								disabled={form.loading}
+								aria-invalid="true"
+							/>
+						</Field>
 
 						{form.error && (
-							<Feedback>{form.error.message}</Feedback>
+							<FieldError>{form.error.message}</FieldError>
 						)}
 
 						<Button
 							type="submit"
 							disabled={form.loading}
-							tone="danger"
+							variant="danger"
 						>
 							{form.loading ? 'Deleting...' : 'Delete My Account'}
 						</Button>

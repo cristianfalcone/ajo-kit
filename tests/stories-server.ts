@@ -115,6 +115,70 @@ async function index(url: string) {
 	}
 }
 
+async function waitForChecked(locator: import('playwright').Locator, expected: boolean) {
+	for (let attempt = 0; attempt < 40; attempt++) {
+		if (await locator.isChecked() === expected) return
+		await new Promise(resolve => setTimeout(resolve, 50))
+	}
+
+	throw new Error(`Story frame checkbox did not become ${expected ? 'checked' : 'unchecked'}.`)
+}
+
+async function managerSmoke(
+	browser: import('playwright').Browser,
+	url: string,
+	stories: StorySummary[],
+) {
+	const controlled = stories.find(story => story.title === 'UI/Checkbox' && story.name === 'With Label')
+	const destination = stories.find(story => story.title === 'UI/Button' && story.id !== controlled?.id)
+	if (!controlled || !destination) throw new Error('Manager smoke requires Checkbox / With Label and one Button story.')
+
+	const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+	const errors: string[] = []
+	page.on('pageerror', error => errors.push(error.stack ?? error.message))
+	page.on('console', message => {
+		if (message.type() === 'error') errors.push(message.text())
+	})
+
+	try {
+		await page.goto(new URL(`/story/${controlled.id}`, url).href, {
+			timeout: navigationTimeout,
+			waitUntil: 'domcontentloaded',
+		})
+		await page.locator('html[data-ajo-ready="true"]').waitFor({ timeout: readyTimeout })
+		await page.locator('[data-stories-layout="true"]').waitFor({ timeout: readyTimeout })
+
+		const frameSelector = `[data-story-frame="${controlled.id}"]`
+		const frame = page.frameLocator(frameSelector)
+		const frameInput = frame.locator('[data-slot="checkbox-input"]')
+		await frame.locator('html[data-ajo-ready="true"]').waitFor({ timeout: readyTimeout })
+		await frame.locator(`[data-story-root="${controlled.id}"]`).waitFor({ timeout: readyTimeout })
+		await waitForChecked(frameInput, false)
+
+		await page.locator('#arg-checked').click()
+		await page.locator('[data-stories-args="true"] pre').filter({ hasText: '"checked": true' }).waitFor({ timeout: readyTimeout })
+		await waitForChecked(frameInput, true)
+
+		await page.locator('[data-stories-reset="true"]').click()
+		await page.locator('[data-stories-args="true"] pre').filter({ hasText: '"checked": false' }).waitFor({ timeout: readyTimeout })
+		await waitForChecked(frameInput, false)
+
+		const search = page.getByLabel('Search stories')
+		await search.fill(destination.id)
+		await page.waitForURL(current => current.searchParams.get('search') === destination.id, { timeout: readyTimeout })
+		await page.locator(`[data-story-link="${destination.id}"]`).click()
+		await page.waitForURL(current => current.pathname === `/story/${destination.id}`, { timeout: readyTimeout })
+		await page.locator(`[data-story-frame="${destination.id}"]`).waitFor({ timeout: readyTimeout })
+		await page.frameLocator(`[data-story-frame="${destination.id}"]`)
+			.locator('html[data-ajo-ready="true"]')
+			.waitFor({ timeout: readyTimeout })
+
+		if (errors.length) throw new Error(`Manager smoke reported browser errors:\n${errors.join('\n')}`)
+	} finally {
+		await page.close()
+	}
+}
+
 async function test(options: Options) {
 	const { chromium } = await import('playwright')
 	const { server, url } = await serve(options.port)
@@ -142,6 +206,8 @@ async function test(options: Options) {
 		}
 
 		try {
+			await managerSmoke(browser, url, discovered)
+
 			for (const story of stories) {
 				const target = new URL(`/story/${story.id}?canvas=1${options.screenshots ? '&screenshot=1' : ''}`, url).href
 				let storyErrors: string[] = []
@@ -198,6 +264,7 @@ async function test(options: Options) {
 			throw new Error(`Stories smoke failed for ${failures.length} stories:\n\n${failures.join('\n\n')}`)
 		}
 
+		console.log('Stories manager smoke passed.')
 		console.log(`Stories smoke passed for ${stories.length} stories${match ? ` matching "${options.match}"` : ''}.`)
 		if (options.screenshots) console.log(`Screenshots written to ${directory}`)
 	} finally {

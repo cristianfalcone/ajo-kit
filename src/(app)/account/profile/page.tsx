@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
-import { Button, Feedback, Input, Panel } from '/src/ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, Field, FieldDescription, FieldError, FieldLabel, Input, toast } from '/src/ui'
 
 type NameResult = { success: boolean; name: string }
 type PasswordResult = { success: boolean }
@@ -20,94 +20,124 @@ const Profile: Stateful<PageArgs<Data>> = function* (args) {
 		yield (
 			<div class="space-y-8">
 				<div>
-					<h1 class="text-2xl font-bold text-slate-900 dark:text-white">
+					<h1 class="text-2xl font-semibold tracking-tight">
 						Profile Settings
 					</h1>
 				</div>
 
-				<div class="grid gap-6 xl:grid-cols-2 xl:items-start">
-					<Panel>
-						<h2 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-							Update Name
-						</h2>
+				<div class="grid gap-4 xl:grid-cols-2 xl:items-start">
+					<Card>
+						<CardHeader>
+							<CardTitle>Update Name</CardTitle>
+						</CardHeader>
 
-						<form set:onsubmit={nameForm.submit} class="space-y-4">
-							<Input
-								name="name"
-								label="Name"
-								value={nameForm.data?.name ?? user?.name ?? ''}
-								disabled={nameForm.loading}
-							/>
-
-							{nameForm.error && (
-								<Feedback>{nameForm.error.message}</Feedback>
-							)}
-
-							{nameForm.data?.success && (
-								<Feedback tone="success">Name updated successfully!</Feedback>
-							)}
-
-							<Button
-								type="submit"
-								disabled={nameForm.loading}
+						<CardContent>
+							<form
+								class="space-y-4"
+								set:onsubmit={(event: SubmitEvent) => {
+									event.preventDefault()
+									const form = event.currentTarget as HTMLFormElement
+									nameForm.invoke(Object.fromEntries(new FormData(form))).then(result => {
+										if (result?.success) toast.success('Name updated successfully!')
+									})
+								}}
 							>
-								{nameForm.loading ? 'Saving...' : 'Save Name'}
-							</Button>
-						</form>
-					</Panel>
+								<Field>
+									<FieldLabel for="name">Name</FieldLabel>
+									<Input
+										id="name"
+										name="name"
+										value={nameForm.data?.name ?? user?.name ?? ''}
+										disabled={nameForm.loading}
+									/>
+								</Field>
 
-					<Panel>
-						<h2 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-							Change Password
-						</h2>
+								{nameForm.error && (
+									<FieldError>{nameForm.error.message}</FieldError>
+								)}
 
-						<form set:onsubmit={passwordForm.submit} class="space-y-4">
-							<Input
-								type="password"
-								name="current"
-								label="Current Password"
-								required
-								autocomplete="current-password"
-								disabled={passwordForm.loading}
-							/>
+								<Button
+									type="submit"
+									disabled={nameForm.loading}
+								>
+									{nameForm.loading ? 'Saving...' : 'Save Name'}
+								</Button>
+							</form>
+						</CardContent>
+					</Card>
 
-							<Input
-								type="password"
-								name="password"
-								label="New Password"
-								hint="At least 8 characters"
-								required
-								minlength={8}
-								autocomplete="new-password"
-								disabled={passwordForm.loading}
-							/>
+					<Card>
+						<CardHeader>
+							<CardTitle>Change Password</CardTitle>
+						</CardHeader>
 
-							<Input
-								type="password"
-								name="confirm"
-								label="Confirm New Password"
-								required
-								minlength={8}
-								autocomplete="new-password"
-								disabled={passwordForm.loading}
-							/>
-
-							{passwordForm.error && (
-								<Feedback>{passwordForm.error.message}</Feedback>
-							)}
-
-							{passwordForm.data?.success && (
-								<Feedback tone="success">Password changed successfully!</Feedback>
-							)}
-
-							<Button
-								type="submit"
-								disabled={passwordForm.loading}
+						<CardContent>
+							<form
+								class="space-y-4"
+								set:onsubmit={(event: SubmitEvent) => {
+									event.preventDefault()
+									const form = event.currentTarget as HTMLFormElement
+									passwordForm.invoke(Object.fromEntries(new FormData(form))).then(result => {
+										if (result?.success) {
+											toast.success('Password changed successfully!')
+											form.reset()
+										}
+									})
+								}}
 							>
-								{passwordForm.loading ? 'Changing...' : 'Change Password'}
-							</Button>
-						</form>
-					</Panel>
+								<Field>
+									<FieldLabel for="current">Current Password</FieldLabel>
+									<Input
+										id="current"
+										type="password"
+										name="current"
+										required
+										autocomplete="current-password"
+										disabled={passwordForm.loading}
+									/>
+								</Field>
+
+								<Field>
+									<FieldLabel for="password">New Password</FieldLabel>
+									<Input
+										id="password"
+										type="password"
+										name="password"
+										required
+										minlength={8}
+										autocomplete="new-password"
+										disabled={passwordForm.loading}
+										aria-describedby="password-hint"
+									/>
+									<FieldDescription id="password-hint">At least 8 characters</FieldDescription>
+								</Field>
+
+								<Field>
+									<FieldLabel for="confirm">Confirm New Password</FieldLabel>
+									<Input
+										id="confirm"
+										type="password"
+										name="confirm"
+										required
+										minlength={8}
+										autocomplete="new-password"
+										disabled={passwordForm.loading}
+									/>
+								</Field>
+
+								{passwordForm.error && (
+									<FieldError>{passwordForm.error.message}</FieldError>
+								)}
+
+								<Button
+									type="submit"
+									disabled={passwordForm.loading}
+								>
+									{passwordForm.loading ? 'Changing...' : 'Change Password'}
+								</Button>
+							</form>
+						</CardContent>
+					</Card>
 				</div>
 			</div>
 		)

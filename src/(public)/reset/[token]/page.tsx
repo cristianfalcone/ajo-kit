@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
-import { Alert, Button, Feedback, Input, Link } from '/src/ui'
+import { Alert, AlertDescription, Button, CardContent, CardDescription, CardFooter, CardHeader, Field, FieldDescription, FieldError, FieldLabel, Input } from '/src/ui'
 
 type Result = { redirect: string }
 
@@ -17,54 +17,76 @@ const Reset: Stateful<PageArgs<Data>> = function* (args) {
 
 		yield (
 		<>
-			<h1 class="text-2xl font-bold text-center mb-8 text-slate-900 dark:text-white">
-				Set New Password
-			</h1>
+			<CardHeader class="text-center">
+				<h1 class="text-2xl font-semibold tracking-tight">
+					Set New Password
+				</h1>
+				<CardDescription>
+					Choose a new password for your account
+				</CardDescription>
+			</CardHeader>
 
 			{!valid ? (
-				<div class="text-center">
-					<Alert tone="danger" class="mb-4">
-						This reset link is invalid or has expired.
-					</Alert>
-					<Link href="/forgot">
-						Request a new link
-					</Link>
-				</div>
+				<>
+					<CardContent>
+						<Alert variant="danger">
+							<span data-slot="alert-icon" class="i-lucide-alert-circle" />
+							<AlertDescription>
+								This reset link is invalid or has expired.
+							</AlertDescription>
+						</Alert>
+					</CardContent>
+
+					<CardFooter class="justify-center">
+						<a href="/forgot" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
+							Request a new link
+						</a>
+					</CardFooter>
+				</>
 			) : (
-				<form set:onsubmit={form.submit} class="space-y-4">
-					<Input
-						type="password"
-						name="password"
-						label="New Password"
-						hint="At least 8 characters"
-						required
-						minlength={8}
-						autocomplete="new-password"
-						disabled={form.loading}
-					/>
+				<CardContent>
+					<form set:onsubmit={form.submit} class="grid gap-6">
+						<Field>
+							<FieldLabel for="password">New Password</FieldLabel>
+							<Input
+								id="password"
+								type="password"
+								name="password"
+								required
+								minlength={8}
+								autocomplete="new-password"
+								disabled={form.loading}
+								aria-describedby="password-hint"
+							/>
+							<FieldDescription id="password-hint">At least 8 characters</FieldDescription>
+						</Field>
 
-					<Input
-						type="password"
-						name="confirm"
-						label="Confirm Password"
-						required
-						minlength={8}
-						autocomplete="new-password"
-						disabled={form.loading}
-					/>
+						<Field>
+							<FieldLabel for="confirm">Confirm Password</FieldLabel>
+							<Input
+								id="confirm"
+								type="password"
+								name="confirm"
+								required
+								minlength={8}
+								autocomplete="new-password"
+								disabled={form.loading}
+							/>
+						</Field>
 
-					{form.error && (
-						<Feedback>{form.error.message}</Feedback>
-					)}
+						{form.error && (
+							<FieldError>{form.error.message}</FieldError>
+						)}
 
-					<Button
-						type="submit"
-						disabled={form.loading}
-						wide
-					>
-						{form.loading ? 'Resetting...' : 'Reset Password'}
-					</Button>
-				</form>
+						<Button
+							type="submit"
+							disabled={form.loading}
+							class="w-full"
+						>
+							{form.loading ? 'Resetting...' : 'Reset Password'}
+						</Button>
+					</form>
+				</CardContent>
 			)}
 		</>
 	)

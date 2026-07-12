@@ -1,116 +1,173 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
 import clsx from 'clsx'
 
-type ButtonBaseProps = WithChildren<{
-	height?: 'lg' | 'md'
-	icon?: string
-	tone?: 'danger' | 'neutral' | 'primary' | 'warning'
-	wide?: boolean
+/** Visual treatment available to Button surfaces. */
+export type ButtonVariant =
+	| 'default'
+	| 'danger'
+	| 'danger-ghost'
+	| 'ghost'
+	| 'link'
+	| 'muted-ghost'
+	| 'outline'
+	| 'secondary'
+
+/** Geometry recipe available to Button surfaces. */
+export type ButtonSize =
+	| 'default'
+	| 'icon'
+	| 'icon-lg'
+	| 'icon-sm'
+	| 'icon-xs'
+	| 'lg'
+	| 'none'
+	| 'sm'
+	| 'xs'
+
+type ButtonBaseArgs = WithChildren<{
+	/** Visual button treatment. */
+	variant?: ButtonVariant
+	/** Button size. */
+	size?: ButtonSize
+	/** Additional UnoCSS classes. */
 	class?: string
+	/** Slot marker for composed button variants. */
+	'data-slot'?: string
 }>
 
-type ButtonProps = ButtonBaseProps & (
-	| (IntrinsicElements['button'] & { to?: undefined })
-	| (IntrinsicElements['a'] & { disabled?: boolean, to: string })
+type ButtonAsButton = ButtonBaseArgs & IntrinsicElements['button'] & {
+	as?: 'button'
+	href?: undefined
+}
+
+type ButtonAsAnchor = ButtonBaseArgs & IntrinsicElements['a'] & {
+	as: 'a'
+	disabled?: boolean
+	href: string
+}
+
+/** Props accepted by the themed Button surface. */
+export type ButtonArgs = ButtonAsAnchor | ButtonAsButton
+
+type ButtonVariantOptions = {
+	class?: string
+	/** Include the variant's standalone elevation. */
+	shadow?: boolean
+	size?: ButtonSize
+	/** Include the general transition recipe. */
+	transition?: boolean
+	variant?: ButtonVariant
+}
+
+const base = 'inline-flex shrink-0 items-center justify-center text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:inset-ring aria-invalid:inset-ring-danger aria-invalid:ring-danger/25 [&_svg]:pointer-events-none [&_svg]:shrink-0'
+
+const variants: Record<ButtonVariant, string> = {
+	default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+	danger: 'bg-danger text-danger-foreground hover:bg-danger/90',
+	'danger-ghost': 'text-danger hover:bg-danger/10 hover:text-danger',
+	outline: 'edge bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground',
+	secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+	ghost: 'text-foreground hover:bg-accent hover:text-accent-foreground',
+	link: 'text-primary underline-offset-4 hover:underline',
+	'muted-ghost': 'text-muted-foreground hover:bg-accent hover:text-foreground',
+}
+
+const focusRings: Record<ButtonVariant, string> = {
+	default: 'focus-visible:ring-ring/50',
+	danger: 'focus-visible:ring-danger/40',
+	'danger-ghost': 'focus-visible:ring-danger/40',
+	ghost: 'focus-visible:ring-ring/50',
+	link: 'focus-visible:ring-ring/50',
+	'muted-ghost': 'focus-visible:ring-ring/50',
+	outline: 'focus-visible:ring-ring/50',
+	secondary: 'focus-visible:ring-ring/50',
+}
+
+const shadows: Partial<Record<ButtonVariant, string>> = {
+	default: 'shadow-xs',
+	danger: 'shadow-xs',
+	outline: 'shadow-xs',
+	secondary: 'shadow-xs',
+}
+
+// Geometry single-owner rule: base emits no geometry, so every size recipe
+// (and every size:'none' composition site) is the single owner of
+// h/px/py/gap/rounded/svg sizing — clsx cannot resolve conflicting
+// utilities and the alphabetically-last rule wins in the stylesheet.
+const sizes: Record<ButtonSize, string> = {
+	default: 'h-9 gap-2 rounded-md px-4 py-2 has-[>svg]:px-3 [&_svg:not([class*=size-])]:size-4',
+	xs: 'h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*=size-])]:size-3',
+	sm: 'h-8 gap-2 rounded-md px-3 has-[>svg]:px-2.5 [&_svg:not([class*=size-])]:size-4',
+	lg: 'h-10 gap-2 rounded-md px-6 has-[>svg]:px-4 [&_svg:not([class*=size-])]:size-4',
+	icon: 'size-9 gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
+	'icon-xs': 'size-6 gap-2 rounded-md [&_svg:not([class*=size-])]:size-3',
+	'icon-sm': 'size-8 gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
+	'icon-lg': 'size-10 gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
+	none: '',
+}
+
+/** Returns the UnoCSS class list for a button variant. */
+export const buttonVariants = ({
+	class: classes,
+	shadow = true,
+	size = 'default',
+	transition = true,
+	variant = 'default',
+}: ButtonVariantOptions = {}) => clsx(
+	base,
+	transition && 'transition-all',
+	variants[variant],
+	focusRings[variant],
+	shadow && shadows[variant],
+	sizes[size],
+	classes,
 )
 
-const base = 'inline-flex items-center justify-center transition disabled:cursor-not-allowed'
-
-const variantClass = {
-	button: 'text-sm font-medium rounded-lg shadow-xs shadow-slate-900/8 inset-ring inset-ring-slate-900/10 dark:shadow-none dark:inset-ring-white/10',
-	icon: 'rounded-md transition disabled:opacity-50',
-}
-
-const heightClass = {
-	button: {
-		md: 'h-10 px-4',
-		lg: 'h-11 px-4',
-	},
-	icon: {
-		md: 'size-7',
-		lg: 'size-8',
-	},
-}
-
-const toneClass = {
-	button: {
-		primary: 'bg-primary text-white inset-ring-white/10 shadow-primary/15 hover:bg-primary/88 disabled:bg-primary/60 dark:bg-accent dark:text-primary dark:shadow-none dark:inset-ring-white/15 dark:hover:bg-accent/85 dark:disabled:bg-accent/60',
-		danger: 'bg-red-600 text-white inset-ring-white/15 shadow-red-700/15 hover:bg-red-500 disabled:bg-red-400 dark:shadow-none',
-		neutral: 'bg-[#f8fbf9]/80 text-slate-700 inset-ring-slate-900/12 hover:bg-[#fbfdfb] hover:text-slate-950 dark:bg-white/10 dark:text-slate-200 dark:inset-ring-white/10 dark:hover:bg-white/15',
-		warning: 'bg-orange-600 text-white inset-ring-white/15 shadow-orange-700/15 hover:bg-orange-500 disabled:bg-orange-400 dark:shadow-none',
-	},
-	icon: {
-		primary: 'text-primary hover:bg-primary/12 hover:shadow-xs hover:shadow-primary/10 hover:inset-ring hover:inset-ring-primary/20 dark:text-accent dark:hover:bg-accent/15 dark:hover:shadow-none dark:hover:inset-ring-accent/20',
-		danger: 'text-slate-400 hover:text-red-600 hover:bg-red-100/80 hover:shadow-xs hover:shadow-red-900/15 hover:inset-ring hover:inset-ring-red-600/20 dark:hover:text-red-400 dark:hover:bg-red-500/12 dark:hover:shadow-none dark:hover:inset-ring-red-300/15',
-		neutral: 'text-slate-500 hover:text-slate-950 hover:bg-[#d7e4e8]/85 hover:shadow-xs hover:shadow-slate-900/10 hover:inset-ring hover:inset-ring-slate-900/12 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10 dark:hover:shadow-none dark:hover:inset-ring-white/12',
-		warning: 'text-slate-400 hover:text-orange-600 hover:bg-orange-100/85 hover:shadow-xs hover:shadow-orange-900/15 hover:inset-ring hover:inset-ring-orange-600/20 dark:hover:text-orange-400 dark:hover:bg-orange-500/12 dark:hover:shadow-none dark:hover:inset-ring-orange-300/15',
-	},
-}
-
-/** Shared button surface for form actions and icon-only controls. */
-const Button: Stateless<ButtonProps> = ({
-	height = 'md',
-	disabled,
-	icon,
-	to,
-	tone,
-	wide,
+/** Interactive action surface for buttons, links, and icon controls. */
+const Button: Stateless<ButtonArgs> = ({
+	as = 'button',
 	class: classes,
 	children,
-	title,
-	'aria-label': aria,
-	...props
+	'data-slot': slot = 'button',
+	disabled,
+	size = 'default',
+	variant = 'default',
+	...attrs
 }) => {
-	const iconOnly = Boolean(icon && !children)
-	const variant = iconOnly ? 'icon' : 'button'
-	const color = tone ?? (iconOnly ? 'neutral' : 'primary')
-	const blocked = Boolean(disabled)
-	const content = (
-		<>
-			{icon && <span class={clsx(icon, 'w-4 h-4 block')} />}
-			{children}
-		</>
-	)
-	const styles = clsx(
-		base,
-		variantClass[variant],
-		heightClass[variant][height],
-		toneClass[variant][color],
-		icon && !iconOnly ? 'gap-2' : undefined,
-		wide && 'w-full',
-		to && blocked && 'pointer-events-none opacity-60',
-		classes as string | undefined,
-	)
+	const styles = buttonVariants({ class: classes, size, variant })
 
-	if (to) {
-		const anchor = props as IntrinsicElements['a']
+	if (as === 'a') {
+		const anchor = attrs as IntrinsicElements['a']
+		const blocked = Boolean(disabled)
 
 		return (
 			<a
 				{...anchor}
-				href={blocked ? undefined : to}
-				title={title}
-				aria-label={aria ?? (iconOnly ? title : undefined)}
 				aria-disabled={blocked ? 'true' : undefined}
-				tabIndex={blocked ? -1 : undefined}
 				class={styles}
+				data-size={size}
+				data-slot={slot}
+				data-variant={variant}
+				href={blocked ? undefined : String(anchor.href)}
+				tabIndex={blocked ? -1 : anchor.tabIndex}
 			>
-				{content}
+				{children}
 			</a>
 		)
 	}
 
-	const button = props as IntrinsicElements['button']
+	const button = attrs as IntrinsicElements['button']
 
 	return (
 		<button
 			{...button}
-			disabled={blocked}
-			title={title}
-			aria-label={aria ?? (iconOnly ? title : undefined)}
 			class={styles}
+			data-size={size}
+			data-slot={slot}
+			data-variant={variant}
+			disabled={disabled}
 		>
-			{content}
+			{children}
 		</button>
 	)
 }

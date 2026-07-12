@@ -1,6 +1,6 @@
 import type { Stateless } from 'ajo'
 import clsx from 'clsx'
-import { CountBadge } from '/src/ui'
+import { Chip, Empty, EmptyDescription, EmptyHeader, EmptyMedia, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '/src/ui'
 
 export type ChatItem = {
 	id: number
@@ -12,23 +12,23 @@ export type ChatItem = {
 	unread: number | null
 }
 
-type AvatarProps = {
+type AvatarArgs = {
 	name: string
 	class?: string
 }
 
-type ChatListProps = {
+type ChatListArgs = {
 	active?: number | null
 	chats: ChatItem[]
 	query?: string
 }
 
 const tones = [
-	'bg-emerald-100 text-emerald-700 dark:bg-lime-500/18 dark:text-lime-300',
-	'bg-amber-100 text-amber-700 dark:bg-amber-500/18 dark:text-amber-300',
-	'bg-sky-100 text-sky-700 dark:bg-sky-500/18 dark:text-sky-300',
-	'bg-violet-100 text-violet-700 dark:bg-violet-500/18 dark:text-violet-300',
-	'bg-rose-100 text-rose-700 dark:bg-rose-500/18 dark:text-rose-300',
+	'bg-primary/15 text-primary',
+	'bg-info/15 text-info',
+	'bg-success/15 text-success',
+	'bg-warning/15 text-warning',
+	'bg-danger/15 text-danger',
 ]
 
 const hash = (value: string) => {
@@ -75,10 +75,10 @@ export const initials = (name: string) => {
 	return source.map(part => part[0]).join('').slice(0, 2).toUpperCase()
 }
 
-export const ChatAvatar: Stateless<AvatarProps> = ({ name, class: classes }) => (
+export const ChatAvatar: Stateless<AvatarArgs> = ({ name, class: classes }) => (
 	<span
 		class={clsx(
-			'flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-bold',
+			'flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
 			tones[hash(name) % tones.length],
 			classes
 		)}
@@ -87,7 +87,7 @@ export const ChatAvatar: Stateless<AvatarProps> = ({ name, class: classes }) => 
 	</span>
 )
 
-export const ChatList: Stateless<ChatListProps> = ({ active, chats, query = '' }) => {
+export const ChatList: Stateless<ChatListArgs> = ({ active, chats, query = '' }) => {
 	const needle = query.trim().toLowerCase()
 	const visible = needle
 		? chats.filter(chat => `${chatTitle(chat)} ${chat.last ?? ''}`.toLowerCase().includes(needle))
@@ -102,41 +102,52 @@ export const ChatList: Stateless<ChatListProps> = ({ active, chats, query = '' }
 				const time = formatTime(chat.lastAt ?? chat.created)
 
 				return (
-					<a
+					<Item
 						key={chat.id}
+						as="a"
 						href={`/account/chats/${chat.id}`}
 						aria-current={current ? 'page' : undefined}
-						class={clsx(
-							'group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition',
-							current
-								? 'bg-accent/10 shadow-xs shadow-accent/10 inset-ring inset-ring-accent/35 dark:bg-accent/10 dark:shadow-none dark:inset-ring-accent/40'
-								: 'hover:bg-[#dce8ec]/80 hover:shadow-xs hover:shadow-slate-900/8 hover:inset-ring hover:inset-ring-slate-900/8 dark:hover:bg-white/10 dark:hover:shadow-none dark:hover:inset-ring-white/10'
-						)}
+						data-active={current ? 'true' : undefined}
+						size="sm"
+						class="data-[active=true]:bg-primary/10 data-[active=true]:shadow-xs data-[active=true]:inset-ring data-[active=true]:inset-ring-primary/25 data-[active=true]:hover:bg-primary/10"
 					>
-						<ChatAvatar name={title} />
-						<span class="min-w-0 flex-1">
-							<span class="block truncate text-sm font-semibold text-slate-900 dark:text-white">
-								{title}
-							</span>
-							<span class="mt-0.5 block truncate text-sm text-slate-500 dark:text-slate-400">
+						<ItemMedia>
+							<ChatAvatar name={title} />
+						</ItemMedia>
+						<ItemContent class="min-w-0">
+							<ItemTitle class="max-w-full">
+								<span class="min-w-0 truncate font-semibold">
+									{title}
+								</span>
+							</ItemTitle>
+							<ItemDescription class="truncate">
 								{chat.last || 'No messages yet'}
-							</span>
-						</span>
-						<span class="ml-auto flex min-w-12 shrink-0 flex-col items-end gap-2">
+							</ItemDescription>
+						</ItemContent>
+						<ItemContent class="min-w-12 items-end">
 							{time && (
-								<time class="text-xs text-slate-500 dark:text-slate-400">
+								<time class="text-xs text-muted-foreground">
 									{time}
 								</time>
 							)}
-							{unread > 0 && <CountBadge count={unread} class="bg-accent text-primary dark:text-primary" />}
-						</span>
-					</a>
+							{unread > 0 && (
+								<Chip variant="default" class="h-5 min-w-5 px-1.5 font-semibold tabular-nums">
+									{unread}
+								</Chip>
+							)}
+						</ItemContent>
+					</Item>
 				)
 			})}
 			{visible.length === 0 && (
-				<p class="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-					No conversations found
-				</p>
+				<Empty class="py-12">
+					<EmptyHeader>
+						<EmptyMedia variant="icon">
+							<span class="i-lucide-search-x size-6" />
+						</EmptyMedia>
+						<EmptyDescription>No conversations found</EmptyDescription>
+					</EmptyHeader>
+				</Empty>
 			)}
 		</div>
 	)

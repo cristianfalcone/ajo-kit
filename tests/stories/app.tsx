@@ -1,17 +1,41 @@
 /** @jsxImportSource ajo */
 import { render, type Children, type Stateful, type Stateless } from 'ajo'
 import { context } from 'ajo/context'
-import Badge from '/src/ui/badge'
+import { scheme, storage } from 'ajo-cloves'
+import clsx from 'clsx'
 import Button from '/src/ui/button'
+import { Card, CardContent } from '/src/ui/card'
 import Checkbox from '/src/ui/checkbox'
-import Feedback from '/src/ui/feedback'
+import Chip from '/src/ui/chip'
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from '/src/ui/collapsible'
+import {
+	Field as UiField,
+	FieldContent,
+	FieldDescription,
+	FieldError,
+	FieldLabel,
+} from '/src/ui/field'
 import Input from '/src/ui/input'
-import Panel from '/src/ui/panel'
+import {
+	ResizableHandle,
+	ResizablePanel,
+	ResizablePanelGroup,
+} from '/src/ui/resizable'
+import ScrollArea from '/src/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectList, SelectTrigger, SelectValue } from '/src/ui/select'
+import Slider from '/src/ui/slider'
+import Textarea from '/src/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '/src/ui/toggle-group'
 import 'virtual:uno.css'
 
 export type Control =
 	| 'boolean'
 	| 'color'
+	| 'multi-select'
 	| 'number'
 	| 'object'
 	| 'radio'
@@ -20,7 +44,8 @@ export type Control =
 	| 'text'
 
 export type ArgType = {
-	control?: Control
+	/** Control kind. `false` hides an otherwise inferable control the story does not consume. */
+	control?: Control | false
 	description?: string
 	label?: string
 	max?: number
@@ -29,7 +54,10 @@ export type ArgType = {
 	step?: number
 }
 
-type ComponentLike = (args: Record<string, unknown>) => Children
+/** Story args are loosely typed so renders can spread them straight into components. */
+export type Args = Record<string, any>
+
+type ComponentLike = (args: Args) => Children
 
 export type Parameters = {
 	docs?: {
@@ -42,19 +70,19 @@ export type Parameters = {
 export type Meta<C = ComponentLike> = {
 	title: string
 	component?: C
-	args?: Record<string, unknown>
+	args?: Args
 	argTypes?: Record<string, ArgType>
 	parameters?: Parameters
-	render?: (args: Record<string, unknown>, context: StoryContext) => Children
+	render?: (args: Args, context: StoryContext) => Children
 }
 
 export type Story<C = ComponentLike> = {
 	component?: C
 	name?: string
-	args?: Record<string, unknown>
+	args?: Args
 	argTypes?: Record<string, ArgType>
 	parameters?: Parameters
-	render?: (args: Record<string, unknown>, context: StoryContext) => Children
+	render?: (args: Args, context: StoryContext) => Children
 	play?: (context: PlayContext) => void | Promise<void>
 }
 
@@ -62,6 +90,8 @@ export type StoryContext = {
 	id: string
 	name: string
 	title: string
+	/** Writes one live arg so controlled stories reflect component state back into the controls panel. */
+	setArg: (name: string, value: unknown) => void
 }
 
 export type PlayContext = StoryContext & {
@@ -95,6 +125,30 @@ type StorySummary = {
 	title: string
 }
 
+type StorySetArgMessage = {
+	id: string
+	name: string
+	source: 'ajo-stories'
+	type: 'set-arg'
+	value: unknown
+}
+
+type StoryRenderMessage = {
+	args: Record<string, unknown>
+	id: string
+	source: 'ajo-stories'
+	theme: ThemeMode
+	type: 'render-story'
+}
+
+type StoryReadyMessage = {
+	id?: string
+	source: 'ajo-stories'
+	type: 'story-ready'
+}
+
+type StoryFrameMessage = StoryReadyMessage | StoryRenderMessage | StorySetArgMessage
+
 type State = {
 	active?: StoryEntry
 	drafts: Record<string, string>
@@ -105,12 +159,14 @@ type State = {
 	live: Map<string, Record<string, unknown>>
 	loading: boolean
 	message: string
+	search: string
 	theme: ThemeMode
 }
 
 type ThemeMode = 'system' | 'light' | 'dark'
 
 type ArgHandlers = {
+	resetArgs: () => void
 	setArg: (name: string, value: unknown) => void
 	setObject: (name: string, value: string) => void
 }
@@ -118,6 +174,7 @@ type ArgHandlers = {
 type StoriesApi = ArgHandlers & {
 	cycleTheme: () => void
 	navigate: (id: string) => void
+	setSearch: (value: string) => void
 	theme: ThemeMode
 }
 
@@ -126,6 +183,7 @@ declare global {
 }
 
 const modules = import.meta.glob<StoryModule>('./*.stories.tsx')
+const searchKey = 'search'
 const themeKey = 'theme.v1'
 const StoriesContext = context<StoriesApi | null>(null)
 
@@ -138,16 +196,47 @@ const stories = () => {
 const isThemeMode = (value: unknown): value is ThemeMode =>
 	value === 'system' || value === 'light' || value === 'dark'
 
-const readTheme = (): ThemeMode => {
+const readTheme = (stored = 'system'): ThemeMode => {
 	const query = new URLSearchParams(location.search).get('theme')
 	if (isThemeMode(query)) return query
 
-	try {
-		const stored = globalThis.localStorage?.getItem(themeKey)
-		if (isThemeMode(stored)) return stored
-	} catch { }
+	if (isThemeMode(stored)) return stored
 
 	return 'system'
+}
+
+const query = (params: URLSearchParams) => {
+	const value = params.toString()
+	return value ? `?${value}` : ''
+}
+
+const readSearch = () => new URLSearchParams(location.search).get(searchKey) ?? ''
+
+const storyHref = (id: string, search: string, options: { args?: Record<string, unknown>; canvas?: boolean; preview?: boolean; theme?: ThemeMode } = {}) => {
+	const current = new URLSearchParams(location.search)
+	const params = new URLSearchParams()
+	const theme = options.theme ?? current.get('theme')
+	const filter = search.trim()
+
+	if (isThemeMode(theme)) params.set('theme', theme)
+	if (filter) params.set(searchKey, filter)
+	if (options.canvas) params.set('canvas', '1')
+	if (options.preview) params.set('preview', '1')
+	if (options.args && Object.keys(options.args).length) params.set('args', JSON.stringify(options.args))
+
+	return `/story/${id}${query(params)}`
+}
+
+const replaceSearchQuery = (search: string) => {
+	const params = new URLSearchParams(location.search)
+	const filter = search.trim()
+
+	if (filter) params.set(searchKey, filter)
+	else params.delete(searchKey)
+
+	const next = `${location.pathname}${query(params)}${location.hash}`
+	const current = `${location.pathname}${location.search}${location.hash}`
+	if (next !== current) history.replaceState(null, '', next)
 }
 
 const slug = (value: unknown) => String(value)
@@ -168,6 +257,9 @@ const mergeRecord = (
 	...(first ?? {}),
 	...(second ?? {}),
 })
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
 const mergeArgTypes = (
 	first?: Record<string, ArgType>,
@@ -192,6 +284,38 @@ const stringify = (value: unknown) => {
 
 const option = (value: unknown) => JSON.stringify(value)
 
+const plain = (value: unknown) => Boolean(value) && typeof value === 'object' &&
+	(Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
+
+const infer = (name: string, value: unknown): Control | undefined => {
+	if (typeof value === 'boolean') return 'boolean'
+	if (typeof value === 'number') return 'number'
+	if (typeof value === 'string') return 'text'
+	if (name === 'children') return undefined
+	if (Array.isArray(value) || plain(value)) return 'object'
+	return undefined
+}
+
+type ControlField = [name: string, arg: ArgType, control: Control]
+
+/** Declared argTypes first, then every remaining arg with an inferable control. */
+const controlFields = (entry: StoryEntry, args: Record<string, unknown>): ControlField[] => {
+	const fields: ControlField[] = []
+
+	for (const [name, arg] of Object.entries(entry.argTypes)) {
+		if (arg.control === false) continue
+		fields.push([name, arg, arg.control ?? (arg.options ? 'select' : infer(name, args[name]) ?? 'text')])
+	}
+
+	for (const [name, value] of Object.entries(args)) {
+		if (name in entry.argTypes) continue
+		const control = infer(name, value)
+		if (control) fields.push([name, {}, control])
+	}
+
+	return fields
+}
+
 const read = (value: string) => {
 	try {
 		return JSON.parse(value) as unknown
@@ -201,19 +325,10 @@ const read = (value: string) => {
 }
 
 const input = (event: Event) => event.currentTarget as HTMLInputElement
-const select = (event: Event) => event.currentTarget as HTMLSelectElement
 const textarea = (event: Event) => event.currentTarget as HTMLTextAreaElement
 
-const systemDark = () => globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
-
-const applyTheme = (mode: ThemeMode) => {
-	document.documentElement.classList.toggle('dark', mode === 'dark' || (mode === 'system' && systemDark()))
-}
-
-const storeTheme = (mode: ThemeMode) => {
-	try {
-		globalThis.localStorage?.setItem(themeKey, mode)
-	} catch { }
+const applyTheme = (mode: ThemeMode, dark: boolean) => {
+	document.documentElement.classList.toggle('dark', mode === 'dark' || (mode === 'system' && dark))
 }
 
 const nextTheme = (mode: ThemeMode): ThemeMode => mode === 'system'
@@ -302,7 +417,70 @@ const storyArgs = (entry: StoryEntry, state: State) => ({
 	...(state.live.get(entry.id) ?? {}),
 })
 
+const storyOverrides = (entry: StoryEntry, state: State) => ({
+	...parseArgs(),
+	...(state.live.get(entry.id) ?? {}),
+})
+
 const storyKey = (entry: StoryEntry, args: Record<string, unknown>) => `${entry.id}:${stringify(args)}`
+
+const embedded = () => typeof window !== 'undefined' && window.parent !== window
+
+const storyFrameMessage = (value: unknown): value is StoryFrameMessage => {
+	if (!isRecord(value) || value.source !== 'ajo-stories') return false
+
+	if (value.type === 'set-arg') {
+		return typeof value.id === 'string' && typeof value.name === 'string'
+	}
+
+	if (value.type === 'render-story') {
+		return typeof value.id === 'string' && isRecord(value.args) && isThemeMode(value.theme)
+	}
+
+	if (value.type === 'story-ready') {
+		return value.id === undefined || typeof value.id === 'string'
+	}
+
+	return false
+}
+
+const storyRenderMessage = (
+	id: string,
+	args: Record<string, unknown>,
+	theme: ThemeMode,
+): StoryRenderMessage => ({
+	args,
+	id,
+	source: 'ajo-stories',
+	theme,
+	type: 'render-story',
+})
+
+const postStoryRender = (
+	target: Window | null | undefined,
+	id: string,
+	args: Record<string, unknown>,
+	theme: ThemeMode,
+) => {
+	target?.postMessage(storyRenderMessage(id, args, theme), location.origin)
+}
+
+const postStoryFrameRender = (
+	frame: HTMLIFrameElement | null,
+	id: string,
+	args: Record<string, unknown>,
+	theme: ThemeMode,
+) => postStoryRender(frame?.contentWindow, id, args, theme)
+
+const postStoryArg = (id: string, name: string, value: unknown) => {
+	if (!embedded()) return
+	globalThis.parent.postMessage({ id, name, source: 'ajo-stories', type: 'set-arg', value }, location.origin)
+}
+
+const postStoryReady = (id?: string) => {
+	if (!embedded()) return
+	globalThis.parent.postMessage({ id, source: 'ajo-stories', type: 'story-ready' }, location.origin)
+}
 
 const visible = (entries: StoryEntry[], filter: string) => {
 	const query = filter.trim().toLowerCase()
@@ -327,8 +505,8 @@ const group = (entries: StoryEntry[]) => {
 	return Array.from(groups.entries())
 }
 
-const renderStory = (entry: StoryEntry, args: Record<string, unknown>) => {
-	const context = { id: entry.id, name: entry.name, title: entry.title }
+const renderStory = (entry: StoryEntry, args: Record<string, unknown>, setArg: StoryContext['setArg']) => {
+	const context: StoryContext = { id: entry.id, name: entry.name, title: entry.title, setArg }
 	if (entry.story.render) return entry.story.render(args, context)
 	if (entry.meta.render) return entry.meta.render(args, context)
 	if (entry.meta.component) {
@@ -351,13 +529,15 @@ const StoryView: Stateless<{
 }) => {
 	if (!entry) {
 		return (
-			<Panel data-stories-error="true" variant="solid" padding="sm">
-				<Feedback>No story selected.</Feedback>
-			</Panel>
+			<Card data-stories-error="true" size="sm">
+				<CardContent>
+					<p class="text-sm font-medium text-danger">No story selected.</p>
+				</CardContent>
+			</Card>
 		)
 	}
 
-	const key = storyKey(entry, args)
+	const { setArg } = stories()
 	const layout = entry.parameters.layout ?? 'padded'
 	const height = fill ? 'min-h-full' : 'min-h-[18rem]'
 	const classes = layout === 'fullscreen'
@@ -368,29 +548,65 @@ const StoryView: Stateless<{
 
 	try {
 		return (
-			<div key={key} ref={root} data-story-root={entry.id} class={classes}>
-				{renderStory(entry, args)}
+			<div key={entry.id} ref={root} data-story-root={entry.id} class={classes}>
+				{renderStory(entry, args, setArg)}
 			</div>
 		)
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error)
 		return (
-			<Panel data-stories-error="true" variant="solid" padding="sm">
-				<Feedback class="font-medium">Story render failed</Feedback>
-				<pre class="mt-2 whitespace-pre-wrap text-xs">{message}</pre>
-			</Panel>
+			<Card data-stories-error="true" size="sm">
+				<CardContent>
+					<p class="text-sm font-medium text-danger">Story render failed</p>
+					<pre class="mt-2 whitespace-pre-wrap text-xs">{message}</pre>
+				</CardContent>
+			</Card>
 		)
 	}
 }
 
-const Field: Stateless<{
+const StoryFrame: Stateful<{
+	entry: StoryEntry
+	overrides: Record<string, unknown>
+	theme: ThemeMode
+}> = function* ({ entry, overrides, theme }) {
+	const src = storyHref(entry.id, '', { args: overrides, canvas: true, preview: true, theme })
+	let frame: HTMLIFrameElement | null = null
+	let current = { id: entry.id, overrides, theme }
+	const send = () => postStoryFrameRender(frame, current.id, current.overrides, current.theme)
+
+	for (const next of this) {
+		current = { id: next.entry.id, overrides: next.overrides, theme: next.theme }
+		queueMicrotask(send)
+
+		yield (
+			<iframe
+				ref={element => {
+					frame = element
+					if (frame) queueMicrotask(send)
+				}}
+				class="block h-full w-full border-0 bg-background"
+				data-story-frame={next.entry.id}
+				src={src}
+				set:onload={send}
+				title={`${next.entry.title} / ${next.entry.name}`}
+			/>
+		)
+	}
+}
+
+StoryFrame.attrs = { class: 'block h-full w-full' }
+
+const ArgControl: Stateless<{
 	arg: ArgType
+	control: Control
 	draft?: string
 	error?: string
 	name: string
 	value: unknown
 }> = ({
 	arg,
+	control,
 	draft,
 	error,
 	name,
@@ -398,177 +614,256 @@ const Field: Stateless<{
 }) => {
 	const title = arg.label ?? label(name)
 	const description = arg.description
-	const control = arg.control ?? 'text'
 	const id = `arg-${slug(name)}`
 	const { setArg, setObject } = stories()
 
 	if (control === 'boolean') {
 		return (
-			<Checkbox
-				name={name}
-				checked={Boolean(value)}
-				onToggle={() => setArg(name, !Boolean(value))}
-				label={(
-					<span class="block">
-						<span class="block font-medium text-slate-700 dark:text-slate-200">{title}</span>
-						{description && <span class="block text-xs text-slate-500 dark:text-slate-400">{description}</span>}
-					</span>
-				)}
-			/>
+			<UiField orientation="horizontal">
+				<Checkbox
+					id={id}
+					name={name}
+					set:checked={Boolean(value)}
+					set:onchange={(event: Event) => setArg(name, input(event).checked)}
+				/>
+				<FieldContent>
+					<FieldLabel for={id}>{title}</FieldLabel>
+					{description && <FieldDescription>{description}</FieldDescription>}
+				</FieldContent>
+			</UiField>
 		)
 	}
 
 	if (control === 'text') {
 		return (
-			<Input
-				label={title}
-				hint={description}
-				set:value={String(value ?? '')}
-				set:oninput={(event: Event) => setArg(name, input(event).value)}
-			/>
+			<UiField>
+				<FieldLabel for={id}>{title}</FieldLabel>
+				<Input
+					id={id}
+					set:value={String(value ?? '')}
+					set:oninput={(event: Event) => setArg(name, input(event).value)}
+				/>
+				{description && <FieldDescription>{description}</FieldDescription>}
+			</UiField>
 		)
 	}
 
 	if (control === 'radio') {
 		return (
-			<fieldset class="text-sm">
-				<legend class="mb-1 font-medium text-slate-700 dark:text-slate-200">{title}</legend>
-				<div class="flex flex-wrap gap-1">
+			<UiField>
+				<FieldLabel>{title}</FieldLabel>
+				<ToggleGroup
+					type="single"
+					value={option(value)}
+					size="sm"
+					variant="outline"
+					class="flex-wrap"
+					aria-label={title}
+					onValueChange={next => {
+						if (next) setArg(name, read(next))
+					}}
+				>
 					{(arg.options ?? []).map(item => (
-						<span key={option(item)}>
-							<Button
-								type="button"
-								tone={option(item) === option(value) ? 'primary' : 'neutral'}
-								aria-pressed={option(item) === option(value) ? 'true' : 'false'}
-								set:onclick={() => setArg(name, item)}
-							>
-								{String(item)}
-							</Button>
-						</span>
+						<ToggleGroupItem key={option(item)} value={option(item)}>
+							{String(item)}
+						</ToggleGroupItem>
 					))}
-				</div>
-				{description && <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">{description}</span>}
-			</fieldset>
+				</ToggleGroup>
+				{description && <FieldDescription>{description}</FieldDescription>}
+			</UiField>
+		)
+	}
+
+	if (control === 'multi-select') {
+		const current = Array.isArray(value) ? value.map(String) : []
+
+		return (
+			<UiField>
+				<FieldLabel>{title}</FieldLabel>
+				<ToggleGroup
+					type="multiple"
+					value={current}
+					size="sm"
+					variant="outline"
+					class="flex-wrap"
+					aria-label={title}
+					onValueChange={next => setArg(name, next)}
+				>
+					{(arg.options ?? []).map(item => (
+						<ToggleGroupItem key={String(item)} value={String(item)}>
+							{String(item)}
+						</ToggleGroupItem>
+					))}
+				</ToggleGroup>
+				{description && <FieldDescription>{description}</FieldDescription>}
+			</UiField>
 		)
 	}
 
 	if (control === 'select') {
 		return (
-			<label class="block text-sm">
-				<span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">{title}</span>
-				<select
-					id={id}
-					class="h-9 w-full rounded-md bg-[#fbfdfb] px-2 text-sm inset-ring inset-ring-slate-900/12 dark:bg-white/8 dark:text-white dark:inset-ring-white/12"
-					set:value={option(value)}
-					set:onchange={(event: Event) => setArg(name, read(select(event).value))}
+			<UiField>
+				<FieldLabel for={id}>{title}</FieldLabel>
+				<Select
+					class="w-full"
+					value={option(value)}
+					onValueChange={next => setArg(name, read(next ?? ''))}
 				>
-					{(arg.options ?? []).map(item => (
-						<option key={option(item)} value={option(item)}>{String(item)}</option>
-					))}
-				</select>
-				{description && <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">{description}</span>}
-			</label>
+					<SelectTrigger id={id} class="w-full" aria-label={title}>
+						<SelectValue placeholder={title} />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectList>
+							{(arg.options ?? []).map(item => (
+								<SelectItem key={option(item)} value={option(item)}>{String(item)}</SelectItem>
+							))}
+						</SelectList>
+					</SelectContent>
+				</Select>
+				{description && <FieldDescription>{description}</FieldDescription>}
+			</UiField>
 		)
 	}
 
-	if (control === 'number' || control === 'range') {
+	if (control === 'number') {
 		return (
-			<label class="block text-sm">
-				<span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">{title}</span>
-				<input
+			<UiField>
+				<FieldLabel for={id}>{title}</FieldLabel>
+				<Input
 					id={id}
-					type={control}
+					type="number"
 					min={arg.min}
 					max={arg.max}
 					step={arg.step}
-					class="h-9 w-full rounded-md bg-[#fbfdfb] px-2 text-sm inset-ring inset-ring-slate-900/12 dark:bg-white/8 dark:text-white dark:inset-ring-white/12"
 					set:value={String(value ?? 0)}
 					set:oninput={(event: Event) => setArg(name, Number(input(event).value))}
 				/>
-				{description && <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">{description}</span>}
-			</label>
+				{description && <FieldDescription>{description}</FieldDescription>}
+			</UiField>
+		)
+	}
+
+	if (control === 'range') {
+		const current = Number(value ?? arg.min ?? 0)
+
+		return (
+			<UiField>
+				<FieldLabel for={id}>{title}</FieldLabel>
+				<div class="flex items-center gap-3">
+					<Slider
+						id={id}
+						aria-label={title}
+						class="flex-1"
+						min={arg.min}
+						max={arg.max}
+						step={arg.step}
+						value={[current]}
+						onValueChange={next => setArg(name, next[0] ?? current)}
+					/>
+					<span class="min-w-10 text-right text-xs tabular-nums text-muted-foreground">
+						{current}
+					</span>
+				</div>
+				{description && <FieldDescription>{description}</FieldDescription>}
+			</UiField>
 		)
 	}
 
 	if (control === 'color') {
 		return (
-			<label class="block text-sm">
-				<span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">{title}</span>
-				<input
+			<UiField>
+				<FieldLabel for={id}>{title}</FieldLabel>
+				<Input
 					id={id}
 					type="color"
-					class="h-9 w-full rounded-md bg-[#fbfdfb] p-1 inset-ring inset-ring-slate-900/12 dark:bg-white/8 dark:inset-ring-white/12"
+					class="h-9 w-full p-1"
 					set:value={String(value ?? '#000000')}
 					set:oninput={(event: Event) => setArg(name, input(event).value)}
 				/>
-				{description && <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">{description}</span>}
-			</label>
+				{description && <FieldDescription>{description}</FieldDescription>}
+			</UiField>
 		)
 	}
 
 	if (control === 'object') {
 		const text = draft ?? stringify(value ?? {})
 		return (
-			<label class="block text-sm">
-				<span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">{title}</span>
-				<textarea
+			<UiField invalid={Boolean(error)}>
+				<FieldLabel for={id}>{title}</FieldLabel>
+				<Textarea
 					id={id}
-					class="min-h-24 w-full rounded-md bg-[#fbfdfb] px-2 py-1.5 font-mono text-xs inset-ring inset-ring-slate-900/12 dark:bg-white/8 dark:text-white dark:inset-ring-white/12"
+					aria-invalid={error ? 'true' : undefined}
+					class="min-h-24 font-mono text-xs"
 					set:value={text}
 					set:oninput={(event: Event) => setObject(name, textarea(event).value)}
 				/>
-				{error && <Feedback data-stories-error="true" class="mt-1 text-xs">{error}</Feedback>}
-				{description && <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">{description}</span>}
-			</label>
+				{error && <FieldError data-stories-error="true">{error}</FieldError>}
+				{description && <FieldDescription>{description}</FieldDescription>}
+			</UiField>
 		)
 	}
 
 	return (
-		<Input
-			label={title}
-			hint={description}
-			set:value={String(value ?? '')}
-			set:oninput={(event: Event) => setArg(name, input(event).value)}
-		/>
+		<UiField>
+			<FieldLabel for={id}>{title}</FieldLabel>
+			<Input
+				id={id}
+				set:value={String(value ?? '')}
+				set:oninput={(event: Event) => setArg(name, input(event).value)}
+			/>
+			{description && <FieldDescription>{description}</FieldDescription>}
+		</UiField>
 	)
 }
 
 const Controls: Stateless<{
 	args: Record<string, unknown>
+	dirty: boolean
 	drafts: Record<string, string>
 	entry?: StoryEntry
 	errors: Record<string, string>
 }> = ({
 	args,
+	dirty,
 	drafts,
 	entry,
 	errors,
 }) => {
 	if (!entry) return null
 
-	const fields = Object.entries(entry.argTypes)
+	const { resetArgs } = stories()
+	const fields = controlFields(entry, args)
 
 	return (
-		<aside class="h-full min-h-0 w-80 shrink-0 overflow-y-auto overscroll-contain border-l border-slate-900/10 bg-[#f8fbf9]/80 p-4 dark:border-white/10 dark:bg-white/5">
-			<div class="space-y-5">
+		<aside class="h-full min-h-0 w-full overflow-y-auto overscroll-contain glass p-4">
+			<div class="space-y-6">
 				<section>
-					<p class="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Story</p>
-					<h2 class="mt-1 text-base font-semibold text-slate-900 dark:text-white">{entry.name}</h2>
-					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{entry.id}</p>
+					<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Story</p>
+					<h2 class="mt-1 truncate text-base font-semibold text-foreground">{entry.name}</h2>
+					<p class="mt-1 truncate text-xs text-muted-foreground">{entry.id}</p>
 					{entry.parameters.docs?.description && (
-						<p class="mt-3 text-sm text-slate-600 dark:text-slate-300">{entry.parameters.docs.description}</p>
+						<p class="mt-3 text-sm text-muted-foreground">{entry.parameters.docs.description}</p>
 					)}
 				</section>
 
 				<section>
-					<p class="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Controls</p>
+					<div class="mb-3 flex h-6 items-center justify-between gap-2">
+						<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Controls</p>
+						{dirty && (
+							<Button type="button" variant="ghost" size="xs" data-stories-reset="true" set:onclick={resetArgs}>
+								<span class="i-lucide-rotate-ccw size-3.5" />
+								Reset
+							</Button>
+						)}
+					</div>
 					{fields.length ? (
 						<div class="space-y-4">
-							{fields.map(([name, arg]) => (
+							{fields.map(([name, arg, control]) => (
 								<div key={name}>
-									<Field
+									<ArgControl
 										name={name}
 										arg={arg}
+										control={control}
 										value={args[name]}
 										draft={drafts[name]}
 										error={errors[name]}
@@ -577,7 +872,7 @@ const Controls: Stateless<{
 							))}
 						</div>
 					) : (
-						<p class="text-sm text-slate-500 dark:text-slate-400">No controls for this story.</p>
+						<p class="text-sm text-muted-foreground">No controls for this story.</p>
 					)}
 				</section>
 			</div>
@@ -585,64 +880,135 @@ const Controls: Stateless<{
 	)
 }
 
-type NavProps = {
+type NavArgs = {
 	active?: StoryEntry
 	entries: StoryEntry[]
+	search: string
 }
 
-const Nav: Stateful<NavProps, 'aside'> = function* () {
-	let filter = ''
+const Nav: Stateful<NavArgs, 'aside'> = function* () {
+	let list: HTMLElement | null = null
+	let lastActiveId = ''
+	let lastScrollKey = ''
+	let openGroups = new Set<string>()
+	let scrollVersion = 0
 
-	const setFilter = (value: string) => this.next(() => {
-		filter = value
-	})
+	const scheduleSelectedScroll = (activeId: string | undefined, entriesLength: number) => {
+		if (!activeId) return
 
-	for (const { active, entries } of this) {
-		const { navigate } = stories()
-		const matches = visible(entries, filter)
+		const key = `${activeId}:${entriesLength}`
+		if (key === lastScrollKey) return
+
+		lastScrollKey = key
+		const version = ++scrollVersion
+
+		queueMicrotask(() => {
+			if (version !== scrollVersion) return
+			requestAnimationFrame(() => {
+				if (version !== scrollVersion || !this.isConnected || !list) return
+				const selected = Array.from(list.querySelectorAll<HTMLElement>('[data-story-link]'))
+					.find(link => link.dataset.storyLink === activeId)
+
+				selected?.scrollIntoView({ block: 'nearest' })
+			})
+		})
+	}
+
+	const setGroupOpen = (title: string, open: boolean) => {
+		this.next(() => {
+			const next = new Set(openGroups)
+			if (open) next.add(title)
+			else next.delete(title)
+			openGroups = next
+		})
+	}
+
+	for (const { active, entries, search } of this) {
+		const { navigate, setSearch } = stories()
+		const matches = visible(entries, search)
+		const groups = group(matches)
+		const filtering = Boolean(search.trim())
+
+		if (active?.id && active.id !== lastActiveId) {
+			lastActiveId = active.id
+			openGroups = new Set(openGroups).add(active.title)
+		}
+
+		scheduleSelectedScroll(active?.id, entries.length)
 
 		yield (
 			<>
 				<div class="mb-4 flex items-center justify-between gap-3">
-					<h1 class="text-lg font-semibold text-slate-950 dark:text-white">Ajo Kit UI</h1>
-					<div class="flex items-center gap-2">
-						<Badge tone="neutral">{matches.length} stories</Badge>
+					<h1 class="min-w-0 truncate text-lg font-semibold text-foreground">Ajo Kit UI</h1>
+					<div class="flex shrink-0 items-center gap-2">
+						<Chip variant="secondary">{matches.length} stories</Chip>
 						<ThemeToggle />
 					</div>
 				</div>
-				<Input
-					placeholder="Search stories"
-					tone="muted"
-					wrapper="mb-4"
-					set:value={filter}
-					set:oninput={(event: Event) => setFilter(input(event).value)}
-				/>
-				<nav data-stories-list="true" class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1">
-					{group(matches).map(([title, items]) => (
-						<section key={title}>
-							<p class="mb-1 px-2 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{title}</p>
-							<div class="space-y-1">
-								{items.map(item => (
-									<a
-										key={item.id}
-										href={`/story/${item.id}`}
-										data-story-link={item.id}
-										class={(active?.id === item.id
-											? 'bg-[#fbfdfb] text-primary shadow-xs inset-ring inset-ring-accent/20 dark:bg-accent/15 dark:text-accent dark:shadow-none'
-											: 'text-slate-600 hover:bg-[#fbfdfb]/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/8 dark:hover:text-white') +
-											' block rounded-md px-2.5 py-2 text-sm font-medium'}
-										set:onclick={(event: Event) => {
-											event.preventDefault()
-											navigate(item.id)
-										}}
+				<div class="mb-4">
+					<Input
+						aria-label="Search stories"
+						placeholder="Search stories"
+						class="bg-muted"
+						set:value={search}
+						set:oninput={(event: Event) => setSearch(input(event).value)}
+					/>
+				</div>
+				<ScrollArea ref={element => list = element} data-stories-list="true" class="min-h-0 flex-1 pr-1">
+					<div class="space-y-2 pb-3">
+						{groups.map(([title, items]) => {
+							const open = filtering || openGroups.has(title)
+
+							return (
+								<Collapsible
+									key={title}
+									open={open}
+									onOpenChange={next => {
+										if (!filtering) setGroupOpen(title, next)
+									}}
+									class="group/story-section"
+									data-stories-group={title}
+								>
+									<CollapsibleTrigger
+										class="flex h-8 w-full items-center justify-between gap-2 rounded-md px-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 									>
-										{item.name}
-									</a>
-								))}
-							</div>
-						</section>
-					))}
-				</nav>
+										<span class="min-w-0 flex-1 truncate">{title}</span>
+										<span class="flex shrink-0 items-center gap-1.5">
+											<Chip variant="secondary" class="px-1.5 py-0 text-[0.625rem] leading-5">{items.length}</Chip>
+											<span aria-hidden="true" class={clsx('i-lucide-chevron-right size-3.5 transition-transform', open && 'rotate-90')} />
+										</span>
+									</CollapsibleTrigger>
+									<CollapsibleContent>
+										<div class="ml-2 mt-1 space-y-0.5 border-l border-border/70 pl-2">
+											{items.map(item => (
+												<a
+													key={item.id}
+													href={storyHref(item.id, search)}
+													data-story-link={item.id}
+													class={clsx(
+														'block truncate rounded-md px-2 py-1.5 text-sm font-medium',
+														active?.id === item.id
+															? 'bg-accent text-accent-foreground'
+															: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+													)}
+													set:onclick={(event: Event) => {
+														event.preventDefault()
+														navigate(item.id)
+													}}
+												>
+													{item.name}
+												</a>
+											))}
+										</div>
+									</CollapsibleContent>
+								</Collapsible>
+							)
+						})}
+						{groups.length === 0 && (
+							<p class="px-2 py-4 text-sm text-muted-foreground">No stories match this search.</p>
+						)}
+					</div>
+				</ScrollArea>
 			</>
 		)
 	}
@@ -650,7 +1016,7 @@ const Nav: Stateful<NavProps, 'aside'> = function* () {
 
 Nav.is = 'aside'
 Nav.attrs = {
-	class: 'flex h-full w-72 shrink-0 flex-col overflow-hidden border-r border-slate-900/10 bg-[#edf4f3]/80 p-4 dark:border-white/10 dark:bg-primary/40',
+	class: 'flex h-full w-full min-w-0 flex-col overflow-hidden glass p-4',
 }
 
 const ThemeToggle: Stateless = () => {
@@ -661,15 +1027,16 @@ const ThemeToggle: Stateless = () => {
 			type="button"
 			aria-label="Change theme"
 			title={`Theme: ${theme}`}
-			icon={themeIcon(theme)}
-			tone="neutral"
-			height="md"
+			variant="ghost"
+			size="icon"
 			set:onclick={cycleTheme}
-		/>
+		>
+			<span class={`${themeIcon(theme)} size-4`} />
+		</Button>
 	)
 }
 
-const initialState = (): State => ({
+const initialState = (stored: string): State => ({
 	entries: [],
 	active: undefined,
 	live: new Map(),
@@ -679,13 +1046,20 @@ const initialState = (): State => ({
 	loading: true,
 	failure: undefined,
 	failureKey: undefined,
-	theme: readTheme(),
+	search: readSearch(),
+	theme: readTheme(stored),
 })
 
 const App: Stateful = function* () {
-	const state = initialState()
+	const color = scheme(this)
+	const saved = storage(this, { key: () => themeKey, fallback: 'system' })
+	const state = initialState(saved.value)
+	const played = new Set<string>()
+	let pendingFrameRender: StoryRenderMessage | undefined
 	let renderVersion = 0
+	let searchVersion = 0
 	let storyRoot: HTMLElement | null = null
+	let storedTheme = saved.value
 
 	const clearFailure = () => {
 		state.failure = undefined
@@ -704,8 +1078,35 @@ const App: Stateful = function* () {
 		clearFailure()
 	}
 
+	const applyFrameRender = (message: StoryRenderMessage) => {
+		if (!state.entries.length) {
+			pendingFrameRender = message
+			return
+		}
+
+		const entry = state.entries.find(item => item.id === message.id)
+		if (!entry) return
+
+		state.active = entry
+		state.drafts = {}
+		state.errors = {}
+		state.theme = message.theme
+		if (Object.keys(message.args).length) state.live.set(entry.id, message.args)
+		else state.live.delete(entry.id)
+		clearFailure()
+		applyTheme(message.theme, color.dark)
+	}
+
+	const sendFrameRender = (target: MessageEventSource | null) => {
+		const entry = state.active
+		if (!entry || !target || !('postMessage' in target)) return
+		postStoryRender(target as Window, entry.id, storyOverrides(entry, state), state.theme)
+	}
+
 	const setArg = (name: string, value: unknown) => {
+		const id = state.active?.id
 		this.next(() => assignArg(name, value))
+		if (id) postStoryArg(id, name, value)
 	}
 
 	const setObject = (name: string, value: string) => {
@@ -723,15 +1124,35 @@ const App: Stateful = function* () {
 		}
 	}
 
-	const setTheme = (mode: ThemeMode) => {
+	const resetArgs = () => {
 		this.next(() => {
-			state.theme = mode
-			storeTheme(mode)
-			applyTheme(mode)
+			const entry = state.active
+			if (!entry) return
+			state.live.delete(entry.id)
+			state.drafts = {}
+			state.errors = {}
+			clearFailure()
 		})
 	}
 
+	const setTheme = (mode: ThemeMode) => {
+		state.theme = mode
+		storedTheme = mode
+		saved.set(mode)
+		applyTheme(mode, color.dark)
+	}
+
 	const cycleTheme = () => setTheme(nextTheme(state.theme))
+
+	const setSearch = (value: string) => {
+		const version = ++searchVersion
+		this.next(() => state.search = value)
+
+		queueMicrotask(() => {
+			if (version !== searchVersion || !this.isConnected) return
+			replaceSearchQuery(value)
+		})
+	}
 
 	const captureStoryRoot = (root: HTMLElement | null) => {
 		storyRoot = root
@@ -744,26 +1165,34 @@ const App: Stateful = function* () {
 		clearFailure()
 	}
 
+	const syncLocation = () => {
+		state.search = readSearch()
+		syncActive()
+	}
+
 	const navigate = (id: string) => {
-		history.pushState(null, '', `/story/${id}`)
+		history.pushState(null, '', storyHref(id, state.search))
 		this.next(syncActive)
 	}
 
-	const ready = async (version: number, key?: string) => {
+	const ready = async (version: number, key?: string, preview = false) => {
 		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 		if (version !== renderVersion) return
 
 		const entry = state.active
 		const canvas = storyRoot?.dataset.storyRoot === entry?.id ? storyRoot : null
 
-		if (!entry || !key || state.failureKey === key) {
+		if (!entry || !key || preview || state.failureKey === key || played.has(entry.id)) {
 			document.documentElement.dataset.ajoReady = 'true'
 			return
 		}
 
 		try {
 			if (entry.story.play && canvas instanceof HTMLElement) {
-				await entry.story.play({ id: entry.id, name: entry.name, title: entry.title, canvas })
+				// Mark before running so plays fire once per story: replaying on every
+				// arg change would loop when a play interacts with setArg-bound state.
+				played.add(entry.id)
+				await entry.story.play({ id: entry.id, name: entry.name, title: entry.title, canvas, setArg })
 			}
 		} catch (error) {
 			if (version === renderVersion) {
@@ -775,26 +1204,42 @@ const App: Stateful = function* () {
 			return
 		}
 
-		if (version === renderVersion) document.documentElement.dataset.ajoReady = 'true'
+		if (version === renderVersion) {
+			document.documentElement.dataset.ajoReady = 'true'
+		}
 	}
 
-	globalThis.addEventListener('popstate', () => this.next(syncActive), { signal: this.signal })
-	globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', () => {
-		if (state.theme === 'system') {
-			applyTheme('system')
-			this.next()
+	globalThis.addEventListener('popstate', () => this.next(syncLocation), { signal: this.signal })
+	globalThis.addEventListener('message', event => {
+		if (event.origin !== location.origin || !storyFrameMessage(event.data)) return
+		if (event.data.type === 'story-ready') {
+			sendFrameRender(event.source)
+			return
 		}
+		if (event.data.type === 'render-story') {
+			if (!embedded()) return
+			this.next(() => applyFrameRender(event.data))
+			return
+		}
+		this.next(() => {
+			if (state.active?.id !== event.data.id) return
+			assignArg(event.data.name, event.data.value)
+		})
 	}, { signal: this.signal })
-
-	applyTheme(state.theme)
+	applyTheme(state.theme, color.dark)
 
 	void loadStories()
 		.then(entries => this.next(() => {
 			state.entries = entries
 			state.active = pick(entries)
+			if (pendingFrameRender) {
+				applyFrameRender(pendingFrameRender)
+				pendingFrameRender = undefined
+			}
 			state.loading = false
 			state.message = entries.length ? '' : 'No stories found in tests/stories.'
 			publish(entries)
+			queueMicrotask(() => postStoryReady(state.active?.id))
 		}))
 		.catch(error => this.next(() => {
 			state.loading = false
@@ -803,24 +1248,39 @@ const App: Stateful = function* () {
 		}))
 
 	while (true) {
+		// The theme query param only seeds the first paint (readTheme at init);
+		// resyncing through it would pin canvas iframes to their creation-time
+		// theme, overriding the parent's render-story messages.
+		const nextStoredTheme = saved.value
+		if (nextStoredTheme !== storedTheme) {
+			storedTheme = nextStoredTheme
+			state.theme = isThemeMode(nextStoredTheme) ? nextStoredTheme : 'system'
+		}
+
+		applyTheme(state.theme, color.dark)
+
 		const active = state.active
 		const args = active ? storyArgs(active, state) : {}
+		const overrides = active ? storyOverrides(active, state) : {}
 		const params = new URLSearchParams(location.search)
 		const canvas = params.get('canvas') === '1'
+		const preview = params.get('preview') === '1'
 		const screenshot = params.get('screenshot') === '1'
 		const key = active ? storyKey(active, args) : undefined
 		const version = ++renderVersion
 
-		StoriesContext({ cycleTheme, navigate, setArg, setObject, theme: state.theme })
+		StoriesContext({ cycleTheme, navigate, resetArgs, setArg, setObject, setSearch, theme: state.theme })
 		delete document.documentElement.dataset.ajoReady
-		if (!state.loading) queueMicrotask(() => void ready(version, key))
+		if (!state.loading) queueMicrotask(() => void ready(version, key, preview))
 
 		if (state.loading || !active) {
 			yield (
-				<main class="h-full bg-[#edf4f3] p-6 text-slate-800 dark:bg-[#0e1a2e] dark:text-slate-100">
-					<Panel variant="solid" padding="sm" class="text-sm">
-						{state.message}
-					</Panel>
+				<main class="h-full bg-background p-6 text-foreground">
+					<Card size="sm">
+						<CardContent>
+							{state.message}
+						</CardContent>
+					</Card>
 				</main>
 			)
 			continue
@@ -828,13 +1288,15 @@ const App: Stateful = function* () {
 
 		if (canvas) {
 			yield (
-				<main class="h-full overflow-auto overscroll-contain bg-[#edf4f3] text-slate-800 dark:bg-[#0e1a2e] dark:text-slate-100">
+				<main class="h-full overflow-auto overscroll-contain bg-background text-foreground">
 					{screenshot && <style>{'*,::before,::after{animation-duration:0.001ms!important;animation-delay:0ms!important;transition-duration:0.001ms!important;scroll-behavior:auto!important}'}</style>}
 					<StoryView entry={active} args={args} root={captureStoryRoot} />
 					{state.failure && (
-						<Panel data-stories-error="true" variant="solid" padding="sm" class="m-4">
-							<pre class="whitespace-pre-wrap text-xs text-red-600 dark:text-red-400">{state.failure}</pre>
-						</Panel>
+						<Card data-stories-error="true" size="sm" class="m-4">
+							<CardContent>
+								<pre class="whitespace-pre-wrap text-xs text-danger">{state.failure}</pre>
+							</CardContent>
+						</Card>
 					)}
 				</main>
 			)
@@ -842,43 +1304,58 @@ const App: Stateful = function* () {
 		}
 
 		yield (
-			<main class="flex h-full overflow-hidden bg-[#edf4f3] text-slate-800 dark:bg-[#0e1a2e] dark:text-slate-100">
-				<Nav
-					entries={state.entries}
-					active={active}
-				/>
-				<section class="flex min-w-0 flex-1 flex-col overflow-hidden">
-					<header class="shrink-0 flex items-center justify-between border-b border-slate-900/10 bg-[#f8fbf9]/80 px-5 py-3 dark:border-white/10 dark:bg-white/5">
-						<div>
-							<p class="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{active.title}</p>
-							<h2 class="text-lg font-semibold text-slate-950 dark:text-white">{active.name}</h2>
-						</div>
-						<Button to={`/story/${active.id}?canvas=1`} tone="neutral" icon="i-lucide-maximize-2">
-							Canvas
-						</Button>
-					</header>
-					<div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-						<StoryView entry={active} args={args} root={captureStoryRoot} fill />
-					</div>
-					<section data-stories-args="true" class="shrink-0 border-t border-slate-900/10 p-5 dark:border-white/10">
-						<h3 class="mb-2 text-sm font-semibold text-slate-900 dark:text-white">Args</h3>
-						<Panel variant="solid" padding="sm" clip>
-							<pre class="max-h-48 overflow-auto text-xs text-slate-600 dark:text-slate-300">{stringify(args)}</pre>
-						</Panel>
-					</section>
-				</section>
-				<Controls
-					entry={active}
-					args={args}
-					drafts={state.drafts}
-					errors={state.errors}
-				/>
+			<main class="h-full overflow-hidden bg-background text-foreground">
+				<ResizablePanelGroup orientation="horizontal" class="h-full" data-stories-layout="true">
+					<ResizablePanel defaultSize={19} minSize={14} maxSize={32} data-stories-panel="nav">
+						<Nav
+							entries={state.entries}
+							active={active}
+							search={state.search}
+						/>
+					</ResizablePanel>
+					<ResizableHandle data-stories-resize="nav" />
+					<ResizablePanel defaultSize={60} minSize={35} data-stories-panel="story">
+						<section class="flex h-full min-w-0 flex-col overflow-hidden">
+							<header class="shrink-0 flex items-center justify-between gap-3 border-b glass px-4 py-3">
+								<div class="min-w-0">
+									<p class="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">{active.title}</p>
+									<h2 class="truncate text-lg font-semibold text-foreground">{active.name}</h2>
+								</div>
+								<Button as="a" href={storyHref(active.id, state.search, { args: overrides, canvas: true, theme: state.theme })} variant="outline" class="shrink-0">
+									<span class="i-lucide-maximize-2 size-4" />
+									Canvas
+								</Button>
+							</header>
+							<div class="min-h-0 flex-1 overflow-hidden">
+								<StoryFrame entry={active} overrides={overrides} theme={state.theme} />
+							</div>
+							<section data-stories-args="true" class="shrink-0 border-t p-4">
+								<h3 class="mb-2 text-sm font-semibold text-foreground">Args</h3>
+								<Card size="sm">
+									<CardContent>
+										<pre class="max-h-48 overflow-auto text-xs text-muted-foreground">{stringify(args)}</pre>
+									</CardContent>
+								</Card>
+							</section>
+						</section>
+					</ResizablePanel>
+					<ResizableHandle data-stories-resize="controls" />
+					<ResizablePanel defaultSize={21} minSize={16} maxSize={35} data-stories-panel="controls">
+						<Controls
+							entry={active}
+							args={args}
+							dirty={Boolean(Object.keys(state.live.get(active.id) ?? {}).length)}
+							drafts={state.drafts}
+							errors={state.errors}
+						/>
+					</ResizablePanel>
+				</ResizablePanelGroup>
 			</main>
 		)
 	}
 }
 
-App.attrs = { class: 'h-full overflow-hidden bg-[#edf4f3] dark:bg-[#0e1a2e]' }
+App.attrs = { class: 'h-full overflow-hidden bg-background' }
 
 if (import.meta.hot) import.meta.hot.accept(() => location.reload())
 

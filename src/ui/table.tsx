@@ -1,144 +1,146 @@
-import type { Children, IntrinsicElements, Stateless, WithChildren } from 'ajo'
+import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
 import clsx from 'clsx'
 
-type Align = 'left' | 'right'
-type Tone = 'body' | 'code' | 'default' | 'muted'
+export type TableArgs = WithChildren<IntrinsicElements['table'] & { class?: string }>
+export type TableHeaderArgs = WithChildren<IntrinsicElements['thead'] & { class?: string }>
+export type TableBodyArgs = WithChildren<IntrinsicElements['tbody'] & { class?: string }>
+export type TableFooterArgs = WithChildren<IntrinsicElements['tfoot'] & { class?: string }>
+export type TableRowArgs = WithChildren<IntrinsicElements['tr'] & { class?: string }>
+export type TableHeadArgs = WithChildren<IntrinsicElements['th'] & { class?: string }>
+export type TableCellArgs = WithChildren<IntrinsicElements['td'] & { class?: string }>
+export type TableCaptionArgs = WithChildren<IntrinsicElements['caption'] & { class?: string }>
 
-type CellClass<T> = string | ((row: T, index: number) => string | undefined)
-
-export type Column<T> = {
-	align?: Align
-	cell: (row: T, index: number) => Children
-	class?: CellClass<T>
-	header: string
-	headerClass?: string
-	key?: string
-	tone?: Tone
-}
-
-type TableProps<T = unknown> = WithChildren<IntrinsicElements['table'] & {
-	columns?: Column<T>[]
-	getKey?: (row: T, index: number) => number | string
-	rows?: T[]
-	class?: string
-}>
-type HeadProps = WithChildren<IntrinsicElements['thead'] & { class?: string }>
-type BodyProps = WithChildren<IntrinsicElements['tbody'] & { class?: string }>
-type RowProps = WithChildren<IntrinsicElements['tr'] & { class?: string }>
-type HeaderProps = WithChildren<IntrinsicElements['th'] & {
-	align?: Align
-	class?: string
-}>
-type CellProps = WithChildren<IntrinsicElements['td'] & {
-	align?: Align
-	tone?: Tone
-	class?: string
-}>
-
-const align = {
-	left: 'text-left',
-	right: 'text-right',
-}
-
-const tone = {
-	default: '',
-	body: 'text-slate-600 dark:text-slate-300',
-	muted: 'text-slate-500 dark:text-slate-400',
-	code: 'text-slate-500 dark:text-slate-400 font-mono text-xs',
-}
-
-const resolve = <T,>(classes: CellClass<T> | undefined, row: T, index: number) =>
-	typeof classes === 'function' ? classes(row, index) : classes
-
-/** Shared table element with ajo-kit sizing. */
-export const Table = <T,>({
-	class: classes,
+/** Responsive wrapper and native table element. */
+const Table: Stateless<TableArgs> = ({
 	children,
-	columns,
-	getKey,
-	rows,
-	...props
-}: TableProps<T>) => (
-	<table {...props} class={clsx('w-full text-sm', classes)}>
-		{columns && rows ? (
-			<>
-				<Thead>
-					<tr>
-						{columns.map(column => (
-							<Th key={column.key ?? column.header} align={column.align} class={column.headerClass}>
-								{column.header}
-							</Th>
-						))}
-					</tr>
-				</Thead>
-				<Tbody>
-					{rows.map((row, index) => (
-						<Tr key={getKey ? getKey(row, index) : index}>
-							{columns.map(column => (
-								<Td
-									key={column.key ?? column.header}
-									align={column.align}
-									tone={column.tone}
-									class={resolve(column.class, row, index)}
-								>
-									{column.cell(row, index)}
-								</Td>
-							))}
-						</Tr>
-					))}
-				</Tbody>
-			</>
-		) : children}
-	</table>
+	class: classes,
+	...attrs
+}) => (
+	<div class="relative w-full overflow-x-auto" data-slot="table-container">
+		<table
+			{...attrs}
+			class={clsx('w-full caption-bottom text-sm', classes)}
+			data-slot="table"
+		>
+			{children}
+		</table>
+	</div>
 )
 
-/** Shared table header band. */
-export const Thead: Stateless<HeadProps> = ({ class: classes, children, ...props }) => (
-	<thead {...props} class={clsx('bg-[#d7e4e8]/85 dark:bg-white/12', classes)}>
+/** Native table header group. */
+const TableHeader: Stateless<TableHeaderArgs> = ({
+	children,
+	class: classes,
+	...attrs
+}) => (
+	<thead
+		{...attrs}
+		class={clsx('[&_tr]:border-b', classes)}
+		data-slot="table-header"
+	>
 		{children}
 	</thead>
 )
 
-/** Shared table body with row dividers. */
-export const Tbody: Stateless<BodyProps> = ({ class: classes, children, ...props }) => (
-	<tbody {...props} class={clsx('divide-y divide-slate-900/10 dark:divide-white/8', classes)}>
+/** Native table body group. */
+const TableBody: Stateless<TableBodyArgs> = ({
+	children,
+	class: classes,
+	...attrs
+}) => (
+	<tbody
+		{...attrs}
+		class={clsx('[&_tr:last-child]:border-0', classes)}
+		data-slot="table-body"
+	>
 		{children}
 	</tbody>
 )
 
-/** Shared data row with hover treatment. */
-export const Tr: Stateless<RowProps> = ({ class: classes, children, ...props }) => (
-	<tr {...props} class={clsx('bg-[#f8fbf9]/30 hover:bg-[#edf4f3]/70 dark:bg-transparent dark:hover:bg-white/5', classes)}>
+/** Native table footer group. */
+const TableFooter: Stateless<TableFooterArgs> = ({
+	children,
+	class: classes,
+	...attrs
+}) => (
+	<tfoot
+		{...attrs}
+		class={clsx('border-t bg-muted/50 font-medium [&>tr]:last:border-b-0', classes)}
+		data-slot="table-footer"
+	>
+		{children}
+	</tfoot>
+)
+
+/** Native table row. */
+const TableRow: Stateless<TableRowArgs> = ({
+	children,
+	class: classes,
+	...attrs
+}) => (
+	<tr
+		{...attrs}
+		class={clsx('border-b transition-colors hover:bg-accent has-aria-expanded:bg-accent data-[state=selected]:bg-muted', classes)}
+		data-slot="table-row"
+	>
 		{children}
 	</tr>
 )
 
-/** Shared table header cell. */
-export const Th: Stateless<HeaderProps> = ({
-	align: text = 'left',
-	class: classes,
+/** Native table header cell. */
+const TableHead: Stateless<TableHeadArgs> = ({
 	children,
-	...props
+	class: classes,
+	scope = 'col',
+	...attrs
 }) => (
 	<th
-		{...props}
-		class={clsx('px-4 py-3', align[text], 'text-sm font-medium text-slate-700 dark:text-slate-200', classes)}
+		{...attrs}
+		class={clsx('h-11 px-4 text-left align-middle text-xs font-medium uppercase tracking-wider whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]', classes)}
+		data-slot="table-head"
+		scope={scope}
 	>
 		{children}
 	</th>
 )
 
-/** Shared table data cell. */
-export const Td: Stateless<CellProps> = ({
-	align: text = 'left',
-	tone: color = 'default',
-	class: classes,
+/** Native table data cell. */
+const TableCell: Stateless<TableCellArgs> = ({
 	children,
-	...props
+	class: classes,
+	...attrs
 }) => (
-	<td {...props} class={clsx('px-4 py-3', align[text], tone[color], classes)}>
+	<td
+		{...attrs}
+		class={clsx('px-4 py-3 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]', classes)}
+		data-slot="table-cell"
+	>
 		{children}
 	</td>
 )
 
-export default Table
+/** Native table caption. Must be the first child of `Table`. */
+const TableCaption: Stateless<TableCaptionArgs> = ({
+	children,
+	class: classes,
+	...attrs
+}) => (
+	<caption
+		{...attrs}
+		class={clsx('mt-4 text-sm text-muted-foreground', classes)}
+		data-slot="table-caption"
+	>
+		{children}
+	</caption>
+)
+
+export {
+	Table,
+	TableBody,
+	TableCaption,
+	TableCell,
+	TableFooter,
+	TableHead,
+	TableHeader,
+	TableRow,
+}

@@ -117,9 +117,22 @@ test('account token page creates and revokes a scoped token', async ({ page }) =
 
 	await expect(page.getByText("Token created! Copy it now - it won't be shown again.")).toBeVisible()
 	await expect(page.getByText(label)).toBeVisible()
+	const copy = page.getByRole('button', { name: 'Copy and close' })
+	await expect(copy).toBeVisible()
+	const corners = await copy.evaluate(element => {
+		const style = getComputedStyle(element)
+		return {
+			bottomLeft: Number.parseFloat(style.borderBottomLeftRadius),
+			topLeft: Number.parseFloat(style.borderTopLeftRadius),
+			topRight: Number.parseFloat(style.borderTopRightRadius),
+		}
+	})
+	expect(corners.topLeft).toBe(0)
+	expect(corners.bottomLeft).toBe(0)
+	expect(corners.topRight).toBeGreaterThan(0)
 
 	const row = page.locator('tr', { hasText: label })
-	await row.getByTitle('Revoke this token').click()
+	await row.getByRole('button', { name: 'Revoke this token' }).click()
 	await expect(row).toHaveCount(0)
 })
 
@@ -147,7 +160,7 @@ test('admin pages expose bounded lists, pagination and admin-only actions', asyn
 	await signin(page)
 
 	await goto(page, '/admin')
-	await expect(page.getByRole('heading', { name: 'Admin' })).toBeVisible()
+	await expect(page.getByRole('link', { name: 'Registration' })).toBeVisible()
 	await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
 
 	await goto(page, '/admin/users?size=5')
@@ -198,7 +211,7 @@ test('admin manages registration policy and invitations', async ({ page, browser
 		await expect(page.getByText(email)).toBeVisible()
 
 		const row = page.locator('tr', { hasText: email })
-		await row.getByTitle('Revoke invitation').click()
+		await row.getByRole('button', { name: 'Revoke invitation' }).click()
 		await expect.poll(() => count('invitations', 'email = ? and revoked is not null', email)).toBe(1)
 		await expect(row.getByText('Revoked')).toBeVisible()
 

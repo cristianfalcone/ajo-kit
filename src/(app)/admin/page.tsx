@@ -1,5 +1,5 @@
 import type { PageArgs } from '@kit'
-import { Stat } from '/src/ui'
+import { Card, CardContent } from '/src/ui'
 
 type Data = {
 	stats: {
@@ -17,18 +17,28 @@ const stats = [
 
 export default function Overview({ data }: PageArgs<Data>) {
 	return (
-		<div class="space-y-6">
-			<h2 class="text-lg font-semibold text-slate-900 dark:text-white">Overview</h2>
+		<div class="space-y-4">
+			<h2 class="text-lg font-semibold text-foreground">Overview</h2>
 
 			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 				{stats.map(({ key, label, icon, href }) => (
-					<Stat
+					<Card
 						key={key}
+						as="a"
 						href={href}
-						icon={icon}
-						label={label}
-						value={data?.stats[key] ?? 0}
-					/>
+						size="sm"
+						class="transition-colors hover:bg-accent hover:text-accent-foreground"
+					>
+						<CardContent class="flex items-center gap-4">
+							<div class="flex size-12 shrink-0 items-center justify-center rounded-lg inset-ring bg-primary/10 inset-ring-primary/25">
+								<span class={`${icon} size-6 text-primary`} />
+							</div>
+							<div class="min-w-0">
+								<p class="text-2xl font-semibold leading-tight tabular-nums text-card-foreground">{data?.stats[key] ?? 0}</p>
+								<p class="truncate text-sm text-muted-foreground">{label}</p>
+							</div>
+						</CardContent>
+					</Card>
 				))}
 			</div>
 		</div>

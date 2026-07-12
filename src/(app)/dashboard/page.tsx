@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, date } from '@kit'
 import { can } from '/src/abilities'
-import { Badge, Panel, Stat, Table, type Column } from '/src/ui'
+import { Card, CardContent, Chip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '/src/ui'
 
 type Session = {
 	id: string
@@ -31,6 +31,49 @@ type Data = {
 	recentSessions: Session[]
 }
 
+type MetricTone = 'accent' | 'danger'
+
+const metricTone: Record<MetricTone, { icon: string; text: string; value: string }> = {
+	accent: {
+		icon: 'bg-primary/10 inset-ring-primary/25',
+		text: 'text-primary',
+		value: 'text-card-foreground',
+	},
+	danger: {
+		icon: 'bg-danger/10 inset-ring-danger/25',
+		text: 'text-danger',
+		value: 'text-danger',
+	},
+}
+
+const Metric = ({
+	icon,
+	label,
+	tone = 'accent',
+	value,
+}: {
+	icon: string
+	label: string
+	tone?: MetricTone
+	value: number | string
+}) => {
+	const styles = metricTone[tone]
+
+	return (
+		<Card size="sm">
+			<CardContent class="flex items-center gap-4">
+				<div class={`flex size-12 shrink-0 items-center justify-center rounded-lg inset-ring ${styles.icon}`}>
+					<span class={`${icon} size-6 ${styles.text}`} />
+				</div>
+				<div class="min-w-0">
+					<p class={`text-2xl font-semibold leading-tight tabular-nums ${styles.value}`}>{value}</p>
+					<p class="truncate text-sm text-muted-foreground">{label}</p>
+				</div>
+			</CardContent>
+		</Card>
+	)
+}
+
 function timeAgo(iso: string) {
 
 	const diff = Date.now() - new Date(iso).getTime()
@@ -55,7 +98,7 @@ const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
 		if (!data) {
 			yield (
 				<div class="py-8">
-					<p class="text-slate-500 dark:text-slate-400">Loading...</p>
+					<p class="text-muted-foreground">Loading...</p>
 				</div>
 			)
 			continue
@@ -63,90 +106,93 @@ const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
 
 		const { user, stats, recentSessions } = data
 		const isAdmin = can(user.abilities, 'admin:read')
-		const sessionColumns = [
-			{
-				header: 'Device',
-				class: 'text-slate-700 dark:text-slate-300 max-w-[200px] truncate',
-				cell: (session) => parseAgent(session.agent),
-			},
-			{
-				header: 'IP',
-				tone: 'code',
-				cell: (session) => session.ip ?? '-',
-			},
-			{
-				header: 'Last Active',
-				tone: 'muted',
-				cell: (session) => timeAgo(session.last),
-			},
-			{
-				header: 'Status',
-				cell: (session) => session.current ? (
-					<span class="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
-						<span class="w-1.5 h-1.5 rounded-full bg-green-500" />
-						Current
-					</span>
-				) : (
-					<span class="text-xs text-slate-400 dark:text-slate-500">{session.id}</span>
-				),
-			},
-		] satisfies Column<Session>[]
 
 		yield (
 			<div class="py-8 space-y-8">
 				{/* Welcome + Account Info */}
-				<Panel radius="xl">
-					<div class="flex flex-col sm:flex-row sm:items-center gap-4">
-						<div class="flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 dark:bg-accent/15">
-							<span class="i-lucide-user w-7 h-7 text-primary dark:text-accent" />
+				<Card>
+					<CardContent class="flex flex-col gap-4 sm:flex-row sm:items-center">
+						<div class="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 inset-ring inset-ring-primary/25">
+							<span class="i-lucide-user size-7 text-primary" />
 						</div>
-						<div class="flex-1 min-w-0">
-							<h1 class="text-xl font-bold text-slate-900 dark:text-white">
+						<div class="min-w-0 flex-1 space-y-1">
+							<h1 class="text-2xl font-semibold tracking-tight">
 								Welcome back, {user.name || 'User'}
 							</h1>
-							<p class="text-sm text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
-							<div class="flex flex-wrap items-center gap-2 mt-2">
+							<p class="truncate text-sm text-muted-foreground">{user.email}</p>
+							<div class="flex flex-wrap items-center gap-x-3 gap-y-2 pt-1">
 								{user.roles.map(role => (
-									<Badge key={role} tone={role === 'admin' ? 'primary' : 'neutral'}>
+									<Chip key={role} variant={role === 'admin' ? 'default' : 'secondary'}>
 										{role}
-									</Badge>
+									</Chip>
 								))}
 								{user.verified ? (
-									<span class="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-										<span class="i-lucide-check-circle w-3.5 h-3.5" />
+									<span class="inline-flex items-center gap-1 text-xs text-success">
+										<span class="i-lucide-check-circle size-3.5" />
 										Verified
 									</span>
 								) : (
-									<a href="/verify" class="inline-flex items-center gap-1 text-xs text-amber-600 hover:underline hover:underline-offset-2 dark:text-amber-400">
-										<span class="i-lucide-alert-circle w-3.5 h-3.5" />
+									<a href="/verify" class="inline-flex items-center gap-1 text-xs text-warning hover:underline hover:underline-offset-2">
+										<span class="i-lucide-alert-circle size-3.5" />
 										Unverified
 									</a>
 								)}
-								<span class="text-xs text-slate-400 dark:text-slate-500">
+								<span class="text-xs text-muted-foreground">
 									Member since {date(user.created)}
 								</span>
 							</div>
 						</div>
-					</div>
-				</Panel>
+					</CardContent>
+				</Card>
 
 				{/* Quick Stats */}
 				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-					<Stat icon="i-lucide-monitor" label="Active Sessions" value={stats.sessions} />
-					<Stat icon="i-lucide-key" label="API Tokens" value={stats.tokens} />
-					<Stat icon="i-lucide-message-circle" label="Chats" value={stats.chats} />
-					<Stat icon="i-lucide-mail" label="Unread Messages" value={stats.unread} tone={stats.unread > 0 ? 'danger' : 'accent'} />
+					<Metric icon="i-lucide-monitor" label="Active Sessions" value={stats.sessions} />
+					<Metric icon="i-lucide-key" label="API Tokens" value={stats.tokens} />
+					<Metric icon="i-lucide-message-circle" label="Chats" value={stats.chats} />
+					<Metric icon="i-lucide-mail" label="Unread Messages" value={stats.unread} tone={stats.unread > 0 ? 'danger' : 'accent'} />
 				</div>
 
 				{/* Recent Sessions */}
 				<div class="space-y-4">
 					<div class="flex items-center justify-between">
-						<h2 class="text-lg font-semibold text-slate-900 dark:text-white">Recent Sessions</h2>
-						<a href="/account/sessions" class="text-sm text-accent hover:underline">View all</a>
+						<h2 class="text-lg font-semibold text-foreground">Recent Sessions</h2>
+						<a href="/account/sessions" class="text-sm text-primary hover:underline">View all</a>
 					</div>
-					<Panel padding="none" clip>
-						<Table rows={recentSessions} columns={sessionColumns} getKey={session => session.id} />
-					</Panel>
+					<Card class="overflow-hidden py-0">
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead>Device</TableHead>
+									<TableHead>IP</TableHead>
+									<TableHead>Last Active</TableHead>
+									<TableHead>Status</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{recentSessions.map(session => (
+									<TableRow key={session.id}>
+										<TableCell class="max-w-[200px] truncate">
+											{parseAgent(session.agent)}
+										</TableCell>
+										<TableCell class="font-mono text-xs text-muted-foreground">
+											{session.ip ?? '-'}
+										</TableCell>
+										<TableCell class="text-muted-foreground">
+											{timeAgo(session.last)}
+										</TableCell>
+										<TableCell>
+											{session.current ? (
+												<Chip variant="success">Current</Chip>
+											) : (
+												<Chip variant="secondary">Active</Chip>
+											)}
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					</Card>
 				</div>
 
 				{/* Quick Actions */}
@@ -166,13 +212,17 @@ const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
 export default Dashboard
 
 const ActionCard = ({ href, icon, label, description }: { href: string; icon: string; label: string; description: string }) => (
-	<Panel as="a" href={href} padding="sm" class="transition-colors hover:bg-[#edf4f3]/70 dark:hover:bg-white/12">
-		<div class="flex items-center gap-3 mb-2">
-			<span class={`${icon} w-5 h-5 text-accent`} />
-			<span class="font-medium text-slate-900 dark:text-white">{label}</span>
-		</div>
-		<p class="text-xs text-slate-500 dark:text-slate-400">{description}</p>
-	</Panel>
+	<Card as="a" href={href} size="sm" class="transition-colors hover:bg-accent hover:text-accent-foreground">
+		<CardContent class="flex items-center gap-3">
+			<span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 inset-ring inset-ring-primary/25">
+				<span class={`${icon} size-5 text-primary`} />
+			</span>
+			<span class="min-w-0">
+				<span class="block text-sm font-medium">{label}</span>
+				<span class="block truncate text-xs text-muted-foreground">{description}</span>
+			</span>
+		</CardContent>
+	</Card>
 )
 
 function parseAgent(agent: string | null): string {

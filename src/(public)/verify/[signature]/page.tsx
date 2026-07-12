@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
-import { Alert, Link } from '/src/ui'
+import { Alert, AlertDescription, CardContent, CardFooter, CardHeader } from '/src/ui'
 
 interface Data {
 	error?: string
@@ -16,27 +16,43 @@ const VerifyResult: Stateful<PageArgs<Data>> = function* (args) {
 
 		yield (
 		<>
-			<h1 class="text-2xl font-bold text-center mb-8 text-slate-900 dark:text-white">
-				Email Verification
-			</h1>
+			<CardHeader class="text-center">
+				<h1 class="text-2xl font-semibold tracking-tight">
+					Email Verification
+				</h1>
+			</CardHeader>
 
-			<div class="text-center">
-				{error ? (
-					<>
-						<Alert tone="danger" class="mb-4">{error}</Alert>
-						<Link href="/verify">
+			{error ? (
+				<>
+					<CardContent>
+						<Alert variant="danger">
+							<span data-slot="alert-icon" class="i-lucide-alert-circle" />
+							<AlertDescription>{error}</AlertDescription>
+						</Alert>
+					</CardContent>
+
+					<CardFooter class="justify-center">
+						<a href="/verify" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
 							Request a new verification link
-						</Link>
-					</>
-				) : verified ? (
-					<>
-						<Alert class="mb-4">Your email has been verified!</Alert>
-						<Link href="/dashboard">
+						</a>
+					</CardFooter>
+				</>
+			) : verified ? (
+				<>
+					<CardContent>
+						<Alert variant="success">
+							<span data-slot="alert-icon" class="i-lucide-check-circle" />
+							<AlertDescription>Your email has been verified!</AlertDescription>
+						</Alert>
+					</CardContent>
+
+					<CardFooter class="justify-center">
+						<a href="/dashboard" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
 							Go to dashboard
-						</Link>
-					</>
-				) : null}
-			</div>
+						</a>
+					</CardFooter>
+				</>
+			) : null}
 		</>
 	)
 	}

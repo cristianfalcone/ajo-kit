@@ -1,62 +1,110 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Alert from '/src/ui/alert'
 import Button from '/src/ui/button'
+import {
+	Alert,
+	AlertAction,
+	AlertDescription,
+	AlertTitle,
+} from '/src/ui/alert'
 
 export default {
 	title: 'UI/Alert',
 	component: Alert,
 	args: {
-		tone: 'success',
-		icon: 'i-lucide-check-circle',
+		variant: 'default',
 	},
 	argTypes: {
-		tone: { control: 'select', options: ['success', 'danger'] },
-		icon: { control: 'text' },
+		variant: { control: 'select', options: ['default', 'danger', 'success', 'warning', 'info'] },
 	},
 	parameters: {
-		docs: { description: 'Boxed status message with optional icon and actions.' },
+		docs: { description: 'Callout for important user attention with title, description, icon, and action slots.' },
 	},
 } satisfies Meta<typeof Alert>
 
-export const Success: Story<typeof Alert> = {
+export const Default: Story<typeof Alert> = {
 	render: args => (
 		<Alert {...args}>
-			<p class="font-medium">Profile updated successfully.</p>
-			<p class="text-sm opacity-80">Your public information is now current.</p>
+			<span data-slot="alert-icon" class="i-lucide-check-circle" />
+			<AlertTitle>Account updated successfully</AlertTitle>
+			<AlertDescription>
+				Your profile information has been saved. Changes will be reflected immediately.
+			</AlertDescription>
 		</Alert>
 	),
 }
 
 export const Danger: Story<typeof Alert> = {
 	args: {
-		tone: 'danger',
-		icon: 'i-lucide-alert-triangle',
+		variant: 'danger',
 	},
 	render: args => (
 		<Alert {...args}>
-			<p class="font-medium">Unable to save changes.</p>
-			<p class="text-sm opacity-80">Check the highlighted fields and try again.</p>
+			<span data-slot="alert-icon" class="i-lucide-alert-circle" />
+			<AlertTitle>Payment failed</AlertTitle>
+			<AlertDescription>
+				Your payment could not be processed. Please check your payment method and try again.
+			</AlertDescription>
 		</Alert>
 	),
 }
 
-export const WithActions: Story<typeof Alert> = {
+export const Success: Story<typeof Alert> = {
 	args: {
-		icon: 'i-lucide-mail',
+		variant: 'success',
 	},
 	render: args => (
-		<Alert
-			{...args}
-			actions={(
-				<>
-					<Button tone="neutral" height="md">Dismiss</Button>
-					<Button height="md">Review</Button>
-				</>
-			)}
-		>
-			<p class="font-medium">Invitation sent.</p>
-			<p class="text-sm opacity-80">The recipient can now complete registration.</p>
+		<Alert {...args}>
+			<span data-slot="alert-icon" class="i-lucide-circle-check" />
+			<AlertTitle>Backup completed</AlertTitle>
+			<AlertDescription>
+				Your data was backed up successfully. No further action is required.
+			</AlertDescription>
+		</Alert>
+	),
+}
+
+export const Warning: Story<typeof Alert> = {
+	args: {
+		variant: 'warning',
+	},
+	render: args => (
+		<Alert {...args}>
+			<span data-slot="alert-icon" class="i-lucide-alert-triangle" />
+			<AlertTitle>Storage almost full</AlertTitle>
+			<AlertDescription>
+				You are using 90% of your storage. Remove unused files to avoid interruptions.
+			</AlertDescription>
+		</Alert>
+	),
+}
+
+export const Info: Story<typeof Alert> = {
+	args: {
+		variant: 'info',
+	},
+	render: args => (
+		<Alert {...args}>
+			<span data-slot="alert-icon" class="i-lucide-circle-help" />
+			<AlertTitle>Scheduled maintenance</AlertTitle>
+			<AlertDescription>
+				The service will be briefly unavailable on Sunday at 02:00 UTC.
+			</AlertDescription>
+		</Alert>
+	),
+}
+
+export const Action: Story<typeof Alert> = {
+	render: args => (
+		<Alert {...args}>
+			<span data-slot="alert-icon" class="i-lucide-mail" />
+			<AlertTitle>Dark mode is now available</AlertTitle>
+			<AlertDescription>
+				Enable it under your profile settings to get started.
+			</AlertDescription>
+			<AlertAction>
+				<Button variant="outline" size="sm">Enable</Button>
+			</AlertAction>
 		</Alert>
 	),
 }
@@ -64,10 +112,16 @@ export const WithActions: Story<typeof Alert> = {
 export const LongContent: Story<typeof Alert> = {
 	render: args => (
 		<Alert {...args}>
-			<p class="font-medium">Several account sessions were refreshed after your password changed.</p>
-			<p class="text-sm opacity-80">
-				Older sessions and API tokens were revoked automatically so only the current browser remains active.
-			</p>
+			<span data-slot="alert-icon" class="i-lucide-shield-check" />
+			<AlertTitle>Several account sessions were refreshed</AlertTitle>
+			<AlertDescription>
+				<p>
+					Older sessions and API tokens were revoked automatically after your password changed.
+				</p>
+				<p>
+					Only the current browser remains active, and any new API tokens must be created again.
+				</p>
+			</AlertDescription>
 		</Alert>
 	),
 }

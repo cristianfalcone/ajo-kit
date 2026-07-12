@@ -1,64 +1,58 @@
-import type { Children, Stateful } from 'ajo'
+import type { Stateless } from 'ajo'
 import clsx from 'clsx'
+import { Checkbox as BaseCheckbox, type CheckboxArgs as BaseCheckboxArgs } from 'ajo-ui/checkbox'
+import { FieldContext } from 'ajo-ui/field'
+import { bool, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 
-type CheckboxProps = {
-	name: string
-	value?: string
-	label: Children
-	note?: Children
-	disabled?: boolean
-	checked?: boolean
-	onToggle?: () => void
-	labelClass?: string
-	noteClass?: string
+export type CheckboxArgs = OmitArg<BaseCheckboxArgs, 'checkedIndicatorClass' | 'indeterminateIndicatorClass' | 'inputClass'> & FixedArgs<'checkedIndicatorClass' | 'indeterminateIndicatorClass' | 'inputClass'> & {
+	/** Additional UnoCSS classes for the visual checkbox box. */
+	class?: string
 }
 
-const Checkbox: Stateful<CheckboxProps, 'label'> = function* (args) {
+/** Shared visual box for Checkbox and CheckboxGroup items. */
+export const checkboxBox = 'relative inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] edge-input bg-transparent shadow-xs outline-none transition-shadow has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[[aria-invalid=true]]:inset-ring-danger has-[[aria-invalid=true]]:ring-danger/20'
 
-	let checked = args.checked ?? false
-	let props = args
+/** Checked and indeterminate colors for valid checkboxes. */
+export const checkboxState = 'has-[:checked]:inset-ring-transparent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:indeterminate]:inset-ring-transparent has-[:indeterminate]:bg-primary has-[:indeterminate]:text-primary-foreground'
 
-	const toggle = () => {
-		if (props.disabled) return
+/** Checked and indeterminate colors for invalid checkboxes. */
+export const checkboxInvalidState = 'has-[:checked]:inset-ring-transparent has-[:checked]:bg-danger has-[:checked]:text-danger-foreground has-[:indeterminate]:inset-ring-transparent has-[:indeterminate]:bg-danger has-[:indeterminate]:text-danger-foreground'
 
-		if (props.checked === undefined) {
-			this.next(() => checked = !checked)
-		}
+/** Checked-state icon recipe shared with CheckboxGroup. */
+export const checkboxCheckedIndicator = 'i-lucide-check pointer-events-none size-3.5 text-current opacity-0 transition-none peer-checked:opacity-100 peer-indeterminate:opacity-0'
 
-		props.onToggle?.()
-	}
+/** Indeterminate-state icon recipe shared with CheckboxGroup. */
+export const checkboxIndeterminateIndicator = 'i-lucide-minus pointer-events-none absolute size-3.5 text-current opacity-0 transition-none peer-indeterminate:opacity-100'
 
-	for (props of this) {
-		const active = props.checked ?? checked
+/** Invisible native input overlay shared by checkbox-like controls. */
+export const choiceInput = 'peer absolute inset-0 m-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed'
 
-		yield (
-			<>
-				<input
-					type="checkbox"
-					name={props.name}
-					value={props.value ?? 'true'}
-					checked={active}
-					disabled={props.disabled}
-					class="sr-only peer"
-					set:checked={active}
-					set:onchange={toggle}
-				/>
-				<span class={clsx(
-					'flex items-center justify-center w-4.5 h-4.5 rounded shadow-xs inset-ring transition-colors dark:shadow-none',
-					active
-						? 'bg-accent/100 shadow-accent/15 inset-ring-accent'
-						: 'bg-[#fbfdfb]/92 shadow-slate-900/10 inset-ring-slate-900/18 dark:bg-white/5 dark:inset-ring-white/15 group-hover:inset-ring-accent/50',
-				)}>
-					{active && <span class="i-lucide-check w-3.5 h-3.5 text-white" />}
-				</span>
-				<span class={clsx('text-sm text-slate-700 dark:text-slate-300', props.labelClass)}>{props.label}</span>
-				{props.note && <span class={clsx('text-xs text-slate-500 dark:text-slate-400', props.noteClass)}>{props.note}</span>}
-			</>
-		)
-	}
+/** Shared layout recipes for choice groups. */
+export const choiceGroupOrientation: Record<'horizontal' | 'vertical', string> = {
+	vertical: 'grid gap-3',
+	horizontal: 'flex flex-wrap items-center gap-3',
 }
 
-Checkbox.is = 'label'
-Checkbox.attrs = { class: 'inline-flex items-center gap-2 cursor-pointer select-none group' }
+/** Native checkbox control styled as a custom control while preserving form behavior. */
+const Checkbox: Stateless<CheckboxArgs> = ({
+	class: classes,
+	type: _type,
+	...attrs
+}) => {
+	const field = FieldContext()
+	const inputAttrs = { ...(field?.controlAttrs ?? {}), ...attrs }
+	const invalid = bool(inputAttrs['aria-invalid'])
 
+	return (
+		<BaseCheckbox
+			{...inputAttrs}
+			checkedIndicatorClass={checkboxCheckedIndicator}
+			class={clsx(checkboxBox, invalid ? checkboxInvalidState : checkboxState, classes)}
+			indeterminateIndicatorClass={checkboxIndeterminateIndicator}
+			inputClass={choiceInput}
+		/>
+	)
+}
+
+export { Checkbox }
 export default Checkbox

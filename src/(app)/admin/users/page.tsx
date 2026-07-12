@@ -1,5 +1,6 @@
 import { type PageArgs, date } from '@kit'
-import { Badge, Pager, Panel, Table, type Column } from '/src/ui'
+import { Card, Chip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '/src/ui'
+import PageControls, { type PageInfo } from '../pagination'
 
 type User = {
 	id: number
@@ -10,56 +11,55 @@ type User = {
 	role: string | null
 }
 
-type Info = Parameters<typeof Pager>[0]['page']
-type Data = { users: User[]; page: Info }
+type Data = { users: User[]; page: PageInfo }
 
 export default function Users({ data }: PageArgs<Data>) {
 
 	const users = data?.users ?? []
-	const columns = [
-		{
-			header: 'User',
-			cell: (user) => (
-				<>
-					<div class="font-medium text-slate-900 dark:text-white">{user.name}</div>
-					<div class="text-slate-500 dark:text-slate-400">{user.email}</div>
-				</>
-			),
-		},
-		{
-			header: 'Role',
-			cell: (user) => (
-				<Badge tone={user.role === 'admin' ? 'primary' : 'neutral'}>
-					{user.role ?? 'none'}
-				</Badge>
-			),
-		},
-		{
-			header: 'Verified',
-			cell: (user) => user.verified ? (
-				<span class="i-lucide-check-circle w-5 h-5 text-green-500" />
-			) : (
-				<span class="i-lucide-x-circle w-5 h-5 text-slate-300 dark:text-slate-600" />
-			),
-		},
-		{
-			header: 'Created',
-			tone: 'muted',
-			cell: (user) => date(user.created),
-		},
-	] satisfies Column<User>[]
 
 	return (
-		<div class="space-y-6">
+		<div class="space-y-4">
 			<div class="flex items-center justify-between">
-				<h2 class="text-lg font-semibold text-slate-900 dark:text-white">Users</h2>
-				<span class="text-sm text-slate-500 dark:text-slate-400">{users.length} shown</span>
+				<h2 class="text-lg font-semibold text-foreground">Users</h2>
+				<span class="text-sm text-muted-foreground tabular-nums">{users.length} shown</span>
 			</div>
 
-			<Panel padding="none" clip>
-				<Table rows={users} columns={columns} getKey={user => user.id} />
-				{data?.page && <Pager page={data.page} count={users.length} label="users" />}
-			</Panel>
+			<Card class="overflow-hidden py-0">
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>User</TableHead>
+							<TableHead>Role</TableHead>
+							<TableHead>Verified</TableHead>
+							<TableHead>Created</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{users.map(user => (
+							<TableRow key={user.id}>
+								<TableCell>
+									<div class="font-medium">{user.name}</div>
+									<div class="text-xs text-muted-foreground">{user.email}</div>
+								</TableCell>
+								<TableCell>
+									<Chip variant={user.role === 'admin' ? 'default' : 'secondary'}>
+										{user.role ?? 'none'}
+									</Chip>
+								</TableCell>
+								<TableCell>
+									{user.verified ? (
+										<span class="i-lucide-check-circle size-5 text-success" />
+									) : (
+										<span class="i-lucide-x-circle size-5 text-muted-foreground/50" />
+									)}
+								</TableCell>
+								<TableCell class="text-muted-foreground">{date(user.created)}</TableCell>
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
+				{data?.page && <PageControls page={data.page} count={users.length} label="users" />}
+			</Card>
 		</div>
 	)
 }

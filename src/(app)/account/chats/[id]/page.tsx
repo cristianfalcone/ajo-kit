@@ -1,9 +1,9 @@
-import type { Stateful } from 'ajo'
+import type { Children, Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
 import { frame, visibility } from 'ajo-cloves'
 import clsx from 'clsx'
-import { Button, Input } from '/src/ui'
+import { Bubble, BubbleContent, buttonVariants, Input, Message as MessageRow, MessageContent, MessageFooter, MessageGroup, MessageHeader, Tooltip, TooltipContent, TooltipTrigger } from '/src/ui'
 import { ChatAvatar } from '../view'
 
 type Message = {
@@ -769,7 +769,21 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 		let previousDayMarker: number | null = null
 
-		const timelineNodes = timeline.flatMap((msg, index) => {
+		const timelineNodes: Children[] = []
+		let run: Children[] = []
+		let runSender = ''
+		// Keyed by the run's first message id: sender+day repeats across runs
+		// in an alternating conversation and duplicate sibling keys corrupt
+		// keyed reconciliation.
+		let runKey = ''
+
+		const flushRun = () => {
+			if (!run.length) return
+			timelineNodes.push(<MessageGroup key={runKey}>{run}</MessageGroup>)
+			run = []
+		}
+
+		timeline.forEach((msg, index) => {
 
 			const messageDate = parseMessageDate(msg.created)
 			const marker = dayStamp(messageDate)
@@ -777,14 +791,13 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 			previousDayMarker = marker
 
-			const nodes = []
-
 			if (needsSeparator) {
-				nodes.push(
+				flushRun()
+				timelineNodes.push(
 					<div key={`day-${marker}`} class="my-2 flex justify-center">
 						<time
 							dateTime={messageDate.toISOString()}
-							class="px-3 py-1 rounded-full text-[11px] font-medium bg-[#dfe9ed]/80 dark:bg-white/10 text-slate-600 dark:text-gray-300 backdrop-blur"
+							class="glass edge rounded-full px-3 py-1 text-xs font-medium text-muted-foreground"
 						>
 							{formatDaySeparator(messageDate, now)}
 						</time>
@@ -792,47 +805,48 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 				)
 			}
 
-			nodes.push(
-				<div
+			const mine = msg.user === data?.me
+			const senderKey = `${msg.user}-${marker}`
+
+			if (runSender !== senderKey || needsSeparator) {
+				flushRun()
+				runSender = senderKey
+				runKey = `run-${msg.id}`
+			}
+
+			const next = timeline[index + 1]
+			const lastOfRun = !next || next.user !== msg.user || dayStamp(parseMessageDate(next.created)) !== marker
+
+			run.push(
+				<MessageRow
 					key={msg.id}
+					align={mine ? 'end' : 'start'}
 					data-message-id={msg.id}
 					class={clsx(
-						'w-full px-2 py-1 rounded-xl flex flex-col transition-colors ease-out',
-						msg.user === data?.me ? 'items-end' : 'items-start',
-						msg.user !== data?.me && unreadHighlightIds.has(msg.id) && 'bg-amber-100/70 dark:bg-amber-300/12',
-						index === timeline.length - 1 ? 'last-message' : '',
+						'rounded-xl px-2 py-1 transition-colors ease-out',
+						!mine && unreadHighlightIds.has(msg.id) && 'bg-warning/15',
+						index === timeline.length - 1 && 'last-message',
 					)}
-					style={msg.user !== data?.me ? `transition-duration:${UNREAD_HIGHLIGHT_FADE_MS}ms` : undefined}
+					style={!mine ? `transition-duration:${UNREAD_HIGHLIGHT_FADE_MS}ms` : undefined}
 				>
-					{msg.user !== data?.me && (
-						<span class="text-xs text-slate-500 dark:text-gray-400 mb-1">
-							{msg.userName}
-						</span>
-					)}
-					<div
-						class={
-							clsx(
-								'max-w-[80%] px-4 py-2 rounded-2xl',
-								msg.user === data?.me
-									? 'bg-primary text-white dark:bg-accent dark:text-primary rounded-br-md'
-									: 'bg-[#dfe9ed]/90 text-slate-900 shadow-xs shadow-slate-900/8 inset-ring inset-ring-slate-900/8 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/8 rounded-bl-md'
-							)
-						}
-					>
-						{msg.text}
-					</div>
-					<time
-						dateTime={messageDate.toISOString()}
-						title={timeFormatter.format(messageDate)}
-						class="text-xs text-slate-400 dark:text-gray-500 mt-1"
-					>
-						{formatMessageTime(messageDate, now)}
-					</time>
-				</div>
+					<MessageContent>
+						{!mine && run.length === 0 ? <MessageHeader>{msg.userName}</MessageHeader> : null}
+						<Bubble variant={mine ? 'default' : 'secondary'}>
+							<BubbleContent>{msg.text}</BubbleContent>
+						</Bubble>
+						{lastOfRun ? (
+							<MessageFooter>
+								<time dateTime={messageDate.toISOString()} title={timeFormatter.format(messageDate)}>
+									{formatMessageTime(messageDate, now)}
+								</time>
+							</MessageFooter>
+						) : null}
+					</MessageContent>
+				</MessageRow>
 			)
-
-			return nodes
 		})
+
+		flushRun()
 
 		const title =
 			data?.chat?.name ||
@@ -841,64 +855,68 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 		yield (
 			<>
-				<header class="flex items-center gap-4 px-6 py-5 shadow-[inset_0_-1px_0_rgb(15_23_42_/_0.1)] dark:shadow-[inset_0_-1px_0_rgb(255_255_255_/_0.08)]">
+				<header class="flex items-center gap-4 border-b px-4 py-3">
 					{loading ? (
-						<p class="text-slate-500 dark:text-slate-400">
+						<p class="text-sm text-muted-foreground">
 							Loading conversation...
 						</p>
 					) : (
 						<>
 							<ChatAvatar name={title} />
 							<div class="min-w-0">
-								<h2 class="truncate text-lg font-semibold text-slate-900 dark:text-white">
+								<h2 class="truncate text-lg font-semibold text-foreground">
 									{title}
 								</h2>
 								{data?.participants && (
-									<p class="text-sm text-slate-500 dark:text-slate-400">
+									<p class="text-xs text-muted-foreground">
 										{data.participants.length} participant{data.participants.length !== 1 ? 's' : ''}
 									</p>
 								)}
 							</div>
-							<Button
-								type="button"
-								icon="i-lucide-more-vertical"
-								title="Chat options"
-								tone="neutral"
-								class="ml-auto"
-							/>
+							<Tooltip delayDuration={500} class="ml-auto">
+								<TooltipTrigger
+									type="button"
+									aria-label="Chat options"
+									data-variant="ghost"
+									class={buttonVariants({ variant: 'ghost', size: 'icon' })}
+								>
+									<span class="i-lucide-more-vertical size-4" />
+								</TooltipTrigger>
+								<TooltipContent>Chat options</TooltipContent>
+							</Tooltip>
 						</>
 					)}
 				</header>
 
 				<div class="relative min-h-0 flex-1">
 					<div
-						class="h-full space-y-3 overflow-y-auto p-5"
+						class="h-full space-y-3 overflow-y-auto scrollbar-soft scrollbar-gutter-stable p-4"
 						ref={el => boxRef.current = el}
 						set:onscroll={onScroll}
 					>
 						{loading ? (
-							<p class="text-slate-500 dark:text-gray-400">
+							<p class="text-sm text-muted-foreground">
 								Loading messages...
 							</p>
 						) : (
 							<>
 								{canLoadOlder && (
-									<div class="text-center py-2 text-xs text-slate-500 dark:text-gray-400">
+									<div class="text-center py-2 text-xs text-muted-foreground">
 										{load.loading ? 'Loading messages...' : 'Scroll up to load older messages'}
 									</div>
 								)}
 								{load.error && (
-									<p class="text-center text-xs text-red-500 py-2">
+									<p class="text-center text-xs text-danger py-2">
 										{load.error.message}
 									</p>
 								)}
 								{!canLoadOlder && timeline.length > 0 && (
-									<p class="text-center text-slate-400 dark:text-gray-500 py-2 text-sm">
+									<p class="text-center text-muted-foreground py-2 text-sm">
 										Beginning of conversation
 									</p>
 								)}
 								{timeline.length === 0 ? (
-									<p class="text-center text-slate-500 dark:text-gray-400 py-8">
+									<p class="py-12 text-center text-sm text-muted-foreground">
 										No messages yet. Start the conversation!
 									</p>
 								) : (
@@ -911,33 +929,36 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 						<button
 							type="button"
 							set:onclick={onJumpToUnread}
-							class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-lg transition hover:opacity-90 dark:bg-accent dark:text-primary"
+							class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-lg transition hover:bg-primary/90"
 						>
 							{unreadCount} new message{unreadCount !== 1 ? 's' : ''}
 						</button>
 					)}
 				</div>
 
-				<form set:onsubmit={onSend} class="flex gap-3 p-4 shadow-[inset_0_1px_0_rgb(15_23_42_/_0.1)] dark:shadow-[inset_0_1px_0_rgb(255_255_255_/_0.08)]">
-					<Input
-						name="text"
-						value={text}
-						set:oninput={event => this.next(() => text = (event.target as HTMLInputElement).value)}
-						placeholder="Type a message..."
-						autocomplete="off"
-						tone="default"
-						wrapper="flex-1"
-					/>
-					<Button
-						type="submit"
-						title="Send"
-						class="w-10 px-0"
-						style="padding-left:0;padding-right:0"
-						disabled={!text.trim() || send.loading}
-					>
-						<span class="i-lucide-send-horizontal block" style="width:1.25rem;height:1.25rem" />
-						<span class="sr-only">Send</span>
-					</Button>
+				<form set:onsubmit={onSend} class="flex gap-2 border-t p-4">
+					<div class="flex-1">
+						<Input
+							name="text"
+							value={text}
+							set:oninput={event => this.next(() => text = (event.target as HTMLInputElement).value)}
+							placeholder="Type a message..."
+							aria-label="Message"
+							autocomplete="off"
+						/>
+					</div>
+					<Tooltip delayDuration={500}>
+						<TooltipTrigger
+							type="submit"
+							aria-label="Send"
+							disabled={!text.trim() || send.loading}
+							data-variant="default"
+							class={buttonVariants({ size: 'icon' })}
+						>
+							<span class="i-lucide-send-horizontal size-4" />
+						</TooltipTrigger>
+						<TooltipContent>Send</TooltipContent>
+					</Tooltip>
 				</form>
 			</>
 		)

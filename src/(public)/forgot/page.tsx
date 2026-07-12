@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
-import { Alert, Button, Feedback, Input, Link } from '/src/ui'
+import { Alert, AlertDescription, Button, CardContent, CardDescription, CardFooter, CardHeader, Field, FieldError, FieldLabel, Input } from '/src/ui'
 
 type Result = { message: string }
 
@@ -11,52 +11,56 @@ const Forgot: Stateful<PageArgs> = function* () {
 
 	while (true) yield (
 		<>
-			<h1 class="text-2xl font-bold text-center mb-2 text-slate-900 dark:text-white">
-				Reset Password
-			</h1>
-			<p class="text-center text-sm text-slate-600 dark:text-slate-400 mb-8">
-				Enter your email and we'll send you a reset link
-			</p>
+			<CardHeader class="text-center">
+				<h1 class="text-2xl font-semibold tracking-tight">
+					Reset Password
+				</h1>
+				<CardDescription class="text-balance">
+					Enter your email and we'll send you a reset link
+				</CardDescription>
+			</CardHeader>
 
-			{form.data ? (
-				<div class="text-center">
-					<Alert class="mb-4">{form.data.message}</Alert>
-					<Link href="/login">
-						Back to login
-					</Link>
-				</div>
-			) : (
-				<>
-					<form set:onsubmit={form.submit} class="space-y-4">
-						<Input
-							type="email"
-							name="email"
-							label="Email"
-							required
-							autocomplete="email"
-							disabled={form.loading}
-						/>
+			<CardContent>
+				{form.data ? (
+					<Alert variant="success">
+						<span data-slot="alert-icon" class="i-lucide-check-circle" />
+						<AlertDescription>{form.data.message}</AlertDescription>
+					</Alert>
+				) : (
+					<form set:onsubmit={form.submit} class="grid gap-6">
+						<Field>
+							<FieldLabel for="email">Email</FieldLabel>
+							<Input
+								id="email"
+								type="email"
+								name="email"
+								required
+								placeholder="you@example.com"
+								autocomplete="email"
+								disabled={form.loading}
+							/>
+						</Field>
 
 						{form.error && (
-							<Feedback>{form.error.message}</Feedback>
+							<FieldError>{form.error.message}</FieldError>
 						)}
 
 						<Button
 							type="submit"
 							disabled={form.loading}
-							wide
+							class="w-full"
 						>
 							{form.loading ? 'Sending...' : 'Send Reset Link'}
 						</Button>
 					</form>
+				)}
+			</CardContent>
 
-					<p class="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
-						<Link href="/login">
-							Back to login
-						</Link>
-					</p>
-				</>
-			)}
+			<CardFooter class="justify-center">
+				<a href="/login" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
+					Back to login
+				</a>
+			</CardFooter>
 		</>
 	)
 }

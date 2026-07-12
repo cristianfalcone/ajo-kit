@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
-import { Alert, Button, Feedback, Input, Link } from '/src/ui'
+import { Alert, AlertDescription, Button, CardContent, CardDescription, CardFooter, CardHeader, Field, FieldDescription, FieldError, FieldLabel, FieldTitle, Input } from '/src/ui'
 
 type Result = { redirect: string }
 
@@ -20,72 +20,95 @@ const Invite: Stateful<PageArgs<Data>> = function* () {
 
 		yield (
 			<>
-				<h1 class="text-2xl font-bold text-center mb-8 text-slate-900 dark:text-white">
-					Accept Invitation
-				</h1>
+				<CardHeader class="text-center">
+					<h1 class="text-2xl font-semibold tracking-tight">
+						Accept Invitation
+					</h1>
+					<CardDescription>
+						Complete your details below to create your account
+					</CardDescription>
+				</CardHeader>
 
 				{!invite ? (
-					<div class="text-center">
-						<Alert tone="danger" class="mb-4">
-							This invitation link is invalid or has expired.
-						</Alert>
-						<Link href="/login">
-							Sign in
-						</Link>
-					</div>
+					<>
+						<CardContent>
+							<Alert variant="danger">
+								<span data-slot="alert-icon" class="i-lucide-alert-circle" />
+								<AlertDescription>
+									This invitation link is invalid or has expired.
+								</AlertDescription>
+							</Alert>
+						</CardContent>
+
+						<CardFooter class="justify-center">
+							<a href="/login" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
+								Sign in
+							</a>
+						</CardFooter>
+					</>
 				) : (
-					<form set:onsubmit={form.submit} class="space-y-4">
-						<div>
-							<p class="text-sm font-medium text-slate-700 dark:text-slate-300">
-								Email
-							</p>
-							<p class="mt-1 rounded-lg bg-[#e8f0ef]/80 px-4 py-2 text-sm text-slate-800 inset-ring inset-ring-slate-900/10 dark:bg-white/10 dark:text-slate-200 dark:inset-ring-white/10">
-								{invite.email}
-							</p>
-						</div>
+					<CardContent>
+						<form set:onsubmit={form.submit} class="grid gap-6">
+							<Field>
+								<FieldTitle>Email</FieldTitle>
+								<p class="flex h-9 w-full items-center rounded-md bg-muted/50 px-3 text-sm edge">
+									{invite.email}
+								</p>
+							</Field>
 
-						<Input
-							type="text"
-							name="name"
-							label="Name"
-							value={invite.name}
-							autocomplete="name"
-							disabled={form.loading}
-						/>
+							<Field>
+								<FieldLabel for="name">Name</FieldLabel>
+								<Input
+									id="name"
+									type="text"
+									name="name"
+									value={invite.name}
+									autocomplete="name"
+									disabled={form.loading}
+								/>
+							</Field>
 
-						<Input
-							type="password"
-							name="password"
-							label="Password"
-							hint="At least 8 characters"
-							required
-							minlength={8}
-							autocomplete="new-password"
-							disabled={form.loading}
-						/>
+							<Field>
+								<FieldLabel for="password">Password</FieldLabel>
+								<Input
+									id="password"
+									type="password"
+									name="password"
+									required
+									minlength={8}
+									autocomplete="new-password"
+									disabled={form.loading}
+									aria-describedby="password-hint"
+								/>
+								<FieldDescription id="password-hint">At least 8 characters</FieldDescription>
+							</Field>
 
-						<Input
-							type="password"
-							name="confirm"
-							label="Confirm Password"
-							required
-							minlength={8}
-							autocomplete="new-password"
-							disabled={form.loading}
-						/>
+							<Field>
+								<FieldLabel for="confirm">Confirm Password</FieldLabel>
+								<Input
+									id="confirm"
+									type="password"
+									name="confirm"
+									required
+									minlength={8}
+									autocomplete="new-password"
+									disabled={form.loading}
+								/>
+							</Field>
 
-						{form.error && (
-							<Feedback>{form.error.message}</Feedback>
-						)}
+							{form.error && (
+								<FieldError>{form.error.message}</FieldError>
+							)}
 
-						<Button
-							type="submit"
-							disabled={form.loading}
-							wide
-						>
-							{form.loading ? 'Creating account...' : 'Create Account'}
-						</Button>
-					</form>
+							<Button
+								type="submit"
+								disabled={form.loading}
+								class="w-full"
+							>
+								{form.loading ? 'Creating account...' : 'Create Account'}
+							</Button>
+						</form>
+					</CardContent>
 				)}
 			</>
 		)

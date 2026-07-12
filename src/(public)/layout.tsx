@@ -1,12 +1,14 @@
 import type { Stateless } from 'ajo'
 import type { LayoutArgs } from '@kit'
-import { Panel } from '/src/ui'
+import { Card } from '/src/ui'
 
 const AuthLayout: Stateless<LayoutArgs> = ({ children }) => (
-	<div class="flex-grow flex items-center justify-center py-8">
-		<Panel radius="xl" padding="lg" class="w-full max-w-sm shadow-lg">
+	// Pages are stateful components, so Ajo wraps them in a div; collapse it so
+	// card slots participate in the card's flex column and inherit its gap.
+	<div class="flex-grow flex items-center justify-center px-6 py-12">
+		<Card class="w-full max-w-md [&>div:not([data-slot])]:contents">
 			{children}
-		</Panel>
+		</Card>
 	</div>
 )
 
