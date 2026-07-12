@@ -160,6 +160,7 @@ export type Action<T> = {
 	error?: Issue
 	submit: (event: SubmitEvent) => void
 	invoke: (body?: unknown) => Promise<T | undefined>
+	/** Aborts any in-flight request and clears loading, data, and error state. */
 	reset: () => void
 }
 

@@ -16,7 +16,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): Action<T
 
 	if (!component) throw new Error('action() must be called inside a stateful component.')
 
-	let controller: AbortController
+	let controller: AbortController | undefined
 
 	const state: Action<T> = {
 		loading: false,
@@ -25,6 +25,11 @@ export function action<T = unknown>(name?: string, init?: RequestInit): Action<T
 		submit: () => { },
 		invoke: (value?) => run(value),
 		reset: () => {
+			const current = controller
+
+			controller = undefined
+			current?.abort()
+			state.loading = false
 			state.data = undefined
 			state.error = undefined
 			component.next()
@@ -34,7 +39,16 @@ export function action<T = unknown>(name?: string, init?: RequestInit): Action<T
 	const run = async (value: unknown): Promise<T | undefined> => {
 
 		controller?.abort()
-		controller = new AbortController()
+		const current = controller = new AbortController()
+
+		const forwardAbort = (signal?: AbortSignal | null) => {
+			if (!signal) return
+			if (signal.aborted) current.abort(signal.reason)
+			else signal.addEventListener('abort', () => current.abort(signal.reason), { once: true, signal: current.signal })
+		}
+
+		forwardAbort(component.signal)
+		forwardAbort(init?.signal)
 
 		state.loading = true
 		state.error = undefined
@@ -47,13 +61,15 @@ export function action<T = unknown>(name?: string, init?: RequestInit): Action<T
 				credentials: 'include',
 				headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
 				body: JSON.stringify(value),
-				signal: controller.signal,
 				...init,
+				signal: current.signal,
 			})
 
 			const json = await response.json().catch(() => null) as
 				| { redirect?: string; topics?: string[]; versions?: Record<string, number>; error?: { status?: number; message?: string; fields?: Record<string, string[] | undefined> }; message?: string; fields?: Record<string, string[] | undefined> }
 				| null
+
+			if (controller !== current || current.signal.aborted) return
 
 			if (!response.ok) {
 
@@ -80,7 +96,9 @@ export function action<T = unknown>(name?: string, init?: RequestInit): Action<T
 
 		} catch (error) {
 
-			if (error instanceof Error && error.name === 'AbortError') return
+			if (current.signal.aborted || error instanceof Error && error.name === 'AbortError') return
+
+			if (controller !== current) return
 
 			state.error = {
 				status: 500,
@@ -90,8 +108,11 @@ export function action<T = unknown>(name?: string, init?: RequestInit): Action<T
 			return
 
 		} finally {
-			state.loading = false
-			component.next()
+			if (controller === current) {
+				controller = undefined
+				state.loading = false
+				component.next()
+			}
 		}
 	}
 

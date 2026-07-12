@@ -28,6 +28,7 @@
     "@unocss/preset-icons": "66.7.2",
     "@unocss/preset-wind4": "66.7.2",
     "@vitest/browser-playwright": "4.1.9",
+    "happy-dom": "^20.10.6",
     "playwright": "1.61.0",
     "sade": "^1.8.1",
     "tsx": "4.22.4",
