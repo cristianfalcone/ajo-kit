@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { compile } from '../src/availability'
 
 describe('compiled availability', () => {
@@ -63,6 +63,71 @@ describe('compiled availability', () => {
 
 		expect(availability?.day(new Date('2026-07-21T09:00:00.000Z'))).toBe(true)
 		expect(availability?.day(new Date('2026-07-20T01:00:00.000Z'))).toBe(false)
+	})
+
+	test('normalizes fixed matcher dates once and each candidate once', () => {
+		const format = vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts')
+		const availability = compile([
+			new Date('2026-07-20T23:30:00.000Z'),
+			{
+				after: new Date('2026-07-01T00:00:00.000Z'),
+				before: new Date('2026-08-01T00:00:00.000Z'),
+				from: new Date('2026-07-10T00:00:00.000Z'),
+				to: new Date('2026-07-30T00:00:00.000Z'),
+				time: { from: '12:00', to: '13:00' },
+			},
+		], { timeZone: 'Pacific/Kiritimati' })
+
+		expect(format).toHaveBeenCalledTimes(5)
+		expect(availability?.day(new Date('2026-07-21T09:00:00.000Z'))).toBe(true)
+		expect(format).toHaveBeenCalledTimes(6)
+		expect(availability?.at(new Date('2026-07-21T12:30:00.000Z'))).toBe(false)
+		expect(format).toHaveBeenCalledTimes(7)
+		format.mockRestore()
+	})
+
+	test('does not decode candidates that only function or day-excluded time matchers handle', () => {
+		const format = vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts')
+		const candidate = new Date('2026-07-21T09:00:00.000Z')
+		const custom = compile(() => true, { timeZone: 'Pacific/Kiritimati' })
+		const lunch = compile({ time: { from: '12:00', to: '13:00' } }, { timeZone: 'Pacific/Kiritimati' })
+
+		expect(custom?.day(candidate)).toBe(true)
+		expect(lunch?.day(candidate)).toBe(false)
+		expect(format).not.toHaveBeenCalled()
+		format.mockRestore()
+	})
+
+	test('captures matcher dates, arrays, and time-zone options at compile time', () => {
+		const exact = new Date('2026-07-20T23:30:00.000Z')
+		const before = new Date(2026, 6, 10, 12)
+		const listed = new Date(2026, 6, 12, 12)
+		const dates = [listed]
+		const options: { timeZone?: string } = { timeZone: 'Pacific/Kiritimati' }
+		const zoned = compile(exact, options)
+		const bounded = compile({ before })
+		const alternatives = compile([dates])
+
+		exact.setUTCDate(25)
+		before.setDate(20)
+		listed.setDate(21)
+		dates.push(new Date(2026, 6, 22, 12))
+		options.timeZone = 'America/Adak'
+
+		expect(zoned?.day(new Date('2026-07-21T09:00:00.000Z'))).toBe(true)
+		expect(bounded?.day(new Date(2026, 6, 15, 12))).toBe(false)
+		expect(alternatives?.day(new Date(2026, 6, 12, 12))).toBe(true)
+		expect(alternatives?.day(new Date(2026, 6, 21, 12))).toBe(false)
+		expect(alternatives?.day(new Date(2026, 6, 22, 12))).toBe(false)
+	})
+
+	test('invalid fixed dates never match or disable valid weekdays', () => {
+		const invalid = new Date(Number.NaN)
+		const alternatives = compile([[invalid]], { timeZone: 'Pacific/Kiritimati' })
+		const bounded = compile({ before: invalid, dayOfWeek: [1] }, { timeZone: 'Pacific/Kiritimati' })
+
+		expect(alternatives?.day(new Date(2026, 6, 13, 12))).toBe(false)
+		expect(bounded?.day(new Date(2026, 6, 13, 12))).toBe(false)
 	})
 
 	test('date bounds are strict while ranges and lone endpoints are inclusive', () => {

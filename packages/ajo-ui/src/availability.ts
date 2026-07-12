@@ -62,11 +62,14 @@ const clock = (value: string | undefined, fallback: number) => {
 	return hour * 3600 + minute * 60 + second
 }
 
-const timeMatches = (window: TimeWindow, parts: DateParts) => {
+const timePredicate = (window: TimeWindow) => {
 	const from = clock(window.from, 0)
 	const to = clock(window.to, 24 * 3600)
-	const value = parts.hour * 3600 + parts.minute * 60 + parts.second
-	return Number.isFinite(from) && Number.isFinite(to) && from < to && from <= value && value < to
+	const valid = Number.isFinite(from) && Number.isFinite(to) && from < to
+	return (parts: DateParts) => {
+		const value = parts.hour * 3600 + parts.minute * 60 + parts.second
+		return valid && from <= value && value < to
+	}
 }
 
 const partFormatters = new Map<string, Intl.DateTimeFormat>()
@@ -90,6 +93,14 @@ const partFormatter = (timeZone: string) => {
 }
 
 const partsOf = (date: Date, timeZone?: string): DateParts => {
+	if (!Number.isFinite(date.getTime())) return {
+		day: Number.NaN,
+		hour: Number.NaN,
+		minute: Number.NaN,
+		month: Number.NaN,
+		second: Number.NaN,
+		year: Number.NaN,
+	}
 	if (!timeZone) return {
 		day: date.getDate(),
 		hour: date.getHours(),
@@ -163,37 +174,67 @@ export const compile = (
 	if (matcher == null) return undefined
 	const matchers = (Array.isArray(matcher) ? matcher : [matcher]) as AvailabilityMatcher[]
 	if (!matchers.length) return undefined
-	const parts = (date: Date) => partsOf(date, options.timeZone)
-	const sameDay = (first: Date, second: Date) => dayValue(parts(first)) === dayValue(parts(second))
-	const object = (value: AvailabilityMatcher): value is DateMatcher & { time?: TimeWindow } =>
-		typeof value === 'object' && value != null && !(value instanceof Date) && !Array.isArray(value)
-	const dateMatches = (item: DateMatcher, value: Date) => {
-		const current = parts(value)
-		const currentDay = dayValue(current)
-		const tests: boolean[] = []
-		if (item.dayOfWeek != null) tests.push(item.dayOfWeek.includes(weekday(current)))
-		if (item.before != null) tests.push(currentDay < dayValue(parts(item.before)))
-		if (item.after != null) tests.push(currentDay > dayValue(parts(item.after)))
-		if (item.from != null && item.to != null) {
-			tests.push(dayValue(parts(item.from)) <= currentDay && currentDay <= dayValue(parts(item.to)))
-		} else if (item.from != null) {
-			tests.push(sameDay(item.from, value))
-		} else if (item.to != null) {
-			tests.push(sameDay(item.to, value))
+	const timeZone = options.timeZone
+	const parts = (date: Date) => partsOf(date, timeZone)
+	type Predicate = {
+		date: (value: Date, current: () => DateParts) => boolean
+		time?: (current: DateParts) => boolean
+	}
+	const compileMatcher = (item: AvailabilityMatcher): Predicate => {
+		if (item instanceof Date) {
+			const expected = dayValue(parts(item))
+			return { date: (_value, current) => dayValue(current()) === expected }
 		}
-		return tests.every(Boolean)
+		if (Array.isArray(item)) {
+			const expected = new Set(item
+				.map(entry => dayValue(parts(entry)))
+				.filter(Number.isFinite))
+			return { date: (_value, current) => expected.has(dayValue(current())) }
+		}
+		if (typeof item === 'function') return { date: item }
+
+		const {
+			after,
+			before,
+			dayOfWeek,
+			from,
+			to,
+		} = item
+		const afterDay = after == null ? undefined : dayValue(parts(after))
+		const beforeDay = before == null ? undefined : dayValue(parts(before))
+		const fromDay = from == null ? undefined : dayValue(parts(from))
+		const toDay = to == null ? undefined : dayValue(parts(to))
+		const weekdays = dayOfWeek == null ? undefined : new Set(dayOfWeek)
+		const hasDate = after != null || before != null || dayOfWeek != null || from != null || to != null
+		const time = 'time' in item ? timePredicate(item.time) : undefined
+
+		return {
+			date: (_value, read) => {
+				if (!hasDate) return time != null
+				const current = read()
+				const currentDay = dayValue(current)
+				if (weekdays != null && !weekdays.has(weekday(current))) return false
+				if (beforeDay != null && !(currentDay < beforeDay)) return false
+				if (afterDay != null && !(currentDay > afterDay)) return false
+				if (fromDay != null && toDay != null) return fromDay <= currentDay && currentDay <= toDay
+				if (fromDay != null) return currentDay === fromDay
+				if (toDay != null) return currentDay === toDay
+				return true
+			},
+			time,
+		}
 	}
-	const matchesDate = (item: AvailabilityMatcher, value: Date): boolean => {
-		if (item instanceof Date) return sameDay(item, value)
-		if (Array.isArray(item)) return item.some(entry => sameDay(entry, value))
-		if (typeof item === 'function') return item(value)
-		const hasConstraint = item.after != null || item.before != null || item.dayOfWeek != null || item.from != null || item.to != null || 'time' in item
-		return hasConstraint && dateMatches(item, value)
+	const predicates = matchers.map(compileMatcher)
+	const day = (date: Date) => {
+		let current: DateParts | undefined
+		const read = () => current ??= parts(date)
+		return predicates.some(predicate => predicate.time == null && predicate.date(date, read))
 	}
-	const day = (date: Date) =>
-		matchers.some(item => (!object(item) || item.time == null) && matchesDate(item, date))
-	const at = (date: Date) =>
-		matchers.some(item => matchesDate(item, date) && (!object(item) || item.time == null || timeMatches(item.time, parts(date))))
+	const at = (date: Date) => {
+		let current: DateParts | undefined
+		const read = () => current ??= parts(date)
+		return predicates.some(predicate => predicate.date(date, read) && (predicate.time?.(read()) ?? true))
+	}
 
 	return {
 		day,
@@ -203,8 +244,8 @@ export const compile = (
 			if (!units) return false
 			const now = parts(new Date())
 			const date = kind === 'time'
-				? calendarDate({ ...now, hour: units.hour ?? 0, minute: units.minute ?? 0, second: units.second ?? 0 }, options.timeZone)
-				: calendarDate({ day: units.day!, hour: units.hour ?? 12, minute: units.minute ?? 0, month: units.month!, second: units.second ?? 0, year: units.year! }, options.timeZone)
+				? calendarDate({ ...now, hour: units.hour ?? 0, minute: units.minute ?? 0, second: units.second ?? 0 }, timeZone)
+				: calendarDate({ day: units.day!, hour: units.hour ?? 12, minute: units.minute ?? 0, month: units.month!, second: units.second ?? 0, year: units.year! }, timeZone)
 			return kind === 'date' ? day(date) : at(date)
 		},
 		crosses(from: Date, to: Date) {
@@ -212,7 +253,7 @@ export const compile = (
 			let current = parts(from)
 			if (dayValue(current) >= end) return false
 			for (current = addDay(current); dayValue(current) < end; current = addDay(current)) {
-				if (day(calendarDate(current, options.timeZone))) return true
+				if (day(calendarDate(current, timeZone))) return true
 			}
 			return false
 		},
