@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { push } from '../../../packages/ajo-backup/src/push'
+import { push } from '../src/push'
 
 let dir: string | null = null
 

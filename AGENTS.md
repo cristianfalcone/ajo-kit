@@ -104,6 +104,10 @@ Packages:
 | `packages/ajo-auth` | `@kit/auth` | Sessions, tokens, password, CSRF, guards, auth migrations |
 | `packages/ajo-backup` | none | Google Drive backup tooling |
 
+Package unit tests live in `packages/<name>/tests/` (run one package with
+`pnpm --filter <name> test`); app unit tests live in `tests/unit/`. The root
+`pnpm test:unit` runs both.
+
 Core files:
 
 | File | Role |

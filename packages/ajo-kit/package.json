@@ -5,6 +5,9 @@
   "bin": {
     "kit": "./bin/kit.ts"
   },
+  "scripts": {
+    "test": "pnpm -w exec vitest run packages/ajo-kit/tests"
+  },
   "exports": {
     ".": {
       "types": "./src/index.ts",

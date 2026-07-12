@@ -7,6 +7,9 @@
     "serverOnly": true,
     "migrations": "./migrations/"
   },
+  "scripts": {
+    "test": "pnpm -w exec vitest run packages/ajo-auth/tests"
+  },
   "exports": {
     ".": { "types": "./src/index.ts", "default": "./src/index.ts" }
   },

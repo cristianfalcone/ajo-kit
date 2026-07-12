@@ -5,6 +5,9 @@
   "kit": {
     "commands": "./src/commands.ts"
   },
+  "scripts": {
+    "test": "pnpm -w exec vitest run packages/ajo-backup/tests"
+  },
   "exports": {
     ".": { "types": "./src/index.ts", "default": "./src/index.ts" }
   },

@@ -7,7 +7,7 @@ import {
 	reset,
 	hash,
 	snapshot,
-} from '../../packages/ajo-kit/src/freshness'
+} from '../src/freshness'
 
 beforeEach(() => reset())
 

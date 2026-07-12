@@ -16,7 +16,7 @@ export default config({
 	},
 	test: {
 		environment: 'node',
-		include: ['tests/unit/**/*.test.ts'],
+		include: ['tests/unit/**/*.test.ts', 'packages/*/tests/**/*.test.ts'],
 		restoreMocks: true,
 	}
 })
