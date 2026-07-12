@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
 import type { LayoutArgs } from '@kit'
+import { scheme, storage } from 'ajo-cloves'
 import { ThemeContext, type ThemeMode } from '/src/contexts'
 import { Button, Spinner } from '/src/ui'
 
@@ -8,8 +9,10 @@ export const pending = true
 
 const Layout: Stateful<LayoutArgs> = function* (args) {
 
-	let mode: ThemeMode = globalThis.localStorage?.getItem('theme.v1') as ThemeMode ?? 'system'
 	let previous: Children = args.children
+	const color = scheme(this)
+	const saved = storage(this, { key: () => 'theme.v1', fallback: 'system' })
+	const current = () => saved.value as ThemeMode
 
 	const apply = (mode: ThemeMode) => {
 
@@ -17,33 +20,24 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 
 		if (!root) return
 
-		const system = globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches
-
-		root.classList.toggle('dark', mode === 'dark' || (mode === 'system' && system))
+		root.classList.toggle('dark', mode === 'dark' || (mode === 'system' && color.dark))
 	}
 
-	const store = (mode: ThemeMode) => { try { globalThis.localStorage?.setItem('theme.v1', mode) } catch { } }
+	const set = (next: ThemeMode) => {
+		saved.set(next)
+		apply(next)
+	}
 
-	const set = (next: ThemeMode) => this.next(() => {
-		mode = next
-		store(mode)
-		apply(mode)
-	})
-
-	const cycle = () => set(mode === 'system' ? 'light' : mode === 'light' ? 'dark' : 'system')
-
-	apply(mode)
-
-	globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener(
-		'change',
-		() => {
-			if (mode === 'system') apply('system')
-		},
-		{ signal: this.signal }
-	)
+	const cycle = () => {
+		const mode = current()
+		set(mode === 'system' ? 'light' : mode === 'light' ? 'dark' : 'system')
+	}
 
 	for (args of this) try {
 
+		const mode = current()
+
+		apply(mode)
 		ThemeContext({ mode, set, cycle })
 
 		if (args.loading) {
