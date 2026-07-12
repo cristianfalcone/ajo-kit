@@ -1,3 +1,8 @@
+import type { Stateless } from 'ajo'
+import { jsx } from 'ajo/jsx-runtime'
+
+type SlotArgs = Record<string, unknown> & { 'data-slot'?: string }
+
 /** Omits named arguments without collapsing Ajo's open Args index signature. */
 export type OmitArg<T, Keys extends PropertyKey> = {
 	[Key in keyof T as Key extends Keys ? never : Key]: T[Key]
@@ -7,6 +12,13 @@ export type OmitArg<T, Keys extends PropertyKey> = {
 export type FixedArgs<Keys extends PropertyKey> = {
 	[Key in Keys]?: never
 }
+
+/** Wraps a re-exported family part with a fixed data-slot and optional defaults. */
+export const withSlot = <Args extends SlotArgs>(
+	Component: Stateless<Args>,
+	slot: string,
+	defaults?: Partial<Args>,
+): Stateless<Args> => attrs => jsx(Component, { ...defaults, ...attrs, 'data-slot': slot })
 
 /** Marks a boolean state attr: 'true' when set, absent otherwise. */
 export const flag = (value: unknown) => value ? 'true' : undefined
