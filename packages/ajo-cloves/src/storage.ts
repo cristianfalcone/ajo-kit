@@ -90,16 +90,20 @@ export const storage = (host: Host, opts: StorageOptions) => {
 	let current = get(name, key, opts.fallback)
 
 	const sync = () => {
+		if (host.signal.aborted) return
 		const next = opts.key()
 		if (next === key) return
 
-		key = next
-		current = get(name, key, opts.fallback)
+		host.next(() => {
+			key = next
+			current = get(name, key, opts.fallback)
+		})
 	}
 
 	const set = (next: string) => {
-		current = next
-		host.next()
+		host.next(() => {
+			current = next
+		})
 	}
 
 	shared('storage', source, () => {
@@ -127,11 +131,13 @@ export const storage = (host: Host, opts: StorageOptions) => {
 			return current
 		},
 		set(next: string) {
+			if (host.signal.aborted) return
 			sync()
 			put(name, key, next)
 			set(next)
 		},
 		remove() {
+			if (host.signal.aborted) return
 			sync()
 			drop(name, key)
 			set(opts.fallback)

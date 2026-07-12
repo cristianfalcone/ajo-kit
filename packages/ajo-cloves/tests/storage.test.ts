@@ -222,6 +222,39 @@ test('reset recreates a fresh storage view', () => {
 	expect(document.body.textContent).toBe('ready')
 })
 
+test('retained write methods are inert after lifecycle teardown', () => {
+	let active = true
+	let key = 'unit-retained-a'
+	let view: View | undefined
+
+	function* Gen(this: Host) {
+		view = storage(this, {
+			key: () => {
+				if (!active) throw new Error('key evaluated after teardown')
+				return key
+			},
+			fallback: 'empty',
+		})
+
+		while (true) yield jsx('span', { children: needView(view).value })
+	}
+
+	render(jsx(Gen, {}), document.body)
+	const retained = needView(view)
+	retained.set('ready')
+	render(null, document.body)
+	active = false
+
+	key = 'unit-retained-b'
+	window.localStorage.setItem(key, 'external')
+	retained.set('stale')
+	retained.remove()
+
+	expect(retained.value).toBe('ready')
+	expect(window.localStorage.getItem('unit-retained-a')).toBe('ready')
+	expect(window.localStorage.getItem('unit-retained-b')).toBe('external')
+})
+
 test('SSR returns fallback and never evaluates the key or writes', () => {
 	function* Gen(this: Host) {
 		const view = storage(this, {
