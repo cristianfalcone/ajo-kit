@@ -112,3 +112,36 @@ export const stlx = (...input: StyleInput[]) => {
 	for (const item of input) collectStyles(item, result)
 	return result.join(';')
 }
+
+export type PopoverElement = HTMLElement & {
+	hidePopover?: () => void
+	showPopover?: (options?: { source?: HTMLElement }) => void
+}
+
+/** Checks native Popover API open state without throwing in fallback browsers. */
+const popoverOpen = (element: HTMLElement) =>
+	typeof element.matches === 'function' && element.matches(':popover-open')
+
+/** Opens a native popover, falling back to `hidden = false` when unsupported. */
+export const openPopover = (element: PopoverElement, source?: HTMLElement | null) => {
+	if (popoverOpen(element)) return
+	if (typeof element.showPopover === 'function') {
+		try {
+			if (source) element.showPopover({ source })
+			else element.showPopover()
+		} catch { }
+	} else {
+		element.hidden = false
+	}
+}
+
+/** Closes a native popover, falling back to `hidden = true` when unsupported. */
+export const closePopover = (element: PopoverElement) => {
+	if (typeof element.hidePopover === 'function') {
+		try {
+			if (popoverOpen(element)) element.hidePopover()
+		} catch { }
+	} else {
+		element.hidden = true
+	}
+}
