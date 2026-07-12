@@ -41,7 +41,10 @@ import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 
 The package is one system, not a set of islands. The dependency direction is
 `ajo-cloves` (general behavior and lifecycle) -> `ajo-ui` (unstyled component
-interfaces) -> an app's `src/ui` (theme-only adapters, Playa in ajo-kit):
+interfaces) -> an app's `src/ui` (theme-only adapters, Playa in ajo-kit).
+
+The repository-level technical reference is [`ai/ui.md`](../../ai/ui.md).
+Its main implementation seams are:
 
 - **The popup engine** (`floating.ts`, internal) is the single implementation
   of anchored popups: controlled open state, generated ids, `anchor`
@@ -58,8 +61,8 @@ interfaces) -> an app's `src/ui` (theme-only adapters, Playa in ajo-kit):
   ajo-cloves consume its item lists.
 - **One Select**: single, multiple, searchable, editable, chips, and tagging
   are one family whose mode emerges from composition — the field part
-  (SelectTrigger, SelectInput, or SelectChips) decides the focus model. The
-  design record lives in the repo's `ai/select.md`.
+  (SelectTrigger, SelectInput, or SelectChips) decides the focus model. See
+  [`ai/ui.md`](../../ai/ui.md) for the complete interaction contract.
 - **The bar machine** (`bar.ts`, internal) owns the open-value + roving +
   typeahead + follow policy under Menubar and NavigationMenu; Toolbar (APG
   toolbar) covers arbitrary controls in a bar with the same single-tab-stop
@@ -72,7 +75,7 @@ interfaces) -> an app's `src/ui` (theme-only adapters, Playa in ajo-kit):
   toasts into the dialog's `data-slot="dialog-portal"` outlet through a
   second render root — everything outside a modal's subtree is inert, so
   only there do toasts stay clickable and announced; Sidebar's mobile branch
-  composes Drawer. Design record: the repo's `ai/menus.md`.
+  composes Drawer.
 - **The date-field engine** keeps one `FieldView` per range side in
   `segments.ts`. InputDate, InputTime, and InputDateTime render its
   locale-ordered segments; `InputDateTimeField` renders only the same view's

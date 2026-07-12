@@ -84,9 +84,8 @@ const ToolbarRoot: Stateful<ToolbarRootArgs> = function* () {
 	// control keeps tabindex 0, the rest get -1; focusing any control moves the
 	// stop, and the stop is repaired to the first control in DOM order when the
 	// active one unmounts, hides, or disables.
-	// NOTE: menubar/navigation-menu grow a shared bar() helper this wave;
-	// converging this tab-stop machinery with it is a recorded follow-up
-	// (ai/menus.md, "New sibling: Toolbar").
+	// Toolbar keeps this separate from bar(): it navigates arbitrary controls,
+	// not an open-value trigger row with follow policy.
 	const apply = () => {
 		if (!dom(this)) return
 		const row = controls(this)

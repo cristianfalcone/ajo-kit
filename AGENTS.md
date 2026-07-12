@@ -64,7 +64,7 @@ reliable, performant, and elegant.
 - `ai/LLMs.md`: app-building guide for AI agents using Ajo and `ajo-kit`.
 - `ai/chat.md`: chat demo app behavior, data, scrolling, unread, and QA notes.
 - `ai/comparison.md`: framework/auth/routing comparison context.
-- `ai/stories.md`: supporting research and design notes for the UI stories harness.
+- `ai/ui.md`: implemented UI system across cloves, unstyled families, Playa adapters, and stories.
 - `node_modules/ajo/LLMs.md`: Ajo UI syntax reference; load before writing TSX.
 
 When documentation and code disagree, inspect the code and tests, update the docs

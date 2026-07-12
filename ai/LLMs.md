@@ -223,8 +223,8 @@ callback into a context setter.
 - The clove pattern itself is defined by `node_modules/ajo/LLMs.md`; do not
   restate or fork those rules here.
 - The public catalog lives in `packages/ajo-cloves/README.md`.
-- Repo-specific decisions, the attr-bag convention, and deferrals live in
-  `ai/cloves.md`.
+- Repo-specific UI contracts, the attr-bag convention, family behavior, and
+  stories harness live in `ai/ui.md`.
 
 ## Pagination
 

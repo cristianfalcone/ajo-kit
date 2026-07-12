@@ -1,5 +1,5 @@
 /**
- * segments.ts — the pure engine behind the InputDate family (ai/date.md).
+ * segments.ts — the pure engine behind the InputDate family (ai/ui.md).
  *
  * No JSX, no DOM; Intl is the only platform dependency. `input-date.tsx`
  * owns rendering, focus, and events, and consumes this surface:

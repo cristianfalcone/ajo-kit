@@ -99,7 +99,7 @@ When a behavior must wire several attributes and handlers to a rendered element,
 | `grid` | Semantic 2D key movement for grids/calendars. | `rtl`, `onMove`; type `GridMove`. |
 | `spin` | Semantic spinbutton key stepping (step/page/edge); composes with `roving` via consumer-pinned dispatch order (spin first). | `onMove`; type `SpinMove`. |
 | `follow` | Pointer-anchored floating position. | `target`, `container`, `offset`, `smooth`, `align`. |
-| `label` | Field label/control/description/error id wiring. | Optional id prefix closure; returns `LabelView` attr bags. |
+| `label` | Field label/control/description/error id wiring. | `prefix`; returns `LabelView` attr bags. |
 | `hotkey` | Global single-chord keyboard shortcut. | `keys`, `active`, `prevent`, `onPress`. |
 | `announce` | Polite/assertive screen-reader announcements. | No options; document-lifetime live regions. |
 | `GridMove` | Type for semantic grid movement. | Variants: `cols`, `rows`, row/all edge, page movement. |
@@ -116,7 +116,7 @@ When a behavior must wire several attributes and handlers to a rendered element,
 
 | Export | Purpose | Key options |
 |---|---|---|
-| `media` | Reactive media-query match shared per query string. | Query closure, `fallback`; method `sync`. |
+| `media` | Reactive media-query match shared per query string. | `query`, `fallback`; method `sync`. |
 | `scheme` | Reactive OS dark-scheme preference. | No options; built on `media`. |
 | `storage` | Reactive `localStorage` or `sessionStorage` string value with cross-tab sync. | `key`, `fallback`, `area`. |
 | `scrolling` | Frame-coalesced scroll tracking for a live element. | `target`, `onScroll`, `onEnd`; method `sync`. |

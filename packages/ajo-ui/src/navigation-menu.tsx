@@ -579,10 +579,8 @@ const NavigationMenuLink: Stateless<NavigationMenuLinkArgs> = ({
 	)
 }
 
-// The Radix-style morphing viewport (one shared panel surface that resizes
-// under a sliding indicator) is a recorded extension point, not rebuilt here:
-// per-item anchored panels are the complete design and the themed surface
-// lives on NavigationMenuContent. See ai/menus.md.
+// NavigationMenu uses per-item anchored panels. Its themed surface lives on
+// NavigationMenuContent; there is no shared Viewport or Indicator contract.
 
 export {
 	NavigationMenu,

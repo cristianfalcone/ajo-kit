@@ -11,7 +11,7 @@ const segmentValueText = (html: string, segment: string) => {
 // ajo/html renders with no document, so the locale chain's <html lang> link
 // is unreachable on the server pass: output must be the fixed en-US shape
 // regardless of the machine locale (never navigator, never ambient ICU).
-// Non-English SSR requires the explicit locale arg (recorded in ai/date.md).
+// Non-English SSR requires the explicit locale arg documented in ai/ui.md.
 test('SSR renders the machine-locale-independent en-US segment shape', () => {
 	const html = ssr(jsx(InputDate, { name: 'dob' }))
 

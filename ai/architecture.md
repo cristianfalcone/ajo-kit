@@ -340,12 +340,10 @@ family. Item discovery/highlight for menus, select, and command goes
 through `packages/ajo-ui/src/collection.ts` (`data-item="<kind>"` protocol);
 slot re-exports go through `withSlot` from `ajo-ui/utils`.
 
-Select and Combobox were merged into one Select family (design record:
-`ai/select.md`): single, multiple, searchable, editable, chips, and tagging
-by composition; the field part (SelectTrigger, SelectInput, or SelectChips)
-decides the focus model (real roving vs `aria-activedescendant`). The
-`controlled` clove distinguishes `undefined` (uncontrolled) from `null`
-(controlled-empty) to support controlled clearing.
+Select is one family for single, multiple, searchable, editable, chips, and
+tagging by composition. The field part (SelectTrigger, SelectInput, or
+SelectChips) decides the focus model. The `controlled` clove distinguishes
+`undefined` from controlled-empty `null`. See `ai/ui.md` for the full contract.
 
 Accordion, CheckboxGroup, and ToggleGroup share runtime multi-value
 normalization through `strings` in `ajo-ui/utils`: only arrays are accepted and
@@ -364,7 +362,7 @@ individual selector. It reconciles groups before measuring rendered items, so
 clearing a filter and dynamically force-mounting a group restore visibility in
 the same sweep; empty state and separator topology then use that fresh set.
 
-The menu families were consolidated next (design record: `ai/menus.md`):
+The menu families share deliberate internal seams documented in `ai/ui.md`.
 `bar()` (`packages/ajo-ui/src/bar.ts`, internal like floating) owns the
 value + roving + typeahead + follow machine under Menubar and
 NavigationMenu; dropdown-menu exports its substrate contract (MenuContext,

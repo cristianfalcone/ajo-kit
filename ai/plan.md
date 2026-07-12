@@ -1,23 +1,41 @@
-# Ajo Kit Active Plan
+# Ajo Kit Feature Plan
 
-Last updated: 2026-07-12
+Use this file for one active feature at a time. It is a working plan, not a
+history, audit ledger, or release log.
+
+Before implementation, replace the prompts in the feature sections. When the
+feature closes, move durable contracts into canonical documentation and reset
+the feature-specific sections for the next objective.
+
+## Feature Definition
+
+Define the intended outcome before choosing implementation details:
+
+- **Objective:** state the capability or improvement in one sentence.
+- **User-visible outcome:** describe what becomes possible or more reliable.
+- **Motivation:** record the concrete problem or evidence that justifies work.
+- **In scope:** name the behaviors, packages, and surfaces allowed to change.
+- **Out of scope:** make adjacent features and speculative extensions explicit.
+- **Constraints:** record compatibility, performance, accessibility, or platform
+  boundaries.
+- **Acceptance criteria:** list observable conditions that prove completion.
+
+The objective must identify an owner in the package chain and a verifiable end
+state. Do not begin from a proposed abstraction without a real consumer.
 
 ## Status
 
-- Objective: **complete**. The cohesion and Calendar work across
-  `ajo-cloves -> ajo-ui -> src/ui` has landed through T9.
-- Active feature: none.
-- Active slice or sub-slice: none.
-- Blockers: none.
-- Implementation head: `ba52ca4` (`fix(ajo-cloves): freeze storage views after
-  teardown`).
-- Closure: D1 is the documentation-only commit that closes the 46-commit
-  series. Its final integration battery is recorded below.
+Keep only live execution state here:
 
-Do not reopen the completed audit ledger as an active plan. New work starts
-only from a new user-directed goal and a current code/test inspection.
+- **Stage:** discovery, design, implementation, verification, or complete.
+- **Active slice:** the one outcome currently being implemented.
+- **Blockers:** facts that prevent progress, with their required resolution.
+- **Next checkpoint:** the next observable result, decision, or verification.
 
-## Architecture at a glance
+Do not retain completed task lists, commit hashes, suite counts, or chronology.
+Git and canonical technical documents own that history.
+
+## Architecture At A Glance
 
 ```text
 ajo-cloves  ->  ajo-ui  ->  src/ui  ->  application routes and stories
@@ -25,97 +43,139 @@ general         unstyled    Playa       product composition
 host logic      components  theme       and content
 ```
 
-- `ajo-cloves` owns reusable host, lifecycle, state, sensor, positioning,
-  keyboard, geometry, and attr-bag logic. It must remain useful outside this
-  component catalog.
-- `ajo-ui` owns unstyled component behavior and component-system helpers. Its
-  deep internal modules remain private. `OmitArg` and `FixedArgs` deliberately
-  live together on `ajo-ui/utils`; they describe themed adapter ownership, not
-  general host behavior.
-- `src/ui` is a thin Playa-themed adapter layer: classes, icons, recipes, and
-  composition only. It derives public args from `ajo-ui` and does not fork
-  interaction engines.
-- Application routes consume `src/ui` and keep product-specific composition
-  local.
+- `ajo-cloves` owns reusable Ajo behavior, lifecycle, sensors, positioning,
+  state primitives, and host utilities.
+- `ajo-ui` owns unstyled component behavior, semantic markup, accessibility,
+  composition, and component-domain engines.
+- `src/ui` owns Playa classes, visual defaults, recipes, icons, and theme-level
+  composition.
+- Application routes own product content, route-specific layout, and business
+  state.
 
-The published runtime dependency is Ajo `0.1.35`. This series did not create or
-require a new Ajo release.
+Dependencies flow only from left to right. Move logic downward when its
+semantics are general enough for the lower layer and a real consumer proves the
+interface.
 
-Cross-layer invariants:
+## Ownership And Implementation Guidelines
 
-- Stateful components own context writes; Stateless consumers may read context
-  but must not mutate an ancestor's context.
-- The default Stateful host is expressed as `Stateful<Args>` without a
-  redundant `Component.is = 'div'`; explicit hosts are used only when semantic
-  markup differs from the configured default.
-- Browser work is lifecycle-owned and SSR-gated.
-- A themed adapter fixes base implementation knobs with `OmitArg` plus
-  `FixedArgs`, keeps `class` on the visible root, and preserves generic and
-  discriminated-union relationships.
-- No compatibility aliases or transitional wrappers remain for the retired UI
-  surface.
+### Package Ownership
 
-## Canonical sources
+- Put reusable host or interaction behavior in `ajo-cloves`.
+- Put component semantics and shared family policy in `ajo-ui`.
+- Put classes, icons, recipes, and visual composition in `src/ui`.
+- Keep product-only state and composition in application routes.
+- Keep component-specific engines internal to `ajo-ui`.
+- Promote a helper to `ajo-cloves` only when its interface is generally useful,
+  not merely because two files share code.
 
-Read only what the task needs:
+Small helpers belong in the layer's existing `utils.ts` when a separate module
+would contain only one small function or a few constants. A generally useful
+Ajo behavior belongs in `ajo-cloves`, with a public contract and real consumer.
 
-- `AGENTS.md` — repository rules, commands, compatibility stance, and concise
-  architecture snapshot.
-- `node_modules/ajo/LLMs.md` — authoritative Ajo JSX, component, context, and
-  special-attribute rules.
-- `ai/architecture.md` — implemented runtime and package architecture.
-- `ai/LLMs.md` — app-building guidance for Ajo Kit consumers and agents.
-- `readme.md` — public Ajo Kit framework API.
-- `packages/ajo-cloves/README.md` — public clove catalog and ownership rules.
-- `packages/ajo-ui/README.md` — public unstyled component-system API.
-- `ai/commits.md` — final 46-commit implementation record.
+Changing or publishing the upstream `ajo` package requires a concrete need and
+explicit scope. Prefer the correct local `ajo-kit` package for kit-local logic.
 
-Feature and audit records (`ai/audit.md`, `ai/calendar.md`, `ai/cloves.md`,
-`ai/consolidation.md`, `ai/date.md`, `ai/menus.md`, `ai/select.md`, and
-`ai/stories.md`) preserve decisions and evidence. They are not active queues and
-must not override current source, tests, or the canonical documents above.
+### Stateful And Context Ownership
 
-## Recorded deferrals
+- Stateful roots own mutable state, browser effects, lifecycle, and Context
+  writes.
+- Stateless wrappers and parts may read Context and invoke owner callbacks.
+- Stateless components must not set an ancestor Context.
+- Use `Stateful<Args>` for Ajo's default host; do not repeat `.is = 'div'`.
+- Declare another host only when its native semantics matter.
+- Pass root DOM args through `statefulRootAttrs` where the contract requires it.
+- Keep Context module-private unless real cross-family or Playa composition
+  needs a public view.
 
-These are demand-driven extension points, not pending slices:
+### Cross-Layer Quality
 
-- Calendar/date: `InputDateSlots`, a dedicated `InputMonth` family,
-  month-range hover preview, and multiple month/year themed scenarios. The
-  broader paste, native-constraint, spin-repeat, overnight-range,
-  autocomplete, non-Gregorian, and IANA-time-zone extensions remain recorded
-  in `ai/date.md`.
-- Select: explicit `closeOnSelect`, delta/reason callbacks, `readOnly`, a
-  separate form serializer, chip overflow, and virtualization remain recorded
-  in `ai/select.md` until a consumer requires them.
-- Menus/navigation: a morphing NavigationMenu viewport/indicator and a Sidebar
-  cookie-read seam remain recorded in `ai/menus.md`.
-- Package promotion: the popup engine remains internal to `ajo-ui`; promote it
-  to an `ajo-cloves` clove only after a second consuming package appears.
-- General cloves: the P2 parking lot in `ai/cloves.md` remains closed under the
-  no-consumer/no-clove rule.
+- Keep one canonical engine for one behavior; compose it instead of forking it.
+- Prefer small, cohesive changes that preserve the global package model.
+- Keep public values, DOM identity, slots, ARIA, and controlled-state semantics
+  consistent across families.
+- Treat closures as live inputs and bind browser-owned work to host lifecycle.
+- Preserve SSR shape and gate DOM access through the established helpers.
+- Derive Playa adapter args from base types. Seal adapter-owned keys with
+  `OmitArg` and `FixedArgs`.
+- Keep `class` on the visible root and use named seams for subparts.
+- Favor simple data flow, stable identity, bounded work, and one geometry read
+  per interaction frame where measurement is required.
 
-Rejected alternatives documented in those records are not deferrals and
-should not be reintroduced as speculative work.
+Do not leave dead code, compatibility aliases, transitional wrappers, stale
+comments, duplicate utilities, or documentation that reveals implementation
+iterations. These packages are not constrained by backward compatibility yet.
 
-## Final verification
+## Canonical Sources
 
-The last implementation snapshot records:
+Read only what the feature needs, but resolve uncertainty from source and tests:
 
-- root unit suite: **527 tests**;
-- `ajo-ui`: **144 tests**;
-- `ajo-cloves`: **241 tests**;
-- stories: **468 stories**;
-- e2e: **47 tests**.
+- `AGENTS.md` for repository rules and commands.
+- `node_modules/ajo/LLMs.md` for Ajo JSX, components, Context, and cloves.
+- `ai/architecture.md` for application and runtime architecture.
+- `ai/ui.md` for the implemented UI system and stories harness.
+- `ai/LLMs.md` for app-building guidance.
+- `readme.md` for the public Ajo Kit framework surface.
+- `packages/ajo-cloves/README.md` for the public clove catalog.
+- `packages/ajo-ui/README.md` for the unstyled package surface.
 
-Run the documentation closure against the final tree and record the result in
-this block. If discovery changes a count, update both this block and the final
-snapshot in `ai/commits.md`.
+When documentation and implementation disagree, inspect public types, source,
+tests, and stories. Update the stale document as part of the owning slice.
 
-Status: **PASSED on the clean `ba52ca4` implementation snapshot**
+## Discovery And Baseline
 
-Verified counts: unit 527; ajo-ui 144; ajo-cloves 241; stories 468; e2e 47;
-production smoke 1. TypeScript, client build, and SSR build also passed. One
-initial unit flake did not recur in 50 focused runs or 10 complete-suite runs.
+Record only evidence needed to plan the active feature:
+
+- current behavior and the smallest reproduction or motivating example;
+- owning packages, public entrypoints, internal engines, and consumers;
+- existing tests, stories, docs, and accessibility contracts;
+- relevant working-tree changes that must be preserved;
+- risks involving controlled state, focus, lifecycle, SSR, forms, direction,
+  identity, performance, or top-layer behavior;
+- assumptions that need proof before implementation.
+
+Prefer focused source searches and direct tests over broad speculative reading.
+Resolve ownership before designing the public interface.
+
+## Implementation Slices
+
+Split the feature into cohesive, independently verifiable outcomes. Order slices
+from the deepest reusable dependency toward themed and integration surfaces.
+
+Use this structure for each active slice:
+
+### Slice `<number>`: `<outcome>`
+
+- **Goal:** the behavior completed by this slice.
+- **Owner:** the package and module responsible for it.
+- **Surface:** public types, exports, slots, attributes, or docs that change.
+- **Implementation:** the smallest coherent code path to add or replace.
+- **Tests:** focused evidence required for this slice.
+- **Cleanup:** obsolete code, aliases, files, comments, and docs to remove.
+- **Exit condition:** the observable result required before the next slice.
+
+Keep at most one slice active. If discovery changes ownership or scope, update
+the feature definition before widening implementation.
+
+## Commit Strategy
+
+Commits demonstrate incremental feature progress by package or cohesive surface:
+
+1. General behavior and tests in `ajo-cloves`.
+2. Unstyled family behavior and tests in `ajo-ui`.
+3. Playa adapters, themed composition, and stories in `src/ui`.
+4. Integration, documentation, and cleanup that require the completed stack.
+
+Use only the steps the feature actually needs. Each commit must be coherent,
+reviewable, and green at its own boundary. Do not mix unrelated user changes or
+leave temporary compatibility work for a later cleanup commit.
+
+Commit titles describe the package and outcome. Descriptions explain the public
+contract, important ownership decisions, and verification without narrating the
+agent's process.
+
+## Verification
+
+Choose focused checks first and expand in proportion to the affected contract:
 
 ```bash
 git diff --check
@@ -129,14 +189,54 @@ pnpm build
 pnpm test:prod
 ```
 
+### Verification Matrix
+
+- `ajo-cloves`: focused clove tests, package suite, types, lifecycle, and SSR.
+- `ajo-ui`: focused family tests, package suite, types, ARIA, focus, and forms.
+- `src/ui`: typecheck, focused unit tests, stories, theme states, and direction.
+- Cross-layer behavior: root unit suite and relevant browser stories or e2e.
+- Build-facing changes: client build, SSR build, and production smoke.
+- Documentation-only changes: stale-reference scan and `git diff --check`.
+
+Run the full integration battery before closing a feature that changes several
+layers, public contracts, shared engines, hydration, or production behavior.
+Report skipped, blocked, flaky, or noisy gates explicitly.
+
+## Completion And Cleanup
+
+A feature is complete only when:
+
+- every acceptance criterion is observable and tested at the right layer;
+- package ownership and dependency direction remain intact;
+- public exports, TSDoc, READMEs, technical docs, and stories agree;
+- no dead code, obsolete file, stale reference, or transitional API remains;
+- performance-sensitive work is bounded and avoids duplicate subscriptions or
+  measurements;
+- the final diff contains only intended changes;
+- verification results and any genuine residual risk are known.
+
+Write durable documentation in present tense. Consolidate decisions into the
+canonical reference instead of appending an implementation diary.
+
 ## Handoff
 
-There is no next implementation slice. Before any new task, verify live state:
+Before continuing or handing off, capture only current operational state:
+
+- the active objective and slice;
+- completed behavior that the next slice depends on;
+- exact files or package seam under work;
+- verification already run and its result;
+- one concrete next action;
+- any real blocker or unresolved decision.
+
+Verify the repository before editing or handing off:
 
 ```bash
 git status --short
+git diff --stat
 git log --oneline -5
 ```
 
-Preserve unrelated user work, inspect the current package seam before editing,
-and create a new narrow plan only when the user supplies the next objective.
+Preserve unrelated work. When the feature is complete and committed, move its
+durable contracts into canonical docs and reset the feature-specific fields in
+this file rather than preserving a historical ledger.
