@@ -1,6 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
+import { frame, visibility } from 'ajo-cloves'
 import clsx from 'clsx'
 import { Button, Input } from '/src/ui'
 import { ChatAvatar } from '../view'
@@ -66,6 +67,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 	const send = action<SendResult>('send')
 	const load = action<LoadPage>('load')
 	const markAsSeen = action<{ ok: true }>('markAsSeen')
+	const vis = visibility(this)
 	const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US'
 	const dayFormatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
 	const timeFormatter = new Intl.DateTimeFormat(locale, { timeStyle: 'short' })
@@ -92,7 +94,6 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 	let markAfterUnreadJump = false
 	let unreadJumpInProgress = false
 	let unreadJumpTimeout: ReturnType<typeof setTimeout> | null = null
-	let unreadVisibilityRaf: number | null = null
 	let unreadHighlightIds = new Set<number>()
 	let unreadHighlightedOnceIds = new Set<number>()
 
@@ -105,21 +106,14 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		unreadJumpTimeout = null
 	}
 
-	const clearUnreadVisibilityCheck = () => {
-		if (unreadVisibilityRaf === null) return
-		cancelAnimationFrame(unreadVisibilityRaf)
-		unreadVisibilityRaf = null
-	}
+	const unreadVisibilityCheck = frame(() => this.next())
+
+	const clearUnreadVisibilityCheck = () => unreadVisibilityCheck.cancel()
 
 	const scheduleUnreadVisibilityCheck = () => {
 
 		if (import.meta.env.SSR) return
-		if (unreadVisibilityRaf !== null) return
-
-		unreadVisibilityRaf = requestAnimationFrame(() => {
-			unreadVisibilityRaf = null
-			this.next()
-		})
+		unreadVisibilityCheck()
 	}
 
 	const clearUnreadHighlightTimers = () => {
@@ -353,8 +347,11 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 		if (!cursor) return
 
+		const chat = activeChatId
+
 		void load.invoke({ direction, cursor }).then(result => {
 
+			if (chat !== activeChatId) return
 			if (!result) return
 
 			const chunk = result.messages ?? []
@@ -364,6 +361,8 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 			const scrollHeight = box.scrollHeight
 
 			this.next(() => {
+
+				if (chat !== activeChatId) return
 
 				if (chunk.length === 0) {
 					if (wantsOlder) canLoadOlder = false
@@ -395,7 +394,11 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		})
 	}
 
-	const onScroll = () => {
+	const fillViewportLoadOlder = frame(() => maybeLoad('older'))
+	const jumpLoadOlder = frame(() => maybeLoad('older', { force: true }))
+	const jumpLoadNewer = frame(() => maybeLoad('newer', { force: true }))
+
+	const scrollCheck = frame(() => {
 
 		const box = boxRef.current
 
@@ -412,6 +415,11 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		if (box.scrollTop <= TOP_LOAD_THRESHOLD) maybeLoad('older')
 		if (offsetFromBottom <= BOTTOM_LOAD_THRESHOLD) maybeLoad('newer')
 		if (lastUnreadCount > 0) scheduleUnreadVisibilityCheck()
+	})
+
+	const onScroll = () => {
+		if (import.meta.env.SSR) return
+		scrollCheck()
 	}
 
 	const onSend = (event: SubmitEvent) => {
@@ -423,6 +431,8 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 		if (!value || send.loading) return
 
+		const chat = activeChatId
+
 		this.next(() => {
 			text = ''
 			shouldJumpToBottom = true
@@ -431,9 +441,12 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 		void send.invoke({ text: value }).then(result => {
 
+			if (chat !== activeChatId) return
 			if (!result?.message) return
 
 			this.next(() => {
+
+				if (chat !== activeChatId) return
 
 				if (!timeline.some(message => message.id === result.message.id)) {
 					growPageSize(1)
@@ -491,8 +504,12 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 	this.signal.addEventListener('abort', () => {
 		clearUnreadJumpTimeout()
 		clearUnreadVisibilityCheck()
+		scrollCheck.cancel()
+		fillViewportLoadOlder.cancel()
+		jumpLoadOlder.cancel()
+		jumpLoadNewer.cancel()
 		clearUnreadHighlightTimers()
-	})
+	}, { once: true })
 
 	for (args of this) {
 
@@ -509,6 +526,9 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		if (chat !== activeChatId) {
 
 			activeChatId = chat
+			send.reset()
+			load.reset()
+			markAsSeen.reset()
 
 			resetWindowForChat(
 				incoming,
@@ -616,7 +636,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		const liveBox = boxRef.current
 
 		if (!import.meta.env.SSR && liveBox && canLoadOlder && !load.loading && liveBox.scrollHeight <= liveBox.clientHeight + 24) {
-			requestAnimationFrame(() => maybeLoad('older'))
+			fillViewportLoadOlder()
 		}
 
 		if (!import.meta.env.SSR && jumpToUnreadId) {
@@ -657,11 +677,11 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 				}
 			} else if (!load.loading && needsOlder && canLoadOlder) {
 
-				requestAnimationFrame(() => maybeLoad('older', { force: true }))
+				jumpLoadOlder()
 
 			} else if (!load.loading && needsNewer && canLoadNewer) {
 
-				requestAnimationFrame(() => maybeLoad('newer', { force: true }))
+				jumpLoadNewer()
 
 			} else if (!load.loading && needsOlder && !canLoadOlder) {
 
@@ -717,7 +737,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		const expectedPath = data?.chat?.id ? `/account/chats/${data.chat.id}` : null
 		const onActiveChatRoute = typeof location !== 'undefined' && expectedPath !== null && location.pathname === expectedPath
 
-		if (data?.chat?.id && onActiveChatRoute && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+		if (data?.chat?.id && onActiveChatRoute && vis.visible) {
 
 			const current = `${data.chat.id}:${newest ?? 0}:${unreadCount}`
 
