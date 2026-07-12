@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       ajo:
-        specifier: 0.1.33
-        version: 0.1.33
+        specifier: 0.1.35
+        version: 0.1.35
       ajo-auth:
         specifier: workspace:*
         version: link:packages/ajo-auth
@@ -126,8 +126,8 @@ importers:
         specifier: ^7.6.13
         version: 7.6.13
       ajo:
-        specifier: 0.1.33
-        version: 0.1.33
+        specifier: 0.1.35
+        version: 0.1.35
       vite:
         specifier: 8.0.16
         version: 8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)
@@ -724,8 +724,8 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  ajo@0.1.33:
-    resolution: {integrity: sha512-cYqPuwheHdT8nCvqe+cUAZrhtKpr0/9gpK1w4Pbnhp/v1fTe0016T8/ijKMZYY/6ndPgs+az07HFLbrOc2V47A==}
+  ajo@0.1.35:
+    resolution: {integrity: sha512-v6zoXJ8ejitoSNKzb5QPLfBbs4jHzGEihaokuZtLZQs2uP0vQI3hvgzANzQQVNX1SbdoCMrb87oymA6J/c/YzQ==}
 
   argon2@0.44.0:
     resolution: {integrity: sha512-zHPGN3S55sihSQo0dBbK0A5qpi2R31z7HZDZnry3ifOyj8bZZnpZND2gpmhnRGO1V/d555RwBqIK5W4Mrmv3ig==}
@@ -1949,7 +1949,7 @@ snapshots:
 
   acorn@8.17.0: {}
 
-  ajo@0.1.33: {}
+  ajo@0.1.35: {}
 
   argon2@0.44.0:
     dependencies:

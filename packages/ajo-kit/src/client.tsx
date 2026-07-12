@@ -14,6 +14,8 @@ export function action<T = unknown>(name?: string, init?: RequestInit): Action<T
 
 	const component = current()
 
+	if (!component) throw new Error('action() must be called inside a stateful component.')
+
 	let controller: AbortController
 
 	const state: Action<T> = {
