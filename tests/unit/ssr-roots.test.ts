@@ -41,15 +41,15 @@ import {
 	DrawerContent,
 	DrawerTitle,
 	DrawerTrigger,
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuRadioGroup,
-	DropdownMenuRadioItem,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
-	DropdownMenuTrigger,
+	Menu,
+	MenuContent,
+	MenuItem,
+	MenuRadioGroup,
+	MenuRadioItem,
+	MenuSub,
+	MenuSubContent,
+	MenuSubTrigger,
+	MenuTrigger,
 	Field,
 	InputDate,
 	InputGroup,
@@ -193,17 +193,17 @@ const roots: Record<string, () => Children> = {
 			jsx(DrawerContent, { children: jsx(DrawerTitle, { children: 'Title' }) }),
 		],
 	}),
-	'dropdown-menu': () => jsx(DropdownMenu, {
+	menu: () => jsx(Menu, {
 		children: [
-			jsx(DropdownMenuTrigger, { children: 'Open' }),
-			jsx(DropdownMenuContent, {
+			jsx(MenuTrigger, { children: 'Open' }),
+			jsx(MenuContent, {
 				children: [
-					jsx(DropdownMenuItem, { children: 'Item' }),
-					jsx(DropdownMenuSub, {
+					jsx(MenuItem, { children: 'Item' }),
+					jsx(MenuSub, {
 						children: [
-							jsx(DropdownMenuSubTrigger, { children: 'More' }),
-							jsx(DropdownMenuSubContent, {
-								children: jsx(DropdownMenuItem, { children: 'Sub item' }),
+							jsx(MenuSubTrigger, { children: 'More' }),
+							jsx(MenuSubContent, {
+								children: jsx(MenuItem, { children: 'Sub item' }),
 							}),
 						],
 					}),
@@ -211,14 +211,14 @@ const roots: Record<string, () => Children> = {
 			}),
 		],
 	}),
-	'dropdown-menu-radio-group': () => jsx(DropdownMenu, {
+	'menu-radio-group': () => jsx(Menu, {
 		children: [
-			jsx(DropdownMenuTrigger, { children: 'Open' }),
-			jsx(DropdownMenuContent, {
-				children: jsx(DropdownMenuRadioGroup, {
+			jsx(MenuTrigger, { children: 'Open' }),
+			jsx(MenuContent, {
+				children: jsx(MenuRadioGroup, {
 					children: [
-						jsx(DropdownMenuRadioItem, { children: 'One', value: 'one' }),
-						jsx(DropdownMenuRadioItem, { children: 'Two', value: 'two' }),
+						jsx(MenuRadioItem, { children: 'One', value: 'one' }),
+						jsx(MenuRadioItem, { children: 'Two', value: 'two' }),
 					],
 					value: 'one',
 				}),

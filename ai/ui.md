@@ -78,9 +78,20 @@ Specify a host only when the tag carries real semantics, such as `details`,
 Plain DOM args on a Stateful root pass through `statefulRootAttrs` from
 `ajo-cloves`.
 
-Contexts stay module-private unless real cross-family composition or a Playa
-adapter needs their view. `ToggleGroupContext` is public for composition;
-`CheckboxGroupContext` and `RadioGroupContext` remain private.
+Contexts stay module-private unless real cross-family composition, a Playa
+adapter, or a public consumer needs their view. `ToggleGroupContext` is public
+for composition; `CheckboxGroupContext` and `RadioGroupContext` remain private.
+
+Public contexts use a `*Context` name. Playa re-exports the exact base Context
+instance when consumers need the same view; it does not add `use*` wrappers.
+
+Public Context values contain only consumer state and controls. Carousel and
+MessageScroller keep DOM-part registration in separate private Contexts; Chart
+exposes only `ChartIdContext` while its full state stays private.
+
+`DirectionContext` and `ResizableContext` have `ltr` and horizontal fallbacks.
+Provider-bound Carousel, Sidebar, MessageScroller, and Chart identity Contexts
+return `null` outside their owner.
 
 ### Controlled State
 
@@ -276,13 +287,13 @@ without exposing the engines as importable subpaths.
 
 ### Composition Map
 
-- Popover, Tooltip, DropdownMenu, Select, NavigationMenu, and InputDate use the
+- Popover, Tooltip, Menu, Select, NavigationMenu, and InputDate use the
   floating engine.
-- Dropdown submenus use the lower-level floating surface because their parent
+- Menu submenus use the lower-level floating surface because their parent
   owns the open cluster.
 - Menus, Select, and Command use the collection protocol.
 - Menubar and NavigationMenu use the bar engine.
-- ContextMenu and Menubar compose DropdownMenu.
+- ContextMenu and Menubar compose Menu.
 - Drawer and CommandDialog compose Dialog.
 - InputDate composes Calendar.
 - Accordion composes Collapsible.
@@ -408,14 +419,14 @@ non-interactive descriptive surface.
 
 #### Menus And Command
 
-DropdownMenu is the semantic action-menu substrate. It owns normal, checkbox,
-radio, group, label, separator, shortcut, and submenu parts.
+Menu is the semantic action-menu substrate. It owns normal, checkbox, radio,
+group, label, separator, shortcut, and submenu parts.
 
 ContextMenu reuses that substrate and adds a pointer-positioned anchor plus
 focus restoration.
 
-Menubar reuses DropdownMenu content and adds a horizontal controlled trigger
-bar with cross-menu keyboard movement.
+Menubar reuses Menu content and adds a horizontal controlled trigger bar with
+cross-menu keyboard movement.
 
 NavigationMenu remains separate because it contains links and panels, not
 `menuitem` actions. It uses per-item anchored content and has no public shared
@@ -712,7 +723,7 @@ Chart renders native area, bar, line, and pie plots from config, series, and
 data. Its container owns the accessible label and description, tooltip, legend,
 and active coordinate payload.
 
-Chart keeps its context private. `useChartId` is its only public context seam,
+Chart keeps its full context private. `ChartIdContext` is its narrow public seam,
 used by Playa to isolate CSS variables between nested charts. Native SVG roots
 set their namespace.
 
@@ -727,8 +738,8 @@ parts. Initial position is `start`, `end`, or `last-anchor`; item ids and anchor
 drive visibility and imperative targeting.
 
 The provider owns `autoScroll`, prepend preservation, and an imperative API for
-scrolling to either edge or a message. Hooks expose the API, edge scrollability,
-and visible ids with the current reading anchor.
+scrolling to either edge or a message. `MessageScrollerContext` exposes that API,
+including edge scrollability, visible ids, and the current reading anchor.
 
 Playa gives the viewport labelled `region` semantics and the content `log`
 semantics with a polite live region.
@@ -760,6 +771,10 @@ It may add:
 It must not copy a base engine, own reusable interaction state, or import
 `ajo-cloves` directly.
 
+Resizable keeps its layout separator at one CSS pixel while a centered 24px
+pseudo-element owns pointer hit testing. Browser stories verify both sides of
+the invisible target in horizontal and vertical groups.
+
 ### Adapter Types
 
 Use a direct alias when the theme adds nothing.
@@ -789,8 +804,11 @@ callback such as `dayClassName` when classes depend on live state.
 Public recipes use the `xxxVariants` suffix. Tokens shared only by themed
 siblings remain direct imports and stay out of `src/ui/index.ts`.
 
-`src/ui/menu.tsx` and `src/ui/modal.tsx` are internal token seams.
-`src/ui/input-group.tsx` is a public themed family that also shares tokens with
+`src/ui/modal.tsx` is an internal token seam. `src/ui/menu.tsx` is a public
+themed family and owns the shared menu tokens consumed by ContextMenu and
+Menubar.
+
+`src/ui/input-group.tsx` is also a public themed family that shares tokens with
 related adapters; it is not merely an internal token module.
 
 ## Executable Stories Harness

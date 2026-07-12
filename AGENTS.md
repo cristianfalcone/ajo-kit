@@ -157,6 +157,8 @@ Load `node_modules/ajo/LLMs.md` before writing TSX. Key rules:
 - Use `for (const { prop } of this)` when render needs fresh args each cycle.
 - Use `while (true)` when render does not need fresh args.
 - Keep stateless components pure and direct; everything goes through `args`.
+- Expose shared Ajo state as `XContext` and read it with `XContext()`; do not add
+  React-shaped `useX` context accessors.
 
 ## Auth and Security
 

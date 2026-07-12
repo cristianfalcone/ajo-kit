@@ -5,7 +5,7 @@ import type {
 	CheckboxGroupItemArgs,
 	CommandInputArgs,
 	DialogContentArgs,
-	DropdownMenuSubContentArgs,
+	MenuSubContentArgs,
 	InputDateCalendarArgs,
 	InputOTPArgs,
 	SliderArgs,
@@ -49,8 +49,8 @@ export const fixedCheckboxGroupItem: CheckboxGroupItemArgs = { checked: true, va
 export const fixedCommandInput: CommandInputArgs = { onchange: true }
 // @ts-expect-error Dialog owns the native dialog open state.
 export const fixedDialogContent: DialogContentArgs = { open: true }
-// @ts-expect-error DropdownMenu owns submenu alignment.
-export const fixedDropdownSubContent: DropdownMenuSubContentArgs = { align: 'start' }
+// @ts-expect-error Menu owns submenu alignment.
+export const fixedMenuSubContent: MenuSubContentArgs = { align: 'start' }
 // @ts-expect-error InputOTP replaces native onChange with onValueChange.
 export const fixedInputOTP: InputOTPArgs = { onChange: true }
 // @ts-expect-error InputDateCalendar receives availability policy from its owning field root.

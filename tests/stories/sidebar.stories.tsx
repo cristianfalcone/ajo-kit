@@ -34,13 +34,13 @@ import {
 	CollapsibleTrigger,
 } from '/src/ui/collapsible'
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from '/src/ui/dropdown-menu'
+	Menu,
+	MenuContent,
+	MenuItem,
+	MenuLabel,
+	MenuSeparator,
+	MenuTrigger,
+} from '/src/ui/menu'
 
 // Stories must render deterministically at any harness viewport: desktop
 // demos pin a never-matching mobileQuery, the Mobile story pins an
@@ -65,7 +65,7 @@ type DemoArgs = {
 
 // Fully interactive demo: search filters the menu, the group action adds a
 // project, items set the active state, Settings is a working Collapsible,
-// the item action and the footer user menu are working dropdowns.
+// the item action and the footer user menu are interactive.
 const DemoSidebar: Stateful<DemoArgs> = function* () {
 	let projects = [...initialProjects]
 	let active = '/account/chats'
@@ -116,28 +116,28 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 											<span>{project.label}</span>
 										</SidebarMenuButton>
 										{project.badge ? <SidebarMenuBadge>{project.badge}</SidebarMenuBadge> : null}
-										{/* !contents: the dropdown root box (relative inline-block)
+										{/* !contents: the menu root box (relative inline-block)
 										    must not become the action's positioned ancestor nor add
 										    a line box to the item; the content anchors fixed. */}
-										<DropdownMenu class="!contents">
-											<DropdownMenuTrigger
+										<Menu class="!contents">
+											<MenuTrigger
 												class={sidebarMenuActionVariants({ showOnHover: true })}
 												data-sidebar="menu-action"
 												aria-label={`More for ${project.label}`}
 											>
 												<span class="i-lucide-more-vertical" />
-											</DropdownMenuTrigger>
-											<DropdownMenuContent side="right" align="start">
-												<DropdownMenuItem>
+											</MenuTrigger>
+											<MenuContent side="right" align="start">
+												<MenuItem>
 													<span class="i-lucide-pencil" />
 													Rename
-												</DropdownMenuItem>
-												<DropdownMenuItem variant="danger">
+												</MenuItem>
+												<MenuItem variant="danger">
 													<span class="i-lucide-trash-2" />
 													Delete
-												</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
+												</MenuItem>
+											</MenuContent>
+										</Menu>
 									</SidebarMenuItem>
 								))}
 								<SidebarMenuItem>
@@ -186,30 +186,30 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 				<SidebarFooter>
 					<SidebarMenu>
 						<SidebarMenuItem>
-							<DropdownMenu class="!contents">
-								<DropdownMenuTrigger class={sidebarMenuButtonVariants({ size: 'lg' })} data-sidebar="menu-button" data-size="lg">
+							<Menu class="!contents">
+								<MenuTrigger class={sidebarMenuButtonVariants({ size: 'lg' })} data-sidebar="menu-button" data-size="lg">
 									<span class="i-lucide-circle-user" />
 									<span>cristian@example.com</span>
 									<span class="i-lucide-chevrons-up-down ml-auto" />
-								</DropdownMenuTrigger>
-								<DropdownMenuContent side="top" align="start">
-									<DropdownMenuLabel>cristian@example.com</DropdownMenuLabel>
-									<DropdownMenuSeparator />
-									<DropdownMenuItem>
+								</MenuTrigger>
+								<MenuContent side="top" align="start">
+									<MenuLabel>cristian@example.com</MenuLabel>
+									<MenuSeparator />
+									<MenuItem>
 										<span class="i-lucide-user" />
 										Profile
-									</DropdownMenuItem>
-									<DropdownMenuItem>
+									</MenuItem>
+									<MenuItem>
 										<span class="i-lucide-settings" />
 										Settings
-									</DropdownMenuItem>
-									<DropdownMenuSeparator />
-									<DropdownMenuItem variant="danger">
+									</MenuItem>
+									<MenuSeparator />
+									<MenuItem variant="danger">
 										<span class="i-lucide-log-out" />
 										Sign out
-									</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
+									</MenuItem>
+								</MenuContent>
+							</Menu>
 						</SidebarMenuItem>
 					</SidebarMenu>
 				</SidebarFooter>
@@ -345,28 +345,28 @@ export const Default: Story<typeof Sidebar> = {
 		await frame()
 		if (!sub.checkVisibility()) throw new Error('Settings collapsible did not reopen its submenu')
 
-		// The item action opens a working dropdown.
+		// The item action opens its menu.
 		const more = canvas.querySelector<HTMLButtonElement>('[data-sidebar="menu-action"]')
 		if (!more) throw new Error('Sidebar menu action was not rendered')
 		more.click()
 		await frame()
-		const menu = document.querySelector<HTMLElement>('[data-slot="dropdown-menu-content"]:popover-open')
-		if (!menu || !menu.textContent?.includes('Rename')) throw new Error('Menu action did not open its dropdown')
+		const menu = document.querySelector<HTMLElement>('[data-slot="menu-content"]:popover-open')
+		if (!menu || !menu.textContent?.includes('Rename')) throw new Error('Menu action did not open')
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
 		await frame()
-		if (menu.matches(':popover-open')) throw new Error('Escape did not close the action dropdown')
+		if (menu.matches(':popover-open')) throw new Error('Escape did not close the action menu')
 
-		// The footer user menu opens a working dropdown.
+		// The footer user menu opens.
 		const user = Array.from(canvas.querySelectorAll<HTMLElement>('[data-sidebar="menu-button"]'))
 			.find(node => node.textContent?.includes('cristian@example.com'))
 		if (!user) throw new Error('Sidebar user menu button was not rendered')
 		user.click()
 		await frame()
-		const userMenu = document.querySelector<HTMLElement>('[data-slot="dropdown-menu-content"]:popover-open')
-		if (!userMenu || !userMenu.textContent?.includes('Sign out')) throw new Error('User menu did not open its dropdown')
+		const userMenu = document.querySelector<HTMLElement>('[data-slot="menu-content"]:popover-open')
+		if (!userMenu || !userMenu.textContent?.includes('Sign out')) throw new Error('User menu did not open')
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
 		await frame()
-		if (userMenu.matches(':popover-open')) throw new Error('Escape did not close the user dropdown')
+		if (userMenu.matches(':popover-open')) throw new Error('Escape did not close the user menu')
 
 		// Trigger and shortcut still toggle the sidebar.
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="sidebar-trigger"]')
@@ -625,11 +625,11 @@ export const Mobile: Story<typeof Sidebar> = {
 		if (!user) throw new Error('Drawer user menu button was not rendered')
 		user.click()
 		await frame()
-		const userMenu = document.querySelector<HTMLElement>('[data-slot="dropdown-menu-content"]:popover-open')
-		if (!userMenu || !userMenu.textContent?.includes('Sign out')) throw new Error('Drawer user menu did not open its dropdown')
+		const userMenu = document.querySelector<HTMLElement>('[data-slot="menu-content"]:popover-open')
+		if (!userMenu || !userMenu.textContent?.includes('Sign out')) throw new Error('Drawer user menu did not open')
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
 		await frame()
-		if (userMenu.matches(':popover-open')) throw new Error('Escape did not close the drawer user dropdown')
+		if (userMenu.matches(':popover-open')) throw new Error('Escape did not close the drawer user menu')
 
 		// The platform maps Escape to a cancelable `cancel` event on modal dialogs;
 		// synthetic keydowns cannot trigger it, so dispatch the event itself.

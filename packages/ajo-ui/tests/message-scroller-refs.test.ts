@@ -20,6 +20,27 @@ const waitFrames = async (count = 1) => {
 	}
 }
 
+test('setApi exposes only the public message-scroller controller', () => {
+	let api: MessageScrollerApi | undefined
+
+	render(jsx(MessageScrollerProvider, {
+		children: null,
+		setApi: (next: MessageScrollerApi) => api = next,
+	}), document.body)
+
+	expect(api).toBeDefined()
+	expect(Object.keys(api!)).toEqual([
+		'scrollToEnd',
+		'scrollToMessage',
+		'scrollToStart',
+		'scrollable',
+		'visibility',
+	])
+	for (const registrar of ['setButton', 'setContent', 'setItem', 'setRoot', 'setViewport']) {
+		expect(api).not.toHaveProperty(registrar)
+	}
+})
+
 const RetargetingScroller: Stateful<{ setApi: (api: MessageScrollerApi) => void }> = function* ({ setApi }) {
 	let swapped = false
 	const swap = () => this.next(() => swapped = true)

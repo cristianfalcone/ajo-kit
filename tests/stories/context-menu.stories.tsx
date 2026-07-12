@@ -407,10 +407,8 @@ export const LongList: Story = {
 		const content = canvas.querySelector<HTMLElement>('[data-slot="context-menu-content"]')
 		if (!content || !content.matches(':popover-open')) throw new Error('Long-list context menu did not open')
 
-		// Regression for the dead-var cap: the forked content token referenced
-		// --dropdown-menu-content-max-height (defined nowhere), invalid at
-		// computed-value time, so long menus rendered uncapped. The shared token
-		// restores dropdown's real cap: max(96px,min(320px,--available-height)).
+		// The shared content token uses the available placement height while
+		// keeping long floating menus within compact viewport bounds.
 		const computed = getComputedStyle(content).maxHeight
 		const maxHeight = Number.parseFloat(computed)
 		if (!Number.isFinite(maxHeight) || maxHeight > 324) {

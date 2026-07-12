@@ -1,7 +1,7 @@
 import type { Children, IntrinsicElements, Stateful, Stateless } from 'ajo'
 import { controlled, dom, grid, remember, statefulRootAttrs as rootAttrs, type GridMove } from 'ajo-cloves'
 import { calendarDate, compile, type Availability, type AvailabilityMatcher, type CalendarMatcher } from './availability'
-import { useDirection } from './direction'
+import { DirectionContext } from './direction'
 import type { FixedArgs, OmitArg } from './utils'
 
 export type { AvailabilityMatcher, CalendarMatcher, TimeWindow } from './availability'
@@ -1337,7 +1337,7 @@ const Calendar: Stateless<CalendarArgs> = ({
 		selected,
 		...rest
 	} = attrs as CalendarArgs & Record<string, unknown>
-	const resolvedDir = (dir as 'ltr' | 'rtl' | undefined) ?? useDirection()
+	const resolvedDir = (dir as 'ltr' | 'rtl' | undefined) ?? DirectionContext()
 	const rootArgs = {
 		allowNonContiguous,
 		captionLabelClass,

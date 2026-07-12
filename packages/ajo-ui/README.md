@@ -49,7 +49,7 @@ Its main implementation seams are:
 - **The popup engine** (`floating.ts`, internal) is the single implementation
   of anchored popups: controlled open state, generated ids, `anchor`
   positioning, native Popover show/hide with `toggle` echo, optional hover
-  intent, and dismissal. Popover, Tooltip, DropdownMenu (root and submenus),
+  intent, and dismissal. Popover, Tooltip, Menu (root and submenus),
   Select, and NavigationMenu all run on it; per-family code is only
   role/ARIA wiring and behavior policy. `popupStyle()` applies the UA popover
   stylesheet reset exactly once.
@@ -66,8 +66,8 @@ Its main implementation seams are:
 - **The bar machine** (`bar.ts`, internal) owns the open-value + roving +
   typeahead + follow policy under Menubar and NavigationMenu; Toolbar (APG
   toolbar) covers arbitrary controls in a bar with the same single-tab-stop
-  discipline. Dropdown-menu exports its substrate contract (MenuContext, the
-  menu collection, focusEdge, DropdownMenuAnchor) for composing families —
+  discipline. Menu exports its substrate contract (MenuContext, the
+  menu collection, focusEdge, MenuAnchor) for composing families —
   ContextMenu anchors at the pointer through it. The `anchor` clove also
   positions optional arrow parts (PopoverArrow, TooltipArrow). The toast
   viewport rides the raw `popover="manual"` primitive (top-layer stacking
@@ -92,7 +92,7 @@ Its main implementation seams are:
   month/year cell drills down or commits a whole period. Month/year range
   values remain day-granular and inclusive at the public Date boundary.
 - **Composition over reimplementation**: ContextMenu and Menubar are built on
-  DropdownMenu; Drawer and CommandDialog on Dialog; the InputDate family's
+  Menu; Drawer and CommandDialog on Dialog; the InputDate family's
   optional picker on Calendar; Accordion on Collapsible; ToggleGroup on
   Toggle; CheckboxGroup on Checkbox; SelectInput on InputGroup; DataTable's
   built-in parts on Checkbox. `withSlot` from `ajo-ui/utils` stamps the fixed
@@ -127,8 +127,12 @@ Its main implementation seams are:
   (Calendar day buttons), and `expanded/collapsed` (desktop Sidebar).
 - Every user-visible or assistive-technology string has an English default and
   an override arg (`closeLabel`, `resultsLabel`, `labels`, ...).
-- Contexts stay module-private unless another family or the themed layer
-  composes them (`CollapsibleContext` and `ToggleGroupContext` are precedents).
+- Contexts stay module-private unless another family, the themed layer, or a
+  real public consumer needs their view.
+  Public context views use the direct `XContext()` interface; do not wrap them
+  in React-shaped `useX` accessors. When public consumers need less state than
+  structural parts, the Stateful owner writes separate public and private
+  contexts instead of leaking internal registrars.
   Mutable context ownership and writes belong to Stateful roots. Stateless
   parts may read the live view or invoke a callback exposed by the owner, but
   never set an Ajo Context.

@@ -3,13 +3,13 @@ import { defaults, render, type Stateless } from 'ajo'
 import { defaults as htmlDefaults, render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, expect, test } from 'vitest'
-import { DirectionProvider, useDirection } from '../src/direction'
+import { DirectionContext, DirectionProvider } from '../src/direction'
 
 const defaultDomTag = defaults.tag
 const defaultHtmlTag = htmlDefaults.tag
 
 const DirectionReadout: Stateless = () => jsx('output', {
-	'data-direction': useDirection(),
+	'data-direction': DirectionContext(),
 })
 
 afterEach(() => {

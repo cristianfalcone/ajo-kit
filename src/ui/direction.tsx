@@ -1,9 +1,9 @@
 import type { Stateless } from 'ajo'
 import clsx from 'clsx'
 import {
+	DirectionContext,
 	DirectionProvider as BaseDirectionProvider,
 	type DirectionProviderArgs as BaseDirectionProviderArgs,
-	useDirection as baseUseDirection,
 } from 'ajo-ui/direction'
 export type { Direction } from 'ajo-ui/direction'
 
@@ -26,4 +26,4 @@ const DirectionProvider: Stateless<DirectionProviderArgs> = ({
 	</BaseDirectionProvider>
 )
 
-export { DirectionProvider, baseUseDirection as useDirection }
+export { DirectionContext, DirectionProvider }

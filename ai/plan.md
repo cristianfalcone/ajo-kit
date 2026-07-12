@@ -81,6 +81,8 @@ explicit scope. Prefer the correct local `ajo-kit` package for kit-local logic.
   writes.
 - Stateless wrappers and parts may read Context and invoke owner callbacks.
 - Stateless components must not set an ancestor Context.
+- Expose a public Context directly as `XContext`; do not wrap Context reads in
+  React-shaped `useX` accessors.
 - Use `Stateful<Args>` for Ajo's default host; do not repeat `.is = 'div'`.
 - Declare another host only when its native semantics matter.
 - Pass root DOM args through `statefulRootAttrs` where the contract requires it.

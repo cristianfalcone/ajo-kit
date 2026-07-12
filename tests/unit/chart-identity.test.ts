@@ -6,7 +6,7 @@ import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, expect, test } from 'vitest'
 import {
 	ChartContainer as BaseChartContainer,
-	useChartId,
+	ChartIdContext,
 } from '../../packages/ajo-ui/src/chart'
 import { ChartBar, ChartContainer } from '../../src/ui/chart'
 
@@ -20,9 +20,12 @@ const config = {
 	},
 }
 
-const IdentityProbe: Stateless = () => jsx('output', {
-	'data-chart-context': useChartId(),
-})
+const IdentityProbe: Stateless = () => {
+	const id = ChartIdContext()
+	if (!id) return null
+
+	return jsx('output', { 'data-chart-context': id })
+}
 
 const RerenderingChart: Stateful = function* () {
 	let revision = 0

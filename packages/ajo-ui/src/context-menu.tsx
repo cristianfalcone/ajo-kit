@@ -2,67 +2,67 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, controlled, listen, restore, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import {
-	DropdownMenu,
-	DropdownMenuAnchor,
-	DropdownMenuCheckboxItem,
-	DropdownMenuContent,
-	DropdownMenuGroup,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuRadioGroup,
-	DropdownMenuRadioItem,
-	DropdownMenuSeparator,
-	DropdownMenuShortcut,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
+	Menu,
+	MenuAnchor,
+	MenuCheckboxItem,
+	MenuContent,
+	MenuGroup,
+	MenuItem,
+	MenuLabel,
+	MenuRadioGroup,
+	MenuRadioItem,
+	MenuSeparator,
+	MenuShortcut,
+	MenuSub,
+	MenuSubContent,
+	MenuSubTrigger,
 	MenuContext,
 	SURFACE_SELECTOR,
 	focusEdge,
-} from './dropdown-menu'
+} from './menu'
 import type {
-	DropdownMenuCheckboxItemArgs,
-	DropdownMenuContentArgs,
-	DropdownMenuGroupArgs,
-	DropdownMenuItemArgs,
-	DropdownMenuLabelArgs,
-	DropdownMenuArgs,
-	DropdownMenuRadioGroupArgs,
-	DropdownMenuRadioItemArgs,
-	DropdownMenuSeparatorArgs,
-	DropdownMenuShortcutArgs,
-	DropdownMenuSubContentArgs,
-	DropdownMenuSubArgs,
-	DropdownMenuSubTriggerArgs,
-} from './dropdown-menu'
+	MenuCheckboxItemArgs,
+	MenuContentArgs,
+	MenuGroupArgs,
+	MenuItemArgs,
+	MenuLabelArgs,
+	MenuArgs,
+	MenuRadioGroupArgs,
+	MenuRadioItemArgs,
+	MenuSeparatorArgs,
+	MenuShortcutArgs,
+	MenuSubContentArgs,
+	MenuSubArgs,
+	MenuSubTriggerArgs,
+} from './menu'
 import { withSlot } from './utils'
 
 /** Arguments for the pointer-anchored ContextMenu root. */
-export type ContextMenuArgs = DropdownMenuArgs
+export type ContextMenuArgs = MenuArgs
 /** Arguments for the floating ContextMenu surface. */
-export type ContextMenuContentArgs = DropdownMenuContentArgs
+export type ContextMenuContentArgs = MenuContentArgs
 /** Arguments for an actionable ContextMenu item. */
-export type ContextMenuItemArgs = DropdownMenuItemArgs
+export type ContextMenuItemArgs = MenuItemArgs
 /** Arguments for a checked ContextMenu item. */
-export type ContextMenuCheckboxItemArgs = DropdownMenuCheckboxItemArgs
+export type ContextMenuCheckboxItemArgs = MenuCheckboxItemArgs
 /** Arguments for a single-value ContextMenu radio group. */
-export type ContextMenuRadioGroupArgs = DropdownMenuRadioGroupArgs
+export type ContextMenuRadioGroupArgs = MenuRadioGroupArgs
 /** Arguments for one ContextMenu radio option. */
-export type ContextMenuRadioItemArgs = DropdownMenuRadioItemArgs
+export type ContextMenuRadioItemArgs = MenuRadioItemArgs
 /** Arguments for a non-interactive ContextMenu label. */
-export type ContextMenuLabelArgs = DropdownMenuLabelArgs
+export type ContextMenuLabelArgs = MenuLabelArgs
 /** Arguments for a semantic ContextMenu item group. */
-export type ContextMenuGroupArgs = DropdownMenuGroupArgs
+export type ContextMenuGroupArgs = MenuGroupArgs
 /** Arguments for a ContextMenu separator. */
-export type ContextMenuSeparatorArgs = DropdownMenuSeparatorArgs
+export type ContextMenuSeparatorArgs = MenuSeparatorArgs
 /** Arguments for shortcut text displayed in a ContextMenu. */
-export type ContextMenuShortcutArgs = DropdownMenuShortcutArgs
+export type ContextMenuShortcutArgs = MenuShortcutArgs
 /** Arguments for a nested ContextMenu root. */
-export type ContextMenuSubArgs = DropdownMenuSubArgs
+export type ContextMenuSubArgs = MenuSubArgs
 /** Arguments for the item that opens a nested ContextMenu. */
-export type ContextMenuSubTriggerArgs = DropdownMenuSubTriggerArgs
+export type ContextMenuSubTriggerArgs = MenuSubTriggerArgs
 /** Arguments for a nested ContextMenu surface. */
-export type ContextMenuSubContentArgs = DropdownMenuSubContentArgs
+export type ContextMenuSubContentArgs = MenuSubContentArgs
 
 /** Arguments for the region that invokes a ContextMenu. */
 export type ContextMenuTriggerArgs = WithChildren<IntrinsicElements['div'] & {
@@ -131,17 +131,17 @@ const ContextMenuRoot: Stateful<ContextMenuArgs> = function* ({ defaultOpen, ope
 		ContextMenuContext({ disabled, open: openState.value, openAt, setContent })
 
 		yield (
-			<DropdownMenu
+			<Menu
 				disabled={disabled}
 				onOpenChange={setOpen}
 				open={openState.value}
 			>
-				<DropdownMenuAnchor
+				<MenuAnchor
 					data-slot="context-menu-anchor"
 					style={`position:fixed;left:${point.x}px;top:${point.y}px;width:0;height:0`}
 				/>
 				{args.children}
-			</DropdownMenu>
+			</Menu>
 		)
 	}
 }
@@ -181,9 +181,9 @@ const ContextMenuTrigger: Stateless<ContextMenuTriggerArgs> = ({
 	'set:onkeydown': onKeydown,
 	...attrs
 }) => {
-	const menu = ContextMenuContext()
-	const dropdown = MenuContext()
-	const disabledFlag = Boolean(disabled ?? menu?.disabled)
+	const contextMenu = ContextMenuContext()
+	const menu = MenuContext()
+	const disabledFlag = Boolean(disabled ?? contextMenu?.disabled)
 	const reference = (element: HTMLDivElement | null) => {
 		callRef(ref, element)
 	}
@@ -191,21 +191,21 @@ const ContextMenuTrigger: Stateless<ContextMenuTriggerArgs> = ({
 	return (
 		<div
 			{...attrs}
-			aria-controls={dropdown?.contentId}
+			aria-controls={menu?.contentId}
 			aria-disabled={disabledFlag ? 'true' : undefined}
-			aria-expanded={menu?.open ? 'true' : 'false'}
+			aria-expanded={contextMenu?.open ? 'true' : 'false'}
 			aria-haspopup="menu"
 			class={classes}
 			data-disabled={disabledFlag ? 'true' : undefined}
 			data-slot="context-menu-trigger"
-			data-state={menu?.open ? 'open' : 'closed'}
+			data-state={contextMenu?.open ? 'open' : 'closed'}
 			ref={reference}
 			set:oncontextmenu={(event: MouseEvent) => {
 				const element = event.currentTarget as HTMLElement | null
 				callHandler(onContextMenu, event)
 				if (event.defaultPrevented || disabledFlag) return
 				event.preventDefault()
-				menu?.openAt(event.clientX, event.clientY, event, element)
+				contextMenu?.openAt(event.clientX, event.clientY, event, element)
 			}}
 			set:onkeydown={(event: KeyboardEvent) => {
 				const element = event.currentTarget as HTMLElement | null
@@ -214,7 +214,7 @@ const ContextMenuTrigger: Stateless<ContextMenuTriggerArgs> = ({
 				if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return
 				event.preventDefault()
 				const rect = element?.getBoundingClientRect()
-				menu?.openAt(rect?.left ?? 0, rect?.bottom ?? 0, event, element, 'first')
+				contextMenu?.openAt(rect?.left ?? 0, rect?.bottom ?? 0, event, element, 'first')
 			}}
 			tabindex={disabledFlag ? undefined : tabindex ?? 0}
 		>
@@ -228,7 +228,7 @@ const ContextMenuContent: Stateless<ContextMenuContentArgs> = ({ ref, ...attrs }
 	const menu = ContextMenuContext()
 
 	return (
-		<DropdownMenuContent
+		<MenuContent
 			align="start"
 			side="bottom"
 			sideOffset={2}
@@ -243,37 +243,37 @@ const ContextMenuContent: Stateless<ContextMenuContentArgs> = ({ ref, ...attrs }
 }
 
 /** Standard context menu action item. */
-const ContextMenuItem: Stateless<ContextMenuItemArgs> = withSlot<ContextMenuItemArgs>(DropdownMenuItem, 'context-menu-item')
+const ContextMenuItem: Stateless<ContextMenuItemArgs> = withSlot<ContextMenuItemArgs>(MenuItem, 'context-menu-item')
 
 /** Checkable context menu item. */
-const ContextMenuCheckboxItem: Stateless<ContextMenuCheckboxItemArgs> = withSlot<ContextMenuCheckboxItemArgs>(DropdownMenuCheckboxItem, 'context-menu-checkbox-item')
+const ContextMenuCheckboxItem: Stateless<ContextMenuCheckboxItemArgs> = withSlot<ContextMenuCheckboxItemArgs>(MenuCheckboxItem, 'context-menu-checkbox-item')
 
 /** Radio group inside a context menu. */
-const ContextMenuRadioGroup: Stateless<ContextMenuRadioGroupArgs> = withSlot<ContextMenuRadioGroupArgs>(DropdownMenuRadioGroup, 'context-menu-radio-group')
+const ContextMenuRadioGroup: Stateless<ContextMenuRadioGroupArgs> = withSlot<ContextMenuRadioGroupArgs>(MenuRadioGroup, 'context-menu-radio-group')
 
 /** Radio item inside a context menu radio group. */
-const ContextMenuRadioItem: Stateless<ContextMenuRadioItemArgs> = withSlot<ContextMenuRadioItemArgs>(DropdownMenuRadioItem, 'context-menu-radio-item')
+const ContextMenuRadioItem: Stateless<ContextMenuRadioItemArgs> = withSlot<ContextMenuRadioItemArgs>(MenuRadioItem, 'context-menu-radio-item')
 
 /** Group of context menu items. */
-const ContextMenuGroup: Stateless<ContextMenuGroupArgs> = withSlot<ContextMenuGroupArgs>(DropdownMenuGroup, 'context-menu-group')
+const ContextMenuGroup: Stateless<ContextMenuGroupArgs> = withSlot<ContextMenuGroupArgs>(MenuGroup, 'context-menu-group')
 
 /** Non-interactive label inside a context menu. */
-const ContextMenuLabel: Stateless<ContextMenuLabelArgs> = withSlot<ContextMenuLabelArgs>(DropdownMenuLabel, 'context-menu-label')
+const ContextMenuLabel: Stateless<ContextMenuLabelArgs> = withSlot<ContextMenuLabelArgs>(MenuLabel, 'context-menu-label')
 
 /** Visual separator between context menu groups. */
-const ContextMenuSeparator: Stateless<ContextMenuSeparatorArgs> = withSlot<ContextMenuSeparatorArgs>(DropdownMenuSeparator, 'context-menu-separator')
+const ContextMenuSeparator: Stateless<ContextMenuSeparatorArgs> = withSlot<ContextMenuSeparatorArgs>(MenuSeparator, 'context-menu-separator')
 
 /** Right-aligned shortcut hint inside a context menu item. */
-const ContextMenuShortcut: Stateless<ContextMenuShortcutArgs> = withSlot<ContextMenuShortcutArgs>(DropdownMenuShortcut, 'context-menu-shortcut')
+const ContextMenuShortcut: Stateless<ContextMenuShortcutArgs> = withSlot<ContextMenuShortcutArgs>(MenuShortcut, 'context-menu-shortcut')
 
 /** Root provider for a context submenu. */
-const ContextMenuSub: Stateless<ContextMenuSubArgs> = withSlot<ContextMenuSubArgs>(DropdownMenuSub, 'context-menu-sub')
+const ContextMenuSub: Stateless<ContextMenuSubArgs> = withSlot<ContextMenuSubArgs>(MenuSub, 'context-menu-sub')
 
 /** Trigger item that opens a context submenu. */
-const ContextMenuSubTrigger: Stateless<ContextMenuSubTriggerArgs> = withSlot<ContextMenuSubTriggerArgs>(DropdownMenuSubTrigger, 'context-menu-sub-trigger')
+const ContextMenuSubTrigger: Stateless<ContextMenuSubTriggerArgs> = withSlot<ContextMenuSubTriggerArgs>(MenuSubTrigger, 'context-menu-sub-trigger')
 
 /** Content for a context submenu. */
-const ContextMenuSubContent: Stateless<ContextMenuSubContentArgs> = withSlot<ContextMenuSubContentArgs>(DropdownMenuSubContent, 'context-menu-sub-content')
+const ContextMenuSubContent: Stateless<ContextMenuSubContentArgs> = withSlot<ContextMenuSubContentArgs>(MenuSubContent, 'context-menu-sub-content')
 
 export {
 	ContextMenu,

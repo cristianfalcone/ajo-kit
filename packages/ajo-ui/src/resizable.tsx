@@ -30,7 +30,8 @@ export type ResizableHandleArgs = WithChildren<IntrinsicElements['div'] & {
 	disabled?: boolean
 }>
 
-type ResizableContextValue = {
+/** Layout direction inherited by Resizable parts. */
+export type ResizableContextValue = {
 	orientation: ResizableOrientation
 }
 
@@ -47,7 +48,8 @@ type ResizeSession = {
 	total: number
 }
 
-const ResizableContext = context<ResizableContextValue>({ orientation: 'horizontal' })
+/** Layout direction shared by a ResizablePanelGroup with its parts. */
+export const ResizableContext = context<ResizableContextValue>({ orientation: 'horizontal' })
 
 const percent = (size: ResizableSize | undefined, fallback: number) => {
 	if (typeof size === 'number' && Number.isFinite(size)) return size
@@ -230,10 +232,6 @@ const ResizablePanelGroupRoot: Stateful<ResizablePanelGroupArgs> = function* () 
 	}
 }
 
-
-/** Return the current unstyled resizable context. */
-const useResizable = () => ResizableContext()
-
 /** Unstyled resizable panel group for split layouts. */
 const ResizablePanelGroup: Stateless<ResizablePanelGroupArgs> = ({
 	children,
@@ -309,5 +307,4 @@ export {
 	ResizableHandle,
 	ResizablePanel,
 	ResizablePanelGroup,
-	useResizable,
 }

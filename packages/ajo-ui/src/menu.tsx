@@ -7,14 +7,14 @@ import { contentAttrs, datasetPlacement, floating, popupStyle, surface, triggerA
 import { collection } from './collection'
 
 /** Alignment of menu content along its anchor edge. */
-export type DropdownMenuAlign = 'center' | 'end' | 'start'
+export type MenuAlign = 'center' | 'end' | 'start'
 /** Preferred side on which menu content opens. */
-export type DropdownMenuSide = 'bottom' | 'left' | 'right' | 'top'
+export type MenuSide = 'bottom' | 'left' | 'right' | 'top'
 /** Semantic tone applied to an actionable menu item. */
-export type DropdownMenuVariant = 'default' | 'danger'
+export type MenuVariant = 'default' | 'danger'
 
-/** Arguments for the DropdownMenu open-state provider. */
-export type DropdownMenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
+/** Arguments for the Menu open-state provider. */
+export type MenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
 	/** Controlled open state. */
 	open?: boolean
 	/** Initial open state for uncontrolled usage. */
@@ -27,34 +27,34 @@ export type DropdownMenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'o
 	class?: string
 }> & FixedArgs<'onchange'>
 
-/** Arguments for the button that toggles a DropdownMenu. */
-export type DropdownMenuTriggerArgs = WithChildren<IntrinsicElements['button'] & {
+/** Arguments for the button that toggles a Menu. */
+export type MenuTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
-/** Arguments for an explicit positioning anchor inside a DropdownMenu. */
-export type DropdownMenuAnchorArgs = WithChildren<IntrinsicElements['div'] & {
+/** Arguments for an explicit positioning anchor inside a Menu. */
+export type MenuAnchorArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
 /** Arguments for positioned menu content and its preferred placement. */
-export type DropdownMenuContentArgs = WithChildren<IntrinsicElements['div'] & {
+export type MenuContentArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Horizontal alignment relative to the trigger. */
-	align?: DropdownMenuAlign
+	align?: MenuAlign
 	/** Pixel shift along the alignment axis. */
 	alignOffset?: number
 	/** Preferred side relative to the trigger. */
-	side?: DropdownMenuSide
+	side?: MenuSide
 	/** Gap between trigger and content in pixels. */
 	sideOffset?: number
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
-/** Arguments for an actionable item in a DropdownMenu. */
-export type DropdownMenuItemArgs = WithChildren<IntrinsicElements['div'] & {
+/** Arguments for an actionable item in a Menu. */
+export type MenuItemArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Left-indent text for iconless groups. */
 	inset?: boolean
 	/** Disable activation. */
@@ -64,13 +64,13 @@ export type DropdownMenuItemArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Plain-text label used for typeahead. */
 	textValue?: string
 	/** Visual tone. */
-	variant?: DropdownMenuVariant
+	variant?: MenuVariant
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
-/** Arguments for a checkable item in a DropdownMenu. */
-export type DropdownMenuCheckboxItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'checked'> & {
+/** Arguments for a checkable item in a Menu. */
+export type MenuCheckboxItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'checked'> & {
 	/** Controlled checked state. */
 	checked?: boolean
 	/** Disable activation. */
@@ -86,7 +86,7 @@ export type DropdownMenuCheckboxItemArgs = WithChildren<OmitArg<IntrinsicElement
 }>
 
 /** Arguments for a single-selection group of menu radio items. */
-export type DropdownMenuRadioGroupArgs = WithChildren<IntrinsicElements['div'] & {
+export type MenuRadioGroupArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Controlled selected value. */
 	value?: string
 	/** Initial selected value for uncontrolled usage. */
@@ -98,7 +98,7 @@ export type DropdownMenuRadioGroupArgs = WithChildren<IntrinsicElements['div'] &
 }>
 
 /** Arguments for one value-bearing item in a menu radio group. */
-export type DropdownMenuRadioItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'value'> & {
+export type MenuRadioItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'value'> & {
 	/** Item value used by the parent radio group. */
 	value: string
 	/** Disable activation. */
@@ -112,7 +112,7 @@ export type DropdownMenuRadioItemArgs = WithChildren<OmitArg<IntrinsicElements['
 }>
 
 /** Arguments for a non-interactive label inside menu content. */
-export type DropdownMenuLabelArgs = WithChildren<IntrinsicElements['div'] & {
+export type MenuLabelArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Left-indent text for iconless groups. */
 	inset?: boolean
 	/** Additional UnoCSS classes. */
@@ -120,25 +120,25 @@ export type DropdownMenuLabelArgs = WithChildren<IntrinsicElements['div'] & {
 }>
 
 /** Arguments for a semantic group of related menu items. */
-export type DropdownMenuGroupArgs = WithChildren<IntrinsicElements['div'] & {
+export type MenuGroupArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
 /** Arguments for a visual separator between menu groups. */
-export type DropdownMenuSeparatorArgs = IntrinsicElements['div'] & {
+export type MenuSeparatorArgs = IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }
 
 /** Arguments for a shortcut hint rendered beside a menu item. */
-export type DropdownMenuShortcutArgs = WithChildren<IntrinsicElements['span'] & {
+export type MenuShortcutArgs = WithChildren<IntrinsicElements['span'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
-/** Arguments for a nested DropdownMenu open-state provider. */
-export type DropdownMenuSubArgs = WithChildren<IntrinsicElements['div'] & {
+/** Arguments for a nested Menu open-state provider. */
+export type MenuSubArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Controlled open state. */
 	open?: boolean
 	/** Initial open state for uncontrolled usage. */
@@ -147,12 +147,12 @@ export type DropdownMenuSubArgs = WithChildren<IntrinsicElements['div'] & {
 	onOpenChange?: (open: boolean, event?: Event) => void
 }>
 
-/** Arguments for the item that opens a nested DropdownMenu. */
-export type DropdownMenuSubTriggerArgs = DropdownMenuItemArgs & {
+/** Arguments for the item that opens a nested Menu. */
+export type MenuSubTriggerArgs = MenuItemArgs & {
 	iconClass?: string
 }
 /** Arguments for positioned content belonging to a nested menu. */
-export type DropdownMenuSubContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'align'> & {
+export type MenuSubContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'align'> & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }> & FixedArgs<'align'>
@@ -201,7 +201,7 @@ type SubmenuRegistration = {
 // MenuContext, the collection instance, the surface selector, and the edge
 // helpers are the substrate reuse contract for composing menu families
 // (context-menu, menubar) — exported like CollapsibleContext for Accordion.
-/** Shared menu state consumed by DropdownMenu parts and composed menu families. */
+/** Shared menu state consumed by Menu parts and composed menu families. */
 export const MenuContext = context<MenuContextValue | null>(null)
 const RadioContext = context<RadioContextValue | null>(null)
 const SubContext = context<SubContextValue | null>(null)
@@ -237,15 +237,15 @@ const pointerHighlight = (
 	}
 }
 
-const DropdownMenuRoot: Stateful<DropdownMenuArgs> = function* ({ defaultOpen, open }) {
+const MenuRoot: Stateful<MenuArgs> = function* ({ defaultOpen, open }) {
 	const submenus = new Set<SubmenuRegistration>()
 	let disabled = false
-	let onOpenChange: DropdownMenuArgs['onOpenChange']
+	let onOpenChange: MenuArgs['onOpenChange']
 	let pendingFocus: 'first' | 'last' | undefined
 	let menu: FloatingView<HTMLButtonElement, HTMLDivElement>
 
 	menu = floating<HTMLButtonElement, HTMLDivElement>(this, {
-		prefix: 'dropdown-menu',
+		prefix: 'menu',
 		initialOpen: Boolean(open ?? defaultOpen),
 		disabled: () => disabled,
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
@@ -376,8 +376,8 @@ const DropdownMenuRoot: Stateful<DropdownMenuArgs> = function* ({ defaultOpen, o
 }
 
 
-/** Root provider for a dropdown menu. */
-const DropdownMenu: Stateless<DropdownMenuArgs> = ({
+/** Root provider for a menu. */
+const Menu: Stateless<MenuArgs> = ({
 	children,
 	class: classes,
 	defaultOpen,
@@ -386,23 +386,23 @@ const DropdownMenu: Stateless<DropdownMenuArgs> = ({
 	open,
 	...attrs
 }) => (
-	<DropdownMenuRoot
+	<MenuRoot
 		{...rootAttrs(attrs)}
 		defaultOpen={defaultOpen}
 		disabled={disabled}
 		onOpenChange={onOpenChange}
 		open={open}
 		attr:class={classes}
-		attr:data-slot="dropdown-menu"
+		attr:data-slot="menu"
 	>
 		{children}
-	</DropdownMenuRoot>
+	</MenuRoot>
 )
 
-/** Button that opens a DropdownMenu. */
-const DropdownMenuTrigger: Stateless<DropdownMenuTriggerArgs> = ({
+/** Button that opens a Menu. */
+const MenuTrigger: Stateless<MenuTriggerArgs> = ({
 	children,
-	'data-slot': slot = 'dropdown-menu-trigger',
+	'data-slot': slot = 'menu-trigger',
 	disabled,
 	id,
 	ref,
@@ -445,11 +445,11 @@ const DropdownMenuTrigger: Stateless<DropdownMenuTriggerArgs> = ({
 	)
 }
 
-/** Optional explicit anchor used to position DropdownMenuContent independently of the trigger. */
-const DropdownMenuAnchor: Stateless<DropdownMenuAnchorArgs> = ({
+/** Optional explicit anchor used to position MenuContent independently of the trigger. */
+const MenuAnchor: Stateless<MenuAnchorArgs> = ({
 	children,
 	class: classes,
-	'data-slot': slot = 'dropdown-menu-anchor',
+	'data-slot': slot = 'menu-anchor',
 	ref,
 	...attrs
 }) => {
@@ -467,12 +467,12 @@ const DropdownMenuAnchor: Stateless<DropdownMenuAnchorArgs> = ({
 }
 
 /** Popover menu content. */
-const DropdownMenuContent: Stateless<DropdownMenuContentArgs> = ({
+const MenuContent: Stateless<MenuContentArgs> = ({
 	align = 'center',
 	alignOffset = 0,
 	children,
 	class: classes,
-	'data-slot': slot = 'dropdown-menu-content',
+	'data-slot': slot = 'menu-content',
 	id,
 	ref,
 	side = 'bottom',
@@ -508,18 +508,18 @@ const DropdownMenuContent: Stateless<DropdownMenuContentArgs> = ({
 	)
 }
 
-/** Group of dropdown menu items. */
-const DropdownMenuGroup: Stateless<DropdownMenuGroupArgs> = ({ children, class: classes, 'data-slot': slot = 'dropdown-menu-group', ...attrs }) => (
+/** Group of menu items. */
+const MenuGroup: Stateless<MenuGroupArgs> = ({ children, class: classes, 'data-slot': slot = 'menu-group', ...attrs }) => (
 	<div {...attrs} class={classes} data-slot={slot} role="group">
 		{children}
 	</div>
 )
 
-/** Non-interactive label inside a dropdown menu. */
-const DropdownMenuLabel: Stateless<DropdownMenuLabelArgs> = ({
+/** Non-interactive label inside a menu. */
+const MenuLabel: Stateless<MenuLabelArgs> = ({
 	children,
 	class: classes,
-	'data-slot': slot = 'dropdown-menu-label',
+	'data-slot': slot = 'menu-label',
 	inset,
 	...attrs
 }) => (
@@ -545,11 +545,11 @@ const activate = (
 	action(event)
 }
 
-/** Standard dropdown menu action item. */
-const DropdownMenuItem: Stateless<DropdownMenuItemArgs> = ({
+/** Standard menu action item. */
+const MenuItem: Stateless<MenuItemArgs> = ({
 	children,
 	class: classes,
-	'data-slot': slot = 'dropdown-menu-item',
+	'data-slot': slot = 'menu-item',
 	disabled,
 	inset,
 	onSelect,
@@ -628,12 +628,12 @@ const choiceItem = (opts: {
 	)
 }
 
-/** Checkable dropdown menu item. */
-const DropdownMenuCheckboxItem: Stateless<DropdownMenuCheckboxItemArgs> = ({
+/** Checkable menu item. */
+const MenuCheckboxItem: Stateless<MenuCheckboxItemArgs> = ({
 	checked,
 	children,
 	class: classes,
-	'data-slot': slot = 'dropdown-menu-checkbox-item',
+	'data-slot': slot = 'menu-checkbox-item',
 	disabled,
 	indicatorClass,
 	indicatorIconClass,
@@ -662,8 +662,8 @@ const DropdownMenuCheckboxItem: Stateless<DropdownMenuCheckboxItemArgs> = ({
 	})
 }
 
-const DropdownMenuRadioGroupRoot: Stateful<DropdownMenuRadioGroupArgs> = function* ({ defaultValue, value }) {
-	let onValueChange: DropdownMenuRadioGroupArgs['onValueChange']
+const MenuRadioGroupRoot: Stateful<MenuRadioGroupArgs> = function* ({ defaultValue, value }) {
+	let onValueChange: MenuRadioGroupArgs['onValueChange']
 	const state = controlled<string>(this, {
 		fallback: String(value ?? defaultValue ?? ''),
 		onChange: (next, event) => onValueChange?.(next, event!),
@@ -683,17 +683,17 @@ const DropdownMenuRadioGroupRoot: Stateful<DropdownMenuRadioGroupArgs> = functio
 }
 
 
-/** Radio group inside a dropdown menu. */
-const DropdownMenuRadioGroup: Stateless<DropdownMenuRadioGroupArgs> = ({
+/** Radio group inside a menu. */
+const MenuRadioGroup: Stateless<MenuRadioGroupArgs> = ({
 	children,
 	class: classes,
-	'data-slot': slot = 'dropdown-menu-radio-group',
+	'data-slot': slot = 'menu-radio-group',
 	defaultValue,
 	onValueChange,
 	value,
 	...attrs
 }) => (
-	<DropdownMenuRadioGroupRoot
+	<MenuRadioGroupRoot
 		{...rootAttrs(attrs)}
 		defaultValue={defaultValue}
 		onValueChange={onValueChange}
@@ -703,14 +703,14 @@ const DropdownMenuRadioGroup: Stateless<DropdownMenuRadioGroupArgs> = ({
 		attr:role="group"
 	>
 		{children}
-	</DropdownMenuRadioGroupRoot>
+	</MenuRadioGroupRoot>
 )
 
-/** Radio item inside a dropdown menu radio group. */
-const DropdownMenuRadioItem: Stateless<DropdownMenuRadioItemArgs> = ({
+/** Radio item inside a menu radio group. */
+const MenuRadioItem: Stateless<MenuRadioItemArgs> = ({
 	children,
 	class: classes,
-	'data-slot': slot = 'dropdown-menu-radio-item',
+	'data-slot': slot = 'menu-radio-item',
 	disabled,
 	indicatorClass,
 	indicatorIconClass,
@@ -741,8 +741,8 @@ const DropdownMenuRadioItem: Stateless<DropdownMenuRadioItemArgs> = ({
 	})
 }
 
-/** Visual separator between dropdown menu groups. */
-const DropdownMenuSeparator: Stateless<DropdownMenuSeparatorArgs> = ({ class: classes, 'data-slot': slot = 'dropdown-menu-separator', ...attrs }) => (
+/** Visual separator between menu groups. */
+const MenuSeparator: Stateless<MenuSeparatorArgs> = ({ class: classes, 'data-slot': slot = 'menu-separator', ...attrs }) => (
 	<div
 		{...attrs}
 		class={classes}
@@ -751,11 +751,11 @@ const DropdownMenuSeparator: Stateless<DropdownMenuSeparatorArgs> = ({ class: cl
 	/>
 )
 
-/** Right-aligned shortcut hint inside a dropdown menu item. */
-const DropdownMenuShortcut: Stateless<DropdownMenuShortcutArgs> = ({
+/** Right-aligned shortcut hint inside a menu item. */
+const MenuShortcut: Stateless<MenuShortcutArgs> = ({
 	children,
 	class: classes,
-	'data-slot': slot = 'dropdown-menu-shortcut',
+	'data-slot': slot = 'menu-shortcut',
 	...attrs
 }) => (
 	<span
@@ -767,11 +767,11 @@ const DropdownMenuShortcut: Stateless<DropdownMenuShortcutArgs> = ({
 	</span>
 )
 
-const DropdownMenuSubRoot: Stateful<DropdownMenuSubArgs> = function* ({ defaultOpen, open }) {
-	const subId = id('dropdown-sub')
+const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
+	const subId = id('menu-sub')
 	let content: HTMLDivElement | null = null
 	let localOpen = Boolean(open ?? defaultOpen)
-	let onOpenChange: DropdownMenuSubArgs['onOpenChange']
+	let onOpenChange: MenuSubArgs['onOpenChange']
 	let openControlled = open != null
 	let opened = localOpen
 	let parentMenu: MenuContextValue | null = null
@@ -875,16 +875,16 @@ const DropdownMenuSubRoot: Stateful<DropdownMenuSubArgs> = function* ({ defaultO
 }
 
 
-/** Root provider for a dropdown submenu. */
-const DropdownMenuSub: Stateless<DropdownMenuSubArgs> = ({
+/** Root provider for a nested menu. */
+const MenuSub: Stateless<MenuSubArgs> = ({
 	children,
-	'data-slot': slot = 'dropdown-menu-sub',
+	'data-slot': slot = 'menu-sub',
 	defaultOpen,
 	onOpenChange,
 	open,
 	...attrs
 }) => (
-	<DropdownMenuSubRoot
+	<MenuSubRoot
 		{...rootAttrs(attrs)}
 		defaultOpen={defaultOpen}
 		onOpenChange={onOpenChange}
@@ -892,14 +892,14 @@ const DropdownMenuSub: Stateless<DropdownMenuSubArgs> = ({
 		attr:data-slot={slot}
 	>
 		{children}
-	</DropdownMenuSubRoot>
+	</MenuSubRoot>
 )
 
-/** Trigger item that opens a dropdown submenu. */
-const DropdownMenuSubTrigger: Stateless<DropdownMenuSubTriggerArgs> = ({
+/** Trigger item that opens a nested menu. */
+const MenuSubTrigger: Stateless<MenuSubTriggerArgs> = ({
 	children,
 	class: classes,
-	'data-slot': slot = 'dropdown-menu-sub-trigger',
+	'data-slot': slot = 'menu-sub-trigger',
 	disabled,
 	iconClass,
 	inset,
@@ -947,11 +947,11 @@ const DropdownMenuSubTrigger: Stateless<DropdownMenuSubTriggerArgs> = ({
 	)
 }
 
-/** Content for a dropdown submenu. */
-const DropdownMenuSubContent: Stateless<DropdownMenuSubContentArgs> = ({
+/** Content for a nested menu. */
+const MenuSubContent: Stateless<MenuSubContentArgs> = ({
 	children,
 	class: classes,
-	'data-slot': slot = 'dropdown-menu-sub-content',
+	'data-slot': slot = 'menu-sub-content',
 	ref,
 	style,
 	...attrs
@@ -983,19 +983,19 @@ const DropdownMenuSubContent: Stateless<DropdownMenuSubContentArgs> = ({
 }
 
 export {
-	DropdownMenu,
-	DropdownMenuAnchor,
-	DropdownMenuCheckboxItem,
-	DropdownMenuContent,
-	DropdownMenuGroup,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuRadioGroup,
-	DropdownMenuRadioItem,
-	DropdownMenuSeparator,
-	DropdownMenuShortcut,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
-	DropdownMenuTrigger,
+	Menu,
+	MenuAnchor,
+	MenuCheckboxItem,
+	MenuContent,
+	MenuGroup,
+	MenuItem,
+	MenuLabel,
+	MenuRadioGroup,
+	MenuRadioItem,
+	MenuSeparator,
+	MenuShortcut,
+	MenuSub,
+	MenuSubContent,
+	MenuSubTrigger,
+	MenuTrigger,
 }

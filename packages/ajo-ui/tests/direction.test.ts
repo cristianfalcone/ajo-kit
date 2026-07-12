@@ -3,10 +3,10 @@ import type { Stateful, Stateless } from 'ajo'
 import { render } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, expect, test } from 'vitest'
-import { type Direction, DirectionProvider, useDirection } from '../src/direction'
+import { type Direction, DirectionContext, DirectionProvider } from '../src/direction'
 
 const DirectionReadout: Stateless = () => jsx('output', {
-	'data-direction': useDirection(),
+	'data-direction': DirectionContext(),
 })
 
 const SwitchingDirection: Stateful = function* () {

@@ -5,11 +5,11 @@ import { Card, CardContent } from '/src/ui/card'
 import {
 	Carousel,
 	type CarouselApi,
+	CarouselContext,
 	CarouselContent,
 	CarouselItem,
 	CarouselNext,
 	CarouselPrevious,
-	useCarousel,
 } from '/src/ui/carousel'
 
 export default {
@@ -84,7 +84,9 @@ const RenderBudgetDemo: Stateful = function* () {
 	let loop = false
 	let renders = 0
 	const Probe = () => {
-		const carousel = useCarousel()
+		const carousel = CarouselContext()
+		if (!carousel) return null
+		if ('setViewport' in carousel) throw new Error('CarouselContext exposed its private viewport registrar')
 		renders++
 
 		return (

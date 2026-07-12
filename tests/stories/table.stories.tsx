@@ -156,7 +156,7 @@ export const Wide: Story<typeof Table> = {
 	args: {
 		caption: 'Horizontal overflow stays inside the table container.',
 		components: [
-			{ component: 'Dropdown Menu', status: 'Done', coverage: 'Default, checkbox, radio, submenu', interaction: 'Popover, keyboard, pointer', stories: 6 },
+			{ component: 'Menu', status: 'Done', coverage: 'Default, checkbox, radio, submenu', interaction: 'Popover, keyboard, pointer', stories: 7 },
 			{ component: 'Command', status: 'Done', coverage: 'Filtering, groups, empty state', interaction: 'Input, selection, dialog', stories: 5 },
 		],
 	},

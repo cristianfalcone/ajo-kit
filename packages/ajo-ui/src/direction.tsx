@@ -12,10 +12,8 @@ export type DirectionProviderArgs = WithChildren<OmitArg<IntrinsicElements['div'
 	dir?: Direction
 }>
 
-const DirectionContext = context<Direction>('ltr')
-
-/** Read the nearest direction provider value. */
-const useDirection = () => DirectionContext()
+/** Direction inherited by direction-aware components. */
+export const DirectionContext = context<Direction>('ltr')
 
 type DirectionRootArgs = WithChildren<{
 	dir: Direction
@@ -44,4 +42,4 @@ const DirectionProvider: Stateless<DirectionProviderArgs> = ({
 	</DirectionRoot>
 )
 
-export { DirectionProvider, useDirection }
+export { DirectionProvider }

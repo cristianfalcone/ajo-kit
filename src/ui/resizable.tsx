@@ -2,9 +2,9 @@ import type { Stateless } from 'ajo'
 import clsx from 'clsx'
 import {
 	ResizableHandle as BaseResizableHandle,
+	ResizableContext,
 	ResizablePanel as BaseResizablePanel,
 	ResizablePanelGroup as BaseResizablePanelGroup,
-	useResizable as baseUseResizable,
 	type ResizableHandleArgs as BaseResizableHandleArgs,
 	type ResizableOrientation as BaseResizableOrientation,
 	type ResizablePanelArgs as BaseResizablePanelArgs,
@@ -34,7 +34,7 @@ export type ResizableHandleArgs = BaseResizableHandleArgs & {
 
 const groupBase = 'flex h-full w-full overflow-hidden'
 const panelBase = 'min-h-0 min-w-0 overflow-hidden'
-const handleBase = 'relative flex touch-none shrink-0 items-center justify-center bg-border outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
+const handleBase = 'relative flex touch-none shrink-0 items-center justify-center bg-border outline-none after:absolute after:content-empty focus-visible:ring-3 focus-visible:ring-ring/50'
 
 /** Resizable panel group for split layouts. */
 const ResizablePanelGroup: Stateless<ResizablePanelGroupArgs> = ({
@@ -82,7 +82,7 @@ const ResizableHandle: Stateless<ResizableHandleArgs> = ({
 	withHandle,
 	...attrs
 }) => {
-	const { orientation } = baseUseResizable()
+	const { orientation } = ResizableContext()
 	const vertical = orientation === 'vertical'
 
 	return (
@@ -91,8 +91,8 @@ const ResizableHandle: Stateless<ResizableHandleArgs> = ({
 			class={clsx(
 				handleBase,
 				vertical
-					? 'h-px w-full cursor-row-resize after:absolute after:left-0 after:top-1/2 after:h-3 after:w-full after:-translate-y-1/2'
-					: 'h-full w-px cursor-col-resize after:absolute after:inset-y-0 after:left-1/2 after:w-3 after:-translate-x-1/2',
+					? 'h-px w-full cursor-row-resize after:left-0 after:top-1/2 after:h-6 after:w-full after:-translate-y-1/2'
+					: 'h-full w-px cursor-col-resize after:inset-y-0 after:left-1/2 after:w-6 after:-translate-x-1/2',
 				disabled && 'pointer-events-none opacity-50',
 				classes,
 			)}

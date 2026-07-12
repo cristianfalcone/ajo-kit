@@ -81,7 +81,7 @@ export type MessageScrollerButtonArgs = WithChildren<IntrinsicElements['button']
 	direction?: MessageScrollerDirection
 }>
 
-type InternalMessageScrollerApi = MessageScrollerApi & {
+type MessageScrollerPartsContextValue = {
 	setButton: (direction: MessageScrollerDirection, element: HTMLButtonElement | null) => void
 	setContent: (element: HTMLElement | null) => void
 	setItem: (messageId: string | undefined, element: HTMLElement | null) => void
@@ -103,24 +103,23 @@ type ItemReading = MessageScrollerVisibility & {
 	preserveAnchor: PreserveAnchor | null
 }
 
-const MessageScrollerContext = context<InternalMessageScrollerApi | null>(null)
+/** Read the public controller inherited from the nearest MessageScrollerProvider. */
+export const MessageScrollerContext = context<MessageScrollerApi | null>(null)
+const MessageScrollerPartsContext = context<MessageScrollerPartsContextValue | null>(null)
 
 const edge = 2
 
-const useInternalMessageScroller = () => {
+const messageScroller = () => {
 	const api = MessageScrollerContext()
-	if (!api) throw new Error('MessageScroller components must be used within a <MessageScrollerProvider />')
+	if (!api) throw new Error('MessageScroller controls must be used within a <MessageScrollerProvider />')
 	return api
 }
 
-/** Return the current message scroller controller from Ajo context. */
-const useMessageScroller = (): MessageScrollerApi => useInternalMessageScroller()
-
-/** Return the latest known start/end scrollability state. */
-const useMessageScrollerScrollable = () => useInternalMessageScroller().scrollable
-
-/** Return the latest known visible message ids and current anchor id. */
-const useMessageScrollerVisibility = () => useInternalMessageScroller().visibility
+const messageScrollerParts = () => {
+	const parts = MessageScrollerPartsContext()
+	if (!parts) throw new Error('MessageScroller parts must be used within a <MessageScrollerProvider />')
+	return parts
+}
 
 const getItems = (content: HTMLElement | null) =>
 	content
@@ -519,17 +518,19 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 		updateButton('end')
 	}
 
-	const api: InternalMessageScrollerApi = {
+	const publicApi: MessageScrollerApi = {
 		scrollToEnd,
 		scrollToMessage,
 		scrollToStart,
 		scrollable,
+		visibility,
+	}
+	const parts: MessageScrollerPartsContextValue = {
 		setButton,
 		setContent,
 		setItem,
 		setRoot,
 		setViewport,
-		visibility,
 	}
 
 	this.signal.addEventListener('abort', () => {
@@ -555,7 +556,7 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 		currentPeek = scrollPreviousItemPeek
 		if (setApi && setApi !== currentSetApi) {
 			currentSetApi = setApi
-			setApi(api)
+			setApi(publicApi)
 		}
 
 		viewportScroll.sync()
@@ -563,7 +564,8 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 		edges.sync()
 		contentSize.sync()
 
-		MessageScrollerContext(api)
+		MessageScrollerContext(publicApi)
+		MessageScrollerPartsContext(parts)
 		queueMicrotask(scheduleInitialScroll)
 
 		yield <>{children}</>
@@ -576,14 +578,14 @@ MessageScrollerProvider.attrs = {
 
 /** Unstyled root container for a scroll-managed message transcript. */
 const MessageScroller: Stateless<MessageScrollerArgs> = ({ children, ref, ...attrs }) => {
-	const scroller = useInternalMessageScroller()
+	const parts = messageScrollerParts()
 
 	return (
 		<div
 			{...attrs}
 			data-slot="message-scroller"
 			ref={element => {
-				scroller.setRoot(element)
+				parts.setRoot(element)
 				callRef(ref, element)
 			}}
 		>
@@ -601,7 +603,7 @@ const MessageScrollerViewport: Stateless<MessageScrollerViewportArgs> = ({
 	ref,
 	...attrs
 }) => {
-	const scroller = useInternalMessageScroller()
+	const parts = messageScrollerParts()
 
 	return (
 		<div
@@ -609,7 +611,7 @@ const MessageScrollerViewport: Stateless<MessageScrollerViewportArgs> = ({
 			aria-label={label}
 			data-slot="message-scroller-viewport"
 			ref={element => {
-				scroller.setViewport(element)
+				parts.setViewport(element)
 				callRef(ref, element)
 			}}
 			role={role}
@@ -629,7 +631,7 @@ const MessageScrollerContent: Stateless<MessageScrollerContentArgs> = ({
 	ref,
 	...attrs
 }) => {
-	const scroller = useInternalMessageScroller()
+	const parts = messageScrollerParts()
 
 	return (
 		<div
@@ -638,7 +640,7 @@ const MessageScrollerContent: Stateless<MessageScrollerContentArgs> = ({
 			aria-relevant={relevant}
 			data-slot="message-scroller-content"
 			ref={element => {
-				scroller.setContent(element)
+				parts.setContent(element)
 				callRef(ref, element)
 			}}
 			role={role}
@@ -656,7 +658,7 @@ const MessageScrollerItem: Stateless<MessageScrollerItemArgs> = ({
 	scrollAnchor = false,
 	...attrs
 }) => {
-	const scroller = useInternalMessageScroller()
+	const parts = messageScrollerParts()
 
 	return (
 		<div
@@ -665,7 +667,7 @@ const MessageScrollerItem: Stateless<MessageScrollerItemArgs> = ({
 			data-scroll-anchor={String(scrollAnchor)}
 			data-slot="message-scroller-item"
 			ref={element => {
-				scroller.setItem(messageId, element)
+				parts.setItem(messageId, element)
 				callRef(ref, element)
 			}}
 		>
@@ -685,7 +687,8 @@ const MessageScrollerButton: Stateless<MessageScrollerButtonArgs> = ({
 	'set:onclick': onClick,
 	...attrs
 }) => {
-	const scroller = useInternalMessageScroller()
+	const scroller = messageScroller()
+	const parts = messageScrollerParts()
 	const buttonActive = (next: MessageScrollerDirection) =>
 		next === 'start' ? scroller.scrollable.start : scroller.scrollable.end
 	const active = buttonActive(direction)
@@ -707,7 +710,7 @@ const MessageScrollerButton: Stateless<MessageScrollerButtonArgs> = ({
 			data-slot="message-scroller-button"
 			disabled={disabled}
 			ref={element => {
-				scroller.setButton(direction, element)
+				parts.setButton(direction, element)
 				callRef(ref, element)
 			}}
 			set:onclick={click}
@@ -726,7 +729,4 @@ export {
 	MessageScrollerItem,
 	MessageScrollerProvider,
 	MessageScrollerViewport,
-	useMessageScroller,
-	useMessageScrollerScrollable,
-	useMessageScrollerVisibility,
 }

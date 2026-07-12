@@ -93,12 +93,12 @@ test('reacts to live item sources and custom text readers', () => {
 	let view: ReturnType<typeof typeahead> | undefined
 	let alpha: HTMLDivElement | null = null
 	let beta: HTMLDivElement | null = null
-	let useBeta = false
+	let betaEnabled = false
 	const matches: string[] = []
 
 	function* Gen(this: Host) {
 		view = typeahead(this, {
-			items: () => useBeta ? [item(beta)] : [item(alpha)],
+			items: () => betaEnabled ? [item(beta)] : [item(alpha)],
 			text: target => target.getAttribute('aria-label') ?? '',
 			onMatch: target => matches.push(target.id),
 		})
@@ -112,7 +112,7 @@ test('reacts to live item sources and custom text readers', () => {
 	render(jsx(Gen, {}), document.body)
 
 	expect(view!.handle(key('a'))).toBe(true)
-	useBeta = true
+	betaEnabled = true
 	view!.reset()
 	expect(view!.handle(key('b'))).toBe(true)
 

@@ -5,17 +5,17 @@ import { buttonVariants } from './button'
 import type { ButtonVariant } from './button'
 import {
 	Carousel as BaseCarousel,
+	CarouselContext,
 	CarouselContent as BaseCarouselContent,
 	CarouselItem as BaseCarouselItem,
 	CarouselNext as BaseCarouselNext,
 	CarouselPrevious as BaseCarouselPrevious,
-	useCarousel as baseUseCarousel,
 	type CarouselArgs as BaseCarouselArgs,
 	type CarouselButtonArgs as BaseCarouselButtonArgs,
 	type CarouselContentArgs as BaseCarouselContentArgs,
 	type CarouselItemArgs as BaseCarouselItemArgs,
 } from 'ajo-ui/carousel'
-export type { CarouselApi, CarouselDirection, CarouselEvent, CarouselOptions, CarouselOrientation } from 'ajo-ui/carousel'
+export type { CarouselApi, CarouselContextValue, CarouselDirection, CarouselEvent, CarouselOptions, CarouselOrientation } from 'ajo-ui/carousel'
 
 export type CarouselArgs = BaseCarouselArgs & {
 	/** Additional UnoCSS classes. */
@@ -37,6 +37,12 @@ export type CarouselButtonArgs = OmitArg<BaseCarouselButtonArgs, 'children'> & F
 	class?: string
 	/** Button variant. */
 	variant?: ButtonVariant
+}
+
+const carousel = () => {
+	const value = CarouselContext()
+	if (!value) throw new Error('Carousel parts must be used within a <Carousel />')
+	return value
 }
 
 /** Native scroll-snap carousel root. */
@@ -69,8 +75,8 @@ const CarouselContent: Stateless<CarouselContentArgs> = ({
 	class: classes,
 	...attrs
 }) => {
-	const carousel = baseUseCarousel()
-	const horizontal = carousel.orientation === 'horizontal'
+	const state = carousel()
+	const horizontal = state.orientation === 'horizontal'
 
 	return (
 		<BaseCarouselContent
@@ -96,7 +102,7 @@ const CarouselItem: Stateless<CarouselItemArgs> = ({
 	role = 'group',
 	...attrs
 }) => {
-	const { orientation } = baseUseCarousel()
+	const { orientation } = carousel()
 
 	return (
 		<BaseCarouselItem
@@ -122,7 +128,7 @@ const CarouselPrevious: Stateless<CarouselButtonArgs> = ({
 	variant = 'outline',
 	...attrs
 }) => {
-	const { orientation } = baseUseCarousel()
+	const { orientation } = carousel()
 
 	return (
 		<BaseCarouselPrevious
@@ -154,7 +160,7 @@ const CarouselNext: Stateless<CarouselButtonArgs> = ({
 	variant = 'outline',
 	...attrs
 }) => {
-	const { orientation } = baseUseCarousel()
+	const { orientation } = carousel()
 
 	return (
 		<BaseCarouselNext
@@ -179,9 +185,9 @@ const CarouselNext: Stateless<CarouselButtonArgs> = ({
 
 export {
 	Carousel,
+	CarouselContext,
 	CarouselContent,
 	CarouselItem,
 	CarouselNext,
 	CarouselPrevious,
-	baseUseCarousel as useCarousel,
 }

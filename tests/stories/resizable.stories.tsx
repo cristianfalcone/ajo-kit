@@ -23,6 +23,28 @@ const handle = (canvas: HTMLElement, name = 'main') =>
 const panel = (canvas: HTMLElement, name: string) =>
 	canvas.querySelector<HTMLElement>(`[data-resizable-panel="${name}"]`)
 
+const assertHitArea = (el: HTMLElement, orientation: 'horizontal' | 'vertical') => {
+	const box = el.getBoundingClientRect()
+	const thickness = orientation === 'horizontal' ? box.width : box.height
+	if (thickness > 2) throw new Error('Resizable pointer hit area changed the visible separator thickness')
+
+	const x = box.left + box.width / 2
+	const y = box.top + box.height / 2
+	const points = orientation === 'horizontal'
+		? [[x - 8, y], [x + 8, y]]
+		: [[x, y - 8], [x, y + 8]]
+
+	for (const [clientX, clientY] of points) {
+		const target = document.elementFromPoint(clientX, clientY)
+		const handle = target instanceof HTMLElement
+			? target.closest<HTMLElement>('[data-slot="resizable-handle"]')
+			: null
+		if (handle !== el) {
+			throw new Error(`Resizable ${orientation} handle has no pointer hit area at 8px from its visual separator`)
+		}
+	}
+}
+
 const pointer = (type: string, x: number, y: number) => new PointerEvent(type, {
 	bubbles: true,
 	button: 0,
@@ -89,6 +111,7 @@ export const Basic: Story<typeof ResizablePanelGroup> = {
 		const first = panel(canvas, 'one')
 		const second = panel(canvas, 'two')
 		if (!divider || !first || !second) throw new Error('Resizable basic story did not render expected parts')
+		assertHitArea(divider, 'horizontal')
 
 		const before = first.getBoundingClientRect().width
 		await drag(divider, 80)
@@ -105,6 +128,7 @@ export const Basic: Story<typeof ResizablePanelGroup> = {
 		if (!(nestedDivider instanceof HTMLElement) || !(top instanceof HTMLElement) || !(bottom instanceof HTMLElement)) {
 			throw new Error('Resizable nested vertical story did not render expected parts')
 		}
+		assertHitArea(nestedDivider, 'vertical')
 
 		const topBefore = top.getBoundingClientRect().height
 		const cursor = document.body.style.cursor

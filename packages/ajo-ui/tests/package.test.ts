@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import metadata from '../package.json'
 
-test('the wildcard serves component subpaths without a redundant input-date entry', async () => {
+test('the wildcard serves component subpaths without redundant entries', async () => {
 	expect(metadata.exports).not.toHaveProperty('./input-date')
 	expect(metadata.exports['./*']).toEqual({
 		default: './src/*.tsx',
@@ -10,6 +10,14 @@ test('the wildcard serves component subpaths without a redundant input-date entr
 	const inputDate = await import('ajo-ui/input-date')
 	expect(inputDate).toHaveProperty('InputDate')
 	expect(inputDate).toHaveProperty('InputDateTimeField')
+	const menu = await import('ajo-ui/menu')
+	expect(menu).toHaveProperty('Menu')
+	expect(menu).toHaveProperty('MenuSubContent')
+})
+
+test('the root exports direct contexts without hook-shaped accessors', async () => {
+	const surface = await import('ajo-ui')
+	expect(Object.keys(surface).filter(name => /^use[A-Z]/.test(name))).toEqual([])
 })
 
 test('the package exposes the documented package-local unit command', () => {

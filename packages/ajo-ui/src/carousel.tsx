@@ -63,7 +63,8 @@ export type CarouselItemArgs = WithChildren<IntrinsicElements['div']>
 /** Shared arguments for previous and next Carousel buttons. */
 export type CarouselButtonArgs = WithChildren<IntrinsicElements['button']>
 
-type CarouselContextValue = {
+/** Observable state and controls inherited from the nearest Carousel. */
+export type CarouselContextValue = {
 	canScrollNext: boolean
 	canScrollPrev: boolean
 	count: number
@@ -71,10 +72,27 @@ type CarouselContextValue = {
 	scrollNext: () => void
 	scrollPrev: () => void
 	selected: number
+}
+
+type CarouselPartsContextValue = {
 	setViewport: (element: HTMLElement | null) => void
 }
 
-const CarouselContext = context<CarouselContextValue | null>(null)
+/** Read the observable state and controls inherited from the nearest Carousel. */
+export const CarouselContext = context<CarouselContextValue | null>(null)
+const CarouselPartsContext = context<CarouselPartsContextValue | null>(null)
+
+const carousel = () => {
+	const value = CarouselContext()
+	if (!value) throw new Error('Carousel parts must be used within a <Carousel />')
+	return value
+}
+
+const carouselParts = () => {
+	const value = CarouselPartsContext()
+	if (!value) throw new Error('Carousel parts must be used within a <Carousel />')
+	return value
+}
 
 const axis = (orientation: CarouselOrientation) =>
 	orientation === 'horizontal' ? 'x' : 'y'
@@ -219,6 +237,7 @@ const CarouselRoot: Stateful<Pick<CarouselArgs, 'children' | 'opts' | 'orientati
 		size.sync()
 		this.next(sync)
 	}
+	const parts: CarouselPartsContextValue = { setViewport }
 
 	const keydown = (event: KeyboardEvent) => {
 		if (orientation === 'horizontal') {
@@ -265,19 +284,11 @@ const CarouselRoot: Stateful<Pick<CarouselArgs, 'children' | 'opts' | 'orientati
 			scrollNext,
 			scrollPrev,
 			selected,
-			setViewport,
 		})
+		CarouselPartsContext(parts)
 
 		yield <>{children}</>
 	}
-}
-
-
-/** Return the current unstyled carousel context. */
-const useCarousel = () => {
-	const value = CarouselContext()
-	if (!value) throw new Error('useCarousel must be used within a <Carousel />')
-	return value
 }
 
 /** Unstyled native scroll-snap carousel root. */
@@ -311,15 +322,16 @@ const CarouselContent: Stateless<CarouselContentArgs> = ({
 	viewportClass,
 	...attrs
 }) => {
-	const carousel = useCarousel()
+	const state = carousel()
+	const parts = carouselParts()
 
 	return (
 		<div class={viewportClass} data-slot="carousel-content">
 			<div
 				{...attrs}
-				data-axis={axis(carousel.orientation)}
+				data-axis={axis(state.orientation)}
 				data-slot="carousel-track"
-				ref={carousel.setViewport}
+				ref={parts.setViewport}
 			>
 				{children}
 			</div>
@@ -352,7 +364,7 @@ const CarouselPrevious: Stateless<CarouselButtonArgs> = ({
 	'set:onclick': onClick,
 	...attrs
 }) => {
-	const { canScrollPrev, scrollPrev } = useCarousel()
+	const { canScrollPrev, scrollPrev } = carousel()
 	const click = (event: MouseEvent) => {
 		callHandler(onClick, event)
 		if (event.defaultPrevented || disabled || !canScrollPrev) return
@@ -382,7 +394,7 @@ const CarouselNext: Stateless<CarouselButtonArgs> = ({
 	'set:onclick': onClick,
 	...attrs
 }) => {
-	const { canScrollNext, scrollNext } = useCarousel()
+	const { canScrollNext, scrollNext } = carousel()
 	const click = (event: MouseEvent) => {
 		callHandler(onClick, event)
 		if (event.defaultPrevented || disabled || !canScrollNext) return
@@ -409,5 +421,4 @@ export {
 	CarouselItem,
 	CarouselNext,
 	CarouselPrevious,
-	useCarousel,
 }

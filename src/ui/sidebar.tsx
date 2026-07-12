@@ -4,6 +4,7 @@ import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 import {
 	Sidebar as BaseSidebar,
 	SidebarContent as BaseSidebarContent,
+	SidebarContext,
 	SidebarFooter as BaseSidebarFooter,
 	SidebarGroup as BaseSidebarGroup,
 	SidebarGroupAction as BaseSidebarGroupAction,
@@ -23,8 +24,8 @@ import {
 	SidebarProvider as BaseSidebarProvider,
 	SidebarRail as BaseSidebarRail,
 	SidebarTrigger as BaseSidebarTrigger,
-	useSidebar as baseUseSidebar,
 	type SidebarCollapsible,
+	type SidebarContextValue,
 	type SidebarArgs as BaseSidebarArgs,
 	type SidebarContentArgs,
 	type SidebarFooterArgs,
@@ -57,6 +58,7 @@ import { Separator, type SeparatorArgs } from './separator'
 
 export type {
 	SidebarCollapsible,
+	SidebarContextValue,
 	SidebarContentArgs,
 	SidebarFooterArgs,
 	SidebarGroupActionArgs,
@@ -272,7 +274,7 @@ const menuButtonClass = (variant: SidebarMenuButtonVariant, size: SidebarMenuBut
 		classes,
 	)
 
-/** Returns the UnoCSS class list for a sidebar menu button, for composing other triggers (CollapsibleTrigger, DropdownMenuTrigger) into the menu. */
+/** Returns the UnoCSS class list for a sidebar menu button, for composing other triggers such as CollapsibleTrigger and MenuTrigger. */
 export const sidebarMenuButtonVariants = ({
 	class: classes,
 	size = 'default',
@@ -360,6 +362,7 @@ const SidebarMenuSubButton: Stateless<SidebarMenuSubButtonArgs> = ({
 export {
 	Sidebar,
 	SidebarContent,
+	SidebarContext,
 	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupAction,
@@ -381,5 +384,4 @@ export {
 	SidebarRail,
 	SidebarSeparator,
 	SidebarTrigger,
-	baseUseSidebar as useSidebar,
 }

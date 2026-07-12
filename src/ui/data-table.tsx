@@ -17,13 +17,13 @@ import {
 import Button from './button'
 import Checkbox from './checkbox'
 import {
-	DropdownMenu,
-	DropdownMenuCheckboxItem,
-	DropdownMenuContent,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from './dropdown-menu'
+	Menu,
+	MenuCheckboxItem,
+	MenuContent,
+	MenuLabel,
+	MenuSeparator,
+	MenuTrigger,
+} from './menu'
 import Input from './input'
 import {
 	Select,
@@ -114,49 +114,49 @@ const renderers: BaseDataTableRenderers<any> = {
 		/>
 	),
 	columnVisibility: ({ columns, hidden, iconClass, itemClass, label, setHidden, triggerClass }) => (
-		<DropdownMenu>
-			<DropdownMenuTrigger class={triggerClass}>
+		<Menu>
+			<MenuTrigger class={triggerClass}>
 				{label}
 				<span aria-hidden="true" class={iconClass} />
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end">
-				<DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
-				<DropdownMenuSeparator />
+			</MenuTrigger>
+			<MenuContent align="end">
+				<MenuLabel>Toggle columns</MenuLabel>
+				<MenuSeparator />
 				{columns.filter(({ column }) => column.hideable !== false).map(({ column, id }) => (
-					<DropdownMenuCheckboxItem
+					<MenuCheckboxItem
 						key={id}
 						checked={!hidden.has(id)}
 						class={itemClass}
 						onCheckedChange={(checked: boolean) => setHidden(id, checked)}
 					>
 						{column.header}
-					</DropdownMenuCheckboxItem>
+					</MenuCheckboxItem>
 				))}
-			</DropdownMenuContent>
-		</DropdownMenu>
+			</MenuContent>
+		</Menu>
 	),
 	facet: ({ active, countClass, facet, iconClass, optionIconClass, setFacet, triggerClass }) => (
-		<DropdownMenu key={facet.id}>
-			<DropdownMenuTrigger class={triggerClass}>
+		<Menu key={facet.id}>
+			<MenuTrigger class={triggerClass}>
 				<span aria-hidden="true" class={iconClass} />
 				{facet.title}
 				{active.size ? <span class={countClass}>{active.size}</span> : null}
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start">
-				<DropdownMenuLabel>{facet.title}</DropdownMenuLabel>
-				<DropdownMenuSeparator />
+			</MenuTrigger>
+			<MenuContent align="start">
+				<MenuLabel>{facet.title}</MenuLabel>
+				<MenuSeparator />
 				{facet.options.map(option => (
-					<DropdownMenuCheckboxItem
+					<MenuCheckboxItem
 						key={option.value}
 						checked={active.has(option.value)}
 						onCheckedChange={(checked: boolean) => setFacet(facet.id, option.value, checked)}
 					>
 						{option.icon ? <span aria-hidden="true" class={clsx(option.icon, optionIconClass)} /> : null}
 						{option.label}
-					</DropdownMenuCheckboxItem>
+					</MenuCheckboxItem>
 				))}
-			</DropdownMenuContent>
-		</DropdownMenu>
+			</MenuContent>
+		</Menu>
 	),
 	head: ({ 'aria-sort': ariaSort, children, class: classes, key }) => (
 		<TableHead key={key} aria-sort={ariaSort} class={classes}>

@@ -415,7 +415,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		},
 		onSync: opened => {
 			// onSync fires on every render pass while open: the autofocus is
-			// consumed once per open transition (select/dropdown pendingFocus
+			// consumed once per open transition (Select/Menu pendingFocus
 			// pattern), so chevron paging and typing never lose focus.
 			if (!opened || !pendingFocus) {
 				pendingFocus = false

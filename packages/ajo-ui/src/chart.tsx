@@ -228,13 +228,8 @@ type ChartContextValue = {
 }
 
 const ChartContext = context<ChartContextValue | null>(null)
-
-/** Return the stable identity resolved by the nearest chart container. */
-const useChartId = () => {
-	const chart = ChartContext()
-	if (!chart) throw new Error('useChartId must be used within a <ChartContainer />')
-	return chart.id
-}
+/** Read the stable identity resolved by the nearest ChartContainer. */
+export const ChartIdContext = context<string | null>(null)
 
 const DEFAULT_MARGIN: ChartMargin = { bottom: 32, left: 40, right: 16, top: 16 }
 const DEFAULT_WIDTH = 640
@@ -520,6 +515,7 @@ const ChartContainerRoot: Stateful<ChartContainerRootArgs> = function* () {
 		}
 
 		ChartContext(chart)
+		ChartIdContext(chart.id)
 
 		yield <>{args.children}</>
 	}
@@ -1090,5 +1086,4 @@ export {
 	ChartPie,
 	ChartTooltip,
 	ChartTooltipContent,
-	useChartId,
 }

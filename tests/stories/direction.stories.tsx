@@ -1,10 +1,10 @@
 /** @jsxImportSource ajo */
 import type { Stateless } from 'ajo'
 import type { Meta, Story } from './app'
-import { DirectionProvider, useDirection } from '/src/ui/direction'
+import { DirectionContext, DirectionProvider } from '/src/ui/direction'
 
 const DirectionReadout: Stateless = () => (
-	<p data-slot="direction-readout">Current direction: {useDirection()}</p>
+	<p data-slot="direction-readout">Current direction: {DirectionContext()}</p>
 )
 
 export default {

@@ -4,37 +4,37 @@ import { context } from 'ajo/context'
 import { bar } from './bar'
 import type { FixedArgs, OmitArg } from './utils'
 import {
-	DropdownMenu,
-	DropdownMenuCheckboxItem,
-	DropdownMenuContent,
-	DropdownMenuGroup,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuRadioGroup,
-	DropdownMenuRadioItem,
-	DropdownMenuSeparator,
-	DropdownMenuShortcut,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
-	DropdownMenuTrigger,
+	Menu,
+	MenuCheckboxItem,
+	MenuContent,
+	MenuGroup,
+	MenuItem,
+	MenuLabel,
+	MenuRadioGroup,
+	MenuRadioItem,
+	MenuSeparator,
+	MenuShortcut,
+	MenuSub,
+	MenuSubContent,
+	MenuSubTrigger,
+	MenuTrigger,
 	focusEdge,
-} from './dropdown-menu'
+} from './menu'
 import type {
-	DropdownMenuCheckboxItemArgs,
-	DropdownMenuContentArgs,
-	DropdownMenuGroupArgs,
-	DropdownMenuItemArgs,
-	DropdownMenuLabelArgs,
-	DropdownMenuRadioGroupArgs,
-	DropdownMenuRadioItemArgs,
-	DropdownMenuSeparatorArgs,
-	DropdownMenuShortcutArgs,
-	DropdownMenuSubContentArgs,
-	DropdownMenuSubArgs,
-	DropdownMenuSubTriggerArgs,
-	DropdownMenuTriggerArgs,
-} from './dropdown-menu'
+	MenuCheckboxItemArgs,
+	MenuContentArgs,
+	MenuGroupArgs,
+	MenuItemArgs,
+	MenuLabelArgs,
+	MenuRadioGroupArgs,
+	MenuRadioItemArgs,
+	MenuSeparatorArgs,
+	MenuShortcutArgs,
+	MenuSubContentArgs,
+	MenuSubArgs,
+	MenuSubTriggerArgs,
+	MenuTriggerArgs,
+} from './menu'
 import { text, withSlot } from './utils'
 
 /** Arguments for a horizontal Menubar and its controlled open menu. */
@@ -64,39 +64,39 @@ export type MenubarMenuArgs = WithChildren<IntrinsicElements['div'] & {
 }>
 
 /** Arguments for the trigger of a top-level Menubar menu. */
-export type MenubarTriggerArgs = WithChildren<DropdownMenuTriggerArgs & {
+export type MenubarTriggerArgs = WithChildren<MenuTriggerArgs & {
 	/** Plain-text label used for menubar typeahead. */
 	textValue?: string
 }>
 
 /** Arguments for positioned content belonging to a top-level Menubar menu. */
-export type MenubarContentArgs = WithChildren<DropdownMenuContentArgs & {
+export type MenubarContentArgs = WithChildren<MenuContentArgs & {
 	/** Pixel shift along the alignment axis. */
 	alignOffset?: number
 }>
 
 /** Arguments for a standard actionable Menubar item. */
-export type MenubarItemArgs = DropdownMenuItemArgs
+export type MenubarItemArgs = MenuItemArgs
 /** Arguments for a checkable Menubar item. */
-export type MenubarCheckboxItemArgs = DropdownMenuCheckboxItemArgs
+export type MenubarCheckboxItemArgs = MenuCheckboxItemArgs
 /** Arguments for a single-selection group inside a Menubar menu. */
-export type MenubarRadioGroupArgs = DropdownMenuRadioGroupArgs
+export type MenubarRadioGroupArgs = MenuRadioGroupArgs
 /** Arguments for one value-bearing Menubar radio item. */
-export type MenubarRadioItemArgs = DropdownMenuRadioItemArgs
+export type MenubarRadioItemArgs = MenuRadioItemArgs
 /** Arguments for a non-interactive label inside a Menubar menu. */
-export type MenubarLabelArgs = DropdownMenuLabelArgs
+export type MenubarLabelArgs = MenuLabelArgs
 /** Arguments for a semantic group of Menubar items. */
-export type MenubarGroupArgs = DropdownMenuGroupArgs
+export type MenubarGroupArgs = MenuGroupArgs
 /** Arguments for a visual separator between Menubar groups. */
-export type MenubarSeparatorArgs = DropdownMenuSeparatorArgs
+export type MenubarSeparatorArgs = MenuSeparatorArgs
 /** Arguments for a shortcut hint beside a Menubar item. */
-export type MenubarShortcutArgs = DropdownMenuShortcutArgs
+export type MenubarShortcutArgs = MenuShortcutArgs
 /** Arguments for a nested Menubar submenu provider. */
-export type MenubarSubArgs = DropdownMenuSubArgs
+export type MenubarSubArgs = MenuSubArgs
 /** Arguments for the item that opens a nested Menubar submenu. */
-export type MenubarSubTriggerArgs = DropdownMenuSubTriggerArgs
+export type MenubarSubTriggerArgs = MenuSubTriggerArgs
 /** Arguments for positioned content belonging to a Menubar submenu. */
-export type MenubarSubContentArgs = DropdownMenuSubContentArgs
+export type MenubarSubContentArgs = MenuSubContentArgs
 
 type MenubarContextValue = {
 	close: (event?: Event) => void
@@ -262,14 +262,14 @@ const MenubarMenuRoot: Stateful<MenubarMenuArgs> = function* ({ value }) {
 
 		yield (
 			// Without a Menubar ancestor the menu degrades to a standalone
-			// uncontrolled DropdownMenu instead of a permanently-closed one.
-			<DropdownMenu
+			// uncontrolled Menu instead of a permanently-closed one.
+			<Menu
 				disabled={disabled}
 				onOpenChange={(open, event) => open ? bar?.open(itemValue, event) : bar?.close(event)}
 				open={bar ? bar.value === itemValue : undefined}
 			>
 				{args.children}
-			</DropdownMenu>
+			</Menu>
 		)
 	}
 }
@@ -316,7 +316,7 @@ const MenubarTrigger: Stateless<MenubarTriggerArgs> = ({
 	}
 
 	return (
-		<DropdownMenuTrigger
+		<MenuTrigger
 			{...attrs}
 			class={classes}
 			data-label={label}
@@ -340,49 +340,49 @@ const MenubarTrigger: Stateless<MenubarTriggerArgs> = ({
 			tabindex={!bar || bar.isTabbable(itemValue) ? 0 : -1}
 		>
 			{children}
-		</DropdownMenuTrigger>
+		</MenuTrigger>
 	)
 }
 
 /** Popover content for a top-level Menubar menu. */
 const MenubarContent: Stateless<MenubarContentArgs> = withSlot<MenubarContentArgs>(
-	DropdownMenuContent,
+	MenuContent,
 	'menubar-content',
 	{ align: 'start', alignOffset: -4, side: 'bottom', sideOffset: 8 },
 )
 
 /** Standard menubar action item. */
-const MenubarItem: Stateless<MenubarItemArgs> = withSlot<MenubarItemArgs>(DropdownMenuItem, 'menubar-item')
+const MenubarItem: Stateless<MenubarItemArgs> = withSlot<MenubarItemArgs>(MenuItem, 'menubar-item')
 
 /** Checkable menubar item. */
-const MenubarCheckboxItem: Stateless<MenubarCheckboxItemArgs> = withSlot<MenubarCheckboxItemArgs>(DropdownMenuCheckboxItem, 'menubar-checkbox-item')
+const MenubarCheckboxItem: Stateless<MenubarCheckboxItemArgs> = withSlot<MenubarCheckboxItemArgs>(MenuCheckboxItem, 'menubar-checkbox-item')
 
 /** Radio group inside a menubar menu. */
-const MenubarRadioGroup: Stateless<MenubarRadioGroupArgs> = withSlot<MenubarRadioGroupArgs>(DropdownMenuRadioGroup, 'menubar-radio-group')
+const MenubarRadioGroup: Stateless<MenubarRadioGroupArgs> = withSlot<MenubarRadioGroupArgs>(MenuRadioGroup, 'menubar-radio-group')
 
 /** Radio item inside a menubar radio group. */
-const MenubarRadioItem: Stateless<MenubarRadioItemArgs> = withSlot<MenubarRadioItemArgs>(DropdownMenuRadioItem, 'menubar-radio-item')
+const MenubarRadioItem: Stateless<MenubarRadioItemArgs> = withSlot<MenubarRadioItemArgs>(MenuRadioItem, 'menubar-radio-item')
 
 /** Group of menubar items. */
-const MenubarGroup: Stateless<MenubarGroupArgs> = withSlot<MenubarGroupArgs>(DropdownMenuGroup, 'menubar-group')
+const MenubarGroup: Stateless<MenubarGroupArgs> = withSlot<MenubarGroupArgs>(MenuGroup, 'menubar-group')
 
 /** Non-interactive label inside a menubar menu. */
-const MenubarLabel: Stateless<MenubarLabelArgs> = withSlot<MenubarLabelArgs>(DropdownMenuLabel, 'menubar-label')
+const MenubarLabel: Stateless<MenubarLabelArgs> = withSlot<MenubarLabelArgs>(MenuLabel, 'menubar-label')
 
 /** Visual separator between menubar groups. */
-const MenubarSeparator: Stateless<MenubarSeparatorArgs> = withSlot<MenubarSeparatorArgs>(DropdownMenuSeparator, 'menubar-separator')
+const MenubarSeparator: Stateless<MenubarSeparatorArgs> = withSlot<MenubarSeparatorArgs>(MenuSeparator, 'menubar-separator')
 
 /** Right-aligned shortcut hint inside a menubar item. */
-const MenubarShortcut: Stateless<MenubarShortcutArgs> = withSlot<MenubarShortcutArgs>(DropdownMenuShortcut, 'menubar-shortcut')
+const MenubarShortcut: Stateless<MenubarShortcutArgs> = withSlot<MenubarShortcutArgs>(MenuShortcut, 'menubar-shortcut')
 
 /** Root provider for a menubar submenu. */
-const MenubarSub: Stateless<MenubarSubArgs> = withSlot<MenubarSubArgs>(DropdownMenuSub, 'menubar-sub')
+const MenubarSub: Stateless<MenubarSubArgs> = withSlot<MenubarSubArgs>(MenuSub, 'menubar-sub')
 
 /** Trigger item that opens a menubar submenu. */
-const MenubarSubTrigger: Stateless<MenubarSubTriggerArgs> = withSlot<MenubarSubTriggerArgs>(DropdownMenuSubTrigger, 'menubar-sub-trigger')
+const MenubarSubTrigger: Stateless<MenubarSubTriggerArgs> = withSlot<MenubarSubTriggerArgs>(MenuSubTrigger, 'menubar-sub-trigger')
 
 /** Content for a menubar submenu. */
-const MenubarSubContent: Stateless<MenubarSubContentArgs> = withSlot<MenubarSubContentArgs>(DropdownMenuSubContent, 'menubar-sub-content')
+const MenubarSubContent: Stateless<MenubarSubContentArgs> = withSlot<MenubarSubContentArgs>(MenuSubContent, 'menubar-sub-content')
 
 export {
 	Menubar,

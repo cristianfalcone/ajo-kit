@@ -5,13 +5,13 @@ import {
 	ChartArea as BaseChartArea,
 	ChartBar as BaseChartBar,
 	ChartContainer as BaseChartContainer,
+	ChartIdContext,
 	ChartLegend as BaseChartLegend,
 	ChartLegendContent as BaseChartLegendContent,
 	ChartLine as BaseChartLine,
 	ChartPie as BaseChartPie,
 	ChartTooltip as BaseChartTooltip,
 	ChartTooltipContent as BaseChartTooltipContent,
-	useChartId,
 	type ChartConfig,
 	type ChartContainerArgs as BaseChartContainerArgs,
 	type ChartLegendArgs as BaseChartLegendArgs,
@@ -133,7 +133,8 @@ const ChartContainer: Stateless<ChartContainerArgs> = ({
 
 /** CSS variable injector matching chart config color behavior. */
 const ChartStyle: Stateless<{ config: ChartConfig }> = ({ config }) => {
-	const id = useChartId()
+	const id = ChartIdContext()
+	if (!id) return null
 	const entries = Object.entries(config).filter(([, item]) => item.color || item.theme)
 	if (!entries.length) return null
 	const scope = `[data-slot="chart"]:has(>style[data-chart-style="${id}"])`

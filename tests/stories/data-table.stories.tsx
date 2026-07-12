@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import { DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '/src/ui'
+import { DataTable, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '/src/ui'
 import type { DataTableColumn, DataTableFacet } from '/src/ui'
 
 type Payment = {
@@ -45,18 +45,18 @@ const columns: DataTableColumn<Payment>[] = [
 		sort: false,
 		align: 'right',
 		cell: payment => (
-			<DropdownMenu>
-				<DropdownMenuTrigger class="inline-flex size-8 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground">
+			<Menu>
+				<MenuTrigger class="inline-flex size-8 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground">
 					<span class="sr-only">Open menu</span>
 					<span aria-hidden="true" class="i-lucide-ellipsis size-4" />
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
-					<DropdownMenuLabel>Actions</DropdownMenuLabel>
-					<DropdownMenuItem>Copy payment ID</DropdownMenuItem>
-					<DropdownMenuSeparator />
-					<DropdownMenuItem>View {payment.email}</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
+				</MenuTrigger>
+				<MenuContent align="end">
+					<MenuLabel>Actions</MenuLabel>
+					<MenuItem>Copy payment ID</MenuItem>
+					<MenuSeparator />
+					<MenuItem>View {payment.email}</MenuItem>
+				</MenuContent>
+			</Menu>
 		),
 	},
 ]
@@ -239,11 +239,11 @@ export const ActionsOnly: Story<typeof DataTable> = {
 		/>
 	),
 	play: async ({ canvas }) => {
-		const action = canvas.querySelector<HTMLButtonElement>('[data-slot="dropdown-menu-trigger"]')
+		const action = canvas.querySelector<HTMLButtonElement>('[data-slot="menu-trigger"]')
 		if (!action) throw new Error('DataTable row actions were not rendered')
 		action.click()
 		await new Promise(resolve => setTimeout(resolve))
-		if (!document.querySelector('[data-slot="dropdown-menu-content"]')) {
+		if (!document.querySelector('[data-slot="menu-content"]')) {
 			throw new Error('DataTable row action menu did not open')
 		}
 	},

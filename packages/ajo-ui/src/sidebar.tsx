@@ -164,7 +164,8 @@ export type SidebarMenuSubButtonArgs = WithChildren<IntrinsicElements['a'] & {
 	class?: string
 }>
 
-type SidebarContextValue = {
+/** Responsive state and controls shared by Sidebar parts. */
+export type SidebarContextValue = {
 	isMobile: boolean
 	open: boolean
 	openMobile: boolean
@@ -174,7 +175,8 @@ type SidebarContextValue = {
 	toggleSidebar: (event?: Event) => void
 }
 
-const SidebarContext = context<SidebarContextValue | null>(null)
+/** Responsive state and controls provided by the nearest SidebarProvider. */
+export const SidebarContext = context<SidebarContextValue | null>(null)
 
 const cookie = 'sidebar_state'
 const cookieMaxAge = 60 * 60 * 24 * 7
@@ -193,12 +195,9 @@ const writeCookie = (open: boolean) => {
 
 const sidebar = () => {
 	const value = SidebarContext()
-	if (!value) throw new Error('useSidebar must be used within a SidebarProvider.')
+	if (!value) throw new Error('Sidebar controls must be used within a <SidebarProvider />.')
 	return value
 }
-
-/** Returns the nearest SidebarProvider state, throwing when used outside a provider. */
-export const useSidebar = sidebar
 
 const SidebarProviderRoot: Stateful<SidebarProviderArgs> = function* ({ defaultOpen = true, open }) {
 	let mobileQuery = defaultMobileQuery

@@ -15,11 +15,11 @@ import {
 	MessageScroller,
 	MessageScrollerButton,
 	MessageScrollerContent,
+	MessageScrollerContext,
 	MessageScrollerItem,
 	MessageScrollerProvider,
 	MessageScrollerViewport,
 	type MessageScrollerApi,
-	useMessageScroller,
 } from '/src/ui/message-scroller'
 
 type TranscriptArgs = {
@@ -236,7 +236,8 @@ const Shell = ({ children }: { children: unknown }) => (
 )
 
 const JumpControls = () => {
-	const scroller = useMessageScroller()
+	const scroller = MessageScrollerContext()
+	if (!scroller) return null
 
 	return (
 		<div class="absolute end-3 top-3 z-20 flex gap-2">

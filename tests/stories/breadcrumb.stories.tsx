@@ -10,11 +10,11 @@ import {
 	BreadcrumbSeparator,
 } from '/src/ui/breadcrumb'
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from '/src/ui/dropdown-menu'
+	Menu as MenuRoot,
+	MenuContent,
+	MenuItem,
+	MenuTrigger,
+} from '/src/ui/menu'
 
 export default {
 	title: 'UI/Breadcrumb',
@@ -162,7 +162,7 @@ export const Collapsed: Story<typeof Breadcrumb> = {
 	},
 }
 
-export const Dropdown: Story<typeof Breadcrumb> = {
+export const Menu: Story<typeof Breadcrumb> = {
 	render: () => (
 		<Breadcrumb>
 			<BreadcrumbList>
@@ -173,17 +173,17 @@ export const Dropdown: Story<typeof Breadcrumb> = {
 					<span aria-hidden="true" class="text-muted-foreground">/</span>
 				</BreadcrumbSeparator>
 				<BreadcrumbItem>
-					<DropdownMenu>
-						<DropdownMenuTrigger class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+					<MenuRoot>
+						<MenuTrigger class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
 							<BreadcrumbEllipsis class="size-4" />
 							<span class="sr-only">Toggle menu</span>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="start">
-							<DropdownMenuItem>Documentation</DropdownMenuItem>
-							<DropdownMenuItem>Themes</DropdownMenuItem>
-							<DropdownMenuItem>GitHub</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+						</MenuTrigger>
+						<MenuContent align="start">
+							<MenuItem>Documentation</MenuItem>
+							<MenuItem>Themes</MenuItem>
+							<MenuItem>GitHub</MenuItem>
+						</MenuContent>
+					</MenuRoot>
 				</BreadcrumbItem>
 				<BreadcrumbSeparator>
 					<span aria-hidden="true" class="text-muted-foreground">/</span>
@@ -197,13 +197,13 @@ export const Dropdown: Story<typeof Breadcrumb> = {
 	play: async ({ canvas }) => {
 		assertBasicSemantics(canvas)
 
-		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="dropdown-menu-trigger"]')
-		if (!trigger) throw new Error('Dropdown breadcrumb trigger was not rendered')
+		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="menu-trigger"]')
+		if (!trigger) throw new Error('Breadcrumb menu trigger was not rendered')
 		trigger.click()
 		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
-		const content = document.querySelector<HTMLElement>('[data-slot="dropdown-menu-content"]')
-		if (!content?.matches(':popover-open')) throw new Error('Dropdown breadcrumb menu did not open')
+		const content = document.querySelector<HTMLElement>('[data-slot="menu-content"]')
+		if (!content?.matches(':popover-open')) throw new Error('Breadcrumb menu did not open')
 		content.hidePopover()
 	},
 }

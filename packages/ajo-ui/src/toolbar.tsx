@@ -2,7 +2,7 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import type { OmitArg } from './utils'
 import { dom, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { useDirection } from './direction'
+import { DirectionContext } from './direction'
 
 /** Layout and keyboard-navigation axis of a toolbar. */
 export type ToolbarOrientation = 'horizontal' | 'vertical'
@@ -171,7 +171,7 @@ const Toolbar: Stateless<ToolbarArgs> = ({
 	role = 'toolbar',
 	...attrs
 }) => {
-	const resolvedDir = dir ?? useDirection()
+	const resolvedDir = dir ?? DirectionContext()
 
 	return (
 		<ToolbarRoot

@@ -1,7 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, controlled, dom, id, listen, overflow, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { useDirection } from './direction'
+import { DirectionContext } from './direction'
 import type { FixedArgs, OmitArg } from './utils'
 
 /** Layout and keyboard-navigation axis of a tab list. */
@@ -175,7 +175,7 @@ const Tabs: Stateless<TabsArgs> = ({
 	value,
 	...attrs
 }) => {
-	const resolvedDir = dir ?? useDirection()
+	const resolvedDir = dir ?? DirectionContext()
 
 	return (
 		<TabsRoot

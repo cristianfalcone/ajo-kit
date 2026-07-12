@@ -189,12 +189,12 @@ once in the stateful root's setup phase.
 
 ### Context Surface
 
-Component contexts stay module-private unless another family or the themed
-layer genuinely composes them. CheckboxGroup and RadioGroup keep their contexts
-private. ToggleGroup exports its context because the themed item consumes its
-variant, size, spacing, and orientation; Collapsible, Menu, and Field have
-equivalent cross-family composers. The root wildcard barrel inherits those
-module decisions rather than maintaining a second export list.
+Component contexts stay module-private unless another family, the themed layer,
+or a public consumer genuinely needs their view. CheckboxGroup and RadioGroup
+keep their contexts private. ToggleGroup exports its context because the themed
+item consumes its variant, size, spacing, and orientation; Collapsible, Menu,
+and Field have equivalent cross-family composers. The root wildcard barrel
+inherits those module decisions rather than maintaining a second export list.
 
 Context writes belong to Stateful components. Stateless components may read a
 context, but a setter there would write through the currently active Stateful
@@ -208,21 +208,30 @@ A Stateless part may invoke a registration callback exposed by its Stateful
 owner, but that does not transfer mutable context ownership and must not become
 a context setter.
 
-Chart keeps its full context private and exposes only `useChartId()` because
+Public context seams expose their exact `*Context` instance. The Playa layer
+re-exports that same instance when its consumers need it; it does not wrap
+context reads in React-shaped `use*` helpers.
+
+Carousel and MessageScroller keep DOM-part registration in private sibling
+contexts. Their public contexts expose only observable state and controls;
+MessageScroller `setApi` receives that same public controller object.
+
+Chart keeps its full context private and exposes only `ChartIdContext` because
 the themed wrapper genuinely consumes the resolved identity. Its private
 `ChartStyle` is inserted as a direct child marker and scopes variables with
 `[data-slot="chart"]:has(>style[data-chart-style])`. This lets the identity be
 owned by stateful setup in both SSR and the browser without a provisional
 `data-chart` write on the host; the direct-child selector also isolates nested
-charts. Neither the marker component nor the old root `data-chart` contract is
-part of the themed public surface.
+charts. Neither the marker component nor root `data-chart` is part of the
+themed public surface.
 
 ### Themed Modal Surfaces
 
-`src/ui/modal.tsx` is an internal theme-token module, parallel to
-`src/ui/menu.tsx`. It owns the shared fixed surface, inset centering, enter
-animation, closed gate, and icon close-button recipes. Dialog and Command
-compose the full centered cluster; Drawer composes only surface/closed/close
+`src/ui/modal.tsx` is an internal theme-token module, parallel to the shared
+token cluster hosted by the public `src/ui/menu.tsx` family. It owns the fixed
+surface, inset centering, enter animation, closed gate, and icon close-button
+recipes. Dialog and Command compose the full centered cluster; Drawer composes
+only surface/closed/close
 and owns side geometry plus discrete motion. AlertDialog composes the themed
 Dialog content and description, then fixes its alert role, size selectors,
 outside-dismiss policy, and absence of an implicit close button. Command's
@@ -325,14 +334,14 @@ Floating UI is split by anchor source:
   container, and smooths through `frame()`.
 
 `packages/ajo-ui/src/floating.ts` is the popup engine in two layers:
-`surface()` (positioning plus native-popover show/hide, no open state — used
-directly by dropdown submenus, whose parent-coupled open cluster stays custom
-by recorded decision) and `floating()` (controlled open state, generated ids,
-explicit trigger/content id adoption, `toggle` echo with a syncing guard,
+`surface()` (positioning plus native-popover show/hide, no open state, used
+directly by Menu submenus whose parent owns the open cluster) and `floating()`
+(controlled open state, generated ids, explicit trigger/content id adoption,
+`toggle` echo with a syncing guard,
 optional `hover` intent, `dismiss`, and an `onSync` hook for post-placement
 focus work). `datasetPlacement`, `contentAttrs`, and `triggerAttrs` form the
 internal placement/DOM seam, including internal-registration plus caller-ref
-composition. Popover, Tooltip, DropdownMenu, Select, InputDate, and
+composition. Popover, Tooltip, Menu, Select, InputDate, and
 NavigationMenu all consume the engine; consumers must call
 `view.sync(open)` once per render pass. `popupStyle()` applies the UA
 `[popover]` stylesheet reset (`inset:auto;margin:0`) exactly once for every
@@ -365,12 +374,11 @@ the same sweep; empty state and separator topology then use that fresh set.
 The menu families share deliberate internal seams documented in `ai/ui.md`.
 `bar()` (`packages/ajo-ui/src/bar.ts`, internal like floating) owns the
 value + roving + typeahead + follow machine under Menubar and
-NavigationMenu; dropdown-menu exports its substrate contract (MenuContext,
+NavigationMenu; Menu exports its substrate contract (MenuContext,
 the menu collection instance, focusEdge/surfaceItems, SURFACE_SELECTOR,
-DropdownMenuAnchor) for composing families — context-menu anchors at the
-pointer through it; navigation-menu rides the engine's hover intent with
-per-item anchored panels (the inert Viewport/Indicator parts were deleted;
-a Radix-style morphing viewport is a recorded extension point); the
+MenuAnchor) for composing families; ContextMenu anchors at the pointer through
+it; NavigationMenu rides the engine's hover intent with per-item anchored
+panels and no public shared Viewport or Indicator; the
 `anchor` clove positions optional arrow elements (PopoverArrow,
 TooltipArrow); Toolbar (APG pattern) rounds out the bar trio; the toast
 viewport rides the raw `popover="manual"` primitive with epoch-gated
