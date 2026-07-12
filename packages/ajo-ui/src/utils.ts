@@ -40,6 +40,10 @@ export const text = (value: unknown): string => {
 	return ''
 }
 
+/** Copies a multi-value array while coercing each present value to a string. */
+export const strings = (value: unknown): string[] =>
+	Array.isArray(value) ? value.map(String) : []
+
 /** Coerces to a finite number, falling back otherwise. */
 export const toNumber = (value: unknown, fallback: number) => {
 	const next = Number(value)
