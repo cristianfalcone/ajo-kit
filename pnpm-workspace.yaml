@@ -2,6 +2,7 @@ packages:
   - 'packages/ajo-kit'
   - 'packages/ajo-auth'
   - 'packages/ajo-backup'
+  - 'packages/ajo-cloves'
 allowBuilds:
   argon2: true
   better-sqlite3: true

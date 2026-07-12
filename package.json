@@ -18,6 +18,7 @@
     "ajo": "0.1.35",
     "ajo-auth": "workspace:*",
     "ajo-backup": "workspace:*",
+    "ajo-cloves": "workspace:*",
     "ajo-kit": "workspace:*",
     "clsx": "2.1.1"
   },

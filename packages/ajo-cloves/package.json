@@ -1,0 +1,20 @@
+{
+  "name": "ajo-cloves",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "pnpm -w exec vitest run packages/ajo-cloves/tests"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "peerDependencies": {
+    "ajo": ">=0.1.35"
+  },
+  "devDependencies": {
+    "ajo": "0.1.35"
+  }
+}

@@ -25,6 +25,7 @@
       "@kit": ["./packages/ajo-kit/src/index.ts"],
       "@kit/auth": ["./packages/ajo-auth/src/index.ts"],
       "@kit/auth/ability": ["./packages/ajo-auth/src/ability.client.ts"],
+      "ajo-cloves": ["./packages/ajo-cloves/src/index.ts"],
       "@kit/*": ["./packages/ajo-kit/src/*"],
     },
   },

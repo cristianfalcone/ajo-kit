@@ -17,6 +17,9 @@ importers:
       ajo-backup:
         specifier: workspace:*
         version: link:packages/ajo-backup
+      ajo-cloves:
+        specifier: workspace:*
+        version: link:packages/ajo-cloves
       ajo-kit:
         specifier: workspace:*
         version: link:packages/ajo-kit
@@ -82,6 +85,12 @@ importers:
       ajo-kit:
         specifier: workspace:*
         version: link:../ajo-kit
+
+  packages/ajo-cloves:
+    devDependencies:
+      ajo:
+        specifier: 0.1.35
+        version: 0.1.35
 
   packages/ajo-kit:
     dependencies:
