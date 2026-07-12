@@ -79,6 +79,7 @@ export default defineConfig({
       ? { 'container-name': name, 'container-type': 'inline-size' }
       : { 'container-type': 'inline-size' }],
     ['scrollbar-gutter-stable', { 'scrollbar-gutter': 'stable' }],
+    ['scrollbar-none', { 'scrollbar-width': 'none' }],
     ['animate-in', {
       '--un-enter-opacity': '1',
       '--un-enter-scale': '1',
@@ -135,6 +136,15 @@ export default defineConfig({
         '[data-slot=toast][data-closing=true]{opacity:0}',
         '[data-slot=toast][data-closing=true][data-expanded=false]{pointer-events:none}',
         '@starting-style{[data-slot=toast][data-state=open]{opacity:0;transform:translateY(1rem) scale(.96)}}',
+        // Edge fades pair with ajo-cloves overflow stamps. They activate only
+        // while content overflows, so a resting edge never stays dimmed.
+        '[data-overflow-x=start]{-webkit-mask-image:linear-gradient(to right,transparent,black 1rem);mask-image:linear-gradient(to right,transparent,black 1rem)}',
+        '[data-overflow-x=end]{-webkit-mask-image:linear-gradient(to right,black calc(100% - 1rem),transparent);mask-image:linear-gradient(to right,black calc(100% - 1rem),transparent)}',
+        '[data-overflow-x=both]{-webkit-mask-image:linear-gradient(to right,transparent,black 1rem,black calc(100% - 1rem),transparent);mask-image:linear-gradient(to right,transparent,black 1rem,black calc(100% - 1rem),transparent)}',
+        '[data-overflow-y=start]{-webkit-mask-image:linear-gradient(to bottom,transparent,black 1rem);mask-image:linear-gradient(to bottom,transparent,black 1rem)}',
+        '[data-overflow-y=end]{-webkit-mask-image:linear-gradient(to bottom,black calc(100% - 1rem),transparent);mask-image:linear-gradient(to bottom,black calc(100% - 1rem),transparent)}',
+        '[data-overflow-y=both]{-webkit-mask-image:linear-gradient(to bottom,transparent,black 1rem,black calc(100% - 1rem),transparent);mask-image:linear-gradient(to bottom,transparent,black 1rem,black calc(100% - 1rem),transparent)}',
+        '.scrollbar-none::-webkit-scrollbar{display:none}',
         '@supports not selector(::-webkit-scrollbar){.scrollbar-soft{scrollbar-color:var(--border) transparent;scrollbar-width:thin}}',
         'button{cursor:pointer}',
         'input:focus,select:focus,textarea:focus{outline:none}',
