@@ -5,8 +5,10 @@ import { Checkbox } from './checkbox'
 import { Toolbar } from './toolbar'
 import { clx, defaultResultsLabel } from './utils'
 
+/** Sort order applied to one DataTable column. */
 export type DataTableSortDirection = 'asc' | 'desc'
 
+/** Stable identity and source position for one DataTable row. */
 export type DataTableRow<T> = {
 	/** Original row object. */
 	original: T
@@ -16,11 +18,13 @@ export type DataTableRow<T> = {
 	index: number
 }
 
+/** Row and column metadata supplied to a custom cell renderer. */
 export type DataTableCellContext<T> = DataTableRow<T> & {
 	/** Current column. */
 	column: DataTableColumn<T>
 }
 
+/** Column definition used for rendering, sorting, and filtering. */
 export type DataTableColumn<T> = {
 	/** Stable column id. Defaults to accessorKey when present. */
 	id?: string
@@ -50,12 +54,14 @@ export type DataTableColumn<T> = {
 	align?: 'center' | 'left' | 'right'
 }
 
+/** One labelled value available in a DataTable facet filter. */
 export type DataTableFacetOption = {
 	label: string
 	value: string
 	icon?: string
 }
 
+/** Faceted filter definition for a DataTable column or row getter. */
 export type DataTableFacet<T> = {
 	/** Stable filter id. */
 	id: string
@@ -69,6 +75,7 @@ export type DataTableFacet<T> = {
 	getValue?: (row: T, index: number) => unknown
 }
 
+/** Global or column-scoped DataTable search configuration. */
 export type DataTableSearch<T> = {
 	/** Search input placeholder. */
 	placeholder?: string
@@ -78,6 +85,7 @@ export type DataTableSearch<T> = {
 	getValue?: (row: T, index: number) => unknown
 }
 
+/** User-visible and assistive text used by DataTable controls. */
 export type DataTableLabels = {
 	/** Column-visibility trigger text. */
 	columns: string
@@ -154,6 +162,7 @@ type ColumnModel<T> = {
 
 type Align = NonNullable<DataTableColumn<unknown>['align']>
 
+/** Scoped class hooks for DataTable structure and controls. */
 export type DataTableClasses<T = any> = {
 	align?: Partial<Record<Align, string>>
 	columnItem?: string
@@ -191,6 +200,7 @@ export type DataTableClasses<T = any> = {
 	toolbarControls?: string
 }
 
+/** State and handlers supplied to a custom search renderer. */
 export type DataTableSearchRenderArgs = {
 	ariaLabel: string
 	class?: string
@@ -199,6 +209,7 @@ export type DataTableSearchRenderArgs = {
 	setQuery: (query: string) => void
 }
 
+/** State and handlers supplied to a custom facet renderer. */
 export type DataTableFacetRenderArgs<T> = {
 	active: Set<string>
 	countClass?: string
@@ -209,6 +220,7 @@ export type DataTableFacetRenderArgs<T> = {
 	triggerClass?: string
 }
 
+/** State and handlers supplied to a column-visibility renderer. */
 export type DataTableColumnVisibilityRenderArgs<T> = {
 	columns: ColumnModel<T>[]
 	hidden: Set<string>
@@ -219,6 +231,7 @@ export type DataTableColumnVisibilityRenderArgs<T> = {
 	triggerClass?: string
 }
 
+/** State and handlers supplied to a selection-checkbox renderer. */
 export type DataTableCheckboxRenderArgs = {
 	ariaLabel: string
 	checked: boolean
@@ -226,6 +239,7 @@ export type DataTableCheckboxRenderArgs = {
 	onChange: (checked: boolean, event: Event) => void
 }
 
+/** Content and behavior supplied to a sortable-header renderer. */
 export type DataTableSortRenderArgs = {
 	children: Children
 	class?: string
@@ -233,6 +247,7 @@ export type DataTableSortRenderArgs = {
 	onClick: () => void
 }
 
+/** State and choices supplied to a page-size renderer. */
 export type DataTablePageSizeRenderArgs = {
 	onChange: (size: number) => void
 	options: number[]
@@ -240,6 +255,7 @@ export type DataTablePageSizeRenderArgs = {
 	value: string
 }
 
+/** State and behavior supplied to a pagination button renderer. */
 export type DataTablePageButtonRenderArgs = {
 	ariaLabel: string
 	class?: string
@@ -266,6 +282,7 @@ type CellArgs = ChildrenArgs & {
 	colspan?: number
 }
 
+/** Replaceable render functions for DataTable structure and controls. */
 export type DataTableRenderers<T = any> = {
 	body: (args: ChildrenArgs) => Children
 	cell: (args: CellArgs) => Children
@@ -283,6 +300,7 @@ export type DataTableRenderers<T = any> = {
 	table: (args: ChildrenArgs) => Children
 }
 
+/** Arguments for the complete filterable, sortable DataTable. */
 export type DataTableArgs<T = any> = OmitArg<IntrinsicElements['div'], 'children' | 'class'> & DataTableOptions<T> & {
 	/** Additional classes for the root. */
 	class?: string

@@ -4,8 +4,10 @@ import { FieldContext } from './field'
 import type { FixedArgs, OmitArg } from './utils'
 import { clx, flag, stlx, toNumber } from './utils'
 
+/** Axis along which slider values increase. */
 export type SliderOrientation = 'horizontal' | 'vertical'
 
+/** Props for a single- or multi-thumb range slider. */
 export type SliderArgs = OmitArg<IntrinsicElements['input'], 'children' | 'defaultValue' | 'type' | 'value'> & {
 	/** Controlled slider values. Use one value for a single thumb, multiple values for ranges. */
 	value?: number[]

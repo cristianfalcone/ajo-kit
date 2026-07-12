@@ -4,9 +4,12 @@ import { context } from 'ajo/context'
 import { useDirection } from './direction'
 import type { FixedArgs, OmitArg } from './utils'
 
+/** Layout and keyboard-navigation axis of a tab list. */
 export type TabsOrientation = 'horizontal' | 'vertical'
+/** Whether moving focus or explicit activation selects a tab. */
 export type TabsActivationMode = 'automatic' | 'manual'
 
+/** Props for the tabs root and its controlled selection. */
 export type TabsArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'defaultValue' | 'dir' | 'onchange'> & {
 	/** Controlled selected tab value. */
 	value?: string
@@ -24,13 +27,16 @@ export type TabsArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'defaultVa
 	orientation?: TabsOrientation
 }> & FixedArgs<'onchange'>
 
+/** Props for the container that owns tab triggers. */
 export type TabsListArgs = WithChildren<IntrinsicElements['div']>
 
+/** Props for a button that activates one tab value. */
 export type TabsTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Tab value controlled by this trigger. */
 	value: string
 }>
 
+/** Props for the panel associated with one tab value. */
 export type TabsContentArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Tab value that owns this panel. */
 	value: string

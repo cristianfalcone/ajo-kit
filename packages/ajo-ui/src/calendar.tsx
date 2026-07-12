@@ -6,6 +6,7 @@ import type { FixedArgs, OmitArg } from './utils'
 
 export type { AvailabilityMatcher, CalendarMatcher, TimeWindow } from './availability'
 
+/** Selection model supported by a Calendar root. */
 export type CalendarMode =
 	| 'multiple'
 	| 'range'
@@ -17,6 +18,7 @@ export type CalendarView =
 	| 'month'
 	| 'year'
 
+/** Available navigation controls for a Calendar caption. */
 export type CalendarCaptionLayout =
 	| 'button'
 	| 'dropdown'
@@ -24,11 +26,13 @@ export type CalendarCaptionLayout =
 	| 'dropdown-years'
 	| 'label'
 
+/** Inclusive date range selected by a range Calendar. */
 export type CalendarDateRange = {
 	from?: Date
 	to?: Date
 }
 
+/** Built-in state flags resolved for one Calendar day. */
 export type CalendarModifiers = {
 	disabled: boolean
 	outside: boolean
@@ -40,6 +44,7 @@ export type CalendarModifiers = {
 	unavailable: boolean
 }
 
+/** Structural Calendar part names accepted by `classNames`. */
 export type CalendarClassName =
 	| 'caption'
 	| 'day'
@@ -63,6 +68,7 @@ export type CalendarClassName =
 	| 'year_cell'
 	| 'year_view'
 
+/** Locale-aware formatting hooks used by Calendar views. */
 export type CalendarFormatters = {
 	day: (date: Date, locale: string | undefined, timeZone?: string) => Children
 	fullDate: (date: Date, locale: string | undefined, timeZone?: string) => string
@@ -72,11 +78,13 @@ export type CalendarFormatters = {
 	weekday: (date: Date, locale: string | undefined, timeZone?: string) => Children
 }
 
+/** One value and label rendered by a Calendar caption dropdown. */
 export type CalendarDropdownOption = {
 	label: Children
 	value: string
 }
 
+/** Arguments supplied to a custom Calendar caption dropdown. */
 export type CalendarDropdownArgs = {
 	label: string
 	onValueChange: (value: string, event?: Event) => void
@@ -84,6 +92,7 @@ export type CalendarDropdownArgs = {
 	value: string
 }
 
+/** Date and resolved state supplied to day styling callbacks. */
 export type CalendarDayState = {
 	date: Date
 	hidden: boolean
@@ -92,6 +101,7 @@ export type CalendarDayState = {
 	range: boolean
 }
 
+/** Arguments shared by every Calendar selection mode. */
 export type CalendarCommonArgs = OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onSelect'> & {
 	/** Allow range selection to span unavailable days without selecting or painting them. */
 	allowNonContiguous?: boolean
@@ -187,6 +197,7 @@ export type CalendarCommonArgs = OmitArg<IntrinsicElements['div'], 'children' | 
 	class?: string
 } & FixedArgs<'children' | 'defaultValue'>
 
+/** Arguments for a Calendar that selects one date or period. */
 export type CalendarSingleArgs = CalendarCommonArgs & {
 	defaultSelected?: Date
 	mode?: 'single'
@@ -194,6 +205,7 @@ export type CalendarSingleArgs = CalendarCommonArgs & {
 	selected?: Date | null
 }
 
+/** Arguments for a Calendar that selects multiple dates or periods. */
 export type CalendarMultipleArgs = CalendarCommonArgs & {
 	defaultSelected?: Date[]
 	mode: 'multiple'
@@ -201,6 +213,7 @@ export type CalendarMultipleArgs = CalendarCommonArgs & {
 	selected?: Date[]
 }
 
+/** Arguments for a Calendar that selects an inclusive range. */
 export type CalendarRangeArgs = CalendarCommonArgs & {
 	defaultSelected?: CalendarDateRange
 	mode: 'range'
@@ -208,11 +221,13 @@ export type CalendarRangeArgs = CalendarCommonArgs & {
 	selected?: CalendarDateRange | null
 }
 
+/** Public discriminated arguments accepted by the Calendar root. */
 export type CalendarArgs =
 	| CalendarMultipleArgs
 	| CalendarRangeArgs
 	| CalendarSingleArgs
 
+/** Arguments supplied to the Calendar day-button renderer. */
 export type CalendarDayButtonArgs = OmitArg<IntrinsicElements['button'], 'children'> & {
 	date: Date
 	day: Children

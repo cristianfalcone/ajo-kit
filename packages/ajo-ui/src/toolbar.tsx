@@ -4,8 +4,10 @@ import { dom, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { useDirection } from './direction'
 
+/** Layout and keyboard-navigation axis of a toolbar. */
 export type ToolbarOrientation = 'horizontal' | 'vertical'
 
+/** Props for a toolbar with roving focus among descendant controls. */
 export type ToolbarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'dir'> & {
 	/** Text direction for horizontal arrow-key navigation. Defaults to the nearest DirectionProvider. */
 	dir?: 'ltr' | 'rtl'
@@ -15,6 +17,7 @@ export type ToolbarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'dir'> 
 	orientation?: ToolbarOrientation
 }>
 
+/** Props for a separator whose orientation follows the parent toolbar. */
 export type ToolbarSeparatorArgs = IntrinsicElements['div']
 
 type ToolbarRootArgs = WithChildren<{

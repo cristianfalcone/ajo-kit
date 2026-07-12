@@ -5,6 +5,7 @@ import type { FixedArgs, OmitArg } from './utils'
 import { strings } from './utils'
 import { Collapsible, CollapsibleContent, CollapsibleContext, CollapsibleTrigger } from './collapsible'
 
+/** Selection model supported by an Accordion root. */
 export type AccordionType = 'multiple' | 'single'
 
 type AccordionSharedArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
@@ -12,6 +13,7 @@ type AccordionSharedArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'oncha
 	disabled?: boolean
 }> & FixedArgs<'onchange'>
 
+/** Arguments for a single-open Accordion. */
 export type AccordionSingleArgs = AccordionSharedArgs & {
 	/** Allow the open item to close. */
 	collapsible?: boolean
@@ -25,6 +27,7 @@ export type AccordionSingleArgs = AccordionSharedArgs & {
 	onValueChange?: (value: string, event?: Event) => void
 }
 
+/** Arguments for an Accordion that may keep several items open. */
 export type AccordionMultipleArgs = AccordionSharedArgs & {
 	/** Initial open items for uncontrolled usage. */
 	defaultValue?: string[]
@@ -36,8 +39,10 @@ export type AccordionMultipleArgs = AccordionSharedArgs & {
 	onValueChange?: (value: string[], event?: Event) => void
 }
 
+/** Public arguments accepted by the Accordion root. */
 export type AccordionArgs = AccordionMultipleArgs | AccordionSingleArgs
 
+/** Arguments for one value-bearing Accordion item. */
 export type AccordionItemArgs = WithChildren<OmitArg<IntrinsicElements['details'], 'open'> & {
 	/** Stable item value used by the parent accordion. */
 	value: string
@@ -45,8 +50,10 @@ export type AccordionItemArgs = WithChildren<OmitArg<IntrinsicElements['details'
 	disabled?: boolean
 }> & FixedArgs<'open'>
 
+/** Arguments for an Accordion item's summary trigger. */
 export type AccordionTriggerArgs = WithChildren<IntrinsicElements['summary']>
 
+/** Arguments for an Accordion item's collapsible panel. */
 export type AccordionContentArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Classes for an inner content wrapper. */
 	innerClass?: string

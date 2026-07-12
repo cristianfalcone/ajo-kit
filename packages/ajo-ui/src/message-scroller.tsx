@@ -2,25 +2,30 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { browser, callHandler, callRef, frame, overflow, resize, scrolling, timer } from 'ajo-cloves'
 import { context } from 'ajo/context'
 
+/** Initial edge or anchor used when the message scroller first mounts. */
 export type MessageScrollerDefaultPosition =
 	| 'end'
 	| 'last-anchor'
 	| 'start'
 
+/** Direction accepted by message-scroller controls and edge state. */
 export type MessageScrollerDirection =
 	| 'end'
 	| 'start'
 
+/** Whether more content can be reached at either scroll edge. */
 export type MessageScrollerScrollable = {
 	end: boolean
 	start: boolean
 }
 
+/** Visible message ids and the current reading anchor. */
 export type MessageScrollerVisibility = {
 	currentAnchorId?: string
 	visibleMessageIds: string[]
 }
 
+/** Options for an imperative message-scroller jump. */
 export type MessageScrollerScrollOptions = {
 	/** Browser scroll behavior for this jump. */
 	behavior?: ScrollBehavior
@@ -30,6 +35,7 @@ export type MessageScrollerScrollOptions = {
 	position?: 'center' | 'end' | 'start'
 }
 
+/** Imperative scrolling commands and observed viewport state. */
 export type MessageScrollerApi = {
 	scrollToEnd: (options?: Pick<MessageScrollerScrollOptions, 'behavior'>) => boolean
 	scrollToMessage: (messageId: string, options?: MessageScrollerScrollOptions) => boolean
@@ -38,6 +44,7 @@ export type MessageScrollerApi = {
 	visibility: MessageScrollerVisibility
 }
 
+/** Props for the state provider shared by message-scroller parts. */
 export type MessageScrollerProviderArgs = WithChildren<{
 	/** Follow new content while the reader is already at the end. */
 	autoScroll?: boolean
@@ -51,12 +58,16 @@ export type MessageScrollerProviderArgs = WithChildren<{
 	setApi?: (api: MessageScrollerApi) => void
 }>
 
+/** Props for the message-scroller root element. */
 export type MessageScrollerArgs = WithChildren<IntrinsicElements['div']>
 
+/** Props for the scrollable message viewport. */
 export type MessageScrollerViewportArgs = WithChildren<IntrinsicElements['div']>
 
+/** Props for the element containing registered message items. */
 export type MessageScrollerContentArgs = WithChildren<IntrinsicElements['div']>
 
+/** Props for a tracked message item. */
 export type MessageScrollerItemArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Stable id used by `scrollToMessage` and visibility tracking. */
 	messageId?: string
@@ -64,6 +75,7 @@ export type MessageScrollerItemArgs = WithChildren<IntrinsicElements['div'] & {
 	scrollAnchor?: boolean
 }>
 
+/** Props for a control that scrolls toward one viewport edge. */
 export type MessageScrollerButtonArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Scroll direction controlled by this button. */
 	direction?: MessageScrollerDirection

@@ -3,14 +3,18 @@ import { clamp, listen, move, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { stlx } from './utils'
 
+/** Axis along which adjacent panels are resized. */
 export type ResizableOrientation = 'horizontal' | 'vertical'
+/** Panel size expressed as a percentage number or CSS-like string. */
 export type ResizableSize = number | string
 
+/** Props for a group of adjacent resizable panels. */
 export type ResizablePanelGroupArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Resize direction for adjacent panels. */
 	orientation?: ResizableOrientation
 }>
 
+/** Props for a panel with initial and bounded sizes. */
 export type ResizablePanelArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Initial panel size as a percentage number or string such as `50%`. */
 	defaultSize?: ResizableSize
@@ -20,6 +24,7 @@ export type ResizablePanelArgs = WithChildren<IntrinsicElements['div'] & {
 	maxSize?: ResizableSize
 }>
 
+/** Props for the pointer- and keyboard-operated resize handle. */
 export type ResizableHandleArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Disable pointer and keyboard resizing for this handle. */
 	disabled?: boolean

@@ -27,6 +27,7 @@ export const flag = (value: unknown) => value ? 'true' : undefined
 export const bool = (value: unknown) =>
 	value === true || value === '' || value === 'true'
 
+/** Normalized state shared by native and visual checked controls. */
 export type CheckedState = 'checked' | 'indeterminate' | 'unchecked'
 
 /** Maps a checked-state token to the native aria-checked vocabulary. */
@@ -106,13 +107,18 @@ type KebabCase<Value extends string> = Value extends `${infer Head}${infer Tail}
 	: Value
 
 type StyleProperty = DomStyleProperty | KebabCase<DomStyleProperty>
+
+/** Primitive value accepted by one inline style property. */
 export type StyleValue = string | number | false | null | undefined
+
+/** Typed inline style properties, including custom CSS variables. */
 export type StyleObject = {
 	[Key in StyleProperty]?: StyleValue
 } & {
 	[Key in `--${string}`]?: StyleValue
 }
 
+/** Recursive input accepted by the inline style serializer. */
 export type StyleInput = StyleValue | true | StyleObject | readonly StyleInput[]
 
 const property = (key: string) => {
@@ -146,6 +152,7 @@ export const stlx = (...input: StyleInput[]) => {
 	return result.join(';')
 }
 
+/** HTMLElement shape augmented by the optional native Popover API methods. */
 export type PopoverElement = HTMLElement & {
 	hidePopover?: () => void
 	showPopover?: (options?: { source?: HTMLElement }) => void

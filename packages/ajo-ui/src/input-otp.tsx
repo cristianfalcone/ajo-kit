@@ -8,6 +8,7 @@ export const REGEXP_ONLY_DIGITS = /^[0-9]+$/
 /** Built-in InputOTP pattern accepting one or more ASCII letters or digits. */
 export const REGEXP_ONLY_DIGITS_AND_CHARS = /^[a-zA-Z0-9]+$/
 
+/** Arguments for a controlled or uncontrolled one-time-password input. */
 export type InputOTPArgs = WithChildren<OmitArg<IntrinsicElements['input'], 'children' | 'defaultValue' | 'maxLength' | 'onChange' | 'pattern' | 'value'> & {
 	/** Initial uncontrolled value. */
 	defaultValue?: string
@@ -25,8 +26,10 @@ export type InputOTPArgs = WithChildren<OmitArg<IntrinsicElements['input'], 'chi
 	value?: string
 }> & FixedArgs<'onChange'>
 
+/** Arguments for a visual group of adjacent OTP slots. */
 export type InputOTPGroupArgs = WithChildren<IntrinsicElements['div']>
 
+/** Arguments for one indexed visual slot in an InputOTP value. */
 export type InputOTPSlotArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Classes for the caret wrapper element. */
 	caretClass?: string
@@ -36,6 +39,7 @@ export type InputOTPSlotArgs = WithChildren<IntrinsicElements['div'] & {
 	index: number
 }>
 
+/** Arguments for a separator between visual OTP slot groups. */
 export type InputOTPSeparatorArgs = WithChildren<IntrinsicElements['div']>
 
 type InputOTPContextValue = {

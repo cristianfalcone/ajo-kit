@@ -1,6 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless } from 'ajo'
 import { callHandler, controlled } from 'ajo-cloves'
 
+/** Props for a checkbox-backed binary switch and its visual thumb. */
 export type SwitchArgs = IntrinsicElements['input'] & {
 	/** Controlled checked state. */
 	checked?: boolean

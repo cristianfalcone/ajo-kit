@@ -26,8 +26,10 @@ import {
 } from './segments'
 import { flag } from './utils'
 
+/** Range endpoint edited by a segmented date or time field. */
 export type InputDateSide = 'from' | 'to'
 
+/** Serialized start and end values emitted by a range field. */
 export type InputDateRangeValue = {
 	/** Range start in the family's own format; null while empty. */
 	from: string | null
@@ -35,8 +37,10 @@ export type InputDateRangeValue = {
 	to: string | null
 }
 
+/** Public value shape selected by a field's range mode. */
 export type InputDateValue<Range extends boolean = false> = Range extends true ? InputDateRangeValue : string
 
+/** Labelled value that may be committed from an InputDate popover. */
 export type InputDatePreset<Range extends boolean = boolean> = {
 	/** Preset button label. */
 	label: string
@@ -46,6 +50,7 @@ export type InputDatePreset<Range extends boolean = boolean> = {
 
 type InputDateCalendarOwnedArgs = 'allowNonContiguous' | 'defaultSelected' | 'mode' | 'onSelect' | 'selected' | 'unavailable'
 
+/** Calendar presentation arguments that remain consumer-configurable inside InputDate. */
 export type InputDateCalendarArgs = OmitArg<CalendarCommonArgs, InputDateCalendarOwnedArgs> & {
 	/** Calendar implementation; the themed layer injects its Calendar here. */
 	component?: Stateless<CalendarArgs>
@@ -112,12 +117,16 @@ type TimeArgs = {
 	step?: number
 }
 
+/** Arguments for a segmented date field with optional Calendar composition. */
 export type InputDateArgs<Range extends boolean = false> = CommonArgs<Range> & PopupArgs<Range>
 
+/** Arguments for a segmented wall-time field. */
 export type InputTimeArgs<Range extends boolean = false> = CommonArgs<Range> & TimeArgs
 
+/** Arguments for a segmented date-time field with optional Calendar composition. */
 export type InputDateTimeArgs<Range extends boolean = false> = CommonArgs<Range> & PopupArgs<Range> & TimeArgs
 
+/** Arguments for the rendered date-segment group of an InputDate family root. */
 export type InputDateFieldArgs = OmitArg<IntrinsicElements['div'], 'children'> & {
 	/** Which range side this group edits; required in range mode, absent in single. */
 	side?: InputDateSide
@@ -131,6 +140,7 @@ export type InputDateFieldArgs = OmitArg<IntrinsicElements['div'], 'children'> &
 	class?: string
 } & FixedArgs<'children'>
 
+/** Arguments for the secondary time-segment group of InputDateTime. */
 export type InputDateTimeFieldArgs = OmitArg<IntrinsicElements['div'], 'children'> & {
 	/** Which range side this time surface edits; absent in single mode. */
 	side?: InputDateSide
@@ -144,12 +154,14 @@ export type InputDateTimeFieldArgs = OmitArg<IntrinsicElements['div'], 'children
 	class?: string
 } & FixedArgs<'children'>
 
+/** Arguments for the button that toggles an InputDate Calendar popover. */
 export type InputDateTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional classes. */
 	class?: string
 	iconClass?: string
 }>
 
+/** Arguments for positioned InputDate popover content. */
 export type InputDateContentArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Preferred side relative to the field group. */
 	side?: FloatingSide
@@ -167,12 +179,14 @@ export type InputDateContentArgs = WithChildren<IntrinsicElements['div'] & {
 	style?: string
 }>
 
+/** Arguments for the button that clears an InputDate family value. */
 export type InputDateClearArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional classes. */
 	class?: string
 	iconClass?: string
 }>
 
+/** Arguments for the list of preset values rendered in a date popover. */
 export type InputDatePresetsArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional classes. */
 	class?: string

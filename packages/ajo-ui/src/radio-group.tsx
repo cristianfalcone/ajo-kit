@@ -3,8 +3,10 @@ import { callHandler, callRef, dom, listen, statefulRootAttrs as rootAttrs } fro
 import { context } from 'ajo/context'
 import { ariaChecked, bool, flag, syncCheckedState } from './utils'
 
+/** Layout and keyboard-navigation axis of a radio group. */
 export type RadioGroupOrientation = 'horizontal' | 'vertical'
 
+/** Props for a radio-group fieldset and its controlled selection. */
 export type RadioGroupArgs = WithChildren<IntrinsicElements['fieldset'] & {
 	/** Shared radio input name. */
 	name?: string
@@ -18,6 +20,7 @@ export type RadioGroupArgs = WithChildren<IntrinsicElements['fieldset'] & {
 	onValueChange?: (value: string, event: Event) => void
 }>
 
+/** Props for a radio item and its rendered indicator. */
 export type RadioGroupItemArgs = IntrinsicElements['input'] & {
 	/** Classes for the indicator element. */
 	indicatorClass?: string

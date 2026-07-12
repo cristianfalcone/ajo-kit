@@ -13,8 +13,10 @@ import {
 	type DialogContentArgs,
 } from './dialog'
 
+/** Predicate used to match a command item against the current search. */
 export type CommandFilter = (value: string, search: string, keywords: string[]) => boolean
 
+/** Arguments for the searchable Command collection root. */
 export type CommandArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
 	/** Controlled selected item value. */
 	value?: string
@@ -40,6 +42,7 @@ export type CommandArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchan
 	class?: string
 }> & FixedArgs<'onchange'>
 
+/** Arguments for a Dialog that owns a Command surface. */
 export type CommandDialogArgs = WithChildren<OmitArg<IntrinsicElements['dialog'], 'open'> & {
 	/** Controlled dialog open state. */
 	open?: boolean
@@ -68,6 +71,7 @@ export type CommandDialogArgs = WithChildren<OmitArg<IntrinsicElements['dialog']
 	titleClass?: string
 }>
 
+/** Arguments for the search input bound to a Command root. */
 export type CommandInputArgs = OmitArg<IntrinsicElements['input'], 'onchange'> & {
 	/** Controlled input value. Prefer Command `search` for root-level control. */
 	value?: string
@@ -79,16 +83,19 @@ export type CommandInputArgs = OmitArg<IntrinsicElements['input'], 'onchange'> &
 	wrapperClass?: string
 } & FixedArgs<'onchange'>
 
+/** Arguments for the Command listbox container. */
 export type CommandListArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Arguments for content shown when no command item matches. */
 export type CommandEmptyArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Arguments for a labelled group of command items. */
 export type CommandGroupArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Group heading. */
 	heading?: string
@@ -99,11 +106,13 @@ export type CommandGroupArgs = WithChildren<IntrinsicElements['div'] & {
 	headingClass?: string
 }>
 
+/** Arguments for a visual separator between command groups. */
 export type CommandSeparatorArgs = IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }
 
+/** Arguments for one selectable and filterable command item. */
 export type CommandItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'value'> & {
 	/** Stable value used for filtering, selection, and onSelect. */
 	value?: string
@@ -119,6 +128,7 @@ export type CommandItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'va
 	class?: string
 }>
 
+/** Arguments for shortcut text displayed beside a command item. */
 export type CommandShortcutArgs = WithChildren<IntrinsicElements['span'] & {
 	/** Additional UnoCSS classes. */
 	class?: string

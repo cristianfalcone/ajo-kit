@@ -3,6 +3,7 @@ import { clamp } from 'ajo-cloves'
 import type { FixedArgs, OmitArg } from './utils'
 import { toNumber } from './utils'
 
+/** Props for a determinate or indeterminate progress bar. */
 export type ProgressArgs = OmitArg<IntrinsicElements['div'], 'children' | 'max' | 'value'> & {
 	/** Current progress value. Omit or pass `null` for an indeterminate progress bar. */
 	value?: number | null

@@ -6,10 +6,14 @@ import { flag, text } from './utils'
 import { contentAttrs, datasetPlacement, floating, popupStyle, surface, triggerAttrs, type FloatingView } from './floating'
 import { collection } from './collection'
 
+/** Alignment of menu content along its anchor edge. */
 export type DropdownMenuAlign = 'center' | 'end' | 'start'
+/** Preferred side on which menu content opens. */
 export type DropdownMenuSide = 'bottom' | 'left' | 'right' | 'top'
+/** Semantic tone applied to an actionable menu item. */
 export type DropdownMenuVariant = 'default' | 'danger'
 
+/** Arguments for the DropdownMenu open-state provider. */
 export type DropdownMenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
 	/** Controlled open state. */
 	open?: boolean
@@ -23,16 +27,19 @@ export type DropdownMenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'o
 	class?: string
 }> & FixedArgs<'onchange'>
 
+/** Arguments for the button that toggles a DropdownMenu. */
 export type DropdownMenuTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Arguments for an explicit positioning anchor inside a DropdownMenu. */
 export type DropdownMenuAnchorArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Arguments for positioned menu content and its preferred placement. */
 export type DropdownMenuContentArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Horizontal alignment relative to the trigger. */
 	align?: DropdownMenuAlign
@@ -46,6 +53,7 @@ export type DropdownMenuContentArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
+/** Arguments for an actionable item in a DropdownMenu. */
 export type DropdownMenuItemArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Left-indent text for iconless groups. */
 	inset?: boolean
@@ -61,6 +69,7 @@ export type DropdownMenuItemArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
+/** Arguments for a checkable item in a DropdownMenu. */
 export type DropdownMenuCheckboxItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'checked'> & {
 	/** Controlled checked state. */
 	checked?: boolean
@@ -76,6 +85,7 @@ export type DropdownMenuCheckboxItemArgs = WithChildren<OmitArg<IntrinsicElement
 	indicatorIconClass?: string
 }>
 
+/** Arguments for a single-selection group of menu radio items. */
 export type DropdownMenuRadioGroupArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Controlled selected value. */
 	value?: string
@@ -87,6 +97,7 @@ export type DropdownMenuRadioGroupArgs = WithChildren<IntrinsicElements['div'] &
 	class?: string
 }>
 
+/** Arguments for one value-bearing item in a menu radio group. */
 export type DropdownMenuRadioItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'value'> & {
 	/** Item value used by the parent radio group. */
 	value: string
@@ -100,6 +111,7 @@ export type DropdownMenuRadioItemArgs = WithChildren<OmitArg<IntrinsicElements['
 	indicatorIconClass?: string
 }>
 
+/** Arguments for a non-interactive label inside menu content. */
 export type DropdownMenuLabelArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Left-indent text for iconless groups. */
 	inset?: boolean
@@ -107,21 +119,25 @@ export type DropdownMenuLabelArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
+/** Arguments for a semantic group of related menu items. */
 export type DropdownMenuGroupArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Arguments for a visual separator between menu groups. */
 export type DropdownMenuSeparatorArgs = IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }
 
+/** Arguments for a shortcut hint rendered beside a menu item. */
 export type DropdownMenuShortcutArgs = WithChildren<IntrinsicElements['span'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Arguments for a nested DropdownMenu open-state provider. */
 export type DropdownMenuSubArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Controlled open state. */
 	open?: boolean
@@ -131,14 +147,17 @@ export type DropdownMenuSubArgs = WithChildren<IntrinsicElements['div'] & {
 	onOpenChange?: (open: boolean, event?: Event) => void
 }>
 
+/** Arguments for the item that opens a nested DropdownMenu. */
 export type DropdownMenuSubTriggerArgs = DropdownMenuItemArgs & {
 	iconClass?: string
 }
+/** Arguments for positioned content belonging to a nested menu. */
 export type DropdownMenuSubContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'align'> & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }> & FixedArgs<'align'>
 
+/** Shared menu state exposed to menu parts and composing menu families. */
 export type MenuContextValue = {
 	close: (event?: Event) => void
 	closeSubmenus: (event?: Event, except?: HTMLElement | null) => void

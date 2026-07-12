@@ -4,9 +4,12 @@ import { context } from 'ajo/context'
 import { contentAttrs, datasetPlacement, floating, triggerAttrs, type FloatingView } from './floating'
 import type { FixedArgs, OmitArg } from './utils'
 
+/** Alignment of tooltip content along its placement side. */
 export type TooltipAlign = 'center' | 'end' | 'start'
+/** Preferred side on which tooltip content is placed. */
 export type TooltipSide = 'bottom' | 'left' | 'right' | 'top'
 
+/** Props for shared timing and hover defaults inherited by tooltips. */
 export type TooltipProviderArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Delay before a tooltip opens, in milliseconds. */
 	delayDuration?: number
@@ -20,6 +23,7 @@ export type TooltipProviderArgs = WithChildren<IntrinsicElements['div'] & {
 	style?: string
 }>
 
+/** Props for the tooltip root and its controlled open state. */
 export type TooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
 	/** Controlled open state. */
 	open?: boolean
@@ -37,6 +41,7 @@ export type TooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchan
 	class?: string
 }> & FixedArgs<'onchange'>
 
+/** Props for the button or span that opens a tooltip. */
 export type TooltipTriggerArgs = WithChildren<(IntrinsicElements['button'] & IntrinsicElements['span']) & {
 	/** Render the trigger wrapper as a button or span. */
 	as?: 'button' | 'span'
@@ -44,6 +49,7 @@ export type TooltipTriggerArgs = WithChildren<(IntrinsicElements['button'] & Int
 	class?: string
 }>
 
+/** Props for the positioned tooltip panel. */
 export type TooltipContentArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Horizontal alignment relative to the trigger. */
 	align?: TooltipAlign
@@ -61,6 +67,7 @@ export type TooltipContentArgs = WithChildren<IntrinsicElements['div'] & {
 	style?: string
 }>
 
+/** Props for the visual arrow pointing at the tooltip trigger. */
 export type TooltipArrowArgs = WithChildren<IntrinsicElements['span'] & {
 	/** Additional CSS classes. */
 	class?: string

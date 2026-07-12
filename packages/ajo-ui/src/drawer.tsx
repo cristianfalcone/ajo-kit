@@ -21,14 +21,19 @@ import {
 	type DialogTriggerArgs,
 } from './dialog'
 
+/** Viewport edge from which a Drawer panel enters. */
 export type DrawerSide = 'top' | 'right' | 'bottom' | 'left'
 
+/** Arguments for the Drawer state provider and entry edge. */
 export type DrawerArgs = DialogArgs & {
 	/** Edge where the drawer enters from. */
 	side?: DrawerSide
 }
+/** Arguments for a button that opens its nearest Drawer. */
 export type DrawerTriggerArgs = DialogTriggerArgs
+/** Arguments for a button that closes its nearest Drawer. */
 export type DrawerCloseArgs = DialogCloseArgs
+/** Arguments for the Drawer panel, drag handle, and default close control. */
 export type DrawerContentArgs = DialogContentArgs & {
 	closeClass?: string
 	/** Icon class for the default close button. */
@@ -42,9 +47,13 @@ export type DrawerContentArgs = DialogContentArgs & {
 	showCloseButton?: boolean
 	sideClass?: Partial<Record<DrawerSide, string>>
 }
+/** Arguments for the title and description area of a Drawer. */
 export type DrawerHeaderArgs = DialogHeaderArgs
+/** Arguments for the action area at the end of a Drawer. */
 export type DrawerFooterArgs = DialogFooterArgs
+/** Arguments for the heading that labels DrawerContent. */
 export type DrawerTitleArgs = DialogTitleArgs
+/** Arguments for the text that describes DrawerContent. */
 export type DrawerDescriptionArgs = DialogDescriptionArgs
 
 type DrawerContextValue = {
@@ -121,6 +130,7 @@ const DrawerRoot: Stateful<DrawerArgs> = function* () {
 }
 
 
+/** Unstyled edge panel provider built on native Dialog behavior. */
 const Drawer: Stateless<DrawerArgs> = ({
 	children,
 	class: classes,
@@ -145,8 +155,10 @@ const Drawer: Stateless<DrawerArgs> = ({
 	</DrawerRoot>
 )
 
+/** Unstyled button that opens the nearest Drawer. */
 const DrawerTrigger: Stateless<DrawerTriggerArgs> = withSlot<DrawerTriggerArgs>(DialogTrigger, 'drawer-trigger')
 
+/** Unstyled button that closes the nearest Drawer. */
 const DrawerClose: Stateless<DrawerCloseArgs> = withSlot<DrawerCloseArgs>(DialogClose, 'drawer-close')
 
 const transform = (offset: number, side: DrawerSide) => {
@@ -156,6 +168,7 @@ const transform = (offset: number, side: DrawerSide) => {
 	return `translateY(${offset}px)`
 }
 
+/** Unstyled native Drawer panel with optional drag and close controls. */
 const DrawerContent: Stateless<DrawerContentArgs> = ({
 	children,
 	class: classes,
@@ -214,12 +227,16 @@ const DrawerContent: Stateless<DrawerContentArgs> = ({
 	)
 }
 
+/** Unstyled header area for Drawer title and description. */
 const DrawerHeader: Stateless<DrawerHeaderArgs> = withSlot<DrawerHeaderArgs>(DialogHeader, 'drawer-header')
 
+/** Unstyled footer area for Drawer actions. */
 const DrawerFooter: Stateless<DrawerFooterArgs> = withSlot<DrawerFooterArgs>(DialogFooter, 'drawer-footer')
 
+/** Accessible heading for DrawerContent. */
 const DrawerTitle: Stateless<DrawerTitleArgs> = withSlot<DrawerTitleArgs>(DialogTitle, 'drawer-title')
 
+/** Accessible description for DrawerContent. */
 const DrawerDescription: Stateless<DrawerDescriptionArgs> = withSlot<DrawerDescriptionArgs>(DialogDescription, 'drawer-description')
 
 export {

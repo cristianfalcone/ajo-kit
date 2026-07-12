@@ -5,6 +5,7 @@ import type { FixedArgs, OmitArg } from './utils'
 import { flag, strings } from './utils'
 import { Checkbox, type CheckboxArgs } from './checkbox'
 
+/** Arguments for a group that coordinates checkbox values. */
 export type CheckboxGroupArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'defaultValue' | 'value'> & {
 	/** Controlled checked values. */
 	value?: string[]
@@ -18,6 +19,7 @@ export type CheckboxGroupArgs = WithChildren<OmitArg<IntrinsicElements['div'], '
 	name?: string
 }>
 
+/** Arguments for one Checkbox registered with a CheckboxGroup. */
 export type CheckboxGroupItemArgs = OmitArg<CheckboxArgs, 'checked' | 'defaultChecked' | 'onCheckedChange'> & {
 	/** Item value used by the parent checkbox group. */
 	value: string

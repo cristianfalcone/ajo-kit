@@ -4,6 +4,7 @@ import { callHandler, controlled, dom, id, statefulRootAttrs as rootAttrs } from
 import { context } from 'ajo/context'
 import { flag } from './utils'
 
+/** Arguments for the controlled or uncontrolled disclosure root. */
 export type CollapsibleArgs = WithChildren<OmitArg<IntrinsicElements['details'], 'open'> & {
 	/** Controlled open state. */
 	open?: boolean
@@ -15,6 +16,7 @@ export type CollapsibleArgs = WithChildren<OmitArg<IntrinsicElements['details'],
 	onOpenChange?: (open: boolean, event?: Event) => void
 }>
 
+/** Arguments for the native summary that toggles a Collapsible. */
 export type CollapsibleTriggerArgs = WithChildren<IntrinsicElements['summary'] & {
 	/** Disable the trigger. */
 	disabled?: boolean
@@ -22,6 +24,7 @@ export type CollapsibleTriggerArgs = WithChildren<IntrinsicElements['summary'] &
 	locked?: boolean
 }>
 
+/** Arguments for the content revealed by a Collapsible. */
 export type CollapsibleContentArgs = WithChildren<IntrinsicElements['div']>
 
 type CollapsibleRootArgs = WithChildren<{
@@ -31,6 +34,7 @@ type CollapsibleRootArgs = WithChildren<{
 	open?: boolean
 }>
 
+/** Live disclosure state shared with composed Collapsible parts. */
 export type CollapsibleContextValue = {
 	contentId: string
 	disabled: boolean

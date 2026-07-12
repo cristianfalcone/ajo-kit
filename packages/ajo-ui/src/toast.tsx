@@ -5,14 +5,17 @@ import { popupStyle } from './floating'
 import type { FixedArgs, OmitArg } from './utils'
 import { closePopover, clx, openPopover, toNumber } from './utils'
 
+/** Visual tone applied to a toast. */
 export type ToastVariant =
 	| 'default'
 	| 'danger'
 
+/** Live-region priority category used by a toast. */
 export type ToastType =
 	| 'background'
 	| 'foreground'
 
+/** Fixed viewport position for generated toasts. */
 export type ToastPosition =
 	| 'bottom-center'
 	| 'bottom-left'
@@ -21,6 +24,7 @@ export type ToastPosition =
 	| 'top-left'
 	| 'top-right'
 
+/** Props for an individual toast item. */
 export type ToastArgs = WithChildren<IntrinsicElements['li'] & {
 	/** Controlled visibility. Hidden toasts are not rendered. */
 	open?: boolean
@@ -32,6 +36,7 @@ export type ToastArgs = WithChildren<IntrinsicElements['li'] & {
 	class?: string
 }>
 
+/** Props for an action button associated with a toast. */
 export type ToastActionArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Alternative text for non-textual actions. */
 	altText?: string
@@ -41,6 +46,7 @@ export type ToastActionArgs = WithChildren<IntrinsicElements['button'] & {
 	class?: string
 }>
 
+/** Props for a button that dismisses its toast. */
 export type ToastCloseArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Called after the close button is selected. */
 	onClose?: () => void
@@ -48,14 +54,18 @@ export type ToastCloseArgs = WithChildren<IntrinsicElements['button'] & {
 	class?: string
 }>
 
+/** Shared props for textual toast slots. */
 export type ToastSlotArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional classes supplied by a styled wrapper. */
 	class?: string
 }>
 
+/** Props for a toast's title slot. */
 export type ToastTitleArgs = ToastSlotArgs
+/** Props for a toast's description slot. */
 export type ToastDescriptionArgs = ToastSlotArgs
 
+/** Props for the ordered viewport that displays toast items. */
 export type ToastViewportArgs = WithChildren<IntrinsicElements['ol'] & {
 	/** Keyboard shortcut shown in the accessible viewport label. */
 	hotkey?: string[]
@@ -69,6 +79,7 @@ export type ToastViewportArgs = WithChildren<IntrinsicElements['ol'] & {
 	class?: string
 }>
 
+/** Props for defaults inherited by generated toasts. */
 export type ToastProviderArgs = WithChildren<{
 	/** Default auto-dismiss duration for generated toasts. */
 	duration?: number
@@ -76,6 +87,7 @@ export type ToastProviderArgs = WithChildren<{
 	label?: string
 }>
 
+/** Data accepted when creating or updating an imperative toast. */
 export type ToastInput = {
 	/** Stable id for updating or dismissing this toast. */
 	id?: string
@@ -101,12 +113,14 @@ export type ToastInput = {
 	variant?: ToastVariant
 }
 
+/** Controller returned after an imperative toast is created. */
 export type ToastController = {
 	id: string
 	dismiss: () => void
 	update: (patch: ToastInput) => void
 }
 
+/** Renderable snapshot of a generated toast. */
 export type ToastView = ToastInput & {
 	id: string
 	open: boolean
@@ -114,6 +128,7 @@ export type ToastView = ToastInput & {
 
 // `ref` is omitted: the runtime routes a stateful component's ref to its
 // host, so the viewport element ref cannot be part of the public args.
+/** Props for the managed viewport that renders imperative toasts. */
 export type ToasterArgs = OmitArg<ToastViewportArgs, 'children' | 'ref'> & {
 	/** Show every visible toast at full size instead of the compact stack. */
 	expand?: boolean

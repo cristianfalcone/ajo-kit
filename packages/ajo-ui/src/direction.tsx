@@ -3,8 +3,10 @@ import type { OmitArg } from './utils'
 import { statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 
+/** Logical text direction inherited by direction-aware components. */
 export type Direction = 'ltr' | 'rtl'
 
+/** Arguments for a provider that owns direction context and the host `dir`. */
 export type DirectionProviderArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'dir'> & {
 	/** Text direction. */
 	dir?: Direction

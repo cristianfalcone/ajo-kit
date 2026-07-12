@@ -5,7 +5,9 @@ import type { FixedArgs, OmitArg } from './utils'
 import { flag, strings } from './utils'
 import { Toggle, type ToggleArgs } from './toggle'
 
+/** Selection cardinality of a toggle group. */
 export type ToggleGroupType = 'multiple' | 'single'
+/** Layout and keyboard-navigation axis of a toggle group. */
 export type ToggleGroupOrientation = 'horizontal' | 'vertical'
 
 type ToggleGroupSharedArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'defaultValue' | 'type' | 'value'> & {
@@ -23,6 +25,7 @@ type ToggleGroupSharedArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'def
 	variant?: string
 }>
 
+/** Props for a toggle group that selects at most one value. */
 export type ToggleGroupSingleArgs = ToggleGroupSharedArgs & {
 	type?: 'single'
 	/** Controlled selected value. */
@@ -33,6 +36,7 @@ export type ToggleGroupSingleArgs = ToggleGroupSharedArgs & {
 	onValueChange?: (value: string, event: Event) => void
 }
 
+/** Props for a toggle group that selects multiple values. */
 export type ToggleGroupMultipleArgs = ToggleGroupSharedArgs & {
 	type: 'multiple'
 	/** Controlled selected values. */
@@ -43,8 +47,10 @@ export type ToggleGroupMultipleArgs = ToggleGroupSharedArgs & {
 	onValueChange?: (value: string[], event: Event) => void
 }
 
+/** Props accepted by either single- or multiple-selection toggle groups. */
 export type ToggleGroupArgs = ToggleGroupSingleArgs | ToggleGroupMultipleArgs
 
+/** Props for a toggle button whose pressed state belongs to its group. */
 export type ToggleGroupItemArgs = OmitArg<ToggleArgs, 'defaultPressed' | 'onPressedChange' | 'pressed'> & {
 	/** Item value used by the parent toggle group. */
 	value: string
@@ -54,6 +60,7 @@ export type ToggleGroupItemArgs = OmitArg<ToggleArgs, 'defaultPressed' | 'onPres
 	variant?: string
 } & FixedArgs<'defaultPressed' | 'onPressedChange' | 'pressed'>
 
+/** State and styling markers exposed to descendant toggle-group items. */
 export type ToggleGroupContextValue = {
 	disabled?: boolean
 	orientation: ToggleGroupOrientation

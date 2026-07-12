@@ -37,20 +37,34 @@ import type {
 } from './dropdown-menu'
 import { withSlot } from './utils'
 
+/** Arguments for the pointer-anchored ContextMenu root. */
 export type ContextMenuArgs = DropdownMenuArgs
+/** Arguments for the floating ContextMenu surface. */
 export type ContextMenuContentArgs = DropdownMenuContentArgs
+/** Arguments for an actionable ContextMenu item. */
 export type ContextMenuItemArgs = DropdownMenuItemArgs
+/** Arguments for a checked ContextMenu item. */
 export type ContextMenuCheckboxItemArgs = DropdownMenuCheckboxItemArgs
+/** Arguments for a single-value ContextMenu radio group. */
 export type ContextMenuRadioGroupArgs = DropdownMenuRadioGroupArgs
+/** Arguments for one ContextMenu radio option. */
 export type ContextMenuRadioItemArgs = DropdownMenuRadioItemArgs
+/** Arguments for a non-interactive ContextMenu label. */
 export type ContextMenuLabelArgs = DropdownMenuLabelArgs
+/** Arguments for a semantic ContextMenu item group. */
 export type ContextMenuGroupArgs = DropdownMenuGroupArgs
+/** Arguments for a ContextMenu separator. */
 export type ContextMenuSeparatorArgs = DropdownMenuSeparatorArgs
+/** Arguments for shortcut text displayed in a ContextMenu. */
 export type ContextMenuShortcutArgs = DropdownMenuShortcutArgs
+/** Arguments for a nested ContextMenu root. */
 export type ContextMenuSubArgs = DropdownMenuSubArgs
+/** Arguments for the item that opens a nested ContextMenu. */
 export type ContextMenuSubTriggerArgs = DropdownMenuSubTriggerArgs
+/** Arguments for a nested ContextMenu surface. */
 export type ContextMenuSubContentArgs = DropdownMenuSubContentArgs
 
+/** Arguments for the region that invokes a ContextMenu. */
 export type ContextMenuTriggerArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Disable context menu activation. */
 	disabled?: boolean

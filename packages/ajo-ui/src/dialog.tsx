@@ -4,6 +4,7 @@ import { context } from 'ajo/context'
 import { triggerAttrs } from './floating'
 import type { FixedArgs, OmitArg } from './utils'
 
+/** Arguments for the Dialog state provider and its wrapper host. */
 export type DialogArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
 	/** Controlled open state. */
 	open?: boolean
@@ -17,16 +18,19 @@ export type DialogArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchang
 	class?: string
 }> & FixedArgs<'onchange'>
 
+/** Arguments for the button that opens its nearest Dialog. */
 export type DialogTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional CSS classes. */
 	class?: string
 }>
 
+/** Arguments for a button that closes its nearest Dialog. */
 export type DialogCloseArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional CSS classes. */
 	class?: string
 }>
 
+/** Arguments for the native dialog panel and its dismissal hooks. */
 export type DialogContentArgs = WithChildren<OmitArg<IntrinsicElements['dialog'], 'open'> & {
 	/** Called when Escape requests dialog close. Prevent default to keep it open. */
 	onEscapeKeyDown?: (event: KeyboardEvent) => void
@@ -36,20 +40,25 @@ export type DialogContentArgs = WithChildren<OmitArg<IntrinsicElements['dialog']
 	class?: string
 }> & FixedArgs<'open'>
 
+/** Shared arguments for structural sections inside a dialog panel. */
 export type DialogSectionArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional CSS classes. */
 	class?: string
 }>
 
+/** Arguments for the title and description area of a dialog. */
 export type DialogHeaderArgs = DialogSectionArgs
 
+/** Arguments for the action area at the end of a dialog. */
 export type DialogFooterArgs = DialogSectionArgs
 
+/** Arguments for the heading that labels DialogContent. */
 export type DialogTitleArgs = WithChildren<IntrinsicElements['h2'] & {
 	/** Additional CSS classes. */
 	class?: string
 }>
 
+/** Arguments for the text that describes DialogContent. */
 export type DialogDescriptionArgs = WithChildren<IntrinsicElements['p'] & {
 	/** Additional CSS classes. */
 	class?: string

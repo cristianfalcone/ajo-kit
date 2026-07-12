@@ -37,6 +37,7 @@ import type {
 } from './dropdown-menu'
 import { text, withSlot } from './utils'
 
+/** Arguments for a horizontal Menubar and its controlled open menu. */
 export type MenubarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
 	/** Controlled open top-level menu value. */
 	value?: string
@@ -52,6 +53,7 @@ export type MenubarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchan
 	class?: string
 }> & FixedArgs<'onchange'>
 
+/** Arguments for one value-bearing top-level menu in a Menubar. */
 export type MenubarMenuArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Top-level menu value used by controlled Menubar state. */
 	value?: string
@@ -61,26 +63,39 @@ export type MenubarMenuArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
+/** Arguments for the trigger of a top-level Menubar menu. */
 export type MenubarTriggerArgs = WithChildren<DropdownMenuTriggerArgs & {
 	/** Plain-text label used for menubar typeahead. */
 	textValue?: string
 }>
 
+/** Arguments for positioned content belonging to a top-level Menubar menu. */
 export type MenubarContentArgs = WithChildren<DropdownMenuContentArgs & {
 	/** Pixel shift along the alignment axis. */
 	alignOffset?: number
 }>
 
+/** Arguments for a standard actionable Menubar item. */
 export type MenubarItemArgs = DropdownMenuItemArgs
+/** Arguments for a checkable Menubar item. */
 export type MenubarCheckboxItemArgs = DropdownMenuCheckboxItemArgs
+/** Arguments for a single-selection group inside a Menubar menu. */
 export type MenubarRadioGroupArgs = DropdownMenuRadioGroupArgs
+/** Arguments for one value-bearing Menubar radio item. */
 export type MenubarRadioItemArgs = DropdownMenuRadioItemArgs
+/** Arguments for a non-interactive label inside a Menubar menu. */
 export type MenubarLabelArgs = DropdownMenuLabelArgs
+/** Arguments for a semantic group of Menubar items. */
 export type MenubarGroupArgs = DropdownMenuGroupArgs
+/** Arguments for a visual separator between Menubar groups. */
 export type MenubarSeparatorArgs = DropdownMenuSeparatorArgs
+/** Arguments for a shortcut hint beside a Menubar item. */
 export type MenubarShortcutArgs = DropdownMenuShortcutArgs
+/** Arguments for a nested Menubar submenu provider. */
 export type MenubarSubArgs = DropdownMenuSubArgs
+/** Arguments for the item that opens a nested Menubar submenu. */
 export type MenubarSubTriggerArgs = DropdownMenuSubTriggerArgs
+/** Arguments for positioned content belonging to a Menubar submenu. */
 export type MenubarSubContentArgs = DropdownMenuSubContentArgs
 
 type MenubarContextValue = {

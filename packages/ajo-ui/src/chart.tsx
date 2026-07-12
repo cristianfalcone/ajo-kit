@@ -6,6 +6,7 @@ import { text } from './utils'
 
 type ChartTheme = 'dark' | 'light'
 
+/** Labels, icons, and colors configured for each chart data key. */
 export type ChartConfig = Record<
 	string,
 	{
@@ -20,14 +21,17 @@ export type ChartConfig = Record<
 	}
 >
 
+/** Native SVG visualization supported by ChartContainer. */
 export type ChartType =
 	| 'area'
 	| 'bar'
 	| 'line'
 	| 'pie'
 
+/** One keyed data row consumed by the native chart primitives. */
 export type ChartDatum = Record<string, unknown>
 
+/** Data-key descriptor for one rendered chart series. */
 export type ChartSeries = {
 	/** Object key used for numeric values. */
 	key: string
@@ -37,8 +41,10 @@ export type ChartSeries = {
 	color?: string
 }
 
+/** Series shorthand accepted by ChartContainer. */
 export type ChartSeriesInput = ChartSeries | string
 
+/** Plot-area inset in SVG user units. */
 export type ChartMargin = {
 	bottom: number
 	left: number
@@ -46,6 +52,7 @@ export type ChartMargin = {
 	top: number
 }
 
+/** Resolved series value supplied to tooltip and legend formatters. */
 export type ChartPayload = {
 	color: string
 	formattedValue: string
@@ -56,6 +63,7 @@ export type ChartPayload = {
 	value: number
 }
 
+/** Active chart coordinate and payload exposed through chart context. */
 export type ChartActive = {
 	index: number
 	items: ChartPayload[]
@@ -64,6 +72,7 @@ export type ChartActive = {
 	y: number
 }
 
+/** Arguments for the accessible Chart data and context root. */
 export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {
 	/** Optional resolved chart identity override; otherwise derived from the DOM id or generated. */
 	chartId?: string
@@ -97,6 +106,7 @@ export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 
 	class?: string
 }>
 
+/** Arguments for native cartesian bar, line, and area plots. */
 export type ChartPlotArgs = OmitArg<IntrinsicElements['svg'], 'children'> & {
 	/** Show grid lines. */
 	grid?: boolean
@@ -112,6 +122,7 @@ export type ChartPlotArgs = OmitArg<IntrinsicElements['svg'], 'children'> & {
 	pointFill?: string
 } & FixedArgs<'children'>
 
+/** Arguments for a native pie or donut plot. */
 export type ChartPieArgs = ChartPlotArgs & {
 	/** Inner radius for donut charts, in SVG user units. */
 	innerRadius?: number
@@ -120,6 +131,7 @@ export type ChartPieArgs = ChartPlotArgs & {
 	sliceStroke?: string
 }
 
+/** Arguments for the floating active-value tooltip. */
 export type ChartTooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {
 	/** Custom tooltip content, commonly a tooltip-content component. */
 	content?: Children
@@ -136,6 +148,7 @@ type TooltipContentState = {
 	nestLabel: boolean
 }
 
+/** Arguments for the default tooltip payload renderer. */
 export type ChartTooltipContentArgs = OmitArg<IntrinsicElements['div'], 'children'> & {
 	/** Indicator shape shown beside each row. */
 	indicator?: 'dashed' | 'dot' | 'line'
@@ -163,6 +176,7 @@ export type ChartTooltipContentArgs = OmitArg<IntrinsicElements['div'], 'childre
 	valueRowClass?: ClassResolver<{ nestLabel: boolean }>
 } & FixedArgs<'children'>
 
+/** Arguments for the chart legend surface. */
 export type ChartLegendArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {
 	/** Custom legend content, commonly a legend-content component. */
 	content?: Children
@@ -170,6 +184,7 @@ export type ChartLegendArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'ch
 	class?: string
 }>
 
+/** Arguments for the default series legend renderer. */
 export type ChartLegendContentArgs = OmitArg<IntrinsicElements['div'], 'children'> & {
 	/** Hide configured icons and show color swatches instead. */
 	hideIcon?: boolean

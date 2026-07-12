@@ -5,10 +5,14 @@ import { context } from 'ajo/context'
 import { contentAttrs, datasetPlacement, floating, triggerAttrs, type FloatingView } from './floating'
 import type { FixedArgs, OmitArg } from './utils'
 
+/** Alignment of popover content along its placement side. */
 export type PopoverAlign = 'center' | 'end' | 'start'
+/** Interaction that opens a popover. */
 export type PopoverOpenOn = 'click' | 'hover'
+/** Preferred side on which popover content is placed. */
 export type PopoverSide = 'bottom' | 'left' | 'right' | 'top'
 
+/** Props for the popover root and its controlled open state. */
 export type PopoverArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
 	/** Controlled open state. */
 	open?: boolean
@@ -35,6 +39,7 @@ type PopoverTriggerSharedArgs = {
 	class?: string
 }
 
+/** Props for the element that opens a popover. */
 export type PopoverTriggerArgs = WithChildren<
 	| (IntrinsicElements['button'] & PopoverTriggerSharedArgs & { as?: 'button' })
 	| (IntrinsicElements['a'] & PopoverTriggerSharedArgs & { as: 'a' })
@@ -43,6 +48,7 @@ export type PopoverTriggerArgs = WithChildren<
 
 type PopoverTriggerAllArgs = WithChildren<(IntrinsicElements['a'] & IntrinsicElements['button'] & IntrinsicElements['span']) & PopoverTriggerSharedArgs>
 
+/** Props for the positioned popover panel. */
 export type PopoverContentArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Horizontal alignment relative to the trigger or anchor. */
 	align?: PopoverAlign
@@ -60,11 +66,13 @@ export type PopoverContentArgs = WithChildren<IntrinsicElements['div'] & {
 	style?: string
 }>
 
+/** Props for an explicit positioning anchor. */
 export type PopoverAnchorArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional CSS classes. */
 	class?: string
 }>
 
+/** Props for the visual arrow pointing at the popover anchor. */
 export type PopoverArrowArgs = WithChildren<IntrinsicElements['span'] & {
 	/** Additional CSS classes. */
 	class?: string
@@ -72,16 +80,19 @@ export type PopoverArrowArgs = WithChildren<IntrinsicElements['span'] & {
 	style?: string
 }>
 
+/** Props for the layout wrapper around popover heading content. */
 export type PopoverHeaderArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional CSS classes. */
 	class?: string
 }>
 
+/** Props for the heading that labels popover content. */
 export type PopoverTitleArgs = WithChildren<IntrinsicElements['h2'] & {
 	/** Additional CSS classes. */
 	class?: string
 }>
 
+/** Props for descriptive text associated with popover content. */
 export type PopoverDescriptionArgs = WithChildren<IntrinsicElements['p'] & {
 	/** Additional CSS classes. */
 	class?: string

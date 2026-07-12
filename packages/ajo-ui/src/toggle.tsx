@@ -2,6 +2,7 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import type { OmitArg } from './utils'
 import { callHandler, controlled, dom, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 
+/** Props for a controlled or uncontrolled two-state toggle button. */
 export type ToggleArgs = OmitArg<IntrinsicElements['button'], 'children'> & WithChildren<{
 	/** Controlled pressed state. */
 	pressed?: boolean

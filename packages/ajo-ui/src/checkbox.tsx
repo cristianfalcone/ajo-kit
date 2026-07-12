@@ -2,8 +2,10 @@ import type { IntrinsicElements, Stateful, Stateless } from 'ajo'
 import { callHandler, callRef, dom } from 'ajo-cloves'
 import { ariaChecked, bool, flag, syncCheckedState, type CheckedState } from './utils'
 
+/** Visual and ARIA state exposed by a Checkbox. */
 export type CheckboxState = CheckedState
 
+/** Arguments for the native checkbox and its visual companion. */
 export type CheckboxArgs = IntrinsicElements['input'] & {
 	/** Classes for the checked indicator element. */
 	checkedIndicatorClass?: string

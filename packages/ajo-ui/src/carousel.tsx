@@ -2,14 +2,17 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, clamp, listen, resize, scrolling, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 
+/** Layout axis used by a Carousel. */
 export type CarouselOrientation =
 	| 'horizontal'
 	| 'vertical'
 
+/** Inline direction used by horizontal Carousel navigation. */
 export type CarouselDirection =
 	| 'ltr'
 	| 'rtl'
 
+/** Behavioral options for the native Carousel controller. */
 export type CarouselOptions = {
 	/** Axis hint for carousel options. */
 	axis?: 'x' | 'y'
@@ -19,10 +22,12 @@ export type CarouselOptions = {
 	loop?: boolean
 }
 
+/** Lifecycle events emitted by a Carousel controller. */
 export type CarouselEvent =
 	| 'reInit'
 	| 'select'
 
+/** Imperative view of the current Carousel position and controls. */
 export type CarouselApi = {
 	canScrollNext: () => boolean
 	canScrollPrev: () => boolean
@@ -36,6 +41,7 @@ export type CarouselApi = {
 	selectedScrollSnap: () => number
 }
 
+/** Arguments for the Carousel root. */
 export type CarouselArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Orientation of the carousel track. */
 	orientation?: CarouselOrientation
@@ -45,13 +51,16 @@ export type CarouselArgs = WithChildren<IntrinsicElements['div'] & {
 	setApi?: (api: CarouselApi) => void
 }>
 
+/** Arguments for the Carousel track and viewport composition. */
 export type CarouselContentArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Classes for the viewport wrapper. */
 	viewportClass?: string
 }>
 
+/** Arguments for one snap-aligned Carousel item. */
 export type CarouselItemArgs = WithChildren<IntrinsicElements['div']>
 
+/** Shared arguments for previous and next Carousel buttons. */
 export type CarouselButtonArgs = WithChildren<IntrinsicElements['button']>
 
 type CarouselContextValue = {

@@ -7,10 +7,13 @@ import { defaultResultsLabel, flag, matchesTokens, resolveFilter, text } from '.
 import { contentAttrs, datasetPlacement, floating, triggerAttrs, type FloatingView } from './floating'
 import { collection } from './collection'
 
+/** Visual size supported by the built-in select trigger. */
 export type SelectSize = 'default' | 'sm'
 
+/** Predicate used to include an item in the current search results. */
 export type SelectFilter<T = unknown> = (item: T, search: string, text: string) => boolean
 
+/** Props for single- or multiple-selection state and search behavior. */
 export type SelectArgs<T = string, Multiple extends boolean = false> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange'> & {
 	/** Items available to SelectList render functions. */
 	items?: T[]
@@ -54,6 +57,7 @@ export type SelectArgs<T = string, Multiple extends boolean = false> = WithChild
 	class?: string
 }> & FixedArgs<'onchange'>
 
+/** Props for the button that opens the select popup. */
 export type SelectTriggerArgs = WithChildren<OmitArg<IntrinsicElements['button'], 'size'> & {
 	/** Select trigger size. */
 	size?: SelectSize
@@ -62,6 +66,7 @@ export type SelectTriggerArgs = WithChildren<OmitArg<IntrinsicElements['button']
 	iconClass?: string
 }>
 
+/** Props for rendering the current selection or its placeholder. */
 export type SelectValueArgs = WithChildren<IntrinsicElements['span'] & {
 	/** Fallback shown when no value is selected. */
 	placeholder?: Children
@@ -69,6 +74,7 @@ export type SelectValueArgs = WithChildren<IntrinsicElements['span'] & {
 	class?: string
 }>
 
+/** Props for a searchable select input and its optional controls. */
 export type SelectInputArgs = WithChildren<OmitArg<IntrinsicElements['input'], 'children' | 'onchange'> & {
 	/** Render the dropdown trigger inside the input group. */
 	showTrigger?: boolean
@@ -90,12 +96,14 @@ export type SelectInputArgs = WithChildren<OmitArg<IntrinsicElements['input'], '
 	inputClass?: string
 }> & FixedArgs<'onchange'>
 
+/** Props for the button that clears the current selection. */
 export type SelectClearArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 	iconClass?: string
 }>
 
+/** Props for the positioned select popup. */
 export type SelectContentArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Preferred side relative to the field. */
 	side?: 'bottom' | 'left' | 'right' | 'top'
@@ -113,12 +121,14 @@ export type SelectContentArgs = WithChildren<IntrinsicElements['div'] & {
 	style?: string
 }>
 
+/** Props for an option list, including item-renderer children. */
 export type SelectListArgs<T = unknown> = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {
 	children?: Children | ((item: T, index: number) => Children)
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Props for a selectable option and its filtering metadata. */
 export type SelectItemArgs<T = unknown> = WithChildren<OmitArg<IntrinsicElements['div'], 'value'> & {
 	/** Item value selected by this option. */
 	value?: T
@@ -138,41 +148,49 @@ export type SelectItemArgs<T = unknown> = WithChildren<OmitArg<IntrinsicElements
 	indicatorIconClass?: string
 }>
 
+/** Props for grouping related select options. */
 export type SelectGroupArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Props for a label associated with a select option group. */
 export type SelectLabelArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Props for a visual separator between select options or groups. */
 export type SelectSeparatorArgs = IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }
 
+/** Props for content shown when no options match. */
 export type SelectEmptyArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Props for an accessible select status message. */
 export type SelectStatusArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Props for the option that commits the current search as a new value. */
 export type SelectCreateArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Props for the container of a multiple select's value chips. */
 export type SelectChipsArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
+/** Props for a selected-value chip and its optional remove control. */
 export type SelectChipArgs<T = unknown> = WithChildren<IntrinsicElements['span'] & {
 	/** Value removed by the built-in remove button. Defaults to chip text. */
 	value?: T
@@ -186,6 +204,7 @@ export type SelectChipArgs<T = unknown> = WithChildren<IntrinsicElements['span']
 	removeIconClass?: string
 }>
 
+/** Props for the search input composed inside a chip collection. */
 export type SelectChipsInputArgs = OmitArg<IntrinsicElements['input'], 'onchange'> & {
 	/** Called when input text changes. */
 	onValueChange?: (value: string, event: Event) => void
@@ -193,6 +212,7 @@ export type SelectChipsInputArgs = OmitArg<IntrinsicElements['input'], 'onchange
 	class?: string
 } & FixedArgs<'onchange'>
 
+/** Shared props for select viewport scroll buttons. */
 export type SelectScrollButtonArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional UnoCSS classes. */
 	class?: string

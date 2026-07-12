@@ -5,8 +5,10 @@ import { bar } from './bar'
 import { openPopover, text } from './utils'
 import { floating, popupStyle, type FloatingView } from './floating'
 
+/** Stable identifier for an open navigation-menu item. */
 export type NavigationMenuValue = string
 
+/** Props for the navigation-menu root and its controlled state. */
 export type NavigationMenuArgs = WithChildren<IntrinsicElements['nav'] & {
 	/** Controlled open item value. Empty string closes every content panel. */
 	value?: NavigationMenuValue
@@ -22,11 +24,13 @@ export type NavigationMenuArgs = WithChildren<IntrinsicElements['nav'] & {
 	class?: string
 }>
 
+/** Props for the list containing navigation-menu items. */
 export type NavigationMenuListArgs = WithChildren<IntrinsicElements['ul'] & {
 	/** Additional CSS classes. */
 	class?: string
 }>
 
+/** Props for a navigation-menu item and its stable value. */
 export type NavigationMenuItemArgs = WithChildren<IntrinsicElements['li'] & {
 	/** Stable value used by controlled NavigationMenu state. */
 	value?: NavigationMenuValue
@@ -36,6 +40,7 @@ export type NavigationMenuItemArgs = WithChildren<IntrinsicElements['li'] & {
 	class?: string
 }>
 
+/** Props for a button that opens a navigation-menu panel. */
 export type NavigationMenuTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Plain-text label used for keyboard typeahead. */
 	textValue?: string
@@ -43,6 +48,7 @@ export type NavigationMenuTriggerArgs = WithChildren<IntrinsicElements['button']
 	class?: string
 }>
 
+/** Props for a floating navigation-menu panel. */
 export type NavigationMenuContentArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Gap between trigger and content in pixels. */
 	sideOffset?: number
@@ -52,6 +58,7 @@ export type NavigationMenuContentArgs = WithChildren<IntrinsicElements['div'] & 
 	style?: string
 }>
 
+/** Props for an anchor or button rendered inside navigation-menu content. */
 export type NavigationMenuLinkArgs = WithChildren<(IntrinsicElements['a'] & IntrinsicElements['button']) & {
 	/** Render as a native anchor or button. */
 	as?: 'a' | 'button'

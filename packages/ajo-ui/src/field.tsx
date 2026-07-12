@@ -12,8 +12,10 @@ type FieldBehaviorArgs = {
 
 type FieldRootArgs = WithChildren<FieldBehaviorArgs>
 
+/** Arguments for a field host that coordinates labels, descriptions, and errors. */
 export type FieldArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & FieldBehaviorArgs>
 
+/** Label-clove contract exposed to controls composed inside a Field. */
 export type FieldContextValue = Pick<LabelView,
 	| 'buttonAttrs'
 	| 'controlAttrs'
