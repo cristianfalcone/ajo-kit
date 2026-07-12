@@ -89,7 +89,7 @@ export const Horizontal: Story<typeof Field> = {
 	argTypes: fixed,
 	render: () => (
 		<Field orientation="horizontal" class="max-w-md">
-			<input id="field-newsletter" type="checkbox" class="size-4 rounded edge-input bg-transparent" />
+			<input id="field-newsletter" type="checkbox" class="size-4 rounded-xs edge-input bg-transparent" />
 			<FieldContent>
 				<FieldLabel for="field-newsletter">Subscribe to updates</FieldLabel>
 				<FieldDescription>Receive product and security notices.</FieldDescription>

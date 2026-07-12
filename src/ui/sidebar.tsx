@@ -139,7 +139,7 @@ const Sidebar: Stateless<SidebarArgs> = ({
 			// stays consumer-sized below lg (StaticNavigation pattern).
 			'group/sidebar flex min-h-0 shrink-0 flex-col text-foreground',
 			collapsible === 'none' ? 'w-full lg:w-[var(--sidebar-width)]' : 'w-[var(--sidebar-width)]',
-			variant === 'sidebar' && 'bg-card/70 backdrop-blur-lg',
+			variant === 'sidebar' && 'glass-chrome',
 			variant === 'sidebar' && (side === 'left'
 				? (collapsible === 'none' ? 'lg:border-r' : 'border-r')
 				: (collapsible === 'none' ? 'lg:border-l' : 'border-l')),
@@ -151,7 +151,7 @@ const Sidebar: Stateless<SidebarArgs> = ({
 		)}
 		collapsible={collapsible}
 		mobileClass={clsx(
-			'fixed inset-y-0 z-40 m-0 h-dvh max-h-none w-[var(--sidebar-width-mobile)] max-w-[calc(100vw-2rem)] border-0 glass-overlay edge p-0 shadow-lg backdrop:bg-black/40 backdrop:backdrop-blur-xs',
+			'fixed inset-y-0 z-40 m-0 h-dvh max-h-none w-[var(--sidebar-width-mobile)] max-w-[calc(100vw-2rem)] border-0 glass-overlay edge p-0 shadow-lg backdrop:bg-black/20 backdrop:backdrop-blur-sm',
 			side === 'left' ? 'left-0' : 'right-0',
 			mobileClass,
 		)}
@@ -233,7 +233,7 @@ const SidebarGroupLabel: Stateless<SidebarGroupLabelArgs> = ({ class: classes, .
 const SidebarGroupAction: Stateless<SidebarGroupActionArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSidebarGroupAction
 		{...attrs}
-		class={clsx('absolute right-3 top-3.5 flex size-5 items-center justify-center rounded-md text-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 group-data-[collapsible=icon]/sidebar:hidden [&>svg]:size-4', classes)}
+		class={clsx('absolute right-3 top-3.5 flex size-5 items-center justify-center rounded-sm text-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 group-data-[collapsible=icon]/sidebar:hidden [&>svg]:size-4', classes)}
 	/>
 )
 
@@ -251,7 +251,7 @@ const SidebarMenuItem: Stateless<SidebarMenuItemArgs> = ({ class: classes, ...at
 
 const buttonVariant = {
 	default: 'hover:bg-accent hover:text-accent-foreground',
-	outline: 'edge bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground',
+	outline: 'edge bg-transparent hover:bg-accent hover:text-accent-foreground',
 }
 
 const buttonSize = {
@@ -286,7 +286,7 @@ export const sidebarMenuButtonVariants = ({
 } = {}) => menuButtonClass(variant, size, classes)
 
 const menuActionClass = (showOnHover?: boolean, classes?: string) =>
-	clsx('absolute right-1 top-1.5 flex size-5 items-center justify-center rounded-md p-0 text-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 group-data-[collapsible=icon]/sidebar:hidden [&>svg]:size-4', showOnHover && 'opacity-0 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100', classes)
+	clsx('absolute right-1 top-1.5 flex size-5 items-center justify-center rounded-sm p-0 text-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 group-data-[collapsible=icon]/sidebar:hidden [&>svg]:size-4', showOnHover && 'opacity-0 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100', classes)
 
 /** Returns the UnoCSS class list for a sidebar menu action, for composing other triggers into the item's action slot. */
 export const sidebarMenuActionVariants = ({
@@ -320,7 +320,7 @@ const SidebarMenuAction: Stateless<SidebarMenuActionArgs> = ({ class: classes, s
 const SidebarMenuBadge: Stateless<SidebarMenuBadgeArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSidebarMenuBadge
 		{...attrs}
-		class={clsx('pointer-events-none absolute right-1 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium tabular-nums text-muted-foreground peer-data-[active=true]/menu-button:text-accent-foreground group-data-[collapsible=icon]/sidebar:hidden', classes)}
+		class={clsx('pointer-events-none absolute right-1 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-sm px-1 text-xs font-medium tabular-nums text-muted-foreground peer-data-[active=true]/menu-button:text-accent-foreground group-data-[collapsible=icon]/sidebar:hidden', classes)}
 	/>
 )
 
@@ -331,8 +331,8 @@ const SidebarMenuSkeleton: Stateless<SidebarMenuSkeletonArgs> = ({
 	<BaseSidebarMenuSkeleton
 		{...attrs}
 		class={clsx('flex h-8 animate-pulse items-center gap-2 rounded-md px-2 motion-reduce:animate-none', classes)}
-		iconClass="size-4 rounded-md bg-muted"
-		textClass="h-4 flex-1 rounded bg-muted"
+		iconClass="size-4 rounded-xs bg-muted"
+		textClass="h-4 flex-1 rounded-xs bg-muted"
 	/>
 )
 

@@ -14,7 +14,7 @@ export type SwitchArgs = OmitArg<BaseSwitchArgs, 'inputClass' | 'size' | 'thumbC
 	class?: string
 }
 
-const track = 'peer group/switch relative inline-flex shrink-0 items-center rounded-full px-px edge-input bg-transparent shadow-xs outline-none transition-all has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[:checked]:inset-ring-transparent has-[:checked]:bg-primary'
+const track = 'peer group/switch relative inline-flex shrink-0 items-center rounded-full px-px edge-input bg-transparent outline-none transition-all has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[:checked]:inset-ring-transparent has-[:checked]:bg-primary'
 const sizes: Record<SwitchSize, string> = {
 	default: 'h-[1.15rem] w-8',
 	sm: 'h-3.5 w-6',

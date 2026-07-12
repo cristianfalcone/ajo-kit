@@ -48,8 +48,8 @@ const connected = (spacing: number, orientation: ToggleGroupOrientation) => {
 	// `relative` lets the focused item's z-10 lift its ring above the 1px
 	// negative-margin overlap that merges adjacent inset-ring hairlines.
 	return orientation === 'vertical'
-		? 'relative rounded-none shadow-none first:rounded-t-md last:rounded-b-md [&:not(:first-child)]:-mt-px'
-		: 'relative rounded-none shadow-none first:rounded-l-md last:rounded-r-md [&:not(:first-child)]:-ml-px'
+		? 'relative rounded-none first:rounded-t-md last:rounded-b-md [&:not(:first-child)]:-mt-px'
+		: 'relative rounded-none first:rounded-l-md last:rounded-r-md [&:not(:first-child)]:-ml-px'
 }
 
 const toggleSize = (value: unknown): ToggleSize | undefined =>

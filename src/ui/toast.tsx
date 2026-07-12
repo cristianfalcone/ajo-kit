@@ -114,9 +114,14 @@ export type ToastApi = {
 }
 
 const rootBase = 'group/toast pointer-events-auto grid origin-top grid-cols-[1fr_auto] items-start gap-x-4 gap-y-1 rounded-lg edge p-4 pr-10 shadow-lg transition-[margin,opacity,transform,box-shadow] duration-200 ease-out motion-reduce:transition-none'
+// Tonal variants replace the glass-overlay surface wholesale so each toast
+// keeps a single bg/ring owner instead of stacking tints over the shortcut.
 const rootVariants: Record<ToastVariant, string> = {
 	default: 'glass-overlay',
-	danger: 'bg-danger/10 text-danger inset-ring-danger/25 backdrop-blur-xl',
+	danger: 'bg-danger/10 text-danger inset-ring-danger/25 backdrop-blur-xl backdrop-saturate-150',
+	info: 'bg-info/10 text-info inset-ring-info/25 backdrop-blur-xl backdrop-saturate-150',
+	success: 'bg-success/10 text-success inset-ring-success/25 backdrop-blur-xl backdrop-saturate-150',
+	warning: 'bg-warning/10 text-warning inset-ring-warning/25 backdrop-blur-xl backdrop-saturate-150',
 }
 // No z-index and no display utility: the viewport is a `popover="manual"`
 // element, so the top layer owns stacking (a fixed z-100 loses to an open
@@ -156,15 +161,6 @@ const defaultIcons: Record<Exclude<ToastKind, 'default'>, string> = {
 	success: 'i-lucide-circle-check text-success',
 	warning: 'i-lucide-triangle-alert text-warning',
 }
-const richClasses: Record<ToastKind, string> = {
-	default: '',
-	error: '',
-	info: 'bg-info/10 text-info inset-ring-info/25',
-	loading: '',
-	success: 'bg-success/10 text-success inset-ring-success/25',
-	warning: 'bg-warning/10 text-warning inset-ring-warning/25',
-}
-
 let configuredDuration = 5000
 let configuredPosition: ToastPosition = 'bottom-right'
 let configuredRichColors = false
@@ -288,12 +284,16 @@ const input = (
 ): ToastInput => {
 	const merged = { ...configuredToastOptions, ...options }
 	const richColors = merged.richColors ?? configuredRichColors
-	const variant = type === 'error' ? 'danger' : 'default'
+	const variant = type === 'error'
+		? 'danger'
+		: richColors && (type === 'info' || type === 'success' || type === 'warning')
+			? type
+			: 'default'
 
 	return {
 		...merged,
 		action: actionNode(merged.action),
-		class: clsx(richColors && richClasses[type], merged.class),
+		class: merged.class,
 		closeButton: merged.closeButton ?? configuredCloseButton,
 		description: merged.description,
 		duration: type === 'loading' && merged.duration == null

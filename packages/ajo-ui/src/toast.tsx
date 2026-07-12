@@ -9,6 +9,9 @@ import { closePopover, clx, openPopover, toNumber } from './utils'
 export type ToastVariant =
 	| 'default'
 	| 'danger'
+	| 'info'
+	| 'success'
+	| 'warning'
 
 /** Live-region priority category used by a toast. */
 export type ToastType =

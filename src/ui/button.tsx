@@ -51,15 +51,13 @@ export type ButtonArgs = ButtonAsAnchor | ButtonAsButton
 
 type ButtonVariantOptions = {
 	class?: string
-	/** Include the variant's standalone elevation. */
-	shadow?: boolean
 	size?: ButtonSize
 	/** Include the general transition recipe. */
 	transition?: boolean
 	variant?: ButtonVariant
 }
 
-const base = 'inline-flex shrink-0 items-center justify-center text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:inset-ring aria-invalid:inset-ring-danger aria-invalid:ring-danger/25 [&_svg]:pointer-events-none [&_svg]:shrink-0'
+const base = 'inline-flex shrink-0 items-center justify-center text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-3 active:scale-[0.98] motion-reduce:active:scale-100 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:inset-ring aria-invalid:inset-ring-danger aria-invalid:ring-danger/25 [&_svg]:pointer-events-none [&_svg]:shrink-0'
 
 const variants: Record<ButtonVariant, string> = {
 	default: 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -83,24 +81,17 @@ const focusRings: Record<ButtonVariant, string> = {
 	secondary: 'focus-visible:ring-ring/50',
 }
 
-const shadows: Partial<Record<ButtonVariant, string>> = {
-	default: 'shadow-xs',
-	danger: 'shadow-xs',
-	outline: 'shadow-xs',
-	secondary: 'shadow-xs',
-}
-
 // Geometry single-owner rule: base emits no geometry, so every size recipe
 // (and every size:'none' composition site) is the single owner of
 // h/px/py/gap/rounded/svg sizing — clsx cannot resolve conflicting
 // utilities and the alphabetically-last rule wins in the stylesheet.
 const sizes: Record<ButtonSize, string> = {
 	default: 'h-9 gap-2 rounded-md px-4 py-2 has-[>svg]:px-3 [&_svg:not([class*=size-])]:size-4',
-	xs: 'h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*=size-])]:size-3',
+	xs: 'h-6 gap-1 rounded-sm px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*=size-])]:size-3',
 	sm: 'h-8 gap-2 rounded-md px-3 has-[>svg]:px-2.5 [&_svg:not([class*=size-])]:size-4',
 	lg: 'h-10 gap-2 rounded-md px-6 has-[>svg]:px-4 [&_svg:not([class*=size-])]:size-4',
 	icon: 'size-9 gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
-	'icon-xs': 'size-6 gap-2 rounded-md [&_svg:not([class*=size-])]:size-3',
+	'icon-xs': 'size-6 gap-2 rounded-sm [&_svg:not([class*=size-])]:size-3',
 	'icon-sm': 'size-8 gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
 	'icon-lg': 'size-10 gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
 	none: '',
@@ -109,7 +100,6 @@ const sizes: Record<ButtonSize, string> = {
 /** Returns the UnoCSS class list for a button variant. */
 export const buttonVariants = ({
 	class: classes,
-	shadow = true,
 	size = 'default',
 	transition = true,
 	variant = 'default',
@@ -118,7 +108,6 @@ export const buttonVariants = ({
 	transition && 'transition-all',
 	variants[variant],
 	focusRings[variant],
-	shadow && shadows[variant],
 	sizes[size],
 	classes,
 )

@@ -82,7 +82,9 @@ const rootVariants: Record<BubbleVariant, string> = {
 	secondary: '*:data-[slot=bubble-content]:bg-secondary *:data-[slot=bubble-content]:text-secondary-foreground [&>[data-slot=bubble-content]:is(button,a):hover]:bg-secondary/80',
 	muted: '*:data-[slot=bubble-content]:bg-muted [&>[data-slot=bubble-content]:is(button,a):hover]:bg-muted/80',
 	tinted: '*:data-[slot=bubble-content]:bg-primary/10 *:data-[slot=bubble-content]:text-foreground [&>[data-slot=bubble-content]:is(button,a):hover]:bg-primary/15',
-	outline: '*:data-[slot=bubble-content]:bg-card/80 *:data-[slot=bubble-content]:text-card-foreground *:data-[slot=bubble-content]:backdrop-blur-md *:data-[slot=bubble-content]:inset-ring *:data-[slot=bubble-content]:inset-ring-border [&>[data-slot=bubble-content]:is(button,a):hover]:bg-muted [&>[data-slot=bubble-content]:is(button,a):hover]:text-foreground',
+	// Tint without backdrop-filter: bubbles repeat per message, and per-bubble
+	// blur is the classic backdrop-filter performance trap.
+	outline: '*:data-[slot=bubble-content]:bg-card/80 *:data-[slot=bubble-content]:text-card-foreground *:data-[slot=bubble-content]:inset-ring *:data-[slot=bubble-content]:inset-ring-border [&>[data-slot=bubble-content]:is(button,a):hover]:bg-muted [&>[data-slot=bubble-content]:is(button,a):hover]:text-foreground',
 	ghost: '*:data-[slot=bubble-content]:rounded-none *:data-[slot=bubble-content]:bg-transparent *:data-[slot=bubble-content]:p-0 [&>[data-slot=bubble-content]:is(button,a):hover]:bg-accent [&>[data-slot=bubble-content]:is(button,a):hover]:text-accent-foreground',
 	danger: '*:data-[slot=bubble-content]:bg-danger/10 *:data-[slot=bubble-content]:text-danger *:data-[slot=bubble-content]:inset-ring *:data-[slot=bubble-content]:inset-ring-danger/25 [&>[data-slot=bubble-content]:is(button,a):hover]:bg-danger/20',
 }
@@ -99,7 +101,9 @@ const contentBase = [
 	'[&:is(button)]:text-left [&:is(button,a)]:transition-colors [&:is(button,a)]:outline-none [&:is(button,a)]:focus-visible:ring-3 [&:is(button,a)]:focus-visible:ring-ring/50',
 ].join(' ')
 
-const reactionsBase = 'absolute z-10 flex w-fit shrink-0 items-center justify-center gap-1 rounded-full glass-overlay edge px-1.5 py-0.5 text-sm shadow-xs has-[button]:p-0'
+// Solid popover fill: reaction pills repeat per message, so they skip the
+// glass-overlay backdrop-filter for the same reason outline bubbles do.
+const reactionsBase = 'absolute z-10 flex w-fit shrink-0 items-center justify-center gap-1 rounded-full bg-popover text-popover-foreground edge px-1.5 py-0.5 text-sm has-[button]:p-0'
 
 const reactionSides: Record<BubbleReactionSide, string> = {
 	bottom: 'bottom-0 translate-y-3/4',

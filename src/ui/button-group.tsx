@@ -48,7 +48,7 @@ const groupOrientations: Record<ButtonGroupOrientation, string> = {
 	horizontal: '[&>*:not(:first-child)]:-ml-px [&>*:not(:first-child)]:rounded-l-none [&>*:not(:last-child)]:rounded-r-none',
 	vertical: 'flex-col [&>*:not(:first-child)]:-mt-px [&>*:not(:first-child)]:rounded-t-none [&>*:not(:last-child)]:rounded-b-none',
 }
-const textBase = 'flex items-center gap-2 rounded-md edge bg-muted px-4 text-sm font-medium shadow-xs [&_svg]:pointer-events-none [&_svg:not([class*=size-])]:size-4'
+const textBase = 'flex items-center gap-2 rounded-md edge bg-muted px-4 text-sm font-medium [&_svg]:pointer-events-none [&_svg:not([class*=size-])]:size-4'
 const separatorBase = 'relative m-0 self-stretch bg-input data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-auto data-[orientation=vertical]:h-auto data-[orientation=vertical]:w-px'
 
 /** Returns the UnoCSS class list for a ButtonGroup root. */

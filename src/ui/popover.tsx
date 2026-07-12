@@ -23,7 +23,9 @@ const contentBase = 'z-50 m-0 w-72 rounded-lg glass-overlay edge p-4 shadow-lg o
 // The placer writes inline left/top; the theme only rotates the square and
 // borders its two outward faces per the content's live data-side.
 const arrowBase = [
-	'pointer-events-none absolute z-50 size-2.5 rotate-45 glass-overlay border-border',
+	// inset-shadow-none drops the surface's specular highlight: rotated 45deg
+	// it would paint a stray diagonal hairline across the caret tip.
+	'pointer-events-none absolute z-50 size-2.5 rotate-45 glass-overlay inset-shadow-none border-border',
 	'[[data-side=top]>&]:border-b [[data-side=top]>&]:border-r',
 	'[[data-side=bottom]>&]:border-t [[data-side=bottom]>&]:border-l',
 	'[[data-side=left]>&]:border-t [[data-side=left]>&]:border-r',

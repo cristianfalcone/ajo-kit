@@ -27,7 +27,7 @@ const base = 'inline-flex items-center justify-center gap-2 rounded-md text-sm f
 
 const variants: Record<ToggleVariant, string> = {
 	default: 'bg-transparent',
-	outline: 'edge bg-transparent shadow-xs',
+	outline: 'edge bg-transparent',
 }
 
 const sizes: Record<ToggleSize, string> = {

@@ -23,7 +23,7 @@ export type RadioGroupItemArgs = OmitArg<BaseRadioGroupItemArgs, 'indicatorClass
 	class?: string
 }
 
-const itemBase = 'relative inline-flex aspect-square size-4 shrink-0 items-center justify-center rounded-full edge-input bg-transparent shadow-xs outline-none transition-[color,box-shadow] has-[:checked]:inset-ring-transparent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[[aria-invalid=true]]:inset-ring-danger has-[[aria-invalid=true]]:ring-danger/20'
+const itemBase = 'relative inline-flex aspect-square size-4 shrink-0 items-center justify-center rounded-full edge-input bg-transparent outline-none transition-[color,box-shadow] has-[:checked]:inset-ring-transparent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[[aria-invalid=true]]:inset-ring-danger has-[[aria-invalid=true]]:ring-danger/20'
 
 /** Radio input group matching composition while preserving native forms. */
 const RadioGroup: Stateless<RadioGroupArgs> = ({

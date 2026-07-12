@@ -28,7 +28,7 @@ const rangeOrientation: Record<SliderOrientation, string> = {
 	horizontal: 'h-full',
 	vertical: 'w-full',
 }
-const thumbBase = 'pointer-events-none absolute z-10 block size-4 rounded-full edge-input bg-card shadow-xs ring-ring/50 transition-[color,box-shadow] group-has-[:focus-visible]/slider:ring-4'
+const thumbBase = 'pointer-events-none absolute z-10 block size-4 rounded-full edge-input bg-card ring-ring/50 transition-[color,box-shadow] group-has-[:focus-visible]/slider:ring-4'
 const inputBase = 'pointer-events-none absolute inset-0 z-20 m-0 size-full appearance-none opacity-0'
 
 /** Range slider with component styling, native range inputs, and Ajo state. */

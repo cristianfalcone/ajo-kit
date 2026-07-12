@@ -33,7 +33,7 @@ export type InputOTPSeparatorArgs = OmitArg<BaseInputOTPSeparatorArgs, 'children
 
 const containerBase = 'flex items-center gap-2 has-disabled:opacity-50'
 const hiddenInputBase = 'sr-only disabled:cursor-not-allowed'
-const groupBase = 'flex items-center rounded-md edge-input bg-transparent shadow-xs has-[[aria-invalid=true]]:inset-ring-danger'
+const groupBase = 'flex items-center rounded-md edge-input bg-transparent has-[[aria-invalid=true]]:inset-ring-danger'
 const slotBase = 'relative flex h-9 w-9 items-center justify-center border-l border-input text-sm transition-all outline-none first:rounded-l-md first:border-l-0 last:rounded-r-md aria-invalid:border-danger data-[active=true]:z-10 data-[active=true]:inset-ring data-[active=true]:inset-ring-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/25 data-[active=true]:aria-invalid:inset-ring-danger data-[active=true]:aria-invalid:ring-danger/20'
 const caretBase = 'pointer-events-none absolute inset-0 flex items-center justify-center'
 const caretMark = 'h-4 w-px animate-caret-blink bg-foreground duration-1000'

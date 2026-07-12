@@ -35,7 +35,9 @@ type AlertVariantOptions = {
 	variant?: AlertVariant
 }
 
-const base = 'relative grid w-full grid-cols-[0_1fr_auto] items-start gap-y-0.5 rounded-lg edge backdrop-blur-md px-4 py-3 text-sm has-[>svg]:grid-cols-[1rem_1fr_auto] has-[>svg]:gap-x-3 has-[>[data-slot=alert-icon]]:grid-cols-[1rem_1fr_auto] has-[>[data-slot=alert-icon]]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current [&>[data-slot=alert-icon]]:size-4 [&>[data-slot=alert-icon]]:translate-y-0.5 [&>[data-slot=alert-icon]]:text-current'
+// Alerts live in the content layer, often inside glass cards, so the surface
+// is a plain tint: translucent color without its own backdrop-filter.
+const base = 'relative grid w-full grid-cols-[0_1fr_auto] items-start gap-y-0.5 rounded-lg edge px-4 py-3 text-sm has-[>svg]:grid-cols-[1rem_1fr_auto] has-[>svg]:gap-x-3 has-[>[data-slot=alert-icon]]:grid-cols-[1rem_1fr_auto] has-[>[data-slot=alert-icon]]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current [&>[data-slot=alert-icon]]:size-4 [&>[data-slot=alert-icon]]:translate-y-0.5 [&>[data-slot=alert-icon]]:text-current'
 
 const variants: Record<AlertVariant, string> = {
 	default: 'bg-card/80 text-card-foreground shadow-xs',

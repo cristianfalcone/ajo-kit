@@ -62,7 +62,7 @@ export type InputGroupTextareaArgs = BaseInputGroupTextareaArgs & {
 }
 
 const rootBase = [
-	'group/input-group relative flex h-9 min-w-0 items-center rounded-md edge-input bg-transparent shadow-xs transition-[color,box-shadow] outline-none',
+	'group/input-group relative flex h-9 min-w-0 items-center rounded-md edge-input bg-transparent transition-[color,box-shadow] outline-none',
 	'has-[>textarea]:h-auto',
 	'has-[>[data-align=inline-start]]:[&>input]:pl-2',
 	'has-[>[data-align=inline-end]]:[&>input]:pr-2',
@@ -159,7 +159,7 @@ const InputGroupButton: Stateless<InputGroupButtonArgs> = ({
 }) => (
 	<BaseInputGroupButton
 		{...attrs}
-		class={clsx(buttonVariants({ shadow: false, size: 'none', variant }), buttonSizeClasses[size], classes)}
+		class={clsx(buttonVariants({ size: 'none', variant }), buttonSizeClasses[size], classes)}
 		data-size={size}
 		data-slot={slot}
 		type={type}

@@ -96,9 +96,11 @@ const rootOrientations: Record<AttachmentOrientation, string> = {
 	vertical: 'w-24 flex-col has-data-[slot=attachment-content]:w-30',
 }
 
+// Media radii step down with the tile so thumbnails stay rounded squares
+// (16px on a 32px tile would clip them into circles).
 const mediaBase = [
-	'relative flex aspect-square w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-foreground',
-	'group-data-[orientation=vertical]/attachment:w-full group-data-[size=sm]/attachment:w-8 group-data-[size=xs]/attachment:w-7 group-data-[size=xs]/attachment:rounded-md',
+	'relative flex aspect-square w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-foreground',
+	'group-data-[orientation=vertical]/attachment:w-full group-data-[size=sm]/attachment:w-8 group-data-[size=sm]/attachment:rounded-sm group-data-[size=xs]/attachment:w-7 group-data-[size=xs]/attachment:rounded-sm',
 	'group-data-[state=error]/attachment:bg-danger/10 group-data-[state=error]/attachment:text-danger',
 	'[&_svg]:pointer-events-none [&_svg:not([class*=size-])]:size-4',
 	'group-data-[orientation=vertical]/attachment:[&_svg:not([class*=size-])]:size-6 group-data-[size=xs]/attachment:[&_svg:not([class*=size-])]:size-3.5',

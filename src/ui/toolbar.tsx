@@ -8,7 +8,9 @@ import type { ToolbarArgs, ToolbarOrientation, ToolbarSeparatorArgs } from 'ajo-
 
 export type { ToolbarArgs, ToolbarOrientation, ToolbarSeparatorArgs }
 
-const rootBase = 'flex w-fit items-center gap-1 rounded-md edge p-1 data-[orientation=vertical]:flex-col'
+// rounded-lg keeps the track concentric with its rounded-md children:
+// 16px container minus 4px padding meets their 12px corners exactly.
+const rootBase = 'flex w-fit items-center gap-1 rounded-lg edge p-1 data-[orientation=vertical]:flex-col'
 const separatorBase = 'shrink-0 self-stretch bg-border data-[orientation=vertical]:mx-1 data-[orientation=vertical]:w-px data-[orientation=horizontal]:my-1 data-[orientation=horizontal]:h-px'
 
 /** Toolbar grouping buttons, toggle groups, and inputs behind a single tab stop with arrow-key roving. */

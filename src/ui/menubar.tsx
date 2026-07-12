@@ -42,7 +42,7 @@ export type MenubarRadioItemArgs = OmitArg<BaseMenubarRadioItemArgs, 'indicatorC
 }
 export type MenubarSubTriggerArgs = OmitArg<BaseMenubarSubTriggerArgs, 'iconClass'> & FixedArgs<'iconClass'>
 
-const base = 'flex h-9 items-center gap-1 rounded-md glass edge p-1 shadow-xs'
+const base = 'flex h-9 items-center gap-1 rounded-md glass-chrome edge p-1'
 const triggerBase = 'flex items-center rounded-sm px-2 py-1 text-sm font-medium outline-none select-none focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
 const subContentBase = menuContent()
 

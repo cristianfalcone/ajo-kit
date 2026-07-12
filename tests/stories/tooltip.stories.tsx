@@ -131,7 +131,7 @@ export const Keyboard: Story<typeof Tooltip> = {
 				<span class="i-lucide-save size-4" />
 			</TooltipTrigger>
 			<TooltipContent>
-				Save Changes <kbd class="ml-1 rounded bg-primary-foreground/15 px-1 font-mono">S</kbd>
+				Save Changes <kbd class="ml-1 rounded-xs bg-primary-foreground/15 px-1 font-mono">S</kbd>
 			</TooltipContent>
 		</Tooltip>
 	),

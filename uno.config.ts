@@ -131,8 +131,27 @@ export default defineConfig({
   preflights: [
     {
       getCSS: () => [
-        ':root{--radius:0.625rem;--background:#f3f0e9;--foreground:#1b3c53;--card:#fefdfb;--card-foreground:#1b3c53;--popover:#fefdfb;--popover-foreground:#1b3c53;--primary:#234c6a;--primary-foreground:#f5fafc;--secondary:#dce7ec;--secondary-foreground:#1b3c53;--muted:#e9e6dc;--muted-foreground:#54687c;--accent:rgb(35 76 106 / 0.09);--accent-foreground:#1b3c53;--danger:#a94b4c;--danger-foreground:#fcf6f3;--success:#5f7238;--success-foreground:#f7faf0;--warning:#96650c;--warning-foreground:#fff9ec;--info:#276e7e;--info-foreground:#f0fafb;--border:rgb(27 60 83 / 0.14);--input:rgb(27 60 83 / 0.26);--ring:#3596ac;--chart-1:#234c6a;--chart-2:#3596ac;--chart-3:#84994f;--chart-4:#fcb53b;--chart-5:#b45253}',
-        '.dark{--background:#0f2334;--foreground:#eae4da;--card:#1b3c53;--card-foreground:#eae4da;--popover:#204359;--popover-foreground:#eae4da;--primary:#d2c1b6;--primary-foreground:#1b3c53;--secondary:#234c6a;--secondary-foreground:#eae4da;--muted:#173349;--muted-foreground:#9fb3c1;--accent:rgb(210 193 182 / 0.12);--accent-foreground:#f0ebe2;--danger:#d98e85;--danger-foreground:#0f2334;--success:#9db36a;--success-foreground:#0f2334;--warning:#fcb53b;--warning-foreground:#0f2334;--info:#6cc3d5;--info-foreground:#0f2334;--border:rgb(210 193 182 / 0.16);--input:rgb(210 193 182 / 0.26);--ring:#6cc3d5;--chart-1:#6cc3d5;--chart-2:#d2c1b6;--chart-3:#9db36a;--chart-4:#fcb53b;--chart-5:#d98e85}',
+        // Playa palette, "deep ocean" tuning: structural blues sit at OKLCH hue
+        // 250-256 and accents at 230-240 so nothing drifts teal, while the warm
+        // sand neutrals keep the beach identity. Every body-text pair holds
+        // WCAG >= 7:1 and every on-color foreground >= 4.5:1.
+        ':root{--radius:0.75rem;--background:#f3f0e9;--foreground:#1e3957;--card:#fafdff;--card-foreground:#1e3957;--popover:#fafdff;--popover-foreground:#1e3957;--primary:#284971;--primary-foreground:#f5fafd;--secondary:#dbe7f0;--secondary-foreground:#1e3957;--muted:#e9e6dc;--muted-foreground:#4f657e;--accent:rgb(40 73 113 / 0.09);--accent-foreground:#1e3957;--danger:#a94b4c;--danger-foreground:#fcf6f3;--success:#45764c;--success-foreground:#f2fbf5;--warning:#96650c;--warning-foreground:#fff9ec;--info:#276b8c;--info-foreground:#f1f9fd;--border:rgb(30 57 87 / 0.14);--input:rgb(30 57 87 / 0.26);--ring:#3e8ec1;--chart-1:#284971;--chart-2:#3e8ec1;--chart-3:#63a06c;--chart-4:#fcb53b;--chart-5:#b45253;--glass-highlight:rgb(255 255 255 / 0.35);--shadow-xs:0 1px 2px rgb(30 57 87 / 0.06),0 2px 8px -2px rgb(30 57 87 / 0.04);--shadow-lg:0 4px 12px -4px rgb(30 57 87 / 0.1),0 16px 40px -8px rgb(30 57 87 / 0.18)}',
+        // Dark mode is near-black desaturated charcoal (OKLCH C 0.010-0.020 at
+        // hue 252 — a whisper of ocean, not navy) so translucent surfaces
+        // composite naturally over the page; the warm sand accents carry the
+        // beach identity.
+        '.dark{--background:#101317;--foreground:#eae4da;--card:#1c2127;--card-foreground:#eae4da;--popover:#22282f;--popover-foreground:#eae4da;--primary:#d2c1b6;--primary-foreground:#14191e;--secondary:#29313a;--secondary-foreground:#eae4da;--muted:#181c21;--muted-foreground:#9da6b0;--accent:rgb(210 193 182 / 0.12);--accent-foreground:#f0ebe2;--danger:#d98e85;--danger-foreground:#101317;--success:#76ba89;--success-foreground:#101317;--warning:#fcb53b;--warning-foreground:#101317;--info:#75bfe3;--info-foreground:#101317;--border:rgb(210 193 182 / 0.16);--input:rgb(210 193 182 / 0.26);--ring:#75bfe3;--chart-1:#75bfe3;--chart-2:#d2c1b6;--chart-3:#76ba89;--chart-4:#fcb53b;--chart-5:#d98e85;--glass-highlight:rgb(255 255 255 / 0.07);--shadow-xs:0 1px 2px rgb(0 0 0 / 0.35),0 2px 8px -2px rgb(0 0 0 / 0.25);--shadow-lg:0 4px 12px -4px rgb(0 0 0 / 0.4),0 16px 40px -8px rgb(0 0 0 / 0.55)}',
+        // Glass is part of the theme's identity, so it does NOT bow to
+        // prefers-reduced-transparency (Windows reports it whenever the OS
+        // "transparency effects" toggle is off, which would silently flatten
+        // the whole theme). Only a genuinely missing backdrop-filter gets a
+        // solid fallback; doubled selectors outrank the single-class shortcut
+        // and utility rules without depending on layer order.
+        '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.glass.glass,.glass-chrome.glass-chrome{background-color:var(--card)}.glass-overlay.glass-overlay{background-color:var(--popover)}[data-slot=toast][data-slot=toast]{background-color:var(--popover)}[data-slot=toast][data-variant=danger]{background-color:color-mix(in srgb,var(--danger) 12%,var(--popover))}[data-slot=toast][data-variant=info]{background-color:color-mix(in srgb,var(--info) 12%,var(--popover))}[data-slot=toast][data-variant=success]{background-color:color-mix(in srgb,var(--success) 12%,var(--popover))}[data-slot=toast][data-variant=warning]{background-color:color-mix(in srgb,var(--warning) 12%,var(--popover))}}',
+        // Pressed buttons inside connected groups skip the press scale: group
+        // segments overlap by -1px to merge their hairlines, and shrinking one
+        // opens a visible seam on both sides.
+        '[data-slot=button-group][data-slot=button-group]>:active{scale:none}',
         '@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}',
         '@keyframes progress-slide{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}',
         '@keyframes enter{from{opacity:var(--un-enter-opacity,1);transform:translate3d(var(--un-enter-translate-x,0),var(--un-enter-translate-y,0),0) scale3d(var(--un-enter-scale,1),var(--un-enter-scale,1),var(--un-enter-scale,1))}}',
@@ -183,15 +202,39 @@ export default defineConfig({
     // over stacked translucent surfaces and composes with ring/shadow slots.
     edge: 'inset-ring inset-ring-border',
     'edge-input': 'inset-ring inset-ring-input',
-    // Near-solid glass surfaces: cards/panels and floating overlays.
-    glass: 'bg-card/80 text-card-foreground backdrop-blur-md',
-    'glass-overlay': 'bg-popover/90 text-popover-foreground backdrop-blur-xl',
+    // Glass tiers, one per elevation: persistent chrome, resting panels and
+    // floating overlays. Depth reads as more blur plus more opacity, saturate
+    // keeps the blurred backdrop vivid, and the inset hairline draws the
+    // specular top edge (--glass-highlight flips per scheme). Content layered
+    // on these surfaces stays solid or tint-only: glass never stacks on glass.
+    'glass-chrome': 'bg-card/50 text-card-foreground backdrop-blur-md backdrop-saturate-150',
+    glass: 'bg-card/60 text-card-foreground backdrop-blur-md backdrop-saturate-150 inset-shadow-[inset_0_1px_0_var(--glass-highlight)]',
+    'glass-overlay': 'bg-popover/55 text-popover-foreground backdrop-blur-xl backdrop-saturate-150 inset-shadow-[inset_0_1px_0_var(--glass-highlight)]',
     // Discreet themed scrollbar for scrollable lists and viewports. Chromium and
     // Safari take the fully custom webkit path (buttonless); Firefox gets the
     // standard thin scrollbar via the preflight `@supports` fallback below.
     'scrollbar-soft': '[&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent',
   },
   theme: {
+    // Single-knob radius scale: every rounded-* token derives from --radius
+    // (0.75rem), so controls land at 12px, panels at 16px, cards and dialogs
+    // at 20px, and chat bubbles at 24px. Nested rows stay concentric: an 8px
+    // item inside 4px padding meets its 12px container edge exactly.
+    radius: {
+      DEFAULT: 'var(--radius)',
+      xs: 'calc(var(--radius) - 0.5rem)',
+      sm: 'calc(var(--radius) - 0.25rem)',
+      md: 'var(--radius)',
+      lg: 'calc(var(--radius) + 0.25rem)',
+      xl: 'calc(var(--radius) + 0.5rem)',
+      '2xl': 'calc(var(--radius) + 0.75rem)',
+    },
+    // Scheme-aware elevation: the values live in the preflight so dark mode
+    // deepens shadows without extra utilities. xs rests, lg floats.
+    shadow: {
+      xs: 'var(--shadow-xs)',
+      lg: 'var(--shadow-lg)',
+    },
     colors: {
       background: 'var(--background)',
       foreground: 'var(--foreground)',
