@@ -6,7 +6,7 @@ import { validate as bearer } from './token'
 import { verify as valid } from './csrf'
 import { db } from './store'
 import { grants } from './account'
-import { merge } from './ability'
+import { merge } from './ability.client'
 
 async function resolve(id: number) {
 

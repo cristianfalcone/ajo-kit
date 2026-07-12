@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { db } from './store'
 import { generate } from './session'
-import type { Ability } from './ability'
+import type { Ability } from './ability.client'
 
 const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 

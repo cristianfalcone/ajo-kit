@@ -1,4 +1,4 @@
-import { merge, type Ability } from './ability'
+import { merge, type Ability } from './ability.client'
 import { db } from './store'
 import type { Role } from './types'
 

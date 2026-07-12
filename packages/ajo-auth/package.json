@@ -11,7 +11,8 @@
     "test": "pnpm -w exec vitest run packages/ajo-auth/tests"
   },
   "exports": {
-    ".": { "types": "./src/index.ts", "default": "./src/index.ts" }
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./ability": { "types": "./src/ability.client.ts", "default": "./src/ability.client.ts" }
   },
   "dependencies": {
     "argon2": "^0.44.0"

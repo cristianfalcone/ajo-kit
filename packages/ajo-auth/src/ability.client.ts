@@ -9,8 +9,9 @@ const wildcarded = (ability: Ability) => ability === full
 		: null
 
 /** Returns true when grants include the required ability. */
-export function can(grants: Ability[], required: Ability): boolean {
+export function can(grants: readonly Ability[] | undefined, required: Ability): boolean {
 
+	if (!grants) return false
 	if (grants.includes(full)) return true
 	if (grants.includes(required)) return true
 
@@ -20,11 +21,11 @@ export function can(grants: Ability[], required: Ability): boolean {
 }
 
 /** Returns true when grants include every required ability. */
-export const all = (grants: Ability[], required: Ability[]) =>
+export const all = (grants: readonly Ability[], required: readonly Ability[]) =>
 	required.every(ability => can(grants, ability))
 
 /** Removes duplicate and redundant grants while preserving stable order. */
-export function compact(grants: Ability[]): Ability[] {
+export function compact(grants: readonly Ability[]): Ability[] {
 
 	const unique = [...new Set(grants)]
 
@@ -41,11 +42,11 @@ export function compact(grants: Ability[]): Ability[] {
 }
 
 /** Merges ability grant sets with duplicate and wildcard compaction. */
-export const merge = (...sets: Ability[][]): Ability[] =>
+export const merge = (...sets: (readonly Ability[])[]): Ability[] =>
 	compact(sets.flat())
 
 /** Returns the effective grants allowed by both grant sets. */
-export function intersect(left: Ability[], right: Ability[]): Ability[] {
+export function intersect(left: readonly Ability[], right: readonly Ability[]): Ability[] {
 
 	const grants: Ability[] = []
 

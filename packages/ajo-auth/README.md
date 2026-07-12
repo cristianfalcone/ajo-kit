@@ -174,6 +174,10 @@ Abilities support `*`, exact matches, and resource wildcards like `posts:*`.
 `token.create()` requires explicit abilities; app routes should bound requested
 abilities by the authenticated account and bearer token before creating one.
 
+Ability matching is pure string logic and is also exported through the
+client-safe `@kit/auth/ability` subpath, so UI code can call `can()` and
+friends without pulling the server-only package root into the client bundle.
+
 ### `account`
 
 ```ts

@@ -1,7 +1,7 @@
 /** Route guards and imperative authorization helpers. */
 export { auth, protect, guest, ability, confirmed, verified, redirect, when, authorize } from './guard'
 /** Ability matching and set helpers. */
-export { all, can, compact, intersect, merge, type Ability } from './ability'
+export { all, can, compact, intersect, merge, type Ability } from './ability.client'
 /** Account role grant helpers. */
 export * as account from './account'
 /** Configures the auth package database accessor. */

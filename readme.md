@@ -74,7 +74,8 @@ export default defineConfig({
       "/src/*": ["./src/*"],
       "@kit": ["./node_modules/ajo-kit/src/index.ts"],
       "@kit/*": ["./node_modules/ajo-kit/src/*"],
-      "@kit/auth": ["./node_modules/ajo-auth/src/index.ts"]
+      "@kit/auth": ["./node_modules/ajo-auth/src/index.ts"],
+      "@kit/auth/ability": ["./node_modules/ajo-auth/src/ability.client.ts"]
     }
   }
 }
@@ -565,8 +566,18 @@ const defaults = {
 
 `kit()` is the app integration plugin. It wires file routes, handlers, aliases,
 server-only protection, HMR, CSS entries, and production SSR support.
-Custom `guard` patterns are additive. `css` entries are imported by the client
-runtime before app hydration.
+
+The default `guard` blocks route `handler`/`wares` files and `serverOnly` kit
+packages from the client graph; modules named `*.client.{js,ts,jsx,tsx}` are
+explicitly client-safe and bypass all patterns. Custom `guard` patterns are
+additive — use them to protect app conventions such as a server-only data
+directory:
+
+```ts
+kit({ guard: [/\/src\/data\//] })
+```
+
+`css` entries are imported by the client runtime before app hydration.
 
 ## `ajo-kit/node`
 

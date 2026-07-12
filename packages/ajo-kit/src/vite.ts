@@ -57,6 +57,9 @@ const guard = (patterns: Pattern[]): Plugin => {
 				// Track who imported this module
 				chain.set(id, importer)
 
+				// *.client.* modules are explicitly client-safe; their own imports are still checked
+				if (/\.client\.[jt]sx?$/.test(id)) return
+
 				// Check if this module is server-only
 				if (any(id, patterns)) {
 
@@ -120,7 +123,6 @@ export const defaults = {
 
 const guards = (found: ReturnType<typeof discover>): Pattern[] => [
 	/(handler|wares)\.[jt]sx?$/,
-	/\/src\/data\//,
 	...found.filter(p => p.serverOnly).map(p => new RegExp(`${p.name}/`)),
 ]
 
@@ -156,7 +158,7 @@ export function kit(options?: Options): Plugin[] {
 			config() {
 				const aliases = found
 					.filter(p => p.alias)
-					.map(p => ({ find: new RegExp(`^@kit/${p.alias}$`), replacement: p.name }))
+					.map(p => ({ find: new RegExp(`^@kit/${p.alias}(/|$)`), replacement: `${p.name}$1` }))
 
 				return {
 					ssr: { noExternal: [/^ajo-/] },

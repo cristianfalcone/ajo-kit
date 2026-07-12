@@ -9,6 +9,7 @@ export default config({
 	resolve: {
 		alias: [
 			{ find: /^\/src\/(.+)$/, replacement: `${resolve(root, 'src')}/$1` },
+			{ find: '@kit/auth/ability', replacement: resolve(root, 'packages/ajo-auth/src/ability.client.ts') },
 			{ find: '@kit/auth', replacement: resolve(root, 'packages/ajo-auth/src/index.ts') },
 			{ find: /^@kit\/(.+)$/, replacement: `${kit}/$1` },
 			{ find: '@kit', replacement: resolve(kit, 'index.ts') },

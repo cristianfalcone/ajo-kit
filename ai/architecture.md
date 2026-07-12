@@ -70,7 +70,7 @@ public subpaths. The CLI can use those internals directly.
 - `virtual:ajo/routes` exposes `import.meta.glob('/src/**/{layout,page}.{j,t}s{,x}')`.
 - `virtual:ajo/handlers` exposes handler and ware globs.
 - `@kit` and `@kit/*` resolve to `ajo-kit` public subpaths.
-- Plugin aliases from discovered packages map exact `@kit/<alias>` roots to package names.
+- Plugin aliases from discovered packages map `@kit/<alias>` roots and subpaths to package names.
 - Server-only modules are blocked from the client graph.
 - Page/layout modules receive Ajo HMR metadata in dev.
 - Native modules such as `better-sqlite3` and `argon2` are externalized as
@@ -79,10 +79,15 @@ public subpaths. The CLI can use those internals directly.
 Default `guard` patterns include:
 
 - route `handler` and `wares` files
-- `/src/data/`
 - discovered plugin packages marked `serverOnly`
 
-Custom `guard` patterns are additive, not replacements.
+Custom `guard` patterns are additive, not replacements. Directory conventions
+such as `/src/data/` are app decisions; this app guards `/src/data/` through
+`kit({ guard: [...] })` in `vite.config.ts`. Modules named
+`*.client.{js,ts,jsx,tsx}` are explicitly client-safe and bypass all guard
+patterns; their own imports are still checked, so a `serverOnly` package can
+expose an isomorphic module (for example `ajo-auth/ability`) without opening
+the rest of the package to the client graph.
 
 ### CLI Runtime
 

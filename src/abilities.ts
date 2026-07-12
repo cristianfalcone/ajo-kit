@@ -1,3 +1,7 @@
+import { compact, intersect } from '@kit/auth/ability'
+
+export { can } from '@kit/auth/ability'
+
 const catalog = {
 	tokens: ['read', 'create', 'delete'],
 	sessions: ['read', 'delete'],
@@ -43,42 +47,11 @@ export const bundles = {
 const wildcards = resources.map(wildcard)
 const known = new Set<string>(['*', ...abilities, ...wildcards])
 
-function parts(ability: string) {
-	const [resource, action, extra] = ability.split(':')
+/** Projects account grants onto the catalog abilities the account can delegate. */
+export const grantable = (abilities: readonly string[] | undefined) =>
+	abilities?.includes('*') ? ['*'] : intersect(abilities ?? [], wildcards)
 
-	return extra === undefined && resource && action
-		? { resource, action }
-		: null
-}
-
-const wildcarded = (ability: string) => {
-	const grant = parts(ability)
-
-	return grant?.action === '*' ? grant.resource : null
-}
-
-const matches = (grant: string, ability: string) => {
-	if (grant === '*' || grant === ability) return true
-
-	const wildcard = wildcarded(grant)
-	const required = parts(ability)
-
-	return !!wildcard && required?.resource === wildcard
-}
-
-export const can = (abilities: readonly string[] | undefined, ability: string) =>
-	abilities?.some(grant => matches(grant, ability)) ?? false
-
-export const grantable = (abilities: readonly string[] | undefined) => {
-	if (abilities?.includes('*')) return ['*']
-
-	return compact(groups.flatMap(group =>
-		can(abilities, group.wildcard)
-			? [group.wildcard]
-			: group.abilities.filter(ability => can(abilities, ability))
-	))
-}
-
+/** Expands a full-access request to the delegable grants; explicit requests pass through. */
 export const delegate = (abilities: string[], grantable: readonly string[]) => {
 	const requested = normalize(abilities)
 
@@ -87,22 +60,10 @@ export const delegate = (abilities: string[], grantable: readonly string[]) => {
 		: requested
 }
 
+/** Defaults empty requests to full access and compacts overlapping grants. */
 export const normalize = (abilities: string[]) =>
-	compact([...new Set(abilities.length > 0 ? abilities : ['*'])])
+	compact(abilities.length > 0 ? abilities : ['*'])
 
+/** Returns requested abilities that are not in the catalog. */
 export const unknown = (abilities: string[]) =>
 	abilities.filter(ability => !known.has(ability))
-
-function compact(abilities: string[]) {
-
-	if (abilities.includes('*')) return ['*']
-
-	const broad = new Set(abilities.map(wildcarded).filter(resource => resource !== null))
-
-	return abilities.filter(ability => {
-		const resource = wildcarded(ability)
-		if (resource) return true
-
-		return !broad.has(parts(ability)?.resource ?? '')
-	})
-}
