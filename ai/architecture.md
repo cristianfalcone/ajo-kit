@@ -1,6 +1,6 @@
 # Ajo Kit Architecture
 
-Last updated: 2026-06-26
+Last updated: 2026-07-12
 
 This is the canonical architecture document for `ajo-kit`. It describes the
 current implementation and operating contracts for the framework, app runtime,
@@ -33,6 +33,8 @@ current local-project contract.
 |---|---|---|
 | `packages/ajo-kit` | `@kit`, `@kit/*` | Framework core, SSR, routing, data flow, database, validation, mail, build/runtime CLI |
 | `packages/ajo-auth` | `@kit/auth` | Sessions, API tokens, passwords, reset/verify/confirm flows, CSRF, guards, auth migrations |
+| `packages/ajo-cloves` | `ajo-cloves` | Reusable Ajo component behavior cloves and lifecycle-bound UI sensors |
+| `packages/ajo-ui` | `ajo-ui` | Unstyled base UI components built on cloves; themes style them |
 | `packages/ajo-backup` | none | Google Drive backup tooling |
 
 Public app-facing imports and signatures are documented in `readme.md`. This
@@ -60,6 +62,418 @@ public subpaths. The CLI can use those internals directly.
 | `packages/ajo-kit/src/timing.ts` | `AJO_TIMING=1` measurement helpers |
 | `packages/ajo-auth/src/wares.ts` | Session/bearer auth and CSRF middleware |
 | `packages/ajo-auth/src/guard.ts` | Redirect, auth, ability, confirmation, verified guards |
+| `packages/ajo-cloves/src/index.ts` | Public clove root export catalog |
+| `packages/ajo-cloves/src/core.ts` | Clove `Host` re-export, `id`, `shared`, and `frame` infrastructure |
+
+## Shared Component Logic
+
+Shared component code has one dependency direction: `ajo-cloves` → `ajo-ui` →
+`src/ui`. `ajo-cloves` owns reusable Ajo behavior, `ajo-ui` owns unstyled
+component interfaces, and the app layer owns only the Playa theme.
+App/UI code imports cloves from `ajo-cloves`; there is no `ajo-kit/cloves`
+public subpath. The package exports its root directly to `./src/index.ts` and
+has only the `ajo >= 0.1.35` peer dependency.
+
+Package layout:
+
+```text
+packages/ajo-cloves/src/
+  index.ts      # public root exports
+  core.ts       # shared protocol/lifecycle/data utilities; source-internal on()/live()
+  <name>.ts     # one clove per file
+```
+
+The root selectively exports the general primitives in `core.ts`: `Host`,
+`browser`, `dom`, `listen`, `statefulRootAttrs`, `callHandler`, `callRef`,
+`clamp`, `remember`, `id`, `shared`, and `frame`. Arbitrary-target `on()` and
+the live-target harness remain package-source implementation details.
+
+`ajo-ui` is the standalone package for unstyled base components built on
+cloves. It exports one module per component family (`ajo-ui/<name>`), a root
+barrel, and component-system normalization/composition helpers through
+`ajo-ui/utils`. `OmitArg` and `FixedArgs` live only in that utils subpath; they
+are not root or `ajo-cloves` exports.
+`packages/ajo-ui/src/floating.ts` (the popup engine),
+`packages/ajo-ui/src/collection.ts` (the item protocol),
+`packages/ajo-ui/src/bar.ts` (the open-value/roving/typeahead machine),
+`packages/ajo-ui/src/segments.ts` (localized editable date/time segments), and
+`packages/ajo-ui/src/availability.ts` (compiled date/time policy) are deliberate
+internal implementation modules with no public subpath. The app's `src/ui/`
+holds only the themed components (the "playa" theme), which import base
+components from `ajo-ui` and will later become a theme package of their own.
+
+### Environment Gates
+
+`browser()` in `ajo-cloves` requires both `window` and `document`, so Node,
+workers, and asymmetric shims remain inert. `dom(host)` answers a different
+question: whether a particular stateful host is a real element. Stateful DOM
+work uses `dom` even when browser globals exist, because ajo/html protocol hosts may run
+inside a DOM-backed test realm. Capability-specific checks remain local; for
+example, InputDate intentionally reads `<html lang>` when document alone exists
+and never falls back to navigator.
+
+### Shared Sources
+
+Shared document/window/observer sources use `shared(key, start, fn, signal)`.
+The key is a string namespace for one real source. The first subscriber starts
+the source, callbacks live in a `Set`, each subscriber is removed through its
+AbortSignal, and the source stop function runs when the last subscriber leaves.
+
+`frame(fn)` wraps high-frequency work so repeated calls collapse into one
+`requestAnimationFrame` callback per subscriber. `resize` adds one more layer:
+it owns a module-level `ResizeObserver`, a `WeakMap<Element, Set<Callback>>`
+registry, and a subscription counter. Elements are unobserved when their last
+callback leaves, and the observer disconnects when the counter returns to zero.
+
+The source-internal `live(host, { target, onChange, bind })` owns the shared
+leak-proof retarget machine used by scrolling and resize: it captures the
+original host signal, gives each target an abort scope and guarded notify,
+coalesces initial/source changes through one frame, and cancels old work on
+same/null/retarget/reset transitions. Binding is the only adapter seam. A
+partial bind rolls back its listener and queued frame before rethrowing, so the
+same target can retry. Callers retain their SSR/capability guards; `live` is not
+part of the package root API and Anchor's two-element watcher is intentionally
+separate.
+
+ResizeObserver registry entries are published only after `observe()` succeeds.
+A failed first observe releases an otherwise-unused observer, and notifications
+are accepted only from the current observer generation; this prevents a queued
+callback from a disconnected instance reaching a later subscription for the
+same element.
+
+High-frequency source callbacks invalidate a stateful subtree only when their
+measurement changes observable component state. Carousel snapshots selection,
+item count, and both scrollability flags on scroll/resize, then re-renders only
+when one changes. Explicit reinitialization and target replacement remain
+unconditional lifecycle boundaries; public events are emitted from the same
+state transition after the invalidation decision has been captured.
+
+`timer(host)` is a host-owned one-shot with restart, stop, pause, and resume.
+It captures the exact lifecycle signal it subscribes to: abort clears pending
+work, and an old view cannot restart after teardown or a host reset. Resuming a
+paused task whose deadline already elapsed schedules it at zero delay rather
+than retaining a permanently paused callback. `running` and `remaining` expose
+the current timer state without making the timer reactive by itself.
+
+### Attr Bags
+
+When a clove needs to wire several attributes and handlers to rendered elements,
+the view exposes attr bags for JSX spread. Bags contain plain HTML attributes
+(`role`, `aria-*`, `tabindex`, `id`, `data-*`) plus Ajo `set:on*` handlers.
+Plain attributes render during SSR; `set:*` handlers attach on the client.
+Events should use bags when they target rendered children, because keyed
+reconciliation can reuse those children while a bag is re-applied each render.
+
+### State Attributes
+
+`data-state` names a family state only when it is a real styling or composition
+contract. Calendar navigation uses native `disabled` plus `aria-disabled`, and
+day cells expose the boolean `data-selected` flag. Calendar day buttons retain
+`selected/unselected` as their whole-selection state; InputDate uses the
+selected button when choosing its open-autofocus target.
+
+Desktop Sidebar uses `expanded/collapsed`: an icon-collapsed sidebar is still
+open, so this state is intentionally distinct from the mobile Drawer branch's
+`open/closed` vocabulary.
+
+### DOM Identity
+
+Component values that mint DOM ids preserve exact string identity with
+`encodeURIComponent`; they are never slugged or normalized. Tabs, Select, and
+Command therefore keep punctuation, case, and non-Latin values distinct while
+producing deterministic SSR/client ids. Each family adds its own root and part
+prefix around that encoded segment. Chart follows the same rule when deriving
+its internal style/ARIA identity from a caller DOM id; a caller-supplied
+`chartId` remains an exact resolved override, and the no-id fallback is minted
+once in the stateful root's setup phase.
+
+### Context Surface
+
+Component contexts stay module-private unless another family or the themed
+layer genuinely composes them. CheckboxGroup and RadioGroup keep their contexts
+private. ToggleGroup exports its context because the themed item consumes its
+variant, size, spacing, and orientation; Collapsible, Menu, and Field have
+equivalent cross-family composers. The root wildcard barrel inherits those
+module decisions rather than maintaining a second export list.
+
+Context writes belong to Stateful components. Stateless components may read a
+context, but a setter there would write through the currently active Stateful
+ancestor and can leak after the Stateless subtree is removed. DirectionProvider
+is the canonical adapter: its public Stateless wrapper forwards ordinary DOM
+attrs, while a private Stateful root writes the dynamic direction inside its
+render loop. Nesting, sibling traversal, and provider removal therefore restore
+the parent context rather than mutating it.
+
+A Stateless part may invoke a registration callback exposed by its Stateful
+owner, but that does not transfer mutable context ownership and must not become
+a context setter.
+
+Chart keeps its full context private and exposes only `useChartId()` because
+the themed wrapper genuinely consumes the resolved identity. Its private
+`ChartStyle` is inserted as a direct child marker and scopes variables with
+`[data-slot="chart"]:has(>style[data-chart-style])`. This lets the identity be
+owned by stateful setup in both SSR and the browser without a provisional
+`data-chart` write on the host; the direct-child selector also isolates nested
+charts. Neither the marker component nor the old root `data-chart` contract is
+part of the themed public surface.
+
+### Themed Modal Surfaces
+
+`src/ui/modal.tsx` is an internal theme-token module, parallel to
+`src/ui/menu.tsx`. It owns the shared fixed surface, inset centering, enter
+animation, closed gate, and icon close-button recipes. Dialog and Command
+compose the full centered cluster; Drawer composes only surface/closed/close
+and owns side geometry plus discrete motion. AlertDialog composes the themed
+Dialog content and description, then fixes its alert role, size selectors,
+outside-dismiss policy, and absence of an implicit close button. Command's
+sizing/padding and Dialog's grid/padding stay local family deltas. The tokens
+are not exported from the public `src/ui` barrel.
+
+### Themed Input-Group Chrome
+
+`src/ui/input-group.tsx` owns the shared root, addon/alignment, and native-input
+recipes used by InputGroup, SelectInput, and the InputDate/Time families.
+`inputGroupVariants` defaults to `width: 'full'` and emits `w-full` exactly
+once. `width: 'auto'` emits no width utility: CSS already defaults to auto, and
+this leaves a caller-supplied width as the sole owner rather than competing
+with `w-auto`. Select keeps button chrome local; InputDate keeps its disabled
+pointer/opacity delta local. Shared selectors that cannot match a particular
+family remain inert instead of becoming new option axes. The composition
+tokens are direct sibling imports and are intentionally absent from the theme
+barrel.
+
+### Themed Choice Controls
+
+`src/ui/checkbox.tsx` owns Checkbox's box/state/indicator recipes plus the two
+small tokens shared across choice families: the invisible native input overlay
+and the horizontal/vertical group layout. CheckboxGroup composes the complete
+Checkbox cluster; RadioGroup keeps its circular item/dot and consumes only the
+overlay/layout; Switch keeps its track/thumb and consumes only the overlay.
+Every decorative indicator above an overlay is pointer-inert, so the native
+input owns the whole visual hit area. These tokens are sibling-only exports and
+stay out of the theme barrel; public family types remain independent.
+
+Checkbox and RadioGroup share live native-state mirroring through
+`ajo-ui/utils`. The input owns `data-state` plus `aria-checked`; its visual
+companion receives only `data-state`. Indeterminate/mixed applies only to
+checkbox inputs, while radios remain checked/unchecked even if their DOM
+`indeterminate` property is set. Each family retains its own timing and target
+orchestration: Checkbox syncs its root after refs/input/change, and RadioGroup
+sweeps every native input so the sibling silently unchecked by the browser is
+also reconciled. SSR uses the same pure ARIA mapper but stays declarative and
+performs no live DOM synchronization.
+
+### Themed Adapter Contracts
+
+Stateful components use Ajo's configured default host without spelling the
+current `div` default twice: `Stateful<Args>` and no `.is`. The tag generic plus
+`.is` are reserved for real non-default hosts such as `details`, `fieldset`,
+`nav`, `li`, `span`, and `button`. Consequently default-host roots deliberately
+follow `ajo.defaults.tag` / `ajo/html.defaults.tag`; the two renderer defaults
+must be configured consistently. A public Stateless adapter maps plain DOM
+attrs through `statefulRootAttrs` from `ajo-cloves` when a Stateful root owns
+behavior.
+
+Field and DataTable are canonical examples of that adapter boundary. Their
+Stateful owners and behavior-only args are private; the public Stateless parts
+separate behavior from DOM attrs and stamp the family slot on the actual host.
+DataTable's base `classes` and `renderers` remain a real theme-authoring seam,
+but the themed adapter fixes and excludes them. DataTable is generic through
+both adapters so row data, columns, and callbacks stay correlated, and it owns
+its complete child structure rather than accepting caller children.
+
+Themed `src/ui` components derive their public args from the corresponding
+`ajo-ui` types. Use a direct alias when the adapter adds nothing, an
+intersection for real theme additions or the theme's `class?: string`
+contract, and `OmitArg` only when the adapter fixes or replaces a base
+implementation knob. A fixed knob also receives `FixedArgs<Key>`; both helpers
+come only from `ajo-ui/utils`, never the package root or `ajo-cloves`.
+`OmitArg` preserves named types across Ajo's open Args index, while `FixedArgs`
+prevents the removed name from returning as `unknown`. Replaced knobs keep the
+theme's explicit type instead. Do not copy host props or re-declare a base
+discriminated union: the base remains the behavioral source of truth.
+
+`class` always styles the visible component root. A static singleton part uses
+a named `xxxClass` hook; themed InputOTP is the canonical two-surface example,
+with `class` on the visible slot container and `inputClass` on the hidden
+native input. A themed collection uses its scoped `classNames` or `classes`
+map, while state-dependent styling uses a callback such as `dayClassName`.
+Part slots follow the component vocabulary (`empty-media`, `item-media`,
+`attachment-media`, ...), with no legacy dual names.
+
+Polymorphic theme-only components use a discriminated union per rendered tag.
+Required semantic props belong to that branch (for example, Marker anchors
+require `href`), and refs/events stay contextual to the selected element.
+
+Public theme composition helpers use the `xxxVariants` suffix. Export them from
+the theme barrel when app consumers are expected to compose another component
+into that visual slot. Helpers shared only between themed siblings remain
+barrel-private even when their source module exports them for direct imports;
+`scrollAreaVariants` is the canonical internal example.
+
+### Floating Stack
+
+Floating UI is split by anchor source:
+
+- `anchor` positions fixed elements from an anchor element, with synchronous
+  `place()`, explicit `watch()`/`unwatch()`, symmetric flip, shift clamping,
+  `data-side`/`data-align`, transform-origin, and `--anchor-*` /
+  `--available-*` CSS variables. Each placement snapshots anchor, target,
+  optional-caret, and target-border layout metrics before its first geometry
+  write; the commit phase performs no layout reads.
+- `follow` positions pointer-following elements by transform only, clamps to a
+  container, and smooths through `frame()`.
+
+`packages/ajo-ui/src/floating.ts` is the popup engine in two layers:
+`surface()` (positioning plus native-popover show/hide, no open state — used
+directly by dropdown submenus, whose parent-coupled open cluster stays custom
+by recorded decision) and `floating()` (controlled open state, generated ids,
+explicit trigger/content id adoption, `toggle` echo with a syncing guard,
+optional `hover` intent, `dismiss`, and an `onSync` hook for post-placement
+focus work). `datasetPlacement`, `contentAttrs`, and `triggerAttrs` form the
+internal placement/DOM seam, including internal-registration plus caller-ref
+composition. Popover, Tooltip, DropdownMenu, Select, InputDate, and
+NavigationMenu all consume the engine; consumers must call
+`view.sync(open)` once per render pass. `popupStyle()` applies the UA
+`[popover]` stylesheet reset (`inset:auto;margin:0`) exactly once for every
+family. Item discovery/highlight for menus, select, and command goes
+through `packages/ajo-ui/src/collection.ts` (`data-item="<kind>"` protocol);
+slot re-exports go through `withSlot` from `ajo-ui/utils`.
+
+Select and Combobox were merged into one Select family (design record:
+`ai/select.md`): single, multiple, searchable, editable, chips, and tagging
+by composition; the field part (SelectTrigger, SelectInput, or SelectChips)
+decides the focus model (real roving vs `aria-activedescendant`). The
+`controlled` clove distinguishes `undefined` (uncontrolled) from `null`
+(controlled-empty) to support controlled clearing.
+
+Accordion, CheckboxGroup, and ToggleGroup share runtime multi-value
+normalization through `strings` in `ajo-ui/utils`: only arrays are accepted and
+each present value is copied through `String`. Mode selection, single-value
+policy, and nullish controlled/uncontrolled gates remain family-owned outside
+the helper. Story-control normalization stays consumer-owned rather than
+reaching into the base package's component-system helpers.
+
+Filterable-list policy shared by Command, Select, and DataTable lives beside
+the other component-system helpers in `ajo-ui/utils`. It owns the English
+result-count default and resolves
+filter modes as `undefined` (the family fallback), `null` (unfiltered/external
+ownership), or a custom predicate. `collection(kind).sweep()` derives its
+empty, group, and separator slots from the kind unless a caller overrides an
+individual selector. It reconciles groups before measuring rendered items, so
+clearing a filter and dynamically force-mounting a group restore visibility in
+the same sweep; empty state and separator topology then use that fresh set.
+
+The menu families were consolidated next (design record: `ai/menus.md`):
+`bar()` (`packages/ajo-ui/src/bar.ts`, internal like floating) owns the
+value + roving + typeahead + follow machine under Menubar and
+NavigationMenu; dropdown-menu exports its substrate contract (MenuContext,
+the menu collection instance, focusEdge/surfaceItems, SURFACE_SELECTOR,
+DropdownMenuAnchor) for composing families — context-menu anchors at the
+pointer through it; navigation-menu rides the engine's hover intent with
+per-item anchored panels (the inert Viewport/Indicator parts were deleted;
+a Radix-style morphing viewport is a recorded extension point); the
+`anchor` clove positions optional arrow elements (PopoverArrow,
+TooltipArrow); Toolbar (APG pattern) rounds out the bar trio; the toast
+viewport rides the raw `popover="manual"` primitive with epoch-gated
+re-promotion above later modals; sidebar's mobile branch composes Drawer.
+Shared themed popup and menu tokens live in `src/ui/menu.tsx` (`.tsx` so
+UnoCSS extracts its classes). `popupAnimation` owns the common fade/zoom
+state chain; `popupSlide` is a separate opt-in placement suffix so Select can
+retain its no-slide variant while Popover, Tooltip, and InputDate compose it.
+Family geometry, spacing, radius, and surface colors remain local.
+
+Promotion of the engine into `ajo-cloves` as a `popup` clove was evaluated and
+deferred: all its consumers live inside `ajo-ui` (one consuming package), so
+the no-consumer-no-clove rule keeps it internal until an external consumer
+appears.
+
+### Intl Formatting
+
+Intl policy stays inside `ajo-ui`: it is pure in-process formatting, not a host
+lifecycle concern for `ajo-cloves`, and the themed `src/ui` layer only forwards
+formatter options. Calendar caches its six named display formats by locale and
+its zoned date-parts formatter by time zone. Chart creates its host-locale
+default NumberFormat lazily; supplying `formatValue` bypasses it completely.
+The InputDate segment engine owns localized unit labels, name matching, and
+committed-value formatting, keyed by every option that changes their output.
+
+Keyed Intl caches use the general `remember()` primitive from `ajo-cloves`.
+The Intl cache keys and ownership stay private to `ajo-ui`; `remember` only
+provides insertion-ordered FIFO bounding (32 entries by default, configurable
+and validated). This prevents arbitrary locale extensions from growing
+long-lived SSR memory without bound. Intl instances are
+stateless and safe to share across concurrent renders; SSR and browser realms
+still own separate module caches.
+
+### Calendar and Date-Field System
+
+Calendar and the InputDate family are one behavioral system across two
+`ajo-ui` modules and two internal pure engines:
+
+- `availability.ts` owns `CalendarMatcher`, `AvailabilityMatcher`, time
+  windows, and `compile()`. A compiled policy exposes day-, instant-,
+  serialized-value-, and exclusive-interior range checks. Matcher objects are
+  AND expressions; top-level arrays are OR alternatives. Calendar caches by
+  matcher identity plus time zone, and InputDate caches by matcher identity.
+- `calendar.tsx` owns day/month/year presentation and selection. One
+  `controlled<CalendarView>` and one `grid` clove serve all three scales.
+  `minView` decides whether a month/year cell drills down or commits; public
+  month ranges emit first-of-start-month through last-of-end-month, and year
+  ranges emit Jan 1 through Dec 31.
+- `segments.ts` owns the ISO editing record and reason-coded validation. An
+  InputDate family root has exactly one `FieldView` per range side.
+  `InputDateTimeField` renders `timeRun()` from that same record inside the
+  popup; it does not create another editor or a staged value.
+- `input-date.tsx` is the composition boundary. It separates the outer field
+  and popup into rendered focus surfaces, namespaces their segment ids, and
+  lets both surfaces share host-level typing/spin listeners. Mounted time
+  surfaces register by element identity, so a day pick defaults to staying
+  open only while at least one such surface actually exists.
+
+`disabled` and `unavailable` are intentionally different channels.
+`disabled` is a native hard block and is skipped by focus and selection.
+`unavailable` is announced and styled but remains selectable; the committed
+value then receives `{ code: 'unavailable' }`. A range that crosses an
+unavailable interior receives consumer-raised `unavailableRange` on both
+sides. `allowNonContiguous` suppresses that reason and removes unavailable
+interior cells from the selected range band without splitting the emitted
+value. `InputDateCalendar` seals these root-owned policy and selection knobs;
+its object args may customize Calendar presentation and hard-disabled rules,
+but cannot create a competing availability source.
+
+This logic remains in `ajo-ui`: it is component-domain policy with one
+consuming package, not a general host/lifecycle primitive. `ajo-cloves` owns
+only the reusable `controlled`, `grid`, `roving`, `spin`, cache, DOM, and
+callback/ref mechanics. `src/ui` supplies classes, icons, dropdown adapters,
+and popup layout only.
+
+### Message Scroller Geometry
+
+MessageScroller keeps DOM discovery in document order, because prepended rows
+make registry insertion order differ from visual order. Each synchronized scroll
+sample performs one item query, one viewport rectangle read, and one rectangle
+read per item. It derives visible ids, the current semantic anchor, and the
+prepend-preservation anchor from that single snapshot. Edge and item geometry
+is read before the visibility, scrollability, and button commits. The shared
+`overflow` clove separately owns the viewport's public `data-overflow-y` state
+and refreshes it on scroll, viewport resize, provider render/retarget, and
+content mutation; the theme's shared preflight turns that one attribute into
+the fitting/start/end/both edge mask. The clove removes both axis attributes
+when its target changes, becomes null, or its host aborts, so a detached or
+reused old target cannot retain a stale global mask.
+
+Prepend preservation is a small transaction rather than a one-frame sample.
+The first intersecting row remains the preservation anchor across the mutation
+and resize settle burst caused by `content-visibility`; an actual or imperative
+scroll clears it before a new row can be captured. Enabling
+`preserveScrollOnPrepend` and prepending in the same provider update captures
+the old geometry before yielding the new children. This keeps the visible row
+stable without moving discovery into `ajo-cloves`: the behavior is specific to
+the MessageScroller family, while frame, scrolling, and resize lifecycles remain
+clove-owned. Its transient imperative-scroll marker composes `timer(this)` for
+the no-`scrollend` fallback, so restart and host cleanup follow the same public
+clove contract as hover and typeahead.
 
 ## Build and Runtime
 
@@ -826,7 +1240,7 @@ headers/logs rather than importing timing internals.
 - Stateful Ajo components use generator components and `this.next()` for local
   updates.
 - Use `this.signal` for cleanup-aware async/listener work.
-- Do not import React or use React event/prop casing.
+- Do not import React or use React event/attribute casing.
 
 ## Dev, Test, and Seed Reliability
 
@@ -854,6 +1268,11 @@ and Playwright without Storybook. It is intentionally client-only and limited to
 `src/ui` components plus pure fixtures. It exposes a manager UI through
 `pnpm stories`, a smoke runner through `pnpm stories:test`, and opt-in screenshots in
 `.tmp/stories-screenshots` through `pnpm stories:test:visual`.
+
+The manager smoke enters through the real manager, waits for the preview iframe,
+changes a control across `postMessage`, resets the initial args, exercises a
+search URL, and navigates to a second story before canvas stories run. Live arg
+changes rerender the same story instance; only a story-id change remounts it.
 
 ## Verification
 

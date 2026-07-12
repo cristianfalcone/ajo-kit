@@ -31,8 +31,8 @@ House rules held by the implementation: smallest cohesive surface; composition o
   inside the cohesive `ajo-ui` date/calendar module, and `src/ui` remains a
   class/icon/layout adapter. No aliases, compatibility branches, or retired
   matcher implementations remain.
-- **Final verification:** `tsc`; 64 files / 520 unit tests; ajo-ui 139/139;
-  ajo-cloves 240/240; 468/468 stories; 47/47 e2e; client and SSR builds; and
+- **Final verification:** `tsc`; 64 files / 527 unit tests; ajo-ui 144/144;
+  ajo-cloves 241/241; 468/468 stories; 47/47 e2e; client and SSR builds; and
   1/1 production smoke. Independent Standards and Spec reviews have zero
   residual findings.
 
