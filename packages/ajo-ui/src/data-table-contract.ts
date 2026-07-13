@@ -85,6 +85,7 @@ export type DataTableSortName = 'ascending' | 'descending' | 'none'
 export type DataTableLabels = {
 	columns: string
 	deselectPage: string
+	deselectResults: string
 	deselectRow: (rowLabel: string) => string
 	firstPage: string
 	lastPage: string
@@ -97,6 +98,7 @@ export type DataTableLabels = {
 	rowsPerPage: string
 	search: string
 	selectPage: string
+	selectResults: string
 	selectRow: (rowLabel: string) => string
 	selected: (selected: number, sourceTotal: number) => string
 	sort: (columnLabel: string, next: DataTableSortName) => string

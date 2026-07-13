@@ -45,6 +45,7 @@ const DEFAULT_SIZES = [10, 25, 50] as const
 export const dataTableDefaultLabels: DataTableLabels = {
 	columns: 'Columns',
 	deselectPage: 'Deselect page',
+	deselectResults: 'Deselect filtered results',
 	deselectRow: row => `Deselect ${row}`,
 	firstPage: 'First page',
 	lastPage: 'Last page',
@@ -57,6 +58,7 @@ export const dataTableDefaultLabels: DataTableLabels = {
 	rowsPerPage: 'Rows per page',
 	search: 'Search',
 	selectPage: 'Select page',
+	selectResults: 'Select filtered results',
 	selectRow: row => `Select ${row}`,
 	selected: (selected, total) => `${selected} of ${total} ${total === 1 ? 'row' : 'rows'} selected.`,
 	sort: (column, next) => `Sort ${column} ${next}`,

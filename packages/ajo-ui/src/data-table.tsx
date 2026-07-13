@@ -123,6 +123,9 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 		const visibleColumns = view.columns.filter(column => column.visible)
 		const visibleCount = visibleColumns.length
 		const controlledSelection = args.selection?.value !== undefined
+		const selectAllLabel = () => view.selection.all
+			? text(view.page.enabled ? 'deselectPage' : 'deselectResults')
+			: text(view.page.enabled ? 'selectPage' : 'selectResults')
 
 		if (announceAfterRender) {
 			const message = call('results', view.filteredCount)
@@ -264,7 +267,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 								{view.selection.enabled ? (
 									<th data-slot="table-head" scope="col">
 										<Checkbox
-											aria-label={view.selection.all ? text('deselectPage') : text('selectPage')}
+											aria-label={selectAllLabel()}
 											disabled={!view.rows.length}
 											set:checked={view.selection.all}
 											set:indeterminate={view.selection.some}

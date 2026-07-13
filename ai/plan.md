@@ -49,9 +49,9 @@ foundation and remains the source of truth for virtual scrolling.
   and contract, one native renderer, explicit package exports, Playa slot
   recipe, and migrated local consumers.
 - **Green evidence:** dependency installation, typecheck, all 187 `ajo-ui`
-  tests, all 577 root unit tests, five DataTable stories, the full browser story
+  tests, all 577 root unit tests, twelve DataTable stories, the full browser story
   matrix, 49 e2e tests, production build, production smoke, and package/root
-  isolation with a 14,784 B model-profile artifact and a 29,539 B incremental
+  isolation with a 14,784 B model-profile artifact and a 29,569 B incremental
   public DataTable gzip artifact.
 - **Manual evidence not claimed:** physical screen-reader/iOS coverage and a
   formal painted-browser performance harness. The five-run Node diagnostic is
