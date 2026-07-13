@@ -33,7 +33,6 @@ import type {
 	MenuVariant,
 } from 'ajo-ui/menu'
 import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
-import { scrollAreaVariants } from './scroll-area'
 
 export { MenuAnchor, MenuGroup, MenuRadioGroup, MenuSub, MenuTrigger } from 'ajo-ui/menu'
 
@@ -44,10 +43,9 @@ export type MenuRadioItemArgs = OmitArg<BaseMenuRadioItemArgs, 'indicatorClass' 
 }
 export type MenuSubTriggerArgs = OmitArg<BaseMenuSubTriggerArgs, 'iconClass'> & FixedArgs<'iconClass'>
 
-// Shared themed popup and cascading-menu tokens. Dialect decisions live here,
-// taken once: popup motion, `data-[...=true]` selectors (the base always
-// renders explicit 'true' values, never bare flags), tabular-nums on shortcuts,
-// and the floating menu height cap. Internal to src/ui.
+// Shared popup motion remains consumable by other floating families. Menu's
+// complete visual recipes live in named Uno shortcuts so base descendants in
+// composite families consume the exact same theme seam as this adapter.
 
 /** Shared open/closed fade and zoom chain for floating popup surfaces. */
 export const popupAnimation = 'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95'
@@ -68,68 +66,43 @@ const minWidth = {
 	'12rem': 'min-w-[12rem]',
 }
 
-// Menu open/close fade. Transitions read the TARGET state's transition-*, so
-// the property lists are state-scoped on purpose: the open state transitions
-// opacity only (a discrete display transition on entry defers rendering and
-// the anchor then measures a surface that is not there yet — placement lands
-// frames late and submenus aim at stale parent rects), while the closed state
-// keeps display and overlay in the list so the exit stays rendered and in the
-// top layer while it fades out. Visibility is additionally gated on
-// data-side, which the anchor stamps in the same frame it writes the inset: a
-// first-ever open renders invisible at the popover's unplaced top-layer
-// origin and only fades in once placed. Reopens (attributes already present
-// when display flips) seed from @starting-style instead. data-state covers
-// both surface kinds (root content is a native popover, submenu content
-// toggles hidden); engines without discrete transitions keep the instant
-// toggle. Fade only — scale feeds the anchor's getBoundingClientRect moving
-// rects, and transition-delay holds display at none; both break placement.
-const menuMotion = clsx(
-	'opacity-0 transition-[opacity,display,overlay] transition-discrete duration-150 ease-out motion-reduce:transition-none',
-	'data-[state=open]:transition-[opacity]',
-	'data-[state=open]:data-[side]:opacity-100',
-	'starting:data-[state=open]:data-[side]:opacity-0',
-)
-
 /** Returns the popup surface for menu content and submenu content. */
 export const menuContent = ({ minWidth: min = '8rem' }: MenuContentOptions = {}) => clsx(
-	'z-50 m-0 max-h-[max(96px,min(320px,var(--available-height)))]',
+	'playa-menu-content',
 	minWidth[min],
-	scrollAreaVariants({ axis: 'y' }),
-	'rounded-md glass-overlay edge p-1 shadow-lg outline-none',
-	menuMotion,
 )
 
 /** Action item row; submenu triggers compose menuSubTriggerOpen over it. */
-export const menuItem = 'relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[highlighted=true]:bg-accent data-[highlighted=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[inset]:pl-8 data-[variant=danger]:text-danger data-[variant=danger]:focus:bg-danger/10 data-[variant=danger]:focus:text-danger data-[variant=danger]:data-[highlighted=true]:bg-danger/10 data-[variant=danger]:data-[highlighted=true]:text-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground data-[variant=danger]:[&_svg]:text-danger'
+export const menuItem = 'playa-menu-item'
 
 /** Checkbox/radio item row: indicator gutter instead of the item's inset. */
-export const menuChoiceRow = 'relative flex cursor-default select-none items-center gap-2 rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[highlighted=true]:bg-accent data-[highlighted=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4'
+export const menuChoiceRow = 'playa-menu-choice-row'
 
 /** Indicator slot inside a choice row. */
-export const menuIndicator = 'pointer-events-none absolute left-2 flex size-3.5 items-center justify-center'
+export const menuIndicator = 'playa-menu-indicator'
 
 /** Non-interactive group label (menu design: text-sm, unlike select/command). */
-export const menuLabel = 'px-2 py-1.5 text-sm font-medium data-[inset]:pl-8'
+export const menuLabel = 'playa-menu-label'
 
 /** Separator between menu groups. */
-export const menuSeparator = '-mx-1 my-1 h-px bg-border'
+export const menuSeparator = 'playa-menu-separator'
 
 /** Right-aligned shortcut hint inside an item. */
-export const menuShortcut = 'ml-auto text-xs tracking-widest text-muted-foreground tabular-nums'
+export const menuShortcut = 'playa-menu-shortcut'
 
 /** Check indicator icon for checkbox items. */
-export const menuCheckIcon = 'i-lucide-check size-4'
+export const menuCheckIcon = 'playa-menu-check-icon'
 
 /** Filled-circle indicator icon for radio items. */
-export const menuRadioIcon = 'i-lucide-circle size-2 fill-current'
+export const menuRadioIcon = 'playa-menu-radio-icon'
 
 /** Chevron icon for submenu triggers. */
-export const menuSubTriggerIcon = 'i-lucide-chevron-right ml-auto size-4'
+export const menuSubTriggerIcon = 'playa-menu-sub-trigger-icon'
 
 /** Open-state addon composed over menuItem on submenu triggers. */
-export const menuSubTriggerOpen = 'data-[state=open]:bg-accent data-[state=open]:text-accent-foreground'
+export const menuSubTriggerOpen = 'playa-menu-sub-trigger-open'
 
-const rootBase = 'relative inline-block'
+const rootBase = 'playa-menu-root'
 const contentBase = menuContent()
 
 /** Root provider for a menu. */

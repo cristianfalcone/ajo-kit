@@ -16,10 +16,10 @@ const Table: Stateless<TableArgs> = ({
 	class: classes,
 	...attrs
 }) => (
-	<div class="relative w-full overflow-x-auto" data-slot="table-container">
+	<div class="playa-table-container" data-slot="table-container">
 		<table
 			{...attrs}
-			class={clsx('w-full caption-bottom text-sm', classes)}
+			class={clsx('playa-table', classes)}
 			data-slot="table"
 		>
 			{children}
@@ -35,7 +35,7 @@ const TableHeader: Stateless<TableHeaderArgs> = ({
 }) => (
 	<thead
 		{...attrs}
-		class={clsx('[&_tr]:border-b', classes)}
+		class={clsx('playa-table-header', classes)}
 		data-slot="table-header"
 	>
 		{children}
@@ -50,7 +50,7 @@ const TableBody: Stateless<TableBodyArgs> = ({
 }) => (
 	<tbody
 		{...attrs}
-		class={clsx('[&_tr:last-child]:border-0', classes)}
+		class={clsx('playa-table-body', classes)}
 		data-slot="table-body"
 	>
 		{children}
@@ -65,7 +65,7 @@ const TableFooter: Stateless<TableFooterArgs> = ({
 }) => (
 	<tfoot
 		{...attrs}
-		class={clsx('border-t bg-muted/50 font-medium [&>tr]:last:border-b-0', classes)}
+		class={clsx('playa-table-footer', classes)}
 		data-slot="table-footer"
 	>
 		{children}
@@ -80,7 +80,7 @@ const TableRow: Stateless<TableRowArgs> = ({
 }) => (
 	<tr
 		{...attrs}
-		class={clsx('border-b transition-colors hover:bg-accent has-aria-expanded:bg-accent data-[state=selected]:bg-muted', classes)}
+		class={clsx('playa-table-row', classes)}
 		data-slot="table-row"
 	>
 		{children}
@@ -96,7 +96,7 @@ const TableHead: Stateless<TableHeadArgs> = ({
 }) => (
 	<th
 		{...attrs}
-		class={clsx('h-11 px-4 text-left align-middle text-xs font-medium uppercase tracking-wider whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]', classes)}
+		class={clsx('playa-table-head', classes)}
 		data-slot="table-head"
 		scope={scope}
 	>
@@ -112,7 +112,7 @@ const TableCell: Stateless<TableCellArgs> = ({
 }) => (
 	<td
 		{...attrs}
-		class={clsx('px-4 py-3 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]', classes)}
+		class={clsx('playa-table-cell', classes)}
 		data-slot="table-cell"
 	>
 		{children}
@@ -127,7 +127,7 @@ const TableCaption: Stateless<TableCaptionArgs> = ({
 }) => (
 	<caption
 		{...attrs}
-		class={clsx('mt-4 text-sm text-muted-foreground', classes)}
+		class={clsx('playa-table-caption', classes)}
 		data-slot="table-caption"
 	>
 		{children}

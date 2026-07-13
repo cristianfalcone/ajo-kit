@@ -44,7 +44,7 @@ describe('popup theme tokens', () => {
 			for (const token of tokens(popupAnimation)) expect(family).toContain(token)
 			for (const token of tokens(popupSlide)) expect(family).toContain(token)
 		}
-		for (const token of tokens(popupAnimation)) expect(select).toContain(token)
+		expect(select).toContain('playa-select-content')
 		for (const token of tokens(popupSlide)) expect(select).not.toContain(token)
 	})
 

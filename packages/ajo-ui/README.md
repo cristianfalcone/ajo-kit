@@ -28,6 +28,10 @@ The root export exposes every public component family:
 import { Tabs, TabsList, TabsTrigger, TabsContent } from 'ajo-ui'
 ```
 
+The package export map is explicit: only the root, `ajo-ui/utils`, and one
+subpath per public family resolve. Source-internal helpers never become package
+subpaths merely because a file exists.
+
 General Ajo host/lifecycle helpers come from `ajo-cloves`; component-system
 normalization, slot, class, and style helpers come from `ajo-ui/utils`:
 
@@ -96,12 +100,21 @@ Its main implementation seams are:
   `@tanstack/virtual-core@3.17.4` to Ajo lifecycle, immutable snapshots,
   keyed measurement, SSR prerendering, focus pinning, and imperative
   targeting. TanStack types and options never cross the package surface.
+- **DataTable owns one paginated model**: private top-level contract and model
+  modules keep TanStack behind the public family. The model binds the explicit
+  `@tanstack/table-core@9.0.0-beta.47` profile to
+  `@tanstack/store@0.11.0` and Ajo lifecycle.
+- **DataTable owns one renderer**: `data-table.tsx` emits native markup and
+  stable slots. Playa's Menu, Select, and DataTable adapters consume the same
+  named Uno shortcuts instead of copying composed-control recipes.
+  `VirtualDataTable` remains deferred until its geometry, accessibility,
+  browser, and performance gates pass.
 - **Composition over reimplementation**: ContextMenu and Menubar are built on
   Menu; Drawer and CommandDialog on Dialog; the InputDate family's
   optional picker on Calendar; Accordion on Collapsible; ToggleGroup on
   Toggle; CheckboxGroup on Checkbox; SelectInput on InputGroup; DataTable's
-  built-in parts on Checkbox. `withSlot` from `ajo-ui/utils` stamps the fixed
-  part names used by re-exported parts.
+  built-in parts on Checkbox, Menu, Select, and Toolbar. `withSlot` from
+  `ajo-ui/utils` stamps the fixed part names used by re-exported parts.
 
 ## Conventions
 
@@ -144,8 +157,9 @@ Its main implementation seams are:
 - `DirectionProvider` supplies the default text direction; families with
   horizontal keyboard navigation accept a `dir` arg that overrides it.
 - `availability.ts`, `bar.ts`, `collection.ts`, `floating.ts`, `segments.ts`,
-  and `virtual.ts` are deliberate internal implementation modules with no
-  public subpath. Shared UI normalization and composition live together in
+  `virtual.ts`, `data-table-contract.ts`, and `data-table-model.ts` are
+  deliberate internal modules with no public subpath. Shared UI normalization
+  and composition live together in
   `ajo-ui/utils`; general realm, host, lifecycle, callback/ref, cache, and
   numeric primitives live in `ajo-cloves`.
 - Package modules are side-effect-free. Root-barrel imports tree-shake to the

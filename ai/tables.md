@@ -1,14 +1,44 @@
 # Tablas de datos dinamicas
 
-Estado: investigacion y plan listo; prerequisite VirtualList implementado
+Estado: DataTable paginada implementada y validada; VirtualDataTable diferida
 
 Fecha del snapshot externo: 2026-07-13
 
 Owner de la decision: `D:\ajo-kit`
 
-Este archivo es la fuente canonica local para reemplazar el engine propio de
-tablas dinamicas. Debe mantenerse alineado con `ai/ui.md` y con
-`ai/vlist.md`.
+## Implementation record — 2026-07-13
+
+- La `DataTable` paginada esta implementada en `ajo-ui` con un contrato Ajo
+  pequeno y sin tipos TanStack publicos.
+- `data-table-contract.ts` y `data-table-model.ts` son modulos top-level
+  privados. El export map explicito impide importarlos como subpaths.
+- `data-table.tsx` contiene el unico renderer nativo y posee markup, slots,
+  accesibilidad y composicion de componentes base.
+- `src/ui/data-table.tsx` es un Adapter Playa Stateless. Aplica la recipe Uno
+  `playa-data-table` sobre slots; no recibe callbacks estructurales.
+- Las dependencias estan fijadas en `@tanstack/table-core@9.0.0-beta.47` y
+  `@tanstack/store@0.11.0`.
+- El model registra un profile paginado explicito. No usa `stockFeatures`,
+  adapters React/Lit ni un registry virtual dormido.
+- `VirtualDataTable` queda deliberadamente diferida hasta superar sus gates de
+  geometry, accesibilidad, browser y performance.
+
+Evidencia verde del corte: instalacion de dependencias, typecheck, 187 tests de
+`ajo-ui`, 577 tests unitarios root, cinco stories de DataTable, matriz completa
+de stories, 49 tests e2e, build, smoke de produccion y el fixture reproducible
+de bundle. El profile real Table + Store + bridge mide 14,784 B gzip y conserva
+el budget original de 15 KiB. El componente publico incremental mide 29,470 B
+gzip, permanece debajo de su budget separado de 30 KiB y no retiene
+VirtualList; el artifact VirtualList tampoco retiene Table.
+
+La story principal protege geometricamente la alineacion de headers y data con
+tolerancia de 1 px; Status, Email y Amount midieron 0 px en el cierre. No se
+declaran ejecutados screen readers fisicos, Safari iOS real ni un benchmark
+painted-browser formal. Esa evidencia queda como gate de `VirtualDataTable`,
+que no se publica parcialmente.
+
+Este archivo documenta el reemplazo del engine propio y los gates que siguen
+pendientes. Debe mantenerse alineado con `ai/ui.md` y `ai/vlist.md`.
 
 ## Premisas greenfield y orden de implementacion
 
@@ -18,8 +48,8 @@ persistidos cuya forma deba conservarse. Esta investigacion, por lo tanto, no
 es una migracion compatible:
 
 - se puede romper o reemplazar la Interface actual de `DataTable`;
-- se borran renderers, props, tests, exports e internals que ya no pertenezcan
-  al diseno final;
+- se borraron callbacks estructurales, props, tests, exports e internals que no
+  pertenecian al diseno final;
 - no se agregan aliases, deprecations, adapters de compatibilidad ni dos
   pipelines publicos/ejecutables;
 - el corte puede reescribir `data-table.tsx` completo y sus consumers locales;
@@ -28,11 +58,9 @@ es una migracion compatible:
 - mientras Ajo siga experimental, la nueva Interface tambien puede romperse
   si nueva evidencia produce un Module materialmente mejor.
 
-El orden del roadmap es vinculante. Las Phases 0 a 8 de `ai/vlist.md` ya estan
-implementadas: `virtual.ts`, el scroll recipe y sus contract/browser/bundle
-gates existen. La reescritura tabular puede comenzar con ese unico foundation
-privado ya probado, aunque la virtualization tabular se habilite en un slice
-propio.
+Las Phases 0 a 8 de `ai/vlist.md` ya estan implementadas: `virtual.ts`, el
+scroll recipe y sus contract/browser/bundle gates existen. DataTable paginada
+ya aterrizo; la virtualization tabular conserva un slice propio.
 
 ## Decision ejecutiva
 
@@ -41,24 +69,23 @@ Ajo-native, con dos estrategias explicitas, y reemplazar toda la logica
 tabular propia por TanStack Table detras de seams privados:
 
 ~~~text
-@tanstack/table-core@9.0.0-beta.47
-       Implementation fijada y oculta
-                    |
-                    v
-packages/ajo-ui/src/internal/data-table-model.ts
-       adapter Ajo v9 privado
-                    |
-                    v
-packages/ajo-ui/src/internal/data-table-renderer.tsx
-       markup y policy compartidos
-             /                  \
-            v                    v
-data-table.tsx             virtual-data-table.tsx <--- virtual.ts
-DataTable paginada         VirtualDataTable         geometry privada
-             \                  /
-              v                v
-          src/ui/data-table.tsx
-          recipe Playa Stateless
+@tanstack/table-core@9.0.0-beta.47 + @tanstack/store@0.11.0
+                       Implementation fijada y oculta
+                                      |
+                                      v
+       data-table-contract.ts + data-table-model.ts
+              modulos top-level privados por export map
+                                      |
+                                      v
+                         data-table.tsx
+          DataTable paginada + unico renderer nativo
+                                      |
+                                      v
+                       src/ui/data-table.tsx
+                       recipe Playa Stateless
+
+virtual-data-table.tsx <--- virtual.ts
+VirtualDataTable diferida hasta sus gates
 ~~~
 
 El primitive semantico existente sigue separado:
@@ -76,9 +103,9 @@ Decisiones concretas:
 2. `ajo-cloves` no gana un clove `table` ni una dependencia TanStack. Se
    reutilizan solamente capacidades generales ya existentes, como `Host` y
    `announce`.
-3. `@tanstack/table-core` usa deliberadamente la ultima beta v9, resuelta y
-   fijada exactamente antes del implementation slice. En este snapshot es
-   `9.0.0-beta.47`. No se instala React, Lit ni un adapter de framework.
+3. `@tanstack/table-core` usa deliberadamente la beta v9 fijada
+   `9.0.0-beta.47`; Store esta fijado en `0.11.0`. No se instala React, Lit ni
+   un adapter de framework.
 4. Ningun tipo, instancia, updater, feature, `ColumnDef`, `TableState` ni
    opcion `manual*` de TanStack cruza la Interface publica.
 5. El caso actual aporta requirements, no una Interface a preservar. El
@@ -86,16 +113,15 @@ Decisiones concretas:
    row selection, pagination y empty state con el contrato nuevo.
 6. `src/ui/table.tsx` no se reemplaza. Una tabla semantica escrita a mano no
    debe pagar un engine de datos.
-7. El engine propio actual se borra en el mismo corte en que entra TanStack.
-   No quedan dos pipelines publicos/ejecutables ni compatibility shims.
-8. `VirtualList` se implementa primero. `DataTable` reutiliza su engine
-   geometrico privado y su scroll recipe, nunca el componente publico
-   `ul/li`. Server mode y virtualization tabular se abren solamente con sus
-   contratos y pruebas, no mediante passthroughs TanStack.
+7. El engine propio se borro en el mismo corte en que entro TanStack. No quedan
+   dos pipelines publicos/ejecutables ni compatibility shims.
+8. `VirtualList` se implemento primero. La virtualization tabular permanece
+   diferida y, cuando se abra, reutilizara su engine geometrico privado y su
+   scroll recipe, nunca el componente publico `ul/li`.
 9. V1 conserva HTML `table` nativo. No usa `role="grid"` ni implementa una
    navegacion de spreadsheet.
 
-La eleccion no es la de menor bundle aislado: el engine propio actual es mas
+La eleccion no era la de menor bundle aislado: el engine propio pre-cut era mas
 chico. La eleccion v9 compra row models probados, state atomico, features
 opt-in, typing derivado del feature set y una arquitectura de adapters que
 encaja con Ajo. Para que siga siendo micro, el costo queda aislado a consumers
@@ -118,16 +144,19 @@ estados:
   completo;
 - cada recalculo debe invalidar solamente los row models que dependen de el.
 
-La Implementation actual resuelve estos casos localmente. Eso parece pequeno
+La Implementation pre-cut resolvia estos casos localmente. Eso parecia pequeno
 en cada helper, pero en conjunto forma un engine tabular que el proyecto debe
-mantener, perfilar y hacer evolucionar. El objetivo es retirar ese engine sin
+mantener, perfilar y hacer evolucionar. El corte retiro ese engine sin
 convertir TanStack en el lenguaje publico de Ajo.
 
 ## Inventario local
 
-### Engine dinamico actual
+### Engine dinamico pre-cut — retirado
 
-`packages/ajo-ui/src/data-table.tsx` tiene 841 lineas y concentra:
+Este inventario conserva la evidencia anterior al corte TanStack. No describe
+la Implementation actual.
+
+`packages/ajo-ui/src/data-table.tsx` tenia 841 lineas y concentraba:
 
 - construccion e identidad de rows;
 - lectura y normalizacion de valores;
@@ -141,20 +170,20 @@ convertir TanStack en el lenguaje publico de Ajo.
 - aproximadamente 34 class hooks;
 - 14 renderer hooks para el Adapter de tema.
 
-El pipeline actual usa operaciones `map/filter/sort/slice` propias. Cambios de
+El pipeline pre-cut usaba operaciones `map/filter/sort/slice` propias. Cambios de
 estado que no afectan datos pueden volver a ejecutar trabajo de datos porque no
 existe un grafo de row models memoizado equivalente al de TanStack.
 
 El fallback opcional de row ID basado en index es inseguro frente a reorder,
 filtering, refresh y selection. La nueva Interface lo elimina.
 
-### Adapter Playa actual
+### Adapter Playa pre-cut — retirado
 
-`src/ui/data-table.tsx` tiene 240 lineas. Su mayor costo accidental no es
-styling: replica los renderers base para reconstruir table, toolbar, controls,
+`src/ui/data-table.tsx` tenia 240 lineas. Su mayor costo accidental no era
+styling: replicaba renderers para reconstruir table, toolbar, controls,
 checkboxes y pagination con componentes Playa.
 
-El seam de tema es demasiado ancho. Un tema no deberia poder cambiar el
+El seam de tema era demasiado ancho. Un tema no deberia poder cambiar el
 pipeline, la semantica de tags o el ownership de estado.
 
 ### Primitive semantico
@@ -185,8 +214,8 @@ Las pantallas productivas inspeccionadas usan el primitive `Table` y
 paginacion de route. No existe hoy un consumer productivo que obligue a
 mantener compatibilidad con la Interface dinamica.
 
-Esto habilita un corte limpio: definir la Interface final, migrar la story y
-borrar la Implementation vieja sin aliases ni deprecations.
+Esto habilito el corte limpio: Interface final, story migrada e Implementation
+vieja eliminada sin aliases ni deprecations.
 
 ### Paginacion de servidor existente
 
@@ -429,7 +458,7 @@ primaria util porque demuestra el lifecycle no-React: construye una instancia,
 actualiza options, subscribe a Store y limpia al desconectarse. Ajo implementa
 ese bridge en menos superficie y con su propio `Host`.
 
-Tampoco se implementa un engine atomico propio. `ajoTableReactivity(host)`
+Tampoco se implementa un engine atomico propio. `reactivity(host)`
 parte de `storeReactivityBindings()` y cambia solamente policy de adapter:
 
 - `createOptionsStore:false`, porque los args vivos ya reentran por cada yield;
@@ -506,6 +535,31 @@ monorepo, source y command versionados, lock/integrities, metafile y hashes. Un
 aumento no habilita v8: obliga a perfilar imports, simplificar el adapter o
 revisar el budget de forma explicita con delta neto despues de borrar el engine
 actual.
+
+### Artifact reproducible del corte
+
+`pnpm test:bundle` versiona source, target, externalization y graph en
+`tests/virtual-list-bundle.ts`; usa el lockfile exacto y emite bytes, gzip,
+module graph y SHA-256. El cierre produjo:
+
+| Fixture | Minified | gzip | SHA-256 |
+|---|---:|---:|---|
+| framework shell | 168 B | 150 B | `08cbdb1cdbed6b958465416985f5ccdd82021bb55331685a80950b0ecded292d` |
+| Table + Store + profile + bridge reales | 52,669 B | 14,784 B | `89d7f3a2a555720c23c40d73d2052d32ec515228fda275ea5598ee9abc075f7b` |
+| DataTable publica | 97,892 B | 29,620 B | `b8d9668fb7d4544f1406533f45d55212fad44e7db3046f3d0d3813225766ac56` |
+
+El delta publico contra el framework shell es 29,470 B gzip. Los dos budgets
+son deliberadamente distintos y se ejecutan juntos:
+
+- 15,360 B para el engine real: Table, Store, feature profile y bridge Ajo;
+- 30 KiB incrementales para la familia publica completa, que ademas contiene
+  renderer, policy, JSX y los primitives Checkbox, Menu, Select y Toolbar.
+
+El segundo budget no reemplaza ni relaja el primero. Se agrego porque comparar
+un entry de componente completo contra un fixture solamente headless mezclaba
+dos costos distintos. Root y subpath deben conservar bytes y module graph; un
+consumer no-DataTable mantiene cero Table/Store y DataTable mantiene cero
+VirtualList.
 
 ## Design it twice: Interfaces comparadas
 
@@ -636,7 +690,7 @@ Veredicto: si.
 | DataTable profundo | si | si | si | si | si |
 
 La factory headless flexible es util como modelo mental para
-`internal/data-table-model.ts`. No debe exportarse. Si en el futuro aparece un
+`data-table-model.ts`. No debe exportarse. Si en el futuro aparece un
 segundo renderer real que no puede usar `DataTable`, se evalua un nuevo Module
 con evidencia.
 
@@ -656,34 +710,27 @@ Es owner de:
 - SSR y lifecycle;
 - errors e invariants.
 
-Archivos objetivo:
+Archivos implementados y extension diferida:
 
 ~~~text
 packages/ajo-ui/
   package.json
   src/
-    internal/
-      data-table-contract.ts   tipos y vocabulario privados
-      data-table-model.ts      Adapter TanStack v9 privado
-      data-table-renderer.tsx  markup/policy privado compartido
-    data-table.tsx             strategy paginada publica
-    virtual-data-table.tsx     strategy virtual publica tras sus gates
-    virtual.ts                 engine geometrico privado ya implementado
-    index.ts                   exports Ajo, nunca TanStack
+    data-table-contract.ts   tipos y vocabulario privados
+    data-table-model.ts      Adapter TanStack v9 privado
+    data-table.tsx           strategy paginada y unico renderer publico
+    virtual-data-table.tsx   diferida hasta sus gates
+    virtual.ts               engine geometrico privado ya implementado
+    index.ts                 exports Ajo, nunca TanStack
 ~~~
 
-Los tres primeros archivos son source-internal. No forman un framework
-headless ni subpaths publicos: existen para profundizar una sola familia. Los
-dos entrypoints publicos eligen profiles estaticos distintos, de modo que la
-tabla paginada no arrastre virtual-core y la virtual no arrastre pagination.
+Contract y model son source-internal aunque vivan top-level. `data-table.tsx`
+es el unico renderer y entrypoint de la strategy paginada. La strategy virtual
+no existe hasta superar sus gates.
 
-Hoy `packages/ajo-ui/package.json` publica `./* -> ./src/*.tsx`. Ese wildcard
-haria importable cualquier helper TSX, incluso bajo un directorio llamado
-`internal`. En el corte greenfield se reemplaza por un export map explicito de
-los subpaths publicos reales. `data-table`, `virtual-data-table` y el root barrel
-son los unicos caminos de esta familia; contract/model/renderer no resuelven
-desde package imports. Negative resolution/type tests protegen el seam. No se
-conserva el wildcard por compatibilidad.
+`packages/ajo-ui/package.json` usa un export map explicito para las 37 familias
+publicas. No conserva `./*`: contract, model, `virtual.ts` y futuros helpers no
+resuelven desde package imports. Negative resolution tests protegen el seam.
 
 ### `ajo-cloves`
 
@@ -702,18 +749,18 @@ clove existente sigue siendo correcto para CheckboxGroup y ToggleGroup.
 
 ### `src/ui`
 
-`src/ui/data-table.tsx` queda como Adapter Playa Stateless:
+`src/ui/data-table.tsx` es un Adapter Playa Stateless:
 
 - aplica una recipe al root y a `data-slot` descendants;
 - comparte estilos semanticos con `src/ui/table.tsx`;
 - no posee state;
 - no conoce TanStack;
 - no reemplaza row models;
-- no recibe 14 renderers.
+- no recibe callbacks estructurales ni class maps base.
 
 `src/ui/table.tsx` permanece separado y sin dependencia de DataTable.
 
-## Interface publica propuesta
+## Interface publica implementada
 
 La Interface final usa el vocabulario de la coleccion y no el de TanStack.
 La strategy paginada publica solamente `DataTable`, `DataTableColumn<T>` y
@@ -1023,12 +1070,12 @@ const getPaymentLabel = (payment: Payment) => payment.email
   forma explicita.
 - Visibility aparece solamente si existe una column cuyo toggle puede cambiar
   el estado.
-- No hay `classes`, `renderers`, `instance`, `options` ni escape hatch.
+- No hay callbacks estructurales, class maps base, `instance`, `options` ni
+  escape hatch.
 
-### Defaults candidatos
+### Defaults implementados
 
-Los defaults se congelan despues de ejecutar las stories y benchmarks de Phase
-0. Los candidatos son:
+La strategy paginada implementa estos defaults:
 
 - page sizes: 10, 25 y 50;
 - default size: `defaultSize` explicito o la primera `sizes`, 10 con defaults;
@@ -1053,7 +1100,7 @@ valores sin evidencia. Si un consumer real necesita otra size, la declara.
 - Mutar el array o una row sin cambiar referencia viola el contrato.
 - TanStack no recibe ownership de los objetos.
 - El cast desde `readonly T[]` a la forma interna queda en
-  `internal/data-table-model.ts`.
+  `data-table-model.ts`.
 
 Accessors, search mappers, facet mappers y comparators deben ser puros y
 deterministas. Pueden ejecutarse mas de una vez.
@@ -1278,11 +1325,12 @@ futuro server mode.
 
 ## Adapter Ajo privado
 
-`internal/data-table-model.ts` concentra toda traduccion de conceptos.
+`data-table-model.ts` concentra toda traduccion de conceptos.
 
 ### Responsabilidades
 
-- convertir `DataTableColumn<T>` a `ColumnDef<T, unknown>`;
+- convertir `DataTableColumn<T>` a
+  `ColumnDef<typeof features, T, unknown>`;
 - codificar row keys para el string ID interno;
 - crear una sola table por owner Stateful;
 - construir una vez el feature profile v9 exacto;
@@ -1302,29 +1350,24 @@ futuro server mode.
 ### Feature profile v9
 
 No se usa `stockFeatures`, registries completos ni `createCoreRowModel()`. El
-profile compartido excluye deliberadamente cualquier estrategia de ventana:
+profile implementado registra solo la strategy paginada:
 
 ~~~ts
-const sharedFeatureConfig = {
+const strategy = tableFeatures({
 	columnFilteringFeature,
 	columnVisibilityFeature,
 	globalFilteringFeature,
+	rowPaginationFeature,
 	rowSelectionFeature,
 	rowSortingFeature,
 	filteredRowModel: createFilteredRowModel(),
-	sortedRowModel: createSortedRowModel(),
-}
-
-const paginatedTableFeatures = tableFeatures({
-	...sharedFeatureConfig,
-	rowPaginationFeature,
 	paginatedRowModel: createPaginatedRowModel(),
-})
-
-const virtualTableFeatures = tableFeatures({
-	...sharedFeatureConfig,
+	sortedRowModel: createSortedRowModel(),
 })
 ~~~
+
+No existe un profile virtual registrado. `VirtualDataTable` definira su propia
+strategy sin pagination solamente despues de superar sus gates.
 
 Search, facets y sort usan functions privadas directas en cada `ColumnDef` o
 option. No se importan los objetos agregados `filterFns`/`sortFns` porque v9
@@ -1336,10 +1379,10 @@ calculan unique values ni counts desde rows.
 por instancia, nunca por yield:
 
 ~~~ts
-const reactivity = ajoTableReactivity(host)
+const reactive = reactivity(host)
 const features = tableFeatures({
-	...strategyFeatures,
-	coreReactivityFeature: reactivity.bindings,
+	...strategy,
+	coreReactivityFeature: reactive.bindings,
 })
 ~~~
 
@@ -1349,7 +1392,7 @@ policy; no cambian el registry ni reconstruyen la table.
 
 ### Reactivity bridge
 
-`ajoTableReactivity(host)` decora `storeReactivityBindings()`; no reimplementa
+`reactivity(host)` decora `storeReactivityBindings()`; no reimplementa
 atoms. Sus diferencias son deliberadas:
 
 - `createOptionsStore:false`: Ajo es owner de options y las sincroniza en cada
@@ -1372,10 +1415,10 @@ en una microtask y llaman solamente `host.next()`.
 Forma conceptual v9:
 
 ~~~ts
-const reactivity = ajoTableReactivity(host)
+const reactive = reactivity(host)
 const features = tableFeatures({
-	...strategyFeatures,
-	coreReactivityFeature: reactivity.bindings,
+	...strategy,
+	coreReactivityFeature: reactive.bindings,
 })
 
 let args = initialArgs
@@ -1506,7 +1549,7 @@ No existe un Set Ajo paralelo en ninguno de los dos modos.
 `@tanstack/table-core` es una dependencia in-process, determinista y sin I/O.
 No necesita un port, repository ni mock publico. Contract tests cruzan el seam
 de `DataTable` y unit tests internos pueden probar
-`internal/data-table-model.ts` con el core real.
+`data-table-model.ts` con el core real.
 
 ## Markup y theme
 
@@ -1557,28 +1600,27 @@ direccion de dependencias.
 
 ### Reduccion del theme seam
 
-Objetivo:
+Implementation:
 
 ~~~tsx
-export const DataTable = <T, Key extends DataTableKey>(
-	args: DataTableArgs<T, Key>,
-) => (
-	<BaseDataTable
-		{...args}
-		class={cx(dataTableRecipe, args.class)}
-	/>
+const DataTable = <T, Key extends DataTableKey>({
+	class: classes,
+	...attrs
+}: DataTableArgs<T, Key>) => (
+	<BaseDataTable {...attrs} class={clsx('playa-data-table', classes)} />
 )
 ~~~
 
-La factibilidad de selectors `data-slot` con Uno se valida en el spike. V1
-requiere que el Adapter Playa pueda resolverse con slots. Si no alcanza, Phase
-0 se detiene y se disena una Interface de theme-authoring explicitamente
-exportada; un prop importable desde `src/ui` no puede llamarse privado.
+Uno resuelve la recipe `playa-data-table` mediante selectors `data-slot`. Los
+shortcuts `playa-table-*` comparten la recipe semantica con `src/ui/table.tsx`.
+Los adapters directos Menu/Select y los descendants que DataTable compone
+consumen las mismas recipes `playa-menu-*` y `playa-select-*`; motion,
+scrollbar, focus/highlight/disabled y pointer-coarse tienen una sola fuente.
+Header/cell padding tambien es unico y el sort trigger no agrega padding
+horizontal, de modo que labels y data conservan la misma linea geometrica.
 
-No se agrega un factory de structural renderers. Si el spike exige una
-Interface de theme-authoring por portals, se limita a class/slot tokens
-probados por Playa y se publica en un subpath avanzado, fuera de
-`DataTableArgs`.
+No existe una Interface publica de theme-authoring ni un factory estructural.
+Playa posee la recipe privada y la base posee toda la estructura.
 
 ## Accesibilidad y UX
 
@@ -1589,7 +1631,7 @@ mismo string se entrega a `labels.toolbar` y `labels.pagination` para que cada
 landmark tenga un nombre contextual y localizable, incluso con dos DataTables
 en la misma page.
 
-Esto corrige el problema actual donde el nombre queda en el outer `div` y no
+Esto corrigio el problema pre-cut donde el nombre quedaba en el outer `div` y no
 depende de una clase Playa `sr-only`. Visible caption y `aria-labelledby`
 quedan fuera de V1: agregarlos sin una segunda fuente divergente requiere un
 consumer concreto.
@@ -1928,12 +1970,12 @@ Con referencias estables:
 - accessors devuelven data cruda y barata;
 - formatting costoso vive en `cell`;
 - comparators no crean `Intl.Collator` por comparacion;
-- renderers no mutan state;
+- callbacks de `cell` no mutan state;
 - no crear columns inline en cada yield sin necesidad.
 
 ### Bundle gates
 
-Se construyen cinco fixtures:
+El diseno completo contempla cinco consumer graphs:
 
 1. app que no importa la familia;
 2. app que importa el root barrel pero no usa la familia;
@@ -1941,11 +1983,17 @@ Se construyen cinco fixtures:
 4. app que usa solamente `VirtualDataTable`;
 5. app que usa ambas strategies.
 
+Mientras `VirtualDataTable` permanezca diferida, el artifact versionado cubre
+los graphs 1 a 3, root/subpath equivalentes, el profile privado y aislamiento
+cruzado con VirtualList. Los graphs 4 y 5 se habilitan solamente junto con el
+sibling; no existe un entry placeholder para fingirlos.
+
 Aceptacion:
 
 - fixtures 1 y 2: cero bytes TanStack;
-- fixture 3: cero bytes de `@tanstack/virtual-core` y maximo inicial de
-  15 KiB (`15,360 B`) gzip para Table v9 + Store + bridge;
+- fixture 3: cero bytes de `@tanstack/virtual-core`, maximo de 15 KiB
+  (`15,360 B`) gzip para Table v9 + Store + profile + bridge y maximo separado
+  de 30 KiB incrementales para el componente publico completo;
 - fixture 4: cero pagination feature/model; budget combinado inicial de
   Table + Virtual + bridges <= 22 KiB gzip, a congelar con el entry real;
 - fixture 5: deduplica ambos cores y helpers, sin dos copias del renderer;
@@ -1956,9 +2004,10 @@ Aceptacion:
 - `sideEffects: false` en `ajo-ui` solamente se declara despues de auditar el
   package completo.
 
-Cada fixture guarda source, command exacto, target/browsers, lockfile e
-integrities, reglas de externalization, esbuild metafile y hashes de outputs.
-Los numeros diagnosticos de este documento no son golden files.
+Cada fixture guarda source, command exacto, target, lockfile e integrities y
+reglas de externalization. El runner deriva module graph y SHA-256 de cada
+output; budgets y separacion de graphs son el gate, no igualdad con un hash
+historico despues de un cambio intencional.
 
 ### Runtime fixtures
 
@@ -2037,7 +2086,46 @@ Los candidatos iniciales son:
 Phase 0 fija warm-ups, N, p95, marks y mecanismo de GC. Los thresholds
 absolutos de filter/sort no se inventan antes de medir el hardware de CI.
 
-## Plan detallado
+### Benchmark reproducible del corte paginado
+
+`pnpm test:perf:data-table` ejecuta el source versionado en
+`packages/ajo-ui/tests/data-table-performance.ts` con `--expose-gc`. Usa ocho
+columns, 10,000 y 100,000 rows, un warm-up y cinco runs frescos por tamano;
+alterna el orden Ajo/vanilla, compara resultados logicos y registra medianas.
+El gate de 10k usa la mediana del delta Ajo - vanilla de cada par para no
+comparar samples inconexos. Para search/sort admite como maximo el mayor entre
+20% del baseline vanilla y 8 ms: el margen absoluto representa
+projection/policy Ajo cuando el baseline dura pocos milisegundos y absorbe
+jitter de scheduler sin ocultar regresiones. Ademas exige page, selection y sort
+por debajo de un frame de 60 Hz, y search por debajo del limite de long task de
+50 ms.
+
+Snapshot del cierre: Windows x64, Node 26.4.0, Intel i7-1255U.
+
+| Rows | Fixture | Cold | Repeat | Search | Sort | Select page | Page |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 10,000 | Ajo | 10.255 ms | 0.109 ms | 8.586 ms | 1.249 ms | 0.131 ms | 0.314 ms |
+| 10,000 | vanilla v9 | 15.840 ms | 0.064 ms | 7.903 ms | 1.133 ms | 0.080 ms | 0.290 ms |
+| 100,000 | Ajo, informativo | 271.031 ms | 0.132 ms | 232.121 ms | 15.789 ms | 0.200 ms | 0.689 ms |
+| 100,000 | vanilla v9, informativo | 253.308 ms | 0.084 ms | 231.891 ms | 13.320 ms | 0.108 ms | 0.560 ms |
+
+Los budgets 10k pasaron en tres invocaciones frescas consecutivas y 0 de 50
+models abortados quedaron retenidos despues de cinco ciclos de GC en cada una.
+Un contract test adicional instrumenta accessors sobre
+10k rows: repeat, selection y pagination permanecen acotados a la page; sort
+materializa cada accessor una sola vez.
+
+La lectura util sigue siendo de limites, no de marketing: filter/sort
+client-side materializan el universo y su costo crece con las rows. Este harness
+es reproducible para model/projection y collectability, pero no mide DOM, paint,
+p95 de browser ni AT. Por eso no habilita `VirtualDataTable` ni reemplaza su
+gate painted-browser.
+
+## Plan detallado — record historico y pendientes
+
+Este fue el plan de corte. La DataTable paginada, el packaging explicito y su
+hardening aterrizaron. Phase 3 permanece diferida; sus gates son criterios
+futuros, no resultados implicitos.
 
 Las phases siguientes son checkpoints de una unica rama/slice de
 implementacion. Durante Phases 1 a 4 los nuevos archivos pueden coexistir en el
@@ -2046,7 +2134,7 @@ consumers; no constituyen un segundo runtime ni un compatibility path. El export
 map, los consumers y la eliminacion del engine viejo aterrizan juntos en Phase
 5. No se mergea ni publica un estado intermedio.
 
-### Phase -1: prerequisite VirtualList
+### Phase -1: prerequisite VirtualList — implementada
 
 1. Completar las Phases 0 a 8 de `ai/vlist.md`.
 2. Confirmar que `virtual.ts` es renderer-neutral: count, keys, range,
@@ -2063,8 +2151,8 @@ comienza codigo de DataTable nuevo.
 
 1. Resolver de nuevo `@tanstack/table-core@beta`, auditar source/changelog y
    fijar el numero exacto; `9.0.0-beta.47` es el snapshot, no un range.
-2. Fijar tambien la version transitiva de `@tanstack/store` mediante lockfile y
-   `pnpm.overrides` mientras upstream declare `^`; registrar ambas integrities.
+2. Fijar tambien `@tanstack/store` en `pnpm-workspace.yaml` mientras upstream
+   declare `^`; registrar lockfile e integrities.
 3. Verificar el engine efectivo de Node del repo (`^20.19 || >=22.12` por Vite)
    y CI, ademas del `>=20` de Table.
 4. Compilar un spike real con `constructTable`, feature profiles explicitos,
@@ -2089,13 +2177,14 @@ Exit gate: beta/store pins, Interface base, feature profiles, theme seam,
 geometry candidata y budgets documentados. Un fallo corrige v9 o el diseno; no
 habilita un adapter v8 paralelo.
 
-### Phase 1: model v9 privado y contracts de state
+### Phase 1: model v9 privado y contracts de state — implementada
 
-1. Crear `internal/data-table-contract.ts` y `internal/data-table-model.ts`.
-2. Implementar `ajoTableReactivity(host)` sobre Store con options plain,
+1. Crear `data-table-contract.ts` y `data-table-model.ts` como modulos top-level
+   privados por export map.
+2. Implementar `reactivity(host)` sobre Store con options plain,
    cleanup real, scheduler abort-safe y una subscription coalescida.
-3. Definir profiles estaticos paginated y virtual; el segundo omite toda
-   pagination feature/model.
+3. Definir el profile paginado exacto. No registrar un profile virtual hasta
+   abrir Phase 3 con evidencia.
 4. Implementar key encoding, validations y caches por row/column identity.
 5. Traducir columns con filter/sort functions privadas minimas y
    `sortUndefined:false`.
@@ -2115,10 +2204,9 @@ habilita un adapter v8 paralelo.
 Exit gate: invariants, lifecycle, row-model parity y surface type tests verdes;
 ningun tipo TanStack aparece en declaraciones publicas.
 
-### Phase 2: renderer comun y DataTable paginada
+### Phase 2: renderer comun y DataTable paginada — implementada
 
-1. Crear `internal/data-table-renderer.tsx` con native markup y slots owned por
-   la base.
+1. Mantener el unico renderer nativo y sus slots dentro de `data-table.tsx`.
 2. Implementar `DataTable` paginada sobre el profile correspondiente.
 3. Conectar components base, labels, table naming, `scope`, `aria-sort`, mixed
    select-page, pagination names, announcements y empty `colspan`.
@@ -2126,16 +2214,17 @@ ningun tipo TanStack aparece en declaraciones publicas.
    pequenos.
 5. Implementar focus preservation/fallback por row key + column ID.
 6. Probar SSR/hydration, keyboard y la matriz AT paginada.
-7. Crear el Adapter Playa Stateless por recipe/slots, sin renderer callbacks.
+7. Crear el Adapter Playa Stateless por recipe/slots, sin callbacks
+   estructurales.
 8. Ejecutar stories, root forwarding, type inference y production CSS.
 
-Exit gate: strategy paginada completa pero aun no se reemplaza el export
-existente. La Implementation final se valida antes del corte.
+Estado: strategy paginada, renderer, adapter, export y matriz automatizada
+completos. La evidencia fisica explicitamente no reclamada permanece manual.
 
-### Phase 3: VirtualDataTable sibling
+### Phase 3: VirtualDataTable sibling — deliberadamente diferida
 
-1. Crear `virtual-data-table.tsx` sobre el profile sin pagination y el mismo
-   contract/renderer.
+1. Crear `virtual-data-table.tsx` sobre un profile sin pagination. Reutilizar el
+   column contract y definir su renderer solamente con evidencia de geometry.
 2. Alimentar `virtual.ts` con `table.getRowModel().rows` y `row.id`.
 3. Elegir la geometry ganadora de Phase 0 y borrar la alternativa.
 4. Hacer del viewport el unico scroll owner; compartir recipe, no anidar
@@ -2153,43 +2242,45 @@ existente. La Implementation final se valida antes del corte.
 Exit gate: geometry, AT, SSR, browser y performance verdes. Si falla, no se
 exporta el sibling ni se agrega una prop placeholder a `DataTable`.
 
-### Phase 4: hardening integrado y packaging
+### Phase 4: hardening integrado y packaging — completa para DataTable
 
 1. Ejecutar los cinco bundle fixtures con root/subpath production entries.
-2. Verificar cero Virtual en DataTable y cero pagination en VirtualDataTable.
+2. Verificar cero Virtual en DataTable; el segundo fixture se habilita solo si
+   existe un `VirtualDataTable` publico.
 3. Medir delta bruto y calcular el neto contra el graph viejo aislado; Phase 5
    confirma el neto real despues del borrado.
-4. Ejecutar runtime 10k/100k, memoization por slice, DOM bound y memory/abort.
-5. Ejecutar type, unit, SSR, hydration, stories, keyboard, AT, browser y Uno
-   production gates de ambas strategies.
+4. Ejecutar runtime 10k/100k, parity vanilla, memoization por slice y
+   collectability/abort. DOM/paint virtual permanece en Phase 3.
+5. Ejecutar type, unit, SSR, hydration, stories, keyboard, browser y Uno
+   production gates de DataTable; reservar AT fisico/virtual para Phase 3.
 6. Corregir unstable rows/columns/accessors de fixtures; no maquillar el
    benchmark.
-7. Construir y probar el export map explicito, incluyendo que imports de
-   contract/model/renderer internos fallen en typecheck y runtime resolution.
+7. Probar el export map explicito, incluyendo que contract y model privados no
+   resuelvan como package subpaths.
 8. Registrar commands, versions, integrities, traces, hashes y resultados en
    este documento.
 
 Exit gate: todos los budgets y contracts pasan. Cambiar un budget requiere una
 decision documentada; nunca una excepcion silenciosa.
 
-### Phase 5: corte atomico greenfield
+### Phase 5: corte atomico greenfield — implementada
 
-1. Reemplazar `DataTable` y, si paso Phase 3, agregar `VirtualDataTable`.
+1. `DataTable` fue reemplazada; `VirtualDataTable` permanece diferida.
 2. Reescribir la story y contracts locales contra la Interface final; no
    conservar nombres anteriores por conveniencia.
-3. Eliminar los 14 renderer hooks, class hooks redundantes y todo el engine
-   manual: value readers, compare, filter/sort/slice, Sets, Maps y row
+3. Los 14 renderer hooks, class hooks redundantes y el engine manual fueron
+   eliminados: value readers, compare, filter/sort/slice, Sets, Maps y row
    `selection()`.
 4. Borrar prototypes, fixtures y paths descartados; no dejar feature flags,
    aliases, deprecated exports ni dual pipeline.
-5. Reemplazar el wildcard `./*` por el export map explicito ya validado.
+5. El wildcard `./*` fue reemplazado por el export map explicito.
 6. Confirmar que `Table` semantico manual permanece independiente.
 7. Ejecutar la matriz completa despues del borrado y confirmar el delta neto.
 
 Exit gate: una sola autoridad v9, una familia cohesiva y ningun estado
 intermedio publicado.
 
-### Phase 6: documentacion y cierre experimental
+### Phase 6: documentacion y cierre experimental — completa para DataTable
 
 1. Actualizar `ai/ui.md`, READMEs, catalogo y story docs.
 2. Documentar `Table` vs `DataTable` vs `VirtualDataTable` vs `VirtualList`.
@@ -2272,7 +2363,7 @@ si pasa. La Interface Ajo tambien puede mejorar con breaking changes mientras
 el proyecto siga greenfield, pero nunca por filtracion accidental de upstream.
 
 Feature registration y churn v9 quedan encapsulados en
-`internal/data-table-model.ts`; ningun tipo TanStack aparece en la Interface
+`data-table-model.ts`; ningun tipo TanStack aparece en la Interface
 publica.
 
 ## Riesgos y mitigaciones
@@ -2280,13 +2371,13 @@ publica.
 | Riesgo | Mitigacion |
 |---|---|
 | breaking change entre betas v9 | pin exacto, adapter privado, source audit y upgrade atomico |
-| range transitivo de Store cambia el runtime | lock + `pnpm.overrides` exacto e integrity registrada |
+| range transitivo de Store cambia el runtime | override exacto en `pnpm-workspace.yaml`, lock e integrity |
 | binding vanilla tiene hooks incompletos | wrapper Ajo con options plain y cleanup contract-tested |
 | Table v9 agrega bundle significativo | profiles explicitos, subpaths, cinco fixtures y delta neto |
 | TanStack types filtran al caller | type tests y ningun re-export |
 | wildcard de package publica internals TSX | export map explicito + negative resolution tests |
 | invalidacion pendiente duplica un rerender del owner | state/render versioning y flush no-op |
-| theme seam vuelve a crecer | slots + recipe, no structural renderers |
+| theme seam vuelve a crecer | slots + recipe, no callbacks estructurales |
 | selection tiene dos owners | retirar row `selection()` |
 | inline columns invalidan memoization | snapshot contract y dev diagnostics |
 | index IDs reaparecen | `getRowKey` obligatorio |
@@ -2305,7 +2396,8 @@ publica.
 - Se usa la ultima beta v9 verificada con Table/Store pins exactos;
   `9.0.0-beta.47` es el snapshot actual y v8 no es fallback.
 - TanStack core, atoms, features y options quedan privados.
-- `ajo-ui` usa exports explicitos; model/contract/renderer no son subpaths.
+- `ajo-ui` usa exports explicitos; model y contract no son subpaths. El renderer
+  vive solamente dentro de `data-table.tsx`.
 - No se instala adapter de framework ni se implementa un atom engine propio.
 - Feature profiles son explicitos; no `stockFeatures`, registries completos ni
   core row model manual.
@@ -2316,29 +2408,27 @@ publica.
 - `DataTable` es client-side y paginada por default.
 - `VirtualDataTable` es un sibling/subpath sin pagination, no un flag; se
   exporta solamente si supera geometry/AT/perf gates.
-- Ambos mantienen native table semantics y comparten renderer/policy.
+- `DataTable` mantiene native table semantics. El futuro sibling debe preservar
+  esa semantica y reutilizar contract/policy; su geometry decide el renderer.
 - `virtual.ts` se reutiliza por engine, nunca componiendo `VirtualList<ul/li>`.
 - Pagination y virtualization son strategies UX mutuamente excluyentes.
 - Theme adapter no reconstruye 14 parts.
 - Server mode es un slice posterior dirigido por un consumer real.
 
-## Decisiones que requieren evidencia del spike
+## Evidencia deliberadamente diferida
 
-- numero exacto de la beta/store el dia de implementacion, no la familia v9;
-- defaults finales de page size;
-- si search necesita coalescing interno;
-- forma exacta de la recipe Uno por slots;
+El corte paginado ya resolvio pins, page sizes, coalescing de announcements,
+recipe Uno, export map, bundle reproducible, browser automation y la decision
+de diferir `VirtualDataTable`. Antes de publicar ese sibling aun se requiere:
+
 - geometry nativa-spacers frente a alternativa posicionada privada;
-- si `VirtualDataTable` supera el gate para entrar en el primer corte;
 - defaults virtuales de `overscan`/`prerender` reutilizados o ajustados;
-- bundle neto despues de eliminar la Implementation vieja;
-- thresholds absolutos de filter/sort;
-- si la guia de consumers debe preferir el subpath directo sobre el root
-  tree-shakeable;
-- copy exacta de announcements.
+- thresholds absolutos painted-browser de filter/sort/scroll;
+- screen readers fisicos y Safari iOS real sobre la geometry candidata;
+- copy exacta de announcements validada con AT fisica.
 
-Estas decisiones no reabren ownership, v9, el orden VirtualList-first ni el
-principio de un engine privado compartido.
+Estos gates no reabren ownership, v9, el orden VirtualList-first ni el principio
+de un engine privado compartido.
 
 ## Fuentes primarias
 
@@ -2389,17 +2479,18 @@ TanStack desaparezca:
 - `ajo-cloves` aporta lifecycle y capacidades generales;
 - `ajo-ui` absorbe Table v9 beta detras de un model privado;
 - `VirtualList` fija primero geometry y scroll ownership;
-- `DataTable` paginada y `VirtualDataTable` comparten familia, no bundle
-  accidental ni markup incorrecto;
+- `DataTable` paginada ya usa el model privado y el renderer nativo unico;
+- `VirtualDataTable` sigue como sibling diferido, sin bundle accidental;
 - Playa aplica el tema mediante slots;
 - `Table` sigue resolviendo markup manual;
 - routes siguen siendo owner del fetching;
-- el renderer virtual reutiliza engine, no semantica `ul/li`.
+- un futuro renderer virtual reutilizara engine, no semantica `ul/li`.
 
-El resultado buscado tiene una Interface menor que la actual, una
-Implementation feature-scoped, state atomico, un solo lifecycle y un costo de
-bundle visible y controlado. No hay retrocompatibilidad que proteger: se borra
-el engine anterior y se conserva solamente la forma final que pase los gates.
-Si un spike falla, se corrige el adapter, la geometry o la Interface antes del
-corte; no se filtra TanStack, no se sostiene v8 en paralelo y no se agregan
-props como deuda anticipada.
+El corte paginado tiene una Interface menor, una Implementation feature-scoped,
+state atomico, un solo lifecycle y sus gates automatizados verdes. Bundle y el
+diagnostico de runtime estan registrados. La evidencia fisica y painted-browser
+restante precede al futuro sibling virtual, no al cierre de DataTable.
+
+No se filtra TanStack, no se sostiene v8 en paralelo y no se agregan props como
+deuda anticipada. Un fallo corrige el Adapter o la Interface existente; no abre
+un compatibility path.

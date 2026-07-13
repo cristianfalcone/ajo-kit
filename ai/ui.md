@@ -41,11 +41,11 @@ are not public contracts.
 `ajo-ui` exposes:
 
 - the root barrel with every public family;
-- one `ajo-ui/<family>` subpath per `.tsx` family module;
+- one explicit `ajo-ui/<family>` subpath per public `.tsx` family module;
 - the deliberate `ajo-ui/utils` helper subpath.
 
-Pure `.ts` engines such as `floating.ts`, `collection.ts`, `bar.ts`,
-`segments.ts`, `availability.ts`, and `virtual.ts` are internal.
+There is no wildcard export. Pure `.ts` engines plus
+`data-table-contract.ts` and `data-table-model.ts` are package-internal.
 
 `ajo-ui` declares its modules side-effect-free. Selecting another family from
 the root barrel does not retain `VirtualList` or its Virtual Core dependency;
@@ -280,7 +280,7 @@ state attributes. It accepts ordinary DOM args without baking in theme classes.
 General host, lifecycle, callback, ref, cache, and numeric helpers remain in
 `ajo-cloves`.
 
-### Internal Engines
+### Internal Modules
 
 | Engine | Responsibility |
 |---|---|
@@ -289,8 +289,10 @@ General host, lifecycle, callback, ref, cache, and numeric helpers remain in
 | `bar.ts` | Open value, roving, typeahead, and follow policy for Menubar and NavigationMenu. |
 | `segments.ts` | Locale-derived date/time segments, editing, ISO serialization, validation, and messages. |
 | `availability.ts` | Compiled day, instant, serialized-value, and range-crossing availability checks. |
+| `data-table-contract.ts` | Private vocabulary re-exported only through the public DataTable family. |
+| `data-table-model.ts` | Exact TanStack v9 feature profile, row models, state policy, and Ajo lifecycle bridge. |
 
-These engines are deep internal modules. Public families expose their behavior
+These are deep internal modules. Public families expose their behavior
 without exposing the engines as importable subpaths.
 
 ### Composition Map
@@ -308,7 +310,7 @@ without exposing the engines as importable subpaths.
 - ToggleGroup composes Toggle.
 - CheckboxGroup composes Checkbox.
 - SelectInput composes InputGroup.
-- DataTable composes Checkbox.
+- DataTable composes Checkbox, Menu, Select, and Toolbar.
 - Mobile Sidebar composes Drawer.
 
 Popover is a consumer of the floating engine, not a superclass for every
@@ -722,10 +724,26 @@ Non-English SSR requires an explicit locale because the server has no
 
 DataTable consumes rows and columns with stable identity. It owns search,
 facets, sorting, column visibility, selection, pagination, accessible labels,
-and its Toolbar and Checkbox composition.
+and its Checkbox, Menu, Select, and Toolbar composition.
 
-Base `classes` and `renderers` are `ajo-ui` theme-authoring seams fixed by the
-Playa adapter.
+Private `data-table-model.ts` binds the explicit paginated profile from
+`@tanstack/table-core@9.0.0-beta.47` to `@tanstack/store@0.11.0` and Ajo
+lifecycle. TanStack types do not cross the public family.
+
+`data-table.tsx` owns the only native renderer and stable `data-slot` theme
+contract. Playa is a Stateless adapter that adds the private
+`playa-data-table` recipe; it receives no structural callbacks or class map.
+Menu and Select visual policy lives in named `playa-menu-*` and
+`playa-select-*` Uno shortcuts. Their direct adapters and DataTable's base
+descendants consume the same shortcuts, including popup motion, scrollbars,
+focus/highlight/disabled states, and coarse-pointer sizing.
+DataTable and the manual Table primitive reuse the same cell/header padding
+recipes. Sort triggers fill the header cell without adding horizontal padding,
+so start, center, and end headers remain geometrically aligned with row data.
+
+`VirtualDataTable` is deliberately deferred until its geometry, AT, browser,
+and performance gates pass. The paginated profile does not register a virtual
+strategy or import `virtual.ts`.
 
 Chart renders native area, bar, line, and pie plots from config, series, and
 data. Its container owns the accessible label and description, tooltip, legend,

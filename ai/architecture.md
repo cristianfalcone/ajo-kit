@@ -1,6 +1,6 @@
 # Ajo Kit Architecture
 
-Last updated: 2026-07-12
+Last updated: 2026-07-13
 
 This is the canonical architecture document for `ajo-kit`. It describes the
 current implementation and operating contracts for the framework, app runtime,
@@ -89,18 +89,25 @@ The root selectively exports the general primitives in `core.ts`: `Host`,
 the live-target harness remain package-source implementation details.
 
 `ajo-ui` is the standalone package for unstyled base components built on
-cloves. It exports one module per component family (`ajo-ui/<name>`), a root
-barrel, and component-system normalization/composition helpers through
+cloves. Its explicit export map exposes one module per public component family
+(`ajo-ui/<name>`), a root barrel, and normalization/composition helpers through
 `ajo-ui/utils`. `OmitArg` and `FixedArgs` live only in that utils subpath; they
 are not root or `ajo-cloves` exports.
+
 `packages/ajo-ui/src/floating.ts` (the popup engine),
 `packages/ajo-ui/src/collection.ts` (the item protocol),
 `packages/ajo-ui/src/bar.ts` (the open-value/roving/typeahead machine),
 `packages/ajo-ui/src/segments.ts` (localized editable date/time segments), and
-`packages/ajo-ui/src/availability.ts` (compiled date/time policy) are deliberate
-internal implementation modules with no public subpath. The app's `src/ui/`
-holds only the themed components (the "playa" theme), which import base
-components from `ajo-ui` and will later become a theme package of their own.
+`packages/ajo-ui/src/availability.ts` are deliberate internal engines.
+
+Top-level `data-table-contract.ts` and `data-table-model.ts` are also private.
+There is no wildcard export, so none of these modules has a public subpath.
+The Playa DataTable recipe projects the same named Menu and Select Uno
+shortcuts consumed by those direct themed adapters; composed controls do not
+maintain a second visual recipe.
+
+The app's `src/ui/` holds only the themed components (the "playa" theme). They
+import base components from `ajo-ui` and may later become a theme package.
 
 ### Environment Gates
 
@@ -283,13 +290,18 @@ must be configured consistently. A public Stateless adapter maps plain DOM
 attrs through `statefulRootAttrs` from `ajo-cloves` when a Stateful root owns
 behavior.
 
-Field and DataTable are canonical examples of that adapter boundary. Their
-Stateful owners and behavior-only args are private; the public Stateless parts
-separate behavior from DOM attrs and stamp the family slot on the actual host.
-DataTable's base `classes` and `renderers` remain a real theme-authoring seam,
-but the themed adapter fixes and excludes them. DataTable is generic through
-both adapters so row data, columns, and callbacks stay correlated, and it owns
-its complete child structure rather than accepting caller children.
+Field and DataTable are canonical examples of that adapter seam. Their Stateful
+owners stay private; public Stateless roots separate behavior from DOM attrs
+and stamp the family slot on the actual host.
+
+DataTable owns its complete native child structure and exposes stable slots,
+not structural callbacks or a base class map. Its generic types keep rows,
+columns, keys, and callbacks correlated across the base and Playa adapters.
+
+Playa adds only `playa-data-table`; Uno styles descendants through those slots.
+The model binds `@tanstack/table-core@9.0.0-beta.47` and
+`@tanstack/store@0.11.0` through an explicit paginated profile. Model and
+contract stay hidden by the package export map.
 
 Themed `src/ui` components derive their public args from the corresponding
 `ajo-ui` types. Use a direct alias when the adapter adds nothing, an
@@ -361,8 +373,8 @@ policy, and nullish controlled/uncontrolled gates remain family-owned outside
 the helper. Story-control normalization stays consumer-owned rather than
 reaching into the base package's component-system helpers.
 
-Filterable-list policy shared by Command, Select, and DataTable lives beside
-the other component-system helpers in `ajo-ui/utils`. It owns the English
+Filterable-list policy shared by Command and Select lives beside the other
+component-system helpers in `ajo-ui/utils`. It owns the English
 result-count default and resolves
 filter modes as `undefined` (the family fallback), `null` (unfiltered/external
 ownership), or a custom predicate. `collection(kind).sweep()` derives its
@@ -370,6 +382,10 @@ empty, group, and separator slots from the kind unless a caller overrides an
 individual selector. It reconciles groups before measuring rendered items, so
 clearing a filter and dynamically force-mounting a group restore visibility in
 the same sweep; empty state and separator topology then use that fresh set.
+
+DataTable filtering belongs to its private TanStack feature profile instead of
+the collection protocol. The paginated profile is exact and explicit;
+`VirtualDataTable` remains deferred until its separate gates pass.
 
 The menu families share deliberate internal seams documented in `ai/ui.md`.
 `bar()` (`packages/ajo-ui/src/bar.ts`, internal like floating) owns the

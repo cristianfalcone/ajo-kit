@@ -38,7 +38,7 @@ export type { CommandDialogArgs, CommandEmptyArgs, CommandFilter, CommandGroupAr
 export { ContextMenu, ContextMenuCheckboxItem, ContextMenuContent, ContextMenuGroup, ContextMenuItem, ContextMenuLabel, ContextMenuRadioGroup, ContextMenuRadioItem, ContextMenuSeparator, ContextMenuShortcut, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger } from './context-menu'
 export type { ContextMenuCheckboxItemArgs, ContextMenuContentArgs, ContextMenuGroupArgs, ContextMenuItemArgs, ContextMenuLabelArgs, ContextMenuArgs, ContextMenuRadioGroupArgs, ContextMenuRadioItemArgs, ContextMenuSeparatorArgs, ContextMenuShortcutArgs, ContextMenuSubContentArgs, ContextMenuSubArgs, ContextMenuSubTriggerArgs, ContextMenuTriggerArgs } from './context-menu'
 export { DataTable } from './data-table'
-export type { DataTableCellContext, DataTableColumn, DataTableFacet, DataTableFacetOption, DataTableArgs, DataTableRow, DataTableSearch, DataTableSortDirection } from './data-table'
+export type { DataTableArgs, DataTableColumn } from './data-table'
 export { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './dialog'
 export type { DialogCloseArgs, DialogContentArgs, DialogDescriptionArgs, DialogFooterArgs, DialogHeaderArgs, DialogArgs, DialogSectionArgs, DialogTitleArgs, DialogTriggerArgs } from './dialog'
 export { DirectionContext, DirectionProvider } from './direction'

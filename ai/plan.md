@@ -42,16 +42,30 @@ foundation and remains the source of truth for virtual scrolling.
 
 ## Status
 
-- **Stage:** discovery
-- **Active slice:** revalidate the latest TanStack Table v9 beta and map every
-  current DataTable consumer against the selected final profile.
+- **Stage:** complete — paginated DataTable cut
+- **Active slice:** none. `VirtualDataTable` is a separate, deliberately
+  deferred slice rather than a dormant mode in the shipped component.
+- **Implemented:** exact v9/store pins, explicit feature profile, private model
+  and contract, one native renderer, explicit package exports, Playa slot
+  recipe, and migrated local consumers.
+- **Green evidence:** dependency installation, typecheck, all 187 `ajo-ui`
+  tests, all 577 root unit tests, five DataTable stories, the full browser story
+  matrix, 49 e2e tests, production build, production smoke, and package/root
+  isolation with a 14,784 B model-profile artifact and a 29,470 B incremental
+  public DataTable gzip artifact.
+- **Manual evidence not claimed:** physical screen-reader/iOS coverage and a
+  formal painted-browser performance harness. The five-run Node diagnostic is
+  recorded in `ai/tables.md`; those remaining gates belong to the later
+  virtual-table decision and do not publish a partial `VirtualDataTable`.
 - **Blockers:** none
-- **Next checkpoint:** exact dependency/API evidence plus a failing public
-  tracer test for the replacement paginated DataTable contract.
+- **Next checkpoint:** open `VirtualDataTable` only when its native-table
+  geometry, physical AT, browser, and formal performance gates can be executed.
 
 ## Implementation Slices
 
-### Slice 1: Exact upstream and consumer contract
+Slices 1 through 5 landed as one clean greenfield cut.
+
+### Slice 1: Exact upstream and consumer contract — implemented
 
 - Resolve the current v9 beta, integrity, feature registry, store lifecycle,
   and tree-shaking behavior from primary sources and the installed tarball.
@@ -60,7 +74,7 @@ foundation and remains the source of truth for virtual scrolling.
 - Freeze the smallest public profile in surface type tests before replacing the
   engine.
 
-### Slice 2: Private v9 model
+### Slice 2: Private v9 model — implemented
 
 - Add the exact dependency only to `ajo-ui`.
 - Build the private model/store adapter with explicit features, live inputs,
@@ -69,15 +83,15 @@ foundation and remains the source of truth for virtual scrolling.
 - Cover row-model and state contracts without asserting incidental upstream
   internals.
 
-### Slice 3: Native renderer and clean replacement
+### Slice 3: Native renderer and clean replacement — implemented
 
-- Share one internal native-table renderer/policy across the family.
+- Keep one native-table renderer and policy inside `data-table.tsx`.
 - Replace `data-table.tsx`, delete the old engine and obsolete seams, and keep
   TanStack absent from declarations and DOM vocabulary.
 - Verify search, per-column facets, single sort, visibility, key-first
   selection, pagination correction, empty state, labels, and form controls.
 
-### Slice 4: Playa and consumers
+### Slice 4: Playa and consumers — implemented
 
 - Derive the themed adapter from base types and reuse existing primitives and
   recipes rather than reconstructing parts.
@@ -85,14 +99,14 @@ foundation and remains the source of truth for virtual scrolling.
   cut.
 - Keep static `Table` unchanged.
 
-### Slice 5: Gates and virtualization decision
+### Slice 5: Gates and virtualization decision — complete for DataTable
 
 - Run type, package/full unit, stories, browser/e2e, build, production, bundle,
   and representative data-size benchmarks.
-- Compare the table-specific native-spacer prototype against the geometry/AT
-  gates in `ai/tables.md` before deciding whether VirtualDataTable ships in
-  this feature or remains a later sibling.
-- Report physical AT/iOS checks honestly when unavailable.
+- Keep VirtualDataTable deferred: its native-spacer comparison and geometry/AT
+  gates are not necessary to ship a dormant mode inside paginated DataTable.
+- Record the diagnostic runtime measurements and report physical AT/iOS checks
+  honestly when unavailable.
 
 ## Verification
 
@@ -100,6 +114,7 @@ foundation and remains the source of truth for virtual scrolling.
 pnpm exec tsc --noEmit
 pnpm --filter ajo-ui test
 pnpm test:unit
+pnpm test:perf:data-table
 pnpm stories:test --match data-table --port <free-port>
 pnpm test:e2e
 pnpm build
@@ -107,7 +122,8 @@ pnpm test:prod
 git diff --check
 ```
 
-Before implementation, verify repository identity and preserve unrelated work:
+Before each remaining gate or follow-up, verify repository identity and
+preserve unrelated work:
 
 ```sh
 git status --short

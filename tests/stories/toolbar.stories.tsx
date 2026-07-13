@@ -184,8 +184,8 @@ export const WithSummary: Story<typeof Toolbar> = {
 		const [reset, active, apply] = buttonsOf(toolbar)
 		if (!reset || !active || !apply) throw new Error('Toolbar details facet story did not render its controls')
 
-		// summary is a toolbar control (data-table's unstyled default facet
-		// renderer): it joins the single tab stop instead of adding one.
+		// A native summary is a toolbar control: it joins the single tab stop
+		// instead of adding another one.
 		if (reset.tabIndex !== 0) throw new Error('First control is not the initial tab stop')
 		if (summary.getAttribute('tabindex') !== '-1') throw new Error('summary did not join the toolbar roving row')
 

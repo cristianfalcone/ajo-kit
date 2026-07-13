@@ -32,24 +32,27 @@ test('Field forwards DOM attrs to its public Stateful host without leaking behav
 
 test('DataTable forwards DOM attrs to its single public Stateful host', () => {
 	const html = ssr(jsx(DataTable, {
-		'aria-label': 'People',
 		class: 'table-root',
-		columns: [{ accessorKey: 'name', header: 'Name' }],
-		data: [{ name: 'Ada' }],
+		columns: [{ label: 'Name', value: 'name' }],
 		'data-contract': 'data-table',
+		getRowKey: (person: { id: string }) => person.id,
 		id: 'people-table',
+		label: 'People',
+		rows: [{ id: 'ada', name: 'Ada' }],
 		search: { placeholder: 'Filter people' },
-		columnVisibility: true,
 	}))
 	const root = openingTag(html)
+	const table = html.match(/<table\b[^>]*>/)?.[0] ?? ''
 
 	expect(root).toMatch(defaultHost)
-	expect(root).toContain('aria-label="People"')
 	expect(root).toContain('class="table-root"')
 	expect(root).toContain('data-contract="data-table"')
 	expect(root).toContain('id="people-table"')
 	expect(root).toContain('data-slot="data-table"')
-	expect(root).not.toMatch(/\s(?:columns|columnvisibility|data|search)(?=\s|=|>)/i)
+	expect(root).not.toContain('aria-label=')
+	expect(root).not.toMatch(/\s(?:columns|getrowkey|label|rows|search)(?=\s|=|>)/i)
+	expect(table).toContain('aria-label="People"')
+	expect(table).toContain('data-slot="table"')
 	expect(html.match(/data-slot="data-table"/g)).toHaveLength(1)
 	expect(html).toContain('data-slot="data-table-container"')
 })

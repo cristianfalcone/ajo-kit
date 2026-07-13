@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@tanstack/store': 0.11.0
+
 importers:
 
   .:
@@ -149,6 +152,12 @@ importers:
 
   packages/ajo-ui:
     dependencies:
+      '@tanstack/store':
+        specifier: 0.11.0
+        version: 0.11.0
+      '@tanstack/table-core':
+        specifier: 9.0.0-beta.47
+        version: 9.0.0-beta.47
       '@tanstack/virtual-core':
         specifier: 3.17.4
         version: 3.17.4
@@ -622,6 +631,13 @@ packages:
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
+  '@tanstack/store@0.11.0':
+    resolution: {integrity: sha512-WlzzCt3xi0G6pCAJu1U+2jiECwabETDpQDi3hfkFZvJii9AuZqEKbOiVarX1/bWhTNjU486yQtJCCasi/0q+Cw==}
+
+  '@tanstack/table-core@9.0.0-beta.47':
+    resolution: {integrity: sha512-KhOa5XxkhhMDVs6zMu6N8U8ex2XgeUZUjEB7Kv3CdhCuyf7mh34gT3JcNVEOaOh8l/sSM1hLbz4+DzdWoaj3yQ==}
+    engines: {node: '>=20'}
 
   '@tanstack/virtual-core@3.17.4':
     resolution: {integrity: sha512-nGm5KteqxasUdThLc2izl6dHUqLv0LQj7Nuyo5gYalTPf/U8a9ermvsl7reT+6ioBW1l8WfpP/mcU338nLXpqw==}
@@ -1777,6 +1793,12 @@ snapshots:
   '@rolldown/pluginutils@1.0.1': {}
 
   '@standard-schema/spec@1.1.0': {}
+
+  '@tanstack/store@0.11.0': {}
+
+  '@tanstack/table-core@9.0.0-beta.47':
+    dependencies:
+      '@tanstack/store': 0.11.0
 
   '@tanstack/virtual-core@3.17.4': {}
 

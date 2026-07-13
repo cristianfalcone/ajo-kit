@@ -1,11 +1,12 @@
 /** @jsxImportSource ajo */
-import { DataTable } from 'ajo-ui/data-table'
+import { DataTable, type DataTableColumn } from 'ajo-ui/data-table'
 import { Field } from 'ajo-ui/field'
-import { DataTable as ThemedDataTable, type DataTableArgs as ThemedDataTableArgs } from '../src/ui/data-table'
+import { DataTable as ThemedDataTable } from '../src/ui/data-table'
 
-type Person = { name: string }
+type Person = { id: number, name: string }
 
-const people: Person[] = [{ name: 'Ada' }]
+const people: Person[] = [{ id: 1, name: 'Ada' }]
+const columns: readonly DataTableColumn<Person>[] = [{ label: 'Name', value: 'name' }]
 
 export const baseFieldForwardsRootAttrs = (
 	<Field aria-label="Email field" class="field" data-contract="field" id="email-field">
@@ -15,23 +16,26 @@ export const baseFieldForwardsRootAttrs = (
 
 export const baseDataTableForwardsRootAttrs = (
 	<DataTable
-		aria-label="People"
 		class="table"
-		columns={[{ accessorKey: 'name', header: 'Name' }]}
-		data={[{ name: 'Ada' }]}
+		columns={columns}
 		data-contract="data-table"
+		getRowKey={person => person.id}
 		id="people-table"
+		label="People"
+		rows={people}
 	/>
 )
 
 export const baseDataTableRejectsUnknownColumns = (
 	<DataTable
 		columns={[{
-			// @ts-expect-error DataTable must correlate accessorKey with its data rows.
-			accessorKey: 'missing',
-			header: 'Missing',
+			// @ts-expect-error DataTable must correlate value keys with its rows.
+			value: 'missing',
+			label: 'Missing',
 		}]}
-		data={people}
+		getRowKey={person => person.id}
+		label="People"
+		rows={people}
 	/>
 )
 
@@ -39,32 +43,39 @@ export const themedDataTableRejectsUnknownColumns = (
 	<ThemedDataTable
 		columns={[{
 			// @ts-expect-error The themed adapter must preserve base row inference.
-			accessorKey: 'missing',
-			header: 'Missing',
+			value: 'missing',
+			label: 'Missing',
 		}]}
-		data={people}
+		getRowKey={person => person.id}
+		label="People"
+		rows={people}
 	/>
 )
 
 export const baseDataTableOwnsChildren = (
 	<DataTable
-		columns={[{ accessorKey: 'name', header: 'Name' }]}
-		data={people}
+		columns={columns}
+		getRowKey={person => person.id}
+		label="People"
+		rows={people}
 		// @ts-expect-error DataTable owns its rendered structure.
 		children="Unexpected"
 	/>
 )
 
-export const themedDataTableFixesComposition: ThemedDataTableArgs<Person> = {
-	columns: [{ accessorKey: 'name', header: 'Name' }],
-	data: people,
-	// @ts-expect-error The themed adapter owns its base classes.
-	classes: {},
+// @ts-expect-error Function accessors require an explicit stable column id.
+export const dataTableFunctionAccessorRequiresId: DataTableColumn<Person> = {
+	label: 'Uppercase name',
+	value: person => person.name.toUpperCase(),
 }
 
-export const themedDataTableFixesRenderers: ThemedDataTableArgs<Person> = {
-	columns: [{ accessorKey: 'name', header: 'Name' }],
-	data: people,
-	// @ts-expect-error The themed adapter owns its base renderers.
-	renderers: {},
-}
+export const dataTableControlledSelectionRequiresObserver = (
+	<DataTable
+		columns={columns}
+		getRowKey={person => person.id}
+		label="People"
+		rows={people}
+		// @ts-expect-error Controlled selection must publish every proposed key change.
+		selection={{ getRowLabel: person => person.name, value: [1] }}
+	/>
+)

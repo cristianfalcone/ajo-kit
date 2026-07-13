@@ -173,8 +173,10 @@ const roots: Record<string, () => Children> = {
 		],
 	}),
 	'data-table': () => jsx(DataTable, {
-		columns: [{ accessorKey: 'name', header: 'Name' }],
-		data: [{ id: '1', name: 'Ada' }],
+		columns: [{ label: 'Name', value: 'name' }],
+		getRowKey: (person: { id: string; name: string }) => person.id,
+		label: 'People',
+		rows: [{ id: '1', name: 'Ada' }],
 	}),
 	dialog: () => jsx(Dialog, {
 		children: [

@@ -15,12 +15,158 @@
       "types": "./src/utils.ts",
       "default": "./src/utils.ts"
     },
-    "./*": {
-      "types": "./src/*.tsx",
-      "default": "./src/*.tsx"
+    "./accordion": {
+      "types": "./src/accordion.tsx",
+      "default": "./src/accordion.tsx"
+    },
+    "./avatar": {
+      "types": "./src/avatar.tsx",
+      "default": "./src/avatar.tsx"
+    },
+    "./calendar": {
+      "types": "./src/calendar.tsx",
+      "default": "./src/calendar.tsx"
+    },
+    "./carousel": {
+      "types": "./src/carousel.tsx",
+      "default": "./src/carousel.tsx"
+    },
+    "./chart": {
+      "types": "./src/chart.tsx",
+      "default": "./src/chart.tsx"
+    },
+    "./checkbox": {
+      "types": "./src/checkbox.tsx",
+      "default": "./src/checkbox.tsx"
+    },
+    "./checkbox-group": {
+      "types": "./src/checkbox-group.tsx",
+      "default": "./src/checkbox-group.tsx"
+    },
+    "./collapsible": {
+      "types": "./src/collapsible.tsx",
+      "default": "./src/collapsible.tsx"
+    },
+    "./command": {
+      "types": "./src/command.tsx",
+      "default": "./src/command.tsx"
+    },
+    "./context-menu": {
+      "types": "./src/context-menu.tsx",
+      "default": "./src/context-menu.tsx"
+    },
+    "./data-table": {
+      "types": "./src/data-table.tsx",
+      "default": "./src/data-table.tsx"
+    },
+    "./dialog": {
+      "types": "./src/dialog.tsx",
+      "default": "./src/dialog.tsx"
+    },
+    "./direction": {
+      "types": "./src/direction.tsx",
+      "default": "./src/direction.tsx"
+    },
+    "./drawer": {
+      "types": "./src/drawer.tsx",
+      "default": "./src/drawer.tsx"
+    },
+    "./field": {
+      "types": "./src/field.tsx",
+      "default": "./src/field.tsx"
+    },
+    "./input-date": {
+      "types": "./src/input-date.tsx",
+      "default": "./src/input-date.tsx"
+    },
+    "./input-group": {
+      "types": "./src/input-group.tsx",
+      "default": "./src/input-group.tsx"
+    },
+    "./input-otp": {
+      "types": "./src/input-otp.tsx",
+      "default": "./src/input-otp.tsx"
+    },
+    "./menu": {
+      "types": "./src/menu.tsx",
+      "default": "./src/menu.tsx"
+    },
+    "./menubar": {
+      "types": "./src/menubar.tsx",
+      "default": "./src/menubar.tsx"
+    },
+    "./message-scroller": {
+      "types": "./src/message-scroller.tsx",
+      "default": "./src/message-scroller.tsx"
+    },
+    "./navigation-menu": {
+      "types": "./src/navigation-menu.tsx",
+      "default": "./src/navigation-menu.tsx"
+    },
+    "./popover": {
+      "types": "./src/popover.tsx",
+      "default": "./src/popover.tsx"
+    },
+    "./progress": {
+      "types": "./src/progress.tsx",
+      "default": "./src/progress.tsx"
+    },
+    "./radio-group": {
+      "types": "./src/radio-group.tsx",
+      "default": "./src/radio-group.tsx"
+    },
+    "./resizable": {
+      "types": "./src/resizable.tsx",
+      "default": "./src/resizable.tsx"
+    },
+    "./select": {
+      "types": "./src/select.tsx",
+      "default": "./src/select.tsx"
+    },
+    "./sidebar": {
+      "types": "./src/sidebar.tsx",
+      "default": "./src/sidebar.tsx"
+    },
+    "./slider": {
+      "types": "./src/slider.tsx",
+      "default": "./src/slider.tsx"
+    },
+    "./switch": {
+      "types": "./src/switch.tsx",
+      "default": "./src/switch.tsx"
+    },
+    "./tabs": {
+      "types": "./src/tabs.tsx",
+      "default": "./src/tabs.tsx"
+    },
+    "./toast": {
+      "types": "./src/toast.tsx",
+      "default": "./src/toast.tsx"
+    },
+    "./toggle": {
+      "types": "./src/toggle.tsx",
+      "default": "./src/toggle.tsx"
+    },
+    "./toggle-group": {
+      "types": "./src/toggle-group.tsx",
+      "default": "./src/toggle-group.tsx"
+    },
+    "./toolbar": {
+      "types": "./src/toolbar.tsx",
+      "default": "./src/toolbar.tsx"
+    },
+    "./tooltip": {
+      "types": "./src/tooltip.tsx",
+      "default": "./src/tooltip.tsx"
+    },
+    "./virtual-list": {
+      "types": "./src/virtual-list.tsx",
+      "default": "./src/virtual-list.tsx"
     }
   },
   "dependencies": {
+    "@tanstack/store": "0.11.0",
+    "@tanstack/table-core": "9.0.0-beta.47",
     "@tanstack/virtual-core": "3.17.4",
     "ajo-cloves": "workspace:*"
   },

@@ -1,12 +1,58 @@
+import { createRequire } from 'node:module'
 import { expect, test } from 'vitest'
 import metadata from '../package.json'
 
-test('the wildcard serves component subpaths without redundant entries', async () => {
-	expect(metadata.exports).not.toHaveProperty('./input-date')
-	expect(metadata.exports['./*']).toEqual({
-		default: './src/*.tsx',
-		types: './src/*.tsx',
-	})
+const families = [
+	'accordion',
+	'avatar',
+	'calendar',
+	'carousel',
+	'chart',
+	'checkbox',
+	'checkbox-group',
+	'collapsible',
+	'command',
+	'context-menu',
+	'data-table',
+	'dialog',
+	'direction',
+	'drawer',
+	'field',
+	'input-date',
+	'input-group',
+	'input-otp',
+	'menu',
+	'menubar',
+	'message-scroller',
+	'navigation-menu',
+	'popover',
+	'progress',
+	'radio-group',
+	'resizable',
+	'select',
+	'sidebar',
+	'slider',
+	'switch',
+	'tabs',
+	'toast',
+	'toggle',
+	'toggle-group',
+	'toolbar',
+	'tooltip',
+	'virtual-list',
+] as const
+
+const entry = (source: string) => ({ default: source, types: source })
+const require = createRequire(import.meta.url)
+
+test('the package exports only its public component families', async () => {
+	const expected = Object.fromEntries([
+		['.', entry('./src/index.ts')],
+		['./utils', entry('./src/utils.ts')],
+		...families.map(family => [`./${family}`, entry(`./src/${family}.tsx`)]),
+	])
+	expect(metadata.exports).toEqual(expected)
+
 	const inputDate = await import('ajo-ui/input-date')
 	expect(inputDate).toHaveProperty('InputDate')
 	expect(inputDate).toHaveProperty('InputDateTimeField')
@@ -15,6 +61,20 @@ test('the wildcard serves component subpaths without redundant entries', async (
 	expect(menu).toHaveProperty('MenuSubContent')
 	const virtualList = await import('ajo-ui/virtual-list')
 	expect(virtualList).toHaveProperty('VirtualList')
+})
+
+test.each([
+	'ajo-ui/data-table-contract',
+	'ajo-ui/data-table-model',
+	'ajo-ui/virtual',
+])('%s remains package-internal', specifier => {
+	let failure: unknown
+	try {
+		require.resolve(specifier)
+	} catch (error) {
+		failure = error
+	}
+	expect(failure).toMatchObject({ code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
 })
 
 test('the root exports direct contexts without hook-shaped accessors', async () => {
