@@ -43,20 +43,34 @@ const listBase = clsx(
 	// pill's own edge).
 	'group-data-[orientation=horizontal]/tabs:h-9 group-data-[orientation=horizontal]/tabs:overflow-x-auto group-data-[orientation=horizontal]/tabs:overscroll-x-contain group-data-[orientation=horizontal]/tabs:snap-x group-data-[orientation=horizontal]/tabs:snap-mandatory group-data-[orientation=horizontal]/tabs:scroll-px-4',
 	'group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:max-h-full group-data-[orientation=vertical]/tabs:flex-col group-data-[orientation=vertical]/tabs:overflow-y-auto group-data-[orientation=vertical]/tabs:overscroll-y-contain group-data-[orientation=vertical]/tabs:snap-y group-data-[orientation=vertical]/tabs:snap-mandatory group-data-[orientation=vertical]/tabs:scroll-py-4',
+	// The sliding active marker: a single pseudo-element positioned by the
+	// base's indicator variables glides between triggers. `isolate` keeps its
+	// negative z above the track fill but below the trigger labels, and the
+	// marker only shows once the base stamps data-indicator.
+	'relative isolate before:content-empty before:pointer-events-none before:absolute before:left-0 before:top-0 before:-z-1 before:opacity-0 data-[indicator]:before:opacity-100 before:transition-[translate,width,height,opacity] before:duration-200 before:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:before:transition-none',
 )
 // The track is a tint, not glass: tab lists usually rest on glass cards, and
 // stacking a second backdrop-filter there hurts both legibility and paint.
+// Geometry single-owner rule: each variant owns the marker's translate/size
+// completely (the line variant hugs the trigger's inner edge so the bar stays
+// inside the scroll clip).
 const listVariants: Record<TabsListVariant, string> = {
-	default: 'bg-muted/60 edge',
-	line: 'gap-1 bg-transparent',
+	default: clsx(
+		'bg-muted/60 edge',
+		'before:translate-x-[var(--indicator-x)] before:translate-y-[var(--indicator-y)] before:w-[var(--indicator-w)] before:h-[var(--indicator-h)] before:rounded-md before:bg-card',
+	),
+	line: clsx(
+		'gap-1 bg-transparent before:bg-primary before:rounded-full',
+		'group-data-[orientation=horizontal]/tabs:before:translate-x-[var(--indicator-x)] group-data-[orientation=horizontal]/tabs:before:translate-y-[calc(var(--indicator-y)+var(--indicator-h)-2px)] group-data-[orientation=horizontal]/tabs:before:w-[var(--indicator-w)] group-data-[orientation=horizontal]/tabs:before:h-0.5',
+		'group-data-[orientation=vertical]/tabs:before:translate-x-[calc(var(--indicator-x)+var(--indicator-w)-2px)] group-data-[orientation=vertical]/tabs:before:translate-y-[var(--indicator-y)] group-data-[orientation=vertical]/tabs:before:w-0.5 group-data-[orientation=vertical]/tabs:before:h-[var(--indicator-h)]',
+	),
 }
 
 const triggerBase = clsx(
-	'relative inline-flex h-[calc(100%-1px)] flex-1 snap-start items-center justify-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium whitespace-nowrap text-muted-foreground transition-all',
+	'relative inline-flex h-[calc(100%-1px)] flex-1 snap-start items-center justify-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium whitespace-nowrap text-muted-foreground transition-[color]',
 	'group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start hover:text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
 	'disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
-	'data-[state=active]:text-foreground group-data-[variant=default]/tabs-list:data-[state=active]:bg-card',
-	'after:absolute after:bg-primary after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100',
+	'data-[state=active]:text-foreground',
 )
 const contentBase = 'flex-1 outline-none'
 

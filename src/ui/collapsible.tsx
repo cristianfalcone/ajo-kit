@@ -16,6 +16,13 @@ export type CollapsibleContentArgs = BaseCollapsibleContentArgs & { class?: stri
 const triggerBase = 'inline-flex cursor-pointer list-none items-center justify-center gap-2 rounded-md text-sm font-medium transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&::-webkit-details-marker]:hidden [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4'
 const contentBase = 'overflow-hidden'
 
+// Native details enter/exit: ::details-content transitions block-size to auto
+// (via the preflight's interpolate-size opt-in), with allow-discrete
+// content-visibility so closing content stays visible while it shrinks.
+// Engines without ::details-content keep the instant toggle. Shared with
+// AccordionItem, the other details-backed disclosure.
+export const disclosureContent = '[&::details-content]:overflow-hidden [&::details-content]:[block-size:0] [&[open]::details-content]:[block-size:auto] [&::details-content]:transition-[block-size,content-visibility] [&::details-content]:duration-200 [&::details-content]:ease-out [&::details-content]:[transition-behavior:allow-discrete] motion-reduce:[&::details-content]:transition-none'
+
 /** Collapsible disclosure rendered as a native details element. */
 const Collapsible: Stateless<CollapsibleArgs> = ({
 	children,
@@ -28,7 +35,7 @@ const Collapsible: Stateless<CollapsibleArgs> = ({
 }) => (
 	<BaseCollapsible
 		{...attrs}
-		class={classes}
+		class={clsx(disclosureContent, classes)}
 		defaultOpen={defaultOpen}
 		disabled={Boolean(disabled)}
 		onOpenChange={onOpenChange}

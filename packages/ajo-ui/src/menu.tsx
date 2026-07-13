@@ -1,5 +1,5 @@
 import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, controlled, id, listen, roving, statefulRootAttrs as rootAttrs, typeahead } from 'ajo-cloves'
+import { callHandler, callRef, controlled, frame, id, listen, roving, statefulRootAttrs as rootAttrs, typeahead } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import type { FixedArgs, OmitArg } from './utils'
 import { flag, text } from './utils'
@@ -206,9 +206,11 @@ export const MenuContext = context<MenuContextValue | null>(null)
 const RadioContext = context<RadioContextValue | null>(null)
 const SubContext = context<SubContextValue | null>(null)
 
-// Disabled menu items stay focusable for discoverability (APG menu pattern).
-/** Collection registry for menu items, including disabled items in the focusable menu order. */
-export const menuItems = collection('menu', { enabled: false })
+// Disabled menu items render but stay out of the keyboard order, matching
+// pointer behavior (hover does not highlight them either) and the Radix and
+// React Aria default rather than APG's stay-focusable variant.
+/** Collection registry for menu items; disabled items are skipped in the focus order. */
+export const menuItems = collection('menu')
 
 /** Matches root and submenu content surfaces so direct items can exclude nested menus. */
 export const SURFACE_SELECTOR = '[data-menu-sub-content="true"],[data-menu-content="true"]'
@@ -222,6 +224,7 @@ export const focusEdge = (surface: HTMLElement | null, which: 'first' | 'last') 
 	const list = surfaceItems(surface)
 	menuItems.focusItem(surface, which === 'first' ? list[0] : list[list.length - 1])
 }
+
 
 const pointerHighlight = (
 	disabled: boolean,
@@ -789,11 +792,21 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 		},
 	})
 
+	// The low-level surface places once per show, but a submenu opened right
+	// after its parent may measure a trigger the parent's own placer is still
+	// moving; one follow-up placement next frame re-aims at the settled rect.
+	const replace = frame(() => {
+		if (opened && content && !content.hidden) pane.place()
+	})
+
+	this.signal.addEventListener('abort', () => replace.cancel(), { once: true })
+
 	const sync = (focus = false) => queueMicrotask(() => {
 		if (!content) return
 		if (opened) {
 			content.hidden = false
 			pane.show(trigger)
+			replace()
 			content.style.zIndex = '60'
 			if (focus) focusEdge(content, 'first')
 		} else {
@@ -969,6 +982,7 @@ const MenuSubContent: Stateless<MenuSubContentArgs> = ({
 			class={classes}
 			data-menu-sub-content="true"
 			data-slot={slot}
+			data-state={sub?.open ? 'open' : 'closed'}
 			hidden={!sub?.open}
 			id={sub?.contentId}
 			popover="manual"

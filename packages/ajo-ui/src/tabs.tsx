@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, controlled, dom, id, listen, overflow, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, callRef, controlled, dom, id, indicator, listen, overflow, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { DirectionContext } from './direction'
 import type { FixedArgs, OmitArg } from './utils'
@@ -118,9 +118,16 @@ const TabsRoot: Stateful<TabsRootArgs> = function* ({ defaultValue, value }) {
 	// overflowing edges (data-overflow-x/-y pair with the mask preflight).
 	let list: HTMLElement | null = null
 	const edges = overflow(this, { target: () => list })
+	// Indicator variables on the tablist let themes glide an active marker
+	// between triggers instead of restyling each one.
+	const mark = indicator(this, {
+		target: () => list,
+		of: container => container.querySelector<HTMLElement>('button[data-slot="tabs-trigger"][data-state="active"]'),
+	})
 	const setList = (element: HTMLElement | null) => {
 		list = element
 		edges.sync()
+		mark.sync()
 	}
 
 	listen(this, 'keydown', (event: KeyboardEvent) => {
@@ -157,6 +164,7 @@ const TabsRoot: Stateful<TabsRootArgs> = function* ({ defaultValue, value }) {
 		})
 
 		edges.sync()
+		mark.sync()
 		queueMicrotask(ensureValue)
 		yield <>{args.children}</>
 	}

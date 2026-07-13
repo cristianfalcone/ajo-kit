@@ -23,7 +23,7 @@ export type RadioGroupItemArgs = OmitArg<BaseRadioGroupItemArgs, 'indicatorClass
 	class?: string
 }
 
-const itemBase = 'relative inline-flex aspect-square size-4 shrink-0 items-center justify-center rounded-full edge-input bg-transparent outline-none transition-[color,box-shadow] has-[:checked]:inset-ring-transparent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[[aria-invalid=true]]:inset-ring-danger has-[[aria-invalid=true]]:ring-danger/20'
+const itemBase = 'relative inline-flex aspect-square size-4 shrink-0 items-center justify-center rounded-full edge-input bg-transparent outline-none transition-[color,background-color,box-shadow] duration-150 motion-reduce:transition-none has-[:checked]:inset-ring-transparent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[[aria-invalid=true]]:inset-ring-danger has-[[aria-invalid=true]]:ring-danger/20'
 
 /** Radio input group matching composition while preserving native forms. */
 const RadioGroup: Stateless<RadioGroupArgs> = ({
@@ -52,7 +52,9 @@ const RadioGroupItem: Stateless<RadioGroupItemArgs> = ({
 	<BaseRadioGroupItem
 		{...attrs}
 		class={clsx(itemBase, classes)}
-		indicatorClass="pointer-events-none absolute left-1/2 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current opacity-0 transition-none peer-checked:opacity-100"
+		// Composed check-in: the fill transitions on the item box while the dot
+		// pops in with a springy overshoot; unchecking collapses fast.
+		indicatorClass="pointer-events-none absolute left-1/2 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current scale-0 opacity-0 transition-[opacity,scale] duration-100 ease-in motion-reduce:transition-none peer-checked:scale-100 peer-checked:opacity-100 peer-checked:duration-250 peer-checked:delay-75 peer-checked:ease-[cubic-bezier(0.34,1.56,0.64,1)]"
 		inputClass={choiceInput}
 	/>
 )

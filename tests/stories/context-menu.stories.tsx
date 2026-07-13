@@ -30,6 +30,16 @@ export default {
 const targetClass = 'flex h-36 w-72 select-none items-center justify-center rounded-md border border-dashed bg-muted/40 p-6 text-center text-sm text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
+// Menu surfaces animate open (scale/opacity transition), so geometry
+// assertions poll until placement and motion settle.
+const until = async (test: () => boolean, error: string) => {
+	const deadline = performance.now() + 1000
+	while (!test()) {
+		if (performance.now() > deadline) throw new Error(error)
+		await frame()
+	}
+}
+
 const openContext = async (target: HTMLElement) => {
 	const rect = target.getBoundingClientRect()
 	target.dispatchEvent(new MouseEvent('contextmenu', {
@@ -310,15 +320,13 @@ export const Submenu: Story = {
 			throw new Error('Hover did not open the context submenu')
 		}
 
-		const parentRect = content.getBoundingClientRect()
-		const subRect = subContent.getBoundingClientRect()
-		if (
-			content.scrollHeight > content.clientHeight + 1 ||
-			subRect.left < parentRect.right - 2 ||
-			subRect.right > window.innerWidth - 4
-		) {
-			throw new Error('Context submenu was clipped by the parent menu instead of opening beside it')
-		}
+		await until(() => {
+			const parentRect = content.getBoundingClientRect()
+			const subRect = subContent.getBoundingClientRect()
+			return content.scrollHeight <= content.clientHeight + 1 &&
+				subRect.left >= parentRect.right - 2 &&
+				subRect.right <= window.innerWidth - 4
+		}, 'Context submenu was clipped by the parent menu instead of opening beside it')
 
 		remove.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
 		await frame()
@@ -364,12 +372,17 @@ export const DisabledFirstItem: Story = {
 
 		const content = canvas.querySelector<HTMLElement>('[data-slot="context-menu-content"]')
 		const restore = canvas.querySelector<HTMLElement>('[data-slot="context-menu-item"][data-label="Restore"]')
-		if (!content || !restore) throw new Error('Disabled-first context content or item was not rendered')
+		const duplicate = canvas.querySelector<HTMLElement>('[data-slot="context-menu-item"][data-label="Duplicate"]')
+		if (!content || !restore || !duplicate) throw new Error('Disabled-first context content or item was not rendered')
 
-		// Substrate focus policy: disabled items stay focusable for
-		// discoverability (APG); the forked collection used to skip them.
-		if (document.activeElement !== restore || restore.dataset.highlighted !== 'true') {
-			throw new Error('Disabled first item was not focused on open (fork focus policy regression)')
+		// Focus policy: disabled items render but stay out of the keyboard
+		// order (Radix/React Aria default), matching pointer behavior — the
+		// first ENABLED item takes focus on keyboard open.
+		if (document.activeElement !== duplicate || duplicate.dataset.highlighted !== 'true') {
+			throw new Error('First enabled item was not focused on keyboard open')
+		}
+		if (restore.dataset.highlighted === 'true') {
+			throw new Error('Disabled item must not be highlighted by keyboard navigation')
 		}
 
 		// Relationship attrs live on the real trigger, not a fake hidden button.
@@ -409,11 +422,10 @@ export const LongList: Story = {
 
 		// The shared content token uses the available placement height while
 		// keeping long floating menus within compact viewport bounds.
-		const computed = getComputedStyle(content).maxHeight
-		const maxHeight = Number.parseFloat(computed)
-		if (!Number.isFinite(maxHeight) || maxHeight > 324) {
-			throw new Error(`Long-list context menu max-height is not capped (computed: ${computed})`)
-		}
+		await until(() => {
+			const maxHeight = Number.parseFloat(getComputedStyle(content).maxHeight)
+			return Number.isFinite(maxHeight) && maxHeight <= 324
+		}, 'Long-list context menu max-height is not capped')
 		if (content.getBoundingClientRect().height > 324) {
 			throw new Error('Long-list context menu rendered taller than its height cap')
 		}

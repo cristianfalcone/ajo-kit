@@ -141,6 +141,10 @@ export default defineConfig({
         // composite naturally over the page; the warm sand accents carry the
         // beach identity.
         '.dark{--background:#101317;--foreground:#eae4da;--card:#1c2127;--card-foreground:#eae4da;--popover:#22282f;--popover-foreground:#eae4da;--primary:#d2c1b6;--primary-foreground:#14191e;--secondary:#29313a;--secondary-foreground:#eae4da;--muted:#181c21;--muted-foreground:#9da6b0;--accent:rgb(210 193 182 / 0.12);--accent-foreground:#f0ebe2;--danger:#d98e85;--danger-foreground:#101317;--success:#76ba89;--success-foreground:#101317;--warning:#fcb53b;--warning-foreground:#101317;--info:#75bfe3;--info-foreground:#101317;--border:rgb(210 193 182 / 0.16);--input:rgb(210 193 182 / 0.26);--ring:#75bfe3;--chart-1:#75bfe3;--chart-2:#d2c1b6;--chart-3:#76ba89;--chart-4:#fcb53b;--chart-5:#d98e85;--glass-highlight:rgb(255 255 255 / 0.07);--shadow-xs:0 1px 2px rgb(0 0 0 / 0.35),0 2px 8px -2px rgb(0 0 0 / 0.25);--shadow-lg:0 4px 12px -4px rgb(0 0 0 / 0.4),0 16px 40px -8px rgb(0 0 0 / 0.55)}',
+        // Opt in to animating block-size to `auto`: details-backed disclosures
+        // (Collapsible, Accordion) transition ::details-content open/close in
+        // engines that support keyword interpolation; others keep the snap.
+        ':root{interpolate-size:allow-keywords}',
         // Glass is part of the theme's identity, so it does NOT bow to
         // prefers-reduced-transparency (Windows reports it whenever the OS
         // "transparency effects" toggle is off, which would silently flatten

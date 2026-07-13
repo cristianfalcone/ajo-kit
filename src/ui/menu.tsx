@@ -68,12 +68,35 @@ const minWidth = {
 	'12rem': 'min-w-[12rem]',
 }
 
+// Menu open/close fade. Transitions read the TARGET state's transition-*, so
+// the property lists are state-scoped on purpose: the open state transitions
+// opacity only (a discrete display transition on entry defers rendering and
+// the anchor then measures a surface that is not there yet — placement lands
+// frames late and submenus aim at stale parent rects), while the closed state
+// keeps display and overlay in the list so the exit stays rendered and in the
+// top layer while it fades out. Visibility is additionally gated on
+// data-side, which the anchor stamps in the same frame it writes the inset: a
+// first-ever open renders invisible at the popover's unplaced top-layer
+// origin and only fades in once placed. Reopens (attributes already present
+// when display flips) seed from @starting-style instead. data-state covers
+// both surface kinds (root content is a native popover, submenu content
+// toggles hidden); engines without discrete transitions keep the instant
+// toggle. Fade only — scale feeds the anchor's getBoundingClientRect moving
+// rects, and transition-delay holds display at none; both break placement.
+const menuMotion = clsx(
+	'opacity-0 transition-[opacity,display,overlay] transition-discrete duration-150 ease-out motion-reduce:transition-none',
+	'data-[state=open]:transition-[opacity]',
+	'data-[state=open]:data-[side]:opacity-100',
+	'starting:data-[state=open]:data-[side]:opacity-0',
+)
+
 /** Returns the popup surface for menu content and submenu content. */
 export const menuContent = ({ minWidth: min = '8rem' }: MenuContentOptions = {}) => clsx(
 	'z-50 m-0 max-h-[max(96px,min(320px,var(--available-height)))]',
 	minWidth[min],
 	scrollAreaVariants({ axis: 'y' }),
 	'rounded-md glass-overlay edge p-1 shadow-lg outline-none',
+	menuMotion,
 )
 
 /** Action item row; submenu triggers compose menuSubTriggerOpen over it. */

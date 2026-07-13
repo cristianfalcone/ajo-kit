@@ -339,8 +339,14 @@ export const Default: Story<typeof Sidebar> = {
 		if (!settings || !sub) throw new Error('Settings collapsible was not rendered')
 		if (sub.getBoundingClientRect().height < 1) throw new Error('Settings submenu should start open')
 		settings.click()
-		await frame()
-		if (sub.checkVisibility()) throw new Error('Settings collapsible did not close its submenu')
+		// The details content transitions closed; poll until it settles.
+		{
+			const deadline = performance.now() + 1000
+			while (sub.checkVisibility()) {
+				if (performance.now() > deadline) throw new Error('Settings collapsible did not close its submenu')
+				await frame()
+			}
+		}
 		settings.click()
 		await frame()
 		if (!sub.checkVisibility()) throw new Error('Settings collapsible did not reopen its submenu')

@@ -14,6 +14,7 @@ import {
 	type AccordionTriggerArgs as BaseAccordionTriggerArgs,
 	type AccordionType as BaseAccordionType,
 } from 'ajo-ui/accordion'
+import { disclosureContent } from './collapsible'
 
 export type AccordionType = BaseAccordionType
 export type AccordionSingleArgs = BaseAccordionSingleArgs & { class?: string }
@@ -23,7 +24,7 @@ export type AccordionItemArgs = BaseAccordionItemArgs & { class?: string }
 export type AccordionTriggerArgs = BaseAccordionTriggerArgs & { class?: string }
 export type AccordionContentArgs = OmitArg<BaseAccordionContentArgs, 'innerClass'> & FixedArgs<'innerClass'> & { class?: string }
 
-const itemBase = 'border-b last:border-b-0'
+const itemBase = clsx('border-b last:border-b-0', disclosureContent)
 const triggerBase = 'flex flex-1 cursor-pointer list-none items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&::-webkit-details-marker]:hidden [&[data-state=open]>[data-accordion-chevron]]:rotate-180'
 
 /** Root provider for accordion state. */

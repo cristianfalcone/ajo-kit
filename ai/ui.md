@@ -238,7 +238,10 @@ Interaction primitives:
 Positioning:
 
 - `anchor` for element-anchored fixed positioning with flip, shift, and size
-  variables.
+  variables;
+- `indicator` for stamping a marked child's box as `--indicator-*` variables
+  plus `data-indicator` on its container, so themes glide an active marker
+  between children (tabs).
 
 Sensors:
 

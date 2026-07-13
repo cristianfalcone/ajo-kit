@@ -10,7 +10,7 @@ export type CheckboxArgs = OmitArg<BaseCheckboxArgs, 'checkedIndicatorClass' | '
 }
 
 /** Shared visual box for Checkbox and CheckboxGroup items. */
-export const checkboxBox = 'relative inline-flex size-4 shrink-0 items-center justify-center rounded-xs edge-input bg-transparent outline-none transition-shadow has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[[aria-invalid=true]]:inset-ring-danger has-[[aria-invalid=true]]:ring-danger/20'
+export const checkboxBox = 'relative inline-flex size-4 shrink-0 items-center justify-center rounded-xs edge-input bg-transparent outline-none transition-[background-color,box-shadow] duration-150 motion-reduce:transition-none has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[[aria-invalid=true]]:inset-ring-danger has-[[aria-invalid=true]]:ring-danger/20'
 
 /** Checked and indeterminate colors for valid checkboxes. */
 export const checkboxState = 'has-[:checked]:inset-ring-transparent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:indeterminate]:inset-ring-transparent has-[:indeterminate]:bg-primary has-[:indeterminate]:text-primary-foreground'
@@ -18,11 +18,16 @@ export const checkboxState = 'has-[:checked]:inset-ring-transparent has-[:checke
 /** Checked and indeterminate colors for invalid checkboxes. */
 export const checkboxInvalidState = 'has-[:checked]:inset-ring-transparent has-[:checked]:bg-danger has-[:checked]:text-danger-foreground has-[:indeterminate]:inset-ring-transparent has-[:indeterminate]:bg-danger has-[:indeterminate]:text-danger-foreground'
 
+// Composed check-in: the box fill lands first (150ms), then the glyph pops
+// with a springy overshoot after a beat; unchecking collapses fast with no
+// delay so the control never feels laggy on the way out. Literal utilities
+// only — UnoCSS extracts classes statically.
+
 /** Checked-state icon recipe shared with CheckboxGroup. */
-export const checkboxCheckedIndicator = 'i-lucide-check pointer-events-none size-3.5 text-current opacity-0 transition-none peer-checked:opacity-100 peer-indeterminate:opacity-0'
+export const checkboxCheckedIndicator = 'i-lucide-check pointer-events-none size-3.5 text-current scale-50 opacity-0 transition-[opacity,scale] duration-100 ease-in motion-reduce:transition-none peer-checked:scale-100 peer-checked:opacity-100 peer-checked:duration-250 peer-checked:delay-75 peer-checked:ease-[cubic-bezier(0.34,1.56,0.64,1)] peer-indeterminate:scale-50 peer-indeterminate:opacity-0 peer-indeterminate:duration-100 peer-indeterminate:delay-0 peer-indeterminate:ease-in'
 
 /** Indeterminate-state icon recipe shared with CheckboxGroup. */
-export const checkboxIndeterminateIndicator = 'i-lucide-minus pointer-events-none absolute size-3.5 text-current opacity-0 transition-none peer-indeterminate:opacity-100'
+export const checkboxIndeterminateIndicator = 'i-lucide-minus pointer-events-none absolute size-3.5 text-current scale-50 opacity-0 transition-[opacity,scale] duration-100 ease-in motion-reduce:transition-none peer-indeterminate:scale-100 peer-indeterminate:opacity-100 peer-indeterminate:duration-250 peer-indeterminate:delay-75 peer-indeterminate:ease-[cubic-bezier(0.34,1.56,0.64,1)]'
 
 /** Invisible native input overlay shared by checkbox-like controls. */
 export const choiceInput = 'peer absolute inset-0 m-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed'

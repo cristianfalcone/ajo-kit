@@ -14,6 +14,16 @@ import {
 const bind = (setArg: StoryContext['setArg']) => (next: string[]) => setArg('defaultValue', next)
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
+// Indicator icons transition in (spring pop with a short delay), so state
+// assertions poll until the styles settle instead of reading one frame.
+const until = async (test: () => boolean, error: string) => {
+	const deadline = performance.now() + 1000
+	while (!test()) {
+		if (performance.now() > deadline) throw new Error(error)
+		await frame()
+	}
+}
+
 export default {
 	title: 'UI/Checkbox Group',
 	component: CheckboxGroup,
@@ -309,9 +319,13 @@ export const SelectAll: Story = {
 		const parentRoot = parent.closest<HTMLElement>('[data-slot="checkbox"]')
 		const checkedIndicator = parentRoot?.querySelector<HTMLElement>('[data-slot="checkbox-indicator"][data-state="checked"]')
 		const mixedIndicator = parentRoot?.querySelector<HTMLElement>('[data-slot="checkbox-indicator"][data-state="indeterminate"]')
-		if (!checkedIndicator || !mixedIndicator || getComputedStyle(checkedIndicator).opacity !== '0' || getComputedStyle(mixedIndicator).opacity !== '1') {
-			throw new Error('Indeterminate parent did not show only the mixed indicator')
+		if (!checkedIndicator || !mixedIndicator) {
+			throw new Error('Indeterminate parent did not render both indicators')
 		}
+		await until(
+			() => getComputedStyle(checkedIndicator).opacity === '0' && getComputedStyle(mixedIndicator).opacity === '1',
+			'Indeterminate parent did not show only the mixed indicator',
+		)
 
 		parent.click()
 		await frame()
@@ -320,9 +334,10 @@ export const SelectAll: Story = {
 			throw new Error('Select all parent did not check every item')
 		}
 		expectStamp(parent, 'checked', 'true')
-		if (getComputedStyle(checkedIndicator).opacity !== '1' || getComputedStyle(mixedIndicator).opacity !== '0') {
-			throw new Error('Checked parent did not show only the check indicator')
-		}
+		await until(
+			() => getComputedStyle(checkedIndicator).opacity === '1' && getComputedStyle(mixedIndicator).opacity === '0',
+			'Checked parent did not show only the check indicator',
+		)
 
 		items[0].click()
 		await frame()
@@ -331,9 +346,10 @@ export const SelectAll: Story = {
 			throw new Error('Unchecking one item did not return the parent to indeterminate')
 		}
 		expectStamp(parent, 'indeterminate', 'mixed')
-		if (getComputedStyle(checkedIndicator).opacity !== '0' || getComputedStyle(mixedIndicator).opacity !== '1') {
-			throw new Error('Partial selection did not restore only the mixed indicator')
-		}
+		await until(
+			() => getComputedStyle(checkedIndicator).opacity === '0' && getComputedStyle(mixedIndicator).opacity === '1',
+			'Partial selection did not restore only the mixed indicator',
+		)
 
 		parent.click()
 		await frame()
