@@ -2,6 +2,7 @@
   "name": "ajo-ui",
   "version": "0.1.0",
   "type": "module",
+  "sideEffects": false,
   "scripts": {
     "test": "pnpm -w exec vitest run packages/ajo-ui/tests"
   },
@@ -20,6 +21,7 @@
     }
   },
   "dependencies": {
+    "@tanstack/virtual-core": "3.17.4",
     "ajo-cloves": "workspace:*"
   },
   "peerDependencies": {

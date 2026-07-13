@@ -91,6 +91,11 @@ Its main implementation seams are:
   resolves keyboard navigation at every scale; `minView` decides whether a
   month/year cell drills down or commits a whole period. Month/year range
   values remain day-granular and inclusive at the public Date boundary.
+- **VirtualList owns one scrollport**: `virtual-list.tsx` exposes the small
+  generic `VirtualList<T, Key>` family, while private `virtual.ts` binds
+  `@tanstack/virtual-core@3.17.4` to Ajo lifecycle, immutable snapshots,
+  keyed measurement, SSR prerendering, focus pinning, and imperative
+  targeting. TanStack types and options never cross the package surface.
 - **Composition over reimplementation**: ContextMenu and Menubar are built on
   Menu; Drawer and CommandDialog on Dialog; the InputDate family's
   optional picker on Calendar; Accordion on Collapsible; ToggleGroup on
@@ -138,8 +143,11 @@ Its main implementation seams are:
   never set an Ajo Context.
 - `DirectionProvider` supplies the default text direction; families with
   horizontal keyboard navigation accept a `dir` arg that overrides it.
-- `availability.ts`, `bar.ts`, `collection.ts`, `floating.ts`, and
-  `segments.ts` are deliberate internal implementation modules with no public
-  subpath. Shared UI normalization and composition live together in
+- `availability.ts`, `bar.ts`, `collection.ts`, `floating.ts`, `segments.ts`,
+  and `virtual.ts` are deliberate internal implementation modules with no
+  public subpath. Shared UI normalization and composition live together in
   `ajo-ui/utils`; general realm, host, lifecycle, callback/ref, cache, and
   numeric primitives live in `ajo-cloves`.
+- Package modules are side-effect-free. Root-barrel imports tree-shake to the
+  selected families; `pnpm test:bundle` guards that property and the
+  VirtualList incremental gzip budget as part of the standard unit gate.

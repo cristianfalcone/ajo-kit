@@ -107,6 +107,7 @@ import {
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
+	VirtualList,
 } from 'ajo-ui'
 
 // The ajo/html host is protocol-only (signal/next/return/throw, no DOM), so
@@ -317,6 +318,12 @@ const roots: Record<string, () => Children> = {
 			jsx('button', { children: 'Action', type: 'button' }),
 			jsx(ToolbarSeparator, {}),
 		],
+	}),
+	'virtual-list': () => jsx(VirtualList, {
+		estimateSize: 40,
+		getItemKey: (item: string) => item,
+		items: ['Item'],
+		renderItem: (item: string) => item,
 	}),
 	tooltip: () => jsx(Tooltip, {
 		children: [

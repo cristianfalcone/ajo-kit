@@ -45,7 +45,12 @@ are not public contracts.
 - the deliberate `ajo-ui/utils` helper subpath.
 
 Pure `.ts` engines such as `floating.ts`, `collection.ts`, `bar.ts`,
-`segments.ts`, and `availability.ts` are internal.
+`segments.ts`, `availability.ts`, and `virtual.ts` are internal.
+
+`ajo-ui` declares its modules side-effect-free. Selecting another family from
+the root barrel does not retain `VirtualList` or its Virtual Core dependency;
+the reproducible `pnpm test:bundle` gate lives in
+`tests/virtual-list-bundle.ts` and is part of `pnpm test:unit`.
 
 `src/ui/index.ts` is the source of truth for the themed public catalog. Theme
 token modules used only by siblings stay out of that barrel.
@@ -735,6 +740,31 @@ keeping family-specific semantics in `ajo-ui`.
 
 `overflow` owns `data-overflow-x` and `data-overflow-y` edge state. Themes turn
 those attributes into masks or controls without remeasuring geometry.
+
+VirtualList is a vertical, data-driven `ul`/`li` family and owns its native
+scrollport. Its public surface is `items`, stable `getItemKey`, positive
+`estimateSize`, `renderItem`, `overscan`, `prerender`, and one `scrollTo`
+controller. Defaults are `overscan=4` and `prerender=20`.
+
+Private `virtual.ts` is the only range and measurement authority. It adapts the
+exact `@tanstack/virtual-core@3.17.4` dependency to Ajo post-commit lifecycle,
+frame-coalesced invalidation through the existing `frame()` export from
+`ajo-cloves`, dynamic
+keyed sizes, zero-measure fallback, structural snapshot validation,
+deterministic SSR, focus pinning, and abort cleanup.
+No TanStack type, option, instance, measurement ref, or index marker is public.
+
+Reusing an `items` array means stable membership, order, and identity; content
+fields may change. Append, prepend, delete, or reorder require a new snapshot.
+Keys are unique strings or finite numbers. Virtualized rows expose
+`aria-posinset` and `aria-setsize`, but offscreen content remains absent from
+find-in-page, printing, sequential tabbing, and assistive-technology traversal.
+Use ordinary DOM or `content-visibility` when those capabilities dominate.
+
+Playa VirtualList is a Stateless adapter. It does not nest ScrollArea: both
+components are sibling scroll owners using the private
+`scrollAreaRootVariants` recipe for scrollbar, gutter, overscroll, radius, and
+focus treatment.
 
 MessageScroller exposes Provider, Root, Viewport, Content, Item, and Button
 parts. Initial position is `start`, `end`, or `last-anchor`; item ids and anchors

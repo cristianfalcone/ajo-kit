@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import { InputOTP, type InputOTPArgs } from '../src/ui/input-otp'
 import { Marker } from '../src/ui/marker'
+import { VirtualList, type VirtualListApi } from '../src/ui/virtual-list'
 import type {
 	AccordionContentArgs,
 	AvatarArgs,
@@ -109,3 +110,20 @@ export const calendarThemeOwnsNavigationRecipe: CalendarSingleArgs = {
 	// @ts-expect-error Calendar owns its navigation-button recipe.
 	navButtonClass: 'consumer-nav',
 }
+
+type VirtualPerson = { id: string; name: string }
+
+const virtualPeople: readonly VirtualPerson[] = [{ id: 'ada', name: 'Ada' }]
+
+export const virtualListThemePreservesGenericInference = (
+	<VirtualList
+		items={virtualPeople}
+		getItemKey={person => person.id}
+		estimateSize={person => person.name.length * 8}
+		renderItem={person => {
+			// @ts-expect-error The Playa adapter must not erase the inferred item shape.
+			return person.missing
+		}}
+		setApi={(api: VirtualListApi<string>) => api.scrollTo({ key: 'ada' })}
+	/>
+)

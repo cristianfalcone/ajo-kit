@@ -10,3 +10,4 @@ allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
   - ajo@0.1.35
+  - '@tanstack/virtual-core@3.17.4'

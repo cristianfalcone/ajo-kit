@@ -25,7 +25,13 @@ export const scrollAreaVariants = ({
 	class: classes,
 }: ScrollAreaVariantOptions = {}) => clsx(overflow[axis], 'overscroll-contain scrollbar-soft', classes)
 
-const areaBase = clsx(scrollAreaVariants(), 'relative rounded-[inherit] outline-none transition-[color,box-shadow] [scrollbar-gutter:stable] focus-visible:ring-3 focus-visible:ring-ring/50')
+const areaRoot = 'relative rounded-[inherit] outline-none transition-[color,box-shadow] [scrollbar-gutter:stable] focus-visible:ring-3 focus-visible:ring-ring/50'
+
+/** Internal root recipe shared by the themed native scroll owners. */
+export const scrollAreaRootVariants = ({
+	axis = 'both',
+	class: classes,
+}: ScrollAreaVariantOptions = {}) => clsx(scrollAreaVariants({ axis }), areaRoot, classes)
 
 /** Native scroll container with styled scrollbars. */
 const ScrollArea: Stateless<ScrollAreaArgs> = ({
@@ -36,7 +42,7 @@ const ScrollArea: Stateless<ScrollAreaArgs> = ({
 }) => (
 	<div
 		{...attrs}
-		class={clsx(areaBase, classes)}
+		class={scrollAreaRootVariants({ class: classes })}
 		data-slot="scroll-area"
 		tabindex={tabindex}
 	>
