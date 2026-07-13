@@ -121,6 +121,8 @@ export type DataTableModel<T extends DataTableData, Key extends DataTableKey> = 
 	nextPage(): void
 	previousPage(): void
 	reset(event?: Event): void
+	selected(rowId: string): boolean
+	selection(): { all: boolean; some: boolean }
 	setFacet(columnId: string, value: string, checked: boolean, event?: Event): void
 	setPageSize(size: number): void
 	setQuery(query: string, event?: Event): void
@@ -449,6 +451,13 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 		for (const id of Object.keys(state)) if (state[id] && rowById.has(id)) count++
 		return count
 	}
+	const pageSelection = () => {
+		const rows = pageConfig.enabled ? table.getRowModel().rows : table.getPrePaginatedRowModel().rows
+		let selected = 0
+		for (const row of rows) if (row.getIsSelected()) selected++
+		const all = rows.length > 0 && selected === rows.length
+		return { all, some: selected > 0 && !all }
+	}
 
 	const invalidate = (version: number) => {
 		requestedVersion = Math.max(requestedVersion, version)
@@ -625,8 +634,7 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 			sourceIndex: row.index,
 		}))
 		const selected = countSelected()
-		const selectedOnPage = visibleRows.filter(row => row.selected).length
-		const all = visibleRows.length > 0 && selectedOnPage === visibleRows.length
+		const pageSelected = pageSelection()
 		const filters = table.atoms.columnFilters.get()
 		const query = searchEnabled ? String(table.atoms.globalFilter.get() ?? '') : ''
 
@@ -647,8 +655,7 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 			selectedCount: selected,
 			selection: {
 				enabled: selectionEnabled,
-				all,
-				some: selectedOnPage > 0 && !all,
+				...pageSelected,
 			},
 			sourceCount: args.rows.length,
 			visibility: models.length > 1 && models.some(model => model.column.hideable !== false),
@@ -678,6 +685,8 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 				resetPage()
 			})
 		},
+		selected: id => table.atoms.rowSelection.get()[id] === true,
+		selection: pageSelection,
 		setFacet(id, value, checked, event) {
 			const facet = modelById.get(id)?.column.facet
 			if (!facet?.options.some(option => option.value === value)) return

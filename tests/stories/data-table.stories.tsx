@@ -1,4 +1,5 @@
 /** @jsxImportSource ajo */
+import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
 import { DataTable, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '/src/ui'
 import type { DataTableColumn } from '/src/ui'
@@ -109,6 +110,26 @@ const announced = () =>
 
 let selectedKeys: readonly string[] = []
 let controlledKeys: readonly string[] = []
+let acceptControlledSelection = true
+
+const ControlledSelectionExample: Stateful<{ rows: readonly Payment[] }> = function* () {
+	let value: readonly string[] = []
+	const setValue = (next: readonly string[]) => this.next(() => {
+		controlledKeys = next
+		if (acceptControlledSelection) value = next
+	})
+
+	for (const { rows } of this) yield (
+		<DataTable
+			columns={columns}
+			getRowKey={getPaymentKey}
+			label="Controlled payments"
+			pagination={false}
+			rows={rows}
+			selection={{ getRowLabel: getPaymentLabel, onValueChange: setValue, value }}
+		/>
+	)
+}
 
 export const Default: Story<typeof DataTable> = {
 	args: {
@@ -235,34 +256,40 @@ export const ControlledSelection: Story<typeof DataTable> = {
 	},
 	render: args => {
 		controlledKeys = []
-		return (
-			<DataTable
-				{...args}
-				columns={columns}
-				getRowKey={getPaymentKey}
-				label="Controlled payments"
-				pagination={false}
-				rows={payments.slice(0, 2)}
-				selection={{
-					getRowLabel: getPaymentLabel,
-					onValueChange: keys => controlledKeys = keys,
-					value: [],
-				}}
-			/>
-		)
+		acceptControlledSelection = true
+		return <ControlledSelectionExample rows={args.rows} />
 	},
 	play: async ({ canvas }) => {
 		const checkbox = canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')
 		if (!checkbox) throw new Error('Controlled DataTable row checkbox was not rendered')
 		checkbox.click()
-		await waitUntil(() => {
-			const current = canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')
-			return controlledKeys.length === 1 && current?.checked === false
-		})
+		await waitUntil(() => controlledKeys.length === 1)
+		await waitUntil(() => canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')?.checked === true)
 		const row = canvas.querySelector('[data-slot="table-body"] [data-slot="table-row"]')
 		const summary = canvas.querySelector('[data-slot="data-table-selection-summary"]')
-		if (row?.hasAttribute('data-state') || !summary?.textContent?.includes('0 of 2')) {
-			throw new Error('Controlled DataTable kept an optimistic selection without owner echo')
+		if (controlledKeys[0] !== 'm5gr84i9') throw new Error(`Controlled DataTable emitted ${controlledKeys[0] ?? 'no key'}`)
+		if (row?.getAttribute('data-state') !== 'selected') throw new Error('Controlled DataTable did not mark the selected row')
+		if (!summary?.textContent?.includes('1 of 2')) throw new Error(`Controlled DataTable rendered summary ${summary?.textContent ?? 'missing'}`)
+
+		acceptControlledSelection = false
+		canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')!.click()
+		await waitUntil(() => controlledKeys.length === 0)
+		if (!canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')?.checked) {
+			throw new Error('Controlled DataTable did not restore a rejected selection change')
+		}
+
+		const page = canvas.querySelector<HTMLInputElement>('[data-slot="table-head"] [data-slot="checkbox-input"]')
+		if (!page?.indeterminate || page.checked) throw new Error('Controlled DataTable did not expose partial page selection')
+		page.click()
+		await waitUntil(() => controlledKeys.length === 2)
+		if (!page.indeterminate || page.checked) throw new Error('Controlled DataTable did not restore a rejected page selection')
+
+		acceptControlledSelection = true
+		page.click()
+		await waitUntil(() => summary?.textContent?.includes('2 of 2') === true)
+		const checked = Array.from(canvas.querySelectorAll<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]'))
+		if (!page.checked || page.indeterminate || checked.some(input => !input.checked)) {
+			throw new Error('Controlled DataTable did not accept page selection')
 		}
 	},
 }

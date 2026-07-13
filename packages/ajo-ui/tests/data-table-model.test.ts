@@ -223,7 +223,9 @@ test('controlled selection proposes changes without mutating optimistically', ()
 	expect(view.columns[0]!.sorted).toBe('asc')
 	expect(view.selectedCount).toBe(1)
 
-	model.toggleRow(view.rows.find(row => row.key === 'a')!.id, true)
+	const rejected = view.rows.find(row => row.key === 'a')!.id
+	model.toggleRow(rejected, true)
+	expect(model.selected(rejected)).toBe(false)
 	view = model.sync(controlled)
 	expect(onValueChange).toHaveBeenCalledWith(['c', 'a'], undefined)
 	expect(view.selectedCount).toBe(1)
@@ -269,6 +271,7 @@ test('accepts a synchronous controlled echo with the originating event', () => {
 	model = createDataTableModel(fixture.host, current)
 	const row = model.sync(current).rows[0]!
 	model.toggleRow(row.id, true, event)
+	expect(model.selected(row.id)).toBe(true)
 	const view = model.sync(current)
 	expect(seen).toBe(event)
 	expect(view.selectedCount).toBe(1)

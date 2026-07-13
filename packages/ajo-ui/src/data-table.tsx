@@ -270,7 +270,10 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 											set:indeterminate={view.selection.some}
 											onCheckedChange={(checked, event) => {
 												try { model!.togglePage(checked, event) } finally {
-													if (controlledSelection) restoreCheckbox(event, view.selection.all, view.selection.some)
+													if (controlledSelection && model) {
+														const selection = model.selection()
+														restoreCheckbox(event, selection.all, selection.some)
+													}
 												}
 											}}
 										/>
@@ -319,7 +322,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 												set:checked={row.selected}
 												onCheckedChange={(checked, event) => {
 													try { model!.toggleRow(row.id, checked, event) } finally {
-														if (controlledSelection) restoreCheckbox(event, row.selected)
+														if (controlledSelection && model) restoreCheckbox(event, model.selected(row.id))
 													}
 												}}
 											/>

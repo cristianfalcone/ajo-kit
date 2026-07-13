@@ -27,7 +27,7 @@ Evidencia verde del corte: instalacion de dependencias, typecheck, 187 tests de
 `ajo-ui`, 577 tests unitarios root, cinco stories de DataTable, matriz completa
 de stories, 49 tests e2e, build, smoke de produccion y el fixture reproducible
 de bundle. El profile real Table + Store + bridge mide 14,784 B gzip y conserva
-el budget original de 15 KiB. El componente publico incremental mide 29,470 B
+el budget original de 15 KiB. El componente publico incremental mide 29,539 B
 gzip, permanece debajo de su budget separado de 30 KiB y no retiene
 VirtualList; el artifact VirtualList tampoco retiene Table.
 
@@ -546,9 +546,9 @@ module graph y SHA-256. El cierre produjo:
 |---|---:|---:|---|
 | framework shell | 168 B | 150 B | `08cbdb1cdbed6b958465416985f5ccdd82021bb55331685a80950b0ecded292d` |
 | Table + Store + profile + bridge reales | 52,669 B | 14,784 B | `89d7f3a2a555720c23c40d73d2052d32ec515228fda275ea5598ee9abc075f7b` |
-| DataTable publica | 97,892 B | 29,620 B | `b8d9668fb7d4544f1406533f45d55212fad44e7db3046f3d0d3813225766ac56` |
+| DataTable publica | 98,095 B | 29,689 B | `b6f7fa10e18714c0e0a8d14448fce642f5e466dfcd80a6e1a4203ecea52952fe` |
 
-El delta publico contra el framework shell es 29,470 B gzip. Los dos budgets
+El delta publico contra el framework shell es 29,539 B gzip. Los dos budgets
 son deliberadamente distintos y se ejecutan juntos:
 
 - 15,360 B para el engine real: Table, Store, feature profile y bridge Ajo;
@@ -1543,6 +1543,11 @@ public callback; el caller decide el siguiente value
 ~~~
 
 No existe un Set Ajo paralelo en ninguno de los dos modos.
+
+Tras cada accion controlada, el renderer resincroniza el checkbox nativo desde
+el estado autoritativo post-callback que expone el model privado. Nunca restaura
+desde el `view` pre-click: asi un owner echo sincronico puede aceptar, rechazar o
+transformar la propuesta sin que el DOM quede optimista ni pise el nuevo value.
 
 ### No port innecesario
 
