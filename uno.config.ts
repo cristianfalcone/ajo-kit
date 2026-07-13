@@ -205,6 +205,7 @@ export default defineConfig({
         `${softScrollbarSelector('::-webkit-scrollbar')}{height:.625rem;width:.625rem}`,
         `${softScrollbarSelector('::-webkit-scrollbar-button')}{display:none}`,
         `${softScrollbarSelector('::-webkit-scrollbar-thumb')}{border:2px solid transparent;border-radius:9999px;background-clip:padding-box;background-color:var(--border)}`,
+        '.scrollbar-framed::-webkit-scrollbar-thumb{border:0;background-clip:border-box}',
         `${softScrollbarSelector('::-webkit-scrollbar-track')}{background-color:transparent}`,
         `@supports not selector(::-webkit-scrollbar){${softScrollbarSelector()}{scrollbar-color:var(--border) transparent;scrollbar-width:thin}}`,
         '@media (prefers-reduced-motion:reduce){.shimmer,[data-slot=attachment][data-state=uploading] [data-slot=attachment-title],[data-slot=attachment][data-state=processing] [data-slot=attachment-title]{animation:none}}',
@@ -230,7 +231,9 @@ export default defineConfig({
     // Discreet themed scrollbar for scrollable lists and viewports. Chromium and
     // Safari take the fully custom webkit path (buttonless); Firefox gets the
     // standard thin scrollbar via the preflight `@supports` fallback below.
-    // The transparent thumb border keeps overlay paint inside rounded corners.
+    // Unframed scroll owners retain an inset thumb so rounded popup roots stay
+    // safe. ScrollAreaFrame viewports opt into the full-width override above;
+    // their hard clip contains paint without shrinking the handle.
     // Menu and Select are rendered both through their Playa adapters and as
     // base descendants of composite families such as DataTable. Keep their
     // complete visual recipes here so both paths consume the same source.

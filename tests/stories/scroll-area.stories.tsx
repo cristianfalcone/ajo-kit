@@ -2,6 +2,7 @@
 import type { Meta, Story } from './app'
 import { ScrollArea } from '/src/ui/scroll-area'
 import { Separator } from '/src/ui/separator'
+import { assertScrollFrame, assertScrollFrameFocus } from './scroll-frame'
 
 const tags = Array.from({ length: 50 }, (_, index) => `v1.2.0-beta.${50 - index}`)
 
@@ -43,6 +44,8 @@ export const Basic: Story<typeof ScrollArea> = {
 	play: async ({ canvas }) => {
 		const root = area(canvas)
 		if (!root) throw new Error('ScrollArea root was not rendered')
+		assertScrollFrame(root, 'ScrollArea')
+		await assertScrollFrameFocus(root, 'ScrollArea')
 		if (root.dataset.slot !== 'scroll-area') throw new Error('ScrollArea data-slot is missing')
 		if (root.tabIndex !== 0) throw new Error('ScrollArea should be keyboard focusable by default')
 		if (root.scrollHeight <= root.clientHeight) throw new Error('ScrollArea did not create vertical overflow')
@@ -73,6 +76,7 @@ export const Horizontal: Story<typeof ScrollArea> = {
 	play: async ({ canvas }) => {
 		const root = area(canvas)
 		if (!root) throw new Error('Horizontal ScrollArea root was not rendered')
+		assertScrollFrame(root, 'Horizontal ScrollArea')
 		if (root.scrollWidth <= root.clientWidth) throw new Error('ScrollArea did not create horizontal overflow')
 
 		root.scrollLeft = 120
@@ -101,6 +105,7 @@ export const BothAxes: Story<typeof ScrollArea> = {
 	play: async ({ canvas }) => {
 		const root = area(canvas)
 		if (!root) throw new Error('BothAxes ScrollArea root was not rendered')
+		assertScrollFrame(root, 'BothAxes ScrollArea')
 		if (root.scrollWidth <= root.clientWidth) throw new Error('BothAxes story did not create horizontal overflow')
 		if (root.scrollHeight <= root.clientHeight) throw new Error('BothAxes story did not create vertical overflow')
 
@@ -119,8 +124,8 @@ export const BothAxes: Story<typeof ScrollArea> = {
 
 export const PaddedContent: Story<typeof ScrollArea> = {
 	render: () => (
-		<ScrollArea aria-label="Long form copy" class="h-64 w-[420px] rounded-md edge bg-card p-4 text-sm leading-6">
-			<div class="space-y-4">
+		<ScrollArea aria-label="Long form copy" class="h-64 w-[420px] rounded-md edge bg-card text-sm leading-6">
+			<div class="space-y-4 p-4">
 				<p>
 					Release notes include routing fixes, theme polish, and a tighter account settings flow.
 					Review the checklist before publishing the next beta.
@@ -140,4 +145,9 @@ export const PaddedContent: Story<typeof ScrollArea> = {
 			</div>
 		</ScrollArea>
 	),
+	play: async ({ canvas }) => {
+		const root = area(canvas)
+		if (!root) throw new Error('Padded ScrollArea root was not rendered')
+		assertScrollFrame(root, 'Padded ScrollArea')
+	},
 }

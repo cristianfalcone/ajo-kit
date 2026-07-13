@@ -3,7 +3,7 @@ import {
 	type VirtualListArgs as BaseVirtualListArgs,
 	type VirtualListKey,
 } from 'ajo-ui/virtual-list'
-import { scrollAreaRootVariants } from './scroll-area'
+import { ScrollAreaFrame, scrollAreaViewportVariants } from './scroll-area'
 
 export type {
 	VirtualListApi,
@@ -12,7 +12,7 @@ export type {
 	VirtualListTarget,
 } from 'ajo-ui/virtual-list'
 
-/** Playa VirtualList arguments with the theme's string class contract. */
+/** Playa VirtualList args: `class`/`style` target its frame; other DOM args target the `ul`. */
 export type VirtualListArgs<
 	T = unknown,
 	Key extends VirtualListKey = VirtualListKey,
@@ -24,12 +24,15 @@ const VirtualList = <
 	Key extends VirtualListKey = VirtualListKey,
 >({
 	class: classes,
+	style,
 	...attrs
 }: VirtualListArgs<T, Key>) => (
-	<BaseVirtualList<T, Key>
-		{...attrs}
-		class={scrollAreaRootVariants({ axis: 'y', class: classes })}
-	/>
+	<ScrollAreaFrame class={classes} style={style}>
+		<BaseVirtualList<T, Key>
+			{...attrs}
+			class={scrollAreaViewportVariants({ axis: 'y' })}
+		/>
+	</ScrollAreaFrame>
 )
 
 export { VirtualList }

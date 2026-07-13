@@ -954,8 +954,8 @@ const Nav: Stateful<NavArgs, 'aside'> = function* () {
 						set:oninput={(event: Event) => setSearch(input(event).value)}
 					/>
 				</div>
-				<ScrollArea ref={element => list = element} data-stories-list="true" class="min-h-0 flex-1 pr-1">
-					<div class="space-y-2 pb-3">
+				<ScrollArea ref={element => list = element} data-stories-list="true" class="min-h-0 flex-1">
+					<div class="space-y-2 pb-3 pr-1">
 						{groups.map(([title, items]) => {
 							const open = filtering || openGroups.has(title)
 

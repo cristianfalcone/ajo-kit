@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
 import { VirtualList, type VirtualListApi } from '/src/ui/virtual-list'
+import { assertScrollFrame, assertScrollFrameFocus } from './scroll-frame'
 
 const fixedItems = Array.from({ length: 100_000 }, (_, index) => index)
 const variableItems = Array.from({ length: 10_000 }, (_, index) => index)
@@ -32,15 +33,9 @@ const assertRootContract = (canvas: HTMLElement, element: HTMLUListElement) => {
 	if (canvas.querySelector('[data-slot="scroll-area"]')) {
 		throw new Error('VirtualList must not nest a ScrollArea')
 	}
+	assertScrollFrame(element, 'VirtualList')
 	for (const token of ['overflow-y-auto', 'overflow-x-hidden', 'overscroll-contain', 'scrollbar-soft']) {
 		if (!element.classList.contains(token)) throw new Error(`VirtualList is missing ${token}`)
-	}
-	const scrollbar = getComputedStyle(element, '::-webkit-scrollbar')
-	const thumb = getComputedStyle(element, '::-webkit-scrollbar-thumb')
-	const thumbContract = [scrollbar.width, scrollbar.height, thumb.borderTopWidth, thumb.borderLeftWidth,
-		thumb.borderTopStyle, thumb.borderTopColor, thumb.backgroundClip].join('/')
-	if (thumbContract !== '10px/10px/2px/2px/solid/rgba(0, 0, 0, 0)/padding-box') {
-		throw new Error(`VirtualList scrollbar thumb contract changed: ${thumbContract}`)
 	}
 	if (element.tabIndex !== 0) throw new Error('VirtualList must be keyboard focusable')
 }
@@ -68,6 +63,7 @@ export const Empty: Story<typeof VirtualList> = {
 	play: async ({ canvas }) => {
 		const element = root(canvas)
 		assertRootContract(canvas, element)
+		await assertScrollFrameFocus(element, 'VirtualList')
 		if (element.querySelector('[data-slot="virtual-list-item"]')) throw new Error('Empty VirtualList rendered an item')
 		if (element.querySelector<HTMLElement>('[data-slot="virtual-list-sizer"]')?.style.height !== '0px') {
 			throw new Error('Empty VirtualList must keep an inert zero-size sizer')

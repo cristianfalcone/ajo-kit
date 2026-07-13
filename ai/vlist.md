@@ -19,7 +19,8 @@ La arquitectura decidida esta materializada sin capas transitorias:
   familias y no tiene subpath publico;
 - `src/ui/virtual-list.tsx` es el adapter Stateless de Playa;
 - `src/ui/scroll-area.tsx` conserva `scrollAreaVariants` para scrollers internos
-  y agrega el recipe root privado compartido por los dos scroll owners;
+  y provee el frame de clip y el recipe de viewport privados que comparte con
+  `VirtualList`;
 - `@tanstack/virtual-core` esta fijado exactamente a `3.17.4` solo en
   `ajo-ui`;
 - `ajo-cloves` no agrega ningun export y se reutiliza su `frame()` existente;
@@ -33,7 +34,7 @@ nativo `ul`/`li`.
 
 Evidencia automatizada del cierre:
 
-- 171 tests de `ajo-ui` y 561 unit tests del workspace;
+- 171 tests de `ajo-ui` y 577 unit tests del workspace;
 - typecheck estricto;
 - cinco stories VirtualList (empty, 100k fixed, 10k variable, interactive y
   dark) y cuatro stories ScrollArea verdes; las cinco capturas VirtualList se
@@ -108,8 +109,8 @@ Decisiones concretas:
    cubierto por contract tests Ajo. No se reexporta ningun tipo ni opcion de
    TanStack.
 4. `VirtualList` es su propio scroll container. No se anida dentro de
-   `ScrollArea`; comparte su recipe visual, foco, gutter, overscroll y
-   scrollbar.
+   `ScrollArea`; ambos usan el mismo frame visual y comparten foco, gutter,
+   overscroll y scrollbar en sus viewports nativos.
 5. V1 es una lista vertical, single-lane, data-driven y con element scrolling.
    Incluye alturas fijas o dinamicas, stable keys, SSR determinista, focus
    pinning y scroll imperativo. No incluye grid, masonry, window scrolling,
@@ -228,15 +229,25 @@ dos o tres familias de `ajo-ui`.
 
 ### `src/ui/scroll-area.tsx`
 
-`ScrollArea` es hoy un `div` nativo, Stateless y tematico. Concentra:
+`ScrollArea` es una composicion Stateless y tematica de dos responsabilidades:
+
+- un frame visual con `overflow:hidden`, radio, superficie y focus ring;
+- un unico `div` viewport nativo que conserva atributos, eventos, `ref`, foco y
+  estado de scroll.
+
+El viewport concentra:
 
 - `overflow-*` por axis;
 - `overscroll-contain`;
-- `scrollbar-soft`, con fill inset para que el thumb overlay no invada el radio
-  del scrollport;
+- `scrollbar-soft`, con el thumb completo compartido;
 - `scrollbar-gutter:stable`;
-- foco visible;
-- root relativo y borde heredado.
+- posicion relativa y radio heredado.
+
+El mismo frame envuelve el `ul` de Playa `VirtualList`. Asi el browser recorta
+el paint del scrollbar contra cualquier radio sin achicar el thumb, acortar el
+track, recortar el focus ring ni cambiar el scroll owner que usa el virtualizer.
+`class` y `style` pertenecen al frame visual; los demas atributos DOM y el
+`ref` permanecen en el viewport real.
 
 No existe un `ScrollArea` base en `ajo-ui`, y no hace falta inventarlo: sin el
 tema seria casi un pass-through del `div`. Su recipe si es el vocabulary visual
@@ -1260,7 +1271,7 @@ La dependencia es un detalle reemplazable, pero activo. Reglas:
 | Estado de row se pierde | Contrato explicito: state durable fuera de la row; no recycling |
 | Screen reader/find no ve todo | Limite documentado; content-visibility o DOM completo cuando domina esa necesidad |
 | Defaults sirven solo a fixtures simples | Benchmarks con tres pesos de row; overscan configurable y default medido |
-| ScrollArea y VirtualList divergen visualmente | Un root recipe compartido; sibling components, no nesting |
+| ScrollArea y VirtualList divergen visualmente | Un frame y un viewport recipe compartidos; sibling components, no nesting |
 | MessageScroller duplica geometry owners | No integrarlo hasta poder reemplazar su engine completo |
 
 ## Decisiones cerradas
