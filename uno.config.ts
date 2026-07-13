@@ -204,7 +204,7 @@ export default defineConfig({
         '.scrollbar-none::-webkit-scrollbar{display:none}',
         `${softScrollbarSelector('::-webkit-scrollbar')}{height:.625rem;width:.625rem}`,
         `${softScrollbarSelector('::-webkit-scrollbar-button')}{display:none}`,
-        `${softScrollbarSelector('::-webkit-scrollbar-thumb')}{border-radius:9999px;background-color:var(--border)}`,
+        `${softScrollbarSelector('::-webkit-scrollbar-thumb')}{border:2px solid transparent;border-radius:9999px;background-clip:padding-box;background-color:var(--border)}`,
         `${softScrollbarSelector('::-webkit-scrollbar-track')}{background-color:transparent}`,
         `@supports not selector(::-webkit-scrollbar){${softScrollbarSelector()}{scrollbar-color:var(--border) transparent;scrollbar-width:thin}}`,
         '@media (prefers-reduced-motion:reduce){.shimmer,[data-slot=attachment][data-state=uploading] [data-slot=attachment-title],[data-slot=attachment][data-state=processing] [data-slot=attachment-title]{animation:none}}',
@@ -230,6 +230,7 @@ export default defineConfig({
     // Discreet themed scrollbar for scrollable lists and viewports. Chromium and
     // Safari take the fully custom webkit path (buttonless); Firefox gets the
     // standard thin scrollbar via the preflight `@supports` fallback below.
+    // The transparent thumb border keeps overlay paint inside rounded corners.
     // Menu and Select are rendered both through their Playa adapters and as
     // base descendants of composite families such as DataTable. Keep their
     // complete visual recipes here so both paths consume the same source.

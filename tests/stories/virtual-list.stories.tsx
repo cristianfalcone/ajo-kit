@@ -35,6 +35,13 @@ const assertRootContract = (canvas: HTMLElement, element: HTMLUListElement) => {
 	for (const token of ['overflow-y-auto', 'overflow-x-hidden', 'overscroll-contain', 'scrollbar-soft']) {
 		if (!element.classList.contains(token)) throw new Error(`VirtualList is missing ${token}`)
 	}
+	const scrollbar = getComputedStyle(element, '::-webkit-scrollbar')
+	const thumb = getComputedStyle(element, '::-webkit-scrollbar-thumb')
+	const thumbContract = [scrollbar.width, scrollbar.height, thumb.borderTopWidth, thumb.borderLeftWidth,
+		thumb.borderTopStyle, thumb.borderTopColor, thumb.backgroundClip].join('/')
+	if (thumbContract !== '10px/10px/2px/2px/solid/rgba(0, 0, 0, 0)/padding-box') {
+		throw new Error(`VirtualList scrollbar thumb contract changed: ${thumbContract}`)
+	}
 	if (element.tabIndex !== 0) throw new Error('VirtualList must be keyboard focusable')
 }
 

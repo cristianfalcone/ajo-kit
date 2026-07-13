@@ -782,7 +782,8 @@ Use ordinary DOM or `content-visibility` when those capabilities dominate.
 Playa VirtualList is a Stateless adapter. It does not nest ScrollArea: both
 components are sibling scroll owners using the private
 `scrollAreaRootVariants` recipe for scrollbar, gutter, overscroll, radius, and
-focus treatment.
+focus treatment. The shared WebKit thumb fill is inset from its transparent
+border so overlay scrollbars remain inside rounded viewport corners.
 
 MessageScroller exposes Provider, Root, Viewport, Content, Item, and Button
 parts. Initial position is `start`, `end`, or `last-anchor`; item ids and anchors

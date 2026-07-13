@@ -232,7 +232,8 @@ dos o tres familias de `ajo-ui`.
 
 - `overflow-*` por axis;
 - `overscroll-contain`;
-- `scrollbar-soft`;
+- `scrollbar-soft`, con fill inset para que el thumb overlay no invada el radio
+  del scrollport;
 - `scrollbar-gutter:stable`;
 - foco visible;
 - root relativo y borde heredado.
