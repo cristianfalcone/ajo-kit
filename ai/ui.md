@@ -737,6 +737,9 @@ Menu and Select visual policy lives in named `playa-menu-*` and
 `playa-select-*` Uno shortcuts. Their direct adapters and DataTable's base
 descendants consume the same shortcuts, including popup motion, scrollbars,
 focus/highlight/disabled states, and coarse-pointer sizing.
+DataTable keeps structural descendant selectors specificity-neutral with
+`:where(...)`; checked and indeterminate Checkbox color states use `:is(...)`
+so state overrides remain authoritative regardless of UnoCSS emission order.
 DataTable and the manual Table primitive reuse the same cell/header padding
 recipes. Sort triggers fill the header cell without adding horizontal padding,
 so start, center, and end headers remain geometrically aligned with row data.

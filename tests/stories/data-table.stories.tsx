@@ -105,6 +105,26 @@ const waitUntil = async (check: () => boolean, timeout = 1200) => {
 	throw new Error('Timed out waiting for DataTable state')
 }
 
+const waitForVisualCheck = async (input: HTMLInputElement, label: string) => {
+	const root = input.closest<HTMLElement>('[data-slot="checkbox"]')
+	const indicator = root?.querySelector<HTMLElement>('[data-slot="checkbox-indicator"][data-state="checked"]')
+	if (!root || !indicator) throw new Error(`${label} checked visual was not rendered`)
+	const matches = () => input.checked
+		&& !input.indeterminate
+		&& input.dataset.state === 'checked'
+		&& input.getAttribute('aria-checked') === 'true'
+		&& root.dataset.state === 'checked'
+		&& getComputedStyle(indicator).opacity === '1'
+		&& getComputedStyle(root).backgroundColor !== 'rgba(0, 0, 0, 0)'
+	try {
+		await waitUntil(matches)
+	} catch {
+		const inputState = `${input.checked}/${input.dataset.state}/${input.getAttribute('aria-checked')}`
+		const visualState = `${getComputedStyle(indicator).opacity}/${getComputedStyle(root).backgroundColor}`
+		throw new Error(`${label} remained visually unchecked: input=${inputState} root=${root.dataset.state} visual=${visualState}`)
+	}
+}
+
 const announced = () =>
 	document.body.querySelector<HTMLElement>('[aria-live="polite"][aria-atomic="true"]')?.textContent
 
@@ -264,9 +284,12 @@ export const ControlledSelection: Story<typeof DataTable> = {
 		if (!checkbox) throw new Error('Controlled DataTable row checkbox was not rendered')
 		checkbox.click()
 		await waitUntil(() => controlledKeys.length === 1)
-		await waitUntil(() => canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')?.checked === true)
 		const row = canvas.querySelector('[data-slot="table-body"] [data-slot="table-row"]')
 		const summary = canvas.querySelector('[data-slot="data-table-selection-summary"]')
+		await waitUntil(() => summary?.textContent?.includes('1 of 2') === true)
+		const currentCheckbox = canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')
+		if (!currentCheckbox?.checked) throw new Error('Controlled DataTable count changed without checking its row input')
+		await waitForVisualCheck(currentCheckbox, 'Controlled DataTable row')
 		if (controlledKeys[0] !== 'm5gr84i9') throw new Error(`Controlled DataTable emitted ${controlledKeys[0] ?? 'no key'}`)
 		if (row?.getAttribute('data-state') !== 'selected') throw new Error('Controlled DataTable did not mark the selected row')
 		if (!summary?.textContent?.includes('1 of 2')) throw new Error(`Controlled DataTable rendered summary ${summary?.textContent ?? 'missing'}`)
@@ -287,10 +310,13 @@ export const ControlledSelection: Story<typeof DataTable> = {
 		acceptControlledSelection = true
 		page.click()
 		await waitUntil(() => summary?.textContent?.includes('2 of 2') === true)
+		const currentPage = canvas.querySelector<HTMLInputElement>('[data-slot="table-head"] [data-slot="checkbox-input"]')
 		const checked = Array.from(canvas.querySelectorAll<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]'))
-		if (!page.checked || page.indeterminate || checked.some(input => !input.checked)) {
+		if (!currentPage?.checked || currentPage.indeterminate || checked.some(input => !input.checked)) {
 			throw new Error('Controlled DataTable did not accept page selection')
 		}
+		await Promise.all([currentPage, ...checked].map((input, index) =>
+			waitForVisualCheck(input, index ? `Controlled DataTable row ${index}` : 'Controlled DataTable header')))
 	},
 }
 
