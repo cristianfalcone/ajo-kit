@@ -732,7 +732,8 @@ lifecycle. TanStack types do not cross the public family.
 
 `data-table.tsx` owns the only native renderer and stable `data-slot` theme
 contract. Playa is a Stateless adapter that adds the private
-`playa-data-table` recipe; it receives no structural callbacks or class map.
+`playa-data-table` recipe plus the shared `playa-table` slot recipe; it
+receives no structural callbacks or class map.
 Menu and Select visual policy lives in named `playa-menu-*` and
 `playa-select-*` Uno shortcuts. Their direct adapters and DataTable's base
 descendants consume the same shortcuts, including popup motion, scrollbars,
@@ -740,9 +741,16 @@ focus/highlight/disabled states, and coarse-pointer sizing.
 DataTable keeps structural descendant selectors specificity-neutral with
 `:where(...)`; checked and indeterminate Checkbox color states use `:is(...)`
 so state overrides remain authoritative regardless of UnoCSS emission order.
-DataTable and the manual Table primitive reuse the same cell/header padding
-recipes. Sort triggers fill the header cell without adding horizontal padding,
-so start, center, and end headers remain geometrically aligned with row data.
+Stateful slot rules are written variant-first (`hover:[&_...]`) or as one
+literal selector: expanding a variant-bearing shortcut under a slot prefix
+hangs the inner variant on the recipe root instead of the slotted element,
+which is how table hover once highlighted every row at once.
+The manual Table wrapper and the DataTable root both carry `playa-table`, so
+table geometry, typography, and row states have one source and render
+identically. Sort triggers are inline pills whose symmetric padding and
+negative margin cancel out: start, center, and end headers stay geometrically
+aligned with row data while the hover surface keeps breathing room around the
+label.
 
 `VirtualDataTable` is deliberately deferred until its geometry, AT, browser,
 and performance gates pass. The paginated profile does not register a virtual

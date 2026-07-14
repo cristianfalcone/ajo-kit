@@ -128,7 +128,7 @@ export const Single: Story<typeof ToggleGroup> = {
 }
 
 export const Connected: Story<typeof ToggleGroup> = {
-	args: { spacing: 0 },
+	args: { spacing: 0, variant: 'outline' },
 	render: (args, { setArg }) => (
 		<ToggleGroup {...args} aria-label="Connected formatting" onValueChange={bind(setArg)}>
 			<FormattingItems />

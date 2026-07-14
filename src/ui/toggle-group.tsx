@@ -45,11 +45,14 @@ const style = (spacing: number, current: unknown) => {
 const connected = (spacing: number, orientation: ToggleGroupOrientation) => {
 	if (spacing !== 0) return ''
 
-	// `relative` lets the focused item's z-10 lift its ring above the 1px
-	// negative-margin overlap that merges adjacent inset-ring hairlines.
+	// Connected segments touch instead of overlapping: the non-first ring
+	// drops its leading edge (three inset shadows), so every seam is painted
+	// by exactly one hairline — two overlapped translucent rings would
+	// composite darker than the group's outer edges. `relative` lets the
+	// focused item's z-10 lift its focus ring above its neighbors.
 	return orientation === 'vertical'
-		? 'relative rounded-none first:rounded-t-md last:rounded-b-md [&:not(:first-child)]:-mt-px'
-		: 'relative rounded-none first:rounded-l-md last:rounded-r-md [&:not(:first-child)]:-ml-px'
+		? 'relative rounded-none first:rounded-t-md last:rounded-b-md [&:not(:first-child)]:[--un-inset-ring-shadow:inset_1px_0_0_var(--un-inset-ring-color,currentColor),inset_-1px_0_0_var(--un-inset-ring-color,currentColor),inset_0_-1px_0_var(--un-inset-ring-color,currentColor)]'
+		: 'relative rounded-none first:rounded-l-md last:rounded-r-md [&:not(:first-child)]:[--un-inset-ring-shadow:inset_0_1px_0_var(--un-inset-ring-color,currentColor),inset_0_-1px_0_var(--un-inset-ring-color,currentColor),inset_-1px_0_0_var(--un-inset-ring-color,currentColor)]'
 }
 
 const toggleSize = (value: unknown): ToggleSize | undefined =>

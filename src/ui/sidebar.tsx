@@ -251,7 +251,7 @@ const SidebarMenuItem: Stateless<SidebarMenuItemArgs> = ({ class: classes, ...at
 
 const buttonVariant = {
 	default: 'hover:bg-accent hover:text-accent-foreground',
-	outline: 'edge bg-transparent hover:bg-accent hover:text-accent-foreground',
+	outline: 'edge bg-transparent hover:bg-accent hover:edge-on-accent hover:text-accent-foreground',
 }
 
 const buttonSize = {

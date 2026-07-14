@@ -1,5 +1,4 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
 
 export type TableArgs = WithChildren<IntrinsicElements['table'] & { class?: string }>
 export type TableHeaderArgs = WithChildren<IntrinsicElements['thead'] & { class?: string }>
@@ -10,16 +9,20 @@ export type TableHeadArgs = WithChildren<IntrinsicElements['th'] & { class?: str
 export type TableCellArgs = WithChildren<IntrinsicElements['td'] & { class?: string }>
 export type TableCaptionArgs = WithChildren<IntrinsicElements['caption'] & { class?: string }>
 
-/** Responsive wrapper and native table element. */
+/**
+ * Responsive wrapper and native table element. The wrapper carries the shared
+ * `playa-table` slot recipe, so every part below is styled through its
+ * `data-slot` marker — the same rules the Playa DataTable consumes.
+ */
 const Table: Stateless<TableArgs> = ({
 	children,
 	class: classes,
 	...attrs
 }) => (
-	<div class="playa-table-container" data-slot="table-container">
+	<div class="playa-table-container playa-table" data-slot="table-container">
 		<table
 			{...attrs}
-			class={clsx('playa-table', classes)}
+			class={classes}
 			data-slot="table"
 		>
 			{children}
@@ -35,7 +38,7 @@ const TableHeader: Stateless<TableHeaderArgs> = ({
 }) => (
 	<thead
 		{...attrs}
-		class={clsx('playa-table-header', classes)}
+		class={classes}
 		data-slot="table-header"
 	>
 		{children}
@@ -50,7 +53,7 @@ const TableBody: Stateless<TableBodyArgs> = ({
 }) => (
 	<tbody
 		{...attrs}
-		class={clsx('playa-table-body', classes)}
+		class={classes}
 		data-slot="table-body"
 	>
 		{children}
@@ -65,7 +68,7 @@ const TableFooter: Stateless<TableFooterArgs> = ({
 }) => (
 	<tfoot
 		{...attrs}
-		class={clsx('playa-table-footer', classes)}
+		class={classes}
 		data-slot="table-footer"
 	>
 		{children}
@@ -80,7 +83,7 @@ const TableRow: Stateless<TableRowArgs> = ({
 }) => (
 	<tr
 		{...attrs}
-		class={clsx('playa-table-row', classes)}
+		class={classes}
 		data-slot="table-row"
 	>
 		{children}
@@ -96,7 +99,7 @@ const TableHead: Stateless<TableHeadArgs> = ({
 }) => (
 	<th
 		{...attrs}
-		class={clsx('playa-table-head', classes)}
+		class={classes}
 		data-slot="table-head"
 		scope={scope}
 	>
@@ -112,7 +115,7 @@ const TableCell: Stateless<TableCellArgs> = ({
 }) => (
 	<td
 		{...attrs}
-		class={clsx('playa-table-cell', classes)}
+		class={classes}
 		data-slot="table-cell"
 	>
 		{children}
@@ -127,7 +130,7 @@ const TableCaption: Stateless<TableCaptionArgs> = ({
 }) => (
 	<caption
 		{...attrs}
-		class={clsx('playa-table-caption', classes)}
+		class={classes}
 		data-slot="table-caption"
 	>
 		{children}

@@ -1622,17 +1622,20 @@ const DataTable = <T, Key extends DataTableKey>({
 	class: classes,
 	...attrs
 }: DataTableArgs<T, Key>) => (
-	<BaseDataTable {...attrs} class={clsx('playa-data-table', classes)} />
+	<BaseDataTable {...attrs} class={clsx('playa-data-table playa-table', classes)} />
 )
 ~~~
 
-Uno resuelve la recipe `playa-data-table` mediante selectors `data-slot`. Los
-shortcuts `playa-table-*` comparten la recipe semantica con `src/ui/table.tsx`.
+Uno resuelve la recipe `playa-data-table` mediante selectors `data-slot`. El
+root de DataTable y el wrapper de `src/ui/table.tsx` cargan la misma recipe
+de slots `playa-table`, de modo que geometria, tipografia y estados de row
+tienen una sola fuente y ambas surfaces se ven identicas.
 Los adapters directos Menu/Select y los descendants que DataTable compone
 consumen las mismas recipes `playa-menu-*` y `playa-select-*`; motion,
 scrollbar, focus/highlight/disabled y pointer-coarse tienen una sola fuente.
-Header/cell padding tambien es unico y el sort trigger no agrega padding
-horizontal, de modo que labels y data conservan la misma linea geometrica.
+El sort trigger es un pill inline con padding simetrico compensado por margin
+negativo: labels y data conservan la misma linea geometrica y el hover
+mantiene aire alrededor del texto en lugar de recortarlo.
 
 No existe una Interface publica de theme-authoring ni un factory estructural.
 Playa posee la recipe privada y la base posee toda la estructura.

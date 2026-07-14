@@ -298,7 +298,9 @@ DataTable owns its complete native child structure and exposes stable slots,
 not structural callbacks or a base class map. Its generic types keep rows,
 columns, keys, and callbacks correlated across the base and Playa adapters.
 
-Playa adds only `playa-data-table`; Uno styles descendants through those slots.
+Playa adds only `playa-data-table` plus the shared `playa-table` slot recipe
+(the same one the manual Table wrapper carries); Uno styles descendants
+through those slots.
 The model binds `@tanstack/table-core@9.0.0-beta.47` and
 `@tanstack/store@0.11.0` through an explicit paginated profile. Model and
 contract stay hidden by the package export map.

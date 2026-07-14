@@ -43,10 +43,14 @@ export type ButtonGroupTextArgs =
 
 const groupBase = 'flex w-fit items-stretch has-[>[data-slot=button-group]]:gap-2 [&>*]:focus-visible:relative [&>*]:focus-visible:z-10 has-[select[aria-hidden=true]:last-child]:[&>[data-slot=select-trigger]:last-of-type]:rounded-r-md [&>[data-slot=select-trigger]:not([class*=w-])]:w-fit [&>input]:flex-1'
 const groupOrientations: Record<ButtonGroupOrientation, string> = {
-	// Negative margins overlap adjacent inset-ring hairlines into a single
-	// 1px seam; an inset ring cannot drop one side like `border-l-0`.
-	horizontal: '[&>*:not(:first-child)]:-ml-px [&>*:not(:first-child)]:rounded-l-none [&>*:not(:last-child)]:rounded-r-none',
-	vertical: 'flex-col [&>*:not(:first-child)]:-mt-px [&>*:not(:first-child)]:rounded-t-none [&>*:not(:last-child)]:rounded-b-none',
+	// Segments touch instead of overlapping: the non-first ring drops its
+	// leading edge (three inset shadows), so every seam is painted by exactly
+	// one hairline in that member's own ring color — two overlapped
+	// translucent rings would composite darker than the outer edges. Ringless
+	// members (solid buttons, separators) are untouched: the variable only
+	// manifests where a ring already sets box-shadow.
+	horizontal: '[&>*:not(:first-child)]:rounded-l-none [&>*:not(:last-child)]:rounded-r-none [&>*:not(:first-child)]:[--un-inset-ring-shadow:inset_0_1px_0_var(--un-inset-ring-color,currentColor),inset_0_-1px_0_var(--un-inset-ring-color,currentColor),inset_-1px_0_0_var(--un-inset-ring-color,currentColor)]',
+	vertical: 'flex-col [&>*:not(:first-child)]:rounded-t-none [&>*:not(:last-child)]:rounded-b-none [&>*:not(:first-child)]:[--un-inset-ring-shadow:inset_1px_0_0_var(--un-inset-ring-color,currentColor),inset_-1px_0_0_var(--un-inset-ring-color,currentColor),inset_0_-1px_0_var(--un-inset-ring-color,currentColor)]',
 }
 const textBase = 'flex items-center gap-2 rounded-md edge bg-muted px-4 text-sm font-medium [&_svg]:pointer-events-none [&_svg:not([class*=size-])]:size-4'
 const separatorBase = 'relative m-0 self-stretch bg-input data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-auto data-[orientation=vertical]:h-auto data-[orientation=vertical]:w-px'

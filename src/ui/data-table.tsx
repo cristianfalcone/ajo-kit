@@ -16,14 +16,18 @@ export type DataTableArgs<
 	Key extends DataTableKey = DataTableKey,
 > = BaseDataTableArgs<T, Key>
 
-/** Playa-styled DataTable; state, semantics, and structure remain base-owned. */
+/**
+ * Playa-styled DataTable; state, semantics, and structure remain base-owned.
+ * `playa-table` is the same slot recipe the manual Table wrapper carries, so
+ * both surfaces share one source for table geometry, typography, and states.
+ */
 const DataTable = <T extends DataTableData, Key extends DataTableKey = DataTableKey>({
 	class: classes,
 	...attrs
 }: DataTableArgs<T, Key>) => (
 	<BaseDataTable<T, Key>
 		{...attrs}
-		class={clsx('playa-data-table', classes)}
+		class={clsx('playa-data-table playa-table', classes)}
 	/>
 )
 

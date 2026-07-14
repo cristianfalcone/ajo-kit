@@ -58,7 +58,9 @@ type CardVariantOptions = {
 	size?: CardSize
 }
 
-const base = 'group/card flex flex-col gap-[var(--card-spacing)] overflow-hidden rounded-xl glass edge py-[var(--card-spacing)] shadow-xs has-[>img:first-child]:pt-0 [&>img:first-child]:rounded-t-xl [&>img:last-child]:rounded-b-xl'
+// A Table inside a card melts into the card frame: the wrapper's own
+// rounded-lg edge would double the card's hairline at a mismatched radius.
+const base = 'group/card flex flex-col gap-[var(--card-spacing)] overflow-hidden rounded-xl glass edge py-[var(--card-spacing)] shadow-xs has-[>img:first-child]:pt-0 [&>img:first-child]:rounded-t-xl [&>img:last-child]:rounded-b-xl [&_[data-slot=table-container]]:rounded-[0px] [&_[data-slot=table-container]]:outline-none'
 
 const sizes: Record<CardSize, string> = {
 	default: '[--card-spacing:1.5rem]',

@@ -391,15 +391,19 @@ export const Default: Story<typeof DataTable> = {
 
 		const firstRow = dataRows(canvas)[0]
 		for (const columnId of ['status', 'email']) {
-			const label = canvas.querySelector<HTMLElement>(`[data-slot="table-head"][data-column-id="${columnId}"] [data-slot="data-table-sort-trigger"] > span:first-child`)
+			const trigger = sortTrigger(canvas, columnId)
+			const label = trigger?.querySelector<HTMLElement>(':scope > span:first-child')
 			const value = firstRow?.querySelector<HTMLElement>(`[data-slot="table-cell"][data-column-id="${columnId}"] > :first-child`)
-			if (!label || !value || Math.abs(label.getBoundingClientRect().left - value.getBoundingClientRect().left) > 1) {
+			if (!trigger || !label || !value || Math.abs(label.getBoundingClientRect().left - value.getBoundingClientRect().left) > 1) {
 				throw new Error(`DataTable ${columnId} header is not aligned with row data`)
 			}
+			if (label.getBoundingClientRect().left - trigger.getBoundingClientRect().left < 4) {
+				throw new Error(`DataTable ${columnId} sort label sits flush against its hover surface`)
+			}
 		}
-		const amountTrigger = canvas.querySelector<HTMLElement>('[data-slot="table-head"][data-column-id="amount"] [data-slot="data-table-sort-trigger"]')
+		const amountIcon = canvas.querySelector<HTMLElement>('[data-slot="table-head"][data-column-id="amount"] [data-slot="data-table-sort-icon"]')
 		const amount = firstRow?.querySelector<HTMLElement>('[data-slot="table-cell"][data-column-id="amount"] > :first-child')
-		if (!amountTrigger || !amount || Math.abs(amountTrigger.getBoundingClientRect().right - amount.getBoundingClientRect().right) > 1) {
+		if (!amountIcon || !amount || Math.abs(amountIcon.getBoundingClientRect().right - amount.getBoundingClientRect().right) > 1) {
 			throw new Error('DataTable right-aligned header is not aligned with row data')
 		}
 

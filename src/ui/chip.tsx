@@ -59,7 +59,7 @@ const variants: Record<ChipVariant, string> = {
 	success: 'bg-success text-success-foreground hover:bg-success/90',
 	warning: 'bg-warning text-warning-foreground hover:bg-warning/90',
 	info: 'bg-info text-info-foreground hover:bg-info/90',
-	outline: 'edge text-foreground hover:bg-accent hover:text-accent-foreground',
+	outline: 'edge text-foreground hover:bg-accent hover:edge-on-accent hover:text-accent-foreground',
 	ghost: 'hover:bg-accent hover:text-accent-foreground',
 	link: 'text-primary underline-offset-4 hover:underline',
 }
