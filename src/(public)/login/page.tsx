@@ -1,8 +1,12 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
+import Button from 'ajo-ui-playa/button'
+import { CardContent, CardDescription, CardFooter, CardHeader } from 'ajo-ui-playa/card'
+import { Checkbox } from 'ajo-ui-playa/checkbox'
+import { Field, FieldError, FieldLabel } from 'ajo-ui-playa/field'
+import { Input } from 'ajo-ui-playa/input'
 import type { Signup } from '/src/data/registration'
-import { Button, CardContent, CardDescription, CardFooter, CardHeader, Checkbox, Field, FieldError, FieldLabel, Input } from '/src/ui'
 
 type Result = { redirect: string }
 type Data = { signup: Signup }

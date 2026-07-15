@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import { Card, CardContent, CardHeader } from '/src/ui/card'
-import { Skeleton } from '/src/ui/skeleton'
+import { Card, CardContent, CardHeader } from 'ajo-ui-playa/card'
+import { Skeleton } from 'ajo-ui-playa/skeleton'
 
 export default {
 	title: 'UI/Skeleton',

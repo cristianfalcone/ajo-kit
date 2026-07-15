@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import Button from '/src/ui/button'
+import Button from 'ajo-ui-playa/button'
 import {
 	Card,
 	CardContent,
@@ -9,16 +9,16 @@ import {
 	CardFooter,
 	CardHeader,
 	CardTitle,
-} from '/src/ui/card'
-import Input from '/src/ui/input'
-import Label from '/src/ui/label'
-import { DirectionProvider } from '/src/ui/direction'
+} from 'ajo-ui-playa/card'
+import Input from 'ajo-ui-playa/input'
+import Label from 'ajo-ui-playa/label'
+import { DirectionProvider } from 'ajo-ui-playa/direction'
 import {
 	Tabs,
 	TabsContent,
 	TabsList,
 	TabsTrigger,
-} from '/src/ui/tabs'
+} from 'ajo-ui-playa/tabs'
 
 export default {
 	title: 'UI/Tabs',

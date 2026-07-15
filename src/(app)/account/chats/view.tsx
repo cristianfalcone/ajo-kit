@@ -1,6 +1,8 @@
 import type { Stateless } from 'ajo'
 import clsx from 'clsx'
-import { Chip, Empty, EmptyDescription, EmptyHeader, EmptyMedia, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '/src/ui'
+import { Chip } from 'ajo-ui-playa/chip'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from 'ajo-ui-playa/empty'
+import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from 'ajo-ui-playa/item'
 
 export type ChatItem = {
 	id: number

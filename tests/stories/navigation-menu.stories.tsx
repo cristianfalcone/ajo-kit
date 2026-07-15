@@ -9,8 +9,8 @@ import {
 	NavigationMenuList,
 	NavigationMenuTrigger,
 	navigationMenuTriggerVariants,
-} from '/src/ui/navigation-menu'
-import Button from '/src/ui/button'
+} from 'ajo-ui-playa/navigation-menu'
+import Button from 'ajo-ui-playa/button'
 
 const components = [
 	{

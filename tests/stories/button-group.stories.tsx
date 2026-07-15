@@ -1,12 +1,12 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Button from '/src/ui/button'
+import Button from 'ajo-ui-playa/button'
 import {
 	ButtonGroup,
 	ButtonGroupSeparator,
 	ButtonGroupText,
-} from '/src/ui/button-group'
-import Input from '/src/ui/input'
+} from 'ajo-ui-playa/button-group'
+import Input from 'ajo-ui-playa/input'
 
 export default {
 	title: 'UI/Button Group',

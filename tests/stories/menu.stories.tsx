@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { buttonVariants } from '/src/ui/button'
+import { buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Menu,
 	MenuCheckboxItem,
@@ -17,7 +17,7 @@ import {
 	MenuSubContent,
 	MenuSubTrigger,
 	MenuTrigger,
-} from '/src/ui/menu'
+} from 'ajo-ui-playa/menu'
 
 export default {
 	title: 'UI/Menu',

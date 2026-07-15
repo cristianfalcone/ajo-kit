@@ -1,9 +1,9 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { Field, FieldLabel } from '/src/ui/field'
-import { Progress } from '/src/ui/progress'
-import Slider from '/src/ui/slider'
+import { Field, FieldLabel } from 'ajo-ui-playa/field'
+import { Progress } from 'ajo-ui-playa/progress'
+import Slider from 'ajo-ui-playa/slider'
 
 export default {
 	title: 'UI/Progress',

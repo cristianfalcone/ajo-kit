@@ -1,5 +1,5 @@
 import type { PageArgs } from '@kit'
-import { Card, CardContent } from '/src/ui'
+import { Card, CardContent } from 'ajo-ui-playa/card'
 
 type Data = {
 	stats: {

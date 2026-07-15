@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Args, Meta, Story } from './app'
-import Button, { buttonVariants } from '/src/ui/button'
+import Button, { buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Dialog,
 	DialogClose,
@@ -11,9 +11,9 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from '/src/ui/dialog'
-import Input from '/src/ui/input'
-import Label from '/src/ui/label'
+} from 'ajo-ui-playa/dialog'
+import Input from 'ajo-ui-playa/input'
+import Label from 'ajo-ui-playa/label'
 
 export default {
 	title: 'UI/Dialog',

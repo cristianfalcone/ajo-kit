@@ -8,7 +8,7 @@ import {
 	PaginationLink,
 	PaginationNext,
 	PaginationPrevious,
-} from '/src/ui/pagination'
+} from 'ajo-ui-playa/pagination'
 
 export default {
 	title: 'UI/Pagination',

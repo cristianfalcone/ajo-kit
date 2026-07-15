@@ -1,8 +1,8 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Checkbox from '/src/ui/checkbox'
-import Input from '/src/ui/input'
-import Label from '/src/ui/label'
+import Checkbox from 'ajo-ui-playa/checkbox'
+import Input from 'ajo-ui-playa/input'
+import Label from 'ajo-ui-playa/label'
 
 export default {
 	title: 'UI/Label',

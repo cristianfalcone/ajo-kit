@@ -9,7 +9,7 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from '/src/ui/table'
+} from 'ajo-ui-playa/table'
 
 const invoices = [
 	{ invoice: 'INV001', status: 'Paid', method: 'Credit Card', amount: '$250.00' },

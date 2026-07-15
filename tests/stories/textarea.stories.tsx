@@ -1,13 +1,13 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Button from '/src/ui/button'
+import Button from 'ajo-ui-playa/button'
 import {
 	Field,
 	FieldDescription,
 	FieldError,
 	FieldLabel,
-} from '/src/ui/field'
-import Textarea from '/src/ui/textarea'
+} from 'ajo-ui-playa/field'
+import Textarea from 'ajo-ui-playa/textarea'
 
 const frame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 

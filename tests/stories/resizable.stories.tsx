@@ -4,7 +4,7 @@ import {
 	ResizableHandle,
 	ResizablePanel,
 	ResizablePanelGroup,
-} from '/src/ui/resizable'
+} from 'ajo-ui-playa/resizable'
 
 export default {
 	title: 'UI/Resizable',

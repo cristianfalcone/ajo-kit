@@ -12,7 +12,7 @@ with `ai/*.md`, `readme.md`, and the implementation in `packages/`, `src/`,
 pnpm dev                 # Dev server
 pnpm stories             # Ajo UI component stories harness
 pnpm stories:test        # Stories smoke suite
-pnpm stories:test:visual # Stories smoke suite with screenshots in .tmp
+pnpm stories:test:visual # Stories smoke + light/dark screenshots in .tmp
 pnpm build               # Production build
 pnpm start               # Run built server
 pnpm exec tsc --noEmit   # Typecheck
@@ -103,12 +103,20 @@ Packages:
 | `packages/ajo-kit` | `@kit`, `@kit/*` | Framework core, SSR, routing, data flow, database, validation |
 | `packages/ajo-auth` | `@kit/auth` | Sessions, tokens, password, CSRF, guards, auth migrations |
 | `packages/ajo-cloves` | `ajo-cloves` | Reusable Ajo component behavior cloves |
-| `packages/ajo-ui` | `ajo-ui` | Unstyled base UI components; `src/ui/` keeps the themed layer |
+| `packages/ajo-ui` | `ajo-ui` | Unstyled base UI components; a private transitive implementation for themed apps |
+| `packages/ajo-ui-playa` | `ajo-ui-playa` | Playa runtime families plus the build-time `playa()` UnoCSS preset |
 | `packages/ajo-backup` | none | Google Drive backup tooling |
 
 Package unit tests live in `packages/<name>/tests/` (run one package with
 `pnpm --filter <name> test`); app unit tests live in `tests/unit/`. The root
 `pnpm test:unit` runs both.
+
+Applications activate Playa at build time with `playa()` from the package root
+and import runtime components only from explicit `ajo-ui-playa/<family>`
+subpaths. They do not install or import `ajo-ui`; `ajo-ui-playa` owns that
+transitive base dependency. UnoCSS is an exact peer of `ajo-ui-playa`.
+Product-only shortcuts, icon tokens, and any dynamic icon safelist stay in the
+application's UnoCSS config rather than the package preset.
 
 Core files:
 

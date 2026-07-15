@@ -7,8 +7,8 @@ import {
 	FieldDescription,
 	FieldError,
 	FieldLabel,
-} from '/src/ui/field'
-import Slider from '/src/ui/slider'
+} from 'ajo-ui-playa/field'
+import Slider from 'ajo-ui-playa/slider'
 
 const bind = (setArg: StoryContext['setArg']) => (next: number[]) => setArg('defaultValue', next)
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))

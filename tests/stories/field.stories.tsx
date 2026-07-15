@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Button from '/src/ui/button'
-import Checkbox from '/src/ui/checkbox'
+import Button from 'ajo-ui-playa/button'
+import Checkbox from 'ajo-ui-playa/checkbox'
 import {
 	Field,
 	FieldContent,
@@ -13,9 +13,9 @@ import {
 	FieldSeparator,
 	FieldSet,
 	FieldTitle,
-} from '/src/ui/field'
-import TextInput from '/src/ui/input'
-import Textarea from '/src/ui/textarea'
+} from 'ajo-ui-playa/field'
+import TextInput from 'ajo-ui-playa/input'
+import Textarea from 'ajo-ui-playa/textarea'
 
 const fixed = { orientation: { control: false }, invalid: { control: false } } as const
 

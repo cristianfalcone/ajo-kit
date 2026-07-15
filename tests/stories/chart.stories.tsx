@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import Button from '/src/ui/button'
+import Button from 'ajo-ui-playa/button'
 import {
 	ChartArea,
 	ChartBar,
@@ -13,7 +13,7 @@ import {
 	ChartTooltip,
 	ChartTooltipContent,
 	type ChartConfig,
-} from '/src/ui/chart'
+} from 'ajo-ui-playa/chart'
 
 const data = [
 	{ month: 'January', desktop: 186, mobile: 80, tablet: 42 },

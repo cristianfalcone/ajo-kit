@@ -1,7 +1,18 @@
 import type { Stateful } from 'ajo'
 import type { LayoutArgs } from '@kit'
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarGroup,
+	SidebarGroupContent,
+	SidebarGroupLabel,
+	SidebarMenu,
+	SidebarMenuBadge,
+	SidebarMenuButton,
+	SidebarMenuItem,
+	SidebarProvider,
+} from 'ajo-ui-playa/sidebar'
 import { UnreadContext } from '/src/contexts'
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '/src/ui'
 
 const links: [string, string, string][] = [
 	['/account/profile', 'Profile', 'i-lucide-user'],

@@ -2,9 +2,11 @@
 
 Cloves are plain Ajo functions that bind one reusable UI concern to a stateful component host and return a live view. The package also owns the small, general Ajo protocol, lifecycle, and data utilities shared by component libraries. The canonical clove pattern and rules live in Ajo's [Cloves: Sharing Logic](https://github.com/cristianfalcone/ajo#cloves-sharing-logic) docs.
 
-The dependency direction is `ajo-cloves` -> `ajo-ui` -> an app's themed
-`src/ui`. Component-adapter types such as `OmitArg` and `FixedArgs` belong only
-to `ajo-ui/utils`; they are intentionally not clove exports.
+The dependency direction is `ajo-cloves` -> `ajo-ui` -> `ajo-ui-playa` ->
+application. Playa apps install `ajo-ui-playa`; its `ajo-ui` base remains a
+private transitive dependency. Component-adapter types such as `OmitArg` and
+`FixedArgs` belong only to `ajo-ui/utils`; they are intentionally not clove
+exports.
 
 ## Install
 

@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import { ScrollArea } from '/src/ui/scroll-area'
-import { Separator } from '/src/ui/separator'
+import { ScrollArea } from 'ajo-ui-playa/scroll-area'
+import { Separator } from 'ajo-ui-playa/separator'
 import { assertScrollFrame, assertScrollFrameFocus } from './scroll-frame'
 
 const tags = Array.from({ length: 50 }, (_, index) => `v1.2.0-beta.${50 - index}`)

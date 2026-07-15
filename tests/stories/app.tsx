@@ -3,33 +3,33 @@ import { render, type Children, type Stateful, type Stateless } from 'ajo'
 import { context } from 'ajo/context'
 import { scheme, storage } from 'ajo-cloves'
 import clsx from 'clsx'
-import Button from '/src/ui/button'
-import { Card, CardContent } from '/src/ui/card'
-import Checkbox from '/src/ui/checkbox'
-import Chip from '/src/ui/chip'
+import Button from 'ajo-ui-playa/button'
+import { Card, CardContent } from 'ajo-ui-playa/card'
+import Checkbox from 'ajo-ui-playa/checkbox'
+import Chip from 'ajo-ui-playa/chip'
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
-} from '/src/ui/collapsible'
+} from 'ajo-ui-playa/collapsible'
 import {
 	Field as UiField,
 	FieldContent,
 	FieldDescription,
 	FieldError,
 	FieldLabel,
-} from '/src/ui/field'
-import Input from '/src/ui/input'
+} from 'ajo-ui-playa/field'
+import Input from 'ajo-ui-playa/input'
 import {
 	ResizableHandle,
 	ResizablePanel,
 	ResizablePanelGroup,
-} from '/src/ui/resizable'
-import ScrollArea from '/src/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectList, SelectTrigger, SelectValue } from '/src/ui/select'
-import Slider from '/src/ui/slider'
-import Textarea from '/src/ui/textarea'
-import { ToggleGroup, ToggleGroupItem } from '/src/ui/toggle-group'
+} from 'ajo-ui-playa/resizable'
+import ScrollArea from 'ajo-ui-playa/scroll-area'
+import { Select, SelectContent, SelectItem, SelectList, SelectTrigger, SelectValue } from 'ajo-ui-playa/select'
+import Slider from 'ajo-ui-playa/slider'
+import Textarea from 'ajo-ui-playa/textarea'
+import { ToggleGroup, ToggleGroupItem } from 'ajo-ui-playa/toggle-group'
 import 'virtual:uno.css'
 
 export type Control =

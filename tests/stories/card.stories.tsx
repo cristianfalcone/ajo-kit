@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Button from '/src/ui/button'
+import Button from 'ajo-ui-playa/button'
 import {
 	Card,
 	CardAction,
@@ -9,8 +9,8 @@ import {
 	CardFooter,
 	CardHeader,
 	CardTitle,
-} from '/src/ui/card'
-import Chip from '/src/ui/chip'
+} from 'ajo-ui-playa/card'
+import Chip from 'ajo-ui-playa/chip'
 
 export default {
 	title: 'UI/Card',

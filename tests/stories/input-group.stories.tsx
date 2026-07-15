@@ -5,7 +5,7 @@ import {
 	FieldDescription,
 	FieldError,
 	FieldLabel,
-} from '/src/ui/field'
+} from 'ajo-ui-playa/field'
 import {
 	InputGroup,
 	InputGroupAddon,
@@ -13,8 +13,8 @@ import {
 	InputGroupInput,
 	InputGroupText,
 	InputGroupTextarea,
-} from '/src/ui/input-group'
-import { Kbd } from '/src/ui/kbd'
+} from 'ajo-ui-playa/input-group'
+import { Kbd } from 'ajo-ui-playa/kbd'
 
 export default {
 	title: 'UI/Input Group',

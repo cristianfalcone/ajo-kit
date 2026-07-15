@@ -1,7 +1,9 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
-import { Alert, AlertDescription, Button, Card, CardContent } from '/src/ui'
+import { Alert, AlertDescription } from 'ajo-ui-playa/alert'
+import Button from 'ajo-ui-playa/button'
+import { Card, CardContent } from 'ajo-ui-playa/card'
 import type { VerificationResult } from '/src/verification'
 
 const Verify: Stateful<PageArgs> = function* () {

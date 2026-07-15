@@ -1,6 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
-import { Alert, AlertDescription, CardContent, CardFooter, CardHeader } from '/src/ui'
+import { Alert, AlertDescription } from 'ajo-ui-playa/alert'
+import { CardContent, CardFooter, CardHeader } from 'ajo-ui-playa/card'
 
 interface Data {
 	error?: string

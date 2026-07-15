@@ -17,7 +17,7 @@ import {
 	MenubarSubContent,
 	MenubarSubTrigger,
 	MenubarTrigger,
-} from '/src/ui/menubar'
+} from 'ajo-ui-playa/menubar'
 
 export default {
 	title: 'UI/Menubar',

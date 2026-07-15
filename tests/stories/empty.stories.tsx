@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Button from '/src/ui/button'
+import Button from 'ajo-ui-playa/button'
 import {
 	Empty,
 	EmptyContent,
@@ -8,7 +8,7 @@ import {
 	EmptyHeader,
 	EmptyMedia,
 	EmptyTitle,
-} from '/src/ui/empty'
+} from 'ajo-ui-playa/empty'
 
 export default {
 	title: 'UI/Empty',

@@ -1,12 +1,12 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Button from '/src/ui/button'
+import Button from 'ajo-ui-playa/button'
 import {
 	Alert,
 	AlertAction,
 	AlertDescription,
 	AlertTitle,
-} from '/src/ui/alert'
+} from 'ajo-ui-playa/alert'
 
 export default {
 	title: 'UI/Alert',

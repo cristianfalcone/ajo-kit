@@ -1,7 +1,9 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, date } from '@kit'
+import { Card, CardContent } from 'ajo-ui-playa/card'
+import { Chip } from 'ajo-ui-playa/chip'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'ajo-ui-playa/table'
 import { can } from '/src/abilities'
-import { Card, CardContent, Chip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '/src/ui'
 
 type Session = {
 	id: string

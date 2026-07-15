@@ -1,8 +1,8 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { Field, FieldLabel } from '/src/ui/field'
-import { InputTime } from '/src/ui/input-date'
+import { Field, FieldLabel } from 'ajo-ui-playa/field'
+import { InputTime } from 'ajo-ui-playa/input-date'
 
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 

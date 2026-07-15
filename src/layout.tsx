@@ -2,8 +2,10 @@ import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
 import type { LayoutArgs } from '@kit'
 import { scheme, storage } from 'ajo-cloves'
+import Button from 'ajo-ui-playa/button'
+import Spinner from 'ajo-ui-playa/spinner'
+import { Toaster } from 'ajo-ui-playa/toast'
 import { ThemeContext, type ThemeMode } from '/src/contexts'
-import { Button, Spinner, Toaster } from '/src/ui'
 
 export const pending = true
 

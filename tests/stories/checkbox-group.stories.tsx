@@ -1,15 +1,15 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story, StoryContext } from './app'
-import Checkbox from '/src/ui/checkbox'
-import { CheckboxGroup, CheckboxGroupItem } from '/src/ui/checkbox-group'
+import Checkbox from 'ajo-ui-playa/checkbox'
+import { CheckboxGroup, CheckboxGroupItem } from 'ajo-ui-playa/checkbox-group'
 import {
 	Field,
 	FieldDescription,
 	FieldLabel,
 	FieldLegend,
 	FieldSet,
-} from '/src/ui/field'
+} from 'ajo-ui-playa/field'
 
 const bind = (setArg: StoryContext['setArg']) => (next: string[]) => setArg('defaultValue', next)
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))

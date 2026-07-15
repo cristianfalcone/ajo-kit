@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Button from '/src/ui/button'
-import { Kbd, KbdGroup } from '/src/ui/kbd'
+import Button from 'ajo-ui-playa/button'
+import { Kbd, KbdGroup } from 'ajo-ui-playa/kbd'
 
 export default {
 	title: 'UI/Kbd',

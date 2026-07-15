@@ -16,7 +16,7 @@ import {
 	ContextMenuSubContent,
 	ContextMenuSubTrigger,
 	ContextMenuTrigger,
-} from '/src/ui/context-menu'
+} from 'ajo-ui-playa/context-menu'
 
 export default {
 	title: 'UI/Context Menu',

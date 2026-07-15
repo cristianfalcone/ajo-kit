@@ -2,9 +2,9 @@
 import type { Stateful } from 'ajo'
 import { move } from 'ajo-cloves'
 import type { Meta, Story } from './app'
-import { buttonVariants } from '/src/ui/button'
-import { Field, FieldGroup, FieldLabel } from '/src/ui/field'
-import Input from '/src/ui/input'
+import { buttonVariants } from 'ajo-ui-playa/button'
+import { Field, FieldGroup, FieldLabel } from 'ajo-ui-playa/field'
+import Input from 'ajo-ui-playa/input'
 import {
 	Popover,
 	PopoverAnchor,
@@ -14,7 +14,7 @@ import {
 	PopoverHeader,
 	PopoverTitle,
 	PopoverTrigger,
-} from '/src/ui/popover'
+} from 'ajo-ui-playa/popover'
 
 export default {
 	title: 'UI/Popover',

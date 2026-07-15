@@ -1,13 +1,13 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import Button from '/src/ui/button'
-import { Card, CardContent } from '/src/ui/card'
+import Button from 'ajo-ui-playa/button'
+import { Card, CardContent } from 'ajo-ui-playa/card'
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
-} from '/src/ui/collapsible'
+} from 'ajo-ui-playa/collapsible'
 
 export default {
 	title: 'UI/Collapsible',

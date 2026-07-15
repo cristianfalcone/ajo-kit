@@ -1,7 +1,10 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, date } from '@kit'
 import { action } from '@kit/client'
-import { buttonVariants, Chip, Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle, Tooltip, TooltipContent, TooltipTrigger } from '/src/ui'
+import { buttonVariants } from 'ajo-ui-playa/button'
+import { Chip } from 'ajo-ui-playa/chip'
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from 'ajo-ui-playa/item'
+import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'
 
 type Session = {
 	id: string

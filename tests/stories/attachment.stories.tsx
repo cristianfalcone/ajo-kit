@@ -11,7 +11,7 @@ import {
 	AttachmentMedia,
 	AttachmentTitle,
 	AttachmentTrigger,
-} from '/src/ui/attachment'
+} from 'ajo-ui-playa/attachment'
 
 export default {
 	title: 'UI/Attachment',

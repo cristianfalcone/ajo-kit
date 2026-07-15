@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import { VirtualList, type VirtualListApi } from '/src/ui/virtual-list'
+import { VirtualList, type VirtualListApi } from 'ajo-ui-playa/virtual-list'
 import { assertScrollFrame, assertScrollFrameFocus } from './scroll-frame'
 
 const fixedItems = Array.from({ length: 100_000 }, (_, index) => index)

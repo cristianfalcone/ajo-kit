@@ -1,7 +1,9 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
-import { Button, Field, FieldError, FieldLabel, Input } from '/src/ui'
+import Button from 'ajo-ui-playa/button'
+import { Field, FieldError, FieldLabel } from 'ajo-ui-playa/field'
+import { Input } from 'ajo-ui-playa/input'
 
 type Result = { deleted: boolean }
 

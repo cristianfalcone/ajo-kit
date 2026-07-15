@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import Chip, { chipVariants } from '/src/ui/chip'
+import Chip, { chipVariants } from 'ajo-ui-playa/chip'
 
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 

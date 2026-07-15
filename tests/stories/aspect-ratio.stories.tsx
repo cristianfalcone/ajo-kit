@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import { AspectRatio } from '/src/ui/aspect-ratio'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '/src/ui/card'
+import { AspectRatio } from 'ajo-ui-playa/aspect-ratio'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'ajo-ui-playa/card'
 
 export default {
 	title: 'UI/Aspect Ratio',

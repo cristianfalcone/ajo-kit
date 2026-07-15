@@ -1,13 +1,13 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import Button from '/src/ui/button'
+import Button from 'ajo-ui-playa/button'
 import {
 	Bubble,
 	BubbleContent,
 	BubbleGroup,
 	BubbleReactions,
-} from '/src/ui/bubble'
+} from 'ajo-ui-playa/bubble'
 
 export default {
 	title: 'UI/Bubble',

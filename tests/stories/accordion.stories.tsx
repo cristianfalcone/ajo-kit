@@ -6,8 +6,8 @@ import {
 	AccordionContent,
 	AccordionItem,
 	AccordionTrigger,
-} from '/src/ui/accordion'
-import { Card, CardContent } from '/src/ui/card'
+} from 'ajo-ui-playa/accordion'
+import { Card, CardContent } from 'ajo-ui-playa/card'
 
 export default {
 	title: 'UI/Accordion',

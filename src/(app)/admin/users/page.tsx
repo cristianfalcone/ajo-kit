@@ -1,5 +1,7 @@
 import { type PageArgs, date } from '@kit'
-import { Card, Chip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '/src/ui'
+import { Card } from 'ajo-ui-playa/card'
+import { Chip } from 'ajo-ui-playa/chip'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'ajo-ui-playa/table'
 import PageControls, { type PageInfo } from '../pagination'
 
 type User = {

@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Args, Meta, Story } from './app'
-import { buttonVariants } from '/src/ui/button'
+import { buttonVariants } from 'ajo-ui-playa/button'
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -13,7 +13,7 @@ import {
 	AlertDialogMedia,
 	AlertDialogTitle,
 	AlertDialogTrigger,
-} from '/src/ui/alert-dialog'
+} from 'ajo-ui-playa/alert-dialog'
 
 export default {
 	title: 'UI/Alert Dialog',

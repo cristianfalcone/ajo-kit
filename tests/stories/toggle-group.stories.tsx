@@ -5,8 +5,8 @@ import {
 	Field,
 	FieldDescription,
 	FieldLabel,
-} from '/src/ui/field'
-import { ToggleGroup, ToggleGroupItem } from '/src/ui/toggle-group'
+} from 'ajo-ui-playa/field'
+import { ToggleGroup, ToggleGroupItem } from 'ajo-ui-playa/toggle-group'
 
 const bind = (setArg: StoryContext['setArg']) => (next: string | string[]) => setArg('defaultValue', next)
 

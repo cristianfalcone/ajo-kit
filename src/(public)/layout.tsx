@@ -1,6 +1,6 @@
 import type { Stateless } from 'ajo'
 import type { LayoutArgs } from '@kit'
-import { Card } from '/src/ui'
+import { Card } from 'ajo-ui-playa/card'
 import Water from '/src/water'
 
 const AuthLayout: Stateless<LayoutArgs> = ({ children }) => (

@@ -1,8 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
-import clsx from 'clsx'
 import type { Meta, Story } from './app'
-import Button, { buttonVariants } from '/src/ui/button'
+import Button, { buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Command,
 	CommandDialog,
@@ -14,15 +13,14 @@ import {
 	CommandSeparator,
 	CommandShortcut,
 	type CommandFilter,
-} from '/src/ui/command'
+} from 'ajo-ui-playa/command'
 import {
 	Dialog as UiDialog,
 	DialogContent as UiDialogContent,
 	DialogDescription as UiDialogDescription,
 	DialogTitle as UiDialogTitle,
 	DialogTrigger as UiDialogTrigger,
-} from '/src/ui/dialog'
-import { modalCentered, modalSurface } from '/src/ui/modal'
+} from 'ajo-ui-playa/dialog'
 
 export default {
 	title: 'UI/Command',
@@ -241,13 +239,8 @@ const TriggeredCommandDialogExample = () => (
 			Open trigger command dialog
 		</UiDialogTrigger>
 		<UiDialogContent
-			class={clsx(
-				modalSurface,
-				modalCentered,
-				'max-h-[85vh] w-[min(92vw,32rem)] overflow-hidden rounded-xl edge p-0',
-			)}
+			class="max-h-[85vh] w-[min(92vw,32rem)] overflow-hidden p-0"
 			data-slot="command-dialog"
-			unstyled
 		>
 			<UiDialogTitle class="sr-only">Command Palette</UiDialogTitle>
 			<UiDialogDescription class="sr-only">Search for a command to run...</UiDialogDescription>

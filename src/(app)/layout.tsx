@@ -3,8 +3,10 @@ import type { Stateful } from 'ajo'
 import type { User, LayoutArgs, Action } from '@kit'
 import { ThemeContext, UnreadContext } from '/src/contexts'
 import { action } from '@kit/client'
+import Button, { buttonVariants } from 'ajo-ui-playa/button'
+import { Chip } from 'ajo-ui-playa/chip'
+import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'
 import { can } from '/src/abilities'
-import { Button, buttonVariants, Chip, Tooltip, TooltipContent, TooltipTrigger } from '/src/ui'
 
 type LinkOptions = { exact?: boolean, include?: string[] }
 

@@ -1,6 +1,16 @@
 import type { Stateful } from 'ajo'
 import type { LayoutArgs } from '@kit'
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '/src/ui'
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarGroup,
+	SidebarGroupContent,
+	SidebarGroupLabel,
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
+	SidebarProvider,
+} from 'ajo-ui-playa/sidebar'
 
 const links: [string, string, string][] = [
 	['/admin', 'Overview', 'i-lucide-layout-dashboard'],

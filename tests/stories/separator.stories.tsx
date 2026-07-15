@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import { Separator } from '/src/ui/separator'
+import { Separator } from 'ajo-ui-playa/separator'
 
 export default {
 	title: 'UI/Separator',

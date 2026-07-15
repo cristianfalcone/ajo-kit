@@ -1,7 +1,11 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, date } from '@kit'
 import { action } from '@kit/client'
-import { buttonVariants, Card, Empty, EmptyDescription, EmptyHeader, EmptyMedia, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Tooltip, TooltipContent, TooltipTrigger } from '/src/ui'
+import { buttonVariants } from 'ajo-ui-playa/button'
+import { Card } from 'ajo-ui-playa/card'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from 'ajo-ui-playa/empty'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'ajo-ui-playa/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'
 import PageControls, { type PageInfo } from '../pagination'
 
 type Token = {

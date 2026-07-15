@@ -1,7 +1,10 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, navigate } from '@kit'
 import { action } from '@kit/client'
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, FieldError, Input } from '/src/ui'
+import Button from 'ajo-ui-playa/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'ajo-ui-playa/card'
+import { FieldError } from 'ajo-ui-playa/field'
+import { Input } from 'ajo-ui-playa/input'
 
 type Result = { confirmed: boolean }
 

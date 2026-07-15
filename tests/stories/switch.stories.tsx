@@ -7,8 +7,8 @@ import {
 	FieldDescription,
 	FieldError,
 	FieldLabel,
-} from '/src/ui/field'
-import Switch from '/src/ui/switch'
+} from 'ajo-ui-playa/field'
+import Switch from 'ajo-ui-playa/switch'
 
 const bind = (setArg: StoryContext['setArg']) => (next: boolean) => setArg('checked', next)
 const frame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))

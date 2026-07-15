@@ -1,6 +1,6 @@
 # Ajo App LLM Guide
 
-Last updated: 2026-07-12
+Last updated: 2026-07-14
 
 This is the short app-building guide for AI agents using Ajo and `ajo-kit`.
 It is not the repo maintenance guide; use `AGENTS.md` for working on this
@@ -11,9 +11,9 @@ chat demo app.
 ## Project Shape
 
 Package setup is currently workspace/local: `ajo` is published on npm, but
-`ajo-kit`, `ajo-auth`, `ajo-cloves`, `ajo-ui`, and `ajo-backup` should be
-installed from workspace, `file:`, or packed tarball dependencies until they
-are published.
+the workspace packages should be installed from workspace, `file:`, or packed
+tarball dependencies until they are published. Playa apps install
+`ajo-ui-playa`; they do not install `ajo-ui` directly.
 
 ```text
 packages/
@@ -40,6 +40,11 @@ packages/
     src/
       index.ts        # unstyled base component barrel; ajo-ui/<name> per family
       utils.ts        # component-system helpers, including OmitArg + FixedArgs
+  ajo-ui-playa/
+    src/
+      index.ts        # build-time root; exports only playa()
+      styles.ts       # UnoCSS preset, theme, rules, preflights, component shortcuts
+      <name>.tsx      # runtime themed family; ajo-ui-playa/<name>
 
 src/
   (public)/**/handler.ts
@@ -47,8 +52,37 @@ src/
   abilities.ts
   data/index.ts
   data/pagination.ts
-  ui/                 # thin "playa"-themed adapters over ajo-ui
 ```
+
+## Playa UI
+
+Use exact UnoCSS `66.7.2`, activate Playa once at build time, and keep
+product-only shortcuts in the app config:
+
+```ts
+import { playa } from 'ajo-ui-playa'
+import { defineConfig } from 'unocss'
+
+export default defineConfig({
+  presets: [playa()],
+  shortcuts: {
+    'site-container': 'mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8',
+  },
+})
+```
+
+The package root is build-time only. Import runtime components through explicit
+family subpaths:
+
+```tsx
+import Button from 'ajo-ui-playa/button'
+import { Card, CardContent } from 'ajo-ui-playa/card'
+```
+
+`ajo-ui` is a private transitive implementation of `ajo-ui-playa`; application
+code must not install or import it. Playa owns its component theme and component
+icon recipes. Product icon tokens stay in app source, with an app-owned UnoCSS
+safelist only when names are constructed dynamically.
 
 ## Handler Contract
 
@@ -159,10 +193,13 @@ topics.
 
 ## Calendar and Date Fields
 
-Use the themed roots from `src/ui`; they keep all behavior in `ajo-ui` and add
-only the playa recipes:
+Use the themed roots from `ajo-ui-playa` family subpaths; they keep behavior in
+the private `ajo-ui` base and add only Playa recipes:
 
 ```tsx
+import { Calendar } from 'ajo-ui-playa/calendar'
+import { InputDateTime } from 'ajo-ui-playa/input-date'
+
 <Calendar
   disabled={{ before: earliest }}
   unavailable={[{ dayOfWeek: [0, 6] }, holiday]}
@@ -197,8 +234,8 @@ only the playa recipes:
   mode, and selected state belong to the root. `InputDateCalendar` accepts
   presentation and hard-disabled customization but seals those owned args.
 
-Do not create a second date/time engine in `src/ui`, and do not write an Ajo
-Context from a Stateless component. Stateless parts read the root's live view;
+Do not create a second date/time engine in `ajo-ui-playa`, and do not write an
+Ajo Context from a Stateless component. Stateless parts read the root's live view;
 the Stateful root owns all context writes and mutations. A Stateless part may
 invoke a registration callback exposed by that owner, but it must not turn the
 callback into a context setter.
@@ -206,15 +243,16 @@ callback into a context setter.
 ## Sharing Logic With Cloves
 
 - Import shared UI behavior from `ajo-cloves`, not from `ajo-kit`.
-- Preserve the one-way layer dependency: `ajo-cloves` → `ajo-ui` → `src/ui`.
+- Preserve the one-way layer dependency: `ajo-cloves` -> `ajo-ui` ->
+  `ajo-ui-playa` -> application.
 - Keep general, reusable Ajo behavior and primitives in `ajo-cloves`; its
   public cloves should be useful outside this app and component catalog.
 - Keep small component-system-only helpers together in `ajo-ui/utils.ts`.
   Do not grow one-function utility modules for them.
 - Import `OmitArg` and `FixedArgs` only from `ajo-ui/utils`; neither belongs in
   the `ajo-ui` root nor in `ajo-cloves`.
-- Keep `src/ui` as a thin themed layer over unstyled `ajo-ui`; do not move
-  reusable component behavior or general-purpose logic into the theme.
+- Keep `ajo-ui-playa` as a thin themed package over unstyled `ajo-ui`; do not
+  move reusable component behavior or general-purpose logic into the theme.
 - Use `*Class` for a static singleton part, a scoped `classNames` or `classes`
   map for a themed collection, and a callback such as `dayClassName` when the
   class depends on state.
@@ -230,7 +268,8 @@ callback into a context setter.
 
 Admin list routes use `paginate`, `rows`, and `info` from
 `src/data/pagination.ts`, then render the themed `Pagination` family from
-`src/ui/pagination.tsx`, normally through `src/(app)/admin/pagination.tsx`.
+`ajo-ui-playa/pagination`, normally through
+`src/(app)/admin/pagination.tsx`.
 
 Keep list reads bounded. Do not add totals unless the UI needs them.
 

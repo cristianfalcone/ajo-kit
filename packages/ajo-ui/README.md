@@ -5,6 +5,10 @@ family's behavior, accessibility contract, and slot structure on top of
 [`ajo-cloves`](../ajo-cloves), leaving all visual styling to the consuming
 theme.
 
+`ajo-ui` is the private transitive base of `ajo-ui-playa`. Applications using
+Playa install and import `ajo-ui-playa`, not this package. Direct installation
+is for authors building an unstyled integration or another theme.
+
 ## Install
 
 ```bash
@@ -45,7 +49,9 @@ import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 
 The package is one system, not a set of islands. The dependency direction is
 `ajo-cloves` (general behavior and lifecycle) -> `ajo-ui` (unstyled component
-interfaces) -> an app's `src/ui` (theme-only adapters, Playa in ajo-kit).
+interfaces) -> `ajo-ui-playa` (theme-only adapters and build-time preset) ->
+application. `ajo-ui-playa` declares this package as a regular dependency, so
+it remains transitive and private to Playa applications.
 
 The repository-level technical reference is [`ai/ui.md`](../../ai/ui.md).
 Its main implementation seams are:

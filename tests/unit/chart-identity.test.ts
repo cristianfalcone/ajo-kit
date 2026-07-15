@@ -8,7 +8,7 @@ import {
 	ChartContainer as BaseChartContainer,
 	ChartIdContext,
 } from '../../packages/ajo-ui/src/chart'
-import { ChartBar, ChartContainer } from '../../src/ui/chart'
+import { ChartBar, ChartContainer } from 'ajo-ui-playa/chart'
 
 const config = {
 	desktop: {

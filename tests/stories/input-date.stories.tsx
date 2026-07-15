@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { Field, FieldLabel } from '/src/ui/field'
+import { Field, FieldLabel } from 'ajo-ui-playa/field'
 import {
 	InputDate,
 	InputDateCalendar,
@@ -10,7 +10,7 @@ import {
 	InputDatePresets,
 	InputDateTrigger,
 	type InputDateRangeValue,
-} from '/src/ui/input-date'
+} from 'ajo-ui-playa/input-date'
 
 export default {
 	title: 'UI/InputDate',

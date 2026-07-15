@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Spinner from '/src/ui/spinner'
+import Spinner from 'ajo-ui-playa/spinner'
 
 export default {
 	title: 'UI/Spinner',

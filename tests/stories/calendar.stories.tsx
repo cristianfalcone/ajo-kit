@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story, StoryContext } from './app'
-import { Calendar, type CalendarCaptionLayout, type CalendarDateRange, type CalendarModifiers } from '/src/ui/calendar'
+import { Calendar, type CalendarCaptionLayout, type CalendarDateRange, type CalendarModifiers } from 'ajo-ui-playa/calendar'
 
 export default {
 	title: 'UI/Calendar',

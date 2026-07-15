@@ -1,4 +1,4 @@
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '/src/ui'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from 'ajo-ui-playa/empty'
 
 const Chats = () => (
 	<Empty class="h-full min-h-0">

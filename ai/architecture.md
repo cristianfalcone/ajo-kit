@@ -34,7 +34,8 @@ current local-project contract.
 | `packages/ajo-kit` | `@kit`, `@kit/*` | Framework core, SSR, routing, data flow, database, validation, mail, build/runtime CLI |
 | `packages/ajo-auth` | `@kit/auth` | Sessions, API tokens, passwords, reset/verify/confirm flows, CSRF, guards, auth migrations |
 | `packages/ajo-cloves` | `ajo-cloves` | Reusable Ajo component behavior cloves and lifecycle-bound UI sensors |
-| `packages/ajo-ui` | `ajo-ui` | Unstyled base UI components built on cloves; themes style them |
+| `packages/ajo-ui` | `ajo-ui` | Unstyled base UI components built on cloves; a private transitive implementation for Playa apps |
+| `packages/ajo-ui-playa` | `ajo-ui-playa` | Playa runtime family adapters and the build-time UnoCSS preset |
 | `packages/ajo-backup` | none | Google Drive backup tooling |
 
 Public app-facing imports and signatures are documented in `readme.md`. This
@@ -64,12 +65,15 @@ public subpaths. The CLI can use those internals directly.
 | `packages/ajo-auth/src/guard.ts` | Redirect, auth, ability, confirmation, verified guards |
 | `packages/ajo-cloves/src/index.ts` | Public clove root export catalog |
 | `packages/ajo-cloves/src/core.ts` | Clove `Host` re-export, `id`, `shared`, and `frame` infrastructure |
+| `packages/ajo-ui-playa/src/index.ts` | Build-time root that exports only `playa()` |
+| `packages/ajo-ui-playa/src/styles.ts` | UnoCSS preset, Playa theme, preflights, rules, variants, shortcuts, and Lucide collection |
 
 ## Shared Component Logic
 
-Shared component code has one dependency direction: `ajo-cloves` → `ajo-ui` →
-`src/ui`. `ajo-cloves` owns reusable Ajo behavior, `ajo-ui` owns unstyled
-component interfaces, and the app layer owns only the Playa theme.
+Shared component code has one dependency direction: `ajo-cloves` -> `ajo-ui`
+-> `ajo-ui-playa` -> application. `ajo-cloves` owns reusable Ajo behavior,
+`ajo-ui` owns unstyled component interfaces, `ajo-ui-playa` owns the Playa
+theme, and the app owns product composition.
 App/UI code imports cloves from `ajo-cloves`; there is no `ajo-kit/cloves`
 public subpath. The package exports its root directly to `./src/index.ts` and
 has only the `ajo >= 0.1.35` peer dependency.
@@ -106,8 +110,17 @@ The Playa DataTable recipe projects the same named Menu and Select Uno
 shortcuts consumed by those direct themed adapters; composed controls do not
 maintain a second visual recipe.
 
-The app's `src/ui/` holds only the themed components (the "playa" theme). They
-import base components from `ajo-ui` and may later become a theme package.
+`ajo-ui-playa` declares `ajo-ui` as a regular dependency, so consuming apps do
+not install or import the unstyled base. The package root exposes only
+`playa()`, its build-time UnoCSS preset. Runtime components resolve through
+explicit `ajo-ui-playa/<family>` subpaths; there is no runtime root barrel or
+wildcard export. `ajo` and exact UnoCSS `66.7.2` are peers.
+
+The preset owns Wind4, the Lucide collection, Playa theme tokens, preflights,
+rules, variants, and component shortcuts. It has no product safelist or
+product-specific shortcut. Applications keep product-only shortcuts and icon
+tokens in their own UnoCSS config, adding an app-owned safelist only for icon
+names assembled dynamically.
 
 ### Environment Gates
 
@@ -234,40 +247,41 @@ themed public surface.
 
 ### Themed Modal Surfaces
 
-`src/ui/modal.tsx` is an internal theme-token module, parallel to the shared
-token cluster hosted by the public `src/ui/menu.tsx` family. It owns the fixed
-surface, inset centering, enter animation, closed gate, and icon close-button
-recipes. Dialog and Command compose the full centered cluster; Drawer composes
-only surface/closed/close
-and owns side geometry plus discrete motion. AlertDialog composes the themed
+`packages/ajo-ui-playa/src/modal.tsx` is an internal theme-token module. The
+other cross-family recipes live in `packages/ajo-ui-playa/src/internal/recipes.tsx`.
+Neither path is present in the package export map. The modal seam owns the
+fixed surface, inset centering, enter animation, closed gate, and icon
+close-button recipes. Dialog and Command compose the full centered cluster;
+Drawer composes only surface/closed/close and owns side geometry plus discrete
+motion. AlertDialog composes the themed
 Dialog content and description, then fixes its alert role, size selectors,
 outside-dismiss policy, and absence of an implicit close button. Command's
 sizing/padding and Dialog's grid/padding stay local family deltas. The tokens
-are not exported from the public `src/ui` barrel.
+have no public subpath.
 
 ### Themed Input-Group Chrome
 
-`src/ui/input-group.tsx` owns the shared root, addon/alignment, and native-input
-recipes used by InputGroup, SelectInput, and the InputDate/Time families.
+`packages/ajo-ui-playa/src/internal/recipes.tsx` owns the shared root,
+addon/alignment, and native-input recipes used by the public InputGroup family,
+SelectInput, and the InputDate/Time families.
 `inputGroupVariants` defaults to `width: 'full'` and emits `w-full` exactly
 once. `width: 'auto'` emits no width utility: CSS already defaults to auto, and
 this leaves a caller-supplied width as the sole owner rather than competing
 with `w-auto`. Select keeps button chrome local; InputDate keeps its disabled
 pointer/opacity delta local. Shared selectors that cannot match a particular
 family remain inert instead of becoming new option axes. The composition
-tokens are direct sibling imports and are intentionally absent from the theme
-barrel.
+tokens are direct private imports and intentionally have no package subpath.
 
 ### Themed Choice Controls
 
-`src/ui/checkbox.tsx` owns Checkbox's box/state/indicator recipes plus the two
-small tokens shared across choice families: the invisible native input overlay
-and the horizontal/vertical group layout. CheckboxGroup composes the complete
+`packages/ajo-ui-playa/src/internal/recipes.tsx` owns Checkbox's shared
+box/state/indicator recipes plus the invisible native input overlay and the
+horizontal/vertical group layout. CheckboxGroup composes the complete
 Checkbox cluster; RadioGroup keeps its circular item/dot and consumes only the
 overlay/layout; Switch keeps its track/thumb and consumes only the overlay.
 Every decorative indicator above an overlay is pointer-inert, so the native
-input owns the whole visual hit area. These tokens are sibling-only exports and
-stay out of the theme barrel; public family types remain independent.
+input owns the whole visual hit area. These tokens are package-private; public
+family types remain independent.
 
 Checkbox and RadioGroup share live native-state mirroring through
 `ajo-ui/utils`. The input owns `data-state` plus `aria-checked`; its visual
@@ -305,8 +319,8 @@ The model binds `@tanstack/table-core@9.0.0-beta.47` and
 `@tanstack/store@0.11.0` through an explicit paginated profile. Model and
 contract stay hidden by the package export map.
 
-Themed `src/ui` components derive their public args from the corresponding
-`ajo-ui` types. Use a direct alias when the adapter adds nothing, an
+`ajo-ui-playa` family modules derive their public args from the corresponding
+private `ajo-ui` types. Use a direct alias when the adapter adds nothing, an
 intersection for real theme additions or the theme's `class?: string`
 contract, and `OmitArg` only when the adapter fixes or replaces a base
 implementation knob. A fixed knob also receives `FixedArgs<Key>`; both helpers
@@ -329,10 +343,10 @@ Required semantic props belong to that branch (for example, Marker anchors
 require `href`), and refs/events stay contextual to the selected element.
 
 Public theme composition helpers use the `xxxVariants` suffix. Export them from
-the theme barrel when app consumers are expected to compose another component
-into that visual slot. Helpers shared only between themed siblings remain
-barrel-private even when their source module exports them for direct imports;
-`scrollAreaVariants` is the canonical internal example.
+the owning `ajo-ui-playa/<family>` subpath when app consumers are expected to
+compose another component into that visual slot. Helpers shared only between
+themed siblings remain package-private; `scrollAreaVariants` is the canonical
+internal example.
 
 ### Floating Stack
 
@@ -401,11 +415,14 @@ panels and no public shared Viewport or Indicator; the
 TooltipArrow); Toolbar (APG pattern) rounds out the bar trio; the toast
 viewport rides the raw `popover="manual"` primitive with epoch-gated
 re-promotion above later modals; sidebar's mobile branch composes Drawer.
-Shared themed popup and menu tokens live in `src/ui/menu.tsx` (`.tsx` so
-UnoCSS extracts its classes). `popupAnimation` owns the common fade/zoom
-state chain; `popupSlide` is a separate opt-in placement suffix so Select can
-retain its no-slide variant while Popover, Tooltip, and InputDate compose it.
-Family geometry, spacing, radius, and surface colors remain local.
+Shared themed popup and menu tokens live in
+`packages/ajo-ui-playa/src/internal/recipes.tsx`. `popupAnimation` owns the
+common fade/zoom state chain; `popupSlide` is a separate opt-in placement
+suffix so Select can retain its no-slide variant while Popover, Tooltip, and
+InputDate compose it. Family geometry, spacing, radius, and surface colors
+remain local. The recipes module deliberately uses `.tsx`: UnoCSS extracts its
+private class literals as family modules enter the application graph; plain
+`.ts` is outside the default extraction set.
 
 Promotion of the engine into `ajo-cloves` as a `popup` clove was evaluated and
 deferred: all its consumers live inside `ajo-ui` (one consuming package), so
@@ -415,8 +432,8 @@ appears.
 ### Intl Formatting
 
 Intl policy stays inside `ajo-ui`: it is pure in-process formatting, not a host
-lifecycle concern for `ajo-cloves`, and the themed `src/ui` layer only forwards
-formatter options. Calendar caches its six named display formats by locale and
+lifecycle concern for `ajo-cloves`, and `ajo-ui-playa` only forwards formatter
+options. Calendar caches its six named display formats by locale and
 its zoned date-parts formatter by time zone. Chart creates its host-locale
 default NumberFormat lazily; supplying `formatValue` bypasses it completely.
 The InputDate segment engine owns localized unit labels, name matching, and
@@ -469,8 +486,8 @@ but cannot create a competing availability source.
 This logic remains in `ajo-ui`: it is component-domain policy with one
 consuming package, not a general host/lifecycle primitive. `ajo-cloves` owns
 only the reusable `controlled`, `grid`, `roving`, `spin`, cache, DOM, and
-callback/ref mechanics. `src/ui` supplies classes, icons, dropdown adapters,
-and popup layout only.
+callback/ref mechanics. `ajo-ui-playa` supplies classes, component icons,
+dropdown adapters, and popup layout only.
 
 ### Message Scroller Geometry
 
@@ -1289,7 +1306,7 @@ CLI, Vite server, and Playwright runner. `tests/stories/app.tsx` owns the browse
 manager, canvas, controls, story index, theme toggle, and shared story types.
 `tests/stories/index.html` is the served shell. The stories harness uses Vite, Ajo, UnoCSS,
 and Playwright without Storybook. It is intentionally client-only and limited to
-`src/ui` components plus pure fixtures. It exposes a manager UI through
+`ajo-ui-playa` components plus pure fixtures. It exposes a manager UI through
 `pnpm stories`, a smoke runner through `pnpm stories:test`, and opt-in screenshots in
 `.tmp/stories-screenshots` through `pnpm stories:test:visual`.
 

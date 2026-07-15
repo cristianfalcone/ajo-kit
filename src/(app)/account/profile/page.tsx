@@ -1,7 +1,11 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
-import { Button, Card, CardContent, CardHeader, CardTitle, Field, FieldDescription, FieldError, FieldLabel, Input, toast } from '/src/ui'
+import Button from 'ajo-ui-playa/button'
+import { Card, CardContent, CardHeader, CardTitle } from 'ajo-ui-playa/card'
+import { Field, FieldDescription, FieldError, FieldLabel } from 'ajo-ui-playa/field'
+import { Input } from 'ajo-ui-playa/input'
+import { toast } from 'ajo-ui-playa/toast'
 
 type NameResult = { success: boolean; name: string }
 type PasswordResult = { success: boolean }

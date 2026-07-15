@@ -199,62 +199,72 @@ async function test(options: Options) {
 		const browser = await chromium.launch({ headless: true })
 		const failures: string[] = []
 		const directory = resolve('.tmp/stories-screenshots')
+		const themes: Array<'dark' | 'light' | undefined> = options.screenshots
+			? ['light', 'dark']
+			: [undefined]
 
 		if (options.screenshots) {
 			rmSync(directory, { force: true, recursive: true })
-			mkdirSync(directory, { recursive: true })
+			for (const theme of themes) {
+				if (theme) mkdirSync(join(directory, theme), { recursive: true })
+			}
 		}
 
 		try {
 			await managerSmoke(browser, url, discovered)
 
 			for (const story of stories) {
-				const target = new URL(`/story/${story.id}?canvas=1${options.screenshots ? '&screenshot=1' : ''}`, url).href
-				let storyErrors: string[] = []
+				await Promise.all(themes.map(async theme => {
+					const parameters = new URLSearchParams({ canvas: '1' })
+					if (options.screenshots) parameters.set('screenshot', '1')
+					if (theme) parameters.set('theme', theme)
+					const target = new URL(`/story/${story.id}?${parameters}`, url).href
+					let storyErrors: string[] = []
 
-				for (let attempt = 0; attempt < 2; attempt++) {
-					const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
-					const errors: string[] = []
+					for (let attempt = 0; attempt < 2; attempt++) {
+						const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+						const errors: string[] = []
 
-					page.on('pageerror', error => errors.push(error.stack ?? error.message))
-					page.on('console', message => {
-						if (message.type() === 'error') errors.push(message.text())
-					})
+						page.on('pageerror', error => errors.push(error.stack ?? error.message))
+						page.on('console', message => {
+							if (message.type() === 'error') errors.push(message.text())
+						})
 
-					try {
-						await page.goto(target, { timeout: navigationTimeout, waitUntil: 'domcontentloaded' })
-						await page.locator('html[data-ajo-ready="true"]').waitFor({ timeout: readyTimeout })
+						try {
+							await page.goto(target, { timeout: navigationTimeout, waitUntil: 'domcontentloaded' })
+							await page.locator('html[data-ajo-ready="true"]').waitFor({ timeout: readyTimeout })
 
-						const issue = await page.locator('[data-stories-error]').first().textContent({ timeout: 250 }).catch(() => null)
-						if (issue) errors.push(issue.trim())
+							const issue = await page.locator('[data-stories-error]').first().textContent({ timeout: 250 }).catch(() => null)
+							if (issue) errors.push(issue.trim())
 
-						const root = page.locator('[data-story-root]').first()
-						await root.waitFor({ timeout: 5_000 })
-						const box = await root.boundingBox()
+							const root = page.locator('[data-story-root]').first()
+							await root.waitFor({ timeout: 5_000 })
+							const box = await root.boundingBox()
 
-						if (!box || box.width <= 0 || box.height <= 0) {
-							if (!story.parameters?.empty) errors.push('Story root has no visible bounding box.')
+							if (!box || box.width <= 0 || box.height <= 0) {
+								if (!story.parameters?.empty) errors.push('Story root has no visible bounding box.')
+							}
+
+							if (options.screenshots && theme) {
+								await root.screenshot({
+									animations: 'disabled',
+									path: join(directory, theme, `${story.id}.png`),
+								})
+							}
+						} catch (error) {
+							errors.push(error instanceof Error ? error.stack ?? error.message : String(error))
+						} finally {
+							await page.close()
 						}
 
-						if (options.screenshots) {
-							await root.screenshot({
-								animations: 'disabled',
-								path: join(directory, `${story.id}.png`),
-							})
-						}
-					} catch (error) {
-						errors.push(error instanceof Error ? error.stack ?? error.message : String(error))
-					} finally {
-						await page.close()
+						storyErrors = errors
+						if (!storyErrors.length || !transient(storyErrors)) break
 					}
 
-					storyErrors = errors
-					if (!storyErrors.length || !transient(storyErrors)) break
-				}
-
-				if (storyErrors.length) {
-					failures.push(`${story.id} (${target})\n${storyErrors.join('\n')}`)
-				}
+					if (storyErrors.length) {
+						failures.push(`${story.id}${theme ? ` [${theme}]` : ''} (${target})\n${storyErrors.join('\n')}`)
+					}
+				}))
 			}
 		} finally {
 			await browser.close()
@@ -265,7 +275,7 @@ async function test(options: Options) {
 		}
 
 		console.log('Stories manager smoke passed.')
-		console.log(`Stories smoke passed for ${stories.length} stories${match ? ` matching "${options.match}"` : ''}.`)
+		console.log(`Stories smoke passed for ${stories.length} stories${options.screenshots ? ' in light and dark' : ''}${match ? ` matching "${options.match}"` : ''}.`)
 		if (options.screenshots) console.log(`Screenshots written to ${directory}`)
 	} finally {
 		await close(server)

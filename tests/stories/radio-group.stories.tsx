@@ -9,8 +9,8 @@ import {
 	FieldLabel,
 	FieldLegend,
 	FieldSet,
-} from '/src/ui/field'
-import { RadioGroup, RadioGroupItem } from '/src/ui/radio-group'
+} from 'ajo-ui-playa/field'
+import { RadioGroup, RadioGroupItem } from 'ajo-ui-playa/radio-group'
 
 const bind = (setArg: StoryContext['setArg']) => (next: string) => setArg('defaultValue', next)
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))

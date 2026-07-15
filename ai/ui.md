@@ -11,19 +11,20 @@ reference ever drifts.
 The dependency direction is strict:
 
 ```text
-ajo-cloves  ->  ajo-ui  ->  src/ui  ->  application routes and stories
-behavior        unstyled    Playa       product composition
-and lifecycle   families    theme       and content
+ajo-cloves  ->  ajo-ui  ->  ajo-ui-playa  ->  application routes and stories
+behavior        unstyled    Playa package    product composition
+and lifecycle   families    and preset       and content
 ```
 
 - `ajo-cloves` owns general Ajo behavior, lifecycle, sensors, positioning,
   state primitives, and host utilities.
 - `ajo-ui` owns unstyled component behavior, semantic markup, accessibility,
   composition, and component-domain engines.
-- `src/ui` owns Playa classes, visual defaults, recipes, icons, and theme-level
-  composition.
-- Application code owns product content, route-specific layout, and business
-  state.
+- `ajo-ui-playa` owns Playa classes, visual defaults, component recipes,
+  component icon recipes, theme-level composition, and the build-time UnoCSS
+  preset.
+- Application code owns product content, route-specific layout, business
+  state, product-only shortcuts, and product icon tokens or safelists.
 
 Logic moves downward only when it is useful below its current layer.
 
@@ -48,14 +49,26 @@ There is no wildcard export. Pure `.ts` engines plus
 `data-table-contract.ts` and `data-table-model.ts` are package-internal.
 
 `ajo-ui` declares its modules side-effect-free. Selecting another family from
-the root barrel does not retain `VirtualList` or its Virtual Core dependency;
-the reproducible `pnpm test:bundle` gate lives in
+the root barrel does not retain `VirtualList`, `DataTable`, or their TanStack
+dependencies. Importing DataTable through the root or its explicit subpath
+produces the same graph. The reproducible `pnpm test:bundle` gate lives in
 `tests/virtual-list-bundle.ts` and is part of `pnpm test:unit`.
 
-`src/ui/index.ts` is the source of truth for the themed public catalog. Theme
-token modules used only by siblings stay out of that barrel.
+`ajo-ui-playa` exposes two deliberately separate surfaces:
 
-Both packages target Ajo `>= 0.1.35`.
+- the package root exports only `playa()`, the build-time UnoCSS preset;
+- one explicit `ajo-ui-playa/<family>` runtime subpath exists per public
+  themed family.
+
+There is no themed runtime root barrel and no wildcard export. Private sibling
+recipes, modal tokens, and scroll-area composition helpers have no package
+subpath. Runtime imports therefore retain only the requested family graph.
+
+`ajo-ui-playa` declares `ajo-ui` as a regular dependency. A Playa application
+installs and imports only `ajo-ui-playa`; the unstyled base remains a transitive
+implementation detail. `ajo` and exact UnoCSS `66.7.2` are Playa peers.
+
+All three UI packages target Ajo `>= 0.1.35`.
 
 ## Cross-Layer Component Contracts
 
@@ -291,6 +304,7 @@ General host, lifecycle, callback, ref, cache, and numeric helpers remain in
 | `availability.ts` | Compiled day, instant, serialized-value, and range-crossing availability checks. |
 | `data-table-contract.ts` | Private vocabulary re-exported only through the public DataTable family. |
 | `data-table-model.ts` | Exact TanStack v9 feature profile, row models, state policy, and Ajo lifecycle bridge. |
+| `virtual.ts` | Vertical range calculation, keyed measurement, focus pinning, SSR range, scrolling, and lifecycle bridge. |
 
 These are deep internal modules. Public families expose their behavior
 without exposing the engines as importable subpaths.
@@ -720,41 +734,173 @@ editing only after a real DOM host exists.
 Non-English SSR requires an explicit locale because the server has no
 `<html lang>` document.
 
-### Data, Layout, Media, And Messaging
+### DataTable
 
-DataTable consumes rows and columns with stable identity. It owns search,
-facets, sorting, column visibility, selection, pagination, accessible labels,
-and its Checkbox, Menu, Select, and Toolbar composition.
+DataTable is a deep client-side data module. Its public Interface is only
+`DataTable`, `DataTableArgs<T, Key>`, and `DataTableColumn<T>`; auxiliary label,
+facet, selection, and pagination shapes remain structural details rather than
+independent exports. TanStack types, instances, options, feature objects, and
+state never cross the family boundary.
 
-Private `data-table-model.ts` binds the explicit paginated profile from
-`@tanstack/table-core@9.0.0-beta.47` to `@tanstack/store@0.11.0` and Ajo
-lifecycle. TanStack types do not cross the public family.
+The model, renderer, and data semantics belong together in `ajo-ui` because
+they are one component-domain policy. `ajo-cloves` contributes only general
+lifecycle and host utilities; it owns no table engine or TanStack Adapter.
 
-`data-table.tsx` owns the only native renderer and stable `data-slot` theme
-contract. Playa is a Stateless adapter that adds the private
-`playa-data-table` recipe plus the shared `playa-table` slot recipe; it
-receives no structural callbacks or class map.
-Menu and Select visual policy lives in named `playa-menu-*` and
-`playa-select-*` Uno shortcuts. Their direct adapters and DataTable's base
-descendants consume the same shortcuts, including popup motion, scrollbars,
-focus/highlight/disabled states, and coarse-pointer sizing.
-DataTable keeps structural descendant selectors specificity-neutral with
-`:where(...)`; checked and indeterminate Checkbox color states use `:is(...)`
-so state overrides remain authoritative regardless of UnoCSS emission order.
-Stateful slot rules are written variant-first (`hover:[&_...]`) or as one
-literal selector: expanding a variant-bearing shortcut under a slot prefix
-hangs the inner variant on the recipe root instead of the slotted element,
-which is how table hover once highlighted every row at once.
-The manual Table wrapper and the DataTable root both carry `playa-table`, so
-table geometry, typography, and row states have one source and render
-identically. Sort triggers are inline pills whose symmetric padding and
-negative margin cancel out: start, center, and end headers stay geometrically
-aligned with row data while the hover surface keeps breathing room around the
-label.
+`label`, `rows`, `getRowKey`, and `columns` are required. `search` and
+`selection` are enabled by presence. Pagination is enabled by default with
+sizes `[10, 25, 50]`; `pagination={false}` renders every filtered row. `empty`
+replaces the empty content and `labels` overrides individual UI strings.
+Children, alternate ARIA naming, `data-slot`, structural render callbacks,
+class maps, and engine escape hatches are not accepted. Ordinary DOM attrs,
+including `class` and `style`, belong to the outer `div`; `label` names the
+native table itself.
 
-`VirtualDataTable` is deliberately deferred until its geometry, AT, browser,
-and performance gates pass. The paginated profile does not register a virtual
-strategy or import `virtual.ts`.
+The Interface intentionally excludes server/manual data modes, grouping,
+pinning, sizing, multi-sort, range selection, and spreadsheet navigation.
+Those concerns require different ownership and must not return as dormant
+configuration in this family.
+
+#### Rows And Columns
+
+`rows` and `columns` are immutable ordered snapshots. Any edit, insertion,
+deletion, or reorder uses a new reference. `getRowKey` remains referentially
+stable while its meaning is stable and returns one unique non-empty string or
+finite number per source row. String and numeric keys remain distinct; there
+is no index fallback. `sourceIndex` always means the row's position in the
+source snapshot before filtering, sorting, or pagination.
+
+A property value column derives its ID from `value`. Function accessors and
+display columns require an explicit stable `id`; identity is never derived
+from a visual header or function name. `label` is required plain text for
+menus, sorting, and announcements, while `header` is optional visual content.
+Value columns are searchable, sortable, and hideable by default. Display
+columns require `cell` and do not participate in search, facets, or sorting.
+`cell` receives the original row plus the raw `value`, stable `columnId`, and
+original `sourceIndex`.
+
+Schemas contain at least one uniquely identified column and at least one
+initially visible column. A replacement schema reconciles visibility by ID,
+removes incompatible sort and facet state, intersects selected facet options,
+and makes a column visible when it becomes non-hideable. The last declared
+visible column cannot be hidden.
+
+Automatic search, sort, facet, and default rendering support strings, finite
+numbers, booleans, `null`, and `undefined`. The default renderer also supports
+`bigint` and renders nullish values empty. Dates, arrays, objects, mixed value
+domains, and non-finite numbers require the relevant mapper, comparator, or
+cell renderer instead of implicit coercion.
+
+#### Data Pipeline And State
+
+The canonical pipeline is:
+
+```text
+source rows -> global search -> column facets -> single-column sort
+            -> pagination -> visible cells
+```
+
+Visibility changes only materialized cells. It does not change search,
+facets, sorting, pagination, or selection. Global search trims the query and
+performs lowercase substring matching across eligible value columns; it does
+not imply fuzzy matching, diacritic folding, or locale collation. Facets use
+OR within a column and AND across columns. Sorting is stable, owns one column,
+and cycles `none -> ascending -> descending -> none`.
+
+Changing search, a facet, sort, or page size returns to page one. Replacing
+rows preserves a still-valid page and otherwise clamps it. Reset clears search
+and every facet. Omitting an optional feature also clears its private state:
+removing search clears the query, removing selection clears internal
+selection, and disabling pagination clears page state.
+
+Selection is key-first and survives filtering, sorting, and pagination.
+Callbacks receive effective keys in source order, never row objects.
+`defaultValue` initializes uncontrolled selection; a defined `value` is the
+sole controlled authority and requires `onValueChange`. The originating DOM
+event is supplied only for the synchronous user command that produced it.
+Internal reconciliation never invents an event.
+
+Header select-all targets the current page when pagination is active and all
+filtered results when it is disabled. The selection summary counts effective
+keys across the complete source snapshot, including selected rows outside the
+current page or filter. `getRowLabel` is required when selection is present and
+provides human-readable checkbox names. In controlled mode, native checkboxes
+are immediately restored from the authoritative value after proposing a
+change, so rejected or synchronously transformed values never leave optimistic
+DOM state behind.
+
+#### Model, Renderer, And Theme Seam
+
+Private `data-table-model.ts` binds exact
+`@tanstack/table-core@9.0.0-beta.47` and `@tanstack/store@0.11.0` to Ajo. Its
+explicit profile registers only global and column filtering, visibility,
+pagination, selection, sorting, and the required core, filtered, sorted, and
+paginated row models. It does not use `stockFeatures`, column-faceting row
+models, framework adapters, external atoms, or parallel Ajo state.
+
+One Stateful host owns one table, Store subscription, and cleanup signal.
+TanStack state is the single authority for uncontrolled slices; caller input
+is the single authority for controlled selection. Live options synchronize on
+each yield without reconstructing the feature graph. Store invalidations
+coalesce by microtask, public callbacks remain synchronous, scheduled work is
+abort-safe, and model setup does not access the DOM during SSR.
+
+`data-table.tsx` owns the only renderer and the stable `data-slot` contract. It
+uses a native `<table>`, `<th scope="col">`, real buttons and checkboxes, and
+native keyboard behavior rather than `role="grid"`. Only the active sorted
+header receives `aria-sort`; each sort button describes its next action.
+Toolbar and pagination names derive from the table label. Pagination controls
+remain mounted and disable impossible actions.
+
+Search result announcements report the filtered total before pagination.
+Typing coalesces announcements for 200 ms, Enter, facet, and reset actions
+announce immediately, and IME input waits for `compositionend`. Focus is
+restored by row key and column ID when that target survives a transition. If
+it disappears and no valid external control owns focus, focus returns to the
+table at `tabindex="-1"` rather than falling to `body`.
+
+Playa is a Stateless Adapter. It adds `playa-data-table` and the shared
+`playa-table` recipe, while all state, semantics, and structure stay in the
+base module. The manual Table wrapper carries the same `playa-table` recipe,
+so typography, geometry, and row states have one source. Menu and Select
+descendants consume the same named shortcuts as their standalone adapters.
+
+Structural descendant selectors remain specificity-neutral with `:where(...)`;
+checked and indeterminate Checkbox states use `:is(...)` so their state wins
+independently of UnoCSS emission order. Stateful slot rules are variant-first
+or one literal selector so a variant is attached to the intended slotted
+element. Sort-trigger padding is symmetric and canceled by an equal negative
+margin, keeping left, centered, and right headers aligned with their data
+cells while retaining a useful hover target. The default executable story
+allows at most one pixel of header/data edge drift and requires visible inset
+between the sort label and its hover surface.
+
+#### Failure And Performance Contracts
+
+Invalid labels, schemas, IDs, keys, facets, selection, mutated snapshots, or
+incompatible automatic values throw `TypeError`. Invalid pagination sizes or
+defaults throw `RangeError`. Errors from accessors, mappers, comparators,
+cells, and callbacks propagate to the normal Ajo boundary; the renderer does
+not convert them into empty state.
+
+Core materialization is linear in source rows, active filtering is linear in
+rows times participating columns, sorting is `O(n log n)`, and rendering is
+bounded by page size times visible columns. Stable row and column references
+avoid model reconstruction; repeated renders, selection, and page changes do
+not rematerialize every accessor.
+
+`pnpm test:bundle` enforces a 15 KiB gzip ceiling for the private model/profile
+bridge, a 30 KiB incremental gzip ceiling for the public component, identical
+root and subpath graphs, and zero Virtual Core retention. The separate
+`pnpm test:perf:data-table` gate verifies logical parity, bounded 10k-row
+operations, non-rematerializing repeat/selection/page paths, frame counts,
+search latency, and collectability after abort. It is a model/runtime gate,
+not a painted-DOM benchmark.
+
+No `VirtualDataTable` is public. The current paginated profile neither
+registers a virtual strategy nor imports `virtual.ts`; manual semantic Table
+remains a separate static primitive.
+
+### Layout And Media
 
 Chart renders native area, bar, line, and pie plots from config, series, and
 data. Its container owns the accessible label and description, tooltip, legend,
@@ -770,35 +916,137 @@ keeping family-specific semantics in `ajo-ui`.
 `overflow` owns `data-overflow-x` and `data-overflow-y` edge state. Themes turn
 those attributes into masks or controls without remeasuring geometry.
 
-VirtualList is a vertical, data-driven `ul`/`li` family and owns its native
-scrollport. Its public surface is `items`, stable `getItemKey`, positive
-`estimateSize`, `renderItem`, `overscan`, `prerender`, and one `scrollTo`
-controller. Defaults are `overscan=4` and `prerender=20`.
+### VirtualList
 
-Private `virtual.ts` is the only range and measurement authority. It adapts the
-exact `@tanstack/virtual-core@3.17.4` dependency to Ajo post-commit lifecycle,
-frame-coalesced invalidation through the existing `frame()` export from
-`ajo-cloves`, dynamic
-keyed sizes, zero-measure fallback, structural snapshot validation,
-deterministic SSR, focus pinning, and abort cleanup.
-No TanStack type, option, instance, measurement ref, or index marker is public.
+VirtualList is a vertical, single-lane, element-scrolling module with a bounded
+DOM. Its public Interface consists of `VirtualList`, `VirtualListArgs`,
+`VirtualListKey`, `VirtualListTarget`, `VirtualListScrollOptions`, and
+`VirtualListApi`. No TanStack option, instance, type, measurement ref, virtual
+index marker, or range extractor is public.
 
-Reusing an `items` array means stable membership, order, and identity; content
-fields may change. Append, prepend, delete, or reorder require a new snapshot.
-Keys are unique strings or finite numbers. Virtualized rows expose
-`aria-posinset` and `aria-setsize`, but offscreen content remains absent from
-find-in-page, printing, sequential tabbing, and assistive-technology traversal.
-Use ordinary DOM or `content-visibility` when those capabilities dominate.
+Its geometry stays in `ajo-ui` because range, native-list markup, focus, and
+scroll semantics form one component-domain policy. `ajo-cloves` supplies only
+general lifecycle and frame scheduling; it exposes no virtualization API.
 
-Playa VirtualList is a Stateless adapter. It does not nest ScrollArea: both
-components use the private `ScrollAreaFrame` and remain sibling native
-viewports through `scrollAreaViewportVariants`. The frame owns visual
-`class`/`style`, radius, hard scrollbar-paint containment, and the focus ring;
-the inner `div` or `ul` remains the only element with a scroll range and keeps
-native attrs, events, `ref`, focus, gutter, and overscroll. The shared WebKit
-thumb therefore keeps its full width while invariant `overflow:hidden` clips it
-to any rounded frame. Popup and internal scrollers without that frame keep the
-inset `scrollbar-soft` fallback rather than receiving an unsafe global override.
+`items`, `getItemKey`, `estimateSize`, and `renderItem` are required.
+`estimateSize` is either one positive number or a pure function of item and
+index. `overscan` and `prerender` are non-negative integers with defaults of
+`4` and `20`. `setApi` receives one stable controller for a connected mount.
+Native `ul` attrs are accepted except `children` and `role`, because the family
+owns both. The viewport defaults to `tabindex="0"`; consumers provide an
+accessible label when context does not already name it and a useful block size
+through surrounding layout.
+
+Horizontal or window scrolling, grids, masonry, sticky ranges, recycled DOM,
+smooth-scroll behavior, and caller-owned list-item wrappers are outside this
+Interface. They require different geometry or semantic ownership.
+
+#### Snapshot And Geometry
+
+Reusing the same `items` reference declares stable membership, order, and
+identity; item content fields may change. Append, prepend, delete, and reorder
+use a new snapshot. Keys are unique strings or finite numbers and remain stable
+through content replacement and reorder. There is no index fallback.
+`getItemKey` and functional estimates are pure and deterministic.
+
+Measurements are cached by key, so a new snapshot with the same keys retains
+confirmed geometry. A changed estimate updates unmeasured geometry without
+discarding positive measured sizes. A temporary zero measurement preserves the
+last positive size, or the estimate if no positive measurement exists. Truly
+collapsed items leave the source snapshot instead of encoding zero-sized
+membership.
+
+The base module owns functional layout. The `ul` is the relative native
+scrollport, resets list spacing, disables scroll anchoring, and hides horizontal
+overflow. Materialized `li` elements are absolute, full-width, stay in source
+order, and use `top` rather than transforms. An invisible
+`data-slot="virtual-list-sizer"` item owns the total extent.
+
+Padding, borders, and visual spacing belong inside `renderItem` content; `gap`
+or margins on managed wrappers are not part of measured geometry. Because the
+window and final sizer vary, `:first-child`, `:last-child`, and `:nth-child`
+selectors are not contractual. The base functional styles win over caller
+styles where geometry requires them.
+
+#### Lifecycle, SSR, And Scrolling
+
+Private `virtual.ts` is the sole range and measurement Implementation. It
+adapts exact `@tanstack/virtual-core@3.17.4` to Ajo post-commit lifecycle,
+`ResizeObserver`, passive scrolling, keyed sizes, and the existing `frame()`
+clove. One virtualizer belongs to one Stateful host and all observers,
+subscriptions, and scheduled frames are released by its abort signal.
+
+SSR and the matching first client pass render exactly the first
+`min(prerender, items.length)` items without reading DOM globals. The connected
+post-commit pass then replaces that deterministic range with the viewport
+range. `setApi` is not called during SSR or before the host is connected. A
+retained controller becomes inert after unmount and its `scrollTo` returns
+`false`.
+
+`scrollTo` addresses exactly one current `key` or `index` and accepts `start`,
+`center`, `end`, or `nearest` alignment. It scrolls immediately and may correct
+its offset as real measurements arrive; there is no smooth-scrolling contract.
+It returns `false` before connection, after unmount, for an absent key, or for
+an out-of-range index. Malformed targets, non-integer indexes, and invalid keys
+throw `TypeError`.
+
+Positive row measurements work without per-row layout scans. If
+`ResizeObserver` is unavailable, initial element measurement plus estimates
+still produce a usable fixed-size path, but dynamic size changes are not
+observed continuously.
+
+#### Focus, State, And Accessibility
+
+The focused row is pinned outside ordinary overscan. When its key leaves the
+snapshot while focus remains inside it, focus moves to the viewport with
+`preventScroll: true` before unmount. Rows outside the active range unmount and
+are never recycled across keys. Durable row state and input values that must
+survive scrolling therefore live in controlled props or an owner outside the
+row.
+
+Materialized rows expose `aria-posinset` and `aria-setsize`. Offscreen content
+does not exist for find-in-page, printing, sequential tabbing, or assistive
+technology traversal. Use a complete native list, pagination, or
+`content-visibility` when those capabilities matter more than bounded DOM
+work. The generic family does not switch to listbox, grid, or feed semantics;
+those patterns require a higher-level component with their complete keyboard
+and focus contract.
+
+#### ScrollArea And Theme Seam
+
+VirtualList owns its scrollport and must not be nested in ScrollArea. Playa
+keeps the two families as sibling native viewports that share the private
+`ScrollAreaFrame` and `scrollAreaViewportVariants` recipes. In the themed
+Adapter, `class` and `style` target the frame; other native attrs, events,
+`ref`, focus, gutter, and overscroll remain on the `ul`.
+
+The frame owns radius, focus ring, and hard scrollbar-paint containment. Its
+invariant `overflow: hidden` clips the shared full-width WebKit thumb to the
+rounded frame without shrinking the handle. Popup and internal scrollers that
+do not use the frame retain the inset `scrollbar-soft` fallback rather than a
+global override.
+
+#### Failure And Performance Contracts
+
+Duplicate or non-finite keys and structural in-place mutation throw
+`TypeError`. Non-positive or non-finite estimates and invalid count options
+throw `RangeError`. An aborted host is inert. A structural reorder that keeps
+the same reference is outside the contract even when edge validation cannot
+detect every interior permutation without an `O(n)` scan.
+
+Steady DOM is `O(visible + overscan + focus pins)`. Range lookup and rendered
+offset work are logarithmic plus the materialized range; a structural snapshot
+or invalidation may be linear, and keyed measurement cache is `O(items)`.
+Scrolling does not scan all source rows, query all row elements, or call
+`getBoundingClientRect()` per row in the scroll hot path. Observable range or
+geometry changes coalesce to at most one Ajo render per frame; a frame is
+canceled when geometry returns to the rendered state.
+
+`pnpm test:bundle` enforces a 9 KiB incremental gzip ceiling, verifies that the
+root barrel does not retain Virtual Core when another family is selected, and
+verifies that VirtualList retains no Table or Store code.
+
+### MessageScroller
 
 MessageScroller exposes Provider, Root, Viewport, Content, Item, and Button
 parts. Initial position is `start`, `end`, or `last-anchor`; item ids and anchors
@@ -822,7 +1070,8 @@ scroll, resize, and overflow lifecycles remain in cloves.
 
 ## The Playa Theme Layer
 
-`src/ui` is a thin adapter over `ajo-ui`.
+`ajo-ui-playa` is a thin package of adapters over its private transitive
+`ajo-ui` base.
 
 It declares no Stateful roots, writes no Context, and owns no retained
 lifecycle. Its event glue is Stateless and adapts only visual composition.
@@ -830,7 +1079,7 @@ lifecycle. Its event glue is Stateless and adapts only visual composition.
 It may add:
 
 - classes and visual defaults;
-- icons and subpart class hooks;
+- component icon recipes and subpart class hooks;
 - public variant recipes;
 - composition of existing base parts;
 - minimal focus or event glue required by that visual composition.
@@ -868,19 +1117,21 @@ a static singleton part.
 Use a scoped `classNames` or `classes` map for a themed collection. Use a
 callback such as `dayClassName` when classes depend on live state.
 
-Public recipes use the `xxxVariants` suffix. Tokens shared only by themed
-siblings remain direct imports and stay out of `src/ui/index.ts`.
+Public recipes use the `xxxVariants` suffix. Only recipes intended for app
+composition are exported by their family subpath. Tokens shared solely by
+themed siblings live in `packages/ajo-ui-playa/src/internal/recipes.tsx` and
+have no public subpath.
 
-`src/ui/modal.tsx` is an internal token seam. `src/ui/menu.tsx` is a public
-themed family and owns the shared menu tokens consumed by ContextMenu and
-Menubar.
-
-`src/ui/input-group.tsx` is also a public themed family that shares tokens with
-related adapters; it is not merely an internal token module.
+`packages/ajo-ui-playa/src/modal.tsx` is a private modal-token seam, and
+`packages/ajo-ui-playa/src/internal/scroll-area.tsx` is the private frame seam
+shared by ScrollArea and VirtualList. `input-group.tsx` and `menu.tsx` remain
+public families; their cross-family recipes stay private in `internal`.
+Recipe modules containing class literals remain `.tsx`: UnoCSS includes them in
+the Vite pipeline, while plain `.ts` is outside the default extraction set.
 
 ## Executable Stories Harness
 
-The stories harness is the executable catalog for `src/ui`.
+The stories harness is the executable catalog for `ajo-ui-playa`.
 
 ```sh
 pnpm stories
@@ -963,10 +1214,19 @@ Browser errors, play errors, or an invisible root fail the run unless the story
 declares `parameters.empty`.
 
 Keep stories under `tests/stories/*.stories.tsx` and import themed components
-from `/src/ui/<family>`.
+from `ajo-ui-playa/<family>`. Never import runtime components from the package
+root.
 
 Use args for serializable state, `render` for composed JSX, `setArg` for
 controlled interactions, and `play` for durable behavior contracts.
+
+The DataTable matrix covers default composition, search and facets, sorting,
+pagination, controlled and uncontrolled selection across transforms,
+unpaginated and empty results, visibility, row actions, localization, and
+immutable snapshot replacement. The VirtualList matrix covers empty, fixed,
+variable, interactive, and dark surfaces while asserting one clipped scroll
+owner, bounded DOM, logical positions, dynamic measurement, focus pinning, and
+imperative key scrolling.
 
 ## Implementation Checklist
 
@@ -974,8 +1234,10 @@ Before adding UI behavior, decide its owner:
 
 1. General host or interaction behavior belongs in `ajo-cloves`.
 2. Component semantics or shared family policy belongs in `ajo-ui`.
-3. Classes, icons, and visual composition belong in `src/ui`.
-4. Product-only composition stays in the application.
+3. Playa classes, component icons, and visual composition belong in
+   `ajo-ui-playa`.
+4. Product-only composition, shortcuts, and icon tokens stay in the
+   application.
 
 For a new or changed family:
 
@@ -995,7 +1257,10 @@ Use these verification commands:
 pnpm exec tsc --noEmit
 pnpm --filter ajo-cloves test
 pnpm --filter ajo-ui test
+pnpm --filter ajo-ui-playa test
 pnpm test:unit
+pnpm test:bundle
+pnpm test:perf:data-table
 pnpm stories:test --port <free-port>
 pnpm test:e2e
 pnpm build

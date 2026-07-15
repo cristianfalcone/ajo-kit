@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { Card, CardContent } from '/src/ui/card'
+import { Card, CardContent } from 'ajo-ui-playa/card'
 import {
 	Carousel,
 	type CarouselApi,
@@ -10,7 +10,7 @@ import {
 	CarouselItem,
 	CarouselNext,
 	CarouselPrevious,
-} from '/src/ui/carousel'
+} from 'ajo-ui-playa/carousel'
 
 export default {
 	title: 'UI/Carousel',

@@ -1,8 +1,8 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { Field, FieldLabel } from '/src/ui/field'
-import { InputDateTime } from '/src/ui/input-date'
+import { Field, FieldLabel } from 'ajo-ui-playa/field'
+import { InputDateTime } from 'ajo-ui-playa/input-date'
 
 const july = new Date(2026, 6, 1)
 

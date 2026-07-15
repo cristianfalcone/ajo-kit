@@ -6,7 +6,7 @@ import {
 	FieldDescription,
 	FieldError,
 	FieldLabel,
-} from '/src/ui/field'
+} from 'ajo-ui-playa/field'
 import {
 	InputOTP,
 	InputOTPGroup,
@@ -14,7 +14,7 @@ import {
 	InputOTPSlot,
 	REGEXP_ONLY_DIGITS,
 	REGEXP_ONLY_DIGITS_AND_CHARS,
-} from '/src/ui/input-otp'
+} from 'ajo-ui-playa/input-otp'
 
 export default {
 	title: 'UI/Input OTP',

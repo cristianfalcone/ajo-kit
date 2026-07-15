@@ -14,12 +14,14 @@
   },
   "dependencies": {
     "ajo": "^0.1.35",
-    "ajo-kit": "^0.1.0"
+    "ajo-kit": "^0.1.0",
+    "ajo-ui-playa": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
+    "unocss": "66.7.2",
     "vite": "^8.0.16"
   }
 }

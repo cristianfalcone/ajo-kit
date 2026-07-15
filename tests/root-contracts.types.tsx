@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import { DataTable, type DataTableColumn } from 'ajo-ui/data-table'
 import { Field } from 'ajo-ui/field'
-import { DataTable as ThemedDataTable } from '../src/ui/data-table'
+import { DataTable as ThemedDataTable } from 'ajo-ui-playa/data-table'
 
 type Person = { id: number, name: string }
 

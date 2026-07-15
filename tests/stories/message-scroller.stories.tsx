@@ -1,16 +1,16 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { Avatar, AvatarFallback } from '/src/ui/avatar'
-import { Bubble, BubbleContent } from '/src/ui/bubble'
-import Button from '/src/ui/button'
+import { Avatar, AvatarFallback } from 'ajo-ui-playa/avatar'
+import { Bubble, BubbleContent } from 'ajo-ui-playa/bubble'
+import Button from 'ajo-ui-playa/button'
 import {
 	Message,
 	MessageAvatar,
 	MessageContent,
 	MessageFooter,
 	MessageHeader,
-} from '/src/ui/message'
+} from 'ajo-ui-playa/message'
 import {
 	MessageScroller,
 	MessageScrollerButton,
@@ -20,7 +20,7 @@ import {
 	MessageScrollerProvider,
 	MessageScrollerViewport,
 	type MessageScrollerApi,
-} from '/src/ui/message-scroller'
+} from 'ajo-ui-playa/message-scroller'
 
 type TranscriptArgs = {
 	anchorEvery?: number

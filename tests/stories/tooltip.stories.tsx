@@ -1,13 +1,13 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import Button, { buttonVariants } from '/src/ui/button'
+import Button, { buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from '/src/ui/tooltip'
+} from 'ajo-ui-playa/tooltip'
 
 export default {
 	title: 'UI/Tooltip',

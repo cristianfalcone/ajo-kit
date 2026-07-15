@@ -1,132 +1,45 @@
-# Active Feature: DataTable v9
+# Active Plan
 
-## Feature Definition
+## Tracking Guidelines
 
-- **Objective:** replace the private dynamic-table engine with the latest
-  TanStack Table v9 beta behind one Ajo-native, feature-scoped model.
-- **User-visible outcome:** DataTable keeps native table semantics while search,
-  facets, sorting, visibility, selection, and pagination share one atomic row
-  model and one small public interface.
-- **Owner:** `packages/ajo-ui` owns model, semantics, lifecycle, and rendering;
-  `src/ui` owns only Playa recipes and composition.
-- **Prerequisite:** VirtualList is complete. Private `virtual.ts` and the shared
-  ScrollArea root recipe are available for a later VirtualDataTable sibling.
-- **In scope for the first slice:** exact v9 beta pin, current-consumer inventory,
-  explicit feature profile, stable row identity, client-side pagination, native
-  table markup, public types, SSR, tests, themed adapter, and removal of the old
-  engine in the same clean cut.
-- **Out of scope until the paginated family is stable:** server mode, remote
-  orchestration, VirtualDataTable publication, grid keyboard semantics, column
-  resize/reorder/pinning, grouping, aggregation, expansion, and TanStack
-  passthroughs.
-- **Constraints:** no backward compatibility, aliases, dual pipelines, React
-  adapter, public TanStack types, package leakage into `ajo-cloves`, or changes
-  to the static `Table` primitive.
-
-Acceptance criteria:
-
-- the exact latest v9 beta is re-resolved immediately before installation;
-- only required v9 features are registered and all upstream objects stay
-  private;
-- every row has an explicit stable key and selection remains key-first;
-- state transitions are atomic and lifecycle cleanup is host-owned;
-- native table, caption, header, sort, selection, and empty-state semantics are
-  preserved;
-- the old table engine and obsolete public seams are deleted in the same cut;
-- subpath/root tree-shaking, bundle delta, SSR, unit, stories, browser, build,
-  and production gates pass.
-
-The complete architecture, research, API candidates, migration inventory, and
-phase gates live in `ai/tables.md`. `ai/vlist.md` is the implemented geometry
-foundation and remains the source of truth for virtual scrolling.
+- `ai/plan.md` contiene solo el trabajo activo, su estado actual, evidencia,
+  proximo checkpoint y bloqueos. No conserva historia de features terminadas.
+- El documento tecnico canonico de cada feature contiene investigacion,
+  rationale, arquitectura y contratos; este archivo solo lo convierte en
+  ejecucion y no duplica su contenido.
+- Codigo, manifests, artifacts empacados y tests son la autoridad final. Si la
+  evidencia cambia una decision, actualizar primero el documento canonico y
+  luego este tracker.
+- Estados permitidos: `pending`, `active`, `blocked`, `complete` y `deferred`.
+  Solo puede existir una phase y una slice `active` a la vez.
+- Al cerrar una slice, actualizar juntos: checklist, evidencia exacta, estado,
+  cobertura no ejecutada, proxima slice y next checkpoint.
+- `complete` requiere su exit gate verificado; compilar no sustituye gates de
+  packaging, CSS, SSR, browser, accesibilidad o performance.
+- Implementar slices pequenas y honestas. No dejar aliases, shims, caminos
+  paralelos ni estados intermedios como Interface publica.
+- Antes de editar, verificar identidad del repo y preservar cambios ajenos. No
+  stagear ni revertir trabajo fuera de la slice.
 
 ## Status
 
-- **Stage:** complete — paginated DataTable cut
-- **Active slice:** none. `VirtualDataTable` is a separate, deliberately
-  deferred slice rather than a dormant mode in the shipped component.
-- **Implemented:** exact v9/store pins, explicit feature profile, private model
-  and contract, one native renderer, explicit package exports, Playa slot
-  recipe, and migrated local consumers.
-- **Green evidence:** dependency installation, typecheck, all 187 `ajo-ui`
-  tests, all 577 root unit tests, twelve DataTable stories, the full browser story
-  matrix, 49 e2e tests, production build, production smoke, and package/root
-  isolation with a 14,784 B model-profile artifact and a 29,569 B incremental
-  public DataTable gzip artifact.
-- **Manual evidence not claimed:** physical screen-reader/iOS coverage and a
-  formal painted-browser performance harness. The five-run Node diagnostic is
-  recorded in `ai/tables.md`; those remaining gates belong to the later
-  virtual-table decision and do not publish a partial `VirtualDataTable`.
-- **Blockers:** none
-- **Next checkpoint:** open `VirtualDataTable` only when its native-table
-  geometry, physical AT, browser, and formal performance gates can be executed.
+- **Active feature:** none.
+- **Active phase:** none.
+- **Active slice:** none.
+- **Blockers:** none.
+- **Next checkpoint:** activar aqui la proxima feature desde su documento
+  tecnico canonico.
 
-## Implementation Slices
+## Activation Template
 
-Slices 1 through 5 landed as one clean greenfield cut.
+Al activar una feature, reemplazar `Status` y agregar solamente:
 
-### Slice 1: Exact upstream and consumer contract — implemented
+1. objetivo y resultado observable para el consumer;
+2. alcance, no objetivos y constraints;
+3. contrato arquitectonico que no puede romperse;
+4. phase tracker y una unica slice activa;
+5. exit gate, evidencia actual y comandos reales de verificacion;
+6. proximo checkpoint, bloqueos y handoff inmediato.
 
-- Resolve the current v9 beta, integrity, feature registry, store lifecycle,
-  and tree-shaking behavior from primary sources and the installed tarball.
-- Inventory every base/Playa export, route consumer, story, test, renderer,
-  class seam, and accessibility label in the current family.
-- Freeze the smallest public profile in surface type tests before replacing the
-  engine.
-
-### Slice 2: Private v9 model — implemented
-
-- Add the exact dependency only to `ajo-ui`.
-- Build the private model/store adapter with explicit features, live inputs,
-  stable row keys, atomic state, coalesced invalidation, SSR-safe setup, and
-  abort cleanup.
-- Cover row-model and state contracts without asserting incidental upstream
-  internals.
-
-### Slice 3: Native renderer and clean replacement — implemented
-
-- Keep one native-table renderer and policy inside `data-table.tsx`.
-- Replace `data-table.tsx`, delete the old engine and obsolete seams, and keep
-  TanStack absent from declarations and DOM vocabulary.
-- Verify search, per-column facets, single sort, visibility, key-first
-  selection, pagination correction, empty state, labels, and form controls.
-
-### Slice 4: Playa and consumers — implemented
-
-- Derive the themed adapter from base types and reuse existing primitives and
-  recipes rather than reconstructing parts.
-- Migrate all local consumers, stories, and docs in the same no-compatibility
-  cut.
-- Keep static `Table` unchanged.
-
-### Slice 5: Gates and virtualization decision — complete for DataTable
-
-- Run type, package/full unit, stories, browser/e2e, build, production, bundle,
-  and representative data-size benchmarks.
-- Keep VirtualDataTable deferred: its native-spacer comparison and geometry/AT
-  gates are not necessary to ship a dormant mode inside paginated DataTable.
-- Record the diagnostic runtime measurements and report physical AT/iOS checks
-  honestly when unavailable.
-
-## Verification
-
-```sh
-pnpm exec tsc --noEmit
-pnpm --filter ajo-ui test
-pnpm test:unit
-pnpm test:perf:data-table
-pnpm stories:test --match data-table --port <free-port>
-pnpm test:e2e
-pnpm build
-pnpm test:prod
-git diff --check
-```
-
-Before each remaining gate or follow-up, verify repository identity and
-preserve unrelated work:
-
-```sh
-git status --short
-git diff --stat
-git log --oneline -5
-```
+Al completar la feature, consolidar el estado tecnico vigente en su documento
+canonico y volver este archivo a la estructura vacia anterior.

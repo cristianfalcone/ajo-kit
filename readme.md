@@ -17,9 +17,9 @@ updates, and optional auth through `ajo-auth`.
 
 ## Install
 
-At this repo state, `ajo` is published on npm; `ajo-kit`, `ajo-auth`, and
-`ajo-backup` are consumed from this workspace, `file:` dependencies, or packed
-tarballs until they are published.
+At this repo state, `ajo` is published on npm; the workspace packages are
+consumed through workspace links, `file:` dependencies, or packed tarballs
+until they are published.
 
 For this repo:
 
@@ -30,11 +30,13 @@ pnpm install
 For a separate app after package publication:
 
 ```bash
-pnpm add ajo ajo-kit ajo-auth
-pnpm add -D vite tsx typescript @types/node
+pnpm add ajo ajo-kit ajo-auth ajo-ui-playa
+pnpm add -D unocss@66.7.2 vite tsx typescript @types/node
 ```
 
-`kit` runs through `tsx`, so `tsx` must be available in the app.
+`kit` runs through `tsx`, so `tsx` must be available in the app. `unocss`
+must match the exact peer declared by `ajo-ui-playa`; the current package uses
+`66.7.2`.
 
 ## Minimal Setup
 
@@ -54,12 +56,41 @@ pnpm add -D vite tsx typescript @types/node
 // vite.config.ts
 import { defineConfig } from 'vite'
 import { kit, jsx } from 'ajo-kit/vite'
+import unocss from 'unocss/vite'
 
 export default defineConfig({
-  plugins: [...kit()],
+  plugins: [...kit({ css: ['virtual:uno.css'] }), unocss()],
   esbuild: jsx,
 })
 ```
+
+```ts
+// uno.config.ts
+import { playa } from 'ajo-ui-playa'
+import { defineConfig } from 'unocss'
+
+export default defineConfig({
+  presets: [playa()],
+  shortcuts: {
+    // Product-only composition stays in the app.
+    'site-container': 'mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8',
+  },
+})
+```
+
+`playa()` is the build-time package root. Runtime components use explicit
+family subpaths; there is no themed component barrel at the package root:
+
+```tsx
+import Button from 'ajo-ui-playa/button'
+import { Card, CardContent } from 'ajo-ui-playa/card'
+```
+
+Consumer apps do not install or import `ajo-ui`. It is the private transitive
+base used by `ajo-ui-playa`. The Playa preset owns the shared theme, component
+recipes, preflights, and Lucide collection. Product-only shortcuts and icon
+tokens remain in app source; only dynamically constructed icon names need an
+app-owned UnoCSS safelist.
 
 ```json
 // tsconfig.json

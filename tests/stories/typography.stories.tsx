@@ -20,7 +20,7 @@ import {
 	TypographyTH,
 	TypographyTHead,
 	TypographyTRow,
-} from '/src/ui/typography'
+} from 'ajo-ui-playa/typography'
 
 export default {
 	title: 'UI/Typography',

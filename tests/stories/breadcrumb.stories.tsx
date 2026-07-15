@@ -8,13 +8,13 @@ import {
 	BreadcrumbList,
 	BreadcrumbPage,
 	BreadcrumbSeparator,
-} from '/src/ui/breadcrumb'
+} from 'ajo-ui-playa/breadcrumb'
 import {
 	Menu as MenuRoot,
 	MenuContent,
 	MenuItem,
 	MenuTrigger,
-} from '/src/ui/menu'
+} from 'ajo-ui-playa/menu'
 
 export default {
 	title: 'UI/Breadcrumb',

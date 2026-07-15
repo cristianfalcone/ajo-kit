@@ -6,7 +6,7 @@ import {
 	FieldDescription,
 	FieldError,
 	FieldLabel,
-} from '/src/ui/field'
+} from 'ajo-ui-playa/field'
 import {
 	Select,
 	SelectChip,
@@ -24,8 +24,8 @@ import {
 	SelectStatus,
 	SelectTrigger,
 	SelectValue,
-} from '/src/ui/select'
-import Spinner from '/src/ui/spinner'
+} from 'ajo-ui-playa/select'
+import Spinner from 'ajo-ui-playa/spinner'
 
 type Country = {
 	code: string

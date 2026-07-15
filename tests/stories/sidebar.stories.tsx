@@ -26,13 +26,13 @@ import {
 	SidebarTrigger,
 	sidebarMenuActionVariants,
 	sidebarMenuButtonVariants,
-} from '/src/ui/sidebar'
-import Button from '/src/ui/button'
+} from 'ajo-ui-playa/sidebar'
+import Button from 'ajo-ui-playa/button'
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
-} from '/src/ui/collapsible'
+} from 'ajo-ui-playa/collapsible'
 import {
 	Menu,
 	MenuContent,
@@ -40,7 +40,7 @@ import {
 	MenuLabel,
 	MenuSeparator,
 	MenuTrigger,
-} from '/src/ui/menu'
+} from 'ajo-ui-playa/menu'
 
 // Stories must render deterministically at any harness viewport: desktop
 // demos pin a never-matching mobileQuery, the Mobile story pins an

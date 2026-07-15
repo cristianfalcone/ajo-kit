@@ -1,13 +1,13 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story, StoryContext } from './app'
-import Checkbox from '/src/ui/checkbox'
+import Checkbox from 'ajo-ui-playa/checkbox'
 import {
 	Field,
 	FieldContent,
 	FieldDescription,
 	FieldError,
 	FieldLabel,
-} from '/src/ui/field'
+} from 'ajo-ui-playa/field'
 
 const frame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 

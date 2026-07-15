@@ -3,7 +3,11 @@ import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
 import { frame, visibility } from 'ajo-cloves'
 import clsx from 'clsx'
-import { Bubble, BubbleContent, buttonVariants, Input, Message as MessageRow, MessageContent, MessageFooter, MessageGroup, MessageHeader, Tooltip, TooltipContent, TooltipTrigger } from '/src/ui'
+import { Bubble, BubbleContent } from 'ajo-ui-playa/bubble'
+import { buttonVariants } from 'ajo-ui-playa/button'
+import { Input } from 'ajo-ui-playa/input'
+import { Message as MessageRow, MessageContent, MessageFooter, MessageGroup, MessageHeader } from 'ajo-ui-playa/message'
+import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'
 import { ChatAvatar } from '../view'
 
 type Message = {

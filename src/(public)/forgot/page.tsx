@@ -1,7 +1,11 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
-import { Alert, AlertDescription, Button, CardContent, CardDescription, CardFooter, CardHeader, Field, FieldError, FieldLabel, Input } from '/src/ui'
+import { Alert, AlertDescription } from 'ajo-ui-playa/alert'
+import Button from 'ajo-ui-playa/button'
+import { CardContent, CardDescription, CardFooter, CardHeader } from 'ajo-ui-playa/card'
+import { Field, FieldError, FieldLabel } from 'ajo-ui-playa/field'
+import { Input } from 'ajo-ui-playa/input'
 
 type Result = { message: string }
 
