@@ -57,16 +57,26 @@ produces the same graph. The reproducible `pnpm test:bundle` gate lives in
 `ajo-ui-playa` exposes two deliberately separate surfaces:
 
 - the package root exports only `playa()`, the build-time UnoCSS preset;
-- one explicit `ajo-ui-playa/<family>` runtime subpath exists per public
-  themed family.
+- 62 explicit `ajo-ui-playa/<family>` runtime subpaths expose the public
+  themed families.
 
-There is no themed runtime root barrel and no wildcard export. Private sibling
-recipes, modal tokens, and scroll-area composition helpers have no package
-subpath. Runtime imports therefore retain only the requested family graph.
+There is no themed runtime root barrel, wildcard export, or `./uno` subpath.
+Private sibling recipes, modal tokens, and scroll-area helpers have no package
+subpath.
 
-`ajo-ui-playa` declares `ajo-ui` as a regular dependency. A Playa application
-installs and imports only `ajo-ui-playa`; the unstyled base remains a transitive
-implementation detail. `ajo` and exact UnoCSS `66.7.2` are Playa peers.
+`ajo-ui`, `clsx`, and `@iconify-json/lucide` are package dependencies. The
+unstyled base remains transitive for themed consumers and templates; they
+never declare or import it.
+
+The monorepo root keeps `ajo-ui` only as a devDependency for direct base-package
+tests. It is not part of the themed application dependency contract.
+
+`ajo >=0.1.35` and exact UnoCSS `66.7.2` are peers. A Playa application
+declares its Ajo host, `ajo-ui-playa`, and UnoCSS. UnoCSS is build tooling, not
+a browser dependency.
+
+The unscoped package name is covered by Ajo Kit's
+`ssr.noExternal: [/^ajo-/]` rule.
 
 All three UI packages target Ajo `>= 0.1.35`.
 
@@ -1087,9 +1097,105 @@ It may add:
 It must not copy a base engine, own reusable interaction state, or import
 `ajo-cloves` directly.
 
-Resizable keeps its layout separator at one CSS pixel while a centered 24px
-pseudo-element owns pointer hit testing. Browser stories verify both sides of
-the invisible target in horizontal and vertical groups.
+### Build And Consumer Contract
+
+`playa()` is the optionless build-time Interface for the concrete Playa theme.
+The private `src/styles.ts` owns:
+
+- Wind4 and Icons configured with the Lucide collection;
+- semantic tokens, root and dark variables, rules, and variants;
+- design-system shortcuts, `playa-*` recipes, keyframes, and scrollbars;
+- component preflights and package-wide visual invariants.
+
+Product layout, route icons, product shortcuts, and product-owned dynamic
+tokens stay in the application config. The root app currently owns
+`site-container`.
+
+The minimum UnoCSS configuration is:
+
+```ts
+import { playa } from 'ajo-ui-playa'
+import { defineConfig } from 'unocss'
+
+export default defineConfig({
+	presets: [playa()],
+})
+```
+
+The Ajo Vite host activates UnoCSS once and loads one virtual stylesheet:
+
+```ts
+import { kit, jsx } from 'ajo-kit/vite'
+import { defineConfig } from 'vite'
+import unocss from 'unocss/vite'
+
+export default defineConfig({
+	plugins: [
+		...kit({ css: ['virtual:uno.css'] }),
+		unocss(),
+	],
+	esbuild: jsx,
+})
+```
+
+There is no `ajo-ui-playa/vite` wrapper. Runtime code imports explicit family
+subpaths:
+
+```tsx
+import Button from 'ajo-ui-playa/button'
+
+export default () => <Button class="w-full">Continue</Button>
+```
+
+The family source contributes component tokens, the application source
+contributes `w-full`, and `playa()` gives those tokens their theme semantics.
+UnoCSS emits the single stylesheet during the host build.
+
+### UnoCSS Extraction And Distribution
+
+Public family subpaths remain source `.tsx`. Imported family modules traverse
+the host pipeline, so detected utilities and recipes are proportional to the
+runtime module closure reached by the application.
+
+The preset always emits its package-wide root and dark variables, global
+selectors, keyframes, and preflights. Those fixed costs are not family-level
+tree shaking.
+
+Every finite class choice is a complete static literal or belongs to a map of
+complete literals. Runtime interpolation must not construct utility fragments.
+
+Files with runtime class literals remain `.tsx`, including private
+`internal/recipes.tsx` and `internal/scroll-area.tsx`. `styles.ts` works because
+UnoCSS executes it as config, not because the extractor scans plain `.ts`.
+
+Caller classes are extracted from application source. Every current Playa
+token is statically enumerable. Dynamic product tokens belong to the
+application safelist.
+
+The public contract does not use filesystem scans into `node_modules`, global
+`.js` or `.ts` includes, `@unocss-include`, a complete safelist, experimental
+per-module modes, or UnoCSS runtime.
+
+The validated published-package path requires no `optimizeDeps.exclude`.
+
+Playa does not publish precompiled CSS beside the preset. A second style path
+would duplicate ownership of preflights, theme rules, and verification.
+
+The graph is directional:
+
+- the root reaches `styles.ts`, UnoCSS, Iconify, and the Lucide data only;
+- family subpaths may reach Ajo, `ajo-ui`, `ajo-ui/utils`, `clsx`, and private
+  runtime siblings;
+- family subpaths never reach the root, `styles.ts`, UnoCSS, or Iconify;
+- the root never reaches Ajo, `ajo-ui`, `clsx`, or a runtime family.
+
+The manifest declares `sideEffects: false`. Runtime imports retain only their
+allowed family closure, and the root remains isolated from the component
+catalog.
+
+UnoCSS, Iconify, Lucide JSON, and preset code remain outside client JavaScript.
+Changing published family artifacts from `.tsx` to `.js` invalidates this
+extraction contract and requires the consumer gate to be redesigned first.
 
 ### Adapter Types
 
@@ -1118,16 +1224,50 @@ Use a scoped `classNames` or `classes` map for a themed collection. Use a
 callback such as `dayClassName` when classes depend on live state.
 
 Public recipes use the `xxxVariants` suffix. Only recipes intended for app
-composition are exported by their family subpath. Tokens shared solely by
-themed siblings live in `packages/ajo-ui-playa/src/internal/recipes.tsx` and
-have no public subpath.
+composition are exported by their family subpath.
+
+Tokens shared solely by themed siblings live in
+`packages/ajo-ui-playa/src/internal/recipes.tsx` and have no public subpath.
 
 `packages/ajo-ui-playa/src/modal.tsx` is a private modal-token seam, and
 `packages/ajo-ui-playa/src/internal/scroll-area.tsx` is the private frame seam
-shared by ScrollArea and VirtualList. `input-group.tsx` and `menu.tsx` remain
-public families; their cross-family recipes stay private in `internal`.
-Recipe modules containing class literals remain `.tsx`: UnoCSS includes them in
-the Vite pipeline, while plain `.ts` is outside the default extraction set.
+shared by ScrollArea and VirtualList.
+
+`input-group.tsx` and `menu.tsx` remain public families. Their cross-family
+recipes stay private in `internal`.
+
+Resizable keeps its layout separator at one CSS pixel while a centered 24px
+pseudo-element owns pointer hit testing. Browser stories verify both sides of
+the invisible target in horizontal and vertical groups.
+
+### Playa Packaging And Verification
+
+Package-local tests cover the preset, public export map, runtime/build graph,
+adapter contracts, visual-token protocol, and the real template client and SSR
+builds.
+
+`pnpm test:consumer:playa` publishes `ajo-cloves`, `ajo-ui`, and
+`ajo-ui-playa` to an ephemeral registry. It installs versioned packages in a
+fixture outside the workspace rather than relying on workspace links.
+
+The fixture verifies:
+
+- missing and incompatible peers, plus direct preset import without UnoCSS;
+- transitive `ajo-ui`, one Ajo runtime identity, and no direct base dependency;
+- TypeScript over published source, client build, SSR, and isolated HMR;
+- CSS for every runtime token and absence of an unused-family sentinel;
+- packlist, explicit exports, graph isolation, and compressed artifact budgets.
+
+The minimum consumer budgets are executable acceptance limits:
+
+| Artifact | Raw | Gzip | Brotli |
+|---|---:|---:|---:|
+| CSS | 48,000 B | 9,000 B | 8,000 B |
+| JavaScript | 12,000 B | 4,500 B | 4,000 B |
+
+The validated integration baseline is UnoCSS `66.7.2` and Vite `8.0.16`.
+An UnoCSS upgrade changes the peer, preset, tarball fixture, CSS output, client
+and SSR builds, stories, and budgets in one verified slice.
 
 ## Executable Stories Harness
 
@@ -1258,10 +1398,12 @@ pnpm exec tsc --noEmit
 pnpm --filter ajo-cloves test
 pnpm --filter ajo-ui test
 pnpm --filter ajo-ui-playa test
+pnpm test:consumer:playa
 pnpm test:unit
 pnpm test:bundle
 pnpm test:perf:data-table
 pnpm stories:test --port <free-port>
+pnpm stories:test:visual --port <free-port>
 pnpm test:e2e
 pnpm build
 pnpm test:prod

@@ -4,9 +4,9 @@
 
 - `ai/plan.md` contiene solo el trabajo activo, su estado actual, evidencia,
   proximo checkpoint y bloqueos. No conserva historia de features terminadas.
-- El documento tecnico canonico de cada feature contiene investigacion,
-  rationale, arquitectura y contratos; este archivo solo lo convierte en
-  ejecucion y no duplica su contenido.
+- El documento tecnico canonico correspondiente contiene solo arquitectura,
+  contratos, invariantes y estado tecnico vigente; este archivo solo lo
+  convierte en ejecucion y no duplica su contenido.
 - Codigo, manifests, artifacts empacados y tests son la autoridad final. Si la
   evidencia cambia una decision, actualizar primero el documento canonico y
   luego este tracker.
@@ -41,5 +41,6 @@ Al activar una feature, reemplazar `Status` y agregar solamente:
 5. exit gate, evidencia actual y comandos reales de verificacion;
 6. proximo checkpoint, bloqueos y handoff inmediato.
 
-Al completar la feature, consolidar el estado tecnico vigente en su documento
-canonico y volver este archivo a la estructura vacia anterior.
+Al completar la feature, consolidar solo el estado tecnico vigente en su
+documento canonico y volver este archivo a la estructura vacia anterior. No
+conservar aqui investigacion, alternativas, fases cerradas ni historia.
