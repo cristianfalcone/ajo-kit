@@ -47,6 +47,7 @@ import { buttonVariants } from './button'
 import { chipVariants } from './chip'
 import { inputGroupAddon, inputGroupAddonAlign, inputGroupInput, inputGroupVariants } from './internal/recipes'
 export { SelectGroup, SelectValue } from 'ajo-ui/select'
+export type { PopupPlacement, PopupPosition } from 'ajo-ui/select'
 
 export type { SelectArgs, SelectChipsArgs, SelectChipsInputArgs, SelectContentArgs, SelectCreateArgs, SelectEmptyArgs, SelectFilter, SelectGroupArgs, SelectLabelArgs, SelectListArgs, SelectSeparatorArgs, SelectSize, SelectStatusArgs, SelectValueArgs }
 export type SelectTriggerArgs = OmitArg<BaseSelectTriggerArgs, 'iconClass'> & FixedArgs<'iconClass'>
@@ -59,7 +60,7 @@ export type SelectScrollButtonArgs = OmitArg<BaseSelectScrollButtonArgs, 'iconCl
 const rootBase = 'playa-select-root'
 const triggerBase = 'playa-select-trigger'
 // One element owns the height budget: the content is a flex column clamped to
-// the anchor clove's available height; the list shrinks (min-h-0) to make room
+// the reference's available height; the list shrinks (min-h-0) to make room
 // for siblings (in-popup search, status, create row) instead of clipping them.
 // The flex display MUST stay gated on :popover-open — an unconditional author
 // display beats the UA [popover] display:none and keeps closed popups painted.

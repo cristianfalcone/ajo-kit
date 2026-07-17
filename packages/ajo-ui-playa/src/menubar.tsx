@@ -34,6 +34,7 @@ import type {
 import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 import { menuCheckIcon, menuChoiceRow, menuContent, menuIndicator, menuItem, menuLabel, menuRadioIcon, menuSeparator, menuShortcut, menuSubTriggerIcon, menuSubTriggerOpen } from './internal/recipes'
 export { MenubarGroup, MenubarRadioGroup, MenubarSub } from 'ajo-ui/menubar'
+export type { PopupPlacement, PopupPosition } from 'ajo-ui/menubar'
 
 export type { MenubarArgs, MenubarContentArgs, MenubarGroupArgs, MenubarItemArgs, MenubarLabelArgs, MenubarMenuArgs, MenubarRadioGroupArgs, MenubarSeparatorArgs, MenubarShortcutArgs, MenubarSubArgs, MenubarSubContentArgs, MenubarTriggerArgs }
 export type MenubarCheckboxItemArgs = OmitArg<BaseMenubarCheckboxItemArgs, 'indicatorClass' | 'indicatorIconClass'> & FixedArgs<'indicatorClass' | 'indicatorIconClass'>

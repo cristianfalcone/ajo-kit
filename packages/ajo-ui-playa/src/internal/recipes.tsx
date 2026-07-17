@@ -29,11 +29,14 @@ export const choiceGroupOrientation: Record<'horizontal' | 'vertical', string> =
 	horizontal: 'flex flex-wrap items-center gap-3',
 }
 
-/** Shared open/closed fade and zoom chain for floating popup surfaces. */
-export const popupAnimation = 'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95'
+/** Shared open/closed motion for popup surfaces, disabled for reduced motion. */
+export const popupAnimation = 'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 motion-reduce:animate-none'
 
 /** Placement-aware entrance motion; families that should not slide omit it. */
 export const popupSlide = 'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2'
+
+/** Transparent stacking boundary around the single painted popup surface. */
+export const popupContent = 'playa-popup-content'
 
 const menuMinWidth = {
 	'8rem': 'min-w-[8rem]',

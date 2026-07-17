@@ -42,10 +42,14 @@ export const subpathFieldContext = field.FieldContext
 export type RootFieldContextValue = import('ajo-ui').FieldContextValue
 export type SubpathFieldContextValue = import('ajo-ui/field').FieldContextValue
 
-export const rootMenuContext = root.MenuContext
-export const subpathMenuContext = menu.MenuContext
-export type RootMenuContextValue = import('ajo-ui').MenuContextValue
-export type SubpathMenuContextValue = import('ajo-ui/menu').MenuContextValue
+// @ts-expect-error MenuContext is private to the composed menu family.
+export const leakedRootMenuContext = root.MenuContext
+// @ts-expect-error MenuContext is private to the composed menu family.
+export const leakedSubpathMenuContext = menu.MenuContext
+// @ts-expect-error MenuContextValue is private to the composed menu family.
+export type LeakedRootMenuContextValue = import('ajo-ui').MenuContextValue
+// @ts-expect-error MenuContextValue is private to the composed menu family.
+export type LeakedSubpathMenuContextValue = import('ajo-ui/menu').MenuContextValue
 
 export const rootMessageScrollerContext = root.MessageScrollerContext
 export const subpathMessageScrollerContext = messageScroller.MessageScrollerContext

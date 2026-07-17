@@ -8,3 +8,4 @@ drive.json
 .env
 .tmp
 test-results
+tests/stories-visual/

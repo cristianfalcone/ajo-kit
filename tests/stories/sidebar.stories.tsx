@@ -119,7 +119,7 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 										{/* !contents: the menu root box (relative inline-block)
 										    must not become the action's positioned ancestor nor add
 										    a line box to the item; the content anchors fixed. */}
-										<Menu class="!contents">
+										<Menu class="!contents" placement="right-start">
 											<MenuTrigger
 												class={sidebarMenuActionVariants({ showOnHover: true })}
 												data-sidebar="menu-action"
@@ -127,7 +127,7 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 											>
 												<span class="i-lucide-more-vertical" />
 											</MenuTrigger>
-											<MenuContent side="right" align="start">
+											<MenuContent>
 												<MenuItem>
 													<span class="i-lucide-pencil" />
 													Rename
@@ -186,13 +186,13 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 				<SidebarFooter>
 					<SidebarMenu>
 						<SidebarMenuItem>
-							<Menu class="!contents">
+							<Menu class="!contents" placement="top-start">
 								<MenuTrigger class={sidebarMenuButtonVariants({ size: 'lg' })} data-sidebar="menu-button" data-size="lg">
 									<span class="i-lucide-circle-user" />
 									<span>cristian@example.com</span>
 									<span class="i-lucide-chevrons-up-down ml-auto" />
 								</MenuTrigger>
-								<MenuContent side="top" align="start">
+								<MenuContent>
 									<MenuLabel>cristian@example.com</MenuLabel>
 									<MenuSeparator />
 									<MenuItem>

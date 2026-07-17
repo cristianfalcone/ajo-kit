@@ -88,6 +88,8 @@ const versions = {
 	'ajo-ui': '0.1.0',
 	'ajo-ui-playa': '0.1.0',
 } as const
+const floatingDomVersion = '1.8.0'
+const floatingNames = ['@floating-ui/dom', '@floating-ui/core', '@floating-ui/utils'] as const
 const validDependencies = { ajo: '0.1.35', 'ajo-ui-playa': '0.1.0' }
 const validDevDependencies = { typescript: '6.0.3', unocss: '66.7.2', vite: '8.0.16' }
 const delay = (milliseconds: number) => new Promise(resolveDelay => setTimeout(resolveDelay, milliseconds))
@@ -335,12 +337,62 @@ const consumerFiles = async (directory: string, registry: string) => {
 		'export default () => render(<Checkbox aria-label="Published SSR checkbox" />)',
 		'',
 	].join('\n'))
+	await write(join(directory, 'src/popover-client.tsx'), [
+		"import { render } from 'ajo'",
+		"import { Popover, PopoverContent, PopoverTrigger } from 'ajo-ui-playa/popover'",
+		"import 'virtual:uno.css'",
+		'const App = () => (',
+		'  <Popover defaultOpen label="Published popover">',
+		'    <PopoverTrigger>Published trigger</PopoverTrigger>',
+		'    <PopoverContent arrow>Published client popover</PopoverContent>',
+		'  </Popover>',
+		')',
+		"render(<App />, document.getElementById('app')!)",
+		'',
+	].join('\n'))
+	await write(join(directory, 'src/popover-ssr.tsx'), [
+		"import { render } from 'ajo/html'",
+		"import { Popover, PopoverContent, PopoverTrigger } from 'ajo-ui-playa/popover'",
+		'export default () => render(',
+		'  <Popover defaultOpen label="Published popover">',
+		'    <PopoverTrigger>Published trigger</PopoverTrigger>',
+		'    <PopoverContent arrow>Published SSR popover</PopoverContent>',
+		'  </Popover>,',
+		')',
+		'',
+	].join('\n'))
+	await write(join(directory, 'src/tooltip-client.tsx'), [
+		"import { render } from 'ajo'",
+		"import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'",
+		"import 'virtual:uno.css'",
+		'const App = () => (',
+		'  <Tooltip defaultOpen>',
+		'    <TooltipTrigger>Published trigger</TooltipTrigger>',
+		'    <TooltipContent>Published client tooltip</TooltipContent>',
+		'  </Tooltip>',
+		')',
+		"render(<App />, document.getElementById('app')!)",
+		'',
+	].join('\n'))
+	await write(join(directory, 'src/tooltip-ssr.tsx'), [
+		"import { render } from 'ajo/html'",
+		"import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'",
+		'export default () => render(',
+		'  <Tooltip defaultOpen>',
+		'    <TooltipTrigger>Published trigger</TooltipTrigger>',
+		'    <TooltipContent>Published SSR tooltip</TooltipContent>',
+		'  </Tooltip>,',
+		')',
+		'',
+	].join('\n'))
 	await write(join(directory, 'src/sentinel.tsx'), [
 		'export const UnusedSentinel = () => <div class="[--playa-consumer-unused:#654321]" />',
 		'',
 	].join('\n'))
 	await write(join(directory, 'src/graph-root.ts'), "export { playa } from 'ajo-ui-playa'\n")
 	await write(join(directory, 'src/graph-family.ts'), "export { default } from 'ajo-ui-playa/checkbox'\n")
+	await write(join(directory, 'src/graph-popover.ts'), "export * from 'ajo-ui-playa/popover'\n")
+	await write(join(directory, 'src/graph-tooltip.ts'), "export * from 'ajo-ui-playa/tooltip'\n")
 }
 
 const peerMatrix = async (directory: string, registry: string) => {
@@ -428,6 +480,7 @@ const verifyDependencyGraph = async (consumer: string) => {
 	assert.deepEqual(manifest.dependencies, validDependencies)
 	assert.deepEqual(manifest.devDependencies, validDevDependencies)
 	assert(!('ajo-ui' in manifest.dependencies) && !('ajo-cloves' in manifest.dependencies))
+	assert(floatingNames.every(name => !(name in manifest.dependencies)), 'consumer declared Floating UI directly')
 	const lock = await readFile(join(consumer, 'pnpm-lock.yaml'), 'utf8')
 	assert(!lock.includes('workspace:'), 'consumer lock retained a workspace protocol')
 	assert(!lock.includes('link:../ajo'), 'consumer linked a workspace package')
@@ -440,23 +493,58 @@ const verifyDependencyGraph = async (consumer: string) => {
 	assert.equal(base?.version, versions['ajo-ui'])
 	assert.equal(cloves?.version, versions['ajo-cloves'])
 
-	const ajoPaths = new Set<string>()
-	const ajoVersions = new Set<string>()
-	const collect = (name: string, dependency: Dependency) => {
-		if (name !== 'ajo') return
-		if (dependency.path) ajoPaths.add(dependency.path.toLowerCase())
-		if (dependency.version) ajoVersions.add(dependency.version)
+	const assertIdentity = (name: string, expected?: string) => {
+		const paths = new Set<string>()
+		const foundVersions = new Set<string>()
+		const collect = (dependencyName: string, dependency: Dependency) => {
+			if (dependencyName !== name) return
+			if (dependency.path) paths.add(dependency.path.toLowerCase())
+			if (dependency.version) foundVersions.add(dependency.version)
+		}
+		visitDependencies(listed.dependencies, collect)
+		visitDependencies(listed.devDependencies, collect)
+		assert.equal(foundVersions.size, 1, `${name} resolved unexpected versions: ${[...foundVersions].join(', ')}`)
+		if (expected) assert.deepEqual([...foundVersions], [expected], `${name} resolved an unexpected version`)
+		assert.equal(paths.size, 1, `expected one ${name} identity, got ${[...paths].join(', ')}`)
 	}
-	visitDependencies(listed.dependencies, collect)
-	visitDependencies(listed.devDependencies, collect)
-	assert.deepEqual([...ajoVersions], ['0.1.35'])
-	assert.equal(ajoPaths.size, 1, `expected one Ajo identity, got ${[...ajoPaths].join(', ')}`)
+	assertIdentity('ajo', '0.1.35')
+	for (const name of floatingNames) assertIdentity(name, name === '@floating-ui/dom' ? floatingDomVersion : undefined)
 }
 
 const modulesOf = (result: unknown) => ((Array.isArray(result) ? result : [result]) as BuildOutput[])
 	.flatMap(build => build.output)
 	.flatMap(output => output.type === 'chunk' ? Object.keys(output.modules ?? {}) : [])
 	.map(id => id.replaceAll('\\', '/'))
+
+const assertFloatingGraph = (label: string, modules: readonly string[], expected: boolean) => {
+	for (const name of floatingNames) {
+		const marker = `/node_modules/${name}/`
+		const identities = new Set(modules
+			.filter(id => id.includes(marker))
+			.map(id => id.slice(0, id.indexOf(marker) + marker.length - 1)))
+		assert.equal(identities.size, expected ? 1 : 0,
+			`${label} expected ${expected ? 'one' : 'no'} ${name} identity, got ${[...identities].join(', ')}`)
+	}
+}
+
+const hasModulePath = (modules: readonly string[], path: string) => modules.some(id => id.includes(path))
+
+const assertPopupGraph = (
+	label: string,
+	modules: readonly string[],
+	family: 'popover' | 'tooltip',
+) => {
+	assertFloatingGraph(label, modules, true)
+	for (const path of [
+		`ajo-ui-playa/src/${family}.tsx`,
+		`ajo-ui/src/${family}.tsx`,
+		'ajo-ui/src/position.ts',
+		'ajo-ui/src/popup.ts',
+	]) {
+		assert(hasModulePath(modules, path), `${label} omitted ${path}`)
+	}
+	assert(!hasModulePath(modules, 'ajo-ui/src/floating.ts'), `${label} retained legacy floating.ts`)
+}
 
 const loadVite = async (consumer: string) => {
 	const consumerRequire = createRequire(join(consumer, 'package.json'))
@@ -497,15 +585,44 @@ const buildConsumer = async (consumer: string) => {
 		build: { emptyOutDir: true, outDir: 'dist' },
 	})
 	const clientModules = modulesOf(client)
+	assertFloatingGraph('Checkbox client graph', clientModules, false)
 	const tooling = clientModules.filter(id => /(?:\/unocss@|\/@unocss\+|@iconify(?:-json)?\+)/.test(id))
 	assert.deepEqual(tooling, [], `client retained build-time modules:\n${tooling.join('\n')}`)
 
-	await vite.build({
+	const ssrBuild = await vite.build({
 		root: consumer,
 		configFile,
 		logLevel: 'silent',
 		build: { emptyOutDir: true, outDir: 'dist-ssr', ssr: join(consumer, 'src/ssr.tsx') },
 	})
+	assertFloatingGraph('Checkbox SSR graph', modulesOf(ssrBuild), false)
+	const buildPopup = async (family: 'popover' | 'tooltip') => {
+		const label = family[0].toUpperCase() + family.slice(1)
+		const client = await vite.build({
+			root: consumer,
+			configFile,
+			logLevel: 'silent',
+			build: {
+				emptyOutDir: true,
+				outDir: `dist-${family}`,
+				rollupOptions: { input: join(consumer, `src/${family}-client.tsx`) },
+			},
+		})
+		assertPopupGraph(`${label} client graph`, modulesOf(client), family)
+		const ssr = await vite.build({
+			root: consumer,
+			configFile,
+			logLevel: 'silent',
+			build: {
+				emptyOutDir: true,
+				outDir: `dist-${family}-ssr`,
+				ssr: join(consumer, `src/${family}-ssr.tsx`),
+			},
+		})
+		assertPopupGraph(`${label} SSR graph`, modulesOf(ssr), family)
+	}
+	await buildPopup('popover')
+	await buildPopup('tooltip')
 	await vite.build({
 		root: consumer,
 		configFile,
@@ -558,6 +675,40 @@ const buildConsumer = async (consumer: string) => {
 	const html = ssr.default()
 	assert.match(html, /data-slot="checkbox"/)
 	assert.match(html, /Published SSR checkbox/)
+
+	const popoverSsrFiles = [
+		...await filesWithExtension(join(consumer, 'dist-popover-ssr'), '.js'),
+		...await filesWithExtension(join(consumer, 'dist-popover-ssr'), '.mjs'),
+	]
+	assert.equal(popoverSsrFiles.length, 1, `expected one Popover SSR entry, got ${popoverSsrFiles.join(', ')}`)
+	const popoverSsrModule = await import(`${pathToFileURL(popoverSsrFiles[0]).href}?acceptance=${Date.now()}`) as { default: () => string }
+	const popoverHtml = popoverSsrModule.default()
+	assert.match(popoverHtml, /data-slot="popover"/)
+	assert.match(popoverHtml, /aria-labelledby="popover-\d+-content-title"/)
+	assert.match(popoverHtml, /data-slot="popover-title"[^>]*>Published popover<\/h2>/)
+	assert.match(popoverHtml, /data-slot="popup-surface"/)
+	assert.match(popoverHtml, /data-slot="popup-arrow"/)
+	assert.match(popoverHtml, /Published SSR popover/)
+
+	const tooltipSsrFiles = [
+		...await filesWithExtension(join(consumer, 'dist-tooltip-ssr'), '.js'),
+		...await filesWithExtension(join(consumer, 'dist-tooltip-ssr'), '.mjs'),
+	]
+	assert.equal(tooltipSsrFiles.length, 1, `expected one Tooltip SSR entry, got ${tooltipSsrFiles.join(', ')}`)
+	const tooltipSsrModule = await import(`${pathToFileURL(tooltipSsrFiles[0]).href}?acceptance=${Date.now()}`) as { default: () => string }
+	const tooltipHtml = tooltipSsrModule.default()
+	const tooltipTrigger = tooltipHtml.match(/<button[^>]*data-slot="tooltip-trigger"[^>]*>/)?.[0]
+	const tooltipContent = tooltipHtml.match(/<div[^>]*data-slot="tooltip-content"[^>]*>/)?.[0]
+	assert(tooltipTrigger && tooltipContent, `Tooltip SSR omitted its trigger or content:\n${tooltipHtml}`)
+	const describedby = tooltipTrigger.match(/aria-describedby="([^"]+)"/)?.[1]
+	const contentId = tooltipContent.match(/id="([^"]+)"/)?.[1]
+	assert(contentId, 'Tooltip SSR content omitted its Ajo-owned id')
+	assert.equal(describedby, contentId, 'Tooltip SSR trigger did not describe its content')
+	assert.match(tooltipContent, /role="tooltip"/)
+	assert.match(tooltipContent, /popover="manual"/)
+	assert.match(tooltipHtml, /data-slot="popup-surface"/)
+	assert.match(tooltipHtml, /data-slot="popup-arrow"/)
+	assert.match(tooltipHtml, /Published SSR tooltip/)
 	return vite
 }
 
@@ -571,7 +722,7 @@ async function filesWithExtension(directory: string, extension: string): Promise
 }
 
 const inspectGraphs = async (consumer: string, vite: typeof import('vite')) => {
-	const graph = async (entry: 'graph-family' | 'graph-root') => modulesOf(await vite.build({
+	const graph = async (entry: 'graph-family' | 'graph-popover' | 'graph-root' | 'graph-tooltip') => modulesOf(await vite.build({
 		root: consumer,
 		configFile: false,
 		logLevel: 'silent',
@@ -585,6 +736,8 @@ const inspectGraphs = async (consumer: string, vite: typeof import('vite')) => {
 	}))
 	const rootGraph = await graph('graph-root')
 	const familyGraph = await graph('graph-family')
+	const popoverGraph = await graph('graph-popover')
+	const tooltipGraph = await graph('graph-tooltip')
 	const has = (modules: readonly string[], part: string) => modules.some(id => id.includes(part))
 	const hasUno = (modules: readonly string[]) => modules.some(id => /(?:\/unocss@|\/@unocss\+|\/unocss\/dist)/.test(id))
 	const hasIconify = (modules: readonly string[]) => modules.some(id => /@iconify(?:-json)?[+/]/.test(id))
@@ -608,6 +761,17 @@ const inspectGraphs = async (consumer: string, vite: typeof import('vite')) => {
 	assert(!hasUno(familyGraph), 'family graph retained UnoCSS tooling')
 	assert(!hasIconify(familyGraph), 'family graph retained Iconify tooling')
 	assert(!has(familyGraph, '/src/sentinel.tsx'), 'family graph retained the unused sentinel')
+	assertFloatingGraph('Checkbox family graph', familyGraph, false)
+
+	assertPopupGraph('Popover family graph', popoverGraph, 'popover')
+	assert(!has(popoverGraph, 'ajo-ui-playa/src/styles.ts'), 'Popover graph retained the preset')
+	assert(!hasUno(popoverGraph), 'Popover graph retained UnoCSS tooling')
+	assert(!hasIconify(popoverGraph), 'Popover graph retained Iconify tooling')
+
+	assertPopupGraph('Tooltip family graph', tooltipGraph, 'tooltip')
+	assert(!has(tooltipGraph, 'ajo-ui-playa/src/styles.ts'), 'Tooltip graph retained the preset')
+	assert(!hasUno(tooltipGraph), 'Tooltip graph retained UnoCSS tooling')
+	assert(!hasIconify(tooltipGraph), 'Tooltip graph retained Iconify tooling')
 }
 
 const hmrProbe = async (directory: string, registry: string) => {
@@ -751,9 +915,10 @@ const main = async () => {
 			console.log(`playa consumer: published ${name}@${versions[name]}`)
 		}
 		assert.equal(published.get('ajo-ui')?.manifest.dependencies?.['ajo-cloves'], versions['ajo-cloves'])
+		assert.equal(published.get('ajo-ui')?.manifest.dependencies?.['@floating-ui/dom'], floatingDomVersion)
 		assert.equal(published.get('ajo-ui-playa')?.manifest.dependencies?.['ajo-ui'], versions['ajo-ui'])
 		const packlist = published.get('ajo-ui-playa')?.packed.files.map(file => file.path) ?? []
-		for (const expected of ['package.json', 'README.md', 'src/index.ts', 'src/styles.ts', 'src/checkbox.tsx']) {
+		for (const expected of ['package.json', 'README.md', 'src/index.ts', 'src/styles.ts', 'src/checkbox.tsx', 'src/tooltip.tsx']) {
 			assert(packlist.includes(expected), `Playa packlist omitted ${expected}`)
 		}
 		assert(packlist.every(path => !path.startsWith('tests/') && !path.includes('node_modules') && !path.startsWith('.tmp/')))

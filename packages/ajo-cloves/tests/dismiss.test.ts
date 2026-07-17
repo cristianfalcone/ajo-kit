@@ -3,6 +3,7 @@ import type { Host } from 'ajo-cloves'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
+import { Window } from 'happy-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { dismiss } from 'ajo-cloves'
 
@@ -39,9 +40,31 @@ const outsideButton = () => {
 	return element
 }
 
+const realmHost = () => {
+	const realm = new Window()
+	const controller = new realm.AbortController()
+	const element = realm.document.createElement('div')
+	const host = element as unknown as Host
+	Object.assign(host, {
+		next: (fn?: () => unknown) => fn?.(),
+		signal: controller.signal,
+		throw: (error: unknown) => { throw error },
+	})
+	realm.document.body.append(element)
+	return {
+		close() {
+			controller.abort()
+			realm.close()
+		},
+		host,
+		realm,
+	}
+}
+
 beforeEach(prepare)
 
 afterEach(() => {
+	vi.unstubAllGlobals()
 	render(null, document.body)
 	document.body.textContent = ''
 })
@@ -235,6 +258,70 @@ test('escape false disables the Escape channel', () => {
 	button(inside).dispatchEvent(escape())
 
 	expect(fn).not.toHaveBeenCalled()
+})
+
+test('document Escape dismisses even when focus has moved outside the host', () => {
+	const fn = vi.fn()
+
+	function* Gen(this: Host) {
+		dismiss(this, {
+			active: () => true,
+			escape: 'document',
+			onDismiss: fn,
+		})
+
+		yield jsx('button', { children: 'inside' })
+	}
+
+	render(jsx(Gen, {}), document.body)
+	const event = escape()
+	outsideButton().dispatchEvent(event)
+
+	expect(fn).toHaveBeenCalledOnce()
+	expect(fn).toHaveBeenCalledWith(event)
+})
+
+test('document Escape belongs to the host owner document', () => {
+	const { close, host, realm } = realmHost()
+	const fn = vi.fn()
+	try {
+		dismiss(host, {
+			active: () => true,
+			escape: 'document',
+			onDismiss: fn,
+		})
+
+		const ownerEvent = new realm.KeyboardEvent('keydown', { bubbles: true, key: 'Escape' })
+		realm.document.body.dispatchEvent(ownerEvent)
+		expect(fn).toHaveBeenCalledOnce()
+		expect(fn).toHaveBeenCalledWith(ownerEvent)
+
+		document.dispatchEvent(escape())
+		expect(fn).toHaveBeenCalledOnce()
+	} finally {
+		close()
+	}
+})
+
+test('outside dismissal uses the host realm Node constructor', () => {
+	const { close, host, realm } = realmHost()
+	const fn = vi.fn()
+	try {
+		dismiss(host, {
+			active: () => true,
+			outside: true,
+			onDismiss: fn,
+		})
+
+		vi.stubGlobal('Node', class ForeignNode {})
+		const event = new realm.MouseEvent('pointerdown', { bubbles: true })
+		realm.document.documentElement.dispatchEvent(event)
+		expect(fn).toHaveBeenCalledOnce()
+		expect(fn).toHaveBeenCalledWith(event)
+	} finally {
+		vi.unstubAllGlobals()
+		close()
+	}
 })
 
 test('invalidate updates DOM text through host.next from onDismiss', () => {

@@ -45,6 +45,24 @@ import type {
 	InputOTPSlotArgs,
 } from 'ajo-ui-playa/input-otp'
 import type {
+	MenuArgs,
+	MenuContentArgs,
+	MenuSubArgs,
+	PopupPlacement as MenuPopupPlacement,
+	PopupPosition as MenuPopupPosition,
+} from 'ajo-ui-playa/menu'
+import type {
+	ContextMenuArgs,
+	ContextMenuContentArgs,
+} from 'ajo-ui-playa/context-menu'
+import type {
+	MenubarArgs,
+	MenubarContentArgs,
+	MenubarMenuArgs,
+	PopupPlacement as MenubarPopupPlacement,
+	PopupPosition as MenubarPopupPosition,
+} from 'ajo-ui-playa/menubar'
+import type {
 	MessageScrollerArgs,
 	MessageScrollerButtonArgs,
 	MessageScrollerContentArgs,
@@ -143,3 +161,44 @@ export const publicVariantSurface = [
 	sidebarMenuActionVariants({ showOnHover: true }),
 	sidebarMenuButtonVariants({ size: 'lg', variant: 'outline' }),
 ]
+
+// @ts-expect-error Playa mirrors the clean base Tooltip surface without legacy aliases.
+export type RemovedTooltipAlign = import('ajo-ui-playa/tooltip').TooltipAlign
+// @ts-expect-error The themed popup surface owns arrow geometry internally.
+export type RemovedTooltipArrowArgs = import('ajo-ui-playa/tooltip').TooltipArrowArgs
+// @ts-expect-error The themed popup surface owns arrow geometry internally.
+export type RemovedPopoverArrowArgs = import('ajo-ui-playa/popover').PopoverArrowArgs
+
+export const themedMenuPosition: MenuArgs = { gap: 6, placement: 'bottom-end' }
+export const themedMenuPlacement: MenuPopupPlacement = 'top-start'
+export const themedMenuPopupPosition: MenuPopupPosition = { gap: 4, placement: themedMenuPlacement }
+// @ts-expect-error Playa mirrors the sealed base Menu root position surface.
+export const themedMenuLegacyPosition: MenuArgs = { side: 'top' }
+// @ts-expect-error Playa mirrors profile-owned submenu positioning.
+export const themedMenuSubPosition: MenuSubArgs = { placement: 'right-start' }
+// @ts-expect-error Playa keeps Menu positioning at the root.
+export const themedMenuContentPosition: MenuContentArgs = { side: 'top' }
+// @ts-expect-error Playa does not republish the removed legacy MenuAlign vocabulary.
+export type RemovedMenuAlign = import('ajo-ui-playa/menu').MenuAlign
+// @ts-expect-error Playa does not republish the removed legacy MenuSide vocabulary.
+export type RemovedMenuSide = import('ajo-ui-playa/menu').MenuSide
+// @ts-expect-error Playa does not republish the removed fake Menu anchor.
+export type RemovedMenuAnchorArgs = import('ajo-ui-playa/menu').MenuAnchorArgs
+
+export const themedContextMenu: ContextMenuArgs = { onOpenChange: () => {} }
+// @ts-expect-error ContextMenu is invocation-driven and cannot begin open.
+export const themedContextMenuOpen: ContextMenuArgs = { open: true }
+// @ts-expect-error ContextMenu positioning is private profile policy.
+export const themedContextMenuPosition: ContextMenuArgs = { placement: 'bottom-start' }
+// @ts-expect-error ContextMenu content cannot carry legacy positioning.
+export const themedContextMenuContentPosition: ContextMenuContentArgs = { align: 'start' }
+
+export const themedMenubarPlacement: MenubarPopupPlacement = 'top-end'
+export const themedMenubarPopupPosition: MenubarPopupPosition = { gap: 10, placement: themedMenubarPlacement }
+export const themedMenubarPosition: MenubarArgs = themedMenubarPopupPosition
+// @ts-expect-error Playa mirrors the sealed base Menubar root position surface.
+export const themedMenubarLegacyPosition: MenubarArgs = { side: 'top' }
+// @ts-expect-error Positioning is shared by the Playa Menubar root.
+export const themedMenubarMenuPosition: MenubarMenuArgs = { placement: 'bottom-end' }
+// @ts-expect-error Playa keeps Menubar positioning out of content.
+export const themedMenubarContentPosition: MenubarContentArgs = { alignOffset: -4 }

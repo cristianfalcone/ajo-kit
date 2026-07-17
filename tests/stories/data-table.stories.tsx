@@ -59,12 +59,12 @@ const columns: readonly DataTableColumn<Payment>[] = [
 		hideable: false,
 		align: 'right',
 		cell: payment => (
-			<Menu>
+			<Menu placement="bottom-end">
 				<MenuTrigger class="inline-flex size-8 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground">
 					<span class="sr-only">Open actions for {payment.email}</span>
 					<span aria-hidden="true" class="i-lucide-ellipsis size-4" />
 				</MenuTrigger>
-				<MenuContent align="end">
+				<MenuContent>
 					<MenuLabel>Actions</MenuLabel>
 					<MenuItem>Copy payment ID</MenuItem>
 					<MenuSeparator />

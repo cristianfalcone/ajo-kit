@@ -40,16 +40,29 @@ const until = async (test: () => boolean, error: string) => {
 	}
 }
 
-const openContext = async (target: HTMLElement) => {
+const openAndPositioned = (content: HTMLElement | null | undefined) => Boolean(
+	content?.matches(':popover-open')
+	&& content.dataset.state === 'open'
+	&& content.dataset.placement
+	&& getComputedStyle(content).visibility === 'visible',
+)
+
+const openContext = async (target: HTMLElement, x?: number, y?: number) => {
 	const rect = target.getBoundingClientRect()
 	target.dispatchEvent(new MouseEvent('contextmenu', {
 		bubbles: true,
 		button: 2,
 		cancelable: true,
-		clientX: rect.left + rect.width / 2,
-		clientY: rect.top + rect.height / 2,
+		clientX: x ?? rect.left + rect.width / 2,
+		clientY: y ?? rect.top + rect.height / 2,
 	}))
-	await frame()
+	const content = target.closest('[data-slot="context-menu"]')?.querySelector<HTMLElement>('[data-slot="context-menu-content"]')
+	await until(() => openAndPositioned(content), 'Context menu did not finish its first visible geometry commit')
+}
+
+const closeContext = async (content: HTMLElement) => {
+	content.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+	await until(() => !content.matches(':popover-open'), 'Context menu did not close from Escape')
 }
 
 const BasicExample: Stateful = function* () {
@@ -149,6 +162,33 @@ const RadioExample: Stateful = function* () {
 	)
 }
 
+const RetargetExample: Stateful = function* () {
+	let alternate = false
+	let changes: boolean[] = []
+	const swap = () => this.next(() => alternate = !alternate)
+	const onOpenChange = (open: boolean) => {
+		changes = [...changes, open]
+		const output = (this as unknown as HTMLElement).querySelector<HTMLElement>('[data-context-changes]')
+		if (output) output.dataset.contextChanges = changes.join(',')
+	}
+
+	while (true) yield (
+		<div class="grid gap-3">
+			<button id="context-outside-target" type="button" set:onclick={swap}>Swap invoker</button>
+			<ContextMenu onOpenChange={onOpenChange}>
+				{alternate
+					? <ContextMenuTrigger key="second" id="retarget-context-b" class={targetClass}>Second invoker</ContextMenuTrigger>
+					: <ContextMenuTrigger key="first" id="retarget-context-a" class={targetClass}>First invoker</ContextMenuTrigger>}
+				<ContextMenuContent key="content" class="w-56">
+					<ContextMenuItem>Open</ContextMenuItem>
+					<ContextMenuItem>Rename</ContextMenuItem>
+				</ContextMenuContent>
+			</ContextMenu>
+			<output data-context-changes={changes.join(',')} />
+		</div>
+	)
+}
+
 export const Basic: Story<typeof ContextMenu> = {
 	render: () => <BasicExample />,
 	play: async ({ canvas }) => {
@@ -182,8 +222,7 @@ export const Basic: Story<typeof ContextMenu> = {
 			throw new Error('contextmenu over the open menu was not prevented')
 		}
 
-		content.hidePopover()
-		await frame()
+		await closeContext(content)
 		await openContext(target)
 
 		// Pointer opens follow input modality: the surface itself takes focus
@@ -199,7 +238,7 @@ export const Basic: Story<typeof ContextMenu> = {
 		copy.click()
 		await frame()
 
-		if (!canvas.textContent?.includes('Action: copy') || target.getAttribute('data-state') !== 'closed') {
+		if (!canvas.textContent?.includes('Action: copy') || target.getAttribute('data-state') !== 'closed' || document.activeElement !== target) {
 			throw new Error('Context menu item did not select and close')
 		}
 	},
@@ -212,12 +251,19 @@ export const Keyboard: Story<typeof ContextMenu> = {
 		if (!target) throw new Error('Context menu trigger was not rendered')
 
 		target.focus()
+		const targetRect = target.getBoundingClientRect()
 		target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'F10', shiftKey: true }))
-		await frame()
+		const content = canvas.querySelector<HTMLElement>('[data-slot="context-menu-content"]')
+		if (!content) throw new Error('Keyboard context content was not rendered')
+		await until(() => openAndPositioned(content), 'Keyboard context menu did not commit visible geometry')
 
 		const focused = document.activeElement as HTMLElement | null
 		if (target.getAttribute('data-state') !== 'open' || focused?.dataset.label !== 'Copy') {
 			throw new Error('Shift+F10 did not open Context Menu and focus the first item')
+		}
+		const contentRect = content.getBoundingClientRect()
+		if (Math.abs(contentRect.left - targetRect.left) > 3 || Math.abs(contentRect.top - (targetRect.bottom + 2)) > 3) {
+			throw new Error('Keyboard Context Menu did not use the invoker left/bottom point')
 		}
 
 		focused.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
@@ -232,6 +278,71 @@ export const Keyboard: Story<typeof ContextMenu> = {
 
 		if (!canvas.textContent?.includes('Action: duplicate') || target.getAttribute('data-state') !== 'closed') {
 			throw new Error('Enter did not activate the focused context menu item')
+		}
+	},
+}
+
+export const Retargeting: Story = {
+	render: () => <RetargetExample />,
+	play: async ({ canvas }) => {
+		const first = canvas.querySelector<HTMLElement>('#retarget-context-a')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="context-menu-content"]') as HTMLElement & {
+			showPopover: (options?: { source?: HTMLElement }) => void
+		}
+		const outside = canvas.querySelector<HTMLElement>('#context-outside-target')
+		const output = canvas.querySelector<HTMLElement>('[data-context-changes]')
+		if (!first || !content || !outside || !output) throw new Error('Retargeting ContextMenu fixture was not rendered')
+		const stateChanges = () => output.dataset.contextChanges
+
+		const sources: Array<HTMLElement | undefined> = []
+		const show = content.showPopover.bind(content)
+		content.showPopover = options => {
+			sources.push(options?.source)
+			show(options)
+		}
+		const firstRect = first.getBoundingClientRect()
+		const firstX = firstRect.left + 24
+		const firstY = firstRect.top + 24
+		await openContext(first, firstX, firstY)
+		if (document.activeElement !== content || sources[0] !== first || stateChanges() !== 'true') {
+			throw new Error('Initial pointer invocation did not commit focus/source/state together')
+		}
+
+		const nextX = firstX + 48
+		const nextY = firstY + 32
+		await openContext(first, nextX, nextY)
+		await until(() => {
+			const rect = content.getBoundingClientRect()
+			return Math.abs(rect.left - nextX) <= 3 && Math.abs(rect.top - (nextY + 2)) <= 3
+		}, 'Same-invoker point update did not commit its latest coordinates')
+		if (sources.length !== 1 || stateChanges() !== 'true') {
+			throw new Error('Same-invoker update reopened native state or emitted another open transition')
+		}
+
+		outside.click()
+		await frame()
+		const second = canvas.querySelector<HTMLElement>('#retarget-context-b')
+		if (!second || second === first) throw new Error('Retarget fixture did not mount a fresh invoker')
+		const secondRect = second.getBoundingClientRect()
+		await openContext(second, secondRect.left + 30, secondRect.top + 28)
+		await until(() => sources.length === 2, 'Invoker change did not refresh the native Popover source')
+		if (sources[1] !== second || stateChanges() !== 'true' || content.getAttribute('aria-labelledby') !== second.id) {
+			throw new Error('Invoker retarget did not preserve semantic state/source/ARIA')
+		}
+
+		await closeContext(content)
+		await frame()
+		if (document.activeElement !== second || stateChanges() !== 'true,false') {
+			throw new Error('Escape did not restore the current real invoker exactly once')
+		}
+
+		await openContext(second)
+		outside.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }))
+		outside.focus()
+		await until(() => !content.matches(':popover-open'), 'Outside pointer did not close ContextMenu')
+		await frame()
+		if (document.activeElement !== outside || stateChanges() !== 'true,false,true,false') {
+			throw new Error('Outside dismissal restored the invoker or desynchronized open state')
 		}
 	},
 }
@@ -316,7 +427,7 @@ export const Submenu: Story = {
 		subTrigger.dispatchEvent(new MouseEvent('mouseenter'))
 		await frame()
 
-		if (subTrigger.getAttribute('aria-expanded') !== 'true' || subContent.hidden) {
+		if (subTrigger.getAttribute('aria-expanded') !== 'true' || !subContent.matches(':popover-open')) {
 			throw new Error('Hover did not open the context submenu')
 		}
 
@@ -332,17 +443,16 @@ export const Submenu: Story = {
 		await frame()
 
 		const hoverHighlighted = Array.from(content.querySelectorAll<HTMLElement>('[data-item="menu"][data-highlighted="true"]'))
-		if (subTrigger.getAttribute('aria-expanded') !== 'false' || !subContent.hidden || hoverHighlighted.length !== 1 || hoverHighlighted[0]?.dataset.label !== 'Remove') {
+		if (subTrigger.getAttribute('aria-expanded') !== 'false' || subContent.matches(':popover-open') || hoverHighlighted.length !== 1 || hoverHighlighted[0]?.dataset.label !== 'Remove') {
 			throw new Error('Hovering a sibling item did not close the context submenu and move highlight')
 		}
 
-		content.hidePopover()
-		await frame()
+		await closeContext(content)
 		await openContext(target)
 
 		// Pointer reopen: submenu reset and no phantom keyboard highlight.
 		const highlighted = Array.from(content.querySelectorAll<HTMLElement>('[data-item="menu"][data-highlighted="true"]'))
-		if (subTrigger.getAttribute('aria-expanded') !== 'false' || !subContent.hidden || highlighted.length !== 0) {
+		if (subTrigger.getAttribute('aria-expanded') !== 'false' || subContent.matches(':popover-open') || highlighted.length !== 0) {
 			throw new Error('Context submenu stayed open or highlighted after parent close and reopen')
 		}
 	},
@@ -390,9 +500,8 @@ export const DisabledFirstItem: Story = {
 			throw new Error('Context menu trigger is missing aria-expanded/aria-controls wiring')
 		}
 
-		// The surface must not be aria-labelledby an unregistered trigger id.
-		if (content.hasAttribute('aria-labelledby')) {
-			throw new Error('Context menu surface must not be labelled by a missing trigger')
+		if (content.getAttribute('aria-labelledby') !== target.id) {
+			throw new Error('Context menu surface is not labelled by its real invoker')
 		}
 	},
 }
@@ -415,10 +524,22 @@ export const LongList: Story = {
 		const target = canvas.querySelector<HTMLElement>('#long-list-context-target')
 		if (!target) throw new Error('Long-list context target was not rendered')
 
-		await openContext(target)
+		// Stay just inside the profile's 4px hidden-reference padding while
+		// still forcing both axes through collision handling.
+		await openContext(target, window.innerWidth - 8, window.innerHeight - 8)
 
 		const content = canvas.querySelector<HTMLElement>('[data-slot="context-menu-content"]')
-		if (!content || !content.matches(':popover-open')) throw new Error('Long-list context menu did not open')
+		if (!content || !openAndPositioned(content)) throw new Error('Long-list context menu did not open')
+		await until(() => {
+			const rect = content.getBoundingClientRect()
+			return rect.left >= 3
+				&& rect.top >= 3
+				&& rect.right <= window.innerWidth - 3
+				&& rect.bottom <= window.innerHeight - 3
+		}, 'Virtual edge point did not keep ContextMenu inside the viewport')
+
+		await closeContext(content)
+		await openContext(target)
 
 		// The shared content token uses the available placement height while
 		// keeping long floating menus within compact viewport bounds.
@@ -433,8 +554,7 @@ export const LongList: Story = {
 			throw new Error('Long-list context menu did not scroll inside its height cap')
 		}
 
-		content.hidePopover()
-		await frame()
+		await closeContext(content)
 	},
 }
 

@@ -1,6 +1,7 @@
 import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { clamp, follow, id as uniqueId, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callRef, clamp, dom, id as uniqueId, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { pointReference, position, type ReservedPositionArg } from './position'
 import type { FixedArgs, OmitArg } from './utils'
 import { text } from './utils'
 
@@ -73,7 +74,7 @@ export type ChartActive = {
 }
 
 /** Arguments for the accessible Chart data and context root. */
-export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {
+export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'gap' | 'placement' | ReservedPositionArg> & {
 	/** Optional resolved chart identity override; otherwise derived from the DOM id or generated. */
 	chartId?: string
 	/** Chart series styling keyed by data key. */
@@ -104,7 +105,7 @@ export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 
 	palette: string[]
 	/** Classes supplied by the styled wrapper. */
 	class?: string
-}>
+}> & FixedArgs<'gap' | 'placement' | ReservedPositionArg>
 
 /** Arguments for native cartesian bar, line, and area plots. */
 export type ChartPlotArgs = OmitArg<IntrinsicElements['svg'], 'children'> & {
@@ -132,14 +133,12 @@ export type ChartPieArgs = ChartPlotArgs & {
 }
 
 /** Arguments for the floating active-value tooltip. */
-export type ChartTooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {
+export type ChartTooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'gap' | 'placement' | ReservedPositionArg> & {
 	/** Custom tooltip content, commonly a tooltip-content component. */
 	content?: Children
-	/** Tooltip shown before the user hovers/focuses a chart item. */
-	defaultIndex?: number
 	/** Classes supplied by the styled wrapper. */
 	class?: string
-}>
+}> & FixedArgs<'defaultIndex' | 'gap' | 'placement' | ReservedPositionArg>
 
 type ClassResolver<State> = string | ((state: State) => string | undefined)
 
@@ -206,6 +205,10 @@ type Point = {
 	y: number
 }
 
+type ChartReferencePoint = Point & {
+	svg: SVGSVGElement
+}
+
 type ChartContextValue = {
 	active: ChartActive | null
 	clearActive: () => void
@@ -219,8 +222,9 @@ type ChartContextValue = {
 	label?: string
 	margin: ChartMargin
 	palette: string[]
+	releasePlot: (plot: SVGSVGElement) => void
 	series: SeriesEntry[]
-	setActive: (active: ChartActive | null, at?: Point) => void
+	setActive: (active: ChartActive | null, at?: ChartReferencePoint) => void
 	setTooltip: (element: HTMLElement | null) => void
 	type: ChartType
 	width: number
@@ -346,11 +350,42 @@ const plotBox = (chart: ChartContextValue) => ({
 	top: chart.margin.top,
 })
 
-const clientPoint = (svg: SVGSVGElement, x: number, y: number, width: number, height: number) => {
-	const svgRect = svg.getBoundingClientRect()
+const clientPoint = (svg: SVGSVGElement, x: number, y: number) => {
+	if (!svg.isConnected) return null
+	const matrix = svg.getScreenCTM()
+	if (!matrix) return null
+	const point = {
+		x: matrix.a * x + matrix.c * y + matrix.e,
+		y: matrix.b * x + matrix.d * y + matrix.f,
+	}
+	return Number.isFinite(point.x) && Number.isFinite(point.y) ? point : null
+}
+
+const svgPoint = (svg: SVGSVGElement, clientX: number, clientY: number) => {
+	const matrix = svg.getScreenCTM()
+	if (!matrix) return null
+	const determinant = matrix.a * matrix.d - matrix.b * matrix.c
+	if (!Number.isFinite(determinant) || determinant === 0) return null
+	const x = clientX - matrix.e
+	const y = clientY - matrix.f
 	return {
-		x: svgRect.left + (x / width) * svgRect.width,
-		y: svgRect.top + (y / height) * svgRect.height,
+		x: (matrix.d * x - matrix.c * y) / determinant,
+		y: (-matrix.b * x + matrix.a * y) / determinant,
+	}
+}
+
+const referencePoint = (svg: SVGSVGElement, point: Point): ChartReferencePoint => ({
+	svg,
+	x: point.x,
+	y: point.y,
+})
+
+const plotRef = (chart: ChartContextValue, ref: unknown) => {
+	let current: SVGSVGElement | null = null
+	return (element: SVGSVGElement | null) => {
+		if (current && current !== element) chart.releasePlot(current)
+		current = element
+		callRef(ref, element)
 	}
 }
 
@@ -454,37 +489,99 @@ const ChartContainerRoot: Stateful<ChartContainerRootArgs> = function* () {
 	let active: ChartActive | null = null
 	const fallbackId = uniqueId('chart')
 	let tooltip: HTMLElement | null = null
-	const root = typeof HTMLElement != 'undefined' && this instanceof HTMLElement ? this : null
-	const position = follow(this, {
-		target: () => tooltip,
-		container: () => root,
+	const root = dom(this) ? this : null
+	let activePoint: ChartReferencePoint | null = null
+	let lastClientPoint: Point | null = null
+	const reference = root ? pointReference(() => activePoint?.svg ?? root, () => {
+		const next = activePoint ? clientPoint(activePoint.svg, activePoint.x, activePoint.y) : null
+		if (next) lastClientPoint = next
+		if (lastClientPoint) return lastClientPoint
+		const rect = root.getBoundingClientRect()
+		return { x: rect.left, y: rect.top }
+	}) : null
+	const geometry = position(this, {
+		profile: 'chart',
+		boundary: () => root,
+		elements: () => ({ reference, floating: tooltip, arrow: null }),
 	})
+	let geometryScheduled = false
+	let geometryRestart = false
 
-	const setTooltip = (element: HTMLElement | null) => tooltip = element
-	const clearTooltipStyle = () => {
-		if (!tooltip) return
-		tooltip.style.transform = ''
-		tooltip.style.willChange = ''
+	const report = (error: unknown) => {
+		if (this.signal.aborted) return
+		queueMicrotask(() => {
+			if (!this.signal.aborted) this.throw(error)
+		})
 	}
-	const setActive = (next: ChartActive | null, at?: Point) => {
-		if (sameActiveValue(active, next)) return
+	const scheduleGeometry = (restart = false) => {
+		geometryRestart ||= restart
+		if (geometryScheduled || this.signal.aborted) return
+		geometryScheduled = true
+		queueMicrotask(() => {
+			geometryScheduled = false
+			const shouldRestart = geometryRestart
+			geometryRestart = false
+			if (!active || !activePoint || !tooltip || this.signal.aborted) return
+			const task = shouldRestart ? geometry.start() : geometry.update()
+			void task.catch(report)
+		})
+	}
+	const setTooltip = (element: HTMLElement | null) => {
+		if (element === tooltip) return
+		geometry.stop()
+		tooltip = element
+		if (active && activePoint && element) scheduleGeometry(true)
+	}
+	const movePoint = (next: ChartReferencePoint | undefined) => {
+		if (!next) return 0
+		if (
+			activePoint?.svg === next.svg &&
+			activePoint.x === next.x &&
+			activePoint.y === next.y
+		) return 0
+		const retargeted = activePoint != null && activePoint.svg !== next.svg
+		activePoint = next
+		return retargeted ? 2 : 1
+	}
+	const setActive = (next: ChartActive | null, at?: ChartReferencePoint) => {
+		const movement = next ? movePoint(at) : 0
+		const retargeted = movement === 2
+		if (retargeted) geometry.stop()
+		if (!next) {
+			activePoint = null
+			lastClientPoint = null
+			geometry.stop()
+		}
+		if (sameActiveValue(active, next)) {
+			if (next && movement) scheduleGeometry(movement === 2)
+			return
+		}
 
 		const first = active == null && next != null
-		if (!next) {
-			position.stop()
-			clearTooltipStyle()
-		}
 
 		this.next(() => active = next)
 
-		// The tooltip ref/content update during the render above; position after
-		// that render so follow measures the current element.
-		if (next && at) queueMicrotask(() => {
-			if (first) position.snap(at.x, at.y)
-			else position.move(at.x, at.y)
-		})
+		// The tooltip ref/content updates during the render above. Mount/retarget
+		// and point changes collapse into one current Adapter request.
+		if (next && at) scheduleGeometry(first || retargeted)
 	}
 	const clearActive = () => setActive(null)
+	const releasePlot = (plot: SVGSVGElement) => {
+		if (this.signal.aborted || activePoint?.svg !== plot) return
+		const releasedPoint = activePoint
+		geometry.stop()
+		activePoint = null
+		lastClientPoint = null
+		queueMicrotask(() => {
+			if (this.signal.aborted || activePoint) return
+			if (plot.isConnected) {
+				activePoint = releasedPoint
+				if (active && tooltip) scheduleGeometry(true)
+				return
+			}
+			if (active) clearActive()
+		})
+	}
 
 	for (const args of this) {
 		const chartId = args.chartId ?? resolveRootChartId(args.rootId, fallbackId)
@@ -506,6 +603,7 @@ const ChartContainerRoot: Stateful<ChartContainerRootArgs> = function* () {
 			label: args.label,
 			margin,
 			palette: args.palette,
+			releasePlot,
 			series: seriesEntries(args.config, args.series, data, args.xKey, args.palette),
 			setActive,
 			setTooltip,
@@ -578,6 +676,7 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 	gridStroke,
 	pointClass,
 	pointFill,
+	ref,
 	type,
 	...attrs
 }) => {
@@ -605,8 +704,11 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 		y: scaled(number(row[entry.key]) ?? 0, min, max, box.top, box.bottom),
 	}))
 
-	const activate = (index: number, at?: Point) => {
-		if (sameActiveTarget(chart.active, index, seriesKeys)) return
+	const activate = (index: number, at?: ChartReferencePoint) => {
+		if (sameActiveTarget(chart.active, index, seriesKeys)) {
+			chart.setActive(chart.active, at)
+			return
+		}
 
 		const items = payloadFor(chart, index)
 		if (!items.length) {
@@ -626,13 +728,17 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 
 	const pointerMove = (event: PointerEvent) => {
 		const svg = event.currentTarget as SVGSVGElement
-		const rect = svg.getBoundingClientRect()
-		const sx = ((event.clientX - rect.left) / rect.width) * chart.width
+		const cursor = svgPoint(svg, event.clientX, event.clientY)
+		if (!cursor) {
+			chart.clearActive()
+			return
+		}
+		const sx = cursor.x
 		const index = type === 'bar'
 			? clamp(Math.floor((sx - box.left) / groupWidth), 0, chart.data.length - 1)
 			: xStep === 0 ? 0 : clamp(Math.round((sx - box.left) / xStep), 0, chart.data.length - 1)
 		const point = rowPoint(index)
-		activate(index, clientPoint(svg, point.x, point.y, chart.width, chart.height))
+		activate(index, referencePoint(svg, point))
 	}
 
 	const focusIn = (event: FocusEvent) => {
@@ -641,7 +747,7 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 		const svg = svgFromEvent(event)
 		if (!svg || !Number.isInteger(index)) return
 		const point = rowPoint(index)
-		activate(index, clientPoint(svg, point.x, point.y, chart.width, chart.height))
+		activate(index, referencePoint(svg, point))
 	}
 
 	return (
@@ -653,6 +759,7 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 			data-slot={`chart-${type}`}
 			height={chart.height}
 			role="img"
+			ref={plotRef(chart, ref)}
 			viewBox={`0 0 ${chart.width} ${chart.height}`}
 			width="100%"
 			xmlns="http://www.w3.org/2000/svg"
@@ -669,6 +776,7 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 
 				return chart.series.map((entry, seriesIndex) => {
 					const value = number(row[entry.key]) ?? 0
+					const sign = value === 0 ? 'zero' : value < 0 ? 'negative' : 'positive'
 					const y = scaled(Math.max(0, value), min, max, box.top, box.bottom)
 					const yZero = scaled(Math.min(0, value), min, max, box.top, box.bottom)
 					const height = Math.max(1, Math.abs(yZero - y))
@@ -681,11 +789,11 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 							class={barClass}
 							data-active={chart.active?.index === index ? 'true' : undefined}
 							data-chart-index={index}
+							data-chart-sign={sign}
 							data-chart-series={entry.key}
 							fill={entry.color}
 							focusable="true"
 							height={height}
-							rx="4"
 							style={`--chart-index:${index}`}
 							tabindex="0"
 							width={Math.max(2, barWidth - 2)}
@@ -694,12 +802,12 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 							set:onfocus={(event: FocusEvent) => {
 								const svg = svgFromEvent(event)
 								const point = rowPoint(index)
-								if (svg) activate(index, clientPoint(svg, point.x, point.y, chart.width, chart.height))
+								if (svg) activate(index, referencePoint(svg, point))
 							}}
 							set:onpointerenter={(event: PointerEvent) => {
 								const svg = svgFromEvent(event)
 								const point = rowPoint(index)
-								if (svg) activate(index, clientPoint(svg, point.x, point.y, chart.width, chart.height))
+								if (svg) activate(index, referencePoint(svg, point))
 							}}
 						/>
 					)
@@ -734,12 +842,12 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 									set:onfocus={(event: FocusEvent) => {
 										const svg = svgFromEvent(event)
 										const activePoint = rowPoint(index)
-										if (svg) activate(index, clientPoint(svg, activePoint.x, activePoint.y, chart.width, chart.height))
+										if (svg) activate(index, referencePoint(svg, activePoint))
 									}}
 									set:onpointerenter={(event: PointerEvent) => {
 										const svg = svgFromEvent(event)
 										const activePoint = rowPoint(index)
-										if (svg) activate(index, clientPoint(svg, activePoint.x, activePoint.y, chart.width, chart.height))
+										if (svg) activate(index, referencePoint(svg, activePoint))
 									}}
 								/>
 							)
@@ -766,6 +874,7 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 	centerLabelFill,
 	class: classes,
 	innerRadius = 0,
+	ref,
 	sliceStroke,
 	...attrs
 }) => {
@@ -780,8 +889,11 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 	const radius = center - 12
 	let start = -Math.PI / 2
 
-	const activate = (index: number, angle: number, color: string, at?: Point) => {
-		if (sameActiveTarget(chart.active, index, [entry.key])) return
+	const activate = (index: number, angle: number, color: string, at?: ChartReferencePoint) => {
+		if (sameActiveTarget(chart.active, index, [entry.key])) {
+			chart.setActive(chart.active, at)
+			return
+		}
 
 		const point = anglePoint(center, radius * 0.78, angle)
 		const row = chart.data[index]!
@@ -814,14 +926,17 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 		const start = -Math.PI / 2 + (totalBefore / total) * Math.PI * 2
 		const middle = start + ((value / total) * Math.PI * 2) / 2
 		const point = anglePoint(center, radius * 0.78, middle)
-		activate(index, middle, chart.palette[index % chart.palette.length], clientPoint(svg, point.x, point.y, size, size))
+		activate(index, middle, chart.palette[index % chart.palette.length], referencePoint(svg, point))
 	}
 
 	const pointerMove = (event: PointerEvent) => {
 		const svg = event.currentTarget as SVGSVGElement
-		const rect = svg.getBoundingClientRect()
-		const x = ((event.clientX - rect.left) / rect.width) * size
-		const y = ((event.clientY - rect.top) / rect.height) * size
+		const cursorPoint = svgPoint(svg, event.clientX, event.clientY)
+		if (!cursorPoint) {
+			chart.clearActive()
+			return
+		}
+		const { x, y } = cursorPoint
 		const distance = Math.hypot(x - center, y - center)
 		if (distance > radius || distance < innerRadius) {
 			chart.clearActive()
@@ -837,7 +952,7 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 			if (angle <= cursor + span || index === values.length - 1) {
 				const middle = -Math.PI / 2 + cursor + span / 2
 				const point = anglePoint(center, radius * 0.78, middle)
-				activate(index, middle, chart.palette[index % chart.palette.length], clientPoint(svg, point.x, point.y, size, size))
+				activate(index, middle, chart.palette[index % chart.palette.length], referencePoint(svg, point))
 				return
 			}
 			cursor += span
@@ -853,6 +968,7 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 			data-slot="chart-pie"
 			height={chart.height}
 			role="img"
+			ref={plotRef(chart, ref)}
 			viewBox={`0 0 ${size} ${size}`}
 			width="100%"
 			xmlns="http://www.w3.org/2000/svg"
@@ -887,12 +1003,12 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 						set:onfocus={(event: FocusEvent) => {
 							const svg = svgFromEvent(event)
 							const point = anglePoint(center, radius * 0.78, middle)
-							if (svg) activate(index, middle, color, clientPoint(svg, point.x, point.y, size, size))
+							if (svg) activate(index, middle, color, referencePoint(svg, point))
 						}}
 						set:onpointerenter={(event: PointerEvent) => {
 							const svg = svgFromEvent(event)
 							const point = anglePoint(center, radius * 0.78, middle)
-							if (svg) activate(index, middle, color, clientPoint(svg, point.x, point.y, size, size))
+							if (svg) activate(index, middle, color, referencePoint(svg, point))
 						}}
 					/>
 				)
@@ -911,23 +1027,12 @@ const ChartTooltip: Stateless<ChartTooltipArgs> = ({
 	children,
 	class: classes,
 	content,
-	defaultIndex,
 	...attrs
 }) => {
 	const chart = ChartContext()
 	if (!chart) return null
 
-	const active = chart.active ?? (defaultIndex != null && chart.data[defaultIndex]
-		? {
-			index: defaultIndex,
-			items: payloadFor(chart, defaultIndex),
-			label: labelFor(chart, chart.data[defaultIndex]!, defaultIndex),
-			x: 24,
-			y: 24,
-		}
-		: null)
-
-	if (!active?.items.length) return null
+	if (!chart.active?.items.length) return null
 
 	return (
 		<div

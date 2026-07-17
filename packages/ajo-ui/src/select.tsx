@@ -2,10 +2,12 @@ import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } f
 import { announce, callHandler, callRef, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs, typeahead } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from './input-group'
-import type { FixedArgs, OmitArg } from './utils'
-import { defaultResultsLabel, flag, matchesTokens, resolveFilter, text } from './utils'
-import { contentAttrs, datasetPlacement, floating, triggerAttrs, type FloatingView } from './floating'
 import { collection } from './collection'
+import { contentAttrs, popup, type PopupView } from './popup'
+import type { ReservedPositionArg } from './position'
+import type { FixedArgs, OmitArg, PopupPosition } from './utils'
+import { defaultResultsLabel, flag, matchesTokens, resolveFilter, text, triggerAttrs } from './utils'
+export type { PopupPlacement, PopupPosition } from './utils'
 
 /** Visual size supported by the built-in select trigger. */
 export type SelectSize = 'default' | 'sm'
@@ -14,7 +16,7 @@ export type SelectSize = 'default' | 'sm'
 export type SelectFilter<T = unknown> = (item: T, search: string, text: string) => boolean
 
 /** Props for single- or multiple-selection state and search behavior. */
-export type SelectArgs<T = string, Multiple extends boolean = false> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange'> & {
+export type SelectArgs<T = string, Multiple extends boolean = false> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange' | ReservedPositionArg> & PopupPosition & {
 	/** Items available to SelectList render functions. */
 	items?: T[]
 	/** Controlled selection; null means controlled-empty. */
@@ -55,7 +57,7 @@ export type SelectArgs<T = string, Multiple extends boolean = false> = WithChild
 	resultsLabel?: (count: number) => string
 	/** Additional UnoCSS classes. */
 	class?: string
-}> & FixedArgs<'onchange'>
+}> & FixedArgs<'onchange' | ReservedPositionArg>
 
 /** Props for the button that opens the select popup. */
 export type SelectTriggerArgs = WithChildren<OmitArg<IntrinsicElements['button'], 'size'> & {
@@ -103,23 +105,13 @@ export type SelectClearArgs = WithChildren<IntrinsicElements['button'] & {
 	iconClass?: string
 }>
 
-/** Props for the positioned select popup. */
-export type SelectContentArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Preferred side relative to the field. */
-	side?: 'bottom' | 'left' | 'right' | 'top'
-	/** Horizontal alignment relative to the field. */
-	align?: 'center' | 'end' | 'start'
-	/** Gap between anchor and content in pixels. */
-	sideOffset?: number
-	/** Pixel shift along the alignment axis. */
-	alignOffset?: number
-	/** Viewport padding used by fallback placement. */
-	collisionPadding?: number
+/** Props for the select popup; positioning and native semantics belong to Select. */
+export type SelectContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'hidden' | 'id' | 'popover' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
 	/** Additional UnoCSS classes. */
 	class?: string
-	/** Inline CSS string. */
+	/** Inline CSS declarations composed with live positioning styles. */
 	style?: string
-}>
+}> & FixedArgs<'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
 
 /** Props for an option list, including item-renderer children. */
 export type SelectListArgs<T = unknown> = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {
@@ -223,6 +215,8 @@ type SelectContextValue = {
 	activeId: string
 	activeKey: string
 	clear: (event?: Event) => void
+	contentId: string
+	contentStyle: PopupView['contentStyle']
 	create: (event: Event) => void
 	createVisible: boolean
 	disabled: boolean
@@ -243,9 +237,9 @@ type SelectContextValue = {
 	selectedLabels: string[]
 	select: (item: unknown, event: Event) => void
 	setActive: (key: string) => void
-	setAnchor: (element: HTMLElement | null) => void
+	setReference: (element: HTMLElement | null, previous?: HTMLElement | null) => void
 	setContent: (element: HTMLDivElement | null) => void
-	setInput: (element: HTMLInputElement | null) => void
+	setInput: (element: HTMLInputElement | null, previous?: HTMLInputElement | null) => void
 	setOpen: (open: boolean, event?: Event) => void
 	setSearch: (value: string, event?: Event) => void
 	setTrigger: (element: HTMLButtonElement | null) => void
@@ -286,22 +280,26 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 	open,
 }) {
 	const selectId = id('select')
+	const ownerDocument = dom(this) ? this.ownerDocument : null
 	const fallbackInputId = `${selectId}-input`
 	const labels = new Map<string, string>()
 	let activeKey = ''
 	let disabled = false
+	let fieldReference: HTMLElement | null = null
 	let input: HTMLInputElement | null = null
 	let inputId = fallbackInputId
 	let announceResults = false
+	let closeFocus: HTMLElement | null = null
 	let lastResultCount = -1
 	let onCreate: SelectArgs<any, boolean>['onCreate']
 	let onInputValueChange: SelectArgs<any, boolean>['onInputValueChange']
 	let onOpenChange: SelectArgs<any, boolean>['onOpenChange']
 	let onValueChange: SelectArgs<any, boolean>['onValueChange']
 	let pendingFocus = false
+	let pendingReference: HTMLElement | null = null
 	let pendingSeed = ''
 	let pendingStep = 0
-	let pop: FloatingView<HTMLButtonElement, HTMLDivElement>
+	let pop: PopupView<HTMLButtonElement, HTMLDivElement>
 	const searchState = controlled<string>(this, {
 		fallback: String(inputValue ?? defaultInputValue ?? ''),
 		onChange: (next, event) => onInputValueChange?.(next, event),
@@ -314,40 +312,35 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 
 	const itemDomId = (key: string) => `${selectId}-item-${encodeURIComponent(key)}`
 
-	// The in-popup search input must not anchor the popup to itself; the field
-	// (outside anchor, trigger, or field input) always wins.
+	// The in-popup search input must not reference the popup to itself; the
+	// external field, trigger, or field input always wins.
 	const inPopup = (element: HTMLElement | null) =>
 		Boolean(element && pop.content && pop.content.contains(element))
 
-	pop = floating<HTMLButtonElement, HTMLDivElement>(this, {
+	const clearFocusIntent = () => {
+		pendingFocus = false
+		pendingReference = null
+		pendingSeed = ''
+		pendingStep = 0
+	}
+
+	pop = popup<HTMLButtonElement, HTMLDivElement>(this, {
 		prefix: 'select',
+		profile: 'select',
 		initialOpen: Boolean(open ?? defaultOpen),
 		disabled: () => disabled,
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
-		reference: view => {
-			const outside = view.anchor && !inPopup(view.anchor) ? view.anchor : null
-			return outside ?? view.trigger ?? (inPopup(input) ? null : input)
-		},
-		placement: datasetPlacement(() => pop.content, {
-			side: 'bottom',
-			align: 'start',
-			sideOffset: 6,
-			padding: 8,
-		}),
+		reference: view => view.reference,
+		source: view => dom(view.reference) ? view.reference as HTMLElement : null,
+		referenceHidden: 'close',
 		dismiss: {
 			escape: false,
 			outside: true,
-			inside: view => [view.content],
+			inside: view => [dom(view.reference) ? view.reference : null, view.content],
 			onDismiss: event => setOpen(false, event),
 		},
-		onSync: opened => {
-			if (!opened || !pendingFocus) {
-				pendingFocus = false
-				pendingSeed = ''
-				pendingStep = 0
-				return
-			}
-
+		onPosition: () => {
+			if (!pendingFocus || pop.reference !== pendingReference) return
 			pendingFocus = false
 			const popupInput = inPopup(input) ? input : null
 			if (popupInput) {
@@ -361,45 +354,75 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 				if (pendingStep && target) target = items[items.indexOf(target) + pendingStep] ?? target
 				selectItems.focusItem(pop.content, target)
 			}
+			pendingReference = null
 			pendingSeed = ''
 			pendingStep = 0
+		},
+		onSync: opened => {
+			if (!opened) finishClose()
 		},
 	})
 
 	// Focus returns to the field before the popover hides so it never drops to body.
 	const restoreFocus = () => {
-		const active = document.activeElement as HTMLElement | null
+		const active = ownerDocument?.activeElement
+		const target = closeFocus ?? pop.trigger ?? input
+		closeFocus = null
 		if (!active || !pop.content?.contains(active)) return
-		;(pop.trigger ?? input)?.focus()
+		target?.focus()
 	}
 
-	const setOpen = (next: boolean, event?: Event) => {
+	const finishClose = () => {
+		restoreFocus()
+		clearFocusIntent()
+		// Closing discards the search so reopening shows the full list.
+		if (!searchState.controlled && searchState.value) searchState.init('')
+		activeKey = ''
+	}
+
+	const setOpen = (next: boolean, event?: Event, focus?: HTMLElement | null) => {
 		if (disabled && next) return
 		if (next === pop.open) return
 		// The in-popup search input receives focus however the popup opens.
-		if (next && inPopup(input)) pendingFocus = true
-		if (!next) {
-			restoreFocus()
-			// Closing discards the search so reopening shows the full list.
-			if (!searchState.controlled) searchState.init('')
-			activeKey = ''
+		if (next) {
+			closeFocus = null
+			if (inPopup(input)) pendingFocus = true
 		}
+		if (!next) {
+			closeFocus = focus ?? null
+			clearFocusIntent()
+		}
+		else pendingReference = pop.reference as HTMLElement | null
 		pop.setOpen(next, event)
 	}
 
-	const setAnchor = (element: HTMLElement | null) => {
-		pop.setAnchor(element)
-		pop.place()
+	const effectiveReference = () =>
+		(inPopup(fieldReference) ? null : fieldReference)
+			?? pop.trigger
+			?? (inPopup(input) ? null : input)
+
+	const syncReference = () => {
+		const next = effectiveReference()
+		if (pop.reference === next) return
+		clearFocusIntent()
+		pop.setReference(next)
 	}
 
-	const setInput = (element: HTMLInputElement | null) => {
+	const setReference = (element: HTMLElement | null, previous?: HTMLElement | null) => {
+		if (!element && previous && fieldReference !== previous) return
+		fieldReference = element
+		syncReference()
+	}
+
+	const setInput = (element: HTMLInputElement | null, previous?: HTMLInputElement | null) => {
+		if (!element && previous && input !== previous) return
 		input = element
 		const nextInputId = element?.id || fallbackInputId
 		if (nextInputId !== inputId) {
 			inputId = nextInputId
 			queueMicrotask(() => this.next())
 		}
-		pop.place()
+		syncReference()
 	}
 
 	const setTrigger = (element: HTMLButtonElement | null) => {
@@ -407,15 +430,19 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 		pop.setTrigger(element)
 		// Trigger presence gates the listbox label; converge attributes post-mount.
 		if (Boolean(element) !== had) queueMicrotask(() => this.next())
-		pop.place()
+		syncReference()
+	}
+
+	const setContent = (element: HTMLDivElement | null) => {
+		pop.setContent(element)
+		syncReference()
 	}
 
 	const setSearch = (next: string, event?: Event) => {
 		searchState.set(next, event)
 		announceResults = true
-		// Typing (or deleting) keeps the list open and repositioned.
+		// Typing (or deleting) keeps the list open; observation owns geometry.
 		if (!pop.open) setOpen(true, event)
-		else queueMicrotask(() => pop.place())
 	}
 
 	const setActive = (key: string) => {
@@ -423,7 +450,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 		// Button mode mirrors hover into real focus, menu-style.
 		if (!input) {
 			const target = selectItems.items(this).find(item => item.dataset.value === key)
-			if (target && target !== document.activeElement) selectItems.focusItem(this, target)
+			if (target && target !== ownerDocument?.activeElement) selectItems.focusItem(this, target)
 		}
 		this.next(() => activeKey = key)
 	}
@@ -483,8 +510,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			if (event.key === 'Escape') {
 				if (!pop.open) return
 				event.preventDefault()
-				setOpen(false, event)
-				input?.focus()
+				setOpen(false, event, input)
 				return
 			}
 			if (event.key === backward) {
@@ -525,8 +551,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			if (event.key === 'Escape') {
 				if (!pop.open) return
 				event.preventDefault()
-				setOpen(false, event)
-				pop.trigger?.focus()
+				setOpen(false, event, pop.trigger)
 				return
 			}
 			if (event.key === 'Tab') {
@@ -603,8 +628,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 				if (!pop.open) return
 				// Always consumed so an ancestor dialog does not also close.
 				event.preventDefault()
-				setOpen(false, event)
-				if (inPopup(target)) pop.trigger?.focus()
+				setOpen(false, event, inPopup(target) ? pop.trigger : null)
 				return
 			}
 			if (event.key === 'Backspace' && target.dataset.slot === 'select-chips-input' && !(target as HTMLInputElement).value) {
@@ -634,8 +658,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			}
 			if (event.key === 'Escape') {
 				event.preventDefault()
-				setOpen(false, event)
-				pop.trigger?.focus()
+				setOpen(false, event, pop.trigger)
 				return
 			}
 			if (focusNav.handle(event)) return
@@ -660,7 +683,14 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 		onInputValueChange = args.onInputValueChange
 		onOpenChange = args.onOpenChange
 		onValueChange = args.onValueChange
-		pop.sync(args.open == null ? undefined : Boolean(args.open))
+		const wasOpen = pop.open
+		const opened = pop.sync(args.open == null ? undefined : Boolean(args.open), {
+			placement: args.placement,
+			gap: args.gap,
+		})
+		if (wasOpen && !opened) finishClose()
+		else if (!opened) clearFocusIntent()
+		else closeFocus = null
 		searchState.sync(args.inputValue === undefined ? undefined : String(args.inputValue))
 		valueState.sync(args.value)
 
@@ -712,7 +742,6 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 				live.polite(`${label(item)} ${exists ? 'deselected' : 'selected'}, ${next.length} selected`)
 				if (!searchState.controlled) searchState.init('')
 				this.next()
-				queueMicrotask(() => pop.place())
 				return
 			}
 
@@ -727,7 +756,6 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			}
 			if (!searchState.controlled) searchState.init('')
 			setOpen(false, event)
-			if (!input) pop.trigger?.focus()
 		}
 
 		const remove = (item: unknown, event?: Event) => {
@@ -745,7 +773,6 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			commitValue(multiple ? [] : null, event)
 			if (!searchState.controlled) searchState.init('')
 			this.next()
-			queueMicrotask(() => pop.place())
 			input?.focus()
 		}
 
@@ -756,13 +783,14 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			onCreate?.(value, event)
 			if (!searchState.controlled) searchState.init('')
 			this.next()
-			queueMicrotask(() => pop.place())
 		}
 
 		SelectContext({
 			activeId: activeKey ? itemDomId(activeKey) : '',
 			activeKey,
 			clear,
+			contentId: pop.contentId,
+			contentStyle: pop.contentStyle,
 			create,
 			createVisible,
 			disabled,
@@ -787,8 +815,8 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			selectedLabels,
 			select,
 			setActive,
-			setAnchor,
-			setContent: pop.setContent,
+			setReference,
+			setContent,
 			setInput,
 			setOpen,
 			setSearch,
@@ -856,6 +884,7 @@ const Select = <T = string, Multiple extends boolean = false>({
 	defaultValue,
 	disabled,
 	filter,
+	gap,
 	inputValue,
 	itemToStringValue,
 	items,
@@ -866,6 +895,7 @@ const Select = <T = string, Multiple extends boolean = false>({
 	onOpenChange,
 	onValueChange,
 	open,
+	placement,
 	required,
 	resultsLabel,
 	value,
@@ -879,6 +909,7 @@ const Select = <T = string, Multiple extends boolean = false>({
 		defaultValue={defaultValue}
 		disabled={disabled}
 		filter={filter as SelectFilter | null | undefined}
+		gap={gap}
 		inputValue={inputValue}
 		itemToStringValue={itemToStringValue as ((item: unknown) => string) | undefined}
 		items={items}
@@ -889,6 +920,7 @@ const Select = <T = string, Multiple extends boolean = false>({
 		onOpenChange={onOpenChange}
 		onValueChange={onValueChange as ((value: unknown, event?: Event) => void) | undefined}
 		open={open}
+		placement={placement}
 		required={required}
 		resultsLabel={resultsLabel}
 		value={value}
@@ -1008,8 +1040,12 @@ const SelectInput: Stateless<SelectInputArgs> = ({
 				? ''
 				: select?.selectedLabels[0] ?? ''
 		: String(value)
+	let mounted: HTMLInputElement | null = null
+	let group: HTMLDivElement | null = null
 	const reference = (element: HTMLInputElement | null) => {
-		select?.setInput(element)
+		const previous = mounted
+		mounted = element
+		select?.setInput(element, previous)
 		callRef(ref, element)
 	}
 
@@ -1018,7 +1054,11 @@ const SelectInput: Stateless<SelectInputArgs> = ({
 			class={classes}
 			disabled={disabledFlag}
 			ref={element => {
-				if (element && !element.closest('[data-slot="select-content"]')) select?.setAnchor(element)
+				const previous = group
+				group = element
+				if (!element || !element.closest('[data-slot="select-content"]')) {
+					select?.setReference(element, previous)
+				}
 			}}
 		>
 			<InputGroupInput
@@ -1117,34 +1157,18 @@ const SelectClear: Stateless<SelectClearArgs> = ({
 }
 
 /** Popup panel for Select options. */
-const SelectContent: Stateless<SelectContentArgs> = ({
-	align = 'start',
-	alignOffset = 0,
-	children,
-	class: classes,
-	collisionPadding = 8,
-	ref,
-	side = 'bottom',
-	sideOffset = 6,
-	style,
-	...attrs
-}) => {
+const SelectContent: Stateless<SelectContentArgs> = ({ children, class: classes, ref, style, ...attrs }) => {
 	const select = SelectContext()
 
 	return (
 		<div
 			{...attrs}
 			{...contentAttrs({
-				align,
-				alignOffset,
-				collisionPadding,
+				id: select?.contentId,
 				open: Boolean(select?.open),
-				popover: 'manual',
 				ref,
 				setContent: select?.setContent,
-				side,
-				sideOffset,
-				style,
+				style: select?.contentStyle(style),
 				tabindex: '-1',
 			})}
 			class={classes}
@@ -1305,8 +1329,11 @@ const SelectChips: Stateless<SelectChipsArgs> = ({
 	...attrs
 }) => {
 	const select = SelectContext()
+	let mounted: HTMLDivElement | null = null
 	const reference = (element: HTMLDivElement | null) => {
-		select?.setAnchor(element)
+		const previous = mounted
+		mounted = element
+		select?.setReference(element, previous)
 		callRef(ref, element)
 	}
 
@@ -1368,8 +1395,11 @@ const SelectChipsInput: Stateless<SelectChipsInputArgs> = ({
 }) => {
 	const select = SelectContext()
 	const disabledFlag = Boolean(disabled ?? select?.disabled)
+	let mounted: HTMLInputElement | null = null
 	const reference = (element: HTMLInputElement | null) => {
-		select?.setInput(element)
+		const previous = mounted
+		mounted = element
+		select?.setInput(element, previous)
 		callRef(ref, element)
 	}
 

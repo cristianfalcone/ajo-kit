@@ -56,13 +56,22 @@ it remains transitive and private to Playa applications.
 The repository-level technical reference is [`ai/ui.md`](../../ai/ui.md).
 Its main implementation seams are:
 
-- **The popup engine** (`floating.ts`, internal) is the single implementation
-  of anchored popups: controlled open state, generated ids, `anchor`
-  positioning, native Popover show/hide with `toggle` echo, optional hover
-  intent, and dismissal. Popover, Tooltip, Menu (root and submenus),
-  Select, and NavigationMenu all run on it; per-family code is only
-  role/ARIA wiring and behavior policy. `popupStyle()` applies the UA popover
-  stylesheet reset exactly once.
+- **The positioning Adapter** (`position.ts`, internal) is the only module that
+  imports `@floating-ui/dom`. Named family profiles own middleware order,
+  collision policy, real or virtual references, first placement, live
+  `autoUpdate`, stale-result rejection, available-width/height constraints,
+  arrows, and geometry cleanup. It derives DOM services and DPR from the owner
+  realm and stays inert for protocol-only hosts. Popup families expose only the
+  small `placement`/`gap` contract; Chart consumes its bounded virtual-point
+  profile directly.
+- **The popup lifecycle** (`popup.ts`, internal) composes controlled state,
+  generated ids, refs, hover intent, dismissal, native Popover sequencing, and
+  reveal-after-placement around the Adapter. `native.ts` is the capability
+  boundary for `showPopover`, `hidePopover`, and `:popover-open`. Popover,
+  Tooltip, Menu and submenus, ContextMenu, Menubar, Select, InputDate,
+  InputDateTime, and NavigationMenu all use this lifecycle while retaining
+  family-specific role, ARIA, focus, and keyboard policy. `popupStyle()`
+  applies the UA popover stylesheet reset exactly once.
 - **The item collection** (`collection.ts`, internal) is the single item
   protocol for list-like families: items are marked `data-item="<kind>"` and
   carry `data-value`, `data-label`, and `data-disabled`; the kind keeps nested
@@ -74,12 +83,17 @@ Its main implementation seams are:
   (SelectTrigger, SelectInput, or SelectChips) decides the focus model. See
   [`ai/ui.md`](../../ai/ui.md) for the complete interaction contract.
 - **The bar machine** (`bar.ts`, internal) owns the open-value + roving +
-  typeahead + follow policy under Menubar and NavigationMenu; Toolbar (APG
-  toolbar) covers arbitrary controls in a bar with the same single-tab-stop
-  discipline. Menu exports its substrate contract (MenuContext, the
-  menu collection, focusEdge, MenuAnchor) for composing families —
-  ContextMenu anchors at the pointer through it. The `anchor` clove also
-  positions optional arrow parts (PopoverArrow, TooltipArrow). The toast
+  typeahead + focus-driven open-value policy under Menubar and NavigationMenu;
+  Toolbar (APG toolbar) covers arbitrary controls in a bar with the same single-tab-stop
+  discipline. Menu, ContextMenu, and Menubar compose through private,
+  non-inheriting policy and invocation seams: Menu owns semantics, focus, and
+  dismissal; ContextMenu supplies a virtual point plus the real invoker; and
+  Menubar supplies its profile plus one-shot adjacent focus after committed
+  geometry. No menu substrate is public. The private popup/position adapter
+  also owns internal arrow geometry. `PopoverContent` enables it with `arrow`,
+  while `TooltipContent` always includes it; there are no public arrow parts.
+  The transparent `popup-arrow` marker and the single painted `popup-surface`
+  remain implementation slots. The toast
   viewport rides the raw `popover="manual"` primitive (top-layer stacking
   above modals), and while a modal Dialog is open the Toaster re-homes its
   toasts into the dialog's `data-slot="dialog-portal"` outlet through a
@@ -90,8 +104,10 @@ Its main implementation seams are:
   `segments.ts`. InputDate, InputTime, and InputDateTime render its
   locale-ordered segments; `InputDateTimeField` renders only the same view's
   time run inside the optional popup. Field and popup are separate focus/ARIA
-  surfaces, not separate value models. The popup runs on `floating.ts` and
-  composes the standalone Calendar family.
+  surfaces, not separate value models. InputDate and InputDateTime position
+  from the complete component root - the full themed field group - while the
+  calendar button remains the semantic trigger and native Popover source. The
+  popup composes the standalone Calendar family.
 - **The availability engine** (`availability.ts`, internal) compiles the one
   matcher grammar once per source/time-zone change and serves Calendar days,
   date/time field validation, and range-crossing checks. `disabled` is the
@@ -162,11 +178,11 @@ Its main implementation seams are:
   never set an Ajo Context.
 - `DirectionProvider` supplies the default text direction; families with
   horizontal keyboard navigation accept a `dir` arg that overrides it.
-- `availability.ts`, `bar.ts`, `collection.ts`, `floating.ts`, `segments.ts`,
-  `virtual.ts`, `data-table-contract.ts`, and `data-table-model.ts` are
-  deliberate internal modules with no public subpath. Shared UI normalization
-  and composition live together in
-  `ajo-ui/utils`; general realm, host, lifecycle, callback/ref, cache, and
+- `availability.ts`, `bar.ts`, `collection.ts`, `menu-cluster.ts`, `native.ts`,
+  `popup.ts`, `position.ts`, `segments.ts`, `virtual.ts`,
+  `data-table-contract.ts`, and `data-table-model.ts` are deliberate internal
+  modules with no public subpath. Shared UI normalization and composition live
+  together in `ajo-ui/utils`; general realm, host, lifecycle, callback/ref, cache, and
   numeric primitives live in `ajo-cloves`.
 - Package modules are side-effect-free. Root-barrel imports tree-shake to the
   selected families; `pnpm test:bundle` guards that property and the

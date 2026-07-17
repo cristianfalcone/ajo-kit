@@ -43,6 +43,12 @@ const group = (box: HTMLElement, side?: 'from' | 'to') => {
 	return found
 }
 
+const root = (box: HTMLElement) => {
+	const found = box.querySelector<HTMLElement>('[data-slot="input-date"]')
+	if (!found) throw new Error('InputDate root was not rendered')
+	return found
+}
+
 const segments = (box: HTMLElement, side?: 'from' | 'to') =>
 	Array.from((side ? group(box, side) : box).querySelectorAll<HTMLElement>('[data-segment]'))
 
@@ -184,11 +190,24 @@ export const WithCalendar: Story<typeof InputDate> = {
 		ensure(!opened(panel), 'Popover was visible before opening')
 		ensure(button.getAttribute('aria-expanded') === 'false', 'Trigger must start collapsed')
 		ensure(button.getAttribute('aria-controls') === panel.id && button.getAttribute('aria-haspopup') === 'dialog', 'Trigger must describe the calendar dialog')
-		ensure(panel.dataset.align === 'start' && panel.dataset.sidePreference === 'bottom' && panel.dataset.sideOffset === '6' && panel.dataset.collisionPadding === '8', 'Calendar dialog must stamp InputDate placement defaults')
+		ensure(panel.dataset.sidePreference === undefined && panel.dataset.sideOffset === undefined && panel.dataset.collisionPadding === undefined,
+			'Calendar dialog must not retain legacy placement-input datasets')
 
 		button.click()
 		await frame()
 		ensure(opened(panel) && button.getAttribute('aria-expanded') === 'true', 'Trigger click must open the calendar popover')
+		const reference = root(checkin)
+		const referenceWidth = Number.parseFloat(panel.style.getPropertyValue('--reference-width'))
+		ensure(Math.abs(referenceWidth - reference.getBoundingClientRect().width) < 1,
+			'Calendar geometry must use the complete InputDate root rather than a segment group or the icon trigger')
+		ensure(panel.dataset.align === 'start' && (panel.dataset.side === 'bottom' || panel.dataset.side === 'top'),
+			`Default date placement must retain start alignment after collision handling, got ${panel.dataset.placement}`)
+		const referenceRect = reference.getBoundingClientRect()
+		const panelRect = panel.getBoundingClientRect()
+		const resolvedGap = panel.dataset.side === 'bottom'
+			? panelRect.top - referenceRect.bottom
+			: referenceRect.top - panelRect.bottom
+		ensure(Math.abs(resolvedGap - 6) < 2, `Default date gap must resolve to 6px, got ${resolvedGap}`)
 
 		const days = Array.from(panel.querySelectorAll<HTMLButtonElement>('[data-slot="calendar-day-button"]:not(:disabled)'))
 		const day = days.slice(1).find(day => !day.hasAttribute('data-today'))
@@ -238,6 +257,60 @@ export const WithCalendar: Story<typeof InputDate> = {
 		await frame()
 		ensure(!opened(panel), 'A pointerdown on a segment while open must close the popover')
 		ensure(active() === segment(checkin, 'day'), "The click's own focus must win over any restore")
+	},
+}
+
+export const GeometryOverride: Story<typeof InputDate> = {
+	parameters: {
+		docs: { description: 'Root-owned placement/gap override; the content remains a sealed semantic surface anchored to the full field.' },
+	},
+	render: () => (
+		<div class="flex min-h-[420px] min-w-[900px] items-center justify-start pl-24" data-story-field="date-geometry">
+			<div class="w-[320px]">
+				<InputDate calendar defaultValue="2026-07-16" gap={14} placement="right-start" />
+			</div>
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const box = scope(canvas, 'date-geometry')
+		const button = trigger(box)
+		const panel = content(box)
+		const reference = root(box)
+		button.click()
+		await frame()
+		ensure(opened(panel), 'Geometry override must open the calendar')
+		ensure(panel.dataset.placement === 'right-start', `Expected right-start, got ${panel.dataset.placement}`)
+		const referenceRect = reference.getBoundingClientRect()
+		const gap = Number.parseFloat(panel.style.left) - referenceRect.right
+		ensure(Math.abs(gap - 14) < 2, `Root gap override must resolve to 14px, got ${gap}`)
+		ensure(Math.abs(Number.parseFloat(panel.style.getPropertyValue('--reference-width')) - referenceRect.width) < 1,
+			'Geometry override must preserve the complete InputDate root reference')
+		ensure(panel.dataset.sidePreference === undefined && panel.dataset.sideOffset === undefined,
+			'Geometry override must not create placement-input datasets on content')
+	},
+}
+
+export const RejectedControlledClose: Story<typeof InputDate> = {
+	parameters: {
+		docs: { description: 'A controlled owner may reject close; the visible calendar and its focused day remain intact.' },
+	},
+	render: () => (
+		<div data-story-field="date-rejected-close">
+			<InputDate calendar defaultValue="2026-07-16" open onOpenChange={() => {}} />
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const box = scope(canvas, 'date-rejected-close')
+		const panel = content(box)
+		await frame()
+		ensure(opened(panel), 'Controlled-open calendar did not open')
+		const day = panel.querySelector<HTMLButtonElement>('[data-slot="calendar-day-button"][data-state="selected"]:not(:disabled)')
+			?? panel.querySelector<HTMLButtonElement>('[data-slot="calendar-day-button"]:not(:disabled)')
+		if (!day) throw new Error('Controlled-open calendar rendered no focusable day')
+		day.focus()
+		await escapeClose()
+		ensure(opened(panel), 'Rejected controlled close hid the calendar')
+		ensure(document.activeElement === day, 'Rejected controlled close moved focus out of the visible calendar')
 	},
 }
 
@@ -1016,7 +1089,7 @@ export const CustomComposition: Story<typeof InputDate> = {
 			<InputDate defaultValue="2026-08-01" name="custom" presets={customPresets}>
 				<InputDateField />
 				<InputDateTrigger />
-				<InputDateContent id="custom-input-date-content">
+				<InputDateContent>
 					<InputDateCalendar />
 					<InputDatePresets />
 				</InputDateContent>
@@ -1031,7 +1104,7 @@ export const CustomComposition: Story<typeof InputDate> = {
 
 		const panel = content(custom)
 		const button = trigger(custom)
-		ensure(panel.id === 'custom-input-date-content' && button.getAttribute('aria-controls') === panel.id, 'The hand-composed trigger must reference the adopted content id')
+		ensure(Boolean(panel.id) && button.getAttribute('aria-controls') === panel.id, 'The hand-composed trigger must reference the root-owned content id')
 		button.click()
 		await frame()
 		ensure(opened(panel), 'The hand-composed trigger must open the popover')

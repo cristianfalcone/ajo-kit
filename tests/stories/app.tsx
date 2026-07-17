@@ -65,6 +65,11 @@ export type Parameters = {
 	}
 	empty?: boolean
 	layout?: 'centered' | 'fullscreen' | 'padded'
+	/** Browser viewport used by automated story runs. */
+	viewport?: {
+		height: number
+		width: number
+	}
 }
 
 export type Meta<C = ComponentLike> = {
@@ -1197,7 +1202,9 @@ const App: Stateful = function* () {
 		} catch (error) {
 			if (version === renderVersion) {
 				this.next(() => {
-					state.failure = error instanceof Error ? error.stack ?? error.message : String(error)
+					state.failure = error instanceof Error
+						? error.stack?.includes(error.message) ? error.stack : `${error.message}${error.stack ? `\n${error.stack}` : ''}`
+						: String(error)
 					state.failureKey = key
 				})
 			}

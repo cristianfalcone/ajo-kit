@@ -2,10 +2,11 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, controlled, dom, id, listen, restore, roving, spin, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { compile, type Availability, type AvailabilityMatcher } from './availability'
-import type { FixedArgs, OmitArg } from './utils'
+import type { ReservedPositionArg } from './position'
+import type { FixedArgs, OmitArg, PopupPosition } from './utils'
 import { Calendar, type CalendarArgs, type CalendarCommonArgs, type CalendarDateRange, type CalendarMatcher } from './calendar'
 import { FieldContext } from './field'
-import { contentAttrs, datasetPlacement, floating, triggerAttrs, type FloatingAlign, type FloatingSide, type FloatingView } from './floating'
+import { contentAttrs, popup, type PopupView } from './popup'
 import {
 	defaultMessage,
 	field,
@@ -24,7 +25,8 @@ import {
 	type SegmentsKind,
 	type Units,
 } from './segments'
-import { flag } from './utils'
+import { flag, triggerAttrs } from './utils'
+export type { PopupPlacement, PopupPosition } from './utils'
 
 /** Range endpoint edited by a segmented date or time field. */
 export type InputDateSide = 'from' | 'to'
@@ -56,7 +58,7 @@ export type InputDateCalendarArgs = OmitArg<CalendarCommonArgs, InputDateCalenda
 	component?: Stateless<CalendarArgs>
 } & FixedArgs<InputDateCalendarOwnedArgs>
 
-type CommonArgs<Range extends boolean> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange'> & {
+type CommonArgs<Range extends boolean> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange' | ReservedPositionArg> & {
 	/** Allow a range to span unavailable days without treating its interior gaps as selected. */
 	allowNonContiguous?: boolean
 	/** Range mode: two field groups, `{ from, to } | null` value. */
@@ -91,7 +93,7 @@ type CommonArgs<Range extends boolean> = WithChildren<OmitArg<IntrinsicElements[
 	readOnly?: boolean
 	/** Additional classes. */
 	class?: string
-}> & FixedArgs<'onchange'>
+}> & FixedArgs<'onchange' | ReservedPositionArg>
 
 type PopupArgs<Range extends boolean> = {
 	/** Opt into the calendar popover; an object forwards args to InputDateCalendar. */
@@ -118,13 +120,13 @@ type TimeArgs = {
 }
 
 /** Arguments for a segmented date field with optional Calendar composition. */
-export type InputDateArgs<Range extends boolean = false> = CommonArgs<Range> & PopupArgs<Range>
+export type InputDateArgs<Range extends boolean = false> = CommonArgs<Range> & PopupArgs<Range> & PopupPosition
 
 /** Arguments for a segmented wall-time field. */
-export type InputTimeArgs<Range extends boolean = false> = CommonArgs<Range> & TimeArgs
+export type InputTimeArgs<Range extends boolean = false> = CommonArgs<Range> & TimeArgs & FixedArgs<'gap' | 'placement'>
 
 /** Arguments for a segmented date-time field with optional Calendar composition. */
-export type InputDateTimeArgs<Range extends boolean = false> = CommonArgs<Range> & PopupArgs<Range> & TimeArgs
+export type InputDateTimeArgs<Range extends boolean = false> = CommonArgs<Range> & PopupArgs<Range> & TimeArgs & PopupPosition
 
 /** Arguments for the rendered date-segment group of an InputDate family root. */
 export type InputDateFieldArgs = OmitArg<IntrinsicElements['div'], 'children'> & {
@@ -162,22 +164,12 @@ export type InputDateTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 }>
 
 /** Arguments for positioned InputDate popover content. */
-export type InputDateContentArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Preferred side relative to the field group. */
-	side?: FloatingSide
-	/** Alignment relative to the field group. */
-	align?: FloatingAlign
-	/** Gap between anchor and content in pixels. */
-	sideOffset?: number
-	/** Pixel shift along the alignment axis. */
-	alignOffset?: number
-	/** Viewport padding used by fallback placement. */
-	collisionPadding?: number
+export type InputDateContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'hidden' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
 	/** Additional classes. */
 	class?: string
-	/** Inline CSS string. */
+	/** Inline CSS declarations composed with live positioning styles. */
 	style?: string
-}>
+}> & FixedArgs<'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
 
 /** Arguments for the button that clears an InputDate family value. */
 export type InputDateClearArgs = WithChildren<IntrinsicElements['button'] & {
@@ -223,7 +215,7 @@ type InputDateRootArgs = WithChildren<{
 	step?: number
 	unavailable?: AvailabilityMatcher | AvailabilityMatcher[]
 	value?: string | InputDateRangeValue | null
-}>
+}> & PopupPosition
 
 type InputDateContextValue = {
 	allowNonContiguous: boolean
@@ -232,6 +224,7 @@ type InputDateContextValue = {
 	calendarUnavailable: AvailabilityMatcher | AvailabilityMatcher[] | undefined
 	clear: (event?: Event) => void
 	contentId: string
+	contentStyle: PopupView['contentStyle']
 	daySelected: () => Date | null
 	disabled: boolean
 	field: (side: InputDateSide) => FieldView
@@ -253,7 +246,6 @@ type InputDateContextValue = {
 	segmentAttrs: (side: InputDateSide, segment: Segment, label?: string, surface?: InputDateSurface) => Record<string, unknown>
 	segmentText: (side: InputDateSide, segment: Segment, surface?: InputDateSurface) => string
 	setContent: (element: HTMLDivElement | null) => void
-	setGroup: (side: InputDateSide, element: HTMLElement | null) => void
 	registerTimeSurface: (element: HTMLDivElement) => void
 	unregisterTimeSurface: (element: HTMLDivElement) => void
 	setTrigger: (element: HTMLButtonElement | null) => void
@@ -277,12 +269,16 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	let kind = initial.kind
 	const rootId = id('input-date')
 	const domReady = dom(this)
+	const ownerDocument = domReady ? this.ownerDocument : null
+	const node = (value: unknown): value is Node => {
+		const view = ownerDocument?.defaultView
+		return Boolean(view && value instanceof view.Node)
+	}
 	// iOS VoiceOver cannot focus spinbuttons: role textbox, no aria-value*.
 	// SSR emits spinbutton; the hydration attr rewrite is an accepted divergence.
 	const ios = domReady && typeof navigator !== 'undefined' &&
 		(/iP(ad|hone|od)/.test(navigator.userAgent) || (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1))
 	const warned = new Set<string>()
-	const groups: Record<InputDateSide, HTMLElement | null> = { from: null, to: null }
 	const timeSurfaces = new Set<HTMLDivElement>()
 	let closeOnSelect: boolean | undefined
 	let composing: { side: InputDateSide; unit: SegmentUnit; element: HTMLElement; text: string } | null = null
@@ -300,7 +296,9 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	let onOpenChange: InputDateRootArgs['onOpenChange']
 	let onValueChange: InputDateRootArgs['onValueChange']
 	let pendingFocus = false
-	let pop: FloatingView<HTMLButtonElement, HTMLDivElement>
+	let pendingReference: HTMLElement | null = null
+	let closingInside = false
+	let pop: PopupView<HTMLButtonElement, HTMLDivElement>
 	let presets: InputDatePreset[] = []
 	let readOnly = Boolean(initial.readOnly)
 	let required = Boolean(initial.required)
@@ -394,34 +392,44 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 
 	const focusMemory = restore(this)
 
-	pop = floating<HTMLButtonElement, HTMLDivElement>(this, {
+	const clearFocusIntent = () => {
+		pendingFocus = false
+		pendingReference = null
+	}
+
+	const restoreAfterClose = () => {
+		clearFocusIntent()
+		const active = ownerDocument?.activeElement
+		if (dom(active) && pop.content?.contains(active) && !closingInside) focusMemory.restore()
+		else focusMemory.capture(null)
+		closingInside = false
+	}
+
+	pop = popup<HTMLButtonElement, HTMLDivElement>(this, {
 		prefix: 'input-date',
+		profile: 'date',
 		initialOpen: Boolean(initial.open ?? initial.defaultOpen),
 		disabled: () => disabled,
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
-		// The popover anchors to the field group, not the 28px icon trigger.
-		reference: () => groups.from ?? groups.to,
-		placement: datasetPlacement(() => pop.content, {
-			side: 'bottom',
-			align: 'start',
-			sideOffset: 6,
-			padding: 8,
-			constrain: 'height',
-		}),
+		// The popover anchors to the complete field root, not a segment group or
+		// the 28px icon trigger.
+		reference: view => view.reference,
+		// Native invoker semantics still belong to the calendar button.
+		source: view => view.trigger,
+		referenceHidden: 'close',
 		dismiss: {
 			escape: false,
 			outside: true,
+			inside: view => [
+				dom(view.reference) ? view.reference : null,
+				view.trigger,
+				view.content,
+			],
 			onDismiss: event => setOpen(false, event),
 		},
-		onSync: opened => {
-			// onSync fires on every render pass while open: the autofocus is
-			// consumed once per open transition (Select/Menu pendingFocus
-			// pattern), so chevron paging and typing never lose focus.
-			if (!opened || !pendingFocus) {
-				pendingFocus = false
-				return
-			}
-			pendingFocus = false
+		onPosition: () => {
+			if (!pendingFocus || pop.reference !== pendingReference) return
+			clearFocusIntent()
 			if (!pop.content) return
 			// The dialog autofocuses the calendar: selected day, today, first enabled.
 			const target = pop.content.querySelector<HTMLElement>('[data-slot="calendar-day-button"][data-state="selected"]:not(:disabled)')
@@ -430,7 +438,11 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 				?? pop.content
 			target.focus()
 		},
+		onSync: opened => {
+			if (!opened) restoreAfterClose()
+		},
 	})
+	pop.setReference(this)
 
 	const setOpen = (next: boolean, event?: Event) => {
 		if (disabled && next) return
@@ -439,14 +451,11 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			// A fresh session follows the committed value again.
 			visibleMonth = undefined
 			pendingFocus = true
+			pendingReference = pop.reference as HTMLElement | null
 		} else {
-			// Keyboard opens restore the opening segment, pointer opens the trigger;
-			// a pointerdown landing back on our own field/segments (the root
-			// pointerdown close path) keeps the click's own focus instead.
-			const active = document.activeElement
-			const clickedInside = event?.type === 'pointerdown' && event.target instanceof Node && this.contains(event.target)
-			if (active instanceof HTMLElement && pop.content?.contains(active) && !clickedInside) focusMemory.restore()
-			else focusMemory.capture(null)
+			clearFocusIntent()
+			// A pointerdown landing back on our field keeps the click's own focus.
+			closingInside = event?.type === 'pointerdown' && node(event.target) && this.contains(event.target)
 		}
 		pop.setOpen(next, event)
 	}
@@ -457,12 +466,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		setOpen(next, event)
 	}
 
-	const setGroup = (side: InputDateSide, element: HTMLElement | null) => {
-		groups[side] = element
-		if (element && pop.open) pop.place()
-	}
-
-	const popup = (part: string) => {
+	const popupPart = (part: string) => {
 		if (kind !== 'time') return true
 		if (!warned.has(part)) {
 			warned.add(part)
@@ -830,7 +834,12 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		required = Boolean(args.required)
 
 		valueState.sync(args.value)
-		pop.sync(args.open == null ? undefined : Boolean(args.open))
+		const opened = pop.sync(args.open == null ? undefined : Boolean(args.open), {
+			placement: args.placement,
+			gap: args.gap,
+		})
+		if (!opened) clearFocusIntent()
+		else closingInside = false
 		if (kindChanged && args.value === undefined) {
 			fields.from.sync(sideDefault(args.defaultValue, 'from') ?? null, optionsFor('from', args))
 			fields.to.sync(sideDefault(args.defaultValue, 'to') ?? null, optionsFor('to', args))
@@ -998,6 +1007,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			calendarUnavailable: availabilitySource,
 			clear: clearValue,
 			contentId: pop.contentId,
+			contentStyle: pop.contentStyle,
 			daySelected,
 			disabled,
 			field: side => fields[side],
@@ -1011,7 +1021,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			open: pop.open,
 			pickDay,
 			pickRange,
-			popup,
+			popup: popupPart,
 			presets,
 			range: isRange,
 			rangeSelected,
@@ -1020,7 +1030,6 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			segmentAttrs,
 			segmentText,
 			setContent: pop.setContent,
-			setGroup,
 			setTrigger: pop.setTrigger,
 			timeSurface,
 			toggleOpen,
@@ -1078,6 +1087,7 @@ const InputDate = <Range extends boolean = false>({
 	disabled,
 	emptyLabel,
 	errorMessage,
+	gap,
 	locale,
 	max,
 	min,
@@ -1085,6 +1095,7 @@ const InputDate = <Range extends boolean = false>({
 	onOpenChange,
 	onValueChange,
 	open,
+	placement,
 	placeholderValue,
 	presets,
 	range,
@@ -1109,6 +1120,7 @@ const InputDate = <Range extends boolean = false>({
 			disabled={disabled}
 			emptyLabel={emptyLabel}
 			errorMessage={errorMessage}
+			gap={gap}
 			kind="date"
 			locale={locale}
 			max={max}
@@ -1117,6 +1129,7 @@ const InputDate = <Range extends boolean = false>({
 			onOpenChange={onOpenChange}
 			onValueChange={onValueChange as ((value: PublicValue, event?: Event) => void) | undefined}
 			open={open}
+			placement={placement}
 			placeholderValue={placeholderValue}
 			presets={presets as InputDatePreset[] | undefined}
 			range={range}
@@ -1203,6 +1216,7 @@ const InputDateTime = <Range extends boolean = false>({
 	disabled,
 	emptyLabel,
 	errorMessage,
+	gap,
 	granularity,
 	hourCycle,
 	locale,
@@ -1212,6 +1226,7 @@ const InputDateTime = <Range extends boolean = false>({
 	onOpenChange,
 	onValueChange,
 	open,
+	placement,
 	placeholderValue,
 	presets,
 	range,
@@ -1236,6 +1251,7 @@ const InputDateTime = <Range extends boolean = false>({
 			disabled={disabled}
 			emptyLabel={emptyLabel}
 			errorMessage={errorMessage}
+			gap={gap}
 			granularity={granularity}
 			hourCycle={hourCycle}
 			kind="datetime"
@@ -1246,6 +1262,7 @@ const InputDateTime = <Range extends boolean = false>({
 			onOpenChange={onOpenChange}
 			onValueChange={onValueChange as ((value: PublicValue, event?: Event) => void) | undefined}
 			open={open}
+			placement={placement}
 			placeholderValue={placeholderValue}
 			presets={presets as InputDatePreset[] | undefined}
 			range={range}
@@ -1277,13 +1294,9 @@ const InputDateField: Stateless<InputDateFieldArgs> = ({
 	if (ctx.range && !side) console.warn('[input-date] <InputDateField side> is required in range mode.')
 	const current: InputDateSide = ctx.range ? side ?? 'from' : 'from'
 	const editor = ctx.field(current)
-	const reference = (element: HTMLDivElement | null) => {
-		ctx.setGroup(current, element)
-		callRef(ref, element)
-	}
 
 	return (
-		<div {...attrs} {...ctx.groupAttrs(current, label)} class={classes} ref={reference}>
+		<div {...attrs} {...ctx.groupAttrs(current, label)} class={classes} ref={ref}>
 			{editor.segments.map((segment, index) => segment.editable ? (
 				// Keyed by unit type: a locale flip reorders through ajo's
 				// focus-preserving keyed path instead of repurposing the focused div.
@@ -1384,20 +1397,7 @@ const InputDateTrigger: Stateless<InputDateTriggerArgs> = ({
 }
 
 /** Popover panel for the calendar; a dialog anchored to the field group. */
-const InputDateContent: Stateless<InputDateContentArgs> = ({
-	align = 'start',
-	alignOffset = 0,
-	children,
-	class: classes,
-	collisionPadding = 8,
-	id: idArg,
-	ref,
-	role = 'dialog',
-	side = 'bottom',
-	sideOffset = 6,
-	style,
-	...attrs
-}) => {
+const InputDateContent: Stateless<InputDateContentArgs> = ({ children, class: classes, ref, style, ...attrs }) => {
 	const ctx = InputDateContext()
 	if (ctx && !ctx.popup('InputDateContent')) return null
 
@@ -1405,23 +1405,17 @@ const InputDateContent: Stateless<InputDateContentArgs> = ({
 		<div
 			{...attrs}
 			{...contentAttrs({
-				align,
-				alignOffset,
-				collisionPadding,
-				id: idArg ?? ctx?.contentId,
+				id: ctx?.contentId,
 				open: Boolean(ctx?.open),
-				popover: 'manual',
 				ref,
 				setContent: ctx?.setContent,
-				side,
-				sideOffset,
-				style,
+				style: ctx?.contentStyle(style),
 				tabindex: '-1',
 			})}
 			aria-label={attrs['aria-label'] ?? 'Calendar'}
 			class={classes}
 			data-slot="input-date-content"
-			role={role}
+			role="dialog"
 		>
 			{children}
 		</div>

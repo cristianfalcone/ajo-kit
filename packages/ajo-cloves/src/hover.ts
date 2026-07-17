@@ -48,9 +48,11 @@ export const hover = (host: Host, opts: {
 		sync(open: boolean) {
 			opened = open
 		},
+		/** Stops pending transitions and forgets every held zone without notifying. */
 		cancel() {
 			opening.stop()
 			closing.stop()
+			zones.clear()
 		},
 	}
 }

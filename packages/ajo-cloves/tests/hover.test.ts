@@ -225,3 +225,35 @@ test('zone, cancel, and sync contracts match surface behavior', () => {
 	expect(view!.open).toBe(true)
 	expect(changes).toEqual([true, false, true])
 })
+
+test('cancel clears held zones before a later interaction', () => {
+	vi.useFakeTimers()
+
+	let view: ReturnType<typeof hover> | undefined
+	const changes: boolean[] = []
+
+	function* Gen(this: Host) {
+		view = hover(this, {
+			openDelay: () => 10,
+			closeDelay: () => 10,
+			onChange: open => changes.push(open),
+		})
+		yield jsx('span', { children: 'ready' })
+	}
+
+	render(jsx(Gen, {}), document.body)
+
+	view!.hold('content', event())
+	vi.advanceTimersByTime(10)
+	expect(view!.open).toBe(true)
+
+	view!.cancel()
+	view!.sync(false)
+	view!.hold('trigger', event())
+	vi.advanceTimersByTime(10)
+	view!.release('trigger', event())
+	vi.advanceTimersByTime(10)
+
+	expect(view!.open).toBe(false)
+	expect(changes).toEqual([true, true, false])
+})

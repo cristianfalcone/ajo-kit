@@ -78,6 +78,21 @@ test('the package exports exactly its preset root and public component families'
 	expect(Object.keys(surface)).toEqual(['playa'])
 })
 
+test('Menu does not republish the removed anchor seam', async () => {
+	const menu = await import('ajo-ui-playa/menu')
+	expect(menu).not.toHaveProperty('MenuAnchor')
+})
+
+test('popup families do not republish separate arrow geometry', async () => {
+	const [popover, tooltip] = await Promise.all([
+		import('ajo-ui-playa/popover'),
+		import('ajo-ui-playa/tooltip'),
+	])
+
+	expect(popover).not.toHaveProperty('PopoverArrow')
+	expect(tooltip).not.toHaveProperty('TooltipArrow')
+})
+
 test.each([
 	'ajo-ui-playa/styles',
 	'ajo-ui-playa/modal',

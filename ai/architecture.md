@@ -1,6 +1,6 @@
 # Ajo Kit Architecture
 
-Last updated: 2026-07-13
+Last updated: 2026-07-16
 
 This is the canonical architecture document for `ajo-kit`. It describes the
 current implementation and operating contracts for the framework, app runtime,
@@ -74,6 +74,8 @@ Shared component code has one dependency direction: `ajo-cloves` -> `ajo-ui`
 -> `ajo-ui-playa` -> application. `ajo-cloves` owns reusable Ajo behavior,
 `ajo-ui` owns unstyled component interfaces, `ajo-ui-playa` owns the Playa
 theme, and the app owns product composition.
+`ajo-cloves` owns no anchored or point-referenced floating geometry; that
+policy and its runtime dependency belong entirely to `ajo-ui`.
 App/UI code imports cloves from `ajo-cloves`; there is no `ajo-kit/cloves`
 public subpath. The package exports its root directly to `./src/index.ts` and
 has only the `ajo >= 0.1.35` peer dependency.
@@ -98,8 +100,12 @@ cloves. Its explicit export map exposes one module per public component family
 `ajo-ui/utils`. `OmitArg` and `FixedArgs` live only in that utils subpath; they
 are not root or `ajo-cloves` exports.
 
-`packages/ajo-ui/src/floating.ts` (the popup engine),
-`packages/ajo-ui/src/collection.ts` (the item protocol),
+`packages/ajo-ui/src/position.ts` (the sole Floating UI Adapter and profile
+policy table), `packages/ajo-ui/src/popup.ts` (semantic popup state and
+lifecycle), `packages/ajo-ui/src/native.ts` (the native Popover capability
+boundary), `packages/ajo-ui/src/menu-cluster.ts` (private menu composition,
+invocation, collection, and branch seams),
+`packages/ajo-ui/src/collection.ts` (the general item protocol),
 `packages/ajo-ui/src/bar.ts` (the open-value/roving/typeahead machine),
 `packages/ajo-ui/src/segments.ts` (localized editable date/time segments), and
 `packages/ajo-ui/src/availability.ts` are deliberate internal engines.
@@ -152,8 +158,7 @@ coalesces initial/source changes through one frame, and cancels old work on
 same/null/retarget/reset transitions. Binding is the only adapter seam. A
 partial bind rolls back its listener and queued frame before rethrowing, so the
 same target can retry. Callers retain their SSR/capability guards; `live` is not
-part of the package root API and Anchor's two-element watcher is intentionally
-separate.
+part of the package root API.
 
 ResizeObserver registry entries are published only after `observe()` succeeds.
 A failed first observe releases an otherwise-unused observer, and notifications
@@ -350,30 +355,60 @@ internal example.
 
 ### Floating Stack
 
-Floating UI is split by anchor source:
+`ajo-ui` pins exact `@floating-ui/dom@1.8.0` and owns all anchored and
+point-referenced floating geometry. `packages/ajo-ui/src/position.ts` is the
+only package-source importer and the private Adapter boundary; `ajo-cloves`
+supplies general state, intent, dismissal, measurement, and host-lifecycle
+primitives but exposes no floating geometry API.
 
-- `anchor` positions fixed elements from an anchor element, with synchronous
-  `place()`, explicit `watch()`/`unwatch()`, symmetric flip, shift clamping,
-  `data-side`/`data-align`, transform-origin, and `--anchor-*` /
-  `--available-*` CSS variables. Each placement snapshots anchor, target,
-  optional-caret, and target-border layout metrics before its first geometry
-  write; the commit phase performs no layout reads.
-- `follow` positions pointer-following elements by transform only, clamps to a
-  container, and smooths through `frame()`.
+The Adapter accepts real DOM or virtual references. Its zero-area
+`pointReference()` retains a live `contextElement` for point-positioned
+families. One policy table selects the defaults for `popover`, `tooltip`,
+`menu`, `submenu`, `select`, `date`, `navigation`, `context`, `menubar`, and
+`chart`; callers may select a supported placement or gap, but do not receive a
+raw Floating UI pass-through. Each profile composes the applicable official
+`inline`, `offset`, `flip` or `autoPlacement`, `shift` with `limitShift`,
+`size`, `arrow`, and `hide` middleware.
 
-`packages/ajo-ui/src/floating.ts` is the popup engine in two layers:
-`surface()` (positioning plus native-popover show/hide, no open state, used
-directly by Menu submenus whose parent owns the open cluster) and `floating()`
-(controlled open state, generated ids, explicit trigger/content id adoption,
-`toggle` echo with a syncing guard,
-optional `hover` intent, `dismiss`, and an `onSync` hook for post-placement
-focus work). `datasetPlacement`, `contentAttrs`, and `triggerAttrs` form the
-internal placement/DOM seam, including internal-registration plus caller-ref
-composition. Popover, Tooltip, Menu, Select, InputDate, and
-NavigationMenu all consume the engine; consumers must call
-`view.sync(open)` once per render pass. `popupStyle()` applies the UA
-`[popover]` stylesheet reset (`inset:auto;margin:0`) exactly once for every
-family. Item discovery/highlight for menus, select, and command goes
+`position()` exposes only `start()`, coalesced `update()`, and `stop()`.
+`autoUpdate()` exists only for the active reference/floating tuple and uses its
+observer/event lifecycle rather than animation-frame polling. Host abort,
+retargeting, and stop dispose that scope; disconnected elements cannot commit.
+Generation and request guards reject stale asynchronous measurements and
+commits. `dom(host)` returns an inert view for protocol-only SSR hosts before
+element suppliers or ambient DOM capability reads. DOM services and DPR are
+derived from each element's `ownerDocument.defaultView`, preserving same-origin
+cross-realm behavior.
+
+Popup profiles write fixed `left`/`top`, final `data-placement`, `data-side`,
+and `data-align`, transform origin, optional arrow coordinates, and
+`--reference-*` / `--available-*` CSS variables. Size-aware profiles apply the
+available width as `max-width`; popup profiles also apply `max-height`, while
+Tooltip preserves caller height. This leaves author transforms free for themed
+motion. Chart consumes `position()` directly with an absolute, DPR-rounded
+transform writer and enables `will-change` only while active. The first Chart
+commit snaps before the Adapter stamps `data-positioned`; Playa uses that seam
+to transition later transforms for users who allow motion, while the Adapter
+continues to commit current endpoints without smoothing or an animation loop.
+A tuple replacement clears Adapter-owned output from the previous floating and
+arrow elements; stop invalidates work and removes Chart's motion stamp,
+transient transform, and `will-change` output.
+
+`packages/ajo-ui/src/popup.ts` sits above geometry and owns controlled open
+state, ids and ARIA seams, trigger/content/reference and owned arrow registration, hover
+intent, dismissal, reference-hidden policy, and post-position focus hooks. A
+real trigger or invoker remains the native Popover `source` even when geometry
+uses a virtual reference. Content opens concealed, waits for a current first
+geometry commit, then reveals and runs its focus hook; source or reference
+retargeting restarts that sequence without accepting stale work. An owned arrow resize
+also restarts positioning. `packages/ajo-ui/src/native.ts` is the narrow
+capability boundary for opening, closing, and querying the native Popover API.
+`popupStyle()` applies the UA `[popover]` reset (`inset:auto;margin:0`) exactly
+once per family.
+
+Popover, Tooltip, Menu and its composing families, Select, InputDate, and
+NavigationMenu consume `popup()`; Chart is the only direct component consumer
+of `position()`. Item discovery/highlight for menus, select, and command goes
 through `packages/ajo-ui/src/collection.ts` (`data-item="<kind>"` protocol);
 slot re-exports go through `withSlot` from `ajo-ui/utils`.
 
@@ -403,18 +438,30 @@ DataTable filtering belongs to its private TanStack feature profile instead of
 the collection protocol. The paginated profile is exact and explicit;
 `VirtualDataTable` remains deferred until its separate gates pass.
 
-The menu families share deliberate internal seams documented in `ai/ui.md`.
-`bar()` (`packages/ajo-ui/src/bar.ts`, internal like floating) owns the
-value + roving + typeahead + follow machine under Menubar and
-NavigationMenu; Menu exports its substrate contract (MenuContext,
-the menu collection instance, focusEdge/surfaceItems, SURFACE_SELECTOR,
-MenuAnchor) for composing families; ContextMenu anchors at the pointer through
-it; NavigationMenu rides the engine's hover intent with per-item anchored
-panels and no public shared Viewport or Indicator; the
-`anchor` clove positions optional arrow elements (PopoverArrow,
-TooltipArrow); Toolbar (APG pattern) rounds out the bar trio; the toast
-viewport rides the raw `popover="manual"` primitive with epoch-gated
-re-promotion above later modals; sidebar's mobile branch composes Drawer.
+The menu families share deliberate private seams in
+`packages/ajo-ui/src/menu-cluster.ts`; `MenuContext`, collection/focus helpers,
+composition contexts, invocation controllers, and branch clusters are not a
+public substrate. ContextMenu gives one descendant Menu a stable virtual point
+reference, the real invoker as native source, and focus restoration. Menubar
+gives one descendant Menu its profile and a one-shot focus acknowledgement;
+`bar()` owns its value, roving focus, typeahead, and semantic open-value follow
+policy. Menu submenus select the `submenu` profile and use their direct parent
+surface only as the reference-hidden clipping boundary.
+
+NavigationMenu owns a `navigation` popup per item, positioned from that item's
+active trigger/content pair, while its root `bar()` coordinates hover, focus,
+keyboard transfer, and the single open value; it exposes no shared Viewport or
+Indicator. `PopoverContent` enables its owned arrow with `arrow`, while
+`TooltipContent` always enables one; no arrow component or arrow props type is
+public. Both content families render sibling internal `popup-surface` and
+`popup-arrow` slots. The latter is a transparent measurement marker registered
+through `popup()`; Floating UI's `arrow` middleware computes its coordinates,
+and the Adapter commits those coordinates, `--popup-arrow-center`, and the
+transform origin derived from final placement. The surface is the only painted
+geometry and extends toward that center, so its border and caret are one shape.
+Toolbar (APG pattern) rounds out the bar trio; the toast viewport rides the raw
+`popover="manual"` primitive with epoch-gated re-promotion above later modals;
+sidebar's mobile branch composes Drawer.
 Shared themed popup and menu tokens live in
 `packages/ajo-ui-playa/src/internal/recipes.tsx`. `popupAnimation` owns the
 common fade/zoom state chain; `popupSlide` is a separate opt-in placement
@@ -424,10 +471,9 @@ remain local. The recipes module deliberately uses `.tsx`: UnoCSS extracts its
 private class literals as family modules enter the application graph; plain
 `.ts` is outside the default extraction set.
 
-Promotion of the engine into `ajo-cloves` as a `popup` clove was evaluated and
-deferred: all its consumers live inside `ajo-ui` (one consuming package), so
-the no-consumer-no-clove rule keeps it internal until an external consumer
-appears.
+The position/popup stack remains private to `ajo-ui`: its profiles and commit
+sequencing are component-system policy, while `ajo-cloves` remains independent
+of `@floating-ui/dom` and owns no floating geometry.
 
 ### Intl Formatting
 

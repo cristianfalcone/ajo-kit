@@ -1,15 +1,18 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, dom, id, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, id, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { bar } from './bar'
-import { openPopover, text } from './utils'
-import { floating, popupStyle, type FloatingView } from './floating'
+import { contentAttrs, popup, type PopupView } from './popup'
+import type { ReservedPositionArg } from './position'
+import type { FixedArgs, OmitArg, PopupPosition } from './utils'
+import { text, triggerAttrs } from './utils'
+export type { PopupPlacement, PopupPosition } from './utils'
 
 /** Stable identifier for an open navigation-menu item. */
 export type NavigationMenuValue = string
 
 /** Props for the navigation-menu root and its controlled state. */
-export type NavigationMenuArgs = WithChildren<IntrinsicElements['nav'] & {
+export type NavigationMenuArgs = WithChildren<OmitArg<IntrinsicElements['nav'], 'onchange' | ReservedPositionArg> & PopupPosition & {
 	/** Controlled open item value. Empty string closes every content panel. */
 	value?: NavigationMenuValue
 	/** Initial open item value for uncontrolled usage. */
@@ -22,7 +25,7 @@ export type NavigationMenuArgs = WithChildren<IntrinsicElements['nav'] & {
 	onValueChange?: (value: NavigationMenuValue, event?: Event) => void
 	/** Additional CSS classes. */
 	class?: string
-}>
+}> & FixedArgs<'onchange' | ReservedPositionArg>
 
 /** Props for the list containing navigation-menu items. */
 export type NavigationMenuListArgs = WithChildren<IntrinsicElements['ul'] & {
@@ -31,14 +34,14 @@ export type NavigationMenuListArgs = WithChildren<IntrinsicElements['ul'] & {
 }>
 
 /** Props for a navigation-menu item and its stable value. */
-export type NavigationMenuItemArgs = WithChildren<IntrinsicElements['li'] & {
+export type NavigationMenuItemArgs = WithChildren<OmitArg<IntrinsicElements['li'], 'gap' | 'placement' | ReservedPositionArg> & {
 	/** Stable value used by controlled NavigationMenu state. */
 	value?: NavigationMenuValue
 	/** Disable this item and its trigger. */
 	disabled?: boolean
 	/** Additional CSS classes. */
 	class?: string
-}>
+}> & FixedArgs<'gap' | 'placement' | ReservedPositionArg>
 
 /** Props for a button that opens a navigation-menu panel. */
 export type NavigationMenuTriggerArgs = WithChildren<IntrinsicElements['button'] & {
@@ -49,14 +52,12 @@ export type NavigationMenuTriggerArgs = WithChildren<IntrinsicElements['button']
 }>
 
 /** Props for a floating navigation-menu panel. */
-export type NavigationMenuContentArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Gap between trigger and content in pixels. */
-	sideOffset?: number
+export type NavigationMenuContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'aria-labelledby' | 'hidden' | 'id' | 'popover' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
 	/** Additional CSS classes. */
 	class?: string
-	/** Inline CSS string. */
+	/** Inline CSS declarations composed with live positioning styles. */
 	style?: string
-}>
+}> & FixedArgs<'aria-labelledby' | 'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
 
 /** Props for an anchor or button rendered inside navigation-menu content. */
 export type NavigationMenuLinkArgs = WithChildren<(IntrinsicElements['a'] & IntrinsicElements['button']) & {
@@ -72,17 +73,21 @@ type RootContextValue = {
 	close: (event?: Event) => void
 	closeDelay: number
 	follow: (value: string, event?: Event) => void
+	gap: PopupPosition['gap']
 	open: (value: string, event?: Event) => void
 	openDelay: number
+	placement: PopupPosition['placement']
 	/** One-shot: true when a keyboard open requested focus into this value's panel. */
 	takeFocus: (value: string) => boolean
 	value: string
 }
 
 type ItemContextValue = {
+	adoptTriggerId: PopupView['adoptTriggerId']
 	clickTrigger: (event: Event) => void
 	close: (event?: Event) => void
 	contentId: string
+	contentStyle: PopupView['contentStyle']
 	disabled: boolean
 	open: boolean
 	registerContentHover: (hovering: boolean, event: Event) => void
@@ -99,12 +104,16 @@ const ItemContext = context<ItemContextValue | null>(null)
 
 const triggers = (root: HTMLElement) =>
 	Array.from(root.querySelectorAll<HTMLButtonElement>('[data-navigation-menu-trigger="true"]'))
-		.filter(trigger => !trigger.disabled && trigger.offsetParent !== null)
+		.filter(trigger =>
+			!trigger.disabled
+			&& trigger.offsetParent !== null
+			&& trigger.closest('[data-slot="navigation-menu"]') === root)
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ defaultValue, value }) {
 	let closeDelay = 300
+	const closeFocus = { current: null as HTMLElement | null }
 	let onValueChange: NavigationMenuArgs['onValueChange']
 	let openDelay = 200
 	let pendingFocus = ''
@@ -124,9 +133,16 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 		panel?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
 	}
 
+	const close = (event?: Event, focus?: HTMLElement | null) => {
+		pendingFocus = ''
+		closeFocus.current = focus ?? null
+		state.close(event)
+	}
+
 	listen(this, 'keydown', (event: KeyboardEvent) => {
 		if (event.defaultPrevented) return
 		const target = event.target as HTMLElement | null
+		if (target?.closest('[data-slot="navigation-menu"]') !== this) return
 		const trigger = target?.closest<HTMLButtonElement>('[data-navigation-menu-trigger="true"]')
 
 		if (!trigger) {
@@ -135,8 +151,7 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 			// dialog keeps its Escape).
 			if (event.key === 'Escape' && state.value) {
 				event.preventDefault()
-				openTrigger()?.focus()
-				state.close(event)
+				close(event, openTrigger())
 			}
 			return
 		}
@@ -149,7 +164,7 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 			if (state.value === next) {
 				// Already open: ArrowDown enters the panel, Enter/Space toggle closed.
 				if (event.key === 'ArrowDown') focusPanel(trigger)
-				else state.close(event)
+				else close(event)
 			} else {
 				pendingFocus = next
 				state.setValue(next, event)
@@ -168,7 +183,7 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 		// Window blur (alt-tab) fires focusout with a null relatedTarget while
 		// the focused element stays inside the nav: not a focus departure.
 		if (!next && this.contains(document.activeElement)) return
-		state.close(event)
+		close(event)
 	})
 
 	for (const args of this) {
@@ -176,20 +191,33 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 		onValueChange = args.onValueChange
 		openDelay = Math.max(0, Number(args.openDelay ?? 200))
 		state.sync(args.value != null ? String(args.value ?? '') : undefined)
+		if (pendingFocus && pendingFocus !== state.value) pendingFocus = ''
+		if (closeFocus.current) {
+			const target = closeFocus.current
+			closeFocus.current = null
+			if (!state.value) queueMicrotask(() => {
+				if (!state.value) target.focus()
+			})
+		}
 
 		RootContext({
-			close: state.close,
+			close,
 			closeDelay,
 			// Pointer-driven opens clear any stale keyboard focus request.
 			follow: (next, event) => {
 				pendingFocus = ''
 				state.follow(next, event)
 			},
+			gap: args.gap,
 			open: (next, event) => {
-				pendingFocus = ''
+				// An engine echo for the same keyboard-requested value must not
+				// invalidate its post-geometry focus token. Pointer opens have no
+				// matching token and clear any stale request.
+				if (pendingFocus !== next) pendingFocus = ''
 				state.setValue(next, event)
 			},
 			openDelay,
+			placement: args.placement,
 			takeFocus: value => {
 				if (!value || pendingFocus !== value) return false
 				pendingFocus = ''
@@ -210,8 +238,10 @@ const NavigationMenu: Stateless<NavigationMenuArgs> = ({
 	class: classes,
 	closeDelay,
 	defaultValue,
+	gap,
 	onValueChange,
 	openDelay,
+	placement,
 	value,
 	...attrs
 }) => (
@@ -219,8 +249,10 @@ const NavigationMenu: Stateless<NavigationMenuArgs> = ({
 		{...rootAttrs(attrs)}
 		closeDelay={closeDelay}
 		defaultValue={defaultValue}
+		gap={gap}
 		onValueChange={onValueChange}
 		openDelay={openDelay}
+		placement={placement}
 		value={value}
 		attr:class={classes}
 		attr:data-slot="navigation-menu"
@@ -241,10 +273,11 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 	let disabled = false
 	let itemValue = String(fallback)
 	let root: RootContextValue | null = null
-	let item: FloatingView<HTMLButtonElement, HTMLDivElement>
+	let item: PopupView<HTMLButtonElement, HTMLDivElement>
 
-	item = floating<HTMLButtonElement, HTMLDivElement>(this, {
+	item = popup<HTMLButtonElement, HTMLDivElement>(this, {
 		prefix: 'navigation-menu',
+		profile: 'navigation',
 		initialOpen: false,
 		disabled: () => disabled,
 		hover: {
@@ -255,18 +288,22 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 			if (next) root?.open(itemValue, event)
 			else if (root?.value === itemValue) root.close(event)
 		},
-		onSync: opened => {
-			// Keyboard open moves focus to the panel's first focusable element.
-			if (opened && root?.takeFocus(itemValue)) {
-				item.content?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
-			}
+		reference: view => view.trigger,
+		source: view => view.trigger,
+		referenceHidden: 'close',
+		dismiss: {
+			escape: false,
+			outside: true,
+			inside: view => [view.trigger, view.content],
+			onDismiss: event => closeItem(event),
 		},
-		placement: {
-			side: () => 'bottom',
-			align: () => 'center',
-			sideOffset: () => Number(item.content?.dataset.sideOffset ?? 8),
-			padding: () => 8,
-			constrain: () => 'height',
+		onPosition: () => {
+			// Keyboard focus is committed only after the current trigger/content
+			// tuple has real geometry and the panel is visible.
+			if (root?.takeFocus(itemValue)) item.content?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
+		},
+		onSync: opened => {
+			if (!opened) cause = ''
 		},
 	})
 
@@ -307,70 +344,17 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 	const closeItem = (event?: Event) =>
 		root ? root.close(event) : item.close(event)
 
-	// What a trigger press should do, resolved from live state: a closed
-	// panel opens, a hover-opened panel holds (the hover→click race), any
-	// other open panel closes.
-	const resolve = () => item.open ? (cause === 'hover' ? 'hold' : 'close') : 'open'
-
-	// Trigger-press protocol: Chromium light-dismisses on the source press
-	// regardless of showPopover({source}), and the native close, the click,
-	// and the toggle echo arrive in browser-dependent order — so the action
-	// is recorded at press start (while engine state is still accurate) and
-	// executed by whichever event runs. pressedAt scopes it to presses that
-	// landed on THIS item's own trigger; the document captured listeners
-	// clear it for any other press, so an outside-click light dismiss is
-	// never undone.
-	let pressAction: ReturnType<typeof resolve> = 'open'
-	let pressedAt = 0
-	const guarded = new WeakSet<HTMLDivElement>()
-
-	if (dom(this)) {
-		// Both press edges: the native light dismiss can commit on pointerup
-		// (long press), which must still fall inside the recorded window.
-		const press = (event: Event) => {
-			const target = event.target as Node | null
-			if (target && item.trigger?.contains(target)) {
-				if (event.type === 'pointerdown') pressAction = resolve()
-				pressedAt = Date.now()
-			} else {
-				pressedAt = 0
-			}
-		}
-		document.addEventListener('pointerdown', press, { capture: true, signal: this.signal })
-		document.addEventListener('pointerup', press, { capture: true, signal: this.signal })
-	}
-
 	const clickTrigger = (event: Event) => {
 		if (disabled) return
-		// Inside the press window the recorded action wins — the panel may
-		// already be natively hidden with its toggle echo still pending, so
-		// live open state cannot drive the decision. Keyboard/AT clicks
-		// arrive without a pointer press and resolve live.
-		const action = Date.now() - pressedAt <= 500 ? pressAction : resolve()
-		if (action === 'open') openItem(event)
-		else if (action === 'hold') cause = 'press'
-		else closeItem(event)
-	}
-
-	const setContent = (element: HTMLDivElement | null) => {
-		if (element && !guarded.has(element)) {
-			guarded.add(element)
-			// Registered before the engine's echo listener: a native close from
-			// a holding trigger press is undone (re-shown before the engine
-			// hears about it); any other close stands and the echo syncs it.
-			element.addEventListener('toggle', event => {
-				const state = (event as Event & { newState?: string }).newState
-				if (state !== 'closed' || !item.open || Date.now() - pressedAt > 500) return
-				if (pressAction !== 'hold') return
-				event.stopImmediatePropagation()
-				openPopover(element, item.trigger)
-				item.place()
-			}, { signal: this.signal })
+		if (!item.open) {
+			openItem(event)
+		} else if (cause === 'hover') {
+			cause = 'press'
+			item.cancelHover()
+		} else {
+			closeItem(event)
 		}
-		item.setContent(element)
 	}
-
-	let wasOpen = false
 
 	for (const args of this) {
 		root = RootContext()
@@ -378,20 +362,24 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 		disabled = Boolean(args.disabled)
 		// Without a NavigationMenu ancestor the item degrades to an
 		// uncontrolled hover panel instead of a permanently-closed one.
-		const opened = item.sync(root ? root.value === itemValue : null)
-		if (wasOpen && !opened) cause = ''
-		wasOpen = opened
+		const opened = item.sync(root ? root.value === itemValue : null, {
+			placement: root?.placement,
+			gap: root?.gap,
+		})
+		if (!opened) cause = ''
 
 		ItemContext({
+			adoptTriggerId: item.adoptTriggerId,
 			clickTrigger,
 			close: closeItem,
 			contentId: item.contentId,
+			contentStyle: item.contentStyle,
 			disabled,
 			open: opened,
 			registerContentHover,
 			registerTriggerFocus,
 			registerTriggerHover,
-			setContent,
+			setContent: item.setContent,
 			setTrigger: item.setTrigger,
 			triggerId: item.triggerId,
 			value: itemValue,
@@ -428,6 +416,7 @@ const NavigationMenuTrigger: Stateless<NavigationMenuTriggerArgs> = ({
 	children,
 	class: classes,
 	disabled,
+	id: idArg,
 	ref,
 	textValue,
 	type = 'button',
@@ -440,25 +429,26 @@ const NavigationMenuTrigger: Stateless<NavigationMenuTriggerArgs> = ({
 	const item = ItemContext()
 	const disabledFlag = Boolean(disabled ?? item?.disabled)
 	const label = textValue ?? text(children)
-	const reference = (element: HTMLButtonElement | null) => {
-		item?.setTrigger(element)
-		callRef(ref, element)
-	}
+	const adoptedId = item?.adoptTriggerId(idArg)
 
 	return (
 		<button
 			{...attrs}
-			aria-controls={item?.contentId}
-			aria-expanded={item?.open ? 'true' : 'false'}
+			{...triggerAttrs({
+				controls: item?.contentId,
+				expanded: Boolean(item?.open),
+				id: adoptedId ?? idArg,
+				open: Boolean(item?.open),
+				ref,
+				setTrigger: item?.setTrigger,
+				triggerId: item?.triggerId,
+			})}
 			class={classes}
 			data-label={label}
 			data-navigation-menu-trigger="true"
 			data-slot="navigation-menu-trigger"
-			data-state={item?.open ? 'open' : 'closed'}
 			data-value={item?.value}
 			disabled={disabledFlag}
-			id={item?.triggerId}
-			ref={reference}
 			type={type}
 			set:onclick={(event: Event) => {
 				callHandler(onClick, event)
@@ -493,31 +483,27 @@ const NavigationMenuContent: Stateless<NavigationMenuContentArgs> = ({
 	children,
 	class: classes,
 	ref,
-	sideOffset = 8,
 	style,
 	'set:onmouseenter': onMouseEnter,
 	'set:onmouseleave': onMouseLeave,
 	...attrs
 }) => {
 	const item = ItemContext()
-	const reference = (element: HTMLDivElement | null) => {
-		item?.setContent(element)
-		callRef(ref, element)
-	}
 
 	return (
 		<div
 			{...attrs}
+			{...contentAttrs({
+				id: item?.contentId,
+				open: Boolean(item?.open),
+				ref,
+				setContent: item?.setContent,
+				style: item?.contentStyle(style),
+				tabindex: '-1',
+			})}
 			aria-labelledby={item?.triggerId}
 			class={classes}
-			data-side-offset={sideOffset}
 			data-slot="navigation-menu-content"
-			data-state={item?.open ? 'open' : 'closed'}
-			id={item?.contentId}
-			popover="auto"
-			ref={reference}
-			style={popupStyle(style)}
-			tabindex="-1"
 			set:onmouseenter={(event: MouseEvent) => {
 				callHandler(onMouseEnter, event)
 				item?.registerContentHover(true, event)

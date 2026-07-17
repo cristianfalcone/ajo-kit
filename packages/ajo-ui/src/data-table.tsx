@@ -192,7 +192,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 												<span data-slot="data-table-facet-count">{column.active.length}</span>
 											) : null}
 										</MenuTrigger>
-										<MenuContent align="start" data-slot="data-table-facet-content">
+										<MenuContent data-slot="data-table-facet-content">
 											<MenuLabel>{facet.label}</MenuLabel>
 											<MenuSeparator />
 											{facet.options.map(option => (
@@ -230,12 +230,12 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 						</div>
 
 						{view.visibility ? (
-							<Menu>
+							<Menu placement="bottom-end">
 								<MenuTrigger data-slot="data-table-columns">
 									{text('columns')}
 									<span aria-hidden="true" data-slot="data-table-columns-icon" />
 								</MenuTrigger>
-								<MenuContent align="end" data-slot="data-table-columns-content">
+								<MenuContent data-slot="data-table-columns-content">
 									<MenuLabel>{text('columns')}</MenuLabel>
 									<MenuSeparator />
 									{view.columns.filter(column => column.column.hideable !== false).map(column => (

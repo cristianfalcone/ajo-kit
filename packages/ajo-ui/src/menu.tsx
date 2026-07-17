@@ -1,20 +1,31 @@
 import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, controlled, frame, id, listen, roving, statefulRootAttrs as rootAttrs, typeahead } from 'ajo-cloves'
+import { callHandler, controlled, dom, frame, listen, roving, statefulRootAttrs as rootAttrs, typeahead } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import type { FixedArgs, OmitArg } from './utils'
-import { flag, text } from './utils'
-import { contentAttrs, datasetPlacement, floating, popupStyle, surface, triggerAttrs, type FloatingView } from './floating'
-import { collection } from './collection'
+import {
+	cluster,
+	focusEdge,
+	isolateMenuComposition,
+	isolateMenuInvocation,
+	menuComposition,
+	menuItems,
+	provideMenuInvocation,
+	SURFACE_SELECTOR,
+	surfaceItems,
+	type MenuBranch,
+	type MenuCluster,
+	type MenuInvocationFocus,
+} from './menu-cluster'
+import { contentAttrs, popup, type PopupView } from './popup'
+import type { PositionReference, ReservedPositionArg } from './position'
+import type { FixedArgs, OmitArg, PopupPosition } from './utils'
+import { flag, popupStyle, text, triggerAttrs } from './utils'
+export type { PopupPlacement, PopupPosition } from './utils'
 
-/** Alignment of menu content along its anchor edge. */
-export type MenuAlign = 'center' | 'end' | 'start'
-/** Preferred side on which menu content opens. */
-export type MenuSide = 'bottom' | 'left' | 'right' | 'top'
 /** Semantic tone applied to an actionable menu item. */
 export type MenuVariant = 'default' | 'danger'
 
 /** Arguments for the Menu open-state provider. */
-export type MenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
+export type MenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange' | ReservedPositionArg> & PopupPosition & {
 	/** Controlled open state. */
 	open?: boolean
 	/** Initial open state for uncontrolled usage. */
@@ -25,7 +36,7 @@ export type MenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'
 	onOpenChange?: (open: boolean, event?: Event) => void
 	/** Additional UnoCSS classes for the root. */
 	class?: string
-}> & FixedArgs<'onchange'>
+}> & FixedArgs<'onchange' | ReservedPositionArg>
 
 /** Arguments for the button that toggles a Menu. */
 export type MenuTriggerArgs = WithChildren<IntrinsicElements['button'] & {
@@ -33,25 +44,13 @@ export type MenuTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 	class?: string
 }>
 
-/** Arguments for an explicit positioning anchor inside a Menu. */
-export type MenuAnchorArgs = WithChildren<IntrinsicElements['div'] & {
+/** Arguments for the Menu surface; positioning and semantics belong to Menu. */
+export type MenuContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'aria-labelledby' | 'hidden' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
 	/** Additional UnoCSS classes. */
 	class?: string
-}>
-
-/** Arguments for positioned menu content and its preferred placement. */
-export type MenuContentArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Horizontal alignment relative to the trigger. */
-	align?: MenuAlign
-	/** Pixel shift along the alignment axis. */
-	alignOffset?: number
-	/** Preferred side relative to the trigger. */
-	side?: MenuSide
-	/** Gap between trigger and content in pixels. */
-	sideOffset?: number
-	/** Additional UnoCSS classes. */
-	class?: string
-}>
+	/** Inline CSS declarations composed with live positioning styles. */
+	style?: string
+}> & FixedArgs<'aria-labelledby' | 'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
 
 /** Arguments for an actionable item in a Menu. */
 export type MenuItemArgs = WithChildren<IntrinsicElements['div'] & {
@@ -138,41 +137,39 @@ export type MenuShortcutArgs = WithChildren<IntrinsicElements['span'] & {
 }>
 
 /** Arguments for a nested Menu open-state provider. */
-export type MenuSubArgs = WithChildren<IntrinsicElements['div'] & {
+export type MenuSubArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'gap' | 'onchange' | 'placement' | ReservedPositionArg> & {
 	/** Controlled open state. */
 	open?: boolean
 	/** Initial open state for uncontrolled usage. */
 	defaultOpen?: boolean
 	/** Called whenever the submenu opens or closes. */
 	onOpenChange?: (open: boolean, event?: Event) => void
-}>
+}> & FixedArgs<'gap' | 'onchange' | 'placement' | ReservedPositionArg>
 
 /** Arguments for the item that opens a nested Menu. */
 export type MenuSubTriggerArgs = MenuItemArgs & {
 	iconClass?: string
 }
-/** Arguments for positioned content belonging to a nested menu. */
-export type MenuSubContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'align'> & {
+/** Arguments for a nested Menu surface with system-owned positioning and semantics. */
+export type MenuSubContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'aria-labelledby' | 'hidden' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
 	/** Additional UnoCSS classes. */
 	class?: string
-}> & FixedArgs<'align'>
+	/** Inline CSS declarations composed with live positioning styles. */
+	style?: string
+}> & FixedArgs<'aria-labelledby' | 'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
 
-/** Shared menu state exposed to menu parts and composing menu families. */
-export type MenuContextValue = {
+/** Shared menu state private to Menu parts. */
+type MenuContextValue = {
+	adoptTriggerId: PopupView['adoptTriggerId']
 	close: (event?: Event) => void
-	closeSubmenus: (event?: Event, except?: HTMLElement | null) => void
-	content: HTMLElement | null
 	contentId: string
+	contentStyle: PopupView['contentStyle']
 	disabled: boolean
-	focusFirst: () => void
-	focusLast: () => void
+	dismiss: (event: Event) => void
 	open: boolean
-	registerSubmenu: (submenu: SubmenuRegistration) => () => void
-	setAnchor: (element: HTMLElement | null) => void
 	setContent: (element: HTMLDivElement | null) => void
 	setOpen: (open: boolean, event?: Event, focus?: 'first' | 'last') => void
 	setTrigger: (element: HTMLButtonElement | null) => void
-	trigger: HTMLButtonElement | null
 	triggerId: string
 }
 
@@ -182,125 +179,178 @@ type RadioContextValue = {
 }
 
 type SubContextValue = {
+	adoptTriggerId: PopupView['adoptTriggerId']
+	branch: MenuBranch
 	close: (event?: Event) => void
-	content: HTMLElement | null
 	contentId: string
+	contentStyle: PopupView['contentStyle']
 	open: boolean
 	setContent: (element: HTMLDivElement | null) => void
 	setOpen: (open: boolean, event?: Event, focus?: boolean) => void
 	setTrigger: (element: HTMLElement | null) => void
-	trigger: HTMLElement | null
 	triggerId: string
 }
 
-type SubmenuRegistration = {
-	close: (event?: Event) => void
-	trigger: () => HTMLElement | null
+type LevelContextValue = {
+	cluster: MenuCluster
+	content: () => HTMLElement | null
+	open: () => boolean
 }
 
-// MenuContext, the collection instance, the surface selector, and the edge
-// helpers are the substrate reuse contract for composing menu families
-// (context-menu, menubar) — exported like CollapsibleContext for Accordion.
-/** Shared menu state consumed by Menu parts and composed menu families. */
-export const MenuContext = context<MenuContextValue | null>(null)
+const MenuContext = context<MenuContextValue | null>(null)
 const RadioContext = context<RadioContextValue | null>(null)
 const SubContext = context<SubContextValue | null>(null)
-
-// Disabled menu items render but stay out of the keyboard order, matching
-// pointer behavior (hover does not highlight them either) and the Radix and
-// React Aria default rather than APG's stay-focusable variant.
-/** Collection registry for menu items; disabled items are skipped in the focus order. */
-export const menuItems = collection('menu')
-
-/** Matches root and submenu content surfaces so direct items can exclude nested menus. */
-export const SURFACE_SELECTOR = '[data-menu-sub-content="true"],[data-menu-content="true"]'
-
-/** Items owned directly by one menu surface, excluding nested submenu items. */
-export const surfaceItems = (surface: HTMLElement | null) =>
-	menuItems.items(surface).filter(item => item.closest(SURFACE_SELECTOR) === surface)
-
-/** Focuses the first or last direct item of one menu surface. */
-export const focusEdge = (surface: HTMLElement | null, which: 'first' | 'last') => {
-	const list = surfaceItems(surface)
-	menuItems.focusItem(surface, which === 'first' ? list[0] : list[list.length - 1])
-}
-
+const LevelContext = context<LevelContextValue | null>(null)
 
 const pointerHighlight = (
 	disabled: boolean,
-	closeSubmenus?: MenuContextValue['closeSubmenus'],
-	keepCurrentSubmenu = false,
+	closeSubmenus?: MenuCluster['close'],
+	keep?: MenuBranch,
 ) => (event: Event) => {
 	if (disabled) return
 	const target = event.currentTarget as HTMLElement
 	const content = target.closest<HTMLElement>(SURFACE_SELECTOR)
 	menuItems.focusItem(content, event.currentTarget as HTMLElement)
-	if (!target.closest('[data-menu-sub-content="true"]')) {
-		closeSubmenus?.(event, keepCurrentSubmenu ? target : null)
-	}
+	closeSubmenus?.(event, keep)
 }
 
 const MenuRoot: Stateful<MenuArgs> = function* ({ defaultOpen, open }) {
-	const submenus = new Set<SubmenuRegistration>()
+	const composition = menuComposition()
+	const contextComposition = composition?.profile === 'context' ? composition : null
+	const ownerDocument = dom(this) ? this.ownerDocument : null
+	const node = (value: unknown): value is Node => {
+		const view = ownerDocument?.defaultView
+		return Boolean(view && value instanceof view.Node)
+	}
+	const submenus = cluster()
+	let contextSource: HTMLElement | null = null
 	let disabled = false
+	let focusRestore = 0
+	let geometryReady = false
 	let onOpenChange: MenuArgs['onOpenChange']
-	let pendingFocus: 'first' | 'last' | undefined
-	let menu: FloatingView<HTMLButtonElement, HTMLDivElement>
+	type MenuFocus = MenuInvocationFocus | 'last'
+	let pendingFocus: MenuFocus | undefined
+	let menu: PopupView<HTMLButtonElement, HTMLDivElement>
+	const commitMenubarFocus = frame(() => {
+		if (composition?.profile === 'menubar' && composition.ackFocus()) {
+			focusEdge(menu.content, 'first')
+		}
+	})
+	this.signal.addEventListener('abort', commitMenubarFocus.cancel)
 
-	menu = floating<HTMLButtonElement, HTMLDivElement>(this, {
+	menu = popup<HTMLButtonElement, HTMLDivElement>(this, {
 		prefix: 'menu',
+		profile: composition?.profile ?? 'menu',
 		initialOpen: Boolean(open ?? defaultOpen),
 		disabled: () => disabled,
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
-		reference: view => view.anchor ?? view.trigger,
-		placement: {
-			...datasetPlacement(() => menu.content, {
-				side: 'bottom',
-				align: 'center',
-				sideOffset: 4,
-				padding: 4,
-			}),
-			padding: () => 4,
+		reference: view => view.reference ?? view.trigger,
+		source: view => contextComposition
+			? contextSource
+			: view.trigger ?? (dom(view.reference) ? view.reference as HTMLElement : null),
+		reopenOnReferenceChange: Boolean(contextComposition),
+		referenceHidden: 'close',
+		dismiss: {
+			prevent: true,
+			outside: true,
+			onDismiss: event => {
+				if (event.type === 'keydown') close(event)
+				else setOpen(false, event)
+			},
+		},
+		onPosition: () => {
+			geometryReady = true
+			if (pendingFocus === 'content') menu.content?.focus()
+			else if (pendingFocus) focusEdge(menu.content, pendingFocus)
+			else if (composition?.profile === 'menubar') commitMenubarFocus()
+			pendingFocus = undefined
 		},
 		onSync: opened => {
-			if (opened) {
-				if (pendingFocus) focusEdge(menu.content, pendingFocus)
-			} else {
+			if (!opened) {
+				commitMenubarFocus.cancel()
+				geometryReady = false
 				menuItems.clearHighlight(menu.content)
+				submenus.close()
+				pendingFocus = undefined
 			}
-			pendingFocus = undefined
 		},
 	})
 
-	const setOpen = (next: boolean, event?: Event, focus?: 'first' | 'last') => {
-		if (disabled && next) return
-		if (next === menu.open) return
+	const focusWhenReady = (focus: MenuFocus) => {
+		if (geometryReady) {
+			if (focus === 'content') menu.content?.focus()
+			else focusEdge(menu.content, focus)
+		}
+		else pendingFocus = focus
+	}
 
-		pendingFocus = next ? focus : undefined
+	const setOpen = (next: boolean, event?: Event, focus?: MenuFocus) => {
+		if (disabled && next) return
+		if (next) focusRestore++
+		if (next === menu.open) {
+			if (next && focus) focusWhenReady(focus)
+			return
+		}
+
+		if (!next) {
+			submenus.close(event)
+			pendingFocus = undefined
+		}
+		else geometryReady = false
+		if (next && focus) pendingFocus = focus
 		menu.setOpen(next, event)
 	}
 
-	const close = (event?: Event) => {
-		setOpen(false, event)
-		queueMicrotask(() => menu.trigger?.focus())
-	}
-
-	const closeSubmenus = (event?: Event, except?: HTMLElement | null) => {
-		for (const submenu of submenus) {
-			if (submenu.trigger() !== except) submenu.close(event)
+	const invoke = (
+		reference: PositionReference,
+		source: HTMLElement,
+		event: Event,
+		focus: MenuInvocationFocus,
+	) => {
+		geometryReady = false
+		pendingFocus = focus
+		contextSource = source
+		const changed = menu.reference !== reference
+		submenus.close(event)
+		menu.setReference(reference)
+		if (menu.open) {
+			// A ContextMenu virtual point mutates coordinates without changing
+			// identity; no observer can detect that same-reference update.
+			if (!changed) menu.update()
+		} else {
+			menu.setOpen(true, event)
 		}
 	}
 
-	const registerSubmenu = (submenu: SubmenuRegistration) => {
-		submenus.add(submenu)
-		return () => submenus.delete(submenu)
+	const close = (event?: Event) => {
+		const wasOpen = menu.open
+		const restore = ++focusRestore
+		setOpen(false, event)
+		if (contextComposition) {
+			if (wasOpen && !menu.open) contextComposition.restoreFocus()
+		} else queueMicrotask(() => {
+			if (restore === focusRestore && wasOpen && !menu.open) menu.trigger?.focus()
+		})
+	}
+
+	const dismiss = (event: Event) => {
+		const target = event.target
+		const reference = menu.reference
+		const inside = node(target) && Boolean(
+			this.contains(target)
+			|| menu.trigger?.contains(target)
+			|| menu.content?.contains(target)
+			|| (dom(reference) && reference.contains(target)),
+		)
+		if (inside) submenus.prune(target, event)
+		else setOpen(false, event)
 	}
 
 	// Keyboard movement stays inside the surface that owns focus: an open
 	// submenu cycles its own items, never the parent menu's.
 	const focusedSurface = () => {
-		const active = document.activeElement
-		const surface = active instanceof HTMLElement ? active.closest<HTMLElement>(SURFACE_SELECTOR) : null
+		const active = ownerDocument?.activeElement
+		const surface = dom(active) ? active.closest<HTMLElement>(SURFACE_SELECTOR) : null
 		return surface ?? menu.content
 	}
 
@@ -315,8 +365,6 @@ const MenuRoot: Stateful<MenuArgs> = function* ({ defaultOpen, open }) {
 	})
 
 	listen(this, 'keydown', (event: KeyboardEvent) => {
-		// A submenu that handled the key (Escape closes one level) prevents
-		// default; the root must not also act on it.
 		if (event.defaultPrevented) return
 		const target = event.target as HTMLElement | null
 		if (!target?.closest('[data-menu-trigger="true"],[data-menu-content="true"]')) return
@@ -326,20 +374,15 @@ const MenuRoot: Stateful<MenuArgs> = function* ({ defaultOpen, open }) {
 			// arrows from the still-focused trigger enter it.
 			if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
 				event.preventDefault()
-				if (menu.open) focusEdge(menu.content, 'first')
-				else setOpen(true, event, 'first')
+				setOpen(true, event, 'first')
 			} else if (event.key === 'ArrowUp') {
 				event.preventDefault()
-				if (menu.open) focusEdge(menu.content, 'last')
-				else setOpen(true, event, 'last')
+				setOpen(true, event, 'last')
 			}
 			return
 		}
 
-		if (event.key === 'Escape') {
-			event.preventDefault()
-			close(event)
-		} else if (nav.handle(event)) {
+		if (nav.handle(event)) {
 			return
 		} else if (event.key === 'Enter' || event.key === ' ') {
 			const item = menuItems.item(event)
@@ -354,26 +397,48 @@ const MenuRoot: Stateful<MenuArgs> = function* ({ defaultOpen, open }) {
 	for (const args of this) {
 		disabled = Boolean(args.disabled)
 		onOpenChange = args.onOpenChange
-		menu.sync(args.open != null ? Boolean(args.open) : null)
+		const wasOpen = menu.open
+		const opened = menu.sync(args.open != null ? Boolean(args.open) : null, {
+			placement: args.placement,
+			gap: args.gap,
+		})
+		if (!wasOpen && opened) focusRestore++
+		if (wasOpen && !opened) {
+			// A controlled close can beat the first geometry commit, so invalidate
+			// focus intent here instead of relying only on popup.onSync(false).
+			geometryReady = false
+			commitMenubarFocus.cancel()
+			pendingFocus = undefined
+			submenus.close()
+		}
+		// Composition applies to exactly this root; arbitrary nested Menu roots
+		// retain their own menu profile and interaction policy.
+		isolateMenuComposition()
+		isolateMenuInvocation()
 
 		MenuContext({
+			adoptTriggerId: menu.adoptTriggerId,
 			close,
-			closeSubmenus,
-			content: menu.content,
 			contentId: menu.contentId,
+			contentStyle: menu.contentStyle,
 			disabled,
-			focusFirst: () => focusEdge(menu.content, 'first'),
-			focusLast: () => focusEdge(menu.content, 'last'),
-			open: menu.open,
-			registerSubmenu,
-			setAnchor: menu.setAnchor,
+			dismiss,
+			open: opened,
 			setContent: menu.setContent,
 			setOpen,
 			setTrigger: menu.setTrigger,
-			trigger: menu.trigger,
-			triggerId: menu.triggerId,
+			get triggerId() { return menu.triggerId },
+		})
+		if (contextComposition) provideMenuInvocation({
+			adoptTriggerId: menu.adoptTriggerId,
+			contentId: menu.contentId,
+			disabled,
+			invoke: (x, y, event, source, focus) =>
+				contextComposition.invoke(invoke, x, y, event, source, focus),
+			open: opened,
 		})
 
+		LevelContext({ cluster: submenus, content: () => menu.content, open: () => menu.open })
 		yield <>{args.children}</>
 	}
 }
@@ -385,16 +450,20 @@ const Menu: Stateless<MenuArgs> = ({
 	class: classes,
 	defaultOpen,
 	disabled,
+	gap,
 	onOpenChange,
 	open,
+	placement,
 	...attrs
 }) => (
 	<MenuRoot
 		{...rootAttrs(attrs)}
 		defaultOpen={defaultOpen}
 		disabled={disabled}
+		gap={gap}
 		onOpenChange={onOpenChange}
 		open={open}
+		placement={placement}
 		attr:class={classes}
 		attr:data-slot="menu"
 	>
@@ -415,6 +484,7 @@ const MenuTrigger: Stateless<MenuTriggerArgs> = ({
 }) => {
 	const menu = MenuContext()
 	const disabledFlag = Boolean(disabled ?? menu?.disabled)
+	const adoptedId = menu?.adoptTriggerId(id)
 
 	return (
 		<button
@@ -423,7 +493,7 @@ const MenuTrigger: Stateless<MenuTriggerArgs> = ({
 				controls: menu?.contentId,
 				expanded: Boolean(menu?.open),
 				haspopup: 'menu',
-				id,
+				id: adoptedId ?? id,
 				open: Boolean(menu?.open),
 				ref,
 				setTrigger: menu?.setTrigger,
@@ -448,38 +518,12 @@ const MenuTrigger: Stateless<MenuTriggerArgs> = ({
 	)
 }
 
-/** Optional explicit anchor used to position MenuContent independently of the trigger. */
-const MenuAnchor: Stateless<MenuAnchorArgs> = ({
-	children,
-	class: classes,
-	'data-slot': slot = 'menu-anchor',
-	ref,
-	...attrs
-}) => {
-	const menu = MenuContext()
-	const reference = (element: HTMLDivElement | null) => {
-		menu?.setAnchor(element)
-		callRef(ref, element)
-	}
-
-	return (
-		<div {...attrs} class={classes} data-slot={slot} ref={reference}>
-			{children}
-		</div>
-	)
-}
-
 /** Popover menu content. */
 const MenuContent: Stateless<MenuContentArgs> = ({
-	align = 'center',
-	alignOffset = 0,
 	children,
 	class: classes,
 	'data-slot': slot = 'menu-content',
-	id,
 	ref,
-	side = 'bottom',
-	sideOffset = 4,
 	style,
 	...attrs
 }) => {
@@ -489,21 +533,18 @@ const MenuContent: Stateless<MenuContentArgs> = ({
 		<div
 			{...attrs}
 			{...contentAttrs({
-				align,
-				alignOffset,
-				id: id ?? menu?.contentId,
-				popover: 'auto',
+				id: menu?.contentId,
+				open: Boolean(menu?.open),
 				ref,
 				setContent: menu?.setContent,
-				side,
-				sideOffset,
-				style,
+				style: menu?.contentStyle(style) ?? popupStyle(style),
 				tabindex: '-1',
 			})}
-			aria-labelledby={menu?.trigger ? menu.triggerId : undefined}
+			aria-labelledby={menu?.triggerId}
 			class={classes}
 			data-menu-content="true"
 			data-slot={slot}
+			hidden={undefined}
 			role="menu"
 		>
 			{children}
@@ -562,9 +603,10 @@ const MenuItem: Stateless<MenuItemArgs> = ({
 	...attrs
 }) => {
 	const menu = MenuContext()
+	const level = LevelContext()
 	const disabledFlag = Boolean(disabled ?? menu?.disabled)
 	const label = textValue ?? text(children)
-	const highlight = pointerHighlight(disabledFlag, menu?.closeSubmenus)
+	const highlight = pointerHighlight(disabledFlag, level?.cluster.close)
 
 	return (
 		<div
@@ -606,7 +648,7 @@ const choiceItem = (opts: {
 	slot: unknown
 	value?: string
 }) => {
-	const highlight = pointerHighlight(opts.disabled, opts.menu?.closeSubmenus)
+	const highlight = pointerHighlight(opts.disabled, LevelContext()?.cluster.close)
 
 	return (
 		<div
@@ -771,67 +813,88 @@ const MenuShortcut: Stateless<MenuShortcutArgs> = ({
 )
 
 const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
-	const subId = id('menu-sub')
-	let content: HTMLDivElement | null = null
-	let localOpen = Boolean(open ?? defaultOpen)
+	const children = cluster()
+	const parent = LevelContext()
+	let focusRestore = 0
+	let geometryReady = false
+	let menu: MenuContextValue | null = null
 	let onOpenChange: MenuSubArgs['onOpenChange']
-	let openControlled = open != null
-	let opened = localOpen
-	let parentMenu: MenuContextValue | null = null
-	let trigger: HTMLElement | null = null
+	const parentCluster = parent?.cluster ?? null
+	let pendingFocus = false
 	let unregister: (() => void) | undefined
+	let branch: MenuBranch
+	let submenu: PopupView<HTMLElement, HTMLDivElement>
 
-	const pane = surface(this, {
-		anchor: () => trigger,
-		target: () => content,
-		placement: {
-			side: () => 'right',
-			align: () => 'start',
-			sideOffset: () => 4,
-			padding: () => 4,
+	submenu = popup<HTMLElement, HTMLDivElement>(this, {
+		prefix: 'menu-sub',
+		profile: 'submenu',
+		initialOpen: Boolean(open ?? defaultOpen),
+		onOpenChange: (next, event) => onOpenChange?.(next, event),
+		reference: view => view.trigger,
+		source: view => view.trigger,
+		// A native top-layer child escapes older popup ancestors; limiting
+		// clipping to its direct parent surface avoids false referenceHidden.
+		referenceBoundary: () => parent?.content() ?? null,
+		referenceHidden: 'close',
+		dismiss: {
+			prevent: true,
+			outside: true,
+			onDismiss: event => {
+				if (event.type === 'keydown') close(event)
+				else if (menu) menu.dismiss(event)
+				else setOpen(false, event)
+			},
+		},
+		onSync: opened => {
+			if (opened) {
+				geometryReady = true
+				if (pendingFocus) focusEdge(submenu.content, 'first')
+			} else {
+				geometryReady = false
+				menuItems.clearHighlight(submenu.content)
+				children.close()
+			}
+			pendingFocus = false
 		},
 	})
 
-	// The low-level surface places once per show, but a submenu opened right
-	// after its parent may measure a trigger the parent's own placer is still
-	// moving; one follow-up placement next frame re-aims at the settled rect.
-	const replace = frame(() => {
-		if (opened && content && !content.hidden) pane.place()
-	})
-
-	this.signal.addEventListener('abort', () => replace.cancel(), { once: true })
-
-	const sync = (focus = false) => queueMicrotask(() => {
-		if (!content) return
-		if (opened) {
-			content.hidden = false
-			pane.show(trigger)
-			replace()
-			content.style.zIndex = '60'
-			if (focus) focusEdge(content, 'first')
-		} else {
-			menuItems.clearHighlight(content)
-			pane.hide()
-			content.hidden = true
-		}
-	})
+	const focusWhenReady = () => {
+		if (geometryReady) focusEdge(submenu.content, 'first')
+		else pendingFocus = true
+	}
 
 	const setOpen = (next: boolean, event?: Event, focus = false) => {
-		if (next === opened) return
-		onOpenChange?.(next, event)
-		if (!openControlled) localOpen = next
-		this.next(() => opened = next)
-		sync(focus)
+		if (next) focusRestore++
+		if (next === submenu.open) {
+			if (next && focus) focusWhenReady()
+			return
+		}
+
+		if (next) {
+			geometryReady = false
+			parentCluster?.close(event, branch)
+		} else {
+			children.close(event)
+		}
+		pendingFocus = next && focus
+		submenu.setOpen(next, event)
 	}
 
-	const registration: SubmenuRegistration = {
+	branch = {
 		close: event => setOpen(false, event),
-		trigger: () => trigger,
+		content: () => submenu.content,
+		prune: (target, event) => children.prune(target, event),
+		trigger: () => submenu.trigger,
 	}
+	unregister = parentCluster?.register(branch)
 
 	const close = (event?: Event) => {
+		const wasOpen = submenu.open
+		const restore = ++focusRestore
 		setOpen(false, event)
-		queueMicrotask(() => trigger?.focus())
+		queueMicrotask(() => {
+			if (restore === focusRestore && wasOpen && !submenu.open) submenu.trigger?.focus()
+		})
 	}
 
 	this.signal.addEventListener('abort', () => unregister?.())
@@ -842,47 +905,46 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 		if (!target?.closest('[data-menu-sub-trigger="true"],[data-menu-sub-content="true"]')) return
 		if (event.key === 'ArrowRight' && target.matches('[data-menu-sub-trigger="true"]')) {
 			event.preventDefault()
-			// A pointer may have opened the submenu already; ArrowRight still enters it.
-			if (opened) queueMicrotask(() => focusEdge(content, 'first'))
-			else setOpen(true, event, true)
-		} else if (event.key === 'ArrowLeft' || event.key === 'Escape') {
-			// Only an open submenu owns these keys; while closed they fall
-			// through (Escape to the root menu, ArrowLeft to a hosting menubar).
-			if (!opened) return
+			setOpen(true, event, true)
+		} else if (event.key === 'ArrowLeft') {
+			// While closed ArrowLeft belongs to an enclosing submenu or menubar.
+			if (!submenu.open) return
 			event.preventDefault()
 			close(event)
 		}
 	})
 
 	for (const args of this) {
-		const menu = MenuContext()
-		if (menu !== parentMenu) {
-			unregister?.()
-			parentMenu = menu
-			unregister = menu?.registerSubmenu(registration)
-		}
-		const parentOpen = menu?.open ?? true
+		menu = MenuContext()
 		onOpenChange = args.onOpenChange
-		openControlled = args.open != null
-		if (!parentOpen && !openControlled) localOpen = false
-		opened = parentOpen && (openControlled ? Boolean(args.open) : localOpen)
+		const parentOpen = parent?.open() ?? menu?.open ?? true
+		if (!parentOpen) {
+			children.close()
+			submenu.init(false)
+		}
+		const wasOpen = submenu.open
+		const opened = submenu.sync(parentOpen ? (args.open != null ? Boolean(args.open) : null) : false)
+		if (!wasOpen && opened) focusRestore++
+		if (wasOpen && !opened) {
+			geometryReady = false
+			pendingFocus = false
+			children.close()
+		}
 
 		SubContext({
+			adoptTriggerId: submenu.adoptTriggerId,
+			branch,
 			close,
-			content,
-			contentId: `${subId}-content`,
+			contentId: submenu.contentId,
+			contentStyle: submenu.contentStyle,
 			open: opened,
-			setContent: element => {
-				content = element
-				sync()
-			},
+			setContent: submenu.setContent,
 			setOpen,
-			setTrigger: element => trigger = element,
-			trigger,
-			triggerId: `${subId}-trigger`,
+			setTrigger: submenu.setTrigger,
+			get triggerId() { return submenu.triggerId },
 		})
 
-		sync()
+		LevelContext({ cluster: children, content: () => submenu.content, open: () => submenu.open })
 		yield <>{args.children}</>
 	}
 }
@@ -915,40 +977,61 @@ const MenuSubTrigger: Stateless<MenuSubTriggerArgs> = ({
 	'data-slot': slot = 'menu-sub-trigger',
 	disabled,
 	iconClass,
+	id,
 	inset,
+	ref,
 	textValue,
+	'set:onclick': onClick,
+	'set:onmouseenter': onMouseEnter,
+	'set:onpointerenter': onPointerEnter,
+	'set:onpointermove': onPointerMove,
 	...attrs
 }) => {
 	const menu = MenuContext()
+	const parent = LevelContext()
 	const sub = SubContext()
 	const disabledFlag = Boolean(disabled ?? menu?.disabled)
 	const label = textValue ?? text(children)
-	const reference = (element: HTMLElement | null) => sub?.setTrigger(element)
-	const highlight = pointerHighlight(disabledFlag, menu?.closeSubmenus, true)
+	const highlight = pointerHighlight(disabledFlag, parent?.cluster.close, sub?.branch)
+	const adoptedId = sub?.adoptTriggerId(id)
 
 	return (
 		<div
 			{...attrs}
 			{...menuItems.attrs({ disabled: disabledFlag, label })}
-			aria-controls={sub?.contentId}
+			{...triggerAttrs({
+				controls: sub?.contentId,
+				expanded: Boolean(sub?.open),
+				haspopup: 'menu',
+				id: adoptedId ?? id,
+				open: Boolean(sub?.open),
+				ref,
+				setTrigger: sub?.setTrigger,
+				triggerId: sub?.triggerId,
+			})}
 			aria-disabled={flag(disabledFlag)}
-			aria-expanded={sub?.open ? 'true' : 'false'}
-			aria-haspopup="menu"
 			class={classes}
 			data-inset={flag(inset)}
 			data-menu-sub-trigger="true"
 			data-slot={slot}
-			data-state={sub?.open ? 'open' : 'closed'}
-			id={sub?.triggerId}
-			ref={reference}
 			role="menuitem"
 			set:onclick={(event: Event) => {
+				callHandler(onClick, event)
+				if (event.defaultPrevented) return
 				if (disabledFlag) return
 				sub?.setOpen(!sub.open, event, true)
 			}}
-			set:onpointerenter={highlight}
-			set:onpointermove={highlight}
+			set:onpointerenter={(event: Event) => {
+				callHandler(onPointerEnter, event)
+				if (!event.defaultPrevented) highlight(event)
+			}}
+			set:onpointermove={(event: Event) => {
+				callHandler(onPointerMove, event)
+				if (!event.defaultPrevented) highlight(event)
+			}}
 			set:onmouseenter={(event: Event) => {
+				callHandler(onMouseEnter, event)
+				if (event.defaultPrevented) return
 				if (disabledFlag) return
 				sub?.setOpen(true, event)
 			}}
@@ -970,26 +1053,24 @@ const MenuSubContent: Stateless<MenuSubContentArgs> = ({
 	...attrs
 }) => {
 	const sub = SubContext()
-	const reference = (element: HTMLDivElement | null) => {
-		sub?.setContent(element)
-		callRef(ref, element)
-	}
 
 	return (
 		<div
 			{...attrs}
+			{...contentAttrs({
+				id: sub?.contentId,
+				open: Boolean(sub?.open),
+				ref,
+				setContent: sub?.setContent,
+				style: sub?.contentStyle(style) ?? popupStyle(style),
+				tabindex: '-1',
+			})}
 			aria-labelledby={sub?.triggerId}
 			class={classes}
 			data-menu-sub-content="true"
 			data-slot={slot}
-			data-state={sub?.open ? 'open' : 'closed'}
-			hidden={!sub?.open}
-			id={sub?.contentId}
-			popover="manual"
-			ref={reference}
+			hidden={undefined}
 			role="menu"
-			style={popupStyle(style)}
-			tabindex="-1"
 		>
 			{children}
 		</div>
@@ -998,7 +1079,6 @@ const MenuSubContent: Stateless<MenuSubContentArgs> = ({
 
 export {
 	Menu,
-	MenuAnchor,
 	MenuCheckboxItem,
 	MenuContent,
 	MenuGroup,

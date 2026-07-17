@@ -16,8 +16,8 @@ behavior        unstyled    Playa package    product composition
 and lifecycle   families    and preset       and content
 ```
 
-- `ajo-cloves` owns general Ajo behavior, lifecycle, sensors, positioning,
-  state primitives, and host utilities.
+- `ajo-cloves` owns general Ajo behavior, lifecycle, sensors, state primitives,
+  and host/spatial utilities. It owns no floating geometry engine.
 - `ajo-ui` owns unstyled component behavior, semantic markup, accessibility,
   composition, and component-domain engines.
 - `ajo-ui-playa` owns Playa classes, visual defaults, component recipes,
@@ -48,11 +48,15 @@ are not public contracts.
 There is no wildcard export. Pure `.ts` engines plus
 `data-table-contract.ts` and `data-table-model.ts` are package-internal.
 
+`@floating-ui/dom@1.8.0` is an exact regular dependency of `ajo-ui`. It is an
+implementation detail of positioned component families; applications and
+`ajo-ui-playa` do not declare or import it directly.
+
 `ajo-ui` declares its modules side-effect-free. Selecting another family from
 the root barrel does not retain `VirtualList`, `DataTable`, or their TanStack
 dependencies. Importing DataTable through the root or its explicit subpath
 produces the same graph. The reproducible `pnpm test:bundle` gate lives in
-`tests/virtual-list-bundle.ts` and is part of `pnpm test:unit`.
+`tests/package-bundle.ts` and is part of `pnpm test:unit`.
 
 `ajo-ui-playa` exposes two deliberately separate surfaces:
 
@@ -260,14 +264,12 @@ writes, and removals become inert after lifecycle teardown.
 Interaction primitives:
 
 - `controlled`, `dismiss`, `hover`, `timer`, `roving`, and `typeahead`;
-- `selection`, `restore`, `move`, `grid`, `spin`, and `follow`;
+- `selection`, `restore`, `move`, `grid`, and `spin`;
 - `label`, `hotkey`, and `announce`.
 
-Positioning:
+Spatial measurement:
 
-- `anchor` for element-anchored fixed positioning with flip, shift, and size
-  variables;
-- `indicator` for stamping a marked child's box as `--indicator-*` variables
+- `indicator` stamps a marked child's box as `--indicator-*` variables
   plus `data-indicator` on its container, so themes glide an active marker
   between children (tabs).
 
@@ -307,9 +309,12 @@ General host, lifecycle, callback, ref, cache, and numeric helpers remain in
 
 | Engine | Responsibility |
 |---|---|
-| `floating.ts` | Controlled popup state, ids, native Popover synchronization, placement, hover intent, dismissal, and attr bags. |
+| `position.ts` | Sole `@floating-ui/dom` Adapter, profile policy, real/virtual references, observation, stale-work rejection, geometry outputs, and rollback. |
+| `popup.ts` | Controlled popup state, ids, references/sources, native Popover synchronization, hover/focus interaction, dismissal, focus intents, and attr bags. |
+| `native.ts` | Capability-safe native Popover open/close/open-state leaf. |
+| `menu-cluster.ts` | Private Menu hierarchy, invocation, composition, direct-child registration, sibling pruning, and focus routing. |
 | `collection.ts` | Item discovery, identity, DOM order, filtering, grouping, separators, highlight, and focus. |
-| `bar.ts` | Open value, roving, typeahead, and follow policy for Menubar and NavigationMenu. |
+| `bar.ts` | Open value, roving, typeahead, and adjacent-trigger entry policy for Menubar and NavigationMenu. |
 | `segments.ts` | Locale-derived date/time segments, editing, ISO serialization, validation, and messages. |
 | `availability.ts` | Compiled day, instant, serialized-value, and range-crossing availability checks. |
 | `data-table-contract.ts` | Private vocabulary re-exported only through the public DataTable family. |
@@ -321,10 +326,13 @@ without exposing the engines as importable subpaths.
 
 ### Composition Map
 
-- Popover, Tooltip, Menu, Select, NavigationMenu, and InputDate use the
-  floating engine.
-- Menu submenus use the lower-level floating surface because their parent
-  owns the open cluster.
+- Popover, Tooltip, Menu/Submenu, Menubar, Select, InputDate/InputDateTime,
+  NavigationMenu, and ContextMenu compose `popup.ts` with a private
+  `position.ts` profile.
+- ContextMenu supplies a mutable virtual point whose current invoker is the
+  native source and `contextElement`.
+- Chart consumes `position.ts` directly with an SVG-backed virtual point; it
+  does not use native Popover or popup interaction state.
 - Menus, Select, and Command use the collection protocol.
 - Menubar and NavigationMenu use the bar engine.
 - ContextMenu and Menubar compose Menu.
@@ -337,8 +345,111 @@ without exposing the engines as importable subpaths.
 - DataTable composes Checkbox, Menu, Select, and Toolbar.
 - Mobile Sidebar composes Drawer.
 
-Popover is a consumer of the floating engine, not a superclass for every
-floating family.
+Popover is one consumer of the popup Module, not a superclass for every
+positioned family.
+
+### Positioning And Native Popup Stack
+
+`position.ts` is the single runtime import owner of `@floating-ui/dom`. It is
+a private deep Module, not a package subpath. Families select named profiles;
+they cannot pass middleware, strategy, Platform objects, collision padding,
+boundaries, or upstream Floating UI types through public component APIs.
+
+Public popup roots expose only:
+
+- `placement`: `top`, `right`, `bottom`, or `left`, with optional `-start` /
+  `-end`, plus `auto`;
+- `gap`: a finite CSS-pixel distance from reference to surface.
+
+Raw geometry names are sealed from component args through the private
+`ReservedPositionArg` type in `position.ts`. `PopupPlacement` and
+`PopupPosition` remain public through `ajo-ui/utils` and the positioned family
+subpaths.
+
+The Adapter has one lifecycle Interface:
+
+```ts
+type PositionView = {
+  start(): Promise<boolean>
+  update(): Promise<boolean>
+  stop(): void
+}
+```
+
+`start()` creates exactly one `autoUpdate` scope and performs a current first
+commit. `update()` coalesces requests while reading the latest elements and
+point. `stop()` synchronously invalidates pending calculations, disposes the
+scope, rolls back partial size work, and clears Chart's transient transform
+writer. Popup output remains committed across close/reopen so exit motion does
+not jump; replacing the floating or arrow tuple clears every Adapter-owned
+output from the previous elements. Host abort calls the same idempotent stop
+path. Generation, request, identity, connection, and host-abort checks prevent
+stale `computePosition()` results from committing to a closed, replaced, or
+detached surface.
+
+DOM activation is structural: `dom(host)` rejects protocol-only `ajo/html`
+hosts before reading element suppliers, even when an ambient document exists.
+Document services, computed direction, listeners, node guards, and device-pixel
+rounding come from the owning `ownerDocument` / `defaultView`, so popups and
+dismissal remain correct across same-origin realms.
+
+Real elements, Range-style multi-rect virtual references, and zero-area virtual
+points share `PositionReference`. A virtual reference retains a real
+`contextElement`; a point reference has stable identity and reads its current
+coordinates lazily. Retargeting that element restarts observation. ContextMenu
+uses its real invoker. Chart uses its current SVG plot.
+
+Profiles own defaults and middleware policy:
+
+| Profile | Default | Gap | Padding | Extra policy |
+|---|---:|---:|---:|---|
+| `popover` | `bottom` | 4 | 8 | inline reference, size, arrow, hide |
+| `tooltip` | `top` | 8 | 8 | inline reference, width size, arrow, hide |
+| `menu` | `bottom-start` | 4 | 4 | size, arrow, hide |
+| `submenu` | `right-start` | 4 | 4 | explicit `left-start` fallback, size, arrow, hide |
+| `select` | `bottom-start` | 6 | 8 | size, hide |
+| `date` | `bottom-start` | 6 | 8 | size, hide |
+| `navigation` | `bottom` | 8 | 8 | size, hide |
+| `context` | `bottom-start` | 2 | 4 | size, hide |
+| `menubar` | `bottom-start` | 8 | 4 | -4 cross-axis correction, size, hide |
+| `chart` | `right` | 12 | 8 | flip before shift, bounded transform writer |
+
+`inline()` precedes `offset()` so a multiline reference reset preserves the
+family gap. `auto` uses `autoPlacement()` then limited `shift()`. Preferred
+aligned placements and Chart use `flip()` then `shift()`; other unaligned
+placements use `shift()` then `flip()`. `size()`, `arrow()`, and the two
+`hide()` strategies follow only when the profile enables them. Size-aware
+profiles always constrain `max-width` to the available clipping width; popup
+surfaces also constrain `max-height`, while Tooltip leaves height to its
+caller. Collision and size use the family boundary; reference-hidden detection
+may use a separate ancestor clip boundary.
+
+Popup surfaces are the single semantic, native-Popover, and positioned node.
+They use fixed `left`/`top`; positioning never writes their transform, so Playa
+entry/exit transforms remain visual-only. Chart alone uses absolute
+`translate(x, y)`, rounded to device pixels. Its first commit snaps and performs
+one layout read before stamping `data-positioned="true"`; later commits remain
+direct geometry endpoints. Playa applies `transform 200ms ease-out` only to
+that stamped tooltip under `prefers-reduced-motion:no-preference`. Stop removes
+the stamp before clearing `transform` and `will-change`. `autoUpdate` uses its
+event/observer defaults; there is no permanent animation-frame loop or
+engine-side smoothing state.
+
+Committed output is `data-placement`, `data-side`, and `data-align`, plus
+`--reference-width`, `--reference-height`, `--available-width`, and
+`--available-height`, `box-sizing:border-box`, and the applicable maximum size
+for size-aware profiles. Reference-hidden and escaped state are output-only
+markers. Popup coordinates, datasets, variables, arrow coordinates, and
+transform origin remain stable while closed and are fully reset when their
+floating or arrow tuple is replaced.
+
+`popup.ts` owns everything that is not geometry: controlled/uncontrolled open
+state, generated/adopted ids, ARIA relations, real trigger/reference/source
+registration, hover timing, topmost dismissal, focus intent, native manual
+Popover synchronization, owned arrow lifecycle, and conceal/reveal. `native.ts`
+is the isolated capability leaf around `showPopover`, `hidePopover`, and
+`:popover-open`. Dialog and Toast use their own native/modal lifecycles and do
+not import the positioning graph.
 
 ## Family Contracts
 
@@ -436,35 +547,45 @@ Native popover content must not receive unconditional author `display`, which
 would override the user agent's closed `display: none`. Layout activates only
 under `:popover-open`; Playa Select uses `[&:popover-open]:flex`.
 
-A positioned surface with an arrow keeps scrolling on an inner element so the
-arrow remains aligned and unclipped.
+A positioned content with an arrow renders sibling internal
+`[data-slot="popup-surface"]` and `[data-slot="popup-arrow"]` nodes. The arrow
+node is a transparent Floating UI marker; the surface is the only painted
+geometry. Under `@supports`, Playa builds its side-aware silhouette with
+`clip-path: shape()`: it consumes `data-side` and `--popup-arrow-center` from
+the content and extends 7px toward the anchor, so the caret and bordered box
+form one uninterrupted shape. Engines without `shape()` support keep that same
+surface as a rounded box without a caret; the fallback never paints a second
+surface. Scrolling stays on an inner element so the integrated surface remains
+aligned and unclipped.
 
-The floating engine owns shared open state, native show/hide synchronization,
-placement, ids, hover intent, and dismissal. Families keep their role and
-keyboard policy local.
+The popup Module owns shared open state, native show/hide synchronization, ids,
+references, hover intent, and dismissal. It delegates only geometry to the
+position Adapter. Families keep role, selection, and keyboard policy local.
 
 #### Popover And Tooltip
 
-Popover supports trigger or anchor composition, click or hover opening, and an
-optional positioned arrow.
+Popover supports trigger or explicit reference composition and click or hover
+opening. `<PopoverContent arrow>` enables its family-owned arrow; there is no
+public arrow part or independently styled arrow geometry.
 
 Tooltip inherits provider timing, uses hover/focus semantics, and remains a
-non-interactive descriptive surface.
+non-interactive descriptive surface. `TooltipContent` always generates its
+family-owned arrow.
 
 #### Menus And Command
 
 Menu is the semantic action-menu substrate. It owns normal, checkbox, radio,
 group, label, separator, shortcut, and submenu parts.
 
-ContextMenu reuses that substrate and adds a pointer-positioned anchor plus
-focus restoration.
+ContextMenu reuses that substrate and adds a mutable virtual point with the
+real invoker as native source/context, plus focus restoration.
 
 Menubar reuses Menu content and adds a horizontal controlled trigger bar with
 cross-menu keyboard movement.
 
 NavigationMenu remains separate because it contains links and panels, not
-`menuitem` actions. It uses per-item anchored content and has no public shared
-Viewport or Indicator parts.
+`menuitem` actions. It uses per-item referenced content through the shared
+Adapter and has no public shared Viewport or Indicator parts.
 
 NavigationMenu uses hover intent across trigger and content zones, with open
 and close delays. Click toggles a panel; keyboard opening moves focus inside
@@ -706,7 +827,8 @@ hard-disabled day cells. `unavailable` remains the soft channel.
 
 #### Popup, Forms, Accessibility, And SSR
 
-The popup anchors to the field group, not the icon button.
+The popup reference is the complete themed field root, including every segment
+group and trigger addon. The icon button is only the native invocation source.
 
 Alt+ArrowDown opens only when popup parts exist. Escape closes without clearing
 the value.
@@ -919,6 +1041,36 @@ and active coordinate payload.
 Chart keeps its full context private. `ChartIdContext` is its narrow public seam,
 used by Playa to isolate CSS variables between nested charts. Native SVG roots
 set their namespace.
+
+Each bar remains one SVG `rect`, so geometry updates keep native `x`, `y`,
+`width`, and `height` transitions. `ajo-ui` stamps its numeric sign as
+`data-chart-sign`; Playa uses a `fill-box` clip to round only the free end,
+leaves the zero-axis end square, and flips the entry-animation origin for
+negative values. Zero-value hairlines remain square.
+
+An active mark is represented in SVG user coordinates plus its current SVG
+identity. SVG-to-client projection uses `getScreenCTM()`, so viewBox
+letterboxing, `preserveAspectRatio`, CSS/SVG transforms, and resize remain part
+of browser geometry. Pointer hit-testing applies the inverse affine matrix;
+Pie does not treat the full CSS viewport as its square user space.
+
+The stable virtual reference reads that projection lazily and exposes the
+current SVG as `contextElement`. Moving between SVG plots synchronously stops
+the old observation scope and starts a new one. Each plot composes its caller
+ref with an internal release ref: a genuinely disconnected active SVG stops
+geometry immediately and clears the tooltip after reconciliation; ref churn on
+a still-connected SVG restores the same point and scope.
+
+The `chart` profile is bounded by the Chart root, prefers `right` with a 12px
+gap, flips before limited shift, and writes one DPR-rounded absolute 2D
+translation. Rapid Adapter updates coalesce to the latest endpoint without an
+interpolation queue, smoothing state, or animation-frame loop. The first
+endpoint snaps; Playa visually interpolates later transforms while motion is
+allowed, and reduced-motion users keep direct snaps. Keyboard focus and pointer
+activation share the same point/reference path. Closing or replacing the
+tooltip clears the motion stamp and transform writer synchronously.
+`ChartTooltip` renders only for a real active datum; synthetic `defaultIndex`
+positioning is not an Interface.
 
 Carousel, Resizable, Slider, Tabs, and Toolbar use shared spatial cloves while
 keeping family-specific semantics in `ajo-ui`.

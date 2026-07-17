@@ -18,32 +18,26 @@ pnpm add ajo-cloves ajo
 
 ```tsx
 import type { Host } from 'ajo-cloves'
-import { anchor, controlled, dismiss } from 'ajo-cloves'
+import { controlled, dismiss } from 'ajo-cloves'
 
-type MenuArgs = {
+type DisclosureArgs = {
 	open?: boolean
 	onOpenChange?: (open: boolean, event?: Event) => void
 }
 
-function* Menu(this: Host, args: MenuArgs) {
+function* Disclosure(this: Host, args: DisclosureArgs) {
 	let trigger: HTMLButtonElement | null = null
-	let panel: HTMLDivElement | null = null
+	let content: HTMLDivElement | null = null
 	let onOpenChange = args.onOpenChange
 
 	const open = controlled(this, {
 		fallback: false,
 		onChange: (value, event) => onOpenChange?.(value, event),
 	})
-	const position = anchor(this, {
-		anchor: () => trigger,
-		target: () => panel,
-		side: () => 'bottom',
-		align: () => 'start',
-	})
 
 	dismiss(this, {
 		active: () => open.value,
-		inside: () => [trigger, panel],
+		inside: () => [trigger, content],
 		outside: true,
 		onDismiss: event => open.set(false, event),
 	})
@@ -52,12 +46,6 @@ function* Menu(this: Host, args: MenuArgs) {
 		onOpenChange = args.onOpenChange
 		open.sync(args.open)
 
-		if (open.value) queueMicrotask(() => {
-			position.place()
-			position.watch()
-		})
-		else position.unwatch()
-
 		yield (
 			<>
 				<button
@@ -65,12 +53,11 @@ function* Menu(this: Host, args: MenuArgs) {
 					aria-expanded={open.value ? 'true' : 'false'}
 					set:onclick={event => open.set(!open.value, event)}
 				>
-					Options
+					Details
 				</button>
 				{open.value && (
-					<div ref={el => panel = el} role="menu">
-						<button role="menuitem">Rename</button>
-						<button role="menuitem">Archive</button>
+					<div ref={el => content = el}>
+						Reusable behavior stays independent of component markup.
 					</div>
 				)}
 			</>
@@ -100,7 +87,6 @@ When a behavior must wire several attributes and handlers to a rendered element,
 | `move` | Pointer-drag session lifecycle with deltas and cancellation. | `onStart`, `onMove`, `onEnd`. |
 | `grid` | Semantic 2D key movement for grids/calendars. | `rtl`, `onMove`; type `GridMove`. |
 | `spin` | Semantic spinbutton key stepping (step/page/edge); composes with `roving` via consumer-pinned dispatch order (spin first). | `onMove`; type `SpinMove`. |
-| `follow` | Pointer-anchored floating position. | `target`, `container`, `offset`, `smooth`, `align`. |
 | `label` | Field label/control/description/error id wiring. | `prefix`; returns `LabelView` attr bags. |
 | `hotkey` | Global single-chord keyboard shortcut. | `keys`, `active`, `prevent`, `onPress`. |
 | `announce` | Polite/assertive screen-reader announcements. | No options; document-lifetime live regions. |
@@ -112,7 +98,7 @@ When a behavior must wire several attributes and handlers to a rendered element,
 
 | Export | Purpose | Key options |
 |---|---|---|
-| `anchor` | Fixed-strategy element-anchored floating position with flip, shift, and size vars. | `anchor`, `target`, `side`, `align`, `sideOffset`, `alignOffset`, `padding`, `constrain`. |
+| `indicator` | Tracks a marked child's box as CSS variables on its container. | `target`, `of`, `on`; method `sync`. |
 
 ### Sensors
 

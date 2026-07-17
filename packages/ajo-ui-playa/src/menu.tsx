@@ -13,8 +13,6 @@ import {
 	MenuSubTrigger as BaseMenuSubTrigger,
 } from 'ajo-ui/menu'
 import type {
-	MenuAlign,
-	MenuAnchorArgs,
 	MenuArgs,
 	MenuCheckboxItemArgs as BaseMenuCheckboxItemArgs,
 	MenuContentArgs,
@@ -25,7 +23,6 @@ import type {
 	MenuRadioItemArgs as BaseMenuRadioItemArgs,
 	MenuSeparatorArgs,
 	MenuShortcutArgs,
-	MenuSide,
 	MenuSubArgs,
 	MenuSubContentArgs,
 	MenuSubTriggerArgs as BaseMenuSubTriggerArgs,
@@ -47,9 +44,10 @@ import {
 	menuSubTriggerOpen,
 } from './internal/recipes'
 
-export { MenuAnchor, MenuGroup, MenuRadioGroup, MenuSub, MenuTrigger } from 'ajo-ui/menu'
+export { MenuGroup, MenuRadioGroup, MenuSub, MenuTrigger } from 'ajo-ui/menu'
 
-export type { MenuAlign, MenuAnchorArgs, MenuArgs, MenuContentArgs, MenuGroupArgs, MenuItemArgs, MenuLabelArgs, MenuRadioGroupArgs, MenuSeparatorArgs, MenuShortcutArgs, MenuSide, MenuSubArgs, MenuSubContentArgs, MenuTriggerArgs, MenuVariant }
+export type { MenuArgs, MenuContentArgs, MenuGroupArgs, MenuItemArgs, MenuLabelArgs, MenuRadioGroupArgs, MenuSeparatorArgs, MenuShortcutArgs, MenuSubArgs, MenuSubContentArgs, MenuTriggerArgs, MenuVariant }
+export type { PopupPlacement, PopupPosition } from 'ajo-ui/menu'
 export type MenuCheckboxItemArgs = OmitArg<BaseMenuCheckboxItemArgs, 'indicatorClass' | 'indicatorIconClass'> & FixedArgs<'indicatorClass' | 'indicatorIconClass'>
 export type MenuRadioItemArgs = OmitArg<BaseMenuRadioItemArgs, 'indicatorClass' | 'indicatorIconClass' | 'value'> & FixedArgs<'indicatorClass' | 'indicatorIconClass'> & {
 	value: string

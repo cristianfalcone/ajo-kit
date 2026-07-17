@@ -30,13 +30,20 @@ export default {
 
 const triggerClass = buttonVariants({ variant: 'outline' })
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
+const until = async (condition: () => boolean, message: string) => {
+	for (let attempt = 0; attempt < 30; attempt++) {
+		if (condition()) return
+		await frame()
+	}
+	throw new Error(message)
+}
 
 const DemoMenu = () => (
-	<Menu>
+	<Menu placement="bottom-start">
 		<MenuTrigger class={triggerClass} id="account-menu-trigger">
 			Open
 		</MenuTrigger>
-		<MenuContent class="w-56" align="start" id="account-menu-content">
+		<MenuContent class="w-56" style="min-width:12rem">
 			<MenuLabel>My Account</MenuLabel>
 			<MenuGroup>
 				<MenuItem textValue="Profile">
@@ -65,6 +72,31 @@ const DemoMenu = () => (
 		</MenuContent>
 	</Menu>
 )
+
+const ControlledSubPrecommitExample: Stateful = function* () {
+	let open = false
+	const setOpen = (next: boolean) => this.next(() => open = next)
+
+	while (true) yield (
+		<div class="grid gap-3">
+			<div class="flex gap-2">
+				<button id="controlled-sub-close" type="button" set:onclick={() => setOpen(false)}>Close sub</button>
+				<button id="controlled-sub-reopen" type="button" set:onclick={() => setOpen(true)}>Reopen sub</button>
+			</div>
+			<Menu defaultOpen>
+				<MenuTrigger id="controlled-sub-root-trigger">Root</MenuTrigger>
+				<MenuContent>
+					<MenuSub open={open} onOpenChange={setOpen}>
+						<MenuSubTrigger textValue="Tools">Tools</MenuSubTrigger>
+						<MenuSubContent>
+							<MenuItem textValue="Child">Child</MenuItem>
+						</MenuSubContent>
+					</MenuSub>
+				</MenuContent>
+			</Menu>
+		</div>
+	)
+}
 
 const KeyboardExample: Stateful = function* () {
 	let action = 'none'
@@ -148,16 +180,14 @@ export const Basic: Story<typeof Menu> = {
 		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
 		const billing = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="Billing"]')
 		if (!trigger || !content || !billing) throw new Error('Menu trigger, content, or Billing item was not rendered')
-		if (content.id !== 'account-menu-content' || trigger.getAttribute('aria-controls') !== content.id || trigger.getAttribute('aria-haspopup') !== 'menu') {
+		if (!content.id || trigger.getAttribute('aria-controls') !== content.id || trigger.getAttribute('aria-haspopup') !== 'menu') {
 			throw new Error('Menu trigger did not describe its content')
 		}
-		if (
-			content.dataset.align !== 'start'
-			|| content.dataset.sidePreference !== 'bottom'
-			|| content.dataset.sideOffset !== '4'
-			|| content.hasAttribute('data-collision-padding')
-		) {
-			throw new Error('Menu content did not preserve its placement defaults')
+		if (content.getAttribute('popover') !== 'manual' || content.getAttribute('role') !== 'menu' || content.tabIndex !== -1) {
+			throw new Error('Menu did not own its manual native semantics')
+		}
+		if (content.hasAttribute('data-side-preference') || content.hasAttribute('data-side-offset') || content.hasAttribute('data-align-offset')) {
+			throw new Error('Menu leaked the legacy dataset positioning protocol')
 		}
 
 		trigger.click()
@@ -165,6 +195,12 @@ export const Basic: Story<typeof Menu> = {
 
 		if (trigger.getAttribute('aria-expanded') !== 'true') {
 			throw new Error('Menu did not open after trigger click')
+		}
+		if (content.dataset.placement !== 'bottom-start' || content.dataset.side !== 'bottom' || content.dataset.align !== 'start') {
+			throw new Error('Menu did not commit its root placement through Floating UI')
+		}
+		if (!content.style.maxHeight || !content.style.getPropertyValue('--available-height') || !content.style.cssText.includes('min-width')) {
+			throw new Error('Menu did not compose consumer styles with available-height sizing')
 		}
 
 		billing.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
@@ -294,7 +330,7 @@ export const Submenu: Story = {
 		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
 		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
-		if (subTrigger.getAttribute('aria-expanded') !== 'true' || subContent.hidden) {
+		if (subTrigger.getAttribute('aria-expanded') !== 'true' || !subContent.matches(':popover-open')) {
 			throw new Error('ArrowRight did not open the submenu')
 		}
 
@@ -305,17 +341,17 @@ export const Submenu: Story = {
 		await frame()
 
 		const hoverHighlighted = Array.from(content.querySelectorAll<HTMLElement>('[data-item="menu"][data-highlighted="true"]'))
-		if (subTrigger.getAttribute('aria-expanded') !== 'false' || !subContent.hidden || hoverHighlighted.length !== 1 || hoverHighlighted[0]?.dataset.label !== 'New team') {
+		if (subTrigger.getAttribute('aria-expanded') !== 'false' || subContent.matches(':popover-open') || hoverHighlighted.length !== 1 || hoverHighlighted[0]?.dataset.label !== 'New team') {
 			throw new Error('Hovering a sibling item did not close the submenu and move highlight')
 		}
 
-		content.hidePopover()
+		trigger.click()
 		await frame()
 		trigger.click()
 		await frame()
 
 		const highlighted = Array.from(content.querySelectorAll<HTMLElement>('[data-item="menu"][data-highlighted="true"]'))
-		if (subTrigger.getAttribute('aria-expanded') !== 'false' || !subContent.hidden || highlighted.length !== 1 || highlighted[0]?.dataset.label !== 'Team') {
+		if (subTrigger.getAttribute('aria-expanded') !== 'false' || subContent.matches(':popover-open') || highlighted.length !== 1 || highlighted[0]?.dataset.label !== 'Team') {
 			throw new Error('Submenu stayed open or highlighted after parent close and reopen')
 		}
 
@@ -328,13 +364,13 @@ export const Submenu: Story = {
 
 		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
 		await frame()
-		if (subTrigger.getAttribute('aria-expanded') !== 'true' || subContent.hidden) {
+		if (subTrigger.getAttribute('aria-expanded') !== 'true' || !subContent.matches(':popover-open')) {
 			throw new Error('ArrowRight did not reopen the submenu for the Escape walk')
 		}
 
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
 		await frame()
-		if (subTrigger.getAttribute('aria-expanded') !== 'false' || !subContent.hidden) {
+		if (subTrigger.getAttribute('aria-expanded') !== 'false' || subContent.matches(':popover-open')) {
 			throw new Error('Escape did not close the submenu')
 		}
 		if (trigger.getAttribute('aria-expanded') !== 'true') {
@@ -399,13 +435,257 @@ export const FocusModality: Story = {
 
 export const EndAligned: Story = {
 	render: () => (
-		<Menu>
+		<Menu placement="bottom-end">
 			<MenuTrigger class={triggerClass}>End aligned</MenuTrigger>
-			<MenuContent align="end" class="w-48">
+			<MenuContent class="w-48">
 				<MenuItem>Documentation</MenuItem>
 				<MenuItem>Themes</MenuItem>
 				<MenuItem>GitHub</MenuItem>
 			</MenuContent>
 		</Menu>
 	),
+}
+
+export const ViewportEdge: Story = {
+	render: () => (
+		<div style="position:fixed;right:4px;bottom:4px">
+			<Menu gap={6} placement="bottom-end">
+				<MenuTrigger class={triggerClass} id="edge-menu-trigger">Edge menu</MenuTrigger>
+				<MenuContent style="width:18rem">
+					<MenuItem>Account settings</MenuItem>
+					<MenuItem>Sign out</MenuItem>
+				</MenuContent>
+			</Menu>
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const trigger = canvas.querySelector<HTMLButtonElement>('#edge-menu-trigger')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
+		if (!trigger || !content) throw new Error('Edge menu trigger or content was not rendered')
+
+		trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
+		await until(() => content.matches(':popover-open') && Boolean(content.dataset.placement), 'Edge menu never committed geometry')
+
+		const triggerRect = trigger.getBoundingClientRect()
+		const contentRect = content.getBoundingClientRect()
+		const separated = content.dataset.side === 'top' ? contentRect.bottom <= triggerRect.top + 1
+			: content.dataset.side === 'left' ? contentRect.right <= triggerRect.left + 1
+				: content.dataset.side === 'right' ? contentRect.left >= triggerRect.right - 1
+					: false
+		if (!separated || content.dataset.align !== 'end') {
+			throw new Error(`Menu did not choose a valid non-overlapping edge fallback: ${content.dataset.placement}`)
+		}
+		if (contentRect.left < 3 || contentRect.right > window.innerWidth - 3) {
+			throw new Error('Shift middleware did not keep edge menu inside the viewport')
+		}
+	},
+}
+
+export const ScrollTracking: Story = {
+	render: () => (
+		<div id="menu-scroll" style="height:8rem;width:22rem;overflow:auto;border:1px solid currentColor">
+			<div style="height:28rem;padding:2rem">
+				<Menu placement="bottom-start">
+					<MenuTrigger class={triggerClass} id="scroll-menu-trigger">Scroll source</MenuTrigger>
+					<MenuContent style="width:12rem">
+						<MenuItem>One</MenuItem>
+						<MenuItem>Two</MenuItem>
+					</MenuContent>
+				</Menu>
+			</div>
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const scroller = canvas.querySelector<HTMLElement>('#menu-scroll')
+		const trigger = canvas.querySelector<HTMLButtonElement>('#scroll-menu-trigger')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
+		if (!scroller || !trigger || !content) throw new Error('Scroll menu fixture was not rendered')
+
+		trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
+		await until(() => content.matches(':popover-open') && Boolean(content.style.top), 'Scroll menu never opened')
+		const initialTop = Number.parseFloat(content.style.top)
+
+		scroller.scrollTop = 16
+		await until(
+			() => Math.abs(Number.parseFloat(content.style.top) - initialTop) > 8,
+			'Menu did not follow its trigger while a clipping ancestor scrolled',
+		)
+		if (Math.abs(content.getBoundingClientRect().left - trigger.getBoundingClientRect().left) > 2) {
+			throw new Error('Menu lost alignment with its trigger after scroll autoUpdate')
+		}
+
+		scroller.scrollTop = scroller.scrollHeight
+		await until(() => trigger.getAttribute('aria-expanded') === 'false', 'Hidden reference did not close the menu')
+		if (content.matches(':popover-open')) throw new Error('Reference-hidden menu left its native popover open')
+	},
+}
+
+export const Dismissal: Story = {
+	render: () => (
+		<div class="grid gap-4">
+			<button id="menu-outside" type="button">Outside target</button>
+			<Menu>
+				<MenuTrigger class={triggerClass} id="dismiss-menu-trigger">Dismiss menu</MenuTrigger>
+				<MenuContent>
+					<MenuItem textValue="First">First</MenuItem>
+				</MenuContent>
+			</Menu>
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const outside = canvas.querySelector<HTMLButtonElement>('#menu-outside')
+		const trigger = canvas.querySelector<HTMLButtonElement>('#dismiss-menu-trigger')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
+		const first = canvas.querySelector<HTMLElement>('[data-label="First"]')
+		if (!outside || !trigger || !content || !first) throw new Error('Dismiss menu fixture was not rendered')
+
+		trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
+		await until(() => content.matches(':popover-open'), 'Pointer did not open dismissal menu')
+		outside.focus()
+		outside.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+		await until(() => !content.matches(':popover-open'), 'Outside pointerdown did not close the menu')
+		if (document.activeElement !== outside) throw new Error('Outside dismissal stole focus from its target')
+
+		trigger.focus()
+		trigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
+		await until(() => document.activeElement === first, 'Keyboard menu did not focus after geometry commit')
+		first.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+		await until(() => !content.matches(':popover-open'), 'Escape did not close the root menu')
+		if (document.activeElement !== trigger) throw new Error('Escape did not restore focus to the menu trigger')
+	},
+}
+
+export const ControlledSubPrecommit: Story = {
+	render: () => <ControlledSubPrecommitExample />,
+	play: async ({ canvas }) => {
+		const close = canvas.querySelector<HTMLButtonElement>('#controlled-sub-close')
+		const reopen = canvas.querySelector<HTMLButtonElement>('#controlled-sub-reopen')
+		const subTrigger = canvas.querySelector<HTMLElement>('[data-slot="menu-sub-trigger"]')
+		const subContent = canvas.querySelector<HTMLElement>('[data-slot="menu-sub-content"]')
+		const child = canvas.querySelector<HTMLElement>('[data-label="Child"]')
+		if (!close || !reopen || !subTrigger || !subContent || !child) {
+			throw new Error('Controlled submenu precommit fixture was not rendered')
+		}
+
+		await until(() => subTrigger.offsetParent !== null, 'Controlled submenu trigger did not render')
+		let childFocused = false
+		const observeFocus = (event: Event) => {
+			const target = event.target as HTMLElement | null
+			if (target?.dataset.label === 'Child') childFocused = true
+		}
+		document.addEventListener('focus', observeFocus, true)
+		subTrigger.focus()
+		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		close.click()
+		await until(
+			() => subTrigger.getAttribute('aria-expanded') === 'false' && !subContent.matches(':popover-open'),
+			'Controlled submenu did not close before its first geometry commit',
+		)
+		reopen.click()
+		await until(() => subContent.dataset.state === 'open', 'Controlled submenu did not reopen')
+		document.removeEventListener('focus', observeFocus, true)
+
+		const currentChild = canvas.querySelector<HTMLElement>('[data-label="Child"]')
+		if (childFocused || document.activeElement === currentChild || currentChild?.dataset.highlighted === 'true') {
+			throw new Error('Programmatic submenu reopen consumed stale precommit keyboard focus')
+		}
+	},
+}
+
+export const NestedSubmenus: Story = {
+	render: () => (
+		<div class="grid gap-4">
+			<button id="nested-menu-outside" type="button">Outside target</button>
+			<Menu>
+				<MenuTrigger class={triggerClass} id="nested-menu-trigger">Nested menu</MenuTrigger>
+				<MenuContent>
+					<MenuSub defaultOpen>
+						<MenuSubTrigger textValue="Tools">Tools</MenuSubTrigger>
+						<MenuSubContent>
+							<MenuSub>
+								<MenuSubTrigger textValue="Share">Share</MenuSubTrigger>
+								<MenuSubContent>
+									<MenuItem textValue="Copy link">Copy link</MenuItem>
+								</MenuSubContent>
+							</MenuSub>
+							<MenuItem textValue="Export">Export</MenuItem>
+						</MenuSubContent>
+					</MenuSub>
+				</MenuContent>
+			</Menu>
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const outside = canvas.querySelector<HTMLButtonElement>('#nested-menu-outside')
+		const rootTrigger = canvas.querySelector<HTMLButtonElement>('#nested-menu-trigger')
+		const triggers = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="menu-sub-trigger"]'))
+		const contents = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="menu-sub-content"]'))
+		const rootContent = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
+		const leaf = canvas.querySelector<HTMLElement>('[data-label="Copy link"]')
+		const exportItem = canvas.querySelector<HTMLElement>('[data-label="Export"]')
+		const [tools, share] = triggers
+		const [toolsContent, shareContent] = contents
+		if (!outside || !rootTrigger || !rootContent || !tools || !share || !toolsContent || !shareContent || !leaf || !exportItem) {
+			throw new Error('Nested submenu fixture was not rendered')
+		}
+		const outsideParent = (child: HTMLElement, parent: HTMLElement) => {
+			const childRect = child.getBoundingClientRect()
+			const parentRect = parent.getBoundingClientRect()
+			return child.dataset.side === 'right' ? childRect.left >= parentRect.right - 1
+				: child.dataset.side === 'left' ? childRect.right <= parentRect.left + 1
+					: false
+		}
+
+		rootTrigger.focus()
+		rootTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
+		await until(() => document.activeElement === tools, 'Root menu did not focus its first submenu trigger')
+		if (tools.getAttribute('aria-expanded') !== 'false' || toolsContent.matches(':popover-open')) {
+			throw new Error('defaultOpen submenu survived while its parent root was closed')
+		}
+
+		tools.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		await until(() => document.activeElement === share && toolsContent.matches(':popover-open'), 'First submenu did not open and focus after geometry commit')
+		if (!outsideParent(toolsContent, rootContent)) throw new Error('Submenu collision policy constrained it inside the parent surface')
+		share.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		await until(() => document.activeElement === leaf && shareContent.matches(':popover-open'), 'Second submenu level did not open')
+		if (!outsideParent(shareContent, toolsContent)) throw new Error('Nested submenu collision policy constrained it inside the parent surface')
+
+		leaf.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+		await until(() => document.activeElement === share && !shareContent.matches(':popover-open'), 'First Escape did not close only the deepest submenu')
+		if (!toolsContent.matches(':popover-open')) throw new Error('Deep Escape closed its parent submenu')
+
+		share.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+		await until(() => document.activeElement === tools && !toolsContent.matches(':popover-open'), 'Second Escape did not close the parent submenu')
+		if (rootTrigger.getAttribute('aria-expanded') !== 'true') throw new Error('Second Escape closed the root menu')
+
+		tools.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+		await until(() => rootTrigger.getAttribute('aria-expanded') === 'false', 'Third Escape did not close the root menu')
+		if (document.activeElement !== rootTrigger) throw new Error('Root Escape did not restore trigger focus')
+
+		rootTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
+		await until(() => document.activeElement === tools, 'Root menu did not reopen for pointer dismissal')
+		tools.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		await until(() => document.activeElement === share && toolsContent.matches(':popover-open'), 'Parent submenu did not reopen for pointer dismissal')
+		share.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		await until(() => document.activeElement === leaf && shareContent.matches(':popover-open'), 'Child submenu did not reopen for pointer dismissal')
+
+		exportItem.focus()
+		exportItem.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+		await until(() => !shareContent.matches(':popover-open'), 'Pointer inside parent did not close the child submenu')
+		if (!toolsContent.matches(':popover-open') || rootTrigger.getAttribute('aria-expanded') !== 'true') {
+			throw new Error('Pointer inside parent closed more than the child submenu')
+		}
+		if (document.activeElement !== exportItem) throw new Error('Pointer branch pruning stole focus inside the parent submenu')
+
+		share.focus()
+		share.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		await until(() => document.activeElement === leaf && shareContent.matches(':popover-open'), 'Child submenu did not reopen before outside dismissal')
+		outside.focus()
+		outside.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+		await until(() => rootTrigger.getAttribute('aria-expanded') === 'false', 'Pointer outside the cluster did not close the root')
+		if (toolsContent.matches(':popover-open') || shareContent.matches(':popover-open')) {
+			throw new Error('Pointer outside left a nested submenu open')
+		}
+		if (document.activeElement !== outside) throw new Error('Nested outside dismissal stole focus from its target')
+	},
 }

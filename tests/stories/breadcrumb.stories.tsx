@@ -173,12 +173,12 @@ export const Menu: Story<typeof Breadcrumb> = {
 					<span aria-hidden="true" class="text-muted-foreground">/</span>
 				</BreadcrumbSeparator>
 				<BreadcrumbItem>
-					<MenuRoot>
+					<MenuRoot placement="bottom-start">
 						<MenuTrigger class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
 							<BreadcrumbEllipsis class="size-4" />
 							<span class="sr-only">Toggle menu</span>
 						</MenuTrigger>
-						<MenuContent align="start">
+						<MenuContent>
 							<MenuItem>Documentation</MenuItem>
 							<MenuItem>Themes</MenuItem>
 							<MenuItem>GitHub</MenuItem>

@@ -15,6 +15,7 @@ const animationTokens = [
 	'data-[state=closed]:animate-out',
 	'data-[state=closed]:fade-out-0',
 	'data-[state=closed]:zoom-out-95',
+	'motion-reduce:animate-none',
 ]
 const slideTokens = [
 	'data-[side=bottom]:slide-in-from-top-2',

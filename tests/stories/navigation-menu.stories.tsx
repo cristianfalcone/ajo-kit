@@ -9,6 +9,7 @@ import {
 	NavigationMenuList,
 	NavigationMenuTrigger,
 	navigationMenuTriggerVariants,
+	type PopupPlacement,
 } from 'ajo-ui-playa/navigation-menu'
 import Button from 'ajo-ui-playa/button'
 
@@ -54,8 +55,14 @@ const ListItem = ({
 	</li>
 )
 
-const RichMenu = ({ closeDelay, openDelay, value }: { closeDelay?: number; openDelay?: number; value?: string }) => (
-	<NavigationMenu closeDelay={closeDelay} openDelay={openDelay} value={value}>
+const RichMenu = ({ closeDelay, gap, openDelay, placement, value }: {
+	closeDelay?: number
+	gap?: number
+	openDelay?: number
+	placement?: PopupPlacement
+	value?: string
+}) => (
+	<NavigationMenu closeDelay={closeDelay} gap={gap} openDelay={openDelay} placement={placement} value={value}>
 		<NavigationMenuList class="flex-wrap">
 			<NavigationMenuItem value="home">
 				<NavigationMenuTrigger>Home</NavigationMenuTrigger>
@@ -196,6 +203,8 @@ export const Default: Story<typeof NavigationMenu> = {
 		const content = openContent(canvas)
 		if (!content) throw new Error('Navigation menu content did not open')
 		if (components.getAttribute('data-state') !== 'open') throw new Error('Trigger did not expose open state')
+		if (content.getAttribute('popover') !== 'manual') throw new Error('Navigation menu content must use the shared manual-popover lifecycle')
+		if (content.hasAttribute('data-side-offset')) throw new Error('Navigation menu content retained a legacy placement-input dataset')
 		if (!content.textContent?.includes('Alert Dialog')) throw new Error('Opened content did not render list items')
 		await assertPanelBelowTrigger(canvas, 'Home')
 		await assertPanelBelowTrigger(canvas, 'Components')
@@ -203,6 +212,71 @@ export const Default: Story<typeof NavigationMenu> = {
 		if (!canvas.querySelector('[data-slot="navigation-menu-link"][aria-current="page"]')) {
 			throw new Error('Active navigation link did not expose aria-current')
 		}
+	},
+}
+
+export const GeometryOverride: Story<typeof NavigationMenu> = {
+	render: () => (
+		<div class="flex min-h-[420px] min-w-[900px] items-center justify-start pl-24">
+			<RichMenu gap={14} placement="right-start" />
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const button = trigger(canvas, 'Components')
+		if (!button) throw new Error('Components trigger was not rendered')
+		button.click()
+		await until(() => Boolean(openContent(canvas)), 'geometry override open')
+		const panel = openContent(canvas)
+		if (!panel) throw new Error('Geometry override panel did not open')
+		if (panel.dataset.placement !== 'right-start') throw new Error(`Expected right-start, got ${panel.dataset.placement}`)
+		const triggerRect = button.getBoundingClientRect()
+		const gap = Number.parseFloat(panel.style.left) - triggerRect.right
+		if (Math.abs(gap - 14) >= 2) throw new Error(`Expected a 14px root gap, got ${gap}`)
+		const referenceWidth = Number.parseFloat(panel.style.getPropertyValue('--reference-width'))
+		if (Math.abs(referenceWidth - triggerRect.width) >= 1) throw new Error('Navigation panel did not publish its trigger reference width')
+	},
+}
+
+export const ScrollAndHiddenReference: Story<typeof NavigationMenu> = {
+	render: () => (
+		<div class="h-[240px] w-[480px] overflow-auto rounded-md edge" data-navigation-scroll>
+			<div class="h-[720px] pt-[120px]">
+				<NavigationMenu gap={8} placement="bottom-start">
+					<NavigationMenuList>
+						<NavigationMenuItem value="scroll">
+							<NavigationMenuTrigger>Scroll target</NavigationMenuTrigger>
+							<NavigationMenuContent>
+								<NavigationMenuLink href="/scroll">Observed link</NavigationMenuLink>
+							</NavigationMenuContent>
+						</NavigationMenuItem>
+					</NavigationMenuList>
+				</NavigationMenu>
+			</div>
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const scroller = canvas.querySelector<HTMLElement>('[data-navigation-scroll]')
+		const button = trigger(canvas, 'Scroll target')
+		if (!scroller || !button) throw new Error('Scroll geometry fixture was not rendered')
+		scroller.scrollTop = 40
+		await sleep(32)
+		button.click()
+		await until(() => Boolean(openContent(canvas)), 'scroll panel open')
+		const panel = openContent(canvas)
+		if (!panel) throw new Error('Scroll panel did not open')
+		const beforeTrigger = button.getBoundingClientRect().top
+		const beforePanel = panel.getBoundingClientRect().top
+		scroller.scrollTop += 24
+		await until(
+			() => Math.abs(panel.getBoundingClientRect().top - (beforePanel - 24)) < 3,
+			'panel followed ancestor scroll',
+		)
+		if (Math.abs(button.getBoundingClientRect().top - (beforeTrigger - 24)) >= 2) {
+			throw new Error('Scroll fixture did not move the reference by the expected amount')
+		}
+		scroller.scrollTop = 600
+		await until(() => !openContent(canvas), 'hidden reference closed panel')
+		if (button.getAttribute('data-state') !== 'closed') throw new Error('Hidden-reference close did not converge trigger state')
 	},
 }
 
@@ -397,5 +471,24 @@ export const Controlled: Story<typeof NavigationMenu> = {
 		const close = Array.from(canvas.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Close')
 		close?.click()
 		await until(() => !openContent(canvas), 'controlled close button closed content')
+	},
+}
+
+export const RejectedControlledClose: Story<typeof NavigationMenu> = {
+	render: () => (
+		<div class="min-h-[420px]">
+			<RichMenu value="components" />
+		</div>
+	),
+	play: async ({ canvas }) => {
+		await until(() => Boolean(openContent(canvas)?.textContent?.includes('Alert Dialog')), 'pinned controlled panel open')
+		const panel = openContent(canvas)
+		const link = panel?.querySelector<HTMLElement>('[data-slot="navigation-menu-link"]')
+		if (!panel || !link) throw new Error('Pinned NavigationMenu panel or link was not rendered')
+		link.focus()
+		key(link, 'Escape')
+		await sleep(32)
+		if (!panel.matches(':popover-open')) throw new Error('Rejected controlled close hid the NavigationMenu panel')
+		if (document.activeElement !== link) throw new Error('Rejected controlled close moved focus out of the still-open NavigationMenu panel')
 	},
 }

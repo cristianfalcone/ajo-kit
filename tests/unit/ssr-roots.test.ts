@@ -270,12 +270,15 @@ const roots: Record<string, () => Children> = {
 			jsx(PopoverTrigger, { children: 'Open' }),
 			jsx(PopoverContent, { children: 'Content' }),
 		],
+		description: 'Popover description',
+		label: 'Popover content',
 	}),
 	'popover-hover': () => jsx(Popover, {
 		children: [
 			jsx(PopoverTrigger, { children: 'Open' }),
 			jsx(PopoverContent, { children: 'Content' }),
 		],
+		label: 'Hover content',
 		openOn: 'hover',
 	}),
 	progress: () => jsx(Progress, { value: 50 }),
@@ -349,3 +352,208 @@ for (const [family, root] of Object.entries(roots)) {
 		expect(html.length).toBeGreaterThan(0)
 	})
 }
+
+test('SSR Popover keeps one manual semantic surface with stable trigger relations', () => {
+	const html = ssr(roots.popover())
+	const trigger = html.match(/<button[^>]*data-slot="popover-trigger"[^>]*>/)?.[0]
+	const content = html.match(/<div[^>]*data-slot="popover-content"[^>]*>/)?.[0]
+	const contentId = trigger?.match(/aria-controls="([^"]+)"/)?.[1]
+	const titleId = content?.match(/aria-labelledby="([^"]+)"/)?.[1]
+	const descriptionId = content?.match(/aria-describedby="([^"]+)"/)?.[1]
+
+	expect(trigger).toBeDefined()
+	expect(content).toBeDefined()
+	expect(contentId).toBeTruthy()
+	expect(trigger).toContain('aria-expanded="false"')
+	expect(trigger).toContain('aria-haspopup="dialog"')
+	expect(trigger).toContain('data-state="closed"')
+	expect(content).toContain(`id="${contentId}"`)
+	expect(content).toContain('popover="manual"')
+	expect(content).toContain('data-state="closed"')
+	expect(content).toContain('role="dialog"')
+	expect(titleId).toBeTruthy()
+	expect(descriptionId).toBeTruthy()
+	expect(html).toContain(`<h2 data-slot="popover-title" id="${titleId}">Popover content</h2>`)
+	expect(html).toContain(`<p data-slot="popover-description" id="${descriptionId}">Popover description</p>`)
+	expect(html.match(/popover="manual"/g)).toHaveLength(1)
+	expect(html.match(/data-slot="popover-content"/g)).toHaveLength(1)
+})
+
+test('SSR Popover omits description markup and relation when description is absent', () => {
+	const html = ssr(roots['popover-hover']())
+	const content = html.match(/<div[^>]*data-slot="popover-content"[^>]*>/)?.[0]
+
+	expect(content).toContain('role="dialog"')
+	expect(content).toContain('aria-labelledby=')
+	expect(content).not.toContain('aria-describedby')
+	expect(html).not.toContain('data-slot="popover-description"')
+})
+
+test('SSR Tooltip keeps positioning at the root and one manual semantic surface', () => {
+	const html = ssr(jsx(Tooltip, {
+		children: [
+			jsx(TooltipTrigger, { 'aria-describedby': 'field-help field-error field-help', children: 'Hover' }),
+			jsx(TooltipContent, { children: 'Tip', id: 'ignored-tip', role: 'dialog', tabindex: '0' }),
+		],
+		gap: 12,
+		placement: 'top-start',
+	}))
+	const trigger = html.match(/<button[^>]*data-slot="tooltip-trigger"[^>]*>/)?.[0]
+	const content = html.match(/<div[^>]*data-slot="tooltip-content"[^>]*>/)?.[0]
+	const describedBy = trigger?.match(/aria-describedby="([^"]+)"/)?.[1]
+	const contentId = describedBy?.split(/\s+/).at(-1)
+
+	expect(trigger).toBeDefined()
+	expect(content).toBeDefined()
+	expect(contentId).toBeTruthy()
+	expect(contentId).not.toBe('ignored-tip')
+	expect(describedBy).toBe(`field-help field-error ${contentId}`)
+	expect(trigger).toContain('data-state="closed"')
+	expect(content).toContain(`id="${contentId}"`)
+	expect(content).toContain('popover="manual"')
+	expect(content).toContain('data-state="closed"')
+	expect(content).toContain('role="tooltip"')
+	expect(content).not.toContain('tabindex=')
+	expect(html).not.toMatch(/(?:data-side-preference|data-side-offset|data-align|placement|gap)=/)
+	expect(html.match(/popover="manual"/g)).toHaveLength(1)
+	expect(html.match(/data-slot="tooltip-content"/g)).toHaveLength(1)
+})
+
+test('SSR Menu owns root positioning and manual semantics for every level', () => {
+	const html = ssr(jsx(Menu, {
+		children: [
+			jsx(MenuTrigger, { children: 'Open', id: 'menu-source' }),
+			jsx(MenuContent, {
+				children: jsx(MenuSub, {
+					children: [
+						jsx(MenuSubTrigger, { children: 'More', id: 'submenu-source' }),
+						jsx(MenuSubContent, {
+							children: jsx(MenuItem, { children: 'Nested' }),
+							hidden: true,
+							id: 'ignored-submenu',
+							popover: 'auto',
+							role: 'dialog',
+							tabindex: '0',
+						}),
+					],
+				}),
+				id: 'ignored-menu',
+				popover: 'auto',
+				role: 'dialog',
+				tabindex: '0',
+			}),
+		],
+		gap: 10,
+		placement: 'bottom-end',
+	}))
+	const trigger = html.match(/<button[^>]*data-slot="menu-trigger"[^>]*>/)?.[0]
+	const content = html.match(/<div[^>]*data-slot="menu-content"[^>]*>/)?.[0]
+	const subTrigger = html.match(/<div[^>]*data-slot="menu-sub-trigger"[^>]*>/)?.[0]
+	const subContent = html.match(/<div[^>]*data-slot="menu-sub-content"[^>]*>/)?.[0]
+	const contentId = trigger?.match(/aria-controls="([^"]+)"/)?.[1]
+	const triggerId = trigger?.match(/id="([^"]+)"/)?.[1]
+	const subContentId = subTrigger?.match(/aria-controls="([^"]+)"/)?.[1]
+	const subTriggerId = subTrigger?.match(/id="([^"]+)"/)?.[1]
+
+	expect(contentId).toBeTruthy()
+	expect(triggerId).toBeTruthy()
+	expect(subContentId).toBeTruthy()
+	expect(subTriggerId).toBeTruthy()
+	expect(trigger).toContain('aria-expanded="false"')
+	expect(trigger).toContain('aria-haspopup="menu"')
+	expect(content).toContain(`id="${contentId}"`)
+	expect(triggerId).toBe('menu-source')
+	expect(content).toContain('aria-labelledby="menu-source"')
+	expect(content).toContain('popover="manual"')
+	expect(content).toContain('role="menu"')
+	expect(content).toContain('tabindex="-1"')
+	expect(subTrigger).toContain('aria-expanded="false"')
+	expect(subContent).toContain(`id="${subContentId}"`)
+	expect(subTriggerId).toBe('submenu-source')
+	expect(subContent).toContain('aria-labelledby="submenu-source"')
+	expect(subContent).toContain('popover="manual"')
+	expect(subContent).toContain('role="menu"')
+	expect(subContent).toContain('tabindex="-1"')
+	expect(subContent).not.toContain('hidden')
+	expect(html).not.toContain('ignored-menu')
+	expect(html).not.toContain('ignored-submenu')
+	expect(html).not.toMatch(/(?:data-side-preference|data-side-offset|data-align-offset|data-collision-padding)=/)
+	expect(html.match(/popover="manual"/g)).toHaveLength(2)
+})
+
+test('SSR Menubar owns shared root positioning and manual menu semantics', () => {
+	const html = ssr(jsx(Menubar, {
+		children: jsx(MenubarMenu, {
+			children: [
+				jsx(MenubarTrigger, { children: 'File', id: 'menubar-source' }),
+				jsx(MenubarContent, {
+					children: jsx(MenubarItem, { children: 'New' }),
+					id: 'ignored-menubar-content',
+					popover: 'auto',
+					role: 'dialog',
+					tabindex: '0',
+				}),
+			],
+			value: 'file',
+		}),
+		gap: 10,
+		placement: 'top-end',
+	}))
+	const root = html.match(/<div[^>]*data-slot="menubar"[^>]*>/)?.[0]
+	const trigger = html.match(/<button[^>]*data-slot="menubar-trigger"[^>]*>/)?.[0]
+	const content = html.match(/<div[^>]*data-slot="menubar-content"[^>]*>/)?.[0]
+	const contentId = trigger?.match(/aria-controls="([^"]+)"/)?.[1]
+
+	expect(root).toBeTruthy()
+	expect(root).not.toMatch(/(?:gap|placement)=/)
+	expect(trigger).toContain('id="menubar-source"')
+	expect(trigger).toContain('data-menubar-trigger="true"')
+	expect(trigger).toContain('data-value="file"')
+	expect(trigger).toContain('role="menuitem"')
+	expect(contentId).toBeTruthy()
+	expect(content).toContain(`id="${contentId}"`)
+	expect(content).toContain('aria-labelledby="menubar-source"')
+	expect(content).toContain('popover="manual"')
+	expect(content).toContain('role="menu"')
+	expect(content).toContain('tabindex="-1"')
+	expect(content).not.toContain('ignored-menubar-content')
+})
+
+test('SSR standalone MenubarMenu degrades its trigger to native button semantics', () => {
+	const html = ssr(jsx(MenubarMenu, {
+		children: [
+			jsx(MenubarTrigger, { children: 'Standalone', id: 'standalone-menubar-trigger' }),
+			jsx(MenubarContent, { children: jsx(MenubarItem, { children: 'Action' }) }),
+		],
+		value: 'standalone',
+	}))
+	const trigger = html.match(/<button[^>]*id="standalone-menubar-trigger"[^>]*>/)?.[0]
+
+	expect(trigger).toBeTruthy()
+	expect(trigger).not.toContain('role="menuitem"')
+	expect(trigger).not.toContain('data-menubar-trigger')
+	expect(trigger).not.toContain('data-value=')
+	expect(trigger).not.toContain('tabindex=')
+	expect(trigger).toContain('type="button"')
+})
+
+test('SSR ContextMenu relates its real trigger without a fake anchor', () => {
+	const html = ssr(jsx(ContextMenu, {
+		children: [
+			jsx(ContextMenuTrigger, { children: 'Target', id: 'context-source' }),
+			jsx(ContextMenuContent, {
+				children: jsx(ContextMenuItem, { children: 'Open' }),
+			}),
+		],
+	}))
+	const trigger = html.match(/<div[^>]*data-slot="context-menu-trigger"[^>]*>/)?.[0]
+	const content = html.match(/<div[^>]*data-slot="context-menu-content"[^>]*>/)?.[0]
+	const contentId = trigger?.match(/aria-controls="([^"]+)"/)?.[1]
+
+	expect(trigger).toContain('id="context-source"')
+	expect(contentId).toBeTruthy()
+	expect(content).toContain(`id="${contentId}"`)
+	expect(content).toContain('aria-labelledby="context-source"')
+	expect(content).toContain('popover="manual"')
+	expect(html).not.toContain('context-menu-anchor')
+})

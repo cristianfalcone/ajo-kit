@@ -2,7 +2,19 @@
 import { render, type Stateful } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+
+const floating = vi.hoisted(() => ({
+	autoUpdate: vi.fn(),
+	computePosition: vi.fn(),
+}))
+
+vi.mock('@floating-ui/dom', async importActual => ({
+	...await importActual<typeof import('@floating-ui/dom')>(),
+	autoUpdate: floating.autoUpdate,
+	computePosition: floating.computePosition,
+}))
+
 import {
 	InputDateCalendar,
 	InputDateContent,
@@ -13,8 +25,28 @@ import {
 	InputDateTrigger,
 	InputTime,
 } from '../src/input-date'
+import { nativePopoverHarness } from './native-popover-harness'
 
-afterEach(() => render(null, document.body))
+const popovers = nativePopoverHarness()
+
+beforeEach(() => {
+	popovers.install()
+	floating.autoUpdate.mockReset().mockImplementation((_reference, _floating, update) => {
+		update()
+		return vi.fn()
+	})
+	floating.computePosition.mockReset().mockResolvedValue({
+		x: 10,
+		y: 20,
+		placement: 'bottom-start',
+		strategy: 'fixed',
+		middlewareData: {},
+	})
+})
+afterEach(() => {
+	render(null, document.body)
+	popovers.restore()
+})
 
 const segment = (surface: 'field' | 'popover', unit: string) =>
 	document.querySelector<HTMLElement>(`[data-surface="${surface}"][data-segment="${unit}"]`)!
@@ -80,7 +112,7 @@ test('default datetime composition renders one engine through uniquely identifie
 	expect(new Set(ids).size).toBe(ids.length)
 })
 
-test('popover time edits update the same field view and keep day picks open by default', () => {
+test('popover time edits update the same field view and keep day picks open by default', async () => {
 	render(jsx(InputDateTime, {
 		calendar: { defaultMonth: new Date(2026, 6, 1, 12) },
 		defaultValue: '2026-07-10T12:30',
@@ -109,6 +141,7 @@ test('popover time edits update the same field view and keep day picks open by d
 	const trigger = document.querySelector<HTMLButtonElement>('[data-slot="input-date-trigger"]')!
 	const content = document.querySelector<HTMLElement>('[data-slot="input-date-content"]')!
 	trigger.click()
+	await vi.waitFor(() => expect(content.matches(':popover-open')).toBe(true))
 	expect(content.dataset.state).toBe('open')
 	document.querySelector<HTMLButtonElement>('[data-day="2026-07-11"]')!.click()
 	expect(content.dataset.state).toBe('open')
@@ -135,7 +168,7 @@ test('a datetime composition without a time surface keeps the calendar close def
 	expect(content.dataset.state).toBe('closed')
 })
 
-test('removing one explicit duplicate keeps the remaining time surface registered', () => {
+test('removing one explicit duplicate keeps the remaining time surface registered', async () => {
 	render(jsx(DuplicateTimeSurfaces, {}), document.body)
 	expect(document.querySelectorAll('[data-slot="input-date-time-field"]')).toHaveLength(2)
 	document.querySelector<HTMLButtonElement>('[data-testid="remove-time"]')!.click()
@@ -143,6 +176,7 @@ test('removing one explicit duplicate keeps the remaining time surface registere
 
 	document.querySelector<HTMLButtonElement>('[data-slot="input-date-trigger"]')!.click()
 	const content = document.querySelector<HTMLElement>('[data-slot="input-date-content"]')!
+	await vi.waitFor(() => expect(content.matches(':popover-open')).toBe(true))
 	document.querySelector<HTMLButtonElement>('[data-day="2026-07-11"]')!.click()
 	expect(content.dataset.state).toBe('open')
 })

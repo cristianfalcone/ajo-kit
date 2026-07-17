@@ -145,6 +145,22 @@ const ControlledExample: Stateful = function* () {
 	)
 }
 
+const RejectedCloseExample: Stateful = function* () {
+	while (true) yield (
+		<Select open onOpenChange={() => {}}>
+			<SelectTrigger id="rejected-close-select" class="w-[180px]">
+				<SelectValue placeholder="Pinned open" />
+			</SelectTrigger>
+			<SelectContent>
+				<SelectList>
+					<SelectItem value="light">Light</SelectItem>
+					<SelectItem value="dark">Dark</SelectItem>
+				</SelectList>
+			</SelectContent>
+		</Select>
+	)
+}
+
 const AutocompleteExample: Stateful = function* () {
 	let value = 'Astro'
 	const change = (next: unknown) => this.next(() => value = String(next ?? ''))
@@ -324,13 +340,8 @@ export const Basic: Story<typeof Select> = {
 		const banana = canvas.querySelector<HTMLElement>('[data-slot="select-item"][data-value="banana"]')
 		const content = canvas.querySelector<HTMLElement>('[data-slot="select-content"]')
 		if (!trigger || !banana || !content) throw new Error('Basic select trigger, item, or content was not rendered')
-		if (
-			content.dataset.align !== 'start'
-			|| content.dataset.sidePreference !== 'bottom'
-			|| content.dataset.sideOffset !== '6'
-			|| content.dataset.collisionPadding !== '8'
-		) {
-			throw new Error('Select content did not stamp its placement defaults')
+		if (content.hasAttribute('data-side-preference') || content.hasAttribute('data-collision-padding')) {
+			throw new Error('Select content retained legacy placement-input datasets')
 		}
 
 		// Computed visibility, not just state: an author display class beating
@@ -347,6 +358,17 @@ export const Basic: Story<typeof Select> = {
 		}
 		if (getComputedStyle(content).display === 'none') {
 			throw new Error('Select content stayed hidden while open')
+		}
+		const triggerRect = trigger.getBoundingClientRect()
+		const contentRect = content.getBoundingClientRect()
+		if (content.dataset.placement !== 'bottom-start') {
+			throw new Error(`Select default placement was ${content.dataset.placement ?? 'missing'}`)
+		}
+		if (Math.abs(contentRect.top - triggerRect.bottom - 6) > 2 || Math.abs(contentRect.left - triggerRect.left) > 2) {
+			throw new Error('Select default profile did not commit bottom-start geometry with a 6px gap')
+		}
+		if (Math.abs(parseFloat(content.style.getPropertyValue('--reference-width')) - triggerRect.width) > 1) {
+			throw new Error('Select did not expose its trigger reference width')
 		}
 
 		banana.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
@@ -388,6 +410,36 @@ export const Basic: Story<typeof Select> = {
 		}
 		banana.click()
 		await frame()
+	},
+}
+
+export const GeometryOverride: Story<typeof Select> = {
+	render: () => (
+		<Select placement="bottom-end" gap={10}>
+			<SelectTrigger id="select-geometry-trigger" class="w-[180px]" aria-label="Geometry">
+				<SelectValue placeholder="Geometry" />
+			</SelectTrigger>
+			<SelectContent>
+				<SelectList><FruitItems /></SelectList>
+			</SelectContent>
+		</Select>
+	),
+	play: async ({ canvas }) => {
+		const trigger = canvas.querySelector<HTMLButtonElement>('#select-geometry-trigger')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="select-content"]')
+		if (!trigger || !content) throw new Error('Select geometry fixture was not rendered')
+		trigger.click()
+		await frame()
+
+		const triggerRect = trigger.getBoundingClientRect()
+		if (content.dataset.placement !== 'bottom-end') {
+			throw new Error(`Select root placement override resolved to ${content.dataset.placement ?? 'missing'}`)
+		}
+		const top = Number.parseFloat(content.style.top)
+		const right = Number.parseFloat(content.style.left) + content.offsetWidth
+		if (Math.abs(top - triggerRect.bottom - 10) > 2 || Math.abs(right - triggerRect.right) > 2) {
+			throw new Error('Select root placement/gap override did not commit')
+		}
 	},
 }
 
@@ -637,7 +689,13 @@ export const Keyboard: Story = {
 	),
 	play: async ({ canvas }) => {
 		const trigger = canvas.querySelector<HTMLButtonElement>('#keyboard-select')
-		if (!trigger) throw new Error('Keyboard select trigger was not rendered')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="select-content"]')
+		const dark = canvas.querySelector<HTMLElement>('[data-value="dark"]')
+		if (!trigger || !content || !dark) throw new Error('Keyboard select fixture was not rendered')
+		let focusSawGeometry = false
+		dark.addEventListener('focus', () => {
+			focusSawGeometry = content.dataset.state === 'open' && Boolean(content.dataset.placement)
+		}, { once: true })
 
 		trigger.focus()
 		press(trigger, 'ArrowDown')
@@ -647,6 +705,7 @@ export const Keyboard: Story = {
 		if (trigger.getAttribute('aria-expanded') !== 'true' || active?.dataset.value !== 'dark') {
 			throw new Error('ArrowDown did not open Select and move focus to the next option')
 		}
+		if (!focusSawGeometry) throw new Error('Select focused an option before current geometry committed')
 
 		press(active, 'Enter')
 		await frame()
@@ -722,6 +781,27 @@ export const Controlled: Story = {
 	},
 }
 
+export const RejectedControlledClose: Story = {
+	render: () => <RejectedCloseExample />,
+	play: async ({ canvas }) => {
+		const content = canvas.querySelector<HTMLElement>('[data-slot="select-content"]')
+		const dark = canvas.querySelector<HTMLElement>('[data-slot="select-item"][data-value="dark"]')
+		if (!content || !dark) throw new Error('Rejected-close Select fixture was not rendered')
+		await frame()
+		if (!content.matches(':popover-open')) throw new Error('Controlled-open Select did not open')
+		dark.focus()
+		press(dark, 'Escape')
+		await frame()
+		if (!content.matches(':popover-open')) throw new Error('Rejected controlled close hid the Select popup')
+		if (document.activeElement !== dark) throw new Error('Rejected controlled close moved focus out of the still-open popup')
+
+		dark.click()
+		await frame()
+		if (!content.matches(':popover-open')) throw new Error('Rejected item close hid the Select popup')
+		if (document.activeElement !== dark) throw new Error('Rejected item close moved focus out of the still-open popup')
+	},
+}
+
 export const Autocomplete: Story<typeof Select> = {
 	argTypes: {
 		defaultValue: { control: false },
@@ -733,6 +813,14 @@ export const Autocomplete: Story<typeof Select> = {
 		if (!input) throw new Error('Autocomplete input was not rendered')
 
 		await typeInto(input, 'x')
+		const field = input.closest<HTMLElement>('[data-slot="input-group"]')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="select-content"]')
+		if (!field || !content || content.dataset.state !== 'open') {
+			throw new Error('Autocomplete field reference or content was not established')
+		}
+		if (Math.abs(parseFloat(content.style.getPropertyValue('--reference-width')) - field.getBoundingClientRect().width) > 1) {
+			throw new Error('Autocomplete popup did not use the complete external input group as reference')
+		}
 		if (announced() !== '3 results') {
 			throw new Error('Autocomplete did not announce its default plural result label')
 		}
@@ -759,7 +847,6 @@ export const Autocomplete: Story<typeof Select> = {
 		press(input, 'Escape')
 		await frame()
 
-		const content = canvas.querySelector<HTMLElement>('[data-slot="select-content"]')
 		if (content?.dataset.state === 'open') {
 			throw new Error('Escape on a closed input reopened the popup')
 		}
@@ -780,6 +867,12 @@ export const MultipleChips: Story<typeof Select> = {
 		if (!input) throw new Error('Select chips input was not rendered')
 
 		await typeInto(input, 'rem')
+		const field = input.closest<HTMLElement>('[data-slot="select-chips"]')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="select-content"]')
+		if (!field || !content) throw new Error('Chips reference fixture was not rendered')
+		if (Math.abs(parseFloat(content.style.getPropertyValue('--reference-width')) - field.getBoundingClientRect().width) > 1) {
+			throw new Error('Chips popup did not use the complete chip field as reference')
+		}
 
 		const remix = canvas.querySelector<HTMLElement>('[data-slot="select-item"][data-value="Remix"]')
 		if (!remix || remix.hidden) throw new Error('Chips select did not filter Remix')
@@ -852,7 +945,8 @@ export const PopupSearch: Story<typeof Select> = {
 	render: () => <PopupExample />,
 	play: async ({ canvas }) => {
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')
-		if (!trigger) throw new Error('Popup search trigger was not rendered')
+		const content = canvas.querySelector<HTMLElement>('[data-slot=select-content]')
+		if (!trigger || !content) throw new Error('Popup search trigger or content was not rendered')
 
 		trigger.click()
 		await frame()
@@ -863,6 +957,25 @@ export const PopupSearch: Story<typeof Select> = {
 		}
 		if (document.activeElement !== input) {
 			throw new Error('Opening did not move focus into the in-popup search input')
+		}
+
+		await sleep(220)
+		const geometryTrace: string[] = []
+		for (let sample = 0; sample < 24; sample++) {
+			await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+			const rect = content.getBoundingClientRect()
+			geometryTrace.push([
+				content.dataset.placement ?? 'missing',
+				rect.x.toFixed(2),
+				rect.y.toFixed(2),
+				rect.width.toFixed(2),
+				rect.height.toFixed(2),
+			].join(':'))
+		}
+		const geometryTransitions = geometryTrace.reduce((count, sample, index) =>
+			index > 0 && sample !== geometryTrace[index - 1] ? count + 1 : count, 0)
+		if (geometryTransitions > 1) {
+			throw new Error(`Popup geometry kept changing (${geometryTransitions} transitions): ${geometryTrace.join(' -> ')}`)
 		}
 
 		await typeInto(input, 'jap')

@@ -10,6 +10,18 @@ const softScrollbar = [
 const softScrollbarSelector = (pseudo = '') =>
   softScrollbar.map(selector => `${selector}${pseudo}`).join(',')
 
+const popupSurfaceSelector = '.playa-popup-content>[data-slot=popup-surface]'
+const popupShapeProbe = 'shape(from 0 0,line to 100% 0,close)'
+const popupRadius = 'var(--popup-radius)'
+const popupCenter = 'var(--popup-arrow-center)'
+const popupNearRadius = `min(${popupRadius},max(0px,calc(${popupCenter} - 7px)))`
+const popupFarRadius = `min(${popupRadius},max(0px,calc(100% - ${popupCenter} - 7px)))`
+const popupTopShape = `shape(from ${popupRadius} 0,hline to calc(100% - ${popupRadius}),arc to 100% ${popupRadius} of ${popupRadius} cw,vline to calc(100% - 7px - ${popupRadius}),arc to calc(100% - ${popupFarRadius}) calc(100% - 7px) of ${popupFarRadius} ${popupRadius} cw,hline to calc(${popupCenter} + 7px),line to ${popupCenter} 100%,line to calc(${popupCenter} - 7px) calc(100% - 7px),hline to ${popupNearRadius},arc to 0 calc(100% - 7px - ${popupRadius}) of ${popupNearRadius} ${popupRadius} cw,vline to ${popupRadius},arc to ${popupRadius} 0 of ${popupRadius} cw,close)`
+const popupBottomShape = `shape(from ${popupCenter} 0,line to calc(${popupCenter} + 7px) 7px,hline to calc(100% - ${popupFarRadius}),arc to 100% calc(7px + ${popupRadius}) of ${popupFarRadius} ${popupRadius} cw,vline to calc(100% - ${popupRadius}),arc to calc(100% - ${popupRadius}) 100% of ${popupRadius} cw,hline to ${popupRadius},arc to 0 calc(100% - ${popupRadius}) of ${popupRadius} cw,vline to calc(7px + ${popupRadius}),arc to ${popupNearRadius} 7px of ${popupNearRadius} ${popupRadius} cw,hline to calc(${popupCenter} - 7px),close)`
+const popupLeftShape = `shape(from ${popupRadius} 0,hline to calc(100% - 7px - ${popupRadius}),arc to calc(100% - 7px) ${popupNearRadius} of ${popupRadius} ${popupNearRadius} cw,vline to calc(${popupCenter} - 7px),line to 100% ${popupCenter},line to calc(100% - 7px) calc(${popupCenter} + 7px),vline to calc(100% - ${popupFarRadius}),arc to calc(100% - 7px - ${popupRadius}) 100% of ${popupRadius} ${popupFarRadius} cw,hline to ${popupRadius},arc to 0 calc(100% - ${popupRadius}) of ${popupRadius} cw,vline to ${popupRadius},arc to ${popupRadius} 0 of ${popupRadius} cw,close)`
+const popupRightShape = `shape(from calc(7px + ${popupRadius}) 0,hline to calc(100% - ${popupRadius}),arc to 100% ${popupRadius} of ${popupRadius} cw,vline to calc(100% - ${popupRadius}),arc to calc(100% - ${popupRadius}) 100% of ${popupRadius} cw,hline to calc(7px + ${popupRadius}),arc to 7px calc(100% - ${popupFarRadius}) of ${popupRadius} ${popupFarRadius} cw,vline to calc(${popupCenter} + 7px),line to 0 ${popupCenter},line to 7px calc(${popupCenter} - 7px),vline to ${popupNearRadius},arc to calc(7px + ${popupRadius}) 0 of ${popupRadius} ${popupNearRadius} cw,close)`
+const popupSurfaceShape = `@supports (clip-path:${popupShapeProbe}){.playa-popup-content[data-arrow=true][data-side=top]>[data-slot=popup-surface]{bottom:-7px;border-radius:0;clip-path:${popupTopShape}}.playa-popup-content[data-arrow=true][data-side=bottom]>[data-slot=popup-surface]{top:-7px;border-radius:0;clip-path:${popupBottomShape}}.playa-popup-content[data-arrow=true][data-side=left]>[data-slot=popup-surface]{right:-7px;border-radius:0;clip-path:${popupLeftShape}}.playa-popup-content[data-arrow=true][data-side=right]>[data-slot=popup-surface]{left:-7px;border-radius:0;clip-path:${popupRightShape}}}`
+
 /**
  * Returns Playa's complete build-time UnoCSS preset.
  * The host must activate its matching UnoCSS plugin and load `virtual:uno.css`.
@@ -126,7 +138,7 @@ export const playa = definePreset(() => ({
         // the whole theme). Only a genuinely missing backdrop-filter gets a
         // solid fallback; doubled selectors outrank the single-class shortcut
         // and utility rules without depending on layer order.
-        '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.glass.glass,.glass-chrome.glass-chrome{background-color:var(--card)}.glass-overlay.glass-overlay{background-color:var(--popover)}[data-slot=toast][data-slot=toast]{background-color:var(--popover)}[data-slot=toast][data-variant=danger]{background-color:color-mix(in srgb,var(--danger) 12%,var(--popover))}[data-slot=toast][data-variant=info]{background-color:color-mix(in srgb,var(--info) 12%,var(--popover))}[data-slot=toast][data-variant=success]{background-color:color-mix(in srgb,var(--success) 12%,var(--popover))}[data-slot=toast][data-variant=warning]{background-color:color-mix(in srgb,var(--warning) 12%,var(--popover))}}',
+        '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.glass.glass,.glass-chrome.glass-chrome{background-color:var(--card)}.glass-overlay.glass-overlay,.playa-popover-content>[data-slot=popup-surface]{background-color:var(--popover)}[data-slot=toast][data-slot=toast]{background-color:var(--popover)}[data-slot=toast][data-variant=danger]{background-color:color-mix(in srgb,var(--danger) 12%,var(--popover))}[data-slot=toast][data-variant=info]{background-color:color-mix(in srgb,var(--info) 12%,var(--popover))}[data-slot=toast][data-variant=success]{background-color:color-mix(in srgb,var(--success) 12%,var(--popover))}[data-slot=toast][data-variant=warning]{background-color:color-mix(in srgb,var(--warning) 12%,var(--popover))}}',
         // Pressed buttons inside connected groups skip the press scale: group
         // segments touch to share their hairlines, and shrinking one opens a
         // visible gap on both sides.
@@ -136,8 +148,14 @@ export const playa = definePreset(() => ({
         '@keyframes enter{from{opacity:var(--un-enter-opacity,1);transform:translate3d(var(--un-enter-translate-x,0),var(--un-enter-translate-y,0),0) scale3d(var(--un-enter-scale,1),var(--un-enter-scale,1),var(--un-enter-scale,1))}}',
         '@keyframes exit{to{opacity:var(--un-exit-opacity,1);transform:translate3d(var(--un-exit-translate-x,0),var(--un-exit-translate-y,0),0) scale3d(var(--un-exit-scale,1),var(--un-exit-scale,1),var(--un-exit-scale,1))}}',
         '*,::before,::after{border-color:var(--border)}',
+        `${popupSurfaceSelector}{position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit}`,
+        '.playa-popover-content>[data-slot=popup-surface]{background-color:color-mix(in srgb,var(--popover) 55%,transparent);-webkit-backdrop-filter:blur(24px) saturate(150%);backdrop-filter:blur(24px) saturate(150%);box-shadow:inset 0 1px 0 var(--glass-highlight),var(--shadow-lg);filter:drop-shadow(0 0 1px var(--border))}.playa-tooltip-content>[data-slot=popup-surface]{background-color:var(--primary);box-shadow:var(--shadow-xs);filter:drop-shadow(0 0 1px var(--border))}',
+        popupSurfaceShape,
         '[data-slot=chart] [data-slot=chart-bar] rect[data-chart-index],[data-slot=chart] [data-slot=chart-pie] path[data-chart-index]{transition:opacity 150ms ease,stroke-width 150ms ease}[data-slot=chart] [data-slot=chart-line] circle[data-chart-index],[data-slot=chart] [data-slot=chart-area] circle[data-chart-index]{transition:opacity 150ms ease,stroke-width 150ms ease,r 150ms ease}[data-slot=chart]:has([data-active]) [data-slot=chart-bar] rect[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-pie] path[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-line] circle[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-area] circle[data-chart-index]:not([data-active]){opacity:.45}[data-slot=chart] [data-active]{opacity:1}[data-slot=chart] circle[data-active]{r:5.6px}',
+        '[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=positive]{clip-path:inset(0 round 4px 4px 0 0) fill-box}[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=negative]{clip-path:inset(0 round 0 0 4px 4px) fill-box}',
         '@media (prefers-reduced-motion:no-preference){@keyframes chart-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes chart-undash{to{stroke-dasharray:initial}}@keyframes chart-grow{from{transform:scaleY(0)}}@keyframes chart-settle{from{opacity:0;transform:translateY(4px)}}@keyframes chart-pop{from{opacity:0;transform:scale(0)}}[data-slot=chart] [data-slot=chart-bar] rect[data-chart-series]{transform-box:fill-box;transform-origin:bottom center;animation:chart-grow 450ms cubic-bezier(0.22,1,0.36,1) both;animation-delay:calc(var(--chart-index,0) * 30ms);transition:x 300ms ease-out,y 300ms ease-out,width 300ms ease-out,height 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease}[data-slot=chart] [data-slot=chart-line] path[fill=none],[data-slot=chart] [data-slot=chart-area] path[fill=none]{stroke-dasharray:1;animation:chart-draw 600ms ease-out both,chart-undash 1ms 600ms step-end forwards;transition:d 300ms ease-out}[data-slot=chart] [data-slot=chart-area] path[fill-opacity]{transform-box:fill-box;animation:chart-settle 500ms ease-out both;transition:d 300ms ease-out}[data-slot=chart] [data-slot=chart-line] circle[data-chart-index],[data-slot=chart] [data-slot=chart-area] circle[data-chart-index]{transform-box:fill-box;transform-origin:center;animation:chart-pop 300ms ease-out both;animation-delay:calc(200ms + var(--chart-index,0) * 20ms);transition:cx 300ms ease-out,cy 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease,r 150ms ease}[data-slot=chart] [data-slot=chart-pie] path[data-chart-index]{transform-box:view-box;transform-origin:center;animation:chart-pop 400ms ease-out both;animation-delay:calc(var(--chart-index,0) * 60ms);transition:d 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease}}',
+        '@media (prefers-reduced-motion:no-preference){[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=negative]{transform-origin:top center}[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=zero]{transform-origin:center}}',
+        '@media (prefers-reduced-motion:no-preference){[data-slot=chart] [data-slot=chart-tooltip][data-positioned=true]{transition:transform 200ms ease-out}}',
         '@media (prefers-reduced-motion:no-preference){[data-slot=drawer-content]{opacity:1;transition:transform 350ms cubic-bezier(0.32,0.72,0,1),opacity 350ms ease,display 350ms allow-discrete,overlay 350ms allow-discrete}[data-slot=drawer-content][open]{opacity:1;transform:none}[data-slot=drawer-content][data-side=bottom]:not([open]){transform:translateY(100%)}[data-slot=drawer-content][data-side=top]:not([open]){transform:translateY(-100%)}[data-slot=drawer-content][data-side=right]:not([open]){transform:translateX(100%)}[data-slot=drawer-content][data-side=left]:not([open]){transform:translateX(-100%)}[data-slot=drawer-content]::backdrop{opacity:0;transition:opacity 350ms ease,display 350ms allow-discrete,overlay 350ms allow-discrete}[data-slot=drawer-content][open]::backdrop{opacity:1}@starting-style{[data-slot=drawer-content][open][data-side=bottom]{transform:translateY(100%)}[data-slot=drawer-content][open][data-side=top]{transform:translateY(-100%)}[data-slot=drawer-content][open][data-side=right]{transform:translateX(100%)}[data-slot=drawer-content][open][data-side=left]{transform:translateX(-100%)}[data-slot=drawer-content][open]::backdrop{opacity:0}}}',
         '[data-slot=toast]{position:absolute;left:1rem;right:1rem;width:auto;transform:translateY(var(--toast-y,0)) scale(var(--toast-scale,1))}',
         '[data-slot=toast][data-side=bottom]{bottom:1rem}',
@@ -181,6 +199,9 @@ export const playa = definePreset(() => ({
     }
   ],
   shortcuts: {
+    'playa-popup-content': 'isolate bg-transparent',
+    'playa-popover-content': 'text-popover-foreground',
+    'playa-tooltip-content': 'text-primary-foreground',
     // Hairline inner border drawn with an inset ring: crisper than `border`
     // over stacked translucent surfaces and composes with ring/shadow slots.
     edge: 'inset-ring inset-ring-border',
@@ -217,8 +238,14 @@ export const playa = definePreset(() => ({
     'playa-menu-content-hidden': 'opacity-0',
     'playa-menu-content-reduced': 'transition-none',
     'playa-menu-content': [
-      'z-50 m-0 max-h-[max(96px,min(320px,var(--available-height)))] overflow-y-auto overflow-x-hidden overscroll-contain rounded-md glass-overlay edge p-1 shadow-lg outline-none playa-menu-content-hidden transition-discrete duration-150 ease-out motion-reduce:playa-menu-content-reduced data-[state=open]:playa-menu-content-open data-[state=open]:data-[side]:playa-menu-content-visible starting:data-[state=open]:data-[side]:playa-menu-content-hidden',
-      { 'transition-property': 'opacity,display,overlay' },
+      'z-50 m-0 overflow-y-auto overflow-x-hidden overscroll-contain rounded-md glass-overlay edge p-1 shadow-lg outline-none playa-menu-content-hidden transition-discrete duration-150 ease-out motion-reduce:playa-menu-content-reduced data-[state=open]:playa-menu-content-open data-[state=open]:data-[side]:playa-menu-content-visible starting:data-[state=open]:data-[side]:playa-menu-content-hidden',
+      {
+        // The Adapter writes the general available-height limit inline.
+        // Playa refines that same output with its denser menu cap; important
+        // composes the visual policy without creating a second measurement.
+        'max-height': 'max(96px,min(320px,var(--available-height))) !important',
+        'transition-property': 'opacity,display,overlay',
+      },
     ],
     'playa-menu-item': 'relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[highlighted=true]:bg-accent data-[highlighted=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[inset]:pl-8 data-[variant=danger]:text-danger data-[variant=danger]:focus:bg-danger/10 data-[variant=danger]:focus:text-danger data-[variant=danger]:data-[highlighted=true]:bg-danger/10 data-[variant=danger]:data-[highlighted=true]:text-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground data-[variant=danger]:[&_svg]:text-danger',
     'playa-menu-choice-focus': 'bg-accent text-accent-foreground',
@@ -243,7 +270,7 @@ export const playa = definePreset(() => ({
     'playa-select-content-layout': 'flex',
     'playa-select-content-open': 'animate-in fade-in-0 zoom-in-95',
     'playa-select-content-closed': 'animate-out fade-out-0 zoom-out-95',
-    'playa-select-content': 'isolate z-50 m-0 [&:popover-open]:playa-select-content-layout max-h-[max(96px,var(--available-height,24rem))] min-w-[var(--anchor-width,8rem)] flex-col overflow-hidden rounded-md glass-overlay edge shadow-lg outline-none data-[state=open]:playa-select-content-open data-[state=closed]:playa-select-content-closed',
+    'playa-select-content': 'isolate z-50 m-0 [&:popover-open]:playa-select-content-layout max-h-[max(96px,var(--available-height,24rem))] min-w-[var(--reference-width,8rem)] flex-col overflow-hidden rounded-md glass-overlay edge shadow-lg outline-none data-[state=open]:playa-select-content-open data-[state=closed]:playa-select-content-closed',
     'playa-select-list-empty': 'p-0',
     'playa-select-list': 'overflow-y-auto overflow-x-hidden overscroll-contain min-h-0 scroll-py-1 p-1 [[data-slot=select-content][data-empty]_&]:playa-select-list-empty',
     'playa-select-row-highlighted': 'bg-accent text-accent-foreground',

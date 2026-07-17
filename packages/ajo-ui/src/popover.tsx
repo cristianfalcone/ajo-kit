@@ -2,18 +2,21 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import type { Host } from 'ajo-cloves'
 import { callHandler, callRef, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { contentAttrs, datasetPlacement, floating, triggerAttrs, type FloatingView } from './floating'
-import type { FixedArgs, OmitArg } from './utils'
+import { contentAttrs, popup, type PopupView } from './popup'
+import { PopupSurface } from './popup-surface'
+import type { ReservedPositionArg } from './position'
+import { popupStyle, triggerAttrs, type FixedArgs, type OmitArg, type PopupPosition } from './utils'
+export type { PopupPlacement, PopupPosition } from './utils'
 
-/** Alignment of popover content along its placement side. */
-export type PopoverAlign = 'center' | 'end' | 'start'
 /** Interaction that opens a popover. */
 export type PopoverOpenOn = 'click' | 'hover'
-/** Preferred side on which popover content is placed. */
-export type PopoverSide = 'bottom' | 'left' | 'right' | 'top'
 
 /** Props for the popover root and its controlled open state. */
-export type PopoverArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
+export type PopoverArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange' | ReservedPositionArg> & PopupPosition & {
+	/** Accessible and visible title owned by the popover surface. */
+	label: string
+	/** Optional visible description associated with the popover surface. */
+	description?: string
 	/** Controlled open state. */
 	open?: boolean
 	/** Initial open state for uncontrolled usage. */
@@ -30,7 +33,7 @@ export type PopoverArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchan
 	onOpenChange?: (open: boolean, event?: Event) => void
 	/** Additional CSS classes. */
 	class?: string
-}> & FixedArgs<'onchange'>
+}> & FixedArgs<'onchange' | ReservedPositionArg>
 
 type PopoverTriggerSharedArgs = {
 	/** Render the trigger wrapper as an anchor, button, or span. */
@@ -48,23 +51,15 @@ export type PopoverTriggerArgs = WithChildren<
 
 type PopoverTriggerAllArgs = WithChildren<(IntrinsicElements['a'] & IntrinsicElements['button'] & IntrinsicElements['span']) & PopoverTriggerSharedArgs>
 
-/** Props for the positioned popover panel. */
-export type PopoverContentArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Horizontal alignment relative to the trigger or anchor. */
-	align?: PopoverAlign
-	/** Pixel shift along the alignment axis. */
-	alignOffset?: number
-	/** Preferred side relative to the trigger or anchor. */
-	side?: PopoverSide
-	/** Gap between anchor and content in pixels. */
-	sideOffset?: number
-	/** Viewport padding used by the fallback placer. */
-	collisionPadding?: number
+/** Props for the positioned popover panel. Semantics come from the root label. */
+export type PopoverContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'align' | 'aria-describedby' | 'aria-label' | 'aria-labelledby' | 'aria-modal' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
+	/** Extends the visual surface toward its positioning reference. */
+	arrow?: boolean
 	/** Additional CSS classes. */
 	class?: string
 	/** Inline CSS string. */
 	style?: string
-}>
+}> & FixedArgs<'aria-describedby' | 'aria-label' | 'aria-labelledby' | 'aria-modal' | 'gap' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
 
 /** Props for an explicit positioning anchor. */
 export type PopoverAnchorArgs = WithChildren<IntrinsicElements['div'] & {
@@ -72,40 +67,15 @@ export type PopoverAnchorArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
-/** Props for the visual arrow pointing at the popover anchor. */
-export type PopoverArrowArgs = WithChildren<IntrinsicElements['span'] & {
-	/** Additional CSS classes. */
-	class?: string
-	/** Inline CSS string. */
-	style?: string
-}>
-
-/** Props for the layout wrapper around popover heading content. */
-export type PopoverHeaderArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Additional CSS classes. */
-	class?: string
-}>
-
-/** Props for the heading that labels popover content. */
-export type PopoverTitleArgs = WithChildren<IntrinsicElements['h2'] & {
-	/** Additional CSS classes. */
-	class?: string
-}>
-
-/** Props for descriptive text associated with popover content. */
-export type PopoverDescriptionArgs = WithChildren<IntrinsicElements['p'] & {
-	/** Additional CSS classes. */
-	class?: string
-}>
-
 type PopoverContextValue = {
-	anchor: HTMLElement | null
-	clearArrow: (element: HTMLElement) => void
+	arrowAttrs: PopupView['arrowAttrs']
 	close: (event?: Event) => void
 	content: HTMLDivElement | null
 	contentId: string
-	descriptionId: string
+	contentStyle: PopupView['contentStyle']
+	description?: string
 	disabled: boolean
+	label: string
 	open: boolean
 	openOn: PopoverOpenOn
 	openWithDelay?: (event?: Event) => void
@@ -113,12 +83,10 @@ type PopoverContextValue = {
 	registerContentHover?: (hovering: boolean, event?: Event) => void
 	registerTriggerFocus?: (focused: boolean, event?: Event) => void
 	registerTriggerHover?: (hovering: boolean, event?: Event) => void
-	setAnchor: (element: HTMLElement | null) => void
-	setArrow: (element: HTMLElement | null) => void
+	setReference: (element: HTMLElement | null) => void
 	setContent: (element: HTMLDivElement | null) => void
 	setOpen: (open: boolean, event?: Event) => void
 	setTrigger: (element: HTMLElement | null) => void
-	titleId: string
 	trigger: HTMLElement | null
 	triggerId: string
 }
@@ -135,10 +103,11 @@ function* popoverEngine(
 	let disabled = false
 	let onOpenChange: PopoverArgs['onOpenChange']
 	let openDelay = 700
-	let popover: FloatingView<HTMLElement, HTMLDivElement>
+	let popover: PopupView<HTMLElement, HTMLDivElement>
 
-	popover = floating<HTMLElement, HTMLDivElement>(this, {
+	popover = popup<HTMLElement, HTMLDivElement>(this, {
 		prefix: 'popover',
+		profile: 'popover',
 		initialOpen: Boolean(initial.open ?? initial.defaultOpen),
 		disabled: () => disabled,
 		hover: mode === 'hover' ? {
@@ -146,16 +115,11 @@ function* popoverEngine(
 			closeDelay: () => closeDelay,
 		} : undefined,
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
-		reference: view => view.anchor ?? view.trigger,
-		placement: datasetPlacement(() => popover.content, {
-			side: 'bottom',
-			align: 'center',
-			sideOffset: 4,
-			padding: 8,
-			constrain: 'height',
-		}),
+		reference: view => view.reference ?? view.trigger,
+		referenceHidden: 'close',
 		dismiss: {
 			prevent: mode === 'hover',
+			outside: true,
 			onDismiss: (event, view) => {
 				view.cancelHover()
 				view.setOpen(false, event)
@@ -188,14 +152,17 @@ function* popoverEngine(
 		disabled = Boolean(args.disabled)
 		onOpenChange = args.onOpenChange
 		openDelay = Math.max(0, Number(args.openDelay ?? 700))
-		const opened = popover.sync(args.open == null ? null : Boolean(args.open))
-		const rootId = popover.contentId.slice(0, -'-content'.length)
+		const opened = popover.sync(args.open == null ? null : Boolean(args.open), {
+			placement: args.placement,
+			gap: args.gap,
+		})
 
 		PopoverContext({
 			...popover,
 			close: mode === 'hover' ? close : popover.close,
-			descriptionId: `${rootId}-description`,
+			description: args.description,
 			disabled,
+			label: args.label,
 			open: opened,
 			openOn: mode,
 			...(mode === 'hover' ? {
@@ -205,7 +172,6 @@ function* popoverEngine(
 				registerTriggerFocus,
 				registerTriggerHover,
 			} : {}),
-			titleId: `${rootId}-title`,
 		})
 
 		yield <>{args.children}</>
@@ -229,21 +195,29 @@ const Popover: Stateless<PopoverArgs> = ({
 	'data-slot': slot = 'popover',
 	closeDelay,
 	defaultOpen,
+	description,
 	disabled,
+	gap,
+	label,
 	onOpenChange,
 	open,
 	openDelay,
 	openOn = 'click',
+	placement,
 	...attrs
 }) => openOn === 'hover' ? (
 	<PopoverHoverRoot
 		{...rootAttrs(attrs)}
 		closeDelay={closeDelay}
 		defaultOpen={defaultOpen}
+		description={description}
 		disabled={disabled}
+		gap={gap}
+		label={label}
 		onOpenChange={onOpenChange}
 		open={open}
 		openDelay={openDelay}
+		placement={placement}
 		attr:class={classes}
 		attr:data-slot={slot}
 	>
@@ -253,9 +227,13 @@ const Popover: Stateless<PopoverArgs> = ({
 	<PopoverClickRoot
 		{...rootAttrs(attrs)}
 		defaultOpen={defaultOpen}
+		description={description}
 		disabled={disabled}
+		gap={gap}
+		label={label}
 		onOpenChange={onOpenChange}
 		open={open}
+		placement={placement}
 		attr:class={classes}
 		attr:data-slot={slot}
 	>
@@ -291,6 +269,8 @@ const PopoverTrigger: Stateless<PopoverTriggerArgs> = args => {
 			...attrs,
 			...triggerAttrs({
 				controls: popover.contentId,
+				expanded: popover.open,
+				haspopup: 'dialog',
 				id,
 				open: popover.open,
 				ref,
@@ -298,7 +278,6 @@ const PopoverTrigger: Stateless<PopoverTriggerArgs> = args => {
 				triggerId: popover.triggerId,
 			}),
 			class: classes,
-			'data-popover-trigger': 'true',
 			'data-slot': slot,
 			'set:onblur': (event: FocusEvent) => {
 				callHandler(onBlur, event)
@@ -378,13 +357,13 @@ const PopoverTrigger: Stateless<PopoverTriggerArgs> = args => {
 			{...triggerAttrs({
 				controls: popover?.contentId,
 				expanded: Boolean(popover?.open),
+				haspopup: 'dialog',
 				id,
 				open: Boolean(popover?.open),
 				ref,
 				setTrigger: popover?.setTrigger,
 				triggerId: popover?.triggerId,
 			})}
-			data-popover-trigger="true"
 			data-slot={slot}
 			disabled={disabledFlag}
 			set:onclick={(event: Event) => {
@@ -409,7 +388,7 @@ const PopoverAnchor: Stateless<PopoverAnchorArgs> = ({
 }) => {
 	const popover = PopoverContext()
 	const reference = (element: HTMLDivElement | null) => {
-		popover?.setAnchor(element)
+		popover?.setReference(element)
 		callRef(ref, element)
 	}
 
@@ -425,62 +404,27 @@ const PopoverAnchor: Stateless<PopoverAnchorArgs> = ({
 	)
 }
 
-/**
- * Unstyled caret marker rendered inside PopoverContent. The placer pins it to
- * the content edge nearest the anchor, centered on the anchor and clamped to
- * the content bounds (data-uncentered flags a clamped position); the content's
- * data-side drives any themed rotation. While an arrow is registered the
- * content's overflow is forced visible so the caret can straddle the edge, so
- * tall scrollable content needs an inner scroll container.
- */
-const PopoverArrow: Stateless<PopoverArrowArgs> = ({
-	children,
-	class: classes,
-	'data-slot': slot = 'popover-arrow',
-	ref,
-	style,
-	...attrs
-}) => {
-	const popover = PopoverContext()
-	let mounted: HTMLSpanElement | null = null
-
-	const reference = (element: HTMLSpanElement | null) => {
-		if (element) popover?.setArrow(mounted = element)
-		else if (mounted) popover?.clearArrow(mounted)
-		callRef(ref, element)
-	}
-
-	return (
-		<span
-			{...attrs}
-			aria-hidden="true"
-			class={classes}
-			data-slot={slot}
-			ref={reference}
-			style={style ? `position:absolute;${style}` : 'position:absolute'}
-		>
-			{children}
-		</span>
-	)
-}
-
 /** Unstyled floating panel for a Popover. */
 const PopoverContent: Stateless<PopoverContentArgs> = args => {
 	const popover = PopoverContext()
+	const titleId = popover ? `${popover.contentId}-title` : undefined
+	const descriptionId = popover?.description ? `${popover.contentId}-description` : undefined
+	const heading = popover ? (
+		<div data-slot="popover-header">
+			<h2 data-slot="popover-title" id={titleId}>{popover.label}</h2>
+			{popover.description ? (
+				<p data-slot="popover-description" id={descriptionId}>{popover.description}</p>
+			) : null}
+		</div>
+	) : null
 
 	if (popover?.openOn === 'hover') {
 		const {
-			align = 'center',
-			alignOffset = 0,
+			arrow = false,
 			children,
 			class: classes,
-			collisionPadding = 8,
 			'data-slot': slot = 'popover-content',
-			id: idArg,
-			popover: mode = 'manual',
 			ref,
-			side = 'bottom',
-			sideOffset = 4,
 			style,
 			'set:onfocusin': onFocusIn,
 			'set:onfocusout': onFocusOut,
@@ -493,22 +437,19 @@ const PopoverContent: Stateless<PopoverContentArgs> = args => {
 			<div
 				{...attrs}
 				{...contentAttrs({
-					align,
-					alignOffset,
-					collisionPadding,
-					id: idArg ?? popover.contentId,
+					id: popover.contentId,
 					open: popover.open,
-					popover: mode,
 					ref,
 					setContent: popover.setContent,
-					side,
-					sideOffset,
-					style,
+					style: popover.contentStyle(style),
 					tabindex: '-1',
 				})}
+				aria-describedby={descriptionId}
+				aria-labelledby={titleId}
 				class={classes}
-				data-popover-content="true"
+				data-arrow={arrow ? 'true' : undefined}
 				data-slot={slot}
+				role="dialog"
 				set:onfocusout={(event: FocusEvent) => {
 					callHandler(onFocusOut, event)
 					const next = event.relatedTarget as Node | null
@@ -528,24 +469,19 @@ const PopoverContent: Stateless<PopoverContentArgs> = args => {
 					popover.registerContentHover?.(true, event)
 				}}
 			>
+				<PopupSurface arrow={arrow} popup={popover} />
+				{heading}
 				{children}
 			</div>
 		)
 	}
 
 	const {
-		align = 'center',
-		alignOffset = 0,
+		arrow = false,
 		children,
 		class: classes,
-		collisionPadding = 8,
 		'data-slot': slot = 'popover-content',
-		id: idArg,
-		popover: mode = 'auto',
 		ref,
-		role = 'dialog',
-		side = 'bottom',
-		sideOffset = 4,
 		style,
 		...attrs
 	} = args
@@ -554,92 +490,30 @@ const PopoverContent: Stateless<PopoverContentArgs> = args => {
 		<div
 			{...attrs}
 			{...contentAttrs({
-				align,
-				alignOffset,
-				collisionPadding,
-				id: idArg ?? popover?.contentId,
+				id: popover?.contentId,
 				open: Boolean(popover?.open),
-				popover: mode,
 				ref,
 				setContent: popover?.setContent,
-				side,
-				sideOffset,
-				style,
+				style: popover?.contentStyle(style) ?? popupStyle(style),
 				tabindex: '-1',
 			})}
-			aria-describedby={popover?.descriptionId}
-			aria-labelledby={popover?.titleId}
+			aria-describedby={descriptionId}
+			aria-labelledby={titleId}
 			class={classes}
-			data-popover-content="true"
+			data-arrow={arrow ? 'true' : undefined}
 			data-slot={slot}
-			role={role}
+			role="dialog"
 		>
+			<PopupSurface arrow={arrow} popup={popover} />
+			{heading}
 			{children}
 		</div>
-	)
-}
-
-/** Unstyled header group for PopoverTitle and PopoverDescription. */
-const PopoverHeader: Stateless<PopoverHeaderArgs> = ({
-	children,
-	'data-slot': slot = 'popover-header',
-	...attrs
-}) => (
-	<div
-		{...attrs}
-		data-slot={slot}
-	>
-		{children}
-	</div>
-)
-
-/** Accessible title for PopoverContent. */
-const PopoverTitle: Stateless<PopoverTitleArgs> = ({
-	children,
-	'data-slot': slot = 'popover-title',
-	id,
-	...attrs
-}) => {
-	const popover = PopoverContext()
-
-	return (
-		<h2
-			{...attrs}
-			data-slot={slot}
-			id={id ?? popover?.titleId}
-		>
-			{children}
-		</h2>
-	)
-}
-
-/** Supporting copy for PopoverContent. */
-const PopoverDescription: Stateless<PopoverDescriptionArgs> = ({
-	children,
-	'data-slot': slot = 'popover-description',
-	id,
-	...attrs
-}) => {
-	const popover = PopoverContext()
-
-	return (
-		<p
-			{...attrs}
-			data-slot={slot}
-			id={id ?? popover?.descriptionId}
-		>
-			{children}
-		</p>
 	)
 }
 
 export {
 	Popover,
 	PopoverAnchor,
-	PopoverArrow,
 	PopoverContent,
-	PopoverDescription,
-	PopoverHeader,
-	PopoverTitle,
 	PopoverTrigger,
 }

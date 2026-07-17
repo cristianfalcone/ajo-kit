@@ -1,13 +1,11 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { contentAttrs, datasetPlacement, floating, triggerAttrs, type FloatingView } from './floating'
-import type { FixedArgs, OmitArg } from './utils'
-
-/** Alignment of tooltip content along its placement side. */
-export type TooltipAlign = 'center' | 'end' | 'start'
-/** Preferred side on which tooltip content is placed. */
-export type TooltipSide = 'bottom' | 'left' | 'right' | 'top'
+import { contentAttrs, popup, type PopupView } from './popup'
+import { PopupSurface } from './popup-surface'
+import type { ReservedPositionArg } from './position'
+import { popupStyle, triggerAttrs, type FixedArgs, type OmitArg, type PopupPosition } from './utils'
+export type { PopupPlacement, PopupPosition } from './utils'
 
 /** Props for shared timing and hover defaults inherited by tooltips. */
 export type TooltipProviderArgs = WithChildren<IntrinsicElements['div'] & {
@@ -24,7 +22,7 @@ export type TooltipProviderArgs = WithChildren<IntrinsicElements['div'] & {
 }>
 
 /** Props for the tooltip root and its controlled open state. */
-export type TooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
+export type TooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange' | ReservedPositionArg> & PopupPosition & {
 	/** Controlled open state. */
 	open?: boolean
 	/** Initial open state for uncontrolled usage. */
@@ -39,7 +37,7 @@ export type TooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchan
 	onOpenChange?: (open: boolean, event?: Event) => void
 	/** Additional CSS classes. */
 	class?: string
-}> & FixedArgs<'onchange'>
+}> & FixedArgs<'onchange' | ReservedPositionArg>
 
 /** Props for the button or span that opens a tooltip. */
 export type TooltipTriggerArgs = WithChildren<(IntrinsicElements['button'] & IntrinsicElements['span']) & {
@@ -50,55 +48,31 @@ export type TooltipTriggerArgs = WithChildren<(IntrinsicElements['button'] & Int
 }>
 
 /** Props for the positioned tooltip panel. */
-export type TooltipContentArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Horizontal alignment relative to the trigger. */
-	align?: TooltipAlign
-	/** Pixel shift along the alignment axis. */
-	alignOffset?: number
-	/** Preferred side relative to the trigger. */
-	side?: TooltipSide
-	/** Gap between trigger and content in pixels. */
-	sideOffset?: number
-	/** Viewport padding used by the fallback placer. */
-	collisionPadding?: number
+export type TooltipContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'align' | 'arrow' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
 	/** Additional CSS classes. */
 	class?: string
 	/** Inline CSS string. */
 	style?: string
-}>
-
-/** Props for the visual arrow pointing at the tooltip trigger. */
-export type TooltipArrowArgs = WithChildren<IntrinsicElements['span'] & {
-	/** Additional CSS classes. */
-	class?: string
-	/** Inline CSS string. */
-	style?: string
-}>
+}> & FixedArgs<'arrow' | 'gap' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
 
 type ProviderContextValue = {
 	delayDuration: number
 	disableHoverableContent: boolean
 	markClosed: () => void
 	shouldSkipDelay: () => boolean
-	skipDelayDuration: number
 }
 
 type TooltipContextValue = {
-	clearArrow: (element: HTMLElement) => void
-	close: (event?: Event) => void
-	content: HTMLDivElement | null
+	arrowAttrs: PopupView['arrowAttrs']
 	contentId: string
+	contentStyle: PopupView['contentStyle']
 	disabled: boolean
 	open: boolean
-	openWithDelay: (event?: Event) => void
 	registerContentHover: (hovering: boolean, event?: Event) => void
 	registerFocus: (focused: boolean, event?: Event) => void
 	registerTriggerHover: (hovering: boolean, event?: Event) => void
-	setArrow: (element: HTMLElement | null) => void
 	setContent: (element: HTMLDivElement | null) => void
-	setOpen: (open: boolean, event?: Event) => void
 	setTrigger: (element: HTMLElement | null) => void
-	trigger: HTMLElement | null
 	triggerId: string
 }
 
@@ -116,8 +90,7 @@ const TooltipProviderRoot: Stateful<TooltipProviderArgs> = function* () {
 			delayDuration: Math.max(0, Number(args.delayDuration ?? 0)),
 			disableHoverableContent: Boolean(args.disableHoverableContent),
 			markClosed: () => lastClosedAt = Date.now(),
-			shouldSkipDelay: () => Date.now() - lastClosedAt <= skipDelayDuration,
-			skipDelayDuration,
+			shouldSkipDelay: () => skipDelayDuration > 0 && Date.now() - lastClosedAt < skipDelayDuration,
 		})
 
 		yield <>{args.children}</>
@@ -155,27 +128,22 @@ const TooltipRoot: Stateful<TooltipArgs> = function* ({ defaultOpen, open }) {
 	let disableHoverableContent = false
 	let onOpenChange: TooltipArgs['onOpenChange']
 	let provider: ProviderContextValue | null = null
-	let tip: FloatingView<HTMLElement, HTMLDivElement>
+	let tip: PopupView<HTMLElement, HTMLDivElement>
 
-	tip = floating<HTMLElement, HTMLDivElement>(this, {
+	tip = popup<HTMLElement, HTMLDivElement>(this, {
 		prefix: 'tooltip',
+		profile: 'tooltip',
 		initialOpen: Boolean(open ?? defaultOpen),
 		disabled: () => disabled,
 		hover: {
 			openDelay: () => delayDuration <= 0 || provider?.shouldSkipDelay() ? 0 : delayDuration,
-			closeDelay: () => 80,
+			closeDelay: () => disableHoverableContent ? 0 : 80,
 		},
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
-		onSetOpen: next => {
+		onSync: next => {
 			if (!next) provider?.markClosed()
 		},
-		placement: datasetPlacement(() => tip.content, {
-			side: 'top',
-			align: 'center',
-			sideOffset: 0,
-			padding: 8,
-			constrain: 'height',
-		}),
+		referenceHidden: 'hide',
 		dismiss: {
 			prevent: true,
 			onDismiss: (event, view) => {
@@ -185,28 +153,16 @@ const TooltipRoot: Stateful<TooltipArgs> = function* ({ defaultOpen, open }) {
 		},
 	})
 
-	const openWithDelay = (event?: Event) => tip.hold('trigger', event as Event)
-
-	const close = (event?: Event) => {
-		tip.cancelHover()
-		tip.close(event)
-	}
-
 	const registerContentHover = (hovering: boolean, event?: Event) => {
-		if (disableHoverableContent) return
-		if (hovering) tip.hold('content', event as Event)
+		if (hovering) {
+			if (!disableHoverableContent) tip.hold('content', event as Event)
+		}
 		else tip.release('content', event as Event)
 	}
 
 	const registerTriggerHover = (hovering: boolean, event?: Event) => {
-		if (hovering) openWithDelay(event)
-		else if (disableHoverableContent) {
-			tip.release('trigger', event as Event)
-			tip.cancelHover()
-			tip.setOpen(false, event)
-		} else {
-			tip.release('trigger', event as Event)
-		}
+		if (hovering) tip.hold('trigger', event as Event)
+		else tip.release('trigger', event as Event)
 	}
 
 	const registerFocus = (next: boolean, event?: Event) => {
@@ -220,14 +176,15 @@ const TooltipRoot: Stateful<TooltipArgs> = function* ({ defaultOpen, open }) {
 		disabled = Boolean(args.disabled)
 		disableHoverableContent = Boolean(args.disableHoverableContent ?? provider?.disableHoverableContent)
 		onOpenChange = args.onOpenChange
-		const opened = tip.sync(args.open == null ? null : Boolean(args.open))
+		const opened = tip.sync(args.open == null ? null : Boolean(args.open), {
+			placement: args.placement,
+			gap: args.gap,
+		})
 
 		TooltipContext({
 			...tip,
-			close,
 			disabled,
 			open: opened,
-			openWithDelay,
 			registerContentHover,
 			registerFocus,
 			registerTriggerHover,
@@ -247,8 +204,10 @@ const Tooltip: Stateless<TooltipArgs> = ({
 	delayDuration,
 	disabled,
 	disableHoverableContent,
+	gap,
 	onOpenChange,
 	open,
+	placement,
 	...attrs
 }) => (
 	<TooltipRoot
@@ -257,8 +216,10 @@ const Tooltip: Stateless<TooltipArgs> = ({
 		delayDuration={delayDuration}
 		disabled={disabled}
 		disableHoverableContent={disableHoverableContent}
+		gap={gap}
 		onOpenChange={onOpenChange}
 		open={open}
+		placement={placement}
 		attr:class={classes}
 		attr:data-slot={slot}
 	>
@@ -276,6 +237,7 @@ const TooltipTrigger: Stateless<TooltipTriggerArgs> = ({
 	id,
 	ref,
 	type = 'button',
+	'aria-describedby': describedBy,
 	'set:onblur': onBlur,
 	'set:onfocus': onFocus,
 	'set:onkeydown': onKeydown,
@@ -285,11 +247,14 @@ const TooltipTrigger: Stateless<TooltipTriggerArgs> = ({
 }) => {
 	const tooltip = TooltipContext()
 	const disabledFlag = Boolean(disabled ?? tooltip?.disabled)
+	const descriptions = [...new Set(
+		`${describedBy ?? ''} ${tooltip?.contentId ?? ''}`.trim().split(/\s+/).filter(Boolean),
+	)].join(' ') || undefined
 
 	const common = {
 		...attrs,
 		...triggerAttrs({
-			describedby: tooltip?.contentId,
+			describedby: descriptions,
 			id,
 			open: Boolean(tooltip?.open),
 			ref,
@@ -298,7 +263,6 @@ const TooltipTrigger: Stateless<TooltipTriggerArgs> = ({
 		}),
 		class: classes,
 		'data-slot': slot,
-		'data-tooltip-trigger': 'true',
 		'set:onblur': (event: FocusEvent) => {
 			callHandler(onBlur, event)
 			tooltip?.registerFocus(false, event)
@@ -346,17 +310,10 @@ const TooltipTrigger: Stateless<TooltipTriggerArgs> = ({
 
 /** Unstyled non-interactive text bubble shown for a TooltipTrigger. */
 const TooltipContent: Stateless<TooltipContentArgs> = ({
-	align = 'center',
-	alignOffset = 0,
 	children,
 	class: classes,
-	collisionPadding = 8,
 	'data-slot': slot = 'tooltip-content',
-	id: idArg,
 	ref,
-	role = 'tooltip',
-	side = 'top',
-	sideOffset = 8,
 	style,
 	'set:onmouseleave': onMouseLeave,
 	'set:onmouseenter': onMouseEnter,
@@ -368,22 +325,17 @@ const TooltipContent: Stateless<TooltipContentArgs> = ({
 		<div
 			{...attrs}
 			{...contentAttrs({
-				align,
-				alignOffset,
-				collisionPadding,
-				id: idArg ?? tooltip?.contentId,
+				id: tooltip?.contentId,
 				open: Boolean(tooltip?.open),
-				popover: 'manual',
 				ref,
 				setContent: tooltip?.setContent,
-				side,
-				sideOffset,
-				style,
+				style: tooltip?.contentStyle(style) ?? popupStyle(style),
+				tabindex: undefined,
 			})}
 			class={classes}
+			data-arrow="true"
 			data-slot={slot}
-			data-tooltip-content="true"
-			role={role}
+			role="tooltip"
 			set:onmouseleave={(event: MouseEvent) => {
 				callHandler(onMouseLeave, event)
 				tooltip?.registerContentHover(false, event)
@@ -393,53 +345,14 @@ const TooltipContent: Stateless<TooltipContentArgs> = ({
 				tooltip?.registerContentHover(true, event)
 			}}
 		>
+			<PopupSurface arrow popup={tooltip} />
 			{children}
 		</div>
 	)
 }
 
-/**
- * Unstyled caret marker rendered inside TooltipContent. The placer pins it to
- * the content edge nearest the trigger, centered on the trigger and clamped to
- * the content bounds (data-uncentered flags a clamped position); the content's
- * data-side drives any themed rotation. While an arrow is registered the
- * content's overflow is forced visible so the caret can straddle the edge, so
- * tall scrollable content needs an inner scroll container.
- */
-const TooltipArrow: Stateless<TooltipArrowArgs> = ({
-	children,
-	class: classes,
-	'data-slot': slot = 'tooltip-arrow',
-	ref,
-	style,
-	...attrs
-}) => {
-	const tooltip = TooltipContext()
-	let mounted: HTMLSpanElement | null = null
-
-	const reference = (element: HTMLSpanElement | null) => {
-		if (element) tooltip?.setArrow(mounted = element)
-		else if (mounted) tooltip?.clearArrow(mounted)
-		callRef(ref, element)
-	}
-
-	return (
-		<span
-			{...attrs}
-			aria-hidden="true"
-			class={classes}
-			data-slot={slot}
-			ref={reference}
-			style={style ? `position:absolute;${style}` : 'position:absolute'}
-		>
-			{children}
-		</span>
-	)
-}
-
 export {
 	Tooltip,
-	TooltipArrow,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,

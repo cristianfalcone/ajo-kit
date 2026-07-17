@@ -1,7 +1,58 @@
 import type { Stateless } from 'ajo'
+import { callRef } from 'ajo-cloves'
 import { jsx } from 'ajo/jsx-runtime'
 
 type SlotArgs = Record<string, unknown> & { 'data-slot'?: string }
+
+/** Logical placement shared by Ajo popup roots. */
+export type PopupPlacement =
+	| 'top' | 'top-start' | 'top-end'
+	| 'right' | 'right-start' | 'right-end'
+	| 'bottom' | 'bottom-start' | 'bottom-end'
+	| 'left' | 'left-start' | 'left-end'
+	| 'auto'
+
+/** Small semantic positioning contract shared by Ajo popup roots. */
+export type PopupPosition = {
+	/** Preferred logical placement; auto chooses the most available space. */
+	placement?: PopupPlacement
+	/** Distance between the reference and floating box, in CSS pixels. */
+	gap?: number
+}
+
+type TriggerAttrsOptions<Element extends HTMLElement> = {
+	controls?: string
+	describedby?: string
+	expanded?: boolean
+	haspopup?: 'dialog' | 'listbox' | 'menu'
+	id?: unknown
+	open: boolean
+	ref?: unknown
+	setTrigger?: (element: Element | null) => void
+	triggerId?: string
+}
+
+/** Builds state, popup relations, ids and a composed trigger ref. */
+export const triggerAttrs = <Element extends HTMLElement>(options: TriggerAttrsOptions<Element>): Record<string, unknown> => {
+	const { controls, describedby, expanded, haspopup, id, open, ref, setTrigger, triggerId } = options
+	const attrs: Record<string, unknown> = { 'data-state': open ? 'open' : 'closed' }
+	if ('controls' in options) attrs['aria-controls'] = controls
+	if ('describedby' in options) attrs['aria-describedby'] = describedby
+	if ('expanded' in options) attrs['aria-expanded'] = expanded ? 'true' : 'false'
+	if ('haspopup' in options) attrs['aria-haspopup'] = haspopup
+	if ('id' in options || 'triggerId' in options) attrs.id = id ?? triggerId
+	if ('ref' in options || 'setTrigger' in options) {
+		attrs.ref = (element: Element | null) => {
+			setTrigger?.(element)
+			callRef(ref, element)
+		}
+	}
+	return attrs
+}
+
+/** Inline reset for a native popover plus caller-owned declarations. */
+export const popupStyle = (...parts: unknown[]) =>
+	['inset:auto', 'margin:0', ...parts.filter((part): part is string => typeof part === 'string' && part.length > 0)].join(';')
 
 /** Omits named arguments without collapsing Ajo's open Args index signature. */
 export type OmitArg<T, Keys extends PropertyKey> = {
@@ -150,38 +201,4 @@ export const stlx = (...input: StyleInput[]) => {
 	const result: string[] = []
 	for (const item of input) collectStyles(item, result)
 	return result.join(';')
-}
-
-/** HTMLElement shape augmented by the optional native Popover API methods. */
-export type PopoverElement = HTMLElement & {
-	hidePopover?: () => void
-	showPopover?: (options?: { source?: HTMLElement }) => void
-}
-
-/** Checks native Popover API open state without throwing in fallback browsers. */
-const popoverOpen = (element: HTMLElement) =>
-	typeof element.matches === 'function' && element.matches(':popover-open')
-
-/** Opens a native popover, falling back to `hidden = false` when unsupported. */
-export const openPopover = (element: PopoverElement, source?: HTMLElement | null) => {
-	if (popoverOpen(element)) return
-	if (typeof element.showPopover === 'function') {
-		try {
-			if (source) element.showPopover({ source })
-			else element.showPopover()
-		} catch { }
-	} else {
-		element.hidden = false
-	}
-}
-
-/** Closes a native popover, falling back to `hidden = true` when unsupported. */
-export const closePopover = (element: PopoverElement) => {
-	if (typeof element.hidePopover === 'function') {
-		try {
-			if (popoverOpen(element)) element.hidePopover()
-		} catch { }
-	} else {
-		element.hidden = true
-	}
 }

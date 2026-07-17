@@ -30,7 +30,7 @@ import { buttonVariants } from './button'
 import { Calendar } from './calendar'
 import { InputGroupAddon } from './input-group'
 import { inputGroupVariants, popupAnimation, popupSlide } from './internal/recipes'
-export type { InputDatePreset, InputDateRangeValue, InputDateSide, InputDateValue } from 'ajo-ui/input-date'
+export type { InputDatePreset, InputDateRangeValue, InputDateSide, InputDateValue, PopupPlacement, PopupPosition } from 'ajo-ui/input-date'
 
 export type InputDateCalendarArgs = OmitArg<BaseInputDateCalendarArgs, 'component'> & FixedArgs<'component'>
 

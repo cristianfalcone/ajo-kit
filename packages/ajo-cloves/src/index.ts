@@ -1,5 +1,4 @@
 export { announce } from './announce'
-export { anchor } from './anchor'
 export {
 	browser,
 	callHandler,
@@ -16,7 +15,6 @@ export {
 } from './core'
 export { controlled } from './controlled'
 export { dismiss } from './dismiss'
-export { follow } from './follow'
 export { grid, type GridMove } from './grid'
 export { hotkey } from './hotkey'
 export { hover } from './hover'

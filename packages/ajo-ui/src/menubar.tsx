@@ -2,7 +2,8 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, id, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { bar } from './bar'
-import type { FixedArgs, OmitArg } from './utils'
+import type { ReservedPositionArg } from './position'
+import type { FixedArgs, OmitArg, PopupPosition } from './utils'
 import {
 	Menu,
 	MenuCheckboxItem,
@@ -18,7 +19,6 @@ import {
 	MenuSubContent,
 	MenuSubTrigger,
 	MenuTrigger,
-	focusEdge,
 } from './menu'
 import type {
 	MenuCheckboxItemArgs,
@@ -35,10 +35,12 @@ import type {
 	MenuSubTriggerArgs,
 	MenuTriggerArgs,
 } from './menu'
+import { provideMenubarComposition } from './menu-cluster'
 import { text, withSlot } from './utils'
+export type { PopupPlacement, PopupPosition } from './utils'
 
 /** Arguments for a horizontal Menubar and its controlled open menu. */
-export type MenubarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
+export type MenubarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange' | ReservedPositionArg> & PopupPosition & {
 	/** Controlled open top-level menu value. */
 	value?: string
 	/** Initial open top-level menu value for uncontrolled usage. */
@@ -51,17 +53,17 @@ export type MenubarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchan
 	onValueChange?: (value: string, event?: Event) => void
 	/** Additional UnoCSS classes. */
 	class?: string
-}> & FixedArgs<'onchange'>
+}> & FixedArgs<'onchange' | ReservedPositionArg>
 
 /** Arguments for one value-bearing top-level menu in a Menubar. */
-export type MenubarMenuArgs = WithChildren<IntrinsicElements['div'] & {
+export type MenubarMenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'gap' | 'placement' | ReservedPositionArg> & {
 	/** Top-level menu value used by controlled Menubar state. */
 	value?: string
 	/** Disable this top-level menu. */
 	disabled?: boolean
 	/** Additional UnoCSS classes. */
 	class?: string
-}>
+}> & FixedArgs<'gap' | 'placement' | ReservedPositionArg>
 
 /** Arguments for the trigger of a top-level Menubar menu. */
 export type MenubarTriggerArgs = WithChildren<MenuTriggerArgs & {
@@ -70,10 +72,7 @@ export type MenubarTriggerArgs = WithChildren<MenuTriggerArgs & {
 }>
 
 /** Arguments for positioned content belonging to a top-level Menubar menu. */
-export type MenubarContentArgs = WithChildren<MenuContentArgs & {
-	/** Pixel shift along the alignment axis. */
-	alignOffset?: number
-}>
+export type MenubarContentArgs = MenuContentArgs
 
 /** Arguments for a standard actionable Menubar item. */
 export type MenubarItemArgs = MenuItemArgs
@@ -99,12 +98,15 @@ export type MenubarSubTriggerArgs = MenuSubTriggerArgs
 export type MenubarSubContentArgs = MenuSubContentArgs
 
 type MenubarContextValue = {
+	ackFocus: (value: string) => boolean
 	close: (event?: Event) => void
 	disabled: boolean
 	focus: (value: string, event?: Event) => void
 	follow: (value: string, event?: Event) => void
+	gap: PopupPosition['gap']
 	isTabbable: (value: string) => boolean
 	open: (value: string, event?: Event) => void
+	placement: PopupPosition['placement']
 	register: (value: string, element: HTMLButtonElement | null) => void
 	value: string
 }
@@ -119,13 +121,18 @@ const MenubarMenuContext = context<MenubarMenuContextValue | null>(null)
 
 const order = (root: HTMLElement) =>
 	Array.from(root.querySelectorAll<HTMLButtonElement>('[data-menubar-trigger="true"]'))
-		.filter(trigger => !trigger.disabled && trigger.offsetParent !== null)
+		.filter(trigger =>
+			!trigger.disabled
+			&& trigger.offsetParent !== null
+			&& trigger.closest('[data-slot="menubar"]') === root)
 
 const MenubarRoot: Stateful<MenubarArgs> = function* ({ defaultValue, value }) {
 	const triggers = new Map<string, HTMLButtonElement>()
 	let disabled = false
+	let entering = false
 	let loop = true
 	let onValueChange: MenubarArgs['onValueChange']
+	let pendingFocus = ''
 	let queued = false
 
 	const state = bar(this, {
@@ -160,19 +167,63 @@ const MenubarRoot: Stateful<MenubarArgs> = function* ({ defaultValue, value }) {
 		}
 	}
 
+	const close = (event?: Event) => {
+		pendingFocus = ''
+		state.close(event)
+	}
+
+	const focus = (next: string, event?: Event) => {
+		if (!entering) pendingFocus = ''
+		state.focus(next, event)
+	}
+
+	const follow = (next: string, event?: Event) => {
+		if (!entering) pendingFocus = ''
+		state.follow(next, event)
+	}
+
+	const open = (next: string, event?: Event) => {
+		pendingFocus = ''
+		state.setValue(next, event)
+	}
+
+	const enter = (next: string, event: Event) => {
+		pendingFocus = next
+		entering = true
+		try {
+			state.follow(next, event)
+		} finally {
+			entering = false
+		}
+	}
+
+	const ackFocus = (next: string) => {
+		if (!next || pendingFocus !== next) return false
+		pendingFocus = ''
+		return true
+	}
+
 	listen(this, 'keydown', (event: KeyboardEvent) => {
 		if (event.defaultPrevented) return
 		const target = event.target as HTMLElement | null
+		if (target?.closest('[data-slot="menubar"]') !== this) return
 
 		if (event.key === 'Tab') {
 			// Tab leaves the bar (from a trigger or from inside an open menu):
 			// close and let focus proceed.
-			state.close(event)
+			close(event)
 			return
 		}
 
 		if (target?.closest('[data-menubar-trigger="true"]')) {
-			state.handle(event)
+			if (event.key === 'Escape') pendingFocus = ''
+			const transfer = Boolean(pendingFocus)
+			if (transfer) entering = true
+			try {
+				if (state.handle(event) && transfer) pendingFocus = state.value
+			} finally {
+				if (transfer) entering = false
+			}
 			return
 		}
 
@@ -182,7 +233,7 @@ const MenubarRoot: Stateful<MenubarArgs> = function* ({ defaultValue, value }) {
 		// from its trigger, ArrowLeft closes one from inside.
 		if (state.value && (event.key === 'ArrowLeft' || event.key === 'ArrowRight') && target?.closest('[data-menu-content="true"]')) {
 			if (event.key === 'ArrowRight' && target.closest('[data-menu-sub-trigger="true"]')) return
-			if (event.key === 'ArrowLeft' && target.closest('[data-menu-sub-content="true"]')) return
+			if (target.closest('[data-menu-sub-content="true"]')) return
 			const row = order(this)
 			const index = row.findIndex(trigger => trigger.dataset.value === state.value)
 			if (index < 0) return
@@ -190,14 +241,7 @@ const MenubarRoot: Stateful<MenubarArgs> = function* ({ defaultValue, value }) {
 			const next = row[index + step] ?? (loop ? row[(index + step + row.length) % row.length] : undefined)
 			if (!next || next === row[index]) return
 			event.preventDefault()
-			state.follow(next.dataset.value ?? '', event)
-			// The fresh menu shows in the sync microtask; enter it afterwards
-			// through the substrate's edge helper (registers the highlight and
-			// skips items owned by nested submenu surfaces).
-			queueMicrotask(() => {
-				const contentId = next.getAttribute('aria-controls')
-				focusEdge(contentId ? document.getElementById(contentId) : null, 'first')
-			})
+			enter(next.dataset.value ?? '', event)
 		}
 	})
 
@@ -208,12 +252,15 @@ const MenubarRoot: Stateful<MenubarArgs> = function* ({ defaultValue, value }) {
 		state.sync(args.value != null ? String(args.value ?? '') : undefined)
 
 		MenubarContext({
-			close: state.close,
+			ackFocus,
+			close,
 			disabled,
-			focus: state.focus,
-			follow: state.follow,
+			focus,
+			follow,
+			gap: args.gap,
 			isTabbable: state.isTabbable,
-			open: state.setValue,
+			open,
+			placement: args.placement,
 			register,
 			value: state.value,
 		})
@@ -229,8 +276,10 @@ const Menubar: Stateless<MenubarArgs> = ({
 	class: classes,
 	defaultValue,
 	disabled,
+	gap,
 	loop,
 	onValueChange,
+	placement,
 	value,
 	...attrs
 }) => (
@@ -238,8 +287,10 @@ const Menubar: Stateless<MenubarArgs> = ({
 		{...rootAttrs(attrs)}
 		defaultValue={defaultValue}
 		disabled={disabled}
+		gap={gap}
 		loop={loop}
 		onValueChange={onValueChange}
+		placement={placement}
 		value={value}
 		attr:aria-orientation="horizontal"
 		attr:class={classes}
@@ -252,21 +303,27 @@ const Menubar: Stateless<MenubarArgs> = ({
 
 const MenubarMenuRoot: Stateful<MenubarMenuArgs> = function* ({ value }) {
 	const fallback = id('menubar-menu')
+	let bar: MenubarContextValue | null = null
+	let itemValue = String(value ?? fallback)
+	const ackFocus = () => bar?.ackFocus(itemValue) ?? false
 
 	for (const args of this) {
-		const bar = MenubarContext()
-		const itemValue = String(args.value ?? value ?? fallback)
+		bar = MenubarContext()
+		itemValue = String(args.value ?? value ?? fallback)
 		const disabled = Boolean(args.disabled ?? bar?.disabled)
 
 		MenubarMenuContext({ disabled, value: itemValue })
+		if (bar) provideMenubarComposition(ackFocus)
 
 		yield (
 			// Without a Menubar ancestor the menu degrades to a standalone
 			// uncontrolled Menu instead of a permanently-closed one.
 			<Menu
 				disabled={disabled}
+				gap={bar?.gap}
 				onOpenChange={(open, event) => open ? bar?.open(itemValue, event) : bar?.close(event)}
 				open={bar ? bar.value === itemValue : undefined}
+				placement={bar?.placement}
 			>
 				{args.children}
 			</Menu>
@@ -319,13 +376,13 @@ const MenubarTrigger: Stateless<MenubarTriggerArgs> = ({
 		<MenuTrigger
 			{...attrs}
 			class={classes}
-			data-label={label}
-			data-menubar-trigger="true"
+			data-label={bar ? label : undefined}
+			data-menubar-trigger={bar ? 'true' : undefined}
 			data-slot="menubar-trigger"
-			data-value={itemValue}
+			data-value={bar ? itemValue : undefined}
 			disabled={disabledFlag}
 			ref={reference}
-			role="menuitem"
+			role={bar ? 'menuitem' : undefined}
 			set:onfocus={(event: FocusEvent) => {
 				callHandler(onFocus, event)
 				if (event.defaultPrevented || disabledFlag) return
@@ -337,7 +394,7 @@ const MenubarTrigger: Stateless<MenubarTriggerArgs> = ({
 				if (event.defaultPrevented || disabledFlag) return
 				bar?.follow(itemValue, event)
 			}}
-			tabindex={!bar || bar.isTabbable(itemValue) ? 0 : -1}
+			tabindex={bar ? (bar.isTabbable(itemValue) ? 0 : -1) : undefined}
 		>
 			{children}
 		</MenuTrigger>
@@ -348,7 +405,6 @@ const MenubarTrigger: Stateless<MenubarTriggerArgs> = ({
 const MenubarContent: Stateless<MenubarContentArgs> = withSlot<MenubarContentArgs>(
 	MenuContent,
 	'menubar-content',
-	{ align: 'start', alignOffset: -4, side: 'bottom', sideOffset: 8 },
 )
 
 /** Standard menubar action item. */
