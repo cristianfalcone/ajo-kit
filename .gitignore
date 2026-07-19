@@ -8,4 +8,11 @@ drive.json
 .env
 .tmp
 test-results
-tests/stories-visual/
+packages/ajo-ui-playa/stories/visual/
+
+# Local AI tooling
+.claude
+.agents
+CLAUDE.md
+AGENTS.md
+ai
