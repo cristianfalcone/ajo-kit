@@ -1,14 +1,22 @@
 {
   "name": "ajo-ui-playa",
   "version": "0.1.0",
+  "description": "Playa themed UI components and UnoCSS preset for Ajo",
   "type": "module",
   "sideEffects": false,
   "files": [
+    "dist",
     "src",
     "README.md"
   ],
   "scripts": {
-    "test": "pnpm -w exec vitest run packages/ajo-ui-playa/tests"
+    "build": "pnpm -w exec tsx scripts/package-build.ts ajo-ui-playa",
+    "prepack": "pnpm run build",
+    "test": "pnpm -w exec vitest run packages/ajo-ui-playa/tests",
+    "stories": "tsx stories/server.ts dev",
+    "stories:test": "tsx stories/server.ts test",
+    "stories:test:visual": "tsx stories/server.ts test --screenshots",
+    "stories:test:floating": "tsx stories/server.ts test --match ui-popover--with-arrow --cycles 100 --port 0 && tsx stories/server.ts test --match ui-popover--with-arrow --screenshots --browser chromium --port 0 && tsx stories/server.ts test --match ui-popover--with-arrow --screenshots --browser firefox --port 0 && tsx stories/server.ts test --match ui-popover--with-arrow --screenshots --browser webkit --port 0"
   },
   "exports": {
     ".": {
@@ -266,15 +274,38 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "1.2.113",
-    "ajo-ui": "workspace:*",
+    "ajo-ui": "workspace:^",
     "clsx": "2.1.1"
   },
   "peerDependencies": {
-    "ajo": ">=0.1.35",
+    "ajo": "^0.1.35",
     "unocss": "66.7.2"
   },
   "devDependencies": {
     "ajo": "0.1.35",
-    "unocss": "66.7.2"
+    "ajo-cloves": "workspace:*",
+    "playwright": "1.61.0",
+    "sade": "1.8.1",
+    "tsx": "4.22.4",
+    "unocss": "66.7.2",
+    "vite": "8.0.16"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "keywords": ["ajo", "ui", "components", "unocss", "theme"],
+  "author": "Cristian Falcone",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristianfalcone/ajo-kit.git",
+    "directory": "packages/ajo-ui-playa"
+  },
+  "bugs": {
+    "url": "https://github.com/cristianfalcone/ajo-kit/issues"
+  },
+  "homepage": "https://github.com/cristianfalcone/ajo-kit/tree/main/packages/ajo-ui-playa#readme",
+  "publishConfig": {
+    "access": "public"
   }
 }

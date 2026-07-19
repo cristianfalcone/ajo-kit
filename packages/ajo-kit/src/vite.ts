@@ -1,23 +1,5 @@
-import { createRequire } from 'node:module'
-import { pathToFileURL } from 'node:url'
 import type { Plugin } from 'vite'
 import { discover } from './discover'
-
-const require = createRequire(import.meta.url)
-
-/** Externalize native addons to their resolved absolute path (pnpm-safe) */
-const native = (modules: string[]): Plugin => ({
-	name: 'ajo-native-external',
-	enforce: 'pre',
-	resolveId: {
-		order: 'pre',
-		handler(source) {
-			if (!modules.includes(source)) return
-			try { return { id: pathToFileURL(require.resolve(source)).href, external: true } }
-			catch { return }
-		}
-	}
-})
 
 type Pattern = RegExp | string | ((id: string) => boolean)
 
@@ -174,7 +156,6 @@ export function kit(options?: Options): Plugin[] {
 		},
 		guard([...guards(found), ...(options?.guard ?? [])]),
 		hmr(/(page|layout)\.[jt]sx?$/),
-		native(['better-sqlite3', 'argon2']),
 	]
 }
 

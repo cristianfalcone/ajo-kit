@@ -1,13 +1,15 @@
+import { createRequire } from 'node:module'
 import { Kysely, SqliteDialect } from 'kysely'
-import Sqlite from 'better-sqlite3'
 import type * as BetterSqlite3 from 'better-sqlite3'
+
+const require = createRequire(import.meta.resolve('ajo-kit'))
 
 /** Kysely SQL template helper. */
 export { sql } from 'kysely'
 /** Kysely database and row helper types. */
 export type { Kysely, Generated, Selectable, Insertable } from 'kysely'
-/** better-sqlite3 constructor for direct SQLite access. */
-export { default as Database } from 'better-sqlite3'
+/** better-sqlite3 constructor resolved from ajo-kit's own installation. */
+export const Database = require('better-sqlite3') as typeof import('better-sqlite3')
 /** better-sqlite3 database handle type. */
 export type Database = BetterSqlite3.Database
 /** Alias for the active SQLite database handle. */
@@ -18,7 +20,7 @@ let instance: Kysely<any> | null = null
 
 /** Opens the SQLite database and configures safe defaults. */
 export function connect(path = './database.sqlite'): Sqlite {
-	sqlite = new Sqlite(path)
+	sqlite = new Database(path)
 	sqlite.pragma('journal_mode = WAL')
 	sqlite.pragma('foreign_keys = ON')
 	sqlite.pragma('busy_timeout = 5000')

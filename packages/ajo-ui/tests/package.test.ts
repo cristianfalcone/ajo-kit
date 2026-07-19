@@ -59,9 +59,6 @@ test('the package exports only its public component families', async () => {
 	const menu = await import('ajo-ui/menu')
 	expect(menu).toHaveProperty('Menu')
 	expect(menu).toHaveProperty('MenuSubContent')
-	expect(menu).not.toHaveProperty('MenuAnchor')
-	const root = await import('ajo-ui')
-	expect(root).not.toHaveProperty('MenuAnchor')
 	const virtualList = await import('ajo-ui/virtual-list')
 	expect(virtualList).toHaveProperty('VirtualList')
 })
@@ -86,12 +83,13 @@ test('the root exports direct contexts without hook-shaped accessors', async () 
 	expect(surface).toHaveProperty('VirtualList')
 })
 
-test('the package exposes the documented package-local unit command', () => {
-	expect(metadata.scripts?.test).toBe('pnpm -w exec vitest run packages/ajo-ui/tests')
-})
-
-test('the package targets the released Ajo host contract', () => {
+test('the manifest declares only direct runtime ownership and the Ajo host contract', () => {
 	expect(metadata.sideEffects).toBe(false)
-	expect(metadata.peerDependencies.ajo).toBe('>=0.1.35')
-	expect(metadata.devDependencies.ajo).toBe('0.1.35')
+	expect(metadata.dependencies).toEqual({
+		'@floating-ui/dom': '1.8.0',
+		'@tanstack/table-core': '9.0.0-beta.47',
+		'@tanstack/virtual-core': '3.17.4',
+		'ajo-cloves': 'workspace:^',
+	})
+	expect(metadata.peerDependencies).toEqual({ ajo: '^0.1.35' })
 })

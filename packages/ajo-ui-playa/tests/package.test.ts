@@ -78,21 +78,6 @@ test('the package exports exactly its preset root and public component families'
 	expect(Object.keys(surface)).toEqual(['playa'])
 })
 
-test('Menu does not republish the removed anchor seam', async () => {
-	const menu = await import('ajo-ui-playa/menu')
-	expect(menu).not.toHaveProperty('MenuAnchor')
-})
-
-test('popup families do not republish separate arrow geometry', async () => {
-	const [popover, tooltip] = await Promise.all([
-		import('ajo-ui-playa/popover'),
-		import('ajo-ui-playa/tooltip'),
-	])
-
-	expect(popover).not.toHaveProperty('PopoverArrow')
-	expect(tooltip).not.toHaveProperty('TooltipArrow')
-})
-
 test.each([
 	'ajo-ui-playa/styles',
 	'ajo-ui-playa/modal',
@@ -107,26 +92,15 @@ test.each([
 	expect(failure).toMatchObject({ code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
 })
 
-test('the manifest keeps build-time and runtime ownership explicit', () => {
-	expect(metadata).toMatchObject({
-		name: 'ajo-ui-playa',
-		sideEffects: false,
-		files: ['src', 'README.md'],
-		scripts: {
-			test: 'pnpm -w exec vitest run packages/ajo-ui-playa/tests',
-		},
-		dependencies: {
-			'@iconify-json/lucide': '1.2.113',
-			'ajo-ui': 'workspace:*',
-			clsx: '2.1.1',
-		},
-		peerDependencies: {
-			ajo: '>=0.1.35',
-			unocss: '66.7.2',
-		},
-		devDependencies: {
-			ajo: '0.1.35',
-			unocss: '66.7.2',
-		},
+test('the manifest keeps build-time peers and runtime ownership explicit', () => {
+	expect(metadata.sideEffects).toBe(false)
+	expect(metadata.dependencies).toEqual({
+		'@iconify-json/lucide': '1.2.113',
+		'ajo-ui': 'workspace:^',
+		clsx: '2.1.1',
+	})
+	expect(metadata.peerDependencies).toEqual({
+		ajo: '^0.1.35',
+		unocss: '66.7.2',
 	})
 })

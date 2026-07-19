@@ -1,11 +1,19 @@
 {
   "name": "ajo-kit",
   "version": "0.1.0",
+  "description": "Full-stack metaframework for Ajo applications",
   "type": "module",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "bin": {
     "kit": "./bin/kit.ts"
   },
   "scripts": {
+    "build": "pnpm -w exec tsx scripts/package-build.ts ajo-kit",
+    "prepack": "pnpm run build",
     "test": "pnpm -w exec vitest run packages/ajo-kit/tests"
   },
   "exports": {
@@ -45,25 +53,41 @@
   "dependencies": {
     "@polka/parse": "1.0.0-next.28",
     "@polka/send": "1.0.0-next.28",
+    "@types/better-sqlite3": "^7.6.13",
     "better-sqlite3": "^12.11.1",
     "devalue": "^5.8.1",
     "dotenv": "^17.4.2",
     "kysely": "^0.29.2",
-    "kysely-ctl": "^0.21.0",
     "navaid": "^1.2.0",
     "polka": "1.0.0-next.28",
-    "regexparam": "^3.0.0",
     "sade": "^1.8.1",
     "sirv": "^3.0.2",
     "valibot": "^1.4.1"
   },
   "peerDependencies": {
-    "ajo": ">=0.1.35",
-    "vite": ">=7.0.0"
+    "ajo": "^0.1.35",
+    "vite": "^8.0.16"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "ajo": "0.1.35",
     "vite": "8.0.16"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "keywords": ["ajo", "framework", "vite", "sqlite", "ssr"],
+  "author": "Cristian Falcone",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristianfalcone/ajo-kit.git",
+    "directory": "packages/ajo-kit"
+  },
+  "bugs": {
+    "url": "https://github.com/cristianfalcone/ajo-kit/issues"
+  },
+  "homepage": "https://github.com/cristianfalcone/ajo-kit/tree/main/packages/ajo-kit#readme",
+  "publishConfig": {
+    "access": "public"
   }
 }

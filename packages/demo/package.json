@@ -1,0 +1,37 @@
+{
+  "name": "ajo-kit-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "kit": "tsx node_modules/ajo-kit/bin/kit.ts",
+    "dev": "pnpm kit dev",
+    "build": "pnpm kit build",
+    "start": "pnpm kit start",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm test:unit && pnpm test:integration",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "playwright test",
+    "test:prod": "pnpm build && playwright test -c playwright.production.config.ts"
+  },
+  "dependencies": {
+    "ajo": "0.1.35",
+    "ajo-cloves": "workspace:*",
+    "ajo-kit": "workspace:*",
+    "ajo-kit-auth": "workspace:*",
+    "ajo-ui-playa": "workspace:*",
+    "clsx": "2.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.0",
+    "@types/node": "25.9.3",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3",
+    "unocss": "66.7.2",
+    "vite": "8.0.16",
+    "vitest": "4.1.9"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}

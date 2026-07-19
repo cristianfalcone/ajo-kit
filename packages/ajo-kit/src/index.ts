@@ -1,3 +1,5 @@
+/// <reference path="./virtual.d.ts" />
+
 export {
 	Failure,
 	Missing,

@@ -1,12 +1,13 @@
 # ajo-cloves
 
-Cloves are plain Ajo functions that bind one reusable UI concern to a stateful component host and return a live view. The package also owns the small, general Ajo protocol, lifecycle, and data utilities shared by component libraries. The canonical clove pattern and rules live in Ajo's [Cloves: Sharing Logic](https://github.com/cristianfalcone/ajo#cloves-sharing-logic) docs.
+Reusable behavior primitives for Ajo components.
 
-The dependency direction is `ajo-cloves` -> `ajo-ui` -> `ajo-ui-playa` ->
-application. Playa apps install `ajo-ui-playa`; its `ajo-ui` base remains a
-private transitive dependency. Component-adapter types such as `OmitArg` and
-`FixedArgs` belong only to `ajo-ui/utils`; they are intentionally not clove
-exports.
+A clove is a plain function that attaches one UI behavior to a stateful Ajo
+host and returns a live view. Applications and component libraries can compose
+only the behaviors they need.
+
+See Ajo's [Cloves: Sharing Logic](https://github.com/cristianfalcone/ajo#cloves-sharing-logic)
+guide for the component pattern.
 
 ## Install
 
@@ -14,7 +15,7 @@ exports.
 pnpm add ajo-cloves ajo
 ```
 
-`ajo-cloves` has one peer dependency: `ajo >= 0.1.35`.
+`ajo-cloves` requires `ajo ^0.1.35`.
 
 ```tsx
 import type { Host } from 'ajo-cloves'
@@ -68,7 +69,15 @@ function* Disclosure(this: Host, args: DisclosureArgs) {
 
 ## Attr Bags
 
-When a behavior must wire several attributes and handlers to a rendered element, its view exposes attr bags meant for JSX spread. Bags contain plain HTML attributes such as `role`, `aria-*`, `tabindex`, `id`, and `data-*` plus Ajo `set:on*` handlers; `ajo/html` renders the plain attributes for SSR and skips `set:*`, while the client attaches the handlers during hydration. Events should flow through bags when they target rendered children, because keyed reconciliation can reuse child elements while a bag is re-applied every render.
+Views can expose attr bags for JSX spread when a behavior needs to apply several
+attributes and handlers to one element.
+
+Bags contain HTML attributes such as `role`, `aria-*`, `tabindex`, `id`, and
+`data-*`, plus Ajo `set:on*` handlers. `ajo/html` renders the HTML attributes for
+SSR, and the client attaches event handlers during hydration.
+
+Use bags for events attached to rendered children. Ajo reapplies the bag when
+keyed reconciliation reuses an element.
 
 ## Catalog
 
@@ -86,7 +95,7 @@ When a behavior must wire several attributes and handlers to a rendered element,
 | `restore` | Capture and later restore focus. | No options; methods `capture`, `restore`. |
 | `move` | Pointer-drag session lifecycle with deltas and cancellation. | `onStart`, `onMove`, `onEnd`. |
 | `grid` | Semantic 2D key movement for grids/calendars. | `rtl`, `onMove`; type `GridMove`. |
-| `spin` | Semantic spinbutton key stepping (step/page/edge); composes with `roving` via consumer-pinned dispatch order (spin first). | `onMove`; type `SpinMove`. |
+| `spin` | Semantic spinbutton key stepping for step, page, and edge movement. | `onMove`; type `SpinMove`. |
 | `label` | Field label/control/description/error id wiring. | `prefix`; returns `LabelView` attr bags. |
 | `hotkey` | Global single-chord keyboard shortcut. | `keys`, `active`, `prevent`, `onPress`. |
 | `announce` | Polite/assertive screen-reader announcements. | No options; document-lifetime live regions. |
@@ -105,11 +114,11 @@ When a behavior must wire several attributes and handlers to a rendered element,
 | Export | Purpose | Key options |
 |---|---|---|
 | `media` | Reactive media-query match shared per query string. | `query`, `fallback`; method `sync`. |
-| `scheme` | Reactive OS dark-scheme preference. | No options; built on `media`. |
+| `scheme` | Reactive OS dark-scheme preference. | No options. |
 | `storage` | Reactive `localStorage` or `sessionStorage` string value with cross-tab sync. | `key`, `fallback`, `area`. |
 | `scrolling` | Frame-coalesced scroll tracking for a live element. | `target`, `onScroll`, `onEnd`; method `sync`. |
 | `resize` | Shared `ResizeObserver` notifications for a live element. | `target`, `onResize`; method `sync`. |
-| `overflow` | Stamps `data-overflow-x`/`-y` (`start`/`end`/`both`) while content overflows a live scrollable element. | `target`; method `sync`. Composes `scrolling` + `resize`. |
+| `overflow` | Stamps `data-overflow-x`/`-y` (`start`/`end`/`both`) while content overflows a live scrollable element. | `target`; method `sync`. |
 | `visibility` | Reactive document visibility. | No options. |
 
 ### Infrastructure
@@ -126,15 +135,15 @@ When a behavior must wire several attributes and handlers to a rendered element,
 | `clamp` | Clamps a number to an inclusive range. | `value`, `min`, `max`. |
 | `remember` | Stores a value in an insertion-ordered bounded cache. | FIFO; default limit 32; positive integer limits only. |
 | `id` | Monotonic per-prefix id generator. | `prefix`. |
-| `shared` | String-keyed shared-source multiplexer. | `key`, `start`, subscriber callback, `signal`. |
-| `frame` | `requestAnimationFrame` coalescer. | Callback; returned scheduler has `cancel()`. |
+| `shared` | Shares one lazily started source among subscribers with the same key. | `key`, `start`, callback, `signal`; stops after the last subscriber aborts. |
+| `frame` | Coalesces repeated calls into one callback on the next animation frame. | Callback; returned scheduler has `cancel()`. |
 
-## Design Principles
+## Runtime Behavior
 
-- Evidence-driven: no consumer, no clove.
-- Native-first: prefer platform behavior before emulating ARIA behavior in JavaScript.
-- Host-owned work cleans up through `host.signal`; adapters with a caller signal compose both lifetimes.
-- SSR-inert by shape.
-- Live options are closures, so current args are read when methods run.
-- Component-system adapter types and composition helpers belong in
-  `ajo-ui/utils`, not in the clove surface.
+- Each clove handles one reusable concern and composes with other cloves.
+- DOM work follows native browser behavior and accessible interaction patterns.
+- Work attached to a host stops when `host.signal` aborts.
+- APIs that accept a caller signal stop when either signal aborts.
+- DOM helpers stay inert during SSR.
+- Function options are evaluated when an operation runs, so they can read the
+  latest component args.

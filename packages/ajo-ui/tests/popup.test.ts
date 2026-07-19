@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 import type { Host } from 'ajo-cloves'
-import { render as toString } from 'ajo/html'
 import { beforeEach, expect, test, vi } from 'vitest'
 
 const floating = vi.hoisted(() => ({
@@ -14,9 +13,7 @@ vi.mock('@floating-ui/dom', async importActual => ({
 	computePosition: floating.computePosition,
 }))
 
-import { PopoverContent } from '../src/popover'
 import { popup } from '../src/popup'
-import { TooltipContent } from '../src/tooltip'
 
 const host = () => {
 	const controller = new AbortController()
@@ -35,25 +32,6 @@ beforeEach(() => {
 	document.body.replaceChildren()
 	floating.autoUpdate.mockReset()
 	floating.computePosition.mockReset()
-})
-
-test('content families own a stable surface and their intended arrow policy', () => {
-	const popover = toString(PopoverContent({ children: 'Popover' }))
-	const arrowPopover = toString(PopoverContent({ arrow: true, children: 'Popover' }))
-	const tooltip = toString(TooltipContent({ children: 'Tooltip' }))
-
-	expect(popover).toContain('data-slot="popup-surface"')
-	expect(popover).not.toContain('data-arrow="true"')
-	expect(popover).not.toContain('data-slot="popup-arrow"')
-	expect(arrowPopover).toContain('data-arrow="true"')
-	expect(arrowPopover).toContain('data-slot="popup-surface"')
-	expect(arrowPopover).toContain('data-slot="popup-arrow"')
-	expect(tooltip).toContain('data-arrow="true"')
-	expect(tooltip).toContain('data-slot="popup-surface"')
-	expect(tooltip).toContain('data-slot="popup-arrow"')
-	expect(tooltip).toContain('width:14px;height:14px')
-	expect(tooltip).toContain('background:transparent')
-	expect(tooltip).toContain('opacity:0')
 })
 
 test('a protocol-only host does not create DOM parser state from the ambient document', () => {

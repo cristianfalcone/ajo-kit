@@ -4,17 +4,14 @@ Full-stack metaframework for [Ajo](https://github.com/cristianfalcone/ajo) with 
 
 ## Install
 
-`ajo-kit` is currently consumed from this workspace, a `file:` dependency, or a
-packed tarball until it is published.
-
-After package publication:
-
 ```bash
 pnpm add ajo ajo-kit
-pnpm add -D vite tsx typescript @types/node
+pnpm add -D vite typescript @types/node
 ```
 
-`kit` is a TSX-powered CLI (`#!/usr/bin/env tsx`), so `tsx` must be available in your project.
+`ajo-kit` requires `ajo ^0.1.35`, `vite ^8.0.16`, and Node 22.18 or newer.
+TypeScript migrations run through Node's built-in type stripping and use
+erasable TypeScript syntax.
 
 ## Minimal Setup
 
@@ -95,8 +92,6 @@ export default () => (
 )
 ```
 
-Use `packages/template` in this monorepo as the current reference scaffold.
-
 ## CLI
 
 ```bash
@@ -122,12 +117,13 @@ Defaults:
 
 File-based routes:
 
-```text
-src/page.tsx                    -> /
-src/about/page.tsx              -> /about
-src/blog/[id]/page.tsx          -> /blog/:id
-src/docs/[...]/page.tsx         -> /docs/*
-src/(app)/dashboard/page.tsx    -> /dashboard
+```mermaid
+flowchart LR
+  root["src/page.tsx"] --> rootPath["/"]
+  about["src/about/page.tsx"] --> aboutPath["/about"]
+  blog["src/blog/[id]/page.tsx"] --> blogPath["/blog/:id"]
+  docs["src/docs/[...]/page.tsx"] --> docsPath["/docs/*"]
+  group["src/(app)/dashboard/page.tsx"] --> dashboard["/dashboard"]
 ```
 
 Per-route files:
@@ -211,16 +207,20 @@ await form.invoke({ title: 'Hello' })
 
 If an action returns `{ redirect: '/path' }`, client navigation is triggered automatically.
 Successful non-redirect actions dispatch `ajo:action` with returned JSON detail.
-After boot, the client sets `html[data-ajo-ready="true"]` for e2e waits.
 
 ## Middleware
 
 `wares.ts` exports one middleware or an array:
 
 ```ts
-import { wares } from '@kit/auth'
+import type { Middleware } from '@kit'
 
-export default [wares.session(), wares.csrf]
+const log: Middleware = (req, _res, next) => {
+  console.log(req.method, req.url)
+  next()
+}
+
+export default log
 ```
 
 Middlewares are collected from route ancestors and applied to both page and API handlers.
@@ -260,23 +260,29 @@ The runtime maintains an SSE stream, revalidates affected routes, and replaces t
 - `Database` (better-sqlite3)
 - `sql` and Kysely types
 
-The first supported production topology is one `kit start` Node process with one
-SQLite database file on persistent local disk. Topic versions, active SSE
-connections, live fanout, and auth rate limits are process-local. Do not run
-multiple workers behind a load balancer without adding shared app-specific
-coordination for those pieces.
+SSE topic versions, active connections, and update fanout are stored in process
+memory. Multi-process deployments require shared topic coordination and
+fanout. Store SQLite database files on persistent local disk.
 
 For non-local production, configure `APP_URL` to the public `http` or `https`
-origin. Apps that connect with `process.env.DATABASE_PATH` should point it at
-persistent local disk.
+origin. Applications choose how to configure their database path:
 
-`kit migrate` merges:
+```ts
+connect(process.env.DATABASE_PATH ?? './database.sqlite')
+```
+
+`kit migrate` composes:
 
 - app migrations in `db/migrations`
 - plugin migrations discovered from installed `ajo-*` packages that expose `package.json#kit.migrations`
 
-Migration names are global across the app and all plugins. Duplicate names fail
-before any migration runs.
+Each migration provider uses a contiguous sequence beginning at `0001`, so a
+plugin and the app may both define `0001_initial`. Stored identities use
+`plugin/<package>/<name>` and `project/<name>` in one SQLite history and lock.
+
+Every migration exports `up()` and `down()`. `migrate down` rolls back the
+latest executed migration across all providers. `migrate status` rejects
+history entries whose migration is unavailable.
 
 `kit seed` runs sorted `db/seeds/*.ts` files that export:
 
@@ -311,3 +317,152 @@ This enables:
 - server-only import protection in Vite
 - automatic migration loading
 - CLI command extension via `register(cli)`
+
+## Public Entry Points
+
+| Import | API |
+|---|---|
+| `ajo-kit` or `@kit` | Route types, HTTP errors, request helpers, navigation, and formatting |
+| `ajo-kit/server` or `@kit/server` | Server runtime, `send()`, and `emit()` |
+| `ajo-kit/client` or `@kit/client` | Client boot and `action()` |
+| `ajo-kit/validate` or `@kit/validate` | Valibot helpers and `parse()` |
+| `ajo-kit/database` or `@kit/database` | SQLite, Kysely, and database lifecycle |
+| `ajo-kit/mail` or `@kit/mail` | Configurable mail transport |
+| `ajo-kit/vite` | Vite plugin, JSX config, and defaults |
+| `ajo-kit/node` | Programmatic development, build, start, and listen runtime |
+
+## Core API
+
+```ts
+import {
+  Denied,
+  Failure,
+  Forbidden,
+  Invalid,
+  Missing,
+  ajax,
+  api,
+  date,
+  ip,
+  navigate,
+  normalize,
+  origin,
+} from 'ajo-kit'
+import type {
+  Action,
+  Entry,
+  Fields,
+  Head,
+  Issue,
+  LayoutArgs,
+  Middleware,
+  PageArgs,
+  Parent,
+  Request,
+  Response,
+  User,
+} from 'ajo-kit'
+```
+
+`Failure` carries an HTTP status. `Missing`, `Forbidden`, `Denied`, and
+`Invalid` represent 404, 403, 401, and 400 responses. `normalize()` converts an
+unknown thrown value into a `Failure`.
+
+`ajax()` and `api()` classify requests. `ip()` resolves the client address, and
+`origin()` resolves the trusted application origin. `navigate()` performs
+client navigation, and `date()` formats ISO timestamps.
+
+## Server API
+
+```ts
+import { emit, send } from 'ajo-kit/server'
+
+send(res, 200, { ok: true })
+emit('posts:list')
+```
+
+`send()` writes an API response. `emit()` accepts one topic or an array of
+topics and revalidates active routes that track them. Emit after durable writes
+commit.
+
+## Head
+
+Route `head()` loaders return `Head`. Ancestor and page values are merged for
+SSR and client navigation.
+
+```ts
+type Head = {
+  title?: string
+  meta?: (
+    | { name: string; content: string }
+    | { property: string; content: string }
+    | { httpEquiv: string; content: string }
+  )[]
+  link?: { rel: string; href: string; [key: string]: string | undefined }[]
+}
+```
+
+## Mail
+
+```ts
+import { configure, send } from 'ajo-kit/mail'
+import type { Mail, Transport } from 'ajo-kit/mail'
+
+const deliver: Transport = async mail => {
+  // Send mail with the application's provider.
+}
+
+configure(deliver)
+
+await send({
+  to: 'person@example.com',
+  subject: 'Welcome',
+  text: 'Welcome to the app.',
+})
+```
+
+`configure()` registers a `Transport` function. The default transport writes
+mail to stdout.
+
+## Vite API
+
+```ts
+import { jsx, kit } from 'ajo-kit/vite'
+import type { Options } from 'ajo-kit/vite'
+import { defineConfig } from 'vite'
+
+const options: Options = {
+  guard: [/\/src\/data\//],
+  css: ['virtual:uno.css'],
+}
+
+export default defineConfig({
+  plugins: [...kit(options)],
+  esbuild: jsx,
+})
+```
+
+`kit()` configures routes, handlers, aliases, server-only guards, HMR, CSS
+entries, and production SSR. Custom `guard` patterns extend the default client
+graph protection.
+
+`css` entries load before application hydration. `jsx` configures Ajo's
+automatic JSX runtime. The exported `defaults` object contains the database,
+migrations, and seeds paths used by the CLI.
+
+## Node API
+
+```ts
+import { build, compile, dev, listen, start } from 'ajo-kit/node'
+import type { Options } from 'ajo-kit/node'
+
+const options: Options = {
+  hmr: { overlay: false },
+}
+
+await dev(options)
+```
+
+`dev()`, `build()`, and `start()` expose the CLI runtimes programmatically.
+`compile()` fills `<!-- ssr:name -->` HTML slots. `listen()` starts an
+application server and can require a strict port.

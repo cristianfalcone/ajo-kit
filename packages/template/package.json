@@ -1,27 +1,28 @@
 {
-  "name": "my-app",
+  "name": "ajo-kit-template",
   "private": true,
   "type": "module",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3"
-    ]
-  },
   "scripts": {
-    "dev": "kit dev",
-    "build": "kit build",
-    "start": "kit start"
+    "kit": "tsx node_modules/ajo-kit/bin/kit.ts",
+    "dev": "pnpm kit dev",
+    "build": "pnpm kit build",
+    "start": "pnpm kit start",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm -w exec vitest run packages/template/tests"
   },
   "dependencies": {
-    "ajo": "^0.1.35",
-    "ajo-kit": "^0.1.0",
-    "ajo-ui-playa": "^0.1.0"
+    "ajo": "0.1.35",
+    "ajo-kit": "workspace:*",
+    "ajo-ui-playa": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.9.3",
-    "tsx": "^4.22.4",
-    "typescript": "^6.0.3",
+    "@types/node": "25.9.3",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3",
     "unocss": "66.7.2",
-    "vite": "^8.0.16"
+    "vite": "8.0.16"
+  },
+  "engines": {
+    "node": ">=22.18.0"
   }
 }

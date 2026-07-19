@@ -20,13 +20,18 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    "paths": {
-      "/src/*": ["./src/*"],
-      "@kit": ["./packages/ajo-kit/src/index.ts"],
-      "@kit/auth": ["./packages/ajo-auth/src/index.ts"],
-      "@kit/auth/ability": ["./packages/ajo-auth/src/ability.client.ts"],
-      "ajo-cloves": ["./packages/ajo-cloves/src/index.ts"],
-      "@kit/*": ["./packages/ajo-kit/src/*"],
-    },
   },
+  "include": [
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "packages/ajo-*/bin/**/*.ts",
+    "packages/ajo-*/src/**/*.ts",
+    "packages/ajo-*/src/**/*.tsx",
+    "packages/ajo-*/tests/**/*.ts",
+    "packages/ajo-*/tests/**/*.tsx",
+    "packages/ajo-*/stories/**/*.ts",
+    "packages/ajo-*/stories/**/*.tsx"
+  ],
+  "exclude": ["packages/demo", "packages/template", "**/dist", "**/node_modules"]
 }

@@ -1,25 +1,9 @@
-import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { defineConfig as config } from 'vitest/config'
 
-const root = fileURLToPath(new URL('.', import.meta.url))
-const kit = resolve(root, 'packages/ajo-kit/src')
-const cloves = resolve(root, 'packages/ajo-cloves/src')
-
 export default config({
-	resolve: {
-		alias: [
-			{ find: /^\/src\/(.+)$/, replacement: `${resolve(root, 'src')}/$1` },
-			{ find: 'ajo-cloves', replacement: resolve(cloves, 'index.ts') },
-			{ find: '@kit/auth/ability', replacement: resolve(root, 'packages/ajo-auth/src/ability.client.ts') },
-			{ find: '@kit/auth', replacement: resolve(root, 'packages/ajo-auth/src/index.ts') },
-			{ find: /^@kit\/(.+)$/, replacement: `${kit}/$1` },
-			{ find: '@kit', replacement: resolve(kit, 'index.ts') },
-		],
-	},
 	test: {
 		environment: 'node',
-		include: ['tests/unit/**/*.test.ts', 'packages/*/tests/**/*.test.ts'],
+		include: ['packages/ajo-*/tests/**/*.test.ts', 'packages/template/tests/**/*.test.ts'],
 		restoreMocks: true,
 	}
 })

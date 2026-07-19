@@ -1,8 +1,16 @@
 {
   "name": "ajo-cloves",
   "version": "0.1.0",
+  "description": "Reusable stateful component behaviors for Ajo",
   "type": "module",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "scripts": {
+    "build": "pnpm -w exec tsx scripts/package-build.ts ajo-cloves",
+    "prepack": "pnpm run build",
     "test": "pnpm -w exec vitest run packages/ajo-cloves/tests"
   },
   "exports": {
@@ -12,9 +20,27 @@
     }
   },
   "peerDependencies": {
-    "ajo": ">=0.1.35"
+    "ajo": "^0.1.35"
   },
   "devDependencies": {
     "ajo": "0.1.35"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "keywords": ["ajo", "ui", "state", "components", "accessibility"],
+  "author": "Cristian Falcone",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristianfalcone/ajo-kit.git",
+    "directory": "packages/ajo-cloves"
+  },
+  "bugs": {
+    "url": "https://github.com/cristianfalcone/ajo-kit/issues"
+  },
+  "homepage": "https://github.com/cristianfalcone/ajo-kit/tree/main/packages/ajo-cloves#readme",
+  "publishConfig": {
+    "access": "public"
   }
 }

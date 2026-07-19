@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env node
 import 'dotenv/config'
 import sade from 'sade'
 import type { Kysely } from 'kysely'
@@ -26,7 +26,7 @@ async function database(path: string, fn: (db: () => Kysely<any>) => Promise<voi
 
 function report(results: { status: string; migrationName: string }[] | undefined, error: unknown, empty: string, suffix = '') {
 	for (const r of results ?? []) console.log(`${r.status === 'Success' ? ok : fail} ${r.migrationName}${suffix}`)
-	if (error) { console.error(error); process.exit(1) }
+	if (error) throw error
 	if (!results?.length) console.log(empty)
 }
 
@@ -82,8 +82,8 @@ cli.command('migrate status')
 	.option('-d, --database', 'Database path', defaults.database)
 	.action(async (opts: { database: string }) => {
 		await database(opts.database, async (db) => {
-			const { migrator } = await import('../src/migrate.ts')
-			const migrations = await migrator(db()).getMigrations()
+			const { migrationStatus } = await import('../src/migrate.ts')
+			const migrations = await migrationStatus(db())
 			for (const m of migrations) console.log(`${m.executedAt ? ok : pending} ${m.name}`)
 		})
 	})
@@ -94,14 +94,13 @@ cli.command('migrate create <name>')
 
 		const { mkdirSync, writeFileSync, readdirSync } = await import('node:fs')
 		const { join } = await import('node:path')
+		const { migrationFile } = await import('../src/migrate.ts')
 
 		const dir = join(process.cwd(), defaults.migrations)
 
 		mkdirSync(dir, { recursive: true })
 
-		const files = readdirSync(dir).filter(f => f.endsWith('.ts'))
-		const next = String(files.length + 1).padStart(4, '0')
-		const file = `${next}_${name}.ts`
+		const file = migrationFile(readdirSync(dir), name)
 
 		writeFileSync(join(dir, file), `import type { Kysely } from 'ajo-kit/database'
 

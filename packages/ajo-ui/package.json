@@ -1,10 +1,19 @@
 {
   "name": "ajo-ui",
   "version": "0.1.0",
+  "description": "Unstyled accessible UI components for Ajo",
   "type": "module",
   "sideEffects": false,
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "scripts": {
-    "test": "pnpm -w exec vitest run packages/ajo-ui/tests"
+    "build": "pnpm -w exec tsx scripts/package-build.ts ajo-ui",
+    "prepack": "pnpm run build",
+    "test": "pnpm -w exec vitest run packages/ajo-ui/tests",
+    "test:bundle": "pnpm -w exec tsx packages/ajo-ui/tests/bundle.ts"
   },
   "exports": {
     ".": {
@@ -166,15 +175,32 @@
   },
   "dependencies": {
     "@floating-ui/dom": "1.8.0",
-    "@tanstack/store": "0.11.0",
     "@tanstack/table-core": "9.0.0-beta.47",
     "@tanstack/virtual-core": "3.17.4",
-    "ajo-cloves": "workspace:*"
+    "ajo-cloves": "workspace:^"
   },
   "peerDependencies": {
-    "ajo": ">=0.1.35"
+    "ajo": "^0.1.35"
   },
   "devDependencies": {
     "ajo": "0.1.35"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "keywords": ["ajo", "ui", "components", "accessibility", "headless"],
+  "author": "Cristian Falcone",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristianfalcone/ajo-kit.git",
+    "directory": "packages/ajo-ui"
+  },
+  "bugs": {
+    "url": "https://github.com/cristianfalcone/ajo-kit/issues"
+  },
+  "homepage": "https://github.com/cristianfalcone/ajo-kit/tree/main/packages/ajo-ui#readme",
+  "publishConfig": {
+    "access": "public"
   }
 }

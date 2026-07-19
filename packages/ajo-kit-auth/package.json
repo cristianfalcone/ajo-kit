@@ -1,0 +1,52 @@
+{
+  "name": "ajo-kit-auth",
+  "version": "0.1.0",
+  "description": "Authentication and authorization for ajo-kit applications",
+  "type": "module",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "kit": {
+    "alias": "auth",
+    "serverOnly": true,
+    "migrations": "./migrations/"
+  },
+  "scripts": {
+    "build": "pnpm -w exec tsx scripts/package-build.ts ajo-kit-auth",
+    "prepack": "pnpm run build",
+    "test": "pnpm -w exec vitest run packages/ajo-kit-auth/tests"
+  },
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./ability": { "types": "./src/ability.client.ts", "default": "./src/ability.client.ts" }
+  },
+  "dependencies": {
+    "argon2": "^0.44.0"
+  },
+  "devDependencies": {
+    "ajo-kit": "workspace:^"
+  },
+  "peerDependencies": {
+    "ajo-kit": "workspace:^"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "keywords": ["ajo", "authentication", "authorization", "security", "sqlite"],
+  "author": "Cristian Falcone",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristianfalcone/ajo-kit.git",
+    "directory": "packages/ajo-kit-auth"
+  },
+  "bugs": {
+    "url": "https://github.com/cristianfalcone/ajo-kit/issues"
+  },
+  "homepage": "https://github.com/cristianfalcone/ajo-kit/tree/main/packages/ajo-kit-auth#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}
