@@ -191,6 +191,12 @@ const startRegistry = async (directory: string, port: number) => {
 		'  npmjs:',
 		'    url: https://registry.npmjs.org/',
 		'packages:',
+		...packageNames.flatMap(name => [
+			`  '${name}':`,
+			'    access: $all',
+			'    publish: $all',
+			'    unpublish: $all',
+		]),
 		"  '@*/*':",
 		'    access: $all',
 		'    publish: $all',
