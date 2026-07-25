@@ -18,6 +18,7 @@ export { seal, domain, encode } from './seal'
 export type { Address, Recipient, Message, Policy, Sealed, Envelope } from './seal'
 export { Refused, Undelivered, classify } from './errors'
 export type { RefusalCode, DeliveryCode } from './errors'
+export { adapter } from './adapter'
 
 /** What a transport returns on success. */
 export interface Receipt {
