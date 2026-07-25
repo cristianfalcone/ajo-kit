@@ -1,0 +1,8 @@
+# Every file in this repository is text. Without this, a clone on a machine with
+# core.autocrlf enabled rewrites line endings on checkout, so an unrelated
+# checkout makes hundreds of files look modified and buries the real diff. That
+# happened here: a five-file change presented as sixty-eight.
+#
+# text=auto still lets Git detect a binary file if one is ever added; eol=lf
+# pins the working tree to LF on every platform.
+* text=auto eol=lf
