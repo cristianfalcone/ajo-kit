@@ -1,0 +1,52 @@
+{
+  "name": "ajo-kit-mail",
+  "version": "0.1.0",
+  "description": "Validated mail contract and pluggable transports for ajo-kit applications",
+  "type": "module",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "kit": {
+    "serverOnly": true
+  },
+  "scripts": {
+    "build": "pnpm -w exec tsx scripts/package-build.ts ajo-kit-mail",
+    "prepack": "pnpm run build",
+    "test": "pnpm -w exec vitest run packages/ajo-kit-mail/tests"
+  },
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./http": { "types": "./src/http.ts", "default": "./src/http.ts" },
+    "./smtp": { "types": "./src/smtp.ts", "default": "./src/smtp.ts" },
+    "./capture": { "types": "./src/capture.ts", "default": "./src/capture.ts" }
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^7.0.0",
+    "ajo-kit": "workspace:^",
+    "nodemailer": "^7.0.0"
+  },
+  "peerDependencies": {
+    "ajo-kit": "workspace:^",
+    "nodemailer": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "keywords": ["ajo", "email", "mail", "security"],
+  "author": "Cristian Falcone",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristianfalcone/ajo-kit.git",
+    "directory": "packages/ajo-kit-mail"
+  },
+  "bugs": {
+    "url": "https://github.com/cristianfalcone/ajo-kit/issues"
+  },
+  "homepage": "https://github.com/cristianfalcone/ajo-kit/tree/main/packages/ajo-kit-mail#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}
