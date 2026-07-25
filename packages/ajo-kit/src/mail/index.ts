@@ -1,3 +1,5 @@
+import { production } from '../constants'
+
 /** Email payload passed to the configured transport. */
 export interface Mail {
 	to: string
@@ -10,8 +12,11 @@ export interface Mail {
 export type Transport = (mail: Mail) => Promise<void>
 
 let transport: Transport = async (mail) => {
-	console.log('📧 Email:', mail.to, '-', mail.subject)
-	console.log(mail.text)
+	if (production()) {
+		throw new Error('Mail transport not configured. Call configure() from ajo-kit/mail before send().')
+	}
+
+	console.log('📧 No mail transport configured:', mail.to, '-', mail.subject)
 }
 
 /** Sets the process-wide mail transport. */

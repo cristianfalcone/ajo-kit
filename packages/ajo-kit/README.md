@@ -421,8 +421,9 @@ await send({
 })
 ```
 
-`configure()` registers a `Transport` function. The default transport writes
-mail to stdout.
+`configure()` registers a `Transport` function. Without one, `send()` throws an
+actionable error in production. In other environments the default transport
+logs only the recipient and subject, never the message body.
 
 ## Vite API
 

@@ -4,6 +4,7 @@ export const max = 50
 export const ttl = 5 * 60 * 1000
 
 type Meta = {
+	scope: string
 	cached: number
 	used: number
 }
@@ -14,9 +15,11 @@ const meta = new Map<string, Meta>()
 
 const now = () => Date.now()
 
-const remove = (url: string) => {
-	cache.delete(url)
-	meta.delete(url)
+const key = (scope: string, url: string) => JSON.stringify([scope, url])
+
+const remove = (key: string) => {
+	cache.delete(key)
+	meta.delete(key)
 }
 
 export const clear = () => {
@@ -24,14 +27,24 @@ export const clear = () => {
 	meta.clear()
 }
 
-export const get = (url: string, time = now()) => {
-	const state = cache.get(url)
-	const info = meta.get(url)
+type Options = {
+	scope?: string
+	now?: number
+}
+
+export const get = (url: string, options?: Options) => {
+	if (!options?.scope) return
+
+	const entry = key(options.scope, url)
+	const state = cache.get(entry)
+	const info = meta.get(entry)
 
 	if (!state || !info) return
 
+	const time = options.now ?? now()
+
 	if (time - info.cached > ttl) {
-		remove(url)
+		remove(entry)
 		return
 	}
 
@@ -41,19 +54,19 @@ export const get = (url: string, time = now()) => {
 }
 
 const prune = (active?: string, time = now()) => {
-	for (const [url, info] of meta) {
-		if (url !== active && time - info.cached > ttl) remove(url)
+	for (const [key, info] of meta) {
+		if (key !== active && time - info.cached > ttl) remove(key)
 	}
 
 	while (cache.size > max) {
 		let candidate: string | undefined
 		let oldest = Infinity
 
-		for (const [url, info] of meta) {
-			if (url === active) continue
+		for (const [key, info] of meta) {
+			if (key === active) continue
 			if (info.used < oldest) {
 				oldest = info.used
-				candidate = url
+				candidate = key
 			}
 		}
 
@@ -63,12 +76,22 @@ const prune = (active?: string, time = now()) => {
 	}
 }
 
-export const set = (url: string, state: State, options?: { active?: string; now?: number }) => {
-	const time = options?.now ?? now()
+export const set = (url: string, state: State, options?: Options & { active?: string }) => {
+	if (!options?.scope) return
 
-	cache.set(url, state)
-	meta.set(url, { cached: time, used: time })
-	prune(options?.active ?? url, time)
+	const time = options?.now ?? now()
+	const entry = key(options.scope, url)
+
+	cache.set(entry, state)
+	meta.set(entry, { scope: options.scope, cached: time, used: time })
+	prune(key(options.scope, options.active ?? url), time)
+}
+
+/** Removes every cached route for one scope. */
+export const drop = (scope: string) => {
+	for (const [key, info] of meta) {
+		if (info.scope === scope) remove(key)
+	}
 }
 
 export const invalidate = (topics?: string[]) => {
@@ -79,7 +102,7 @@ export const invalidate = (topics?: string[]) => {
 
 	const changed = new Set(topics)
 
-	for (const [url, state] of cache) {
-		if (!state.topics?.length || state.topics.some(topic => changed.has(topic))) remove(url)
+	for (const [key, state] of cache) {
+		if (!state.topics?.length || state.topics.some(topic => changed.has(topic))) remove(key)
 	}
 }

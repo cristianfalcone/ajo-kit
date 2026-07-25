@@ -72,7 +72,8 @@ export class Invalid extends Failure {
 	}
 }
 
-const production = () => process.env.NODE_ENV === 'production'
+/** Returns true when the process runs in production mode. */
+export const production = () => process.env.NODE_ENV === 'production'
 const mask = (status: number, message: string) =>
 	production() && status >= 500 ? 'Internal Server Error' : message
 const config = (message: string) => {
