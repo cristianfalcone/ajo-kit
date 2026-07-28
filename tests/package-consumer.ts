@@ -88,8 +88,8 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const require = createRequire(import.meta.url)
 const packageNames = ['ajo-kit', 'ajo-kit-auth', 'ajo-kit-mail', 'ajo-cloves', 'ajo-ui', 'ajo-ui-playa'] as const
 const versions = {
-	'ajo-kit': '0.1.1',
-	'ajo-kit-auth': '0.1.0',
+	'ajo-kit': '0.1.2',
+	'ajo-kit-auth': '0.1.1',
 	'ajo-kit-mail': '0.1.0',
 	'ajo-cloves': '0.1.0',
 	'ajo-ui': '0.1.0',
@@ -97,14 +97,15 @@ const versions = {
 } as const
 const migrationNames = [
 	'0001_initial',
+	'0002_passkeys',
 ] as const
 const floatingDomVersion = '1.8.0'
 const floatingNames = ['@floating-ui/dom', '@floating-ui/core', '@floating-ui/utils'] as const
 const playaDependencies = { ajo: '0.1.35', 'ajo-ui-playa': '0.1.0' }
 const validDependencies = {
 	ajo: '0.1.35',
-	'ajo-kit': '0.1.1',
-	'ajo-kit-auth': '0.1.0',
+	'ajo-kit': '0.1.2',
+	'ajo-kit-auth': '0.1.1',
 	'ajo-kit-mail': '0.1.0',
 	'ajo-ui-playa': '0.1.0',
 }
@@ -624,33 +625,45 @@ const verifyServerPackages = async (consumer: string) => {
 		assert.match(upOutput, new RegExp(`plugin/ajo-kit-auth/${migration}`))
 	}
 
+	// The probe receives how many migrations should be applied and derives the
+	// expected history prefix, plus one table per migration as schema evidence.
+	const qualified = migrationNames.map(name => `plugin/ajo-kit-auth/${name}`)
 	const migrationProbe = join(consumer, 'migration-state-probe.mjs')
 	await write(migrationProbe, [
 		"import { close, connect, db } from 'ajo-kit/database'",
 		"connect(process.argv[2])",
 		"try {",
-		"  const expected = process.argv[3]",
+		"  const applied = Number(process.argv[3])",
+		`  const wanted = ${JSON.stringify(qualified)}.slice(0, applied)`,
 		"  const names = await db().selectFrom('kysely_migration').select('name').orderBy('name').execute()",
-		"  const users = await db().selectFrom('sqlite_master').select('name').where('type', '=', 'table').where('name', '=', 'users').executeTakeFirst()",
 		"  const actual = names.map(row => row.name)",
-		"  const wanted = expected === 'up' ? ['plugin/ajo-kit-auth/0001_initial'] : []",
 		"  if (JSON.stringify(actual) !== JSON.stringify(wanted)) throw new Error('unexpected migration history: ' + JSON.stringify(actual))",
-		"  if (Boolean(users) !== (expected === 'up')) throw new Error('users table did not match migration state')",
+		"  const table = async name => Boolean(await db().selectFrom('sqlite_master').select('name').where('type', '=', 'table').where('name', '=', name).executeTakeFirst())",
+		"  if (await table('users') !== (applied >= 1)) throw new Error('users table did not match migration state')",
+		"  if (await table('credentials') !== (applied >= 2)) throw new Error('credentials table did not match migration state')",
 		"} finally { await close() }",
 		'',
 	].join('\n'))
-	await run(process.execPath, [migrationProbe, database, 'up'], { cwd: consumer })
+	await run(process.execPath, [migrationProbe, database, String(migrationNames.length)], { cwd: consumer })
 
 	const status = await pnpm(['exec', 'kit', 'migrate', 'status', '--database', database], consumer)
-	assert.match(`${status.stdout}\n${status.stderr}`, /plugin\/ajo-kit-auth\/0001_initial/)
+	for (const migration of migrationNames) {
+		assert.match(`${status.stdout}\n${status.stderr}`, new RegExp(`plugin/ajo-kit-auth/${migration}`))
+	}
 
-	const down = await pnpm(['exec', 'kit', 'migrate', 'down', '--database', database], consumer)
-	assert.match(`${down.stdout}\n${down.stderr}`, /plugin\/ajo-kit-auth\/0001_initial.*rolled back/)
-	await run(process.execPath, [migrationProbe, database, 'down'], { cwd: consumer })
+	// Rollback reverses one qualified identity per run, latest first; walk the
+	// history down to empty so both directions of 0002 get exercised.
+	for (let applied = migrationNames.length; applied > 0; applied--) {
+		const down = await pnpm(['exec', 'kit', 'migrate', 'down', '--database', database], consumer)
+		assert.match(`${down.stdout}\n${down.stderr}`, new RegExp(`plugin/ajo-kit-auth/${migrationNames[applied - 1]}.*rolled back`))
+		await run(process.execPath, [migrationProbe, database, String(applied - 1)], { cwd: consumer })
+	}
 
 	const restored = await pnpm(['exec', 'kit', 'migrate', 'up', '--database', database], consumer)
-	assert.match(`${restored.stdout}\n${restored.stderr}`, /plugin\/ajo-kit-auth\/0001_initial/)
-	await run(process.execPath, [migrationProbe, database, 'up'], { cwd: consumer })
+	for (const migration of migrationNames) {
+		assert.match(`${restored.stdout}\n${restored.stderr}`, new RegExp(`plugin/ajo-kit-auth/${migration}`))
+	}
+	await run(process.execPath, [migrationProbe, database, String(migrationNames.length)], { cwd: consumer })
 }
 
 const modulesOf = (result: unknown) => ((Array.isArray(result) ? result : [result]) as BuildOutput[])
