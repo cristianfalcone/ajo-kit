@@ -54,6 +54,32 @@ export interface Resets {
 	created: Generated<string>
 }
 
+/** credentials table shape for registered passkeys. */
+export interface Credentials {
+	id: string
+	user: number
+	handle: string
+	key: string
+	alg: number
+	counter: Generated<number>
+	transports: string | null
+	verified: string | null
+	eligible: Generated<number>
+	backed: Generated<number>
+	created: Generated<string>
+	last: string | null
+}
+
+/** challenges table shape for in-flight WebAuthn ceremonies. */
+export interface Challenges {
+	id: string
+	kind: string
+	user: number | null
+	handle: string | null
+	expiry: string
+	created: Generated<string>
+}
+
 // Schema parcial — solo las tablas de auth
 
 /** Database schema fragment owned by ajo-kit-auth. */
@@ -64,6 +90,8 @@ export interface Auth {
 	members: Members
 	tokens: Tokens
 	resets: Resets
+	credentials: Credentials
+	challenges: Challenges
 }
 
 /** Selected auth user row. */

@@ -262,6 +262,55 @@ const verifiedUser = verify.validate(signature)
 HMAC-SHA256 signed token, default expiry 24 hours. Production requires a strong
 `APP_SECRET`.
 
+### `passkey`
+
+WebAuthn, implemented here rather than depended upon: registration asks for
+`attestation: 'none'`, which is what every mainstream passkey provider emits,
+so there is no attestation statement to verify and no certificate chain to
+walk — what remains is CBOR, fixed-offset parsing, and signatures `node:crypto`
+verifies natively. Accepts ES256, EdDSA and RS256; dropping RS256 would lock
+out Windows Hello over a TPM.
+
+```ts
+import { passkey } from '@kit/auth'
+
+// Once, at startup. Never derived from a request header: the browser puts the
+// real address bar origin into client data, and deriving what it is compared
+// against from `Host` would let the caller choose.
+passkey.configure({ rpId: 'example.com', origins: ['https://example.com'] })
+
+// Registration, two requests.
+const options = await passkey.registration({ id: user.id, name: user.email })
+const id = await passkey.register(user.id, response)
+
+// Authentication, two requests. Ends where password.verify ends.
+const options = await passkey.authentication()
+const user = await passkey.authenticate(response)
+
+await passkey.list(user)
+await passkey.remove(user, id)
+await passkey.prune()
+```
+
+Challenges are rows, single-use, and expire on the redemption path — a window
+enforced only by a sweeper nobody schedules is not a window. `prune()` reclaims
+the rows; expiry does not depend on it.
+
+**The relying party id is permanent.** Credentials are bound to `rpId` for
+life and there is no migration: passkeys registered against `localhost` (an
+SSH tunnel, say) will not be offered when the same host is later served at a
+real name, and the browser will not even show them. Register the durable name
+from the start where one exists; treat tunnel credentials as disposable where
+it does not. In production use the apex (`example.com`, never
+`app.example.com`) — any subdomain can assert against the apex, not the
+reverse.
+
+The counter is recorded and not enforced: passkeys synced through iCloud or
+Google report zero from every device by design, so a regression is a note for
+whoever reads the row, never a reason to refuse. What *is* enforced: backup
+eligibility cannot change in either direction, and a credential registered
+with the person verified cannot later be used on presence alone.
+
 ## Types
 
 ```ts

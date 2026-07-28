@@ -16,6 +16,8 @@ export * as csrf from './csrf'
 export * as guard from './guard'
 /** In-memory rate limit helpers. */
 export * as limit from './limit'
+/** Passkey (WebAuthn) ceremony and credential helpers. */
+export * as passkey from './passkey'
 /** Password hashing and verification helpers. */
 export * as password from './password'
 /** Password reset token helpers. */
