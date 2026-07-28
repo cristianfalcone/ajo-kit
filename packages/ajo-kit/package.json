@@ -1,6 +1,6 @@
 {
   "name": "ajo-kit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Full-stack metaframework for Ajo applications",
   "type": "module",
   "files": [

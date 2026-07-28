@@ -87,7 +87,7 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const require = createRequire(import.meta.url)
 const packageNames = ['ajo-kit', 'ajo-kit-auth', 'ajo-cloves', 'ajo-ui', 'ajo-ui-playa'] as const
 const versions = {
-	'ajo-kit': '0.1.0',
+	'ajo-kit': '0.1.1',
 	'ajo-kit-auth': '0.1.0',
 	'ajo-cloves': '0.1.0',
 	'ajo-ui': '0.1.0',
@@ -101,7 +101,7 @@ const floatingNames = ['@floating-ui/dom', '@floating-ui/core', '@floating-ui/ut
 const playaDependencies = { ajo: '0.1.35', 'ajo-ui-playa': '0.1.0' }
 const validDependencies = {
 	ajo: '0.1.35',
-	'ajo-kit': '0.1.0',
+	'ajo-kit': '0.1.1',
 	'ajo-kit-auth': '0.1.0',
 	'ajo-ui-playa': '0.1.0',
 }
@@ -908,6 +908,96 @@ const inspectGraphs = async (consumer: string, vite: typeof import('vite')) => {
 	assert(!hasIconify(tooltipGraph), 'Tooltip graph retained Iconify tooling')
 }
 
+const kitCssProbe = async (directory: string, registry: string) => {
+	// The exact path that shipped unstyled production builds on 2026-07-28: a
+	// consumer of the PUBLISHED ajo-kit resolves /src/client to the compiled
+	// dist/client.js, and the kit plugin's css option must still reach it —
+	// `kit build` has to emit a stylesheet asset and reference it from the
+	// built index.html. The workspace never sees this path (it resolves the
+	// .tsx source), which is how the regression stayed invisible.
+	await writeJson(join(directory, 'package.json'), {
+		name: 'ajo-kit-css-consumer',
+		version: '0.0.0',
+		private: true,
+		type: 'module',
+		dependencies: validDependencies,
+		devDependencies: validDevDependencies,
+	})
+	await write(join(directory, '.npmrc'), [
+		`registry=${registry}/`,
+		'auto-install-peers=false',
+		'package-import-method=copy',
+		'strict-peer-dependencies=true',
+		'',
+	].join('\n'))
+	await write(join(directory, 'pnpm-workspace.yaml'), [
+		'allowBuilds:',
+		'  argon2: true',
+		'  better-sqlite3: true',
+		'  esbuild: true',
+		'minimumReleaseAgeExclude:',
+		...packageNames.map(name => `  - ${name}@${versions[name]}`),
+		'',
+	].join('\n'))
+	await write(join(directory, 'index.html'), [
+		'<!DOCTYPE html>',
+		'<html lang="en">',
+		'<head>',
+		'  <meta charset="UTF-8">',
+		'  <!-- ssr:head -->',
+		'</head>',
+		'<body>',
+		'  <!-- ssr:data -->',
+		'  <div id="root"><!-- ssr:root --></div>',
+		'  <script src="/src/client" type="module"></script>',
+		'</body>',
+		'</html>',
+		'',
+	].join('\n'))
+	await write(join(directory, 'uno.config.ts'), [
+		"import { defineConfig } from 'unocss'",
+		"import { playa } from 'ajo-ui-playa'",
+		'export default defineConfig({ presets: [playa()] })',
+		'',
+	].join('\n'))
+	await write(join(directory, 'vite.config.ts'), [
+		"import { defineConfig } from 'vite'",
+		"import { kit } from 'ajo-kit/vite'",
+		"import unocss from 'unocss/vite'",
+		'export default defineConfig({',
+		"  plugins: [...kit({ css: ['virtual:uno.css'] }), unocss()],",
+		'})',
+		'',
+	].join('\n'))
+	await writeJson(join(directory, 'tsconfig.json'), {
+		compilerOptions: {
+			jsx: 'react-jsx',
+			jsxImportSource: 'ajo',
+			module: 'ESNext',
+			moduleResolution: 'Bundler',
+			noEmit: true,
+			skipLibCheck: true,
+			strict: true,
+			target: 'ESNext',
+		},
+		include: ['src'],
+	})
+	await write(join(directory, 'src/page.tsx'), [
+		'export default () => <main class="p-4">kit css probe</main>',
+		'',
+	].join('\n'))
+	await pnpm(['install', '--no-frozen-lockfile'], directory)
+	await pnpm(['exec', 'kit', 'build'], directory)
+
+	const cssFiles = await filesWithExtension(join(directory, 'dist/client'), '.css')
+	assert(cssFiles.length > 0, 'kit build emitted no stylesheet from the css option')
+	const html = await readFile(join(directory, 'dist/client/index.html'), 'utf8')
+	assert.match(html, /<link rel="stylesheet"[^>]*\/assets\/[^"]*\.css/,
+		'built index.html does not reference the stylesheet')
+	const css = (await Promise.all(cssFiles.map(path => readFile(path, 'utf8')))).join('\n')
+	assert.match(css, /:root\{--radius:0?\.75rem/, 'Playa preflight was absent from the kit build')
+}
+
 const hmrProbe = async (directory: string, registry: string) => {
 	const workspaceSource = join(root, 'packages/ajo-ui-playa')
 	const playaSource = join(directory, 'vendor/ajo-ui-playa')
@@ -1068,6 +1158,8 @@ const main = async () => {
 		const vite = await buildConsumer(consumer)
 		await inspectGraphs(consumer, vite)
 		console.log('package consumer: dependency, client, SSR, CSS, and module graphs passed')
+		await kitCssProbe(join(temporary, 'kit-css-consumer'), registry.url)
+		console.log('package consumer: kit build stylesheet contract passed')
 		await hmrProbe(join(temporary, 'hmr-consumer'), registry.url)
 		console.log('playa consumer: workspace-linked HMR passed')
 	} catch (error) {

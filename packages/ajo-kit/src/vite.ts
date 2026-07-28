@@ -133,7 +133,13 @@ export function kit(options?: Options): Plugin[] {
 				}
 			},
 			transform(code, id) {
-				if (css.length && id.includes('ajo-kit') && id.endsWith('client.tsx')) {
+				// Both faces of the client entry: `src/client.tsx` is what the
+				// workspace resolves, `dist/client.js` is what the published
+				// package exports. Matching only the source file shipped every
+				// real consumer an unstyled production build — found live on
+				// 2026-07-28: `virtual:uno.css` was never imported, so no
+				// stylesheet asset existed at all.
+				if (css.length && id.includes('ajo-kit') && /client\.(tsx|js)$/.test(id)) {
 					return css.map(c => `import '${c}'`).join('\n') + '\n' + code
 				}
 			},
