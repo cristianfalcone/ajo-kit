@@ -43,7 +43,11 @@ for (const name of selected) {
 		if (!entry.types.startsWith('./src/')) {
 			throw new Error(`${name} export ${subpath} has no source types entry`)
 		}
-		return [subpath === '.' ? 'index' : subpath.slice(2), resolve(directory, entry.types)]
+		// A *.client.* source keeps its marker in the compiled name: the marker
+		// is what exempts client-safe modules from the server-only guard, and
+		// the published dist face must satisfy the same contract as src.
+		const base = subpath === '.' ? 'index' : subpath.slice(2)
+		return [/\.client\.[jt]sx?$/.test(entry.types) ? `${base}.client` : base, resolve(directory, entry.types)]
 	}))
 	if (name === 'ajo-kit') entries['bin/kit'] = resolve(directory, 'bin/kit.ts')
 	if (manifest.kit?.migrations) {

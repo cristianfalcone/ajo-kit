@@ -12,7 +12,11 @@ module.exports = {
 			if (!packages.has(manifest.name)) return manifest
 
 			manifest.exports = Object.fromEntries(Object.entries(manifest.exports).map(([subpath, entry]) => {
-				const runtime = subpath === '.' ? './dist/index.js' : `./dist/${subpath.slice(2)}.js`
+				// Client-safe *.client.* sources keep their marker in the compiled
+				// name so the server-only guard exempts the published face too.
+				const base = subpath === '.' ? 'index' : subpath.slice(2)
+				const marked = /\.client\.[jt]sx?$/.test(entry.types || '') ? `${base}.client` : base
+				const runtime = `./dist/${marked}.js`
 				return [subpath, { ...entry, import: runtime, default: runtime }]
 			}))
 			if (manifest.name === 'ajo-kit') manifest.bin = { kit: './dist/bin/kit.js' }

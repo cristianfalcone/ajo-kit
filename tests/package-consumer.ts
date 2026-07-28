@@ -982,8 +982,13 @@ const kitCssProbe = async (directory: string, registry: string) => {
 		},
 		include: ['src'],
 	})
+	// The ability import rides the same probe: it is the documented client-safe
+	// auth subpath, and only a consumer of the PUBLISHED package exercises the
+	// compiled face (dist/ability.client.js) against the server-only guard —
+	// the workspace resolves the .client.ts source, which is always exempt.
 	await write(join(directory, 'src/page.tsx'), [
-		'export default () => <main class="p-4">kit css probe</main>',
+		"import { can } from 'ajo-kit-auth/ability'",
+		'export default () => <main class="p-4">{can([\'posts:*\'], \'posts:read\') ? \'kit css probe\' : \'denied\'}</main>',
 		'',
 	].join('\n'))
 	await pnpm(['install', '--no-frozen-lockfile'], directory)
