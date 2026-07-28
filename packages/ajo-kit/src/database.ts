@@ -2,13 +2,20 @@ import { createRequire } from 'node:module'
 import { Kysely, SqliteDialect } from 'kysely'
 import type * as BetterSqlite3 from 'better-sqlite3'
 
-const require = createRequire(import.meta.resolve('ajo-kit'))
+// Anchored on this module's own location, not on resolving the package by
+// name. A built App bundles the kit and does not install it — the shape the
+// kit's own runtime closure encourages — and there `import.meta.resolve`
+// throws ERR_MODULE_NOT_FOUND before anything else can run, so the server
+// dies on its first line while every test stays green. Resolving from here
+// walks up to whichever node_modules actually holds the driver, which is
+// correct in the workspace and in a container alike.
+const require = createRequire(import.meta.url)
 
 /** Kysely SQL template helper. */
 export { sql } from 'kysely'
 /** Kysely database and row helper types. */
 export type { Kysely, Generated, Selectable, Insertable } from 'kysely'
-/** better-sqlite3 constructor resolved from ajo-kit's own installation. */
+/** better-sqlite3 constructor resolved from wherever the driver is installed. */
 export const Database = require('better-sqlite3') as typeof import('better-sqlite3')
 /** better-sqlite3 database handle type. */
 export type Database = BetterSqlite3.Database
