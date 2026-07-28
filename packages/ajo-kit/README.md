@@ -249,6 +249,24 @@ export const actions = {
 
 The runtime maintains an SSE stream, revalidates affected routes, and replaces the active route payload when tracked topics change.
 
+## Route cache and its scope
+
+The client keeps a small in-memory cache of route payloads (50 entries, 5
+minute TTL) and revalidates with `X-Have`, so an unchanged route costs a 304
+instead of a payload. Login and logout are SPA navigations — no reload clears
+that cache — so every entry is partitioned by a **scope**: an opaque label the
+server derives per request from whichever credential your auth middleware
+attached (`req.token`, `req.session`, `req.user`, else `anon`), hashed with its
+keyspace so ids from different tables cannot collide. Set `req.scope` in a
+middleware to decide the partition yourself.
+
+The scope travels in the SSR document, in route JSON, and in live messages.
+The client caches only under the scope the payload was computed for, drops the
+previous partition when the identity changes, and presents the scope alongside
+its freshness material — the server's fast 304 confirms a hash only for the
+identity that cached it. Without a scope nothing is cached at all: guessing
+wrong would mean showing one person another person's data, so it fails closed.
+
 ## Database and Migrations
 
 `ajo-kit/database` exports:

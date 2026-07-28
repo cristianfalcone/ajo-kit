@@ -152,6 +152,8 @@ export interface State {
 	hash?: string
 	topics?: string[]
 	versions?: Record<string, number>
+	/** Server-declared cache scope: the partition the client caches this under. */
+	scope?: string
 }
 
 /** State and commands returned by the client action() helper. */
@@ -291,6 +293,8 @@ declare module 'polka' {
 		user?: User
 		session?: { id: string }
 		token?: { id: string; abilities: string[] }
+		/** Cache scope override set by auth middleware; the kit derives one otherwise. */
+		scope?: string
 		topics?: Set<string>
 		track?: (topic: string | string[]) => void
 		verifyLive?: () => Promise<boolean>

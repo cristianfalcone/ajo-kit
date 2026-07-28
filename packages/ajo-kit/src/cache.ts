@@ -87,6 +87,12 @@ export const set = (url: string, state: State, options?: Options & { active?: st
 	prune(key(options.scope, options.active ?? url), time)
 }
 
+/** Removes one cached route from one scope. */
+export const evict = (url: string, options?: Options) => {
+	if (!options?.scope) return
+	remove(key(options.scope, url))
+}
+
 /** Removes every cached route for one scope. */
 export const drop = (scope: string) => {
 	for (const [key, info] of meta) {

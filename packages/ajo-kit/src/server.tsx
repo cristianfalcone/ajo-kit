@@ -1,6 +1,7 @@
 import * as html from 'ajo/html'
 import type { Component } from 'ajo'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { createHash } from 'node:crypto'
 import polka from 'polka'
 import type { Request, Response, Middleware } from 'polka'
 import { json } from '@polka/parse'
@@ -26,6 +27,27 @@ const digest = (head: Head, entries: Data) => hash(JSON.stringify(payload(head, 
 const metadata = (topics: Set<string>) => {
 	const list = [...topics].sort()
 	return { topics: list, versions: snapshot(list) }
+}
+
+// The cache scope: an opaque partition label the client keys its route cache
+// by, so one identity's cached payloads are unreachable under another's. It is
+// derived from whichever credential the auth middleware attached — the same
+// fields mode() reads — and hashed, because a session id is a database lookup
+// key and has no business inside a payload. An auth layer wanting different
+// semantics sets req.scope; every anonymous request shares 'anon'. The label
+// is not a secret: it only partitions a per-tab in-memory cache, and knowing
+// it grants nothing.
+const scope = (req: Request): string => {
+	if (req.scope) return req.scope
+	// Domain-separated: token, session and user ids are independent keyspaces,
+	// and an auth layer numbering all three from one would otherwise hand token
+	// 42 and user 42 the same partition.
+	const id = req.token ? `token:${req.token.id}`
+		: req.session ? `session:${req.session.id}`
+			: req.user ? `user:${req.user.id}`
+				: undefined
+	if (id === undefined) return 'anon'
+	return createHash('sha256').update(id).digest('hex').slice(0, 16)
 }
 
 const size = (body: string) => Buffer.byteLength(body)
@@ -62,11 +84,12 @@ const write = (req: Request, res: Response, hash?: string, early = false) => {
 type Connection = {
 	req: Request
 	auth: 'anonymous' | 'bearer' | 'session' | 'user'
+	scope: string
 	topics: Set<string>
 	hash: string
 	verify?: () => Promise<boolean>
 	revalidate: () => Promise<Payload>
-	send: (message: { data: Payload; hash: string; topics: string[]; versions: Versions }) => void
+	send: (message: { data: Payload; hash: string; topics: string[]; versions: Versions; scope: string }) => void
 	close: () => void
 }
 
@@ -192,6 +215,17 @@ const revalidate = async (conn: Connection) => {
 			return
 		}
 
+		// Verification only asks whether the stack still passes, and an
+		// attach-if-present ware passes with a revoked session still hanging
+		// off the connection's request. Comparing the scope asks the sharper
+		// question — is this still the same identity? — and a changed answer
+		// ends the connection instead of pushing one identity's payload down a
+		// channel another identity now owns.
+		if (scope(conn.req) !== conn.scope) {
+			close(conn, 'identity changed')
+			return
+		}
+
 		conn.req.topics = new Set<string>()
 		const data = await conn.revalidate()
 		conn.topics = conn.req.topics ?? new Set<string>()
@@ -204,7 +238,10 @@ const revalidate = async (conn: Connection) => {
 		conn.send({
 			data: data,
 			hash,
-			...metadata(conn.topics)
+			...metadata(conn.topics),
+			// Connect-time scope, and the check above guarantees the identity
+			// behind it has not moved since.
+			scope: conn.scope,
 		})
 
 	} catch (err) {
@@ -294,7 +331,14 @@ export async function create(template: Template) {
 		const paths = parents(page.segments)
 		const key = page.segments.join('/')
 
-		if (ajax(req) && fresh(parse(req.headers['x-ajo-versions']))) {
+		// The fresh shortcut answers 304 without running a single loader, so it
+		// must prove the asker is who cached the material it confirms: version
+		// counters are process-global, and confirming them for a client whose
+		// cache belongs to another identity would bless that identity's payload.
+		// The client presents the scope its entry was cached under; anything
+		// else — a missing header included — takes the loader path and gets an
+		// answer computed with its own credentials.
+		if (ajax(req) && req.headers['x-ajo-scope'] === scope(req) && fresh(parse(req.headers['x-ajo-versions']))) {
 			if (req.timing) req.timing.loader = 0
 			write(req, res, req.headers['x-have']?.toString(), true)
 			return
@@ -374,6 +418,7 @@ export async function create(template: Template) {
 		const conn: Connection = {
 			req,
 			auth: mode(req),
+			scope: scope(req),
 			topics: req.topics ?? new Set<string>(),
 			hash,
 			verify: req.verifyLive,
@@ -436,7 +481,7 @@ export async function create(template: Template) {
 
 			res.setHeader('X-Ajo-Cache', 'miss')
 
-			const response = JSON.stringify({ ...body, hash, ...meta })
+			const response = JSON.stringify({ ...body, hash, ...meta, scope: scope(req) })
 
 			if (req.timing) req.timing.render = elapsed(begun)
 			done(req, res, 200, size(response), 'miss')
@@ -457,6 +502,7 @@ export async function create(template: Template) {
 			head,
 			hash,
 			...meta,
+			scope: scope(req),
 		}
 		const body = template({
 			head: view(head as Head),

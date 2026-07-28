@@ -12,7 +12,7 @@ import type {
 	Payload,
 } from './constants'
 import { apply, type Head } from './head'
-import { get, set } from './cache'
+import { drop, evict, get, set } from './cache'
 import { routes } from 'virtual:ajo/routes'
 
 // Pattern compilation
@@ -30,8 +30,36 @@ export const parts = (path: string) => path.slice(4).split('/').slice(0, -1)
 
 let initial: State | undefined
 
+// The scope the server declared for this client's identity. Every cache read
+// and write is keyed under it — the cache module fails closed without one —
+// so entries cached as one identity are unreachable as another inside the
+// same tab. Login and logout are SPA redirects here, never full reloads: this
+// variable and adopt() are what stand between two identities sharing one
+// module-level cache Map.
+let scope: string | undefined
+
+// Which identity the client is on, counted rather than named. A response
+// carries the era its request was issued under, and only a response issued
+// after the last change may declare the next one: identity moves forward, so
+// a reply computed under the previous identity — an abandoned navigation, a
+// refresh dispatched before the cookie changed — cannot roll the scope back,
+// drop the partition that replaced it, and re-cache what the client has
+// already stopped being.
+let era = 0
+
+export const current = () => era
+
+/** Adopts a scope declared by a response issued in era `since`. */
+const adopt = (next: string | undefined, since = era) => {
+	if (!next || next === scope || since !== era) return
+	if (scope) drop(scope)
+	scope = next
+	era++
+}
+
 export function init(state: State | null) {
 	initial = state ?? undefined
+	adopt(initial?.scope)
 }
 
 export const error: () => Page = () => ({
@@ -61,8 +89,8 @@ for (const [path, loader] of Object.entries(routes as Record<string, Loader>)) {
 
 if (import.meta.env.DEV && !import.meta.env.SSR) {
 
-	const scope = globalThis as { __MODULES__?: Map<string, Module> }
-	const modules = scope.__MODULES__ ??= new Map()
+	const shared = globalThis as { __MODULES__?: Map<string, Module> }
+	const modules = shared.__MODULES__ ??= new Map()
 
 	const hmr = (loader: Loader, file: string): Loader => async () => {
 
@@ -128,22 +156,30 @@ type Load = {
 	hash?: string
 	topics?: string[]
 	versions?: Record<string, number>
+	scope?: string
+	/** The era this request was issued under; a later era ignores its scope. */
+	since: number
 	redirect?: string
 	error?: Failure
 }
 
 async function load(url: string): Promise<Load> {
 
-	const cached = get(url)
+	const since = era
+	const cached = get(url, { scope })
 	const versions = cached?.versions ? JSON.stringify(cached.versions) : undefined
 
+	// The scope travels with the freshness material: the server's fresh
+	// shortcut only confirms a hash for the identity that cached it, so a
+	// stale scope makes these headers inert instead of dangerous.
 	const response = await fetch(url, {
 		credentials: 'include',
 		cache: 'no-store',
 		headers: {
 			Accept: 'application/json',
 			...(cached?.hash && { 'X-Have': cached.hash }),
-			...(versions && { 'X-Ajo-Versions': versions })
+			...(versions && { 'X-Ajo-Versions': versions }),
+			...(cached?.hash && scope && { 'X-Ajo-Scope': scope })
 		}
 	})
 
@@ -153,17 +189,20 @@ async function load(url: string): Promise<Load> {
 			head: cached.head,
 			hash: cached.hash,
 			topics: cached.topics,
-			versions: cached.versions
+			versions: cached.versions,
+			scope: cached.scope ?? scope,
+			since
 		}
 	}
 
 	const json = await response.json().catch(() => null) as
-		| { data?: Data; head?: Head; hash?: string; topics?: string[]; versions?: Record<string, number>; redirect?: string; error?: { status?: number; message?: string } }
+		| { data?: Data; head?: Head; hash?: string; topics?: string[]; versions?: Record<string, number>; scope?: string; redirect?: string; error?: { status?: number; message?: string } }
 		| null
 
 	if (!json || !response.ok) {
 		return {
 			data: [],
+			since,
 			error: new Failure(
 				json?.error?.status ?? response.status,
 				json?.error?.message ?? 'Load failed'
@@ -171,14 +210,16 @@ async function load(url: string): Promise<Load> {
 		}
 	}
 
-	if (json.redirect) return { data: [], redirect: json.redirect }
+	if (json.redirect) return { data: [], since, redirect: json.redirect }
 
 	return {
 		data: json.data ?? [],
 		head: json.head,
 		hash: json.hash,
 		topics: json.topics,
-		versions: json.versions
+		versions: json.versions,
+		scope: json.scope,
+		since
 	}
 }
 
@@ -212,7 +253,7 @@ export async function* resolve(
 	if (cached) {
 
 		initial = undefined
-		if (cached.hash) set(url, cached)
+		if (cached.hash) set(url, cached, { scope })
 
 		yield {
 			page: compose(target, tree, paths, cached),
@@ -225,9 +266,9 @@ export async function* resolve(
 	yield { page: compose(target, tree, paths, { url, params, data: [], loading: true }) }
 
 	const server: Load = data
-		? { data }
+		? { data, since: era }
 		: import.meta.env.SSR
-			? { data: [] }
+			? { data: [], since: era }
 			: await load(url)
 
 	if (server.redirect) {
@@ -241,6 +282,14 @@ export async function* resolve(
 		return
 	}
 
+	// Adopt before writing: a response carrying a new scope means the identity
+	// changed since the last paint, and the write must land in the new
+	// partition — never beside the previous identity's entries. The era guard
+	// makes a reply from an abandoned navigation inert: this generator runs to
+	// completion after go() has stopped reading it, so nothing else here can
+	// stop a late response from cementing a dead identity.
+	adopt(server.scope, server.since)
+
 	const state: State = {
 		url,
 		params,
@@ -250,9 +299,14 @@ export async function* resolve(
 		hash: server.hash,
 		topics: server.topics,
 		versions: server.versions,
+		scope: server.scope,
 	}
 
-	if (state.hash) set(url, state)
+	// Only material computed for the partition the client is on may enter it.
+	// When the era guard above refused a late response, its scope no longer
+	// matches and the payload is rendered but not cached — one identity's
+	// answer never lands in another's partition.
+	if (state.hash && state.scope === scope) set(url, state, { scope })
 
 	yield {
 		page: compose(target, tree, paths, state),
@@ -265,6 +319,7 @@ type Message = {
 	hash?: string
 	topics?: string[]
 	versions?: Record<string, number>
+	scope?: string
 }
 
 type Status = 'closed' | 'connecting' | 'open'
@@ -328,6 +383,16 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		if (!active || !message.data) return
 
+		// A live connection holds the credentials it was opened with, so a
+		// message declaring another scope was computed for an identity this
+		// client has left — it is never adopted and never rendered. Dropping
+		// the connection makes the next one carry current cookies.
+		if (message.scope && scope && message.scope !== scope) {
+			sse.close()
+			sse.connect(active.url)
+			return
+		}
+
 		live++
 
 		const [head, ...entries] = message.data
@@ -336,10 +401,12 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		active.hash = message.hash ?? active.hash
 		active.topics = message.topics ?? active.topics
 		active.versions = message.versions ?? active.versions
+		active.scope = message.scope ?? active.scope
 
 		if (head) apply(active.head = head)
 
-		if (active.hash) set(active.url, active)
+		adopt(message.scope)
+		if (active.hash && active.scope === scope) set(active.url, active, { scope })
 
 		this.next()
 	}, status => phase = status)
@@ -409,9 +476,15 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		}
 
 		if (server.error) {
+			// The cache holds this very object, so emptying it in place would
+			// leave an entry whose hash promises a payload it no longer has —
+			// and a later 304 confirming that hash would paint the emptiness as
+			// success. Evict first, then report the error.
+			evict(state.url, { scope })
 			state.data = []
 			state.error = server.error
 			state.loading = false
+			state.hash = undefined
 		} else {
 			state.data = server.data
 			state.error = undefined
@@ -419,9 +492,11 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 			state.hash = server.hash
 			state.topics = server.topics
 			state.versions = server.versions
+			state.scope = server.scope
 
 			if (server.head) apply(server.head)
-			if (state.hash) set(state.url, state)
+			adopt(server.scope, server.since)
+			if (state.hash && state.scope === scope) set(state.url, state, { scope })
 		}
 
 		this.next()
