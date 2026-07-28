@@ -383,13 +383,23 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		if (!active || !message.data) return
 
-		// A live connection holds the credentials it was opened with, so a
-		// message declaring another scope was computed for an identity this
-		// client has left — it is never adopted and never rendered. Dropping
-		// the connection makes the next one carry current cookies.
+		// A message declaring another scope was computed for an identity this
+		// client is not on — it is never adopted and never rendered. The
+		// disagreement reads both ways, though: a stale connection racing its
+		// own close, or a client whose identity changed under it (expiry,
+		// logout in another tab) hearing from an already-current connection —
+		// and there reconnecting alone can never converge, because the stale
+		// side is this module's scope, not the socket. Either way: drop the
+		// connection and re-run the loaders. The response carries the current
+		// scope with its era, adopt() orders the adoption, and the reconnect
+		// waits for the settled identity — unless a navigation won meanwhile
+		// and owns the connection.
 		if (message.scope && scope && message.scope !== scope) {
+			const gen = generation
 			sse.close()
-			sse.connect(active.url)
+			void refresh().then(() => {
+				if (gen === generation && active) sse.connect(active.url)
+			})
 			return
 		}
 
