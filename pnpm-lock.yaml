@@ -7,7 +7,7 @@ settings:
 overrides:
   '@tanstack/store': 0.11.0
 
-pnpmfileChecksum: sha256-DjZSwGe2OKTuQ41W5NjxDD4e1b9YNCoyLvuddb3ClUg=
+pnpmfileChecksum: sha256-uMNkvVgj5DvPvmjd+yvmtU9kNFu+5Ou1mtouBAw6rhA=
 
 importers:
 

@@ -13,6 +13,7 @@ component library.
 |---|---|
 | [`ajo-kit`](packages/ajo-kit/README.md) | File routes, SSR, loaders, actions, API handlers, middleware, SQLite migrations, and live SSE updates |
 | [`ajo-kit-auth`](packages/ajo-kit-auth/README.md) | Authentication, authorization, sessions, API tokens, CSRF, guards, password reset, and verification for `ajo-kit` apps |
+| [`ajo-kit-mail`](packages/ajo-kit-mail/README.md) | Validated mail contract with SMTP, HTTP provider, and capture transports for `ajo-kit` apps |
 | [`ajo-cloves`](packages/ajo-cloves/README.md) | Reusable stateful behaviors and lifecycle utilities for Ajo components |
 | [`ajo-ui`](packages/ajo-ui/README.md) | Unstyled accessible component families for Ajo |
 | [`ajo-ui-playa`](packages/ajo-ui-playa/README.md) | Themed Ajo components and an UnoCSS preset |
@@ -28,10 +29,11 @@ pnpm add ajo ajo-kit
 pnpm add -D vite typescript @types/node
 ```
 
-Add authentication when needed:
+Add authentication and outbound mail when needed:
 
 ```bash
 pnpm add ajo-kit-auth
+pnpm add ajo-kit-mail
 ```
 
 See the [`ajo-kit` guide](packages/ajo-kit/README.md) for the application setup,

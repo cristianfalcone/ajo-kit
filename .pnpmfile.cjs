@@ -1,6 +1,7 @@
 const packages = new Set([
 	'ajo-kit',
 	'ajo-kit-auth',
+	'ajo-kit-mail',
 	'ajo-cloves',
 	'ajo-ui',
 	'ajo-ui-playa',

@@ -46,6 +46,7 @@ type PublishedManifest = {
 	kit?: { migrations?: string }
 	name: string
 	peerDependencies?: Record<string, string>
+	peerDependenciesMeta?: Record<string, { optional?: boolean }>
 	version: string
 }
 
@@ -85,10 +86,11 @@ class CommandFailure extends Error {
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const require = createRequire(import.meta.url)
-const packageNames = ['ajo-kit', 'ajo-kit-auth', 'ajo-cloves', 'ajo-ui', 'ajo-ui-playa'] as const
+const packageNames = ['ajo-kit', 'ajo-kit-auth', 'ajo-kit-mail', 'ajo-cloves', 'ajo-ui', 'ajo-ui-playa'] as const
 const versions = {
 	'ajo-kit': '0.1.1',
 	'ajo-kit-auth': '0.1.0',
+	'ajo-kit-mail': '0.1.0',
 	'ajo-cloves': '0.1.0',
 	'ajo-ui': '0.1.0',
 	'ajo-ui-playa': '0.1.0',
@@ -103,6 +105,7 @@ const validDependencies = {
 	ajo: '0.1.35',
 	'ajo-kit': '0.1.1',
 	'ajo-kit-auth': '0.1.0',
+	'ajo-kit-mail': '0.1.0',
 	'ajo-ui-playa': '0.1.0',
 }
 const validDevDependencies = { typescript: '6.0.3', unocss: '66.7.2', vite: '8.0.16' }
@@ -584,6 +587,9 @@ const verifyServerPackages = async (consumer: string) => {
 		"import { close, connect } from 'ajo-kit/database'",
 		"import { password } from 'ajo-kit-auth'",
 		"import { can } from 'ajo-kit-auth/ability'",
+		"import { configure, send } from 'ajo-kit-mail'",
+		"import { capture } from 'ajo-kit-mail/capture'",
+		"import { http } from 'ajo-kit-mail/http'",
 		"import Checkbox from 'ajo-ui-playa/checkbox'",
 		"if (!date('2026-01-01T00:00:00.000Z')) throw new Error('ajo-kit root export failed')",
 		"if (!can(['posts:*'], 'posts:read')) throw new Error('ajo-kit-auth ability export failed')",
@@ -592,6 +598,14 @@ const verifyServerPackages = async (consumer: string) => {
 		"await close()",
 		"const hash = await password.hash('published-package-probe')",
 		"if (!await password.verify('published-package-probe', hash)) throw new Error('argon2 probe failed')",
+		// nodemailer is absent from this consumer on purpose: root, capture and
+		// http must work without the optional smtp peer, end to end.
+		"const mailbox = capture()",
+		"configure({ transport: mailbox, from: 'noreply@example.com' })",
+		"const id = await send({ to: 'owner@example.com', subject: 'probe', text: 'claim https://example.com/invite/x' })",
+		"if (mailbox.last()?.id !== id) throw new Error('ajo-kit-mail capture probe failed')",
+		"if (!mailbox.link()?.startsWith('https://example.com/')) throw new Error('ajo-kit-mail link probe failed')",
+		"if (typeof http !== 'function') throw new Error('ajo-kit-mail http export failed')",
 		"console.log('package probe passed')",
 		'',
 	].join('\n'))
@@ -1148,6 +1162,11 @@ const main = async () => {
 			console.log(`package consumer: published ${name}@${versions[name]}`)
 		}
 		assert.equal(published.get('ajo-kit-auth')?.manifest.peerDependencies?.['ajo-kit'], `^${versions['ajo-kit']}`)
+		assert.equal(published.get('ajo-kit-mail')?.manifest.peerDependencies?.['ajo-kit'], `^${versions['ajo-kit']}`)
+		// nodemailer is smtp-only: the published manifest must keep it optional,
+		// or every http/capture consumer under strict peers is forced to install it.
+		assert.equal(published.get('ajo-kit-mail')?.manifest.peerDependencies?.nodemailer, '^7.0.0')
+		assert.equal(published.get('ajo-kit-mail')?.manifest.peerDependenciesMeta?.nodemailer?.optional, true)
 		assert.equal(published.get('ajo-ui')?.manifest.dependencies?.['ajo-cloves'], `^${versions['ajo-cloves']}`)
 		assert.equal(published.get('ajo-ui')?.manifest.dependencies?.['@floating-ui/dom'], floatingDomVersion)
 		assert.equal(published.get('ajo-ui-playa')?.manifest.dependencies?.['ajo-ui'], `^${versions['ajo-ui']}`)

@@ -17,6 +17,7 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const packages = [
 	'ajo-kit',
 	'ajo-kit-auth',
+	'ajo-kit-mail',
 	'ajo-cloves',
 	'ajo-ui',
 	'ajo-ui-playa',

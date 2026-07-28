@@ -31,6 +31,11 @@
     "ajo-kit": "workspace:^",
     "nodemailer": "^7.0.0"
   },
+  "peerDependenciesMeta": {
+    "nodemailer": {
+      "optional": true
+    }
+  },
   "engines": {
     "node": ">=22.18.0"
   },
