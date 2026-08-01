@@ -18,8 +18,10 @@ module.exports = {
 				const base = subpath === '.' ? 'index' : subpath.slice(2)
 				const marked = /\.client\.[jt]sx?$/.test(entry.types || '') ? `${base}.client` : base
 				const runtime = `./dist/${marked}.js`
-				return [subpath, { ...entry, import: runtime, default: runtime }]
+				const types = entry.types.replace(/^\.\/src\//, './dist/').replace(/\.[jt]sx?$/, '.d.ts')
+				return [subpath, { ...entry, types, import: runtime, default: runtime }]
 			}))
+			manifest.types = manifest.exports['.'].types
 			if (manifest.name === 'ajo-kit') manifest.bin = { kit: './dist/bin/kit.js' }
 			if (manifest.kit?.migrations) {
 				manifest.kit = { ...manifest.kit, migrations: './dist/migrations/' }

@@ -1,6 +1,7 @@
 import { access, readFile, readdir } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 import { build } from 'vite'
 
 type Export = {
@@ -14,6 +15,15 @@ type Manifest = {
 }
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
+const config = ts.readConfigFile(resolve(root, 'tsconfig.json'), ts.sys.readFile)
+if (config.error) {
+	throw new Error(ts.formatDiagnostics([config.error], {
+		getCanonicalFileName: file => file,
+		getCurrentDirectory: () => root,
+		getNewLine: () => '\n',
+	}))
+}
+const compiler = ts.parseJsonConfigFileContent(config.config, ts.sys, root).options
 const packages = [
 	'ajo-kit',
 	'ajo-kit-auth',
@@ -33,6 +43,50 @@ const external = (id: string) =>
 	id.startsWith('virtual:') ||
 	(!id.startsWith('.') && !id.startsWith('\0') && !isAbsolute(id))
 
+const declaration = (source: string) =>
+	source.replace(/^\.\/src\//, '').replace(/\.[jt]sx?$/, '.d.ts')
+
+const relativeModule = /((?:from|import)\s*(?:\(\s*)?)(['"])(\.\.?\/[^'"]+)\2/g
+const runtimeModule = (source: string) => {
+	if (/\.mts$/.test(source)) return source.replace(/\.mts$/, '.mjs')
+	if (/\.cts$/.test(source)) return source.replace(/\.cts$/, '.cjs')
+	if (/\.tsx?$/.test(source)) return source.replace(/\.tsx?$/, '.js')
+	if (/\.(?:[cm]?js|json|node|css)$/.test(source)) return source
+	return source + '.js'
+}
+
+const declarations = (name: string, directory: string, sources: string[]) => {
+	const program = ts.createProgram({
+		rootNames: sources,
+		options: {
+			...compiler,
+			declaration: true,
+			emitDeclarationOnly: true,
+			noEmit: false,
+			outDir: resolve(directory, 'dist'),
+			rootDir: resolve(directory, 'src'),
+		},
+	})
+	const emitted = program.emit(undefined, (file, contents, byteOrderMark) => {
+		const output = file.endsWith('.d.ts')
+			? contents.replace(relativeModule, (_match, prefix: string, quote: string, source: string) =>
+				prefix + quote + runtimeModule(source) + quote)
+			: contents
+		ts.sys.writeFile(file, output, byteOrderMark)
+	})
+	const diagnostics = [
+		...ts.getPreEmitDiagnostics(program),
+		...emitted.diagnostics,
+	].filter(diagnostic => diagnostic.category === ts.DiagnosticCategory.Error)
+	if (!diagnostics.length) return
+
+	throw new Error(name + ' declaration build failed\n' + ts.formatDiagnosticsWithColorAndContext(diagnostics, {
+		getCanonicalFileName: file => file,
+		getCurrentDirectory: () => root,
+		getNewLine: () => '\n',
+	}))
+}
+
 for (const name of selected) {
 	if (!packages.includes(name as Package)) throw new Error(`Unknown public package: ${name}`)
 
@@ -40,7 +94,8 @@ for (const name of selected) {
 	const manifest = JSON.parse(await readFile(resolve(directory, 'package.json'), 'utf8')) as Manifest
 	if (manifest.name !== name) throw new Error(`Package path/name mismatch: ${name} / ${manifest.name}`)
 
-	const entries = Object.fromEntries(Object.entries(manifest.exports).map(([subpath, entry]) => {
+	const exports = Object.entries(manifest.exports)
+	const entries = Object.fromEntries(exports.map(([subpath, entry]) => {
 		if (!entry.types.startsWith('./src/')) {
 			throw new Error(`${name} export ${subpath} has no source types entry`)
 		}
@@ -86,6 +141,9 @@ for (const name of selected) {
 			target: 'esnext',
 		},
 	})
+	declarations(name, directory, exports.map(([, entry]) => resolve(directory, entry.types)))
+	await Promise.all(exports.map(([, entry]) =>
+		access(resolve(directory, 'dist', declaration(entry.types)))))
 
 	await Promise.all(Object.keys(entries).map(entry =>
 		access(resolve(directory, 'dist', `${entry}.js`))))

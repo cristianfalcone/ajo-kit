@@ -4,10 +4,7 @@ settings:
   autoInstallPeers: false
   excludeLinksFromLockfile: false
 
-overrides:
-  '@tanstack/store': 0.11.0
-
-pnpmfileChecksum: sha256-uMNkvVgj5DvPvmjd+yvmtU9kNFu+5Ou1mtouBAw6rhA=
+pnpmfileChecksum: sha256-G2tegBFTaiOQxaTN42rHjL4Vctvc7sadBqgmqKnQPmo=
 
 importers:
 
@@ -126,9 +123,6 @@ importers:
       '@floating-ui/dom':
         specifier: 1.8.0
         version: 1.8.0
-      '@tanstack/table-core':
-        specifier: 9.0.0-beta.47
-        version: 9.0.0-beta.47
       '@tanstack/virtual-core':
         specifier: 3.17.4
         version: 3.17.4
@@ -740,13 +734,6 @@ packages:
   '@szmarczak/http-timer@4.0.6':
     resolution: {integrity: sha512-4BAffykYOgO+5nzBWYwE3W90sBgLJoUPRWWcL8wlyiM8IB8ipJz3UMJ9KXQd1RKQXpKp8Tutn80HZtWsu2u76w==}
     engines: {node: '>=10'}
-
-  '@tanstack/store@0.11.0':
-    resolution: {integrity: sha512-WlzzCt3xi0G6pCAJu1U+2jiECwabETDpQDi3hfkFZvJii9AuZqEKbOiVarX1/bWhTNjU486yQtJCCasi/0q+Cw==}
-
-  '@tanstack/table-core@9.0.0-beta.47':
-    resolution: {integrity: sha512-KhOa5XxkhhMDVs6zMu6N8U8ex2XgeUZUjEB7Kv3CdhCuyf7mh34gT3JcNVEOaOh8l/sSM1hLbz4+DzdWoaj3yQ==}
-    engines: {node: '>=20'}
 
   '@tanstack/virtual-core@3.17.4':
     resolution: {integrity: sha512-nGm5KteqxasUdThLc2izl6dHUqLv0LQj7Nuyo5gYalTPf/U8a9ermvsl7reT+6ioBW1l8WfpP/mcU338nLXpqw==}
@@ -2947,12 +2934,6 @@ snapshots:
   '@szmarczak/http-timer@4.0.6':
     dependencies:
       defer-to-connect: 2.0.1
-
-  '@tanstack/store@0.11.0': {}
-
-  '@tanstack/table-core@9.0.0-beta.47':
-    dependencies:
-      '@tanstack/store': 0.11.0
 
   '@tanstack/virtual-core@3.17.4': {}
 

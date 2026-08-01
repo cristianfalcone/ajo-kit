@@ -12,6 +12,7 @@ import {
 	readdir,
 	realpath,
 	rm,
+	stat,
 	writeFile,
 } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
@@ -47,6 +48,8 @@ type PublishedManifest = {
 	name: string
 	peerDependencies?: Record<string, string>
 	peerDependenciesMeta?: Record<string, { optional?: boolean }>
+	sideEffects?: boolean
+	types?: string
 	version: string
 }
 
@@ -56,6 +59,7 @@ type RegistryMetadata = {
 
 type BuildOutput = {
 	output: Array<{
+		code?: string
 		modules?: Record<string, unknown>
 		type: string
 	}>
@@ -266,6 +270,7 @@ const packAndPublish = async (name: typeof packageNames[number], tarballs: strin
 	assert.equal(packed.version, versions[name])
 	const tarball = resolve(tarballs, packed.filename)
 	await access(tarball)
+	const tarballBytes = (await stat(tarball)).size
 	await pnpm(['publish', tarball, '--registry', registry, '--no-git-checks'], directory)
 
 	const response = await fetch(`${registry}/${name}`)
@@ -274,7 +279,7 @@ const packAndPublish = async (name: typeof packageNames[number], tarballs: strin
 	const manifest = metadata.versions[versions[name]]
 	assert(manifest, `registry metadata omitted ${name}@${versions[name]}`)
 	assert(!JSON.stringify(manifest).includes('workspace:'), `${name} published a workspace protocol`)
-	return { manifest, packed }
+	return { manifest, packed, tarballBytes }
 }
 
 type Published = Awaited<ReturnType<typeof packAndPublish>>
@@ -286,16 +291,30 @@ const verifyPublishedArtifact = (name: typeof packageNames[number], published: P
 	}
 	assert(packlist.every(path =>
 		!path.startsWith('tests/') &&
+		!path.startsWith('src/') &&
 		!path.includes('node_modules') &&
 		!path.startsWith('.tmp/')),
-	`${name} packed a private test or generated path`)
+	`${name} packed source, a private test, or a generated path`)
 
 	for (const [subpath, entry] of Object.entries(published.manifest.exports ?? {})) {
 		assert(entry.import?.startsWith('./dist/'), `${name} export ${subpath} has no compiled import target`)
 		assert.equal(entry.default, entry.import, `${name} export ${subpath} has divergent runtime targets`)
-		assert(entry.types?.startsWith('./src/'), `${name} export ${subpath} has no source type target`)
+		assert(entry.types?.startsWith('./dist/'), `${name} export ${subpath} has no compiled type target`)
 		assert(packlist.includes(entry.import!.slice(2)), `${name} export ${subpath} omitted its runtime file`)
-		assert(packlist.includes(entry.types!.slice(2)), `${name} export ${subpath} omitted its type source`)
+		assert(packlist.includes(entry.types!.slice(2)), `${name} export ${subpath} omitted its declaration file`)
+	}
+	assert.equal(published.manifest.types, published.manifest.exports?.['.']?.types,
+		`${name} top-level types diverged from its root export`)
+	if (name === 'ajo-cloves' || name === 'ajo-ui' || name === 'ajo-ui-playa') {
+		assert.equal(published.manifest.sideEffects, false, `${name} is not marked tree-shakeable`)
+	}
+	if (name === 'ajo-ui') {
+		assert(published.tarballBytes <= 160_000,
+			`ajo-ui tarball grew to ${published.tarballBytes} B (budget 160000 B)`)
+		assert(!('@tanstack/table-core' in (published.manifest.dependencies ?? {})),
+			'ajo-ui published @tanstack/table-core as a dependency')
+		assert(!('@tanstack/store' in (published.manifest.dependencies ?? {})),
+			'ajo-ui published @tanstack/store as a dependency')
 	}
 
 	if (name === 'ajo-kit') {
@@ -935,6 +954,155 @@ const inspectGraphs = async (consumer: string, vite: typeof import('vite')) => {
 	assert(!hasIconify(tooltipGraph), 'Tooltip graph retained Iconify tooling')
 }
 
+const verifyAjoUiNodeNextDeclarations = async (directory: string) => {
+	// ajo@0.1.35's ambient types.ts is itself invalid under NodeNext. Stub only
+	// that peer so this strictly checks ajo-ui's emitted .d.ts graph instead.
+	await write(join(directory, 'ajo.d.ts'), [
+		'export type Children = unknown',
+		'export type Host<E extends object = object, A = object> = E & { signal: AbortSignal }',
+		'export type IntrinsicElements = Record<string, Record<string, unknown>>',
+		'export type Stateful<A = object> = (args: A) => Iterator<Children>',
+		'export type Stateless<A = object> = (args: A) => Children',
+		'export type WithChildren<A = object> = A & { children?: Children }',
+		'',
+	].join('\n'))
+	await write(join(directory, 'types.ts'), [
+		'import type { AccordionArgs, ChartConfig, DataTableColumn, InputTimeArgs } from \'ajo-ui\'',
+		'import type { AccordionArgs as SubpathArgs } from \'ajo-ui/accordion\'',
+		'void ({} as AccordionArgs)',
+		'void ({} as SubpathArgs)',
+		'void ({} as ChartConfig)',
+		'void ({} as DataTableColumn<Record<string, unknown>>)',
+		'void ({} as InputTimeArgs)',
+		'',
+	].join('\n'))
+	await writeJson(join(directory, 'tsconfig.node-next.json'), {
+		compilerOptions: {
+			module: 'NodeNext', moduleResolution: 'NodeNext', noEmit: true,
+			paths: { ajo: ['./ajo.d.ts'] }, skipLibCheck: false, strict: true, target: 'ESNext',
+		},
+		files: ['types.ts'],
+	})
+	await pnpm(['exec', 'tsc', '-p', 'tsconfig.node-next.json'], directory)
+}
+
+const ajoUiBundleProbe = async (consumer: string, registry: string) => {
+	const families = {
+		accordion: { exportName: 'Accordion', floating: false, subpath: 'accordion' },
+		chart: { exportName: 'ChartContainer', floating: false, subpath: 'chart' },
+		'chart-tooltip': { exportName: 'ChartTooltip', floating: true, subpath: 'chart' },
+		'data-table': { exportName: 'DataTable', floating: true, subpath: 'data-table' },
+		'input-date': { exportName: 'InputDate', floating: true, subpath: 'input-date' },
+		'input-time': { exportName: 'InputTime', floating: false, subpath: 'input-date' },
+	} as const
+	const budgets: Record<keyof typeof families, ArtifactSize> = {
+		accordion: { raw: 5 * 1024, gzip: 2 * 1024, brotli: 2 * 1024 },
+		chart: { raw: 5_000, gzip: 2_200, brotli: 2_000 },
+		'chart-tooltip': { raw: 45 * 1024, gzip: 14 * 1024, brotli: 13 * 1024 },
+		'data-table': { raw: 115 * 1024, gzip: 33 * 1024, brotli: 29 * 1024 },
+		'input-date': { raw: 126 * 1024, gzip: 36 * 1024, brotli: 32 * 1024 },
+		'input-time': { raw: 42 * 1024, gzip: 13 * 1024, brotli: 12 * 1024 },
+	}
+	await writeJson(join(consumer, 'package.json'), {
+		name: 'ajo-ui-bundle-consumer',
+		version: '0.0.0',
+		private: true,
+		type: 'module',
+		dependencies: { ajo: '0.1.35', 'ajo-ui': versions['ajo-ui'] },
+		devDependencies: {
+			typescript: validDevDependencies.typescript,
+			vite: validDevDependencies.vite,
+		},
+	})
+	await write(join(consumer, '.npmrc'), [
+		`registry=${registry}/`,
+		'auto-install-peers=false',
+		'package-import-method=copy',
+		'strict-peer-dependencies=true',
+		'',
+	].join('\n'))
+	await write(join(consumer, 'pnpm-workspace.yaml'), [
+		'allowBuilds:',
+		'  esbuild: true',
+		'minimumReleaseAgeExclude:',
+		...packageNames.map(name => `  - ${name}@${versions[name]}`),
+		'',
+	].join('\n'))
+	for (const [family, entry] of Object.entries(families)) {
+		await write(join(consumer, `src/${family}-root.ts`), `export { ${entry.exportName} } from 'ajo-ui'\n`)
+		await write(join(consumer, `src/${family}-subpath.ts`),
+			`export { ${entry.exportName} } from 'ajo-ui/${entry.subpath}'\n`)
+	}
+	await pnpm(['install', '--no-frozen-lockfile'], consumer)
+	await verifyAjoUiNodeNextDeclarations(consumer)
+	const vite = await loadVite(consumer)
+	const bundle = async (entry: string) => {
+		const result = await vite.build({
+			root: consumer,
+			configFile: false,
+			logLevel: 'silent',
+			build: {
+				minify: 'oxc',
+				write: false,
+				lib: { entry: join(consumer, `src/${entry}.ts`), formats: ['es'] },
+				rolldownOptions: { external: [/^@oxc-parser\/binding-/] },
+				target: 'es2022',
+			},
+		})
+		const chunks = ((Array.isArray(result) ? result : [result]) as unknown as BuildOutput[])
+			.flatMap(build => build.output)
+			.filter(output => output.type === 'chunk')
+		const size = chunks.reduce<ArtifactSize>((total, output) => {
+			const code = output.code ?? ''
+			return {
+				brotli: total.brotli + brotliCompressSync(code).length,
+				gzip: total.gzip + gzipSync(code).length,
+				raw: total.raw + Buffer.byteLength(code),
+			}
+		}, { brotli: 0, gzip: 0, raw: 0 })
+		return {
+			modules: chunks.flatMap(output => Object.keys(output.modules ?? {}))
+				.map(id => id.replaceAll('\\', '/')),
+			size,
+		}
+	}
+	const packageGraph = (modules: readonly string[]) =>
+		modules.filter(id => id.includes('/node_modules/')).sort()
+	const sizes: Record<string, ArtifactSize> = {}
+	for (const [family, entry] of Object.entries(families) as Array<
+		[keyof typeof families, typeof families[keyof typeof families]]
+	>) {
+		const rootBundle = await bundle(`${family}-root`)
+		const subpathBundle = await bundle(`${family}-subpath`)
+		const rootGraph = packageGraph(rootBundle.modules)
+		const subpathGraph = packageGraph(subpathBundle.modules)
+		assert.deepEqual(rootGraph, subpathGraph, `published ${family} root/subpath graphs diverged`)
+		const implementation = family.startsWith('chart')
+			? 'ajo-ui/dist/chunks/chart-'
+			: family === 'data-table'
+				? 'ajo-ui/dist/chunks/data-table-'
+				: `ajo-ui/dist/${entry.subpath}.js`
+		assert(hasModulePath(rootGraph, implementation),
+			`published ${family} graph omitted its dist implementation`)
+		assert(!rootGraph.some(id => id.includes('/node_modules/ajo-ui/src/')),
+			`published ${family} graph executed package TypeScript source`)
+		assertFloatingGraph(`Published ${family}`, rootGraph, entry.floating)
+		assert(!rootGraph.some(id => id.includes('@tanstack+table-core') || id.includes('@tanstack+store')),
+			`published ${family} retained TanStack Table or Store`)
+		assert(!rootGraph.some(id => id.includes('@tanstack+virtual-core')),
+			`published ${family} retained the VirtualList engine`)
+		sizes[family] = {
+			brotli: Math.max(rootBundle.size.brotli, subpathBundle.size.brotli),
+			gzip: Math.max(rootBundle.size.gzip, subpathBundle.size.gzip),
+			raw: Math.max(rootBundle.size.raw, subpathBundle.size.raw),
+		}
+	}
+	console.log(`ajo-ui consumer: artifact sizes ${JSON.stringify(sizes)}`)
+	for (const family of Object.keys(families) as Array<keyof typeof families>) {
+		assertBudget(`Published ${family}`, sizes[family], budgets[family])
+	}
+}
+
 const kitCssProbe = async (directory: string, registry: string) => {
 	// The exact path that shipped unstyled production builds on 2026-07-28: a
 	// consumer of the PUBLISHED ajo-kit resolves /src/client to the compiled
@@ -1172,7 +1340,7 @@ const main = async () => {
 			const artifact = await packAndPublish(name, tarballs, registry.url)
 			verifyPublishedArtifact(name, artifact)
 			published.set(name, artifact)
-			console.log(`package consumer: published ${name}@${versions[name]}`)
+			console.log(`package consumer: published ${name}@${versions[name]} (${artifact.tarballBytes} B)`)
 		}
 		assert.equal(published.get('ajo-kit-auth')?.manifest.peerDependencies?.['ajo-kit'], `^${versions['ajo-kit']}`)
 		assert.equal(published.get('ajo-kit-mail')?.manifest.peerDependencies?.['ajo-kit'], `^${versions['ajo-kit']}`)
@@ -1195,6 +1363,8 @@ const main = async () => {
 		const vite = await buildConsumer(consumer)
 		await inspectGraphs(consumer, vite)
 		console.log('package consumer: dependency, client, SSR, CSS, and module graphs passed')
+		await ajoUiBundleProbe(join(temporary, 'ajo-ui-bundle-consumer'), registry.url)
+		console.log('package consumer: ajo-ui release bundle graph passed')
 		await kitCssProbe(join(temporary, 'kit-css-consumer'), registry.url)
 		console.log('package consumer: kit build stylesheet contract passed')
 		await hmrProbe(join(temporary, 'hmr-consumer'), registry.url)

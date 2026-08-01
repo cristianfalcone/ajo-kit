@@ -1,22 +1,3 @@
-import {
-	columnFilteringFeature,
-	columnVisibilityFeature,
-	constructTable,
-	createFilteredRowModel,
-	createPaginatedRowModel,
-	createSortedRowModel,
-	globalFilteringFeature,
-	rowPaginationFeature,
-	rowSelectionFeature,
-	rowSortingFeature,
-	sortFn_alphanumeric,
-	tableFeatures,
-	type ColumnDef,
-	type RowSelectionState,
-	type SortingState,
-} from '@tanstack/table-core'
-import type { TableReactivityBindings } from '@tanstack/table-core/reactivity'
-import { storeReactivityBindings } from '@tanstack/table-core/store-reactivity-bindings'
 import type { Children } from 'ajo'
 import type { Host } from 'ajo-cloves'
 import type {
@@ -27,18 +8,6 @@ import type {
 	DataTableLabels,
 	DataTablePagination,
 } from './data-table-contract'
-
-export const dataTableStrategy = tableFeatures({
-	columnFilteringFeature,
-	columnVisibilityFeature,
-	globalFilteringFeature,
-	rowPaginationFeature,
-	rowSelectionFeature,
-	rowSortingFeature,
-	filteredRowModel: createFilteredRowModel(),
-	paginatedRowModel: createPaginatedRowModel(),
-	sortedRowModel: createSortedRowModel(),
-})
 
 const DEFAULT_SIZES = [10, 25, 50] as const
 
@@ -65,12 +34,12 @@ export const dataTableDefaultLabels: DataTableLabels = {
 	toolbar: table => `${table} controls`,
 }
 
-type Subscription = { unsubscribe(): void }
-
 type ColumnModel<T extends DataTableData> = {
 	column: DataTableColumn<T>
 	id: string
 	read?: (row: T, sourceIndex: number) => unknown
+	ready?: Uint8Array
+	values?: unknown[]
 }
 
 export type DataTableColumnView<T extends DataTableData> = ColumnModel<T> & {
@@ -161,36 +130,6 @@ const scalarText = (value: unknown, column: string, index: number) => {
 	throw new TypeError(`DataTable invalid searchable value ${column} at ${index}`)
 }
 
-const facetValues = <T extends DataTableData,>(model: ColumnModel<T>, row: T, index: number) => {
-	const facet = model.column.facet
-	const raw = facet?.values?.(row, index)
-	if (raw !== undefined) return (Array.isArray(raw) ? raw : [raw]).map(value => assertText(value, `facet value ${model.id}`))
-	return [scalarText(model.read?.(row, index), model.id, index)]
-}
-
-const compareValues = (
-	left: unknown,
-	right: unknown,
-	leftRow: { index: number },
-	rightRow: { index: number },
-	columnId: string,
-	alphanumeric: () => number,
-) => {
-	const leftMissing = left == null
-	const rightMissing = right == null
-	if (leftMissing || rightMissing) return leftMissing === rightMissing ? 0 : leftMissing ? 1 : -1
-	if (typeof left !== typeof right) throw new TypeError(`DataTable mixed sort values ${columnId}`)
-	if (typeof left === 'string') return alphanumeric()
-	if (typeof left === 'number' && typeof right === 'number') {
-		if (!Number.isFinite(left) || !Number.isFinite(right)) {
-			throw new TypeError(`DataTable invalid sort value ${columnId} at ${!Number.isFinite(left) ? leftRow.index : rightRow.index}`)
-		}
-		return left === right ? 0 : left < right ? -1 : 1
-	}
-	if (typeof left === 'boolean' && typeof right === 'boolean') return left === right ? 0 : left ? 1 : -1
-	throw new TypeError(`DataTable invalid sort value ${columnId}`)
-}
-
 const paginationConfig = (pagination: false | DataTablePagination | undefined) => {
 	const sizes = pagination === false ? DEFAULT_SIZES : pagination?.sizes ?? DEFAULT_SIZES
 	if (!sizes.length) throw new RangeError('DataTable empty page sizes')
@@ -204,70 +143,180 @@ const paginationConfig = (pagination: false | DataTablePagination | undefined) =
 	return { enabled: pagination !== false, size, sizes }
 }
 
-export const dataTableReactivity = (host: Host) => {
-	const subscriptions = new Set<Subscription>()
-	let disposed = false
-	const dispose = () => {
-		if (disposed) return
-		disposed = true
-		for (const subscription of subscriptions) subscription.unsubscribe()
-		subscriptions.clear()
+const isDigit = (code: number) => code >= 48 && code <= 57
+
+const chunkEnd = (value: string, start: number, numeric: boolean) => {
+	let end = start + 1
+	while (end < value.length && isDigit(value.charCodeAt(end)) === numeric) end++
+	return end
+}
+
+const compareTextChunk = (
+	left: string,
+	leftStart: number,
+	leftEnd: number,
+	right: string,
+	rightStart: number,
+	rightEnd: number,
+) => {
+	const length = Math.min(leftEnd - leftStart, rightEnd - rightStart)
+	for (let index = 0; index < length; index++) {
+		const leftCode = left.charCodeAt(leftStart + index)
+		const rightCode = right.charCodeAt(rightStart + index)
+		if (leftCode !== rightCode) return leftCode < rightCode ? -1 : 1
 	}
-	const add = (subscription: Subscription) => {
-		if (disposed) subscription.unsubscribe()
-		else subscriptions.add(subscription)
-		return subscription
+	return leftEnd - leftStart - (rightEnd - rightStart)
+}
+
+const significantStart = (value: string, start: number, end: number) => {
+	while (start < end && value.charCodeAt(start) === 48) start++
+	return start
+}
+
+const parseDigits = (value: string, start: number, end: number) => {
+	let result = 0
+	for (let index = start; index < end; index++) result = result * 10 + value.charCodeAt(index) - 48
+	return result
+}
+
+const compareNumberChunk = (
+	left: string,
+	leftStart: number,
+	leftEnd: number,
+	right: string,
+	rightStart: number,
+	rightEnd: number,
+) => {
+	const leftSignificant = significantStart(left, leftStart, leftEnd)
+	const rightSignificant = significantStart(right, rightStart, rightEnd)
+	const leftLength = leftEnd - leftSignificant
+	const rightLength = rightEnd - rightSignificant
+	if (leftLength !== rightLength) return leftLength < rightLength ? -1 : 1
+	if (!leftLength && !rightLength) return 0
+	if (leftLength <= 15 && rightLength <= 15) {
+		const leftNumber = parseDigits(left, leftSignificant, leftEnd)
+		const rightNumber = parseDigits(right, rightSignificant, rightEnd)
+		return leftNumber === rightNumber ? 0 : leftNumber < rightNumber ? -1 : 1
 	}
-	const bindings: TableReactivityBindings = {
-		...storeReactivityBindings(),
-		addSubscription: subscription => { add(subscription) },
-		createOptionsStore: false,
-		schedule: fn => queueMicrotask(() => {
-			if (disposed || host.signal.aborted) return
-			try { fn() } catch (error) { host.throw(error) }
-		}),
-		unmount: dispose,
-		wrapExternalAtoms: false,
+	return compareTextChunk(left, leftSignificant, leftEnd, right, rightSignificant, rightEnd)
+}
+
+const remainingChunks = (value: string, start: number) => {
+	let count = 0
+	while (start < value.length) {
+		count++
+		start = chunkEnd(value, start, isDigit(value.charCodeAt(start)))
 	}
-	host.signal.addEventListener('abort', dispose, { once: true })
-	return { add, bindings }
+	return count
+}
+
+const compareAlphanumeric = (leftValue: string, rightValue: string) => {
+	const left = leftValue.toLowerCase()
+	const right = rightValue.toLowerCase()
+	let leftIndex = 0
+	let rightIndex = 0
+	while (leftIndex < left.length && rightIndex < right.length) {
+		const leftNumeric = isDigit(left.charCodeAt(leftIndex))
+		const rightNumeric = isDigit(right.charCodeAt(rightIndex))
+		const leftEnd = chunkEnd(left, leftIndex, leftNumeric)
+		const rightEnd = chunkEnd(right, rightIndex, rightNumeric)
+		if (leftNumeric !== rightNumeric) return leftNumeric ? 1 : -1
+		const result = leftNumeric
+			? compareNumberChunk(left, leftIndex, leftEnd, right, rightIndex, rightEnd)
+			: compareTextChunk(left, leftIndex, leftEnd, right, rightIndex, rightEnd)
+		if (result) return result
+		leftIndex = leftEnd
+		rightIndex = rightEnd
+	}
+	return remainingChunks(left, leftIndex) - remainingChunks(right, rightIndex)
+}
+
+const compareValues = (left: unknown, right: unknown, column: string, leftIndex: number, rightIndex: number) => {
+	const leftMissing = left == null
+	const rightMissing = right == null
+	if (leftMissing || rightMissing) return leftMissing === rightMissing ? 0 : leftMissing ? 1 : -1
+	if (typeof left !== typeof right) throw new TypeError(`DataTable mixed sort values ${column}`)
+	if (typeof left === 'string' && typeof right === 'string') return compareAlphanumeric(left, right)
+	if (typeof left === 'number' && typeof right === 'number') {
+		if (!Number.isFinite(left) || !Number.isFinite(right)) {
+			throw new TypeError(`DataTable invalid sort value ${column} at ${!Number.isFinite(left) ? leftIndex : rightIndex}`)
+		}
+		return left === right ? 0 : left < right ? -1 : 1
+	}
+	if (typeof left === 'boolean' && typeof right === 'boolean') return left === right ? 0 : left ? 1 : -1
+	throw new TypeError(`DataTable invalid sort value ${column}`)
 }
 
 export const createDataTableModel = <T extends DataTableData, Key extends DataTableKey>(
 	host: Host,
 	initialArgs: DataTableArgs<T, Key>,
 ): DataTableModel<T, Key> => {
-	const reactive = dataTableReactivity(host)
-	const features = tableFeatures({ ...dataTableStrategy, coreReactivityFeature: reactive.bindings })
 	let args = initialArgs
-	let actionEvent: Event | undefined
-	let syncing = false
+	let disposed = false
 	let stateVersion = 0
 	let renderedVersion = 0
 	let requestedVersion = 0
 	let queued = false
-	let optionsInitialized = false
 
 	let rowsRef: readonly T[] | undefined
 	let rowsLength = 0
 	let keyGetter: DataTableArgs<T, Key>['getRowKey'] | undefined
-	let tableData: readonly T[] = initialArgs.rows
 	let rowIds: string[] = []
 	let rowKeys: Key[] = []
 	let rowById = new Map<string, number>()
+	let sourceIndexes: number[] = []
 
 	let columnsRef: readonly DataTableColumn<T>[] | undefined
 	let columnsLength = 0
 	let models: ColumnModel<T>[] = []
 	let modelById = new Map<string, ColumnModel<T>>()
-	let definitions: ReadonlyArray<ColumnDef<typeof features, T, unknown>> = []
 	let knownColumns = new Map<string, ColumnModel<T>>()
+	let visibility = new Map<string, boolean>()
+
+	let searchEnabled = Boolean(initialArgs.search)
+	let query = ''
+	let searchValue = ''
+	let facets = new Map<string, string[]>()
+	let sorting: { desc: boolean; id: string } | undefined
+	let filteredIndexes: number[] = []
+	let sortedIndexes: number[] = []
+	let filterDirty = true
+	let sortDirty = true
+
+	let pageConfig = paginationConfig(initialArgs.pagination)
+	let pageIndex = 0
+	let pageSize = pageConfig.size
 
 	let selectionEnabled = Boolean(initialArgs.selection)
 	let selectionControlled = initialArgs.selection?.value !== undefined
-	let searchEnabled = Boolean(initialArgs.search)
-	let searchValue = ''
-	let pageConfig = paginationConfig(initialArgs.pagination)
+	let uncontrolledSelection = new Set<string>()
+	let effectiveSelection = new Set<string>()
+
+	const invalidate = () => {
+		const version = ++stateVersion
+		requestedVersion = Math.max(requestedVersion, version)
+		if (queued || disposed || host.signal.aborted) return
+		queued = true
+		queueMicrotask(() => {
+			queued = false
+			if (disposed || host.signal.aborted || renderedVersion >= requestedVersion) return
+			try { host.next() } catch (error) { if (!host.signal.aborted) host.throw(error) }
+		})
+	}
+
+	host.signal.addEventListener('abort', () => { disposed = true }, { once: true })
+
+	const clearValues = () => {
+		for (const model of models) {
+			model.ready = undefined
+			model.values = undefined
+		}
+	}
+
+	const markFilterDirty = () => {
+		filterDirty = true
+		sortDirty = true
+	}
 
 	const snapshotRows = (current: DataTableArgs<T, Key>) => {
 		if (current.rows === rowsRef && current.getRowKey === keyGetter) {
@@ -281,16 +330,13 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 			}
 			return false
 		}
-		const replaced = current.rows !== rowsRef
 		rowsRef = current.rows
 		rowsLength = current.rows.length
 		keyGetter = current.getRowKey
-		// TanStack memoizes core rows by data identity. A new key function needs a
-		// fresh identity even when the logical collection itself is unchanged.
-		tableData = replaced ? current.rows : [...current.rows]
 		rowIds = []
 		rowKeys = []
 		rowById = new Map()
+		sourceIndexes = Array.from({ length: rowsLength }, (_, index) => index)
 		current.rows.forEach((row, index) => {
 			const key = current.getRowKey(row, index)
 			const id = encodeKey(key, index)
@@ -300,6 +346,8 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 			rowIds.push(id)
 			rowKeys.push(key)
 		})
+		clearValues()
+		markFilterDirty()
 		return true
 	}
 
@@ -338,330 +386,279 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 			models.push(model)
 			modelById.set(id, model)
 		}
-		if (models.every(({ column }) => column.defaultHidden)) throw new TypeError('DataTable needs a visible column')
-
-		definitions = models.map(model => {
-			const { column, id, read } = model
-			const definition = {
-				enableGlobalFilter: Boolean(read && column.search !== false),
-				enableHiding: column.hideable !== false,
-				enableSorting: Boolean(read && column.sort !== false),
-				filterFn: (row, _columnId, active) => {
-					const selected = active as readonly string[]
-					return !selected.length || facetValues(model, row.original, row.index).some(value => selected.includes(value))
-				},
-				header: column.label,
-				id,
-				sortFn: (left, right, columnId) => {
-					if (typeof column.sort === 'function') {
-						const result = column.sort(left.original, right.original)
-						if (!Number.isFinite(result)) throw new TypeError(`DataTable invalid comparator ${columnId}`)
-						return result
-					}
-					return compareValues(
-						left.getValue(columnId),
-						right.getValue(columnId),
-						left,
-						right,
-						columnId,
-						() => sortFn_alphanumeric(left, right, columnId),
-					)
-				},
-				sortUndefined: false,
-			} satisfies ColumnDef<typeof features, T, unknown>
-			return read
-				? { ...definition, accessorFn: read } satisfies ColumnDef<typeof features, T, unknown>
-				: definition
-		})
+		if (models.every(({ column }) => column.defaultHidden && column.hideable !== false)) {
+			throw new TypeError('DataTable needs a visible column')
+		}
+		markFilterDirty()
 		return true
 	}
 
 	const selectionState = (keys: readonly Key[] | undefined) => {
-		const state: RowSelectionState = Object.create(null)
+		const state = new Set<string>()
 		const seen = new Set<string>()
 		for (const key of keys ?? []) {
 			const id = encodeKey(key)
 			if (seen.has(id)) throw new TypeError(`DataTable duplicate selection key ${JSON.stringify(key)}`)
 			seen.add(id)
-			if (rowById.has(id)) state[id] = true
+			if (rowById.has(id)) state.add(id)
 		}
 		return state
 	}
+
 	const selectionInput = (selection: DataTableArgs<T, Key>['selection']) => {
 		const fallback = selectionState(selection?.defaultValue)
 		return selection?.value === undefined ? fallback : selectionState(selection.value)
 	}
-	const sameSelection = (left: RowSelectionState, right: RowSelectionState) => {
-		for (const id of Object.keys(left)) if (Boolean(left[id]) !== Boolean(right[id])) return false
-		for (const id of Object.keys(right)) if (Boolean(left[id]) !== Boolean(right[id])) return false
-		return true
+
+	const readValue = (model: ColumnModel<T>, index: number) => {
+		if (!model.read) return undefined
+		model.ready ??= new Uint8Array(rowsLength)
+		model.values ??= []
+		if (!model.ready[index]) {
+			model.values[index] = model.read(args.rows[index]!, index)
+			model.ready[index] = 1
+		}
+		return model.values[index]
+	}
+
+	const facetValues = (model: ColumnModel<T>, index: number) => {
+		const facet = model.column.facet
+		const raw = facet?.values?.(args.rows[index]!, index)
+		if (raw !== undefined) {
+			return (Array.isArray(raw) ? raw : [raw]).map(value => assertText(value, `facet value ${model.id}`))
+		}
+		return [scalarText(readValue(model, index), model.id, index)]
+	}
+
+	const filtered = () => {
+		if (!filterDirty) return filteredIndexes
+		const activeFacets = [...facets].flatMap(([id, active]) => {
+			const model = modelById.get(id)
+			return model?.column.facet && active.length ? [{ active, model }] : []
+		})
+		const searchable = searchEnabled && searchValue
+			? models.filter(model => model.read && model.column.search !== false)
+			: []
+		filteredIndexes = sourceIndexes.filter(index => {
+			if (searchable.length) {
+				let matches = false
+				for (const model of searchable) {
+					const raw = typeof model.column.search === 'function'
+						? model.column.search(args.rows[index]!, index)
+						: readValue(model, index)
+					if (scalarText(raw, model.id, index).toLowerCase().includes(searchValue)) {
+						matches = true
+						break
+					}
+				}
+				if (!matches) return false
+			}
+			for (const { active, model } of activeFacets) {
+				if (!facetValues(model, index).some(value => active.includes(value))) return false
+			}
+			return true
+		})
+		filterDirty = false
+		return filteredIndexes
+	}
+
+	const sorted = () => {
+		if (!sortDirty) return sortedIndexes
+		const indexes = filtered()
+		if (!sorting) sortedIndexes = indexes
+		else {
+			const model = modelById.get(sorting.id)
+			if (!model?.read || model.column.sort === false) sortedIndexes = indexes
+			else sortedIndexes = [...indexes].sort((left, right) => {
+				const result = typeof model.column.sort === 'function'
+					? model.column.sort(args.rows[left]!, args.rows[right]!)
+					: compareValues(readValue(model, left), readValue(model, right), model.id, left, right)
+				if (!Number.isFinite(result)) throw new TypeError(`DataTable invalid comparator ${model.id}`)
+				return result ? (sorting!.desc ? -result : result) : left - right
+			})
+		}
+		sortDirty = false
+		return sortedIndexes
+	}
+
+	const pageCount = () => pageConfig.enabled ? Math.max(1, Math.ceil(sorted().length / pageSize)) : 1
+
+	const visibleIndexes = () => {
+		const indexes = sorted()
+		if (!pageConfig.enabled) return indexes
+		const count = pageCount()
+		if (pageIndex >= count) pageIndex = count - 1
+		return indexes.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize)
+	}
+
+	const pageSelection = () => {
+		const indexes = visibleIndexes()
+		let selected = 0
+		for (const index of indexes) if (effectiveSelection.has(rowIds[index]!)) selected++
+		const all = indexes.length > 0 && selected === indexes.length
+		return { all, some: selected > 0 && !all }
+	}
+
+	const selectedKeys = (selection: ReadonlySet<string>) => {
+		const keys: Key[] = []
+		for (let index = 0; index < rowIds.length; index++) {
+			if (selection.has(rowIds[index]!)) keys.push(rowKeys[index]!)
+		}
+		return keys
+	}
+
+	const proposeSelection = (next: Set<string>, event?: Event) => {
+		const selection = args.selection
+		if (!selection) return
+		if (selection.value !== undefined) {
+			selection.onValueChange(selectedKeys(next), event)
+			return
+		}
+		uncontrolledSelection = next
+		effectiveSelection = uncontrolledSelection
+		invalidate()
+		selection.onValueChange?.(selectedKeys(next), event)
+	}
+
+	const reconcileColumns = (changed: boolean) => {
+		if (!changed) return
+		const nextVisibility = new Map<string, boolean>()
+		for (const model of models) {
+			const previous = knownColumns.get(model.id)
+			nextVisibility.set(model.id, model.column.hideable === false
+				? true
+				: previous ? visibility.get(model.id) !== false : !model.column.defaultHidden)
+		}
+		if (![...nextVisibility.values()].some(Boolean)) nextVisibility.set(models[0]!.id, true)
+		visibility = nextVisibility
+
+		let resetPage = false
+		if (sorting) {
+			const model = modelById.get(sorting.id)
+			if (!model?.read || model.column.sort === false) {
+				sorting = undefined
+				sortDirty = true
+				resetPage = true
+			}
+		}
+
+		const nextFacets = new Map<string, string[]>()
+		for (const [id, active] of facets) {
+			const facet = modelById.get(id)?.column.facet
+			if (!facet) {
+				resetPage = true
+				continue
+			}
+			const allowed = new Set(facet.options.map(option => option.value))
+			const values = active.filter(value => allowed.has(value))
+			if (values.length) nextFacets.set(id, values)
+			if (values.length !== active.length) resetPage = true
+		}
+		facets = nextFacets
+		knownColumns = new Map(modelById)
+		if (resetPage) pageIndex = 0
 	}
 
 	snapshotRows(initialArgs)
 	snapshotColumns(initialArgs)
 	knownColumns = new Map(modelById)
 	assertText(initialArgs.label, 'label')
-
-	const initialSelection = selectionInput(initialArgs.selection)
-	const initialVisibility = Object.fromEntries(models.map(({ column, id }) => [
-		id,
-		column.hideable === false || !column.defaultHidden,
+	visibility = new Map(models.map(model => [
+		model.id,
+		model.column.hideable === false || !model.column.defaultHidden,
 	]))
-
-	const table = constructTable<typeof features, T>({
-		autoResetPageIndex: false,
-		columns: definitions,
-		data: tableData,
-		enableMultiSort: false,
-		enableRowRangeSelection: false,
-		enableRowSelection: selectionEnabled,
-		features,
-		getColumnCanGlobalFilter: column => (column.columnDef as { enableGlobalFilter?: boolean }).enableGlobalFilter === true,
-		getRowId: (_row, index) => rowIds[index]!,
-		globalFilterFn: (row, columnId) => {
-			const model = modelById.get(columnId)
-			if (!model?.read || model.column.search === false) return false
-			const raw = typeof model.column.search === 'function'
-				? model.column.search(row.original, row.index)
-				: row.getValue(columnId)
-			return scalarText(raw, columnId, row.index).toLowerCase().includes(searchValue)
-		},
-		initialState: {
-			columnFilters: [],
-			columnVisibility: initialVisibility,
-			globalFilter: '',
-			pagination: { pageIndex: 0, pageSize: pageConfig.size },
-			rowSelection: initialSelection,
-			sorting: [],
-		},
-	})
-
-	const defaultSelectionUpdater = table.options.onRowSelectionChange!
-
-	const selectedKeys = (state = table.atoms.rowSelection.get()) => {
-		const indexes: number[] = []
-		for (const id of Object.keys(state)) {
-			const index = rowById.get(id)
-			if (state[id] && index !== undefined) indexes.push(index)
-		}
-		indexes.sort((left, right) => left - right)
-		return indexes.map(index => rowKeys[index]!)
-	}
-
-	const countSelected = (state = table.atoms.rowSelection.get()) => {
-		let count = 0
-		for (const id of Object.keys(state)) if (state[id] && rowById.has(id)) count++
-		return count
-	}
-	const pageSelection = () => {
-		const rows = pageConfig.enabled ? table.getRowModel().rows : table.getPrePaginatedRowModel().rows
-		let selected = 0
-		for (const row of rows) if (row.getIsSelected()) selected++
-		const all = rows.length > 0 && selected === rows.length
-		return { all, some: selected > 0 && !all }
-	}
-
-	const invalidate = (version: number) => {
-		requestedVersion = Math.max(requestedVersion, version)
-		if (queued || host.signal.aborted) return
-		queued = true
-		queueMicrotask(() => {
-			queued = false
-			if (host.signal.aborted || renderedVersion >= requestedVersion) return
-			try { host.next() } catch (error) { if (!host.signal.aborted) host.throw(error) }
-		})
-	}
-
-	const selectionUpdater = (updater: RowSelectionState | ((state: RowSelectionState) => RowSelectionState)) => {
-		const selection = args.selection
-		if (!selection) return
-		if (selection.value !== undefined) {
-			const current = selectionState(selection.value)
-			const next = typeof updater === 'function' ? updater(current) : updater
-			selection.onValueChange(selectedKeys(next), actionEvent)
-			return
-		}
-		defaultSelectionUpdater(updater)
-		selection.onValueChange?.(selectedKeys(), actionEvent)
-	}
-
-	reactive.add(table.store.subscribe(() => {
-		const version = ++stateVersion
-		if (!syncing) invalidate(version)
-	}))
-
-	const withAction = (event: Event | undefined, action: () => void) => {
-		if (host.signal.aborted) return
-		const previous = actionEvent
-		actionEvent = event
-		try { action() } finally { actionEvent = previous }
-	}
-
-	const firstPage = () => { if (!host.signal.aborted && pageConfig.enabled) table.firstPage() }
-	const resetPage = () => { if (pageConfig.enabled) table.setPageIndex(0) }
-
-	const reconcileColumns = (changed: boolean) => {
-		if (!changed) return
-		const visibility = table.atoms.columnVisibility.get()
-		const nextVisibility: Record<string, boolean> = {}
-		for (const model of models) {
-			const previous = knownColumns.get(model.id)
-			nextVisibility[model.id] = model.column.hideable === false
-				? true
-				: previous ? visibility[model.id] !== false : !model.column.defaultHidden
-		}
-		if (!Object.values(nextVisibility).some(Boolean)) nextVisibility[models[0]!.id] = true
-		table.baseAtoms.columnVisibility.set(nextVisibility)
-
-		let reset = false
-		const sorting = table.atoms.sorting.get()
-		if (sorting.some(sort => {
-			const model = modelById.get(sort.id)
-			return !model?.read || model.column.sort === false
-		})) {
-			table.baseAtoms.sorting.set([])
-			reset = true
-		}
-		const currentFilters = table.atoms.columnFilters.get()
-		const filters = currentFilters.flatMap(filter => {
-			const facet = modelById.get(filter.id)?.column.facet
-			if (!facet) return []
-			const allowed = new Set(facet.options.map(option => option.value))
-			const values = (filter.value as readonly string[]).filter(value => allowed.has(value))
-			return values.length ? [{ id: filter.id, value: values }] : []
-		})
-		const filtersChanged = filters.length !== currentFilters.length || filters.some((filter, index) => {
-			const current = currentFilters[index]
-			const values = filter.value as readonly string[]
-			const currentValues = current?.value as readonly string[] | undefined
-			return !current || current.id !== filter.id || values.length !== currentValues?.length
-				|| values.some((value, valueIndex) => value !== currentValues[valueIndex])
-		})
-		if (filtersChanged) {
-			table.baseAtoms.columnFilters.set(filters)
-			reset = true
-		}
-		knownColumns = new Map(modelById)
-		if (reset) resetPage()
-	}
+	uncontrolledSelection = selectionInput(initialArgs.selection)
+	effectiveSelection = selectionControlled ? selectionInput(initialArgs.selection) : uncontrolledSelection
 
 	const sync = (nextArgs: DataTableArgs<T, Key>): DataTableView<T, Key> => {
 		args = nextArgs
 		assertText(args.label, 'label')
 		const rowsChanged = snapshotRows(args)
 		const columnsChanged = snapshotColumns(args)
-		// Rows cache accessor results by column ID. Rebuild them when a schema is
-		// replaced over the same collection; stable renders keep the same data ref.
-		if (columnsChanged && !rowsChanged) tableData = [...args.rows]
 		const nextPage = paginationConfig(args.pagination)
-		const nextSelection = Boolean(args.selection)
-		const nextSelectionState = selectionInput(args.selection)
+		const nextSelectionEnabled = Boolean(args.selection)
 		const nextSelectionControlled = args.selection?.value !== undefined
-		const nextSearch = Boolean(args.search)
-		const optionsChanged = !optionsInitialized
-			|| rowsChanged
-			|| columnsChanged
-			|| selectionEnabled !== nextSelection
-			|| searchEnabled !== nextSearch
-			|| selectionControlled !== nextSelectionControlled
-			|| (nextSelectionControlled && !sameSelection(table.atoms.rowSelection.get(), nextSelectionState))
+		const nextSelectionState = selectionInput(args.selection)
+		const nextSearchEnabled = Boolean(args.search)
 
-		syncing = true
-		try {
-			if (selectionEnabled !== nextSelection) {
-				table.baseAtoms.rowSelection.set(nextSelection
-					? nextSelectionState
-					: {})
-			}
-			if (searchEnabled !== nextSearch) {
-				searchValue = ''
-				table.baseAtoms.globalFilter.set('')
-			}
-			if (pageConfig.enabled !== nextPage.enabled) {
-				table.baseAtoms.pagination.set({ pageIndex: 0, pageSize: nextPage.size })
-			} else if (!nextPage.sizes.includes(table.atoms.pagination.get().pageSize)) {
-				table.baseAtoms.pagination.set({ pageIndex: 0, pageSize: nextPage.size })
-			}
-
-			selectionEnabled = nextSelection
-			selectionControlled = nextSelectionControlled
-			searchEnabled = nextSearch
-			pageConfig = nextPage
-
-			if (optionsChanged) {
-				table.setOptions(previous => ({
-					...previous,
-					columns: definitions,
-					data: tableData,
-					enableGlobalFilter: searchEnabled,
-					enableRowSelection: selectionEnabled,
-					onRowSelectionChange: selectionUpdater,
-					state: selectionControlled ? { rowSelection: nextSelectionState } : undefined,
-				}))
-				optionsInitialized = true
-			}
-
-			reconcileColumns(columnsChanged)
-			if (rowsChanged && args.selection?.value === undefined) {
-				const current = table.atoms.rowSelection.get()
-				const pruned: RowSelectionState = Object.create(null)
-				for (const id of Object.keys(current)) if (rowById.has(id)) pruned[id] = true
-				if (Object.keys(pruned).length !== Object.keys(current).length) table.baseAtoms.rowSelection.set(pruned)
-			}
-
-			if (pageConfig.enabled) {
-				const pageCount = Math.max(1, table.getPageCount())
-				const current = table.atoms.pagination.get()
-				if (current.pageIndex >= pageCount) table.baseAtoms.pagination.set({ ...current, pageIndex: pageCount - 1 })
-			}
-		} finally {
-			syncing = false
+		if (searchEnabled !== nextSearchEnabled) {
+			searchEnabled = nextSearchEnabled
+			query = ''
+			searchValue = ''
+			pageIndex = 0
+			markFilterDirty()
 		}
 
-		const pagination = table.atoms.pagination.get()
-		const pageCount = pageConfig.enabled ? Math.max(1, table.getPageCount()) : 1
-		const sourceRows = pageConfig.enabled ? table.getRowModel().rows : table.getPrePaginatedRowModel().rows
-		const allColumns = models.map(model => ({
-			...model,
-			active: (table.getColumn(model.id)!.getFilterValue() as readonly string[] | undefined) ?? [],
-			sorted: table.getColumn(model.id)!.getIsSorted(),
-			visible: table.getColumn(model.id)!.getIsVisible(),
-		}))
-		const visibleRows = sourceRows.map(row => ({
-			cells: row.getVisibleCells().map(cell => ({ column: modelById.get(cell.column.id)!, value: cell.getValue() })),
-			id: row.id,
-			key: rowKeys[row.index]!,
-			original: row.original,
-			selected: row.getIsSelected(),
-			sourceIndex: row.index,
-		}))
-		const selected = countSelected()
-		const pageSelected = pageSelection()
-		const filters = table.atoms.columnFilters.get()
-		const query = searchEnabled ? String(table.atoms.globalFilter.get() ?? '') : ''
+		if (pageConfig.enabled !== nextPage.enabled) {
+			pageIndex = 0
+			pageSize = nextPage.size
+		} else if (!nextPage.sizes.includes(pageSize)) {
+			pageIndex = 0
+			pageSize = nextPage.size
+		}
+		pageConfig = nextPage
 
+		if (selectionEnabled !== nextSelectionEnabled) {
+			selectionEnabled = nextSelectionEnabled
+			uncontrolledSelection = nextSelectionEnabled ? nextSelectionState : new Set()
+		} else if (selectionControlled && !nextSelectionControlled) {
+			uncontrolledSelection = nextSelectionState
+		}
+		selectionControlled = nextSelectionControlled
+		if (rowsChanged && !selectionControlled) {
+			uncontrolledSelection = new Set([...uncontrolledSelection].filter(id => rowById.has(id)))
+		}
+		effectiveSelection = selectionControlled ? nextSelectionState : uncontrolledSelection
+
+		reconcileColumns(columnsChanged)
+		if (rowsChanged || columnsChanged) markFilterDirty()
+
+		const indexes = visibleIndexes()
+		const count = pageCount()
+		if (pageConfig.enabled && pageIndex >= count) pageIndex = count - 1
+		const visibleColumns = models.filter(model => visibility.get(model.id) !== false)
+		const columnViews = models.map(model => ({
+			...model,
+			active: facets.get(model.id) ?? [],
+			sorted: sorting?.id === model.id ? sorting.desc ? 'desc' as const : 'asc' as const : false as const,
+			visible: visibility.get(model.id) !== false,
+		}))
+		const rowViews = indexes.map(index => ({
+			cells: visibleColumns.map(column => ({ column, value: readValue(column, index) })),
+			id: rowIds[index]!,
+			key: rowKeys[index]!,
+			original: args.rows[index]!,
+			selected: effectiveSelection.has(rowIds[index]!),
+			sourceIndex: index,
+		}))
+		const selected = pageSelection()
 		renderedVersion = stateVersion
 		return {
-			columns: allColumns,
-			filteredCount: table.getFilteredRowModel().rows.length,
-			hasFilters: Boolean(query || filters.length),
+			columns: columnViews,
+			filteredCount: filtered().length,
+			hasFilters: Boolean(query || facets.size),
 			page: {
-				count: pageCount,
+				count,
 				enabled: pageConfig.enabled,
-				index: pageConfig.enabled ? pagination.pageIndex : 0,
-				size: pagination.pageSize,
+				index: pageConfig.enabled ? pageIndex : 0,
+				size: pageSize,
 				sizes: pageConfig.sizes,
 			},
-			query,
-			rows: visibleRows,
-			selectedCount: selected,
-			selection: {
-				enabled: selectionEnabled,
-				...pageSelected,
-			},
+			query: searchEnabled ? query : '',
+			rows: rowViews,
+			selectedCount: effectiveSelection.size,
+			selection: { enabled: selectionEnabled, ...selected },
 			sourceCount: args.rows.length,
 			visibility: models.length > 1 && models.some(model => model.column.hideable !== false),
 		}
+	}
+
+	const setPage = (next: number) => {
+		if (disposed || !pageConfig.enabled) return
+		const clamped = Math.max(0, Math.min(next, pageCount() - 1))
+		if (clamped === pageIndex) return
+		pageIndex = clamped
+		invalidate()
 	}
 
 	return {
@@ -675,86 +672,89 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 			if (['bigint', 'boolean', 'number', 'string'].includes(typeof cell.value)) return String(cell.value)
 			throw new TypeError(`DataTable cannot render ${cell.column.id} at ${row.sourceIndex}`)
 		},
-		firstPage,
-		lastPage: () => { if (!host.signal.aborted && pageConfig.enabled) table.lastPage() },
-		nextPage: () => { if (!host.signal.aborted && pageConfig.enabled) table.nextPage() },
-		previousPage: () => { if (!host.signal.aborted && pageConfig.enabled) table.previousPage() },
-		reset(event) {
-			withAction(event, () => {
-				searchValue = ''
-				table.setGlobalFilter('')
-				table.setColumnFilters([])
-				resetPage()
-			})
+		firstPage: () => setPage(0),
+		lastPage: () => setPage(pageCount() - 1),
+		nextPage: () => setPage(pageIndex + 1),
+		previousPage: () => setPage(pageIndex - 1),
+		reset() {
+			if (disposed) return
+			const filtersChanged = Boolean(query || facets.size)
+			const pageChanged = pageIndex !== 0
+			query = ''
+			searchValue = ''
+			facets = new Map()
+			pageIndex = 0
+			if (filtersChanged) markFilterDirty()
+			if (filtersChanged || pageChanged) invalidate()
 		},
-		selected: id => table.atoms.rowSelection.get()[id] === true,
+		selected: id => effectiveSelection.has(id),
 		selection: pageSelection,
-		setFacet(id, value, checked, event) {
+		setFacet(id, value, checked) {
+			if (disposed) return
 			const facet = modelById.get(id)?.column.facet
 			if (!facet?.options.some(option => option.value === value)) return
-			withAction(event, () => {
-				const column = table.getColumn(id)
-				const active = new Set(column?.getFilterValue() as readonly string[] | undefined)
-				if (active.has(value) === checked) return
-				if (checked) active.add(value)
-				else active.delete(value)
-				column?.setFilterValue(active.size ? [...active] : undefined)
-				resetPage()
-			})
+			const current = facets.get(id) ?? []
+			if (current.includes(value) === checked) return
+			const next = checked ? [...current, value] : current.filter(option => option !== value)
+			facets = new Map(facets)
+			if (next.length) facets.set(id, next)
+			else facets.delete(id)
+			pageIndex = 0
+			markFilterDirty()
+			invalidate()
 		},
 		setPageSize(size) {
-			if (host.signal.aborted || !pageConfig.enabled || !pageConfig.sizes.includes(size)) return
-			table.setPagination({ pageIndex: 0, pageSize: size })
+			if (disposed || !pageConfig.enabled || !pageConfig.sizes.includes(size)) return
+			if (pageSize === size && pageIndex === 0) return
+			pageSize = size
+			pageIndex = 0
+			invalidate()
 		},
-		setQuery(query, event) {
-			if (!searchEnabled) return
-			withAction(event, () => {
-				const value = query.trim()
-				searchValue = value.toLowerCase()
-				table.setGlobalFilter(value)
-				resetPage()
-			})
+		setQuery(value) {
+			if (disposed || !searchEnabled) return
+			const next = value.trim()
+			if (query === next) return
+			query = next
+			searchValue = next.toLowerCase()
+			pageIndex = 0
+			markFilterDirty()
+			invalidate()
 		},
-		sort(id, event) {
+		sort(id) {
+			if (disposed) return
 			const model = modelById.get(id)
 			if (!model?.read || model.column.sort === false) return
-			withAction(event, () => {
-				const current = table.atoms.sorting.get()[0]
-				const next: SortingState = current?.id !== id
-					? [{ id, desc: false }]
-					: !current.desc ? [{ id, desc: true }] : []
-				table.setSorting(next)
-				resetPage()
-			})
+			sorting = sorting?.id !== id
+				? { desc: false, id }
+				: !sorting.desc ? { desc: true, id } : undefined
+			pageIndex = 0
+			sortDirty = true
+			invalidate()
 		},
 		sync,
 		toggleColumn(id, visible) {
-			if (host.signal.aborted) return
-			const column = table.getColumn(id)
-			if (!column?.getCanHide()) return
-			if (!visible && table.getVisibleLeafColumns().length <= 1) return
-			column.toggleVisibility(visible)
+			if (disposed) return
+			const model = modelById.get(id)
+			if (!model || model.column.hideable === false || visibility.get(id) === visible) return
+			if (!visible && [...visibility.values()].filter(Boolean).length <= 1) return
+			visibility = new Map(visibility).set(id, visible)
+			invalidate()
 		},
 		togglePage(checked, event) {
-			if (!selectionEnabled) return
-			withAction(event, () => {
-				const state = { ...table.atoms.rowSelection.get() }
-				const rows = pageConfig.enabled ? table.getRowModel().rows : table.getPrePaginatedRowModel().rows
-				for (const row of rows) {
-					if (checked) state[row.id] = true
-					else delete state[row.id]
-				}
-				table.setRowSelection(state)
-			})
+			if (disposed || !selectionEnabled) return
+			const next = new Set(effectiveSelection)
+			for (const index of visibleIndexes()) {
+				if (checked) next.add(rowIds[index]!)
+				else next.delete(rowIds[index]!)
+			}
+			proposeSelection(next, event)
 		},
 		toggleRow(id, checked, event) {
-			if (!selectionEnabled || !rowById.has(id)) return
-			withAction(event, () => {
-				const state = { ...table.atoms.rowSelection.get() }
-				if (checked) state[id] = true
-				else delete state[id]
-				table.setRowSelection(state)
-			})
+			if (disposed || !selectionEnabled || !rowById.has(id) || effectiveSelection.has(id) === checked) return
+			const next = new Set(effectiveSelection)
+			if (checked) next.add(id)
+			else next.delete(id)
+			proposeSelection(next, event)
 		},
 	}
 }

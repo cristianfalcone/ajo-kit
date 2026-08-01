@@ -14,6 +14,11 @@ pnpm add ajo ajo-ui
 
 `ajo-ui` requires `ajo ^0.1.35`.
 
+The package is authored in TypeScript and ships generated `.d.ts`
+declarations for the root and every component-family subpath. Published
+runtime and type entrypoints resolve from `dist/`; implementation source is
+not required in an installed package.
+
 ## Usage
 
 Import a component family from its subpath:

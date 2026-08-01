@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "description": "Reusable stateful component behaviors for Ajo",
   "type": "module",
+  "sideEffects": false,
   "files": [
     "dist",
-    "src",
     "README.md"
   ],
   "scripts": {

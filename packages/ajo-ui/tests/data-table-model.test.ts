@@ -1,7 +1,7 @@
 import type { Host } from 'ajo-cloves'
 import { expect, test, vi } from 'vitest'
 import type { DataTableArgs, DataTableColumn } from '../src/data-table-contract'
-import { createDataTableModel, dataTableReactivity } from '../src/data-table-model'
+import { createDataTableModel } from '../src/data-table-model'
 
 type Row = {
 	id: string
@@ -57,7 +57,7 @@ const args = (overrides: Partial<DataTableArgs<Row, string>> = {}): DataTableArg
 	...overrides,
 })
 
-test('one v9 pipeline owns search, facets, sorting, and pagination', () => {
+test('one pipeline owns search, facets, sorting, and pagination', () => {
 	const fixture = host()
 	const initial = args({ search: {} })
 	const model = createDataTableModel(fixture.host, initial)
@@ -93,6 +93,39 @@ test('one v9 pipeline owns search, facets, sorting, and pagination', () => {
 	expect(view.filteredCount).toBe(3)
 	expect(view.query).toBe('')
 
+	fixture.controller.abort()
+})
+
+test('sorts numeric string chunks beyond safe integer precision', () => {
+	type NaturalRow = { id: string; name: string }
+	const fixture = host()
+	const naturalRows: readonly NaturalRow[] = [
+		{ id: 'high', name: 'item9007199254740993' },
+		{ id: 'low', name: 'item9007199254740992' },
+	]
+	const initial: DataTableArgs<NaturalRow, string> = {
+		columns: [{ label: 'Name', value: 'name' }],
+		getRowKey: row => row.id,
+		label: 'Natural order',
+		pagination: false,
+		rows: naturalRows,
+	}
+	const model = createDataTableModel(fixture.host, initial)
+
+	model.sort('name')
+	expect(model.sync(initial).rows.map(row => row.key)).toEqual(['low', 'high'])
+	fixture.controller.abort()
+})
+
+test('reset returns to the first page without active filters', () => {
+	const fixture = host()
+	const initial = args()
+	const model = createDataTableModel(fixture.host, initial)
+	model.sync(initial)
+	model.nextPage()
+	expect(model.sync(initial).page.index).toBe(1)
+	model.reset()
+	expect(model.sync(initial).page.index).toBe(0)
 	fixture.controller.abort()
 })
 
@@ -301,45 +334,6 @@ test('coalesces host invalidation and cancels pending work on abort', async () =
 	expect(fixture.next).toHaveBeenCalledTimes(1)
 })
 
-test('owns repeated Store subscriptions and scheduled errors through Host lifecycle', async () => {
-	for (let index = 0; index < 25; index++) {
-		const controller = new AbortController()
-		const fail = vi.fn()
-		const scheduled = vi.fn()
-		const unsubscribe = vi.fn()
-		const reactive = dataTableReactivity({
-			next: vi.fn(),
-			signal: controller.signal,
-			throw: fail,
-		} as unknown as Host)
-		reactive.add({ unsubscribe })
-		reactive.bindings.schedule(scheduled)
-		controller.abort()
-		controller.abort()
-		await Promise.resolve()
-		expect(unsubscribe).toHaveBeenCalledTimes(1)
-		expect(scheduled).not.toHaveBeenCalled()
-		expect(fail).not.toHaveBeenCalled()
-
-		const late = vi.fn()
-		reactive.add({ unsubscribe: late })
-		expect(late).toHaveBeenCalledTimes(1)
-	}
-
-	const controller = new AbortController()
-	const fail = vi.fn()
-	const reactive = dataTableReactivity({
-		next: vi.fn(),
-		signal: controller.signal,
-		throw: fail,
-	} as unknown as Host)
-	const error = new Error('scheduled failure')
-	reactive.bindings.schedule(() => { throw error })
-	await Promise.resolve()
-	expect(fail).toHaveBeenCalledWith(error)
-	controller.abort()
-})
-
 test('propagates controlled callback errors without corrupting model state', () => {
 	const fixture = host()
 	const error = new Error('selection failure')
@@ -382,6 +376,14 @@ test('invalid identity and schema fail before rows render', () => {
 		'DataTable display column "display" cannot define a facet',
 	)
 
+	const duplicateMissing = args({
+		selection: {
+			defaultValue: ['missing', 'missing'],
+			getRowLabel: row => row.name,
+		},
+	})
+	expect(() => createDataTableModel(host().host, duplicateMissing)).toThrowError(/DataTable duplicate selection key/)
+
 	const duplicateDefault = args({
 		selection: {
 			defaultValue: ['a', 'a'],
@@ -393,6 +395,17 @@ test('invalid identity and schema fail before rows render', () => {
 	expect(() => createDataTableModel(host().host, duplicateDefault)).toThrowError(
 		'DataTable duplicate selection key "a"',
 	)
+})
+
+test('a non-hideable column overrides its default-hidden hint', () => {
+	const fixture = host()
+	const initial = args({
+		columns: [{ defaultHidden: true, hideable: false, label: 'Name', value: 'name' }],
+	})
+	const model = createDataTableModel(fixture.host, initial)
+
+	expect(model.sync(initial).columns[0]).toMatchObject({ visible: true })
+	fixture.controller.abort()
 })
 
 test('string and numeric keys remain distinct', () => {

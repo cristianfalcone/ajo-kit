@@ -440,7 +440,7 @@ const safeRootAttrs = (attrs: Record<string, unknown>) => {
 	return result
 }
 
-/** Native, Ajo-owned client DataTable powered by a private TanStack Table v9 model. */
+/** Native, Ajo-owned client DataTable powered by its private indexed model. */
 const DataTable = <T extends DataTableData, Key extends DataTableKey = DataTableKey>({
 	children: _children,
 	class: classes,

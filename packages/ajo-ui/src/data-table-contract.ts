@@ -52,7 +52,7 @@ type DataTableDisplayColumn<T extends DataTableData> = DataTableColumnBase & {
 	facet?: never
 }
 
-/** A stable Ajo column schema; TanStack implementation details stay private. */
+/** A stable Ajo column schema; engine implementation details stay private. */
 export type DataTableColumn<T extends DataTableData> = DataTableDisplayColumn<T> | DataTableValueColumn<T>
 
 type DataTableSelectionChange<Key extends DataTableKey> = (

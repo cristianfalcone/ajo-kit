@@ -5,11 +5,8 @@ allowBuilds:
   argon2: true
   better-sqlite3: true
   esbuild: true
-overrides:
-  '@tanstack/store': 0.11.0
 minimumReleaseAgeExclude:
   - ajo@0.1.35
-  - '@tanstack/table-core@9.0.0-beta.47'
   - '@tanstack/virtual-core@3.17.4'
 versioning:
   ignore:

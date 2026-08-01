@@ -1,7 +1,15 @@
 import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callRef, clamp, dom, id as uniqueId, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
-import { context } from 'ajo/context'
-import { pointReference, position, type ReservedPositionArg } from './position'
+import {
+	ChartContext,
+	ChartIdContext,
+	type ChartContextValue,
+	type ChartPoint as Point,
+	type ChartReferencePoint,
+	type ChartSeriesEntry as SeriesEntry,
+	type ChartTooltipPositionController,
+} from './chart-context'
+import type { ReservedPositionArg } from './position'
 import type { FixedArgs, OmitArg } from './utils'
 import { text } from './utils'
 
@@ -195,45 +203,8 @@ export type ChartLegendContentArgs = OmitArg<IntrinsicElements['div'], 'children
 	swatchClass?: string
 } & FixedArgs<'children'>
 
-type SeriesEntry = ChartSeries & {
-	color: string
-	label: Children
-}
-
-type Point = {
-	x: number
-	y: number
-}
-
-type ChartReferencePoint = Point & {
-	svg: SVGSVGElement
-}
-
-type ChartContextValue = {
-	active: ChartActive | null
-	clearActive: () => void
-	config: ChartConfig
-	data: ChartDatum[]
-	description?: string
-	formatLabel: (value: unknown, row: ChartDatum, index: number) => Children
-	formatValue: (value: number, key: string, row: ChartDatum, index: number) => string
-	height: number
-	id: string
-	label?: string
-	margin: ChartMargin
-	palette: string[]
-	releasePlot: (plot: SVGSVGElement) => void
-	series: SeriesEntry[]
-	setActive: (active: ChartActive | null, at?: ChartReferencePoint) => void
-	setTooltip: (element: HTMLElement | null) => void
-	type: ChartType
-	width: number
-	xKey?: string
-}
-
-const ChartContext = context<ChartContextValue | null>(null)
 /** Read the stable identity resolved by the nearest ChartContainer. */
-export const ChartIdContext = context<string | null>(null)
+export { ChartIdContext }
 
 const DEFAULT_MARGIN: ChartMargin = { bottom: 32, left: 40, right: 16, top: 16 }
 const DEFAULT_WIDTH = 640
@@ -241,9 +212,6 @@ const DEFAULT_HEIGHT = 240
 
 const resolveRootChartId = (value: unknown, fallback: string) =>
 	value ? `chart-${encodeURIComponent(String(value))}` : fallback
-
-const resolve = <State,>(value: ClassResolver<State> | undefined, state: State) =>
-	typeof value === 'function' ? value(state) : value
 
 const number = (value: unknown) => {
 	const next = Number(value)
@@ -488,49 +456,32 @@ type ChartContainerRootArgs = ChartContainerArgs & {
 const ChartContainerRoot: Stateful<ChartContainerRootArgs> = function* () {
 	let active: ChartActive | null = null
 	const fallbackId = uniqueId('chart')
-	let tooltip: HTMLElement | null = null
 	const root = dom(this) ? this : null
 	let activePoint: ChartReferencePoint | null = null
 	let lastClientPoint: Point | null = null
-	const reference = root ? pointReference(() => activePoint?.svg ?? root, () => {
+	let tooltip: ChartTooltipPositionController | null = null
+	const tooltipPoint = () => {
 		const next = activePoint ? clientPoint(activePoint.svg, activePoint.x, activePoint.y) : null
 		if (next) lastClientPoint = next
 		if (lastClientPoint) return lastClientPoint
-		const rect = root.getBoundingClientRect()
-		return { x: rect.left, y: rect.top }
-	}) : null
-	const geometry = position(this, {
-		profile: 'chart',
+		const rect = root?.getBoundingClientRect()
+		return { x: rect?.left ?? 0, y: rect?.top ?? 0 }
+	}
+	const tooltipPosition: ChartContextValue['tooltipPosition'] = {
 		boundary: () => root,
-		elements: () => ({ reference, floating: tooltip, arrow: null }),
-	})
-	let geometryScheduled = false
-	let geometryRestart = false
-
-	const report = (error: unknown) => {
-		if (this.signal.aborted) return
-		queueMicrotask(() => {
-			if (!this.signal.aborted) this.throw(error)
-		})
-	}
-	const scheduleGeometry = (restart = false) => {
-		geometryRestart ||= restart
-		if (geometryScheduled || this.signal.aborted) return
-		geometryScheduled = true
-		queueMicrotask(() => {
-			geometryScheduled = false
-			const shouldRestart = geometryRestart
-			geometryRestart = false
-			if (!active || !activePoint || !tooltip || this.signal.aborted) return
-			const task = shouldRestart ? geometry.start() : geometry.update()
-			void task.catch(report)
-		})
-	}
-	const setTooltip = (element: HTMLElement | null) => {
-		if (element === tooltip) return
-		geometry.stop()
-		tooltip = element
-		if (active && activePoint && element) scheduleGeometry(true)
+		point: tooltipPoint,
+		reference: () => activePoint?.svg ?? root,
+		register: controller => {
+			if (controller === tooltip) return
+			tooltip?.stop()
+			tooltip = controller
+			if (active && activePoint) controller.schedule(true)
+		},
+		unregister: controller => {
+			if (controller !== tooltip) return
+			controller.stop()
+			tooltip = null
+		},
 	}
 	const movePoint = (next: ChartReferencePoint | undefined) => {
 		if (!next) return 0
@@ -546,14 +497,14 @@ const ChartContainerRoot: Stateful<ChartContainerRootArgs> = function* () {
 	const setActive = (next: ChartActive | null, at?: ChartReferencePoint) => {
 		const movement = next ? movePoint(at) : 0
 		const retargeted = movement === 2
-		if (retargeted) geometry.stop()
+		if (retargeted) tooltip?.stop()
 		if (!next) {
 			activePoint = null
 			lastClientPoint = null
-			geometry.stop()
+			tooltip?.stop()
 		}
 		if (sameActiveValue(active, next)) {
-			if (next && movement) scheduleGeometry(movement === 2)
+			if (next && movement) tooltip?.schedule(movement === 2)
 			return
 		}
 
@@ -563,20 +514,20 @@ const ChartContainerRoot: Stateful<ChartContainerRootArgs> = function* () {
 
 		// The tooltip ref/content updates during the render above. Mount/retarget
 		// and point changes collapse into one current Adapter request.
-		if (next && at) scheduleGeometry(first || retargeted)
+		if (next && at) tooltip?.schedule(first || retargeted)
 	}
 	const clearActive = () => setActive(null)
 	const releasePlot = (plot: SVGSVGElement) => {
 		if (this.signal.aborted || activePoint?.svg !== plot) return
 		const releasedPoint = activePoint
-		geometry.stop()
+		tooltip?.stop()
 		activePoint = null
 		lastClientPoint = null
 		queueMicrotask(() => {
 			if (this.signal.aborted || activePoint) return
 			if (plot.isConnected) {
 				activePoint = releasedPoint
-				if (active && tooltip) scheduleGeometry(true)
+				if (active && tooltip) tooltip.schedule(true)
 				return
 			}
 			if (active) clearActive()
@@ -606,7 +557,7 @@ const ChartContainerRoot: Stateful<ChartContainerRootArgs> = function* () {
 			releasePlot,
 			series: seriesEntries(args.config, args.series, data, args.xKey, args.palette),
 			setActive,
-			setTooltip,
+			tooltipPosition,
 			type,
 			width,
 			xKey: args.xKey,
@@ -1022,106 +973,6 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 	)
 }
 
-/** Unstyled absolute tooltip layer for native chart primitives. */
-const ChartTooltip: Stateless<ChartTooltipArgs> = ({
-	children,
-	class: classes,
-	content,
-	...attrs
-}) => {
-	const chart = ChartContext()
-	if (!chart) return null
-
-	if (!chart.active?.items.length) return null
-
-	return (
-		<div
-			key="chart-tooltip"
-			{...attrs}
-			class={classes}
-			data-slot="chart-tooltip"
-			ref={chart.setTooltip}
-			style="left:0;top:0"
-		>
-			{content ?? children ?? <ChartTooltipContent />}
-		</div>
-	)
-}
-
-/** Unstyled tooltip body for native chart payloads. */
-const ChartTooltipContent: Stateless<ChartTooltipContentArgs> = ({
-	class: classes,
-	formattedValueClass,
-	formatter,
-	hideIndicator,
-	hideLabel,
-	iconClass,
-	iconWrapperClass,
-	indicator = 'dot',
-	indicatorClass,
-	itemClass,
-	itemLabelClass,
-	itemsClass,
-	labelClass,
-	labelFormatter,
-	nestedLabelClass,
-	valueLabelGroupClass,
-	valueRowClass,
-	...attrs
-}) => {
-	const chart = ChartContext()
-	const active = chart?.active
-	if (!chart || !active?.items.length) return null
-
-	const nestLabel = active.items.length === 1 && indicator !== 'dot'
-	const state = { indicator, nestLabel }
-
-	return (
-		<div {...attrs} class={classes} data-slot="chart-tooltip-content">
-			{!hideLabel && !nestLabel ? (
-				<div class={labelClass} data-slot="chart-tooltip-label">
-					{labelFormatter ? labelFormatter(active.label, active.items) : active.label}
-				</div>
-			) : null}
-			<div class={itemsClass}>
-				{active.items.map((item, index) => {
-					const config = chart.config[item.key]
-					const icon = config?.icon
-
-					return (
-						<div key={`${item.key}-${index}`} class={resolve(itemClass, state)} data-slot="chart-tooltip-item">
-							{formatter ? formatter(item.value, item.key, item, index) : (
-								<>
-									{icon && !hideIndicator ? (
-										<span aria-hidden="true" class={iconWrapperClass}>{renderIcon(icon, iconClass)}</span>
-									) : !hideIndicator ? (
-										<span
-											aria-hidden="true"
-											class={resolve(indicatorClass, state)}
-											style={`--chart-indicator:${item.color}`}
-										/>
-									) : null}
-									<div class={resolve(valueRowClass, { nestLabel })}>
-										<div class={valueLabelGroupClass}>
-											{!hideLabel && nestLabel ? (
-												<div class={nestedLabelClass}>
-													{labelFormatter ? labelFormatter(active.label, active.items) : active.label}
-												</div>
-											) : null}
-											<span class={itemLabelClass}>{item.label}</span>
-										</div>
-										<span class={formattedValueClass}>{item.formattedValue}</span>
-									</div>
-								</>
-							)}
-						</div>
-					)
-				})}
-			</div>
-		</div>
-	)
-}
-
 /** Unstyled legend layer for native chart primitives. */
 const ChartLegend: Stateless<ChartLegendArgs> = ({
 	children,
@@ -1189,6 +1040,6 @@ export {
 	ChartLegendContent,
 	ChartLine,
 	ChartPie,
-	ChartTooltip,
-	ChartTooltipContent,
 }
+
+export { ChartTooltip, ChartTooltipContent } from './chart-tooltip'

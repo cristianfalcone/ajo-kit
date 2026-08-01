@@ -1,4 +1,5 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
+import type { Host } from 'ajo-cloves'
 import { callHandler, callRef, controlled, dom, id, listen, restore, roving, spin, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { compile, type Availability, type AvailabilityMatcher } from './availability'
@@ -6,7 +7,7 @@ import type { ReservedPositionArg } from './position'
 import type { FixedArgs, OmitArg, PopupPosition } from './utils'
 import { Calendar, type CalendarArgs, type CalendarCommonArgs, type CalendarDateRange, type CalendarMatcher } from './calendar'
 import { FieldContext } from './field'
-import { contentAttrs, popup, type PopupView } from './popup'
+import { contentAttrs, popup, type PopupOptions, type PopupView } from './popup'
 import {
 	defaultMessage,
 	field,
@@ -190,7 +191,6 @@ type InputDateSurface = 'field' | 'popover'
 
 type InputDateRootArgs = WithChildren<{
 	allowNonContiguous?: boolean
-	calendar?: boolean | InputDateCalendarArgs
 	closeOnSelect?: boolean
 	defaultOpen?: boolean
 	defaultValue?: string | InputDateRangeValue
@@ -209,6 +209,7 @@ type InputDateRootArgs = WithChildren<{
 	open?: boolean
 	placeholderValue?: string
 	presets?: InputDatePreset[]
+	popupFactory?: InputDatePopupFactory
 	range?: boolean
 	readOnly?: boolean
 	required?: boolean
@@ -264,6 +265,41 @@ const resolveLocale = (locale: string | { code?: string } | undefined): string =
 	if (typeof document !== 'undefined' && document.documentElement.lang) return document.documentElement.lang
 	return 'en-US'
 }
+
+type InputDatePopup = PopupView<HTMLButtonElement, HTMLDivElement>
+type InputDatePopupFactory = (host: Host, options: PopupOptions<InputDatePopup>) => InputDatePopup
+
+// InputTime shares the segmented-field engine but owns no popup surface. Its
+// inert adapter keeps that static graph independent from Calendar/positioning.
+const inputTimePopup: InputDatePopupFactory = (_host, options) => {
+	const rootId = id(options.prefix)
+	const triggerId = `${rootId}-trigger`
+	const contentId = `${rootId}-content`
+	return {
+		open: false,
+		trigger: null,
+		content: null,
+		reference: null,
+		triggerId,
+		contentId,
+		adoptTriggerId: () => triggerId,
+		contentStyle: style => typeof style === 'string' ? style : '',
+		arrowAttrs: () => ({ ref: () => undefined, style: '' }),
+		sync: () => false,
+		setOpen: () => undefined,
+		init: () => undefined,
+		close: () => undefined,
+		hold: () => undefined,
+		release: () => undefined,
+		cancelHover: () => undefined,
+		setTrigger: () => undefined,
+		setContent: () => undefined,
+		setReference: () => undefined,
+		update: () => undefined,
+	}
+}
+
+const positionedInputDatePopup: InputDatePopupFactory = (host, options) => popup(host, options)
 
 const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	let kind = initial.kind
@@ -405,7 +441,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		closingInside = false
 	}
 
-	pop = popup<HTMLButtonElement, HTMLDivElement>(this, {
+	pop = (initial.popupFactory ?? inputTimePopup)(this, {
 		prefix: 'input-date',
 		profile: 'date',
 		initialOpen: Boolean(initial.open ?? initial.defaultOpen),
@@ -1048,25 +1084,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 						<input data-slot="input-date-hidden" disabled={disabled} name={`${args.name}[to]`} set:value={fields.to.value() ?? ''} type="hidden" value={fields.to.value() ?? ''} />
 					</>
 					: null}
-				{args.children ?? (
-					<>
-						{isRange ? <><InputDateField side="from" /><InputDateField side="to" /></> : <InputDateField />}
-						{args.calendar && kind !== 'time' ? (
-							<>
-								<InputDateTrigger />
-								<InputDateContent>
-									<InputDateCalendar {...(typeof args.calendar === 'object' ? args.calendar : {})} />
-									{kind === 'datetime'
-										? isRange
-											? <><InputDateTimeField side="from" /><InputDateTimeField side="to" /></>
-											: <InputDateTimeField />
-										: null}
-									{presets.length ? <InputDatePresets /> : null}
-								</InputDateContent>
-							</>
-						) : null}
-					</>
-				)}
+				{args.children}
 				{descriptionText ? <span data-slot="input-date-description" hidden id={descriptionId}>{descriptionText}</span> : null}
 				{message ? <span data-slot="input-date-message" hidden id={messageId}>{message}</span> : null}
 			</>
@@ -1113,7 +1131,6 @@ const InputDate = <Range extends boolean = false>({
 			{...rootAttrs(attrs as Record<string, unknown>)}
 			{...(range ? { 'attr:role': 'group', 'attr:aria-describedby': fieldCtx?.groupAttrs['aria-describedby'], 'attr:aria-labelledby': fieldCtx?.groupAttrs['aria-labelledby'] } : {})}
 			allowNonContiguous={allowNonContiguous}
-			calendar={calendar}
 			closeOnSelect={closeOnSelect}
 			defaultOpen={defaultOpen}
 			defaultValue={defaultValue as string | InputDateRangeValue | undefined}
@@ -1132,6 +1149,7 @@ const InputDate = <Range extends boolean = false>({
 			placement={placement}
 			placeholderValue={placeholderValue}
 			presets={presets as InputDatePreset[] | undefined}
+			popupFactory={positionedInputDatePopup}
 			range={range}
 			readOnly={readOnly}
 			required={required}
@@ -1140,7 +1158,20 @@ const InputDate = <Range extends boolean = false>({
 			attr:class={classes}
 			attr:data-slot="input-date"
 		>
-			{children}
+			{children ?? (
+				<>
+					{range ? <><InputDateField side="from" /><InputDateField side="to" /></> : <InputDateField />}
+					{calendar ? (
+						<>
+							<InputDateTrigger />
+							<InputDateContent>
+								<InputDateCalendar {...(typeof calendar === 'object' ? calendar : {})} />
+								{presets?.length ? <InputDatePresets /> : null}
+							</InputDateContent>
+						</>
+					) : null}
+				</>
+			)}
 		</InputDateRoot>
 	)
 }
@@ -1199,7 +1230,7 @@ const InputTime = <Range extends boolean = false>({
 			attr:class={classes}
 			attr:data-slot="input-time"
 		>
-			{children}
+			{children ?? (range ? <><InputDateField side="from" /><InputDateField side="to" /></> : <InputDateField />)}
 		</InputDateRoot>
 	)
 }
@@ -1244,7 +1275,6 @@ const InputDateTime = <Range extends boolean = false>({
 			{...rootAttrs(attrs as Record<string, unknown>)}
 			{...(range ? { 'attr:role': 'group', 'attr:aria-describedby': fieldCtx?.groupAttrs['aria-describedby'], 'attr:aria-labelledby': fieldCtx?.groupAttrs['aria-labelledby'] } : {})}
 			allowNonContiguous={allowNonContiguous}
-			calendar={calendar}
 			closeOnSelect={closeOnSelect}
 			defaultOpen={defaultOpen}
 			defaultValue={defaultValue as string | InputDateRangeValue | undefined}
@@ -1265,6 +1295,7 @@ const InputDateTime = <Range extends boolean = false>({
 			placement={placement}
 			placeholderValue={placeholderValue}
 			presets={presets as InputDatePreset[] | undefined}
+			popupFactory={positionedInputDatePopup}
 			range={range}
 			readOnly={readOnly}
 			required={required}
@@ -1274,7 +1305,23 @@ const InputDateTime = <Range extends boolean = false>({
 			attr:class={classes}
 			attr:data-slot="input-datetime"
 		>
-			{children}
+			{children ?? (
+				<>
+					{range ? <><InputDateField side="from" /><InputDateField side="to" /></> : <InputDateField />}
+					{calendar ? (
+						<>
+							<InputDateTrigger />
+							<InputDateContent>
+								<InputDateCalendar {...(typeof calendar === 'object' ? calendar : {})} />
+								{range
+									? <><InputDateTimeField side="from" /><InputDateTimeField side="to" /></>
+									: <InputDateTimeField />}
+								{presets?.length ? <InputDatePresets /> : null}
+							</InputDateContent>
+						</>
+					) : null}
+				</>
+			)}
 		</InputDateRoot>
 	)
 }
