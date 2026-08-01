@@ -138,6 +138,7 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 	const cached = await request.get('/admin/users', {
 		headers: {
 			Accept: 'application/json',
+			'X-Ajo-Scope': body.scope,
 			'X-Have': body.hash,
 			'X-Ajo-Versions': JSON.stringify(body.versions),
 		},
@@ -177,6 +178,7 @@ test('emitted action topics make stale route versions miss early 304', async ({ 
 	const stale = await request.get('/admin/sessions', {
 		headers: {
 			Accept: 'application/json',
+			'X-Ajo-Scope': body.scope,
 			'X-Have': body.hash,
 			'X-Ajo-Versions': JSON.stringify(body.versions),
 		},
