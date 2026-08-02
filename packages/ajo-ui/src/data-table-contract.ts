@@ -7,49 +7,49 @@ export type DataTableData = any[] | Record<string, any>
 export type DataTableScalar = boolean | number | string | null | undefined
 
 export type DataTableCellContext = {
-	columnId: string
-	sourceIndex: number
-	value: unknown
+	readonly columnId: string
+	readonly sourceIndex: number
+	readonly value: unknown
 }
 
 export type DataTableFacet<T extends DataTableData> = {
-	label: string
-	options: readonly {
-		icon?: Children
-		label: string
-		value: string
+	readonly label: string
+	readonly options: readonly {
+		readonly icon?: Children
+		readonly label: string
+		readonly value: string
 	}[]
-	values?: (row: T, sourceIndex: number) => string | readonly string[]
+	readonly values?: (row: T, sourceIndex: number) => string | readonly string[]
 }
 
 type DataTableColumnBase = {
 	/** Plain accessible name used by menus, sorting, and announcements. */
-	label: string
+	readonly label: string
 	/** Visual header content. Defaults to `label`. */
-	header?: Children
-	align?: 'center' | 'left' | 'right'
-	defaultHidden?: boolean
-	hideable?: boolean
+	readonly header?: Children
+	readonly align?: 'center' | 'left' | 'right'
+	readonly defaultHidden?: boolean
+	readonly hideable?: boolean
 }
 
 type DataTableValue<T extends DataTableData> =
-	| { id?: string; value: keyof T & string }
-	| { id: string; value: (row: T, sourceIndex: number) => unknown }
+	| { readonly id?: string; readonly value: keyof T & string }
+	| { readonly id: string; readonly value: (row: T, sourceIndex: number) => unknown }
 
 type DataTableValueColumn<T extends DataTableData> = DataTableColumnBase & DataTableValue<T> & {
-	cell?: (row: T, context: DataTableCellContext) => Children
-	sort?: false | ((left: T, right: T) => number)
-	search?: false | ((row: T, sourceIndex: number) => DataTableScalar)
-	facet?: DataTableFacet<T>
+	readonly cell?: (row: T, context: DataTableCellContext) => Children
+	readonly sort?: false | ((left: T, right: T) => number)
+	readonly search?: false | ((row: T, sourceIndex: number) => DataTableScalar)
+	readonly facet?: DataTableFacet<T>
 }
 
 type DataTableDisplayColumn<T extends DataTableData> = DataTableColumnBase & {
-	id: string
-	value?: never
-	cell: (row: T, context: DataTableCellContext) => Children
-	sort?: false
-	search?: false
-	facet?: never
+	readonly id: string
+	readonly value?: never
+	readonly cell: (row: T, context: DataTableCellContext) => Children
+	readonly sort?: false
+	readonly search?: false
+	readonly facet?: never
 }
 
 /** A stable Ajo column schema; engine implementation details stay private. */

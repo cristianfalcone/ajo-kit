@@ -1,55 +1,32 @@
-import type { Children } from 'ajo'
 import type { Host } from 'ajo-cloves'
 import type {
 	DataTableArgs,
 	DataTableColumn,
 	DataTableData,
 	DataTableKey,
-	DataTableLabels,
 	DataTablePagination,
 } from './data-table-contract'
 
 const DEFAULT_SIZES = [10, 25, 50] as const
-
-export const dataTableDefaultLabels: DataTableLabels = {
-	columns: 'Columns',
-	deselectPage: 'Deselect page',
-	deselectResults: 'Deselect filtered results',
-	deselectRow: row => `Deselect ${row}`,
-	firstPage: 'First page',
-	lastPage: 'Last page',
-	nextPage: 'Next page',
-	page: (page, pages) => `Page ${page} of ${pages}`,
-	pagination: table => `${table} pagination`,
-	previousPage: 'Previous page',
-	reset: 'Reset',
-	results: count => `${count} result${count === 1 ? '' : 's'}`,
-	rowsPerPage: 'Rows per page',
-	search: 'Search',
-	selectPage: 'Select page',
-	selectResults: 'Select filtered results',
-	selectRow: row => `Select ${row}`,
-	selected: (selected, total) => `${selected} of ${total} ${total === 1 ? 'row' : 'rows'} selected.`,
-	sort: (column, next) => `Sort ${column} ${next}`,
-	toolbar: table => `${table} controls`,
-}
+const UNDEFINED_VALUE = Symbol('DataTable undefined value')
 
 type ColumnModel<T extends DataTableData> = {
 	column: DataTableColumn<T>
 	id: string
 	read?: (row: T, sourceIndex: number) => unknown
-	ready?: Uint8Array
 	values?: unknown[]
 }
 
-export type DataTableColumnView<T extends DataTableData> = ColumnModel<T> & {
+type ColumnRef<T extends DataTableData> = Pick<ColumnModel<T>, 'column' | 'id'>
+
+export type DataTableColumnView<T extends DataTableData> = ColumnRef<T> & {
 	active: readonly string[]
 	sorted: false | 'asc' | 'desc'
 	visible: boolean
 }
 
 export type DataTableCellView<T extends DataTableData> = {
-	column: ColumnModel<T>
+	column: ColumnRef<T>
 	value: unknown
 }
 
@@ -86,18 +63,17 @@ export type DataTableView<T extends DataTableData, Key extends DataTableKey> = {
 }
 
 export type DataTableModel<T extends DataTableData, Key extends DataTableKey> = {
-	cell(cell: DataTableCellView<T>, row: DataTableRowView<T, Key>): Children
 	firstPage(): void
 	lastPage(): void
 	nextPage(): void
 	previousPage(): void
-	reset(event?: Event): void
+	reset(): void
 	selected(rowId: string): boolean
 	selection(): { all: boolean; some: boolean }
-	setFacet(columnId: string, value: string, checked: boolean, event?: Event): void
+	setFacet(columnId: string, value: string, checked: boolean): void
 	setPageSize(size: number): void
-	setQuery(query: string, event?: Event): void
-	sort(columnId: string, event?: Event): void
+	setQuery(query: string): void
+	sort(columnId: string): void
 	sync(args: DataTableArgs<T, Key>): DataTableView<T, Key>
 	toggleColumn(columnId: string, visible: boolean): void
 	togglePage(checked: boolean, event?: Event): void
@@ -270,7 +246,6 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 	let columnsLength = 0
 	let models: ColumnModel<T>[] = []
 	let modelById = new Map<string, ColumnModel<T>>()
-	let knownColumns = new Map<string, ColumnModel<T>>()
 	let visibility = new Map<string, boolean>()
 
 	let searchEnabled = Boolean(initialArgs.search)
@@ -304,13 +279,8 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 		})
 	}
 
-	host.signal.addEventListener('abort', () => { disposed = true }, { once: true })
-
 	const clearValues = () => {
-		for (const model of models) {
-			model.ready = undefined
-			model.values = undefined
-		}
+		for (const model of models) model.values = undefined
 	}
 
 	const markFilterDirty = () => {
@@ -377,7 +347,9 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 				const options = new Set<string>()
 				for (const option of column.facet.options) {
 					assertText(option.label, `facet option label ${id}`)
-					assertText(option.value, `facet option value ${id}`)
+					if (typeof option.value !== 'string') {
+						throw new TypeError(`DataTable invalid facet option value ${id}`)
+					}
 					if (options.has(option.value)) throw new TypeError(`DataTable duplicate facet option ${id}/${option.value}`)
 					options.add(option.value)
 				}
@@ -385,9 +357,6 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 			const model = { column, id, read }
 			models.push(model)
 			modelById.set(id, model)
-		}
-		if (models.every(({ column }) => column.defaultHidden && column.hideable !== false)) {
-			throw new TypeError('DataTable needs a visible column')
 		}
 		markFilterDirty()
 		return true
@@ -412,13 +381,12 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 
 	const readValue = (model: ColumnModel<T>, index: number) => {
 		if (!model.read) return undefined
-		model.ready ??= new Uint8Array(rowsLength)
-		model.values ??= []
-		if (!model.ready[index]) {
-			model.values[index] = model.read(args.rows[index]!, index)
-			model.ready[index] = 1
-		}
-		return model.values[index]
+		const values = model.values ??= []
+		const cached = values[index]
+		if (cached !== undefined) return cached === UNDEFINED_VALUE ? undefined : cached
+		const value = model.read(args.rows[index]!, index)
+		values[index] = value === undefined ? UNDEFINED_VALUE : value
+		return value
 	}
 
 	const facetValues = (model: ColumnModel<T>, index: number) => {
@@ -439,6 +407,11 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 		const searchable = searchEnabled && searchValue
 			? models.filter(model => model.read && model.column.search !== false)
 			: []
+		if (!activeFacets.length && !searchable.length) {
+			filteredIndexes = sourceIndexes
+			filterDirty = false
+			return filteredIndexes
+		}
 		filteredIndexes = sourceIndexes.filter(index => {
 			if (searchable.length) {
 				let matches = false
@@ -491,8 +464,7 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 		return indexes.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize)
 	}
 
-	const pageSelection = () => {
-		const indexes = visibleIndexes()
+	const pageSelection = (indexes = visibleIndexes()) => {
 		let selected = 0
 		for (const index of indexes) if (effectiveSelection.has(rowIds[index]!)) selected++
 		const all = indexes.length > 0 && selected === indexes.length
@@ -524,12 +496,17 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 		if (!changed) return
 		const nextVisibility = new Map<string, boolean>()
 		for (const model of models) {
-			const previous = knownColumns.get(model.id)
+			const previous = visibility.has(model.id)
 			nextVisibility.set(model.id, model.column.hideable === false
 				? true
 				: previous ? visibility.get(model.id) !== false : !model.column.defaultHidden)
 		}
-		if (![...nextVisibility.values()].some(Boolean)) nextVisibility.set(models[0]!.id, true)
+		if (![...nextVisibility.values()].some(Boolean)) {
+			if (models.every(model => model.column.defaultHidden)) {
+				throw new TypeError('DataTable needs a visible column')
+			}
+			nextVisibility.set(models[0]!.id, true)
+		}
 		visibility = nextVisibility
 
 		let resetPage = false
@@ -555,20 +532,20 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 			if (values.length !== active.length) resetPage = true
 		}
 		facets = nextFacets
-		knownColumns = new Map(modelById)
 		if (resetPage) pageIndex = 0
 	}
 
 	snapshotRows(initialArgs)
 	snapshotColumns(initialArgs)
-	knownColumns = new Map(modelById)
 	assertText(initialArgs.label, 'label')
 	visibility = new Map(models.map(model => [
 		model.id,
 		model.column.hideable === false || !model.column.defaultHidden,
 	]))
+	if (![...visibility.values()].some(Boolean)) throw new TypeError('DataTable needs a visible column')
 	uncontrolledSelection = selectionInput(initialArgs.selection)
-	effectiveSelection = selectionControlled ? selectionInput(initialArgs.selection) : uncontrolledSelection
+	effectiveSelection = uncontrolledSelection
+	host.signal.addEventListener('abort', () => { disposed = true }, { once: true })
 
 	const sync = (nextArgs: DataTableArgs<T, Key>): DataTableView<T, Key> => {
 		args = nextArgs
@@ -618,8 +595,9 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 		if (pageConfig.enabled && pageIndex >= count) pageIndex = count - 1
 		const visibleColumns = models.filter(model => visibility.get(model.id) !== false)
 		const columnViews = models.map(model => ({
-			...model,
 			active: facets.get(model.id) ?? [],
+			column: model.column,
+			id: model.id,
 			sorted: sorting?.id === model.id ? sorting.desc ? 'desc' as const : 'asc' as const : false as const,
 			visible: visibility.get(model.id) !== false,
 		}))
@@ -631,7 +609,7 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 			selected: effectiveSelection.has(rowIds[index]!),
 			sourceIndex: index,
 		}))
-		const selected = pageSelection()
+		const selected = pageSelection(indexes)
 		renderedVersion = stateVersion
 		return {
 			columns: columnViews,
@@ -662,16 +640,6 @@ export const createDataTableModel = <T extends DataTableData, Key extends DataTa
 	}
 
 	return {
-		cell(cell, row) {
-			if (cell.column.column.cell) return cell.column.column.cell(row.original, {
-				columnId: cell.column.id,
-				sourceIndex: row.sourceIndex,
-				value: cell.value,
-			})
-			if (cell.value == null) return ''
-			if (['bigint', 'boolean', 'number', 'string'].includes(typeof cell.value)) return String(cell.value)
-			throw new TypeError(`DataTable cannot render ${cell.column.id} at ${row.sourceIndex}`)
-		},
 		firstPage: () => setPage(0),
 		lastPage: () => setPage(pageCount() - 1),
 		nextPage: () => setPage(pageIndex + 1),

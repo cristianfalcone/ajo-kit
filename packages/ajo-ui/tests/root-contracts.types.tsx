@@ -6,6 +6,23 @@ type Person = { id: number, name: string }
 
 const people: Person[] = [{ id: 1, name: 'Ada' }]
 const columns: readonly DataTableColumn<Person>[] = [{ label: 'Name', value: 'name' }]
+const immutableColumn: DataTableColumn<Person> = {
+	facet: {
+		label: 'Names',
+		options: [{ label: 'Ada', value: 'ada' }],
+	},
+	label: 'Name',
+	value: 'name',
+}
+
+// @ts-expect-error Immutable schemas cannot change labels in place.
+immutableColumn.label = 'Renamed'
+// @ts-expect-error Immutable schemas cannot change accessors in place.
+immutableColumn.value = 'id'
+// @ts-expect-error Immutable schemas cannot change facet metadata in place.
+immutableColumn.facet!.label = 'Renamed'
+// @ts-expect-error Immutable schemas cannot change facet options in place.
+immutableColumn.facet!.options[0]!.label = 'Renamed'
 
 export const baseFieldForwardsRootAttrs = (
 	<Field aria-label="Email field" class="field" data-contract="field" id="email-field">

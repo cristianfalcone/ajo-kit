@@ -57,6 +57,32 @@ test('DataTable forwards DOM attrs to its single public Stateful host', () => {
 	expect(html).toContain('data-slot="data-table-container"')
 })
 
+test('DataTable explicit column IDs override property-derived identity', () => {
+	const html = ssr(jsx(DataTable, {
+		columns: [{ id: 'recipient', label: 'Name', value: 'name' }],
+		getRowKey: (person: { id: string }) => person.id,
+		label: 'People',
+		pagination: false,
+		rows: [{ id: 'ada', name: 'Ada' }],
+	}))
+
+	expect(html).toContain('data-column-id=' + JSON.stringify('recipient'))
+	expect(html).not.toContain('data-column-id=' + JSON.stringify('name'))
+})
+
+test.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+	'DataTable rejects automatic rendering of the non-finite number %s',
+	value => {
+		expect(() => ssr(jsx(DataTable, {
+			columns: [{ label: 'Score', value: 'score' }],
+			getRowKey: (row: { id: string }) => row.id,
+			label: 'Scores',
+			pagination: false,
+			rows: [{ id: 'one', score: value }],
+		}))).toThrow(TypeError)
+	},
+)
+
 test('VirtualList forwards DOM attrs to its single semantic host without leaking behavior args', () => {
 	const html = ssr(jsx(VirtualList, {
 		'aria-label': 'People',

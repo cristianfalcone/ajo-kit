@@ -176,3 +176,7 @@ for (const operation of ['page', 'selectPage', 'sort'] as const) {
 	}
 }
 if (parity.search > 50) throw new Error(`DataTable search produced a long task: ${parity.search.toFixed(3)}ms`)
+
+const scale = results[1]!.metrics
+if (scale.cold > 250) throw new Error(`DataTable 100k cold sync regressed: ${scale.cold.toFixed(3)}ms`)
+if (scale.search > 100) throw new Error(`DataTable 100k search regressed: ${scale.search.toFixed(3)}ms`)

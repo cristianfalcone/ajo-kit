@@ -1,10 +1,10 @@
 import type { IntrinsicElements, Stateful } from 'ajo'
-import { announce, dom, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { announce, dom, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { Checkbox } from './checkbox'
 import type { DataTableArgs, DataTableColumn, DataTableData, DataTableKey, DataTableLabels } from './data-table-contract'
 import {
 	createDataTableModel,
-	dataTableDefaultLabels,
+	type DataTableCellView,
 	type DataTableRowView,
 	type DataTableView,
 } from './data-table-model'
@@ -36,12 +36,53 @@ type DataTableRootArgs<T extends DataTableData, Key extends DataTableKey> = Pick
 
 type FocusTarget = { column?: string; row: string }
 
+const defaultLabels: DataTableLabels = {
+	columns: 'Columns',
+	deselectPage: 'Deselect page',
+	deselectResults: 'Deselect filtered results',
+	deselectRow: row => `Deselect ${row}`,
+	firstPage: 'First page',
+	lastPage: 'Last page',
+	nextPage: 'Next page',
+	page: (page, pages) => `Page ${page} of ${pages}`,
+	pagination: table => `${table} pagination`,
+	previousPage: 'Previous page',
+	reset: 'Reset',
+	results: count => `${count} result${count === 1 ? '' : 's'}`,
+	rowsPerPage: 'Rows per page',
+	search: 'Search',
+	selectPage: 'Select page',
+	selectResults: 'Select filtered results',
+	selectRow: row => `Select ${row}`,
+	selected: (selected, total) => `${selected} of ${total} ${total === 1 ? 'row' : 'rows'} selected.`,
+	sort: (column, next) => `Sort ${column} ${next}`,
+	toolbar: table => `${table} controls`,
+}
+
 const validLabel = (value: unknown, name: string) => {
 	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`DataTable invalid ${name}`)
 	return value
 }
 
 const align = (value: DataTableColumn<any>['align']) => value ?? 'left'
+
+const cellContent = (
+	cell: DataTableCellView<any>,
+	row: DataTableRowView<any, DataTableKey>,
+) => {
+	const render = cell.column.column.cell
+	if (render) return render(row.original, {
+		columnId: cell.column.id,
+		sourceIndex: row.sourceIndex,
+		value: cell.value,
+	})
+	if (cell.value == null) return ''
+	if (typeof cell.value === 'number' && !Number.isFinite(cell.value)) {
+		throw new TypeError(`DataTable cannot render ${cell.column.id} at ${row.sourceIndex}`)
+	}
+	if (['bigint', 'boolean', 'number', 'string'].includes(typeof cell.value)) return String(cell.value)
+	throw new TypeError(`DataTable cannot render ${cell.column.id} at ${row.sourceIndex}`)
+}
 
 const activeElement = (host: HTMLElement): HTMLElement | null => {
 	const active = host.ownerDocument.activeElement
@@ -80,10 +121,30 @@ const restoreCheckbox = (event: Event, checked: boolean, indeterminate = false) 
 const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* () {
 	let model: ReturnType<typeof createDataTableModel<any, DataTableKey>> | undefined
 	let table: HTMLTableElement | null = null
+	let searchElement: HTMLInputElement | null = null
 	let resultsTimer: ReturnType<typeof setTimeout> | undefined
 	let composing = false
 	let announceAfterRender: 'deferred' | 'immediate' | undefined
 	const live = announce(this)
+	const searchRef = (element: HTMLInputElement | null) => {
+		if (!element) composing = false
+		searchElement = element
+	}
+
+	listen(this, 'compositionstart', event => {
+		if (event.target !== searchElement) return
+		composing = true
+		announceAfterRender = undefined
+		if (resultsTimer !== undefined) clearTimeout(resultsTimer)
+		resultsTimer = undefined
+	})
+
+	listen(this, 'compositionend', event => {
+		if (event.target !== searchElement || !searchElement) return
+		composing = false
+		announceAfterRender = 'deferred'
+		model?.setQuery(searchElement.value)
+	})
 
 	const preserveFocus = () => {
 		const active = dom(this) ? activeElement(this) : null
@@ -106,6 +167,8 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 
 	this.signal.addEventListener('abort', () => {
 		if (resultsTimer !== undefined) clearTimeout(resultsTimer)
+		composing = false
+		searchElement = null
 		table = null
 		model = undefined
 	}, { once: true })
@@ -114,7 +177,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 		preserveFocus()
 		model ??= createDataTableModel(this, args)
 		const view = model.sync(args) as DataTableView<any, DataTableKey>
-		const labels = { ...dataTableDefaultLabels, ...args.labels }
+		const labels = { ...defaultLabels, ...args.labels }
 		const text = <Name extends keyof DataTableLabels>(name: Name) => validLabel(labels[name], `label ${name}`)
 		const call = <Name extends keyof DataTableLabels>(
 			name: Name,
@@ -158,18 +221,19 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 									aria-label={text('search')}
 									data-slot="data-table-search"
 									placeholder={args.search.placeholder ?? text('search')}
-									set:oncompositionend={(event: Event) => {
-										composing = false
+									ref={searchRef}
+									set:oninput={(event: InputEvent) => {
+										if (composing || event.isComposing) return
 										announceResults('deferred')
-										model!.setQuery((event.currentTarget as HTMLInputElement).value, event)
-									}}
-									set:oncompositionstart={() => { composing = true }}
-									set:oninput={(event: Event) => {
-										if (!composing) announceResults('deferred')
-										model!.setQuery((event.currentTarget as HTMLInputElement).value, event)
+										model!.setQuery((event.currentTarget as HTMLInputElement).value)
 									}}
 									set:onkeydown={(event: KeyboardEvent) => {
-										if (event.key !== 'Enter' || event.isComposing) return
+										if (
+											event.key !== 'Enter'
+											|| composing
+											|| event.isComposing
+											|| event.keyCode === 229
+										) return
 										announceAfterRender = undefined
 										if (resultsTimer !== undefined) clearTimeout(resultsTimer)
 										resultsTimer = undefined
@@ -199,9 +263,9 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 												<MenuCheckboxItem
 													key={option.value}
 													checked={column.active.includes(option.value)}
-													onCheckedChange={(checked, event) => {
+													onCheckedChange={checked => {
 														announceResults('immediate')
-														model!.setFacet(column.id, option.value, checked, event)
+														model!.setFacet(column.id, option.value, checked)
 													}}
 													textValue={option.label}
 												>
@@ -217,9 +281,9 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 							{view.hasFilters ? (
 								<button
 									data-slot="data-table-reset"
-									set:onclick={(event: Event) => {
+									set:onclick={() => {
 										announceResults('immediate')
-										model!.reset(event)
+										model!.reset()
 									}}
 									type="button"
 								>
@@ -298,7 +362,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 												<button
 													aria-label={call('sort', column.column.label, next)}
 													data-slot="data-table-sort-trigger"
-													set:onclick={(event: Event) => model!.sort(column.id, event)}
+													set:onclick={() => model!.sort(column.id)}
 													type="button"
 												>
 													<span>{column.column.header ?? column.column.label}</span>
@@ -338,7 +402,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 											data-column-id={cell.column.id}
 											data-slot="table-cell"
 										>
-											{model!.cell(cell, row)}
+											{cellContent(cell, row)}
 										</td>
 									))}
 								</tr>

@@ -153,6 +153,57 @@ test('normalizes blank search before evaluating searchable values', () => {
 	fixture.controller.abort()
 })
 
+test('caches undefined accessor values for a stable snapshot', () => {
+	type Optional = { id: string; value?: string }
+	const fixture = host()
+	const read = vi.fn((row: Optional) => row.value)
+	const initial: DataTableArgs<Optional, string> = {
+		columns: [{ id: 'value', label: 'Value', value: read }],
+		getRowKey: row => row.id,
+		label: 'Optional values',
+		pagination: false,
+		rows: [{ id: 'missing' }],
+	}
+	const model = createDataTableModel(fixture.host, initial)
+
+	expect(model.sync(initial).rows[0]!.cells[0]!.value).toBeUndefined()
+	expect(model.sync(initial).rows[0]!.cells[0]!.value).toBeUndefined()
+	expect(read).toHaveBeenCalledTimes(1)
+	fixture.controller.abort()
+})
+
+test('automatic facets can select null and undefined values', () => {
+	type Optional = { id: string; status: string | null | undefined }
+	const fixture = host()
+	const optionalRows: readonly Optional[] = [
+		{ id: 'missing', status: null },
+		{ id: 'unset', status: undefined },
+		{ id: 'active', status: 'active' },
+	]
+	const initial: DataTableArgs<Optional, string> = {
+		columns: [{
+			facet: {
+				label: 'Status',
+				options: [
+					{ label: 'Unassigned', value: '' },
+					{ label: 'Active', value: 'active' },
+				],
+			},
+			label: 'Status',
+			value: 'status',
+		}],
+		getRowKey: row => row.id,
+		label: 'Optional status',
+		pagination: false,
+		rows: optionalRows,
+	}
+	const model = createDataTableModel(fixture.host, initial)
+
+	model.setFacet('status', '', true)
+	expect(model.sync(initial).rows.map(row => row.key)).toEqual(['missing', 'unset'])
+	fixture.controller.abort()
+})
+
 test('non-hideable columns remain visible from the initial schema', () => {
 	const fixture = host()
 	const initial = args({
@@ -168,6 +219,34 @@ test('non-hideable columns remain visible from the initial schema', () => {
 		['status', true],
 	])
 
+	fixture.controller.abort()
+})
+
+test('replacement schemas preserve visible columns before applying default hints', () => {
+	const fixture = host()
+	const initial = args({ columns: [columns[0]!] })
+	const model = createDataTableModel(fixture.host, initial)
+	expect(model.sync(initial).columns[0]).toMatchObject({ id: 'name', visible: true })
+
+	const replacement = {
+		...initial,
+		columns: [{ ...columns[0]!, defaultHidden: true }],
+	}
+	expect(model.sync(replacement).columns[0]).toMatchObject({ id: 'name', visible: true })
+	fixture.controller.abort()
+})
+
+test('replacement schemas reject all-new columns without a visible default', () => {
+	const fixture = host()
+	const initial = args({ columns: [columns[0]!] })
+	const model = createDataTableModel(fixture.host, initial)
+	model.sync(initial)
+
+	const replacement = {
+		...initial,
+		columns: [{ defaultHidden: true, id: 'email', label: 'Email', value: 'name' }] as const,
+	}
+	expect(() => model.sync(replacement)).toThrow(TypeError)
 	fixture.controller.abort()
 })
 

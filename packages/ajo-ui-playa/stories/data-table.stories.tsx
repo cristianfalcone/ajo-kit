@@ -105,6 +105,26 @@ const filterColumns: readonly DataTableColumn<Payment>[] = [
 	},
 ]
 
+type Assignment = { id: string; owner: string | null | undefined }
+
+const assignments: readonly Assignment[] = [
+	{ id: 'missing', owner: null },
+	{ id: 'unset', owner: undefined },
+	{ id: 'assigned', owner: 'Ada' },
+]
+
+const assignmentColumns: readonly DataTableColumn<Assignment>[] = [{
+	facet: {
+		label: 'Owner',
+		options: [
+			{ label: 'Unassigned', value: '' },
+			{ label: 'Ada', value: 'Ada' },
+		],
+	},
+	label: 'Owner',
+	value: 'owner',
+}]
+
 const statusOrder: Record<Payment['status'], number> = {
 	processing: 0,
 	failed: 1,
@@ -440,6 +460,11 @@ export const Default: Story<typeof DataTable> = {
 		const emailSort = Array.from(canvas.querySelectorAll<HTMLButtonElement>('[data-slot="data-table-sort-trigger"]'))
 			.find(button => button.textContent?.includes('Email'))
 		if (!emailSort) throw new Error('DataTable sortable header was not rendered')
+		const focusedCheckbox = canvas.querySelector<HTMLInputElement>('[data-slot=table-body] [data-slot=checkbox-input]')
+		const focusedRowId = focusedCheckbox?.closest<HTMLElement>('[data-row-id]')?.dataset.rowId
+		const focusedColumnId = focusedCheckbox?.closest<HTMLElement>('[data-column-id]')?.dataset.columnId
+		if (!focusedCheckbox || !focusedRowId || !focusedColumnId) throw new Error('DataTable focus coordinate was not rendered')
+		focusedCheckbox.focus()
 		emailSort.click()
 		await waitUntil(() => canvas.querySelector('[aria-sort="ascending"]') != null)
 		const firstEmail = canvas.querySelector('[data-slot="table-body"] [data-slot="table-row"] [data-slot="table-cell"]:nth-child(3)')
@@ -448,6 +473,11 @@ export const Default: Story<typeof DataTable> = {
 
 		const firstRowCheckbox = canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')
 		if (!firstRowCheckbox) throw new Error('DataTable row checkbox was not rendered')
+		const active = document.activeElement as HTMLElement | null
+		if (
+			active?.closest<HTMLElement>('[data-row-id]')?.dataset.rowId !== focusedRowId
+			|| active.closest<HTMLElement>('[data-column-id]')?.dataset.columnId !== focusedColumnId
+		) throw new Error('DataTable did not restore focus by row key and column ID after sorting')
 		firstRowCheckbox.click()
 		await waitUntil(() => selectedKeys.length === 1)
 		if (selectedKeys[0] !== '3u1reuv4') throw new Error('DataTable selection did not emit the stable row key')
@@ -481,6 +511,52 @@ export const SearchAndFacets: Story<typeof DataTable> = {
 		const facets = () => Array.from(canvas.querySelectorAll<HTMLButtonElement>('[data-slot="data-table-facet"]'))
 		const facet = (label: string) => facets().find(trigger => trigger.textContent?.includes(label))
 		if (!search || !facet('Status') || !facet('Tags')) throw new Error('DataTable search or facet controls were not rendered')
+
+		const decoyCell = dataRows(canvas)[0]?.querySelector('[data-slot=table-cell]')
+		const decoy = document.createElement('input')
+		decoy.dataset.slot = 'data-table-search'
+		decoy.value = 'failed'
+		if (!decoyCell) throw new Error('DataTable cell for slot isolation was not rendered')
+		decoyCell.append(decoy)
+		decoy.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }))
+		decoy.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: decoy.value }))
+		await frame()
+		await frame()
+		if (dataRows(canvas).length !== payments.length) {
+			throw new Error('DataTable accepted IME events from a spoofed descendant slot')
+		}
+		decoy.remove()
+
+		type(search, 'success')
+		await waitUntil(() => dataRows(canvas).length === 0)
+		const composingSearch = canvas.querySelector<HTMLInputElement>('[data-slot=data-table-search]')
+		if (!composingSearch) throw new Error('DataTable search disappeared before IME composition')
+		const beforeComposition = announced()
+		composingSearch.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }))
+		composingSearch.value = 'm5gr84i9'
+		composingSearch.dispatchEvent(new InputEvent('input', {
+			bubbles: true,
+			data: 'm5gr84i9',
+			inputType: 'insertCompositionText',
+			isComposing: true,
+		}))
+		await new Promise(resolve => setTimeout(resolve, 240))
+		if (dataRows(canvas).length !== 0 || announced() !== beforeComposition) {
+			throw new Error('DataTable filtered or announced an unfinished IME composition')
+		}
+		composingSearch.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', keyCode: 229 }))
+		await frame()
+		if (dataRows(canvas).length !== 0 || announced() !== beforeComposition) {
+			throw new Error('DataTable committed an IME composition from Enter')
+		}
+		composingSearch.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: 'm5gr84i9' }))
+		await waitUntil(() => dataRows(canvas).length === 1)
+		await new Promise(resolve => setTimeout(resolve, 240))
+		if (announced() !== '1 result') {
+			throw new Error(`DataTable announced ${announced() ?? 'nothing'} after IME composition`)
+		}
+		canvas.querySelector<HTMLButtonElement>('[data-slot=data-table-reset]')?.click()
+		await waitUntil(() => dataRows(canvas).length === payments.length)
 
 		type(search, 'success')
 		await waitUntil(() => dataRows(canvas).length === 0)
@@ -525,6 +601,32 @@ export const SearchAndFacets: Story<typeof DataTable> = {
 		await waitUntil(() => dataRows(canvas).length === payments.length)
 		if (canvas.querySelector('[data-slot="data-table-facet-count"]')) {
 			throw new Error('DataTable reset did not clear all facet counts')
+		}
+	},
+}
+
+export const NullishFacet: Story<typeof DataTable> = {
+	render: () => (
+		<DataTable
+			columns={assignmentColumns}
+			getRowKey={assignment => assignment.id}
+			label={'Assignments'}
+			pagination={false}
+			rows={assignments}
+		/>
+	),
+	play: async ({ canvas }) => {
+		const facet = canvas.querySelector<HTMLButtonElement>('[data-slot=data-table-facet]')
+		if (!facet) throw new Error('DataTable nullish facet was not rendered')
+		facet.click()
+		await frame()
+		menuItem(canvas, 'Unassigned')?.click()
+		await waitUntil(() => dataRows(canvas).length === 2)
+		if (cells(canvas, 'owner').some(Boolean)) {
+			throw new Error('DataTable nullish facet retained an assigned row')
+		}
+		if (facet.querySelector('[data-slot=data-table-facet-count]')?.textContent !== '1') {
+			throw new Error('DataTable nullish facet did not expose its active option')
 		}
 	},
 }
