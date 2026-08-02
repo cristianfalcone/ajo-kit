@@ -92,12 +92,12 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const require = createRequire(import.meta.url)
 const packageNames = ['ajo-kit', 'ajo-kit-auth', 'ajo-kit-mail', 'ajo-cloves', 'ajo-ui', 'ajo-ui-playa'] as const
 const versions = {
-	'ajo-kit': '0.1.2',
-	'ajo-kit-auth': '0.1.1',
-	'ajo-kit-mail': '0.1.0',
-	'ajo-cloves': '0.1.0',
-	'ajo-ui': '0.1.0',
-	'ajo-ui-playa': '0.1.0',
+	'ajo-kit': '0.1.3',
+	'ajo-kit-auth': '0.1.2',
+	'ajo-kit-mail': '0.1.1',
+	'ajo-cloves': '0.1.1',
+	'ajo-ui': '0.1.1',
+	'ajo-ui-playa': '0.1.1',
 } as const
 const migrationNames = [
 	'0001_initial',
@@ -105,13 +105,13 @@ const migrationNames = [
 ] as const
 const floatingDomVersion = '1.8.0'
 const floatingNames = ['@floating-ui/dom', '@floating-ui/core', '@floating-ui/utils'] as const
-const playaDependencies = { ajo: '0.1.35', 'ajo-ui-playa': '0.1.0' }
+const playaDependencies = { ajo: '0.1.35', 'ajo-ui-playa': '0.1.1' }
 const validDependencies = {
 	ajo: '0.1.35',
-	'ajo-kit': '0.1.2',
-	'ajo-kit-auth': '0.1.1',
-	'ajo-kit-mail': '0.1.0',
-	'ajo-ui-playa': '0.1.0',
+	'ajo-kit': '0.1.3',
+	'ajo-kit-auth': '0.1.2',
+	'ajo-kit-mail': '0.1.1',
+	'ajo-ui-playa': '0.1.1',
 }
 const validDevDependencies = { typescript: '6.0.3', unocss: '66.7.2', vite: '8.0.16' }
 const delay = (milliseconds: number) => new Promise(resolveDelay => setTimeout(resolveDelay, milliseconds))

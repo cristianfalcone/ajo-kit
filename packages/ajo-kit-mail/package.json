@@ -1,6 +1,6 @@
 {
   "name": "ajo-kit-mail",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Validated mail contract and pluggable transports for ajo-kit applications",
   "type": "module",
   "files": [

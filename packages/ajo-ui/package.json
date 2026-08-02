@@ -1,6 +1,6 @@
 {
   "name": "ajo-ui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Unstyled accessible UI components for Ajo",
   "type": "module",
   "sideEffects": false,
