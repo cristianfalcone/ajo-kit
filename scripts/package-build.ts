@@ -154,7 +154,10 @@ for (const name of selected) {
 			target: 'esnext',
 		},
 	})
-	declarations(name, directory, exports.map(([, entry]) => resolve(directory, entry.types)))
+	declarations(name, directory, [
+		...exports.map(([, entry]) => resolve(directory, entry.types)),
+		...(name === 'ajo-kit' ? [resolve(directory, 'src/runtime.d.ts')] : []),
+	])
 	await Promise.all(exports.map(([, entry]) =>
 		access(resolve(directory, 'dist', declaration(entry.types)))))
 

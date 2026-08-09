@@ -32,6 +32,10 @@
       "types": "./src/node.ts",
       "default": "./src/node.ts"
     },
+    "./engine": {
+      "types": "./src/engine.ts",
+      "default": "./src/engine.ts"
+    },
     "./platform": {
       "types": "./src/platform.ts",
       "ajo": "./src/platform.ajo.ts",

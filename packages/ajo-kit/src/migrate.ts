@@ -1,13 +1,17 @@
 import type { Kysely } from 'kysely'
-import { FileMigrationProvider, Migrator, type Migration } from 'kysely/migration'
+import { FileMigrationProvider } from 'kysely/migration'
 import { existsSync, promises as fs } from 'node:fs'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { discover } from './discover'
-import { provider, type CompiledMigration, type MigrationRegistry } from './migrations'
+import { migrator, type CompiledMigration, type MigrationRegistry } from './migrations'
 
-type Migrations = Record<string, Migration>
 type Source = { folder: string; id: string }
+
+/** A build-time migration module and its compiled registry value. */
+export interface MigrationModule extends CompiledMigration {
+	file: string
+}
 
 const extensions = ['.js', '.ts', '.mjs', '.mts', '.cjs', '.cts']
 const pattern = /^(\d{4})_[a-z0-9]+(?:_[a-z0-9]+)*$/
@@ -55,8 +59,10 @@ export function migrationFile(files: string[], name: string) {
 	return `${String(number).padStart(4, '0')}_${safe}.ts`
 }
 
-async function load(source: Source): Promise<Migrations> {
-	const names = local(source.id, await fs.readdir(source.folder))
+async function load(source: Source): Promise<MigrationModule[]> {
+	const files = (await fs.readdir(source.folder)).filter(file)
+	const names = local(source.id, files)
+	const paths = new Map(files.map(file => [file.slice(0, file.lastIndexOf('.')), path.join(source.folder, file)]))
 
 	const migrations = await new FileMigrationProvider({
 		fs,
@@ -71,28 +77,29 @@ async function load(source: Source): Promise<Migrations> {
 		throw new Error(`${source.id} migrations must export up() and down(): ${incomplete.join(', ')}`)
 	}
 
-	return migrations
+	return names.map(name => ({
+		name: `${source.id}/${name}`,
+		file: paths.get(name)!,
+		migration: migrations[name],
+	}))
 }
 
-async function compile(sources: Source[]): Promise<MigrationRegistry> {
-	const compiled: CompiledMigration[] = []
+async function compile(sources: Source[]): Promise<MigrationModule[]> {
+	const compiled: MigrationModule[] = []
 	const ids = new Set<string>()
 
 	for (const source of sources) {
 		if (ids.has(source.id)) throw new Error(`Duplicate migration source "${source.id}"`)
 		ids.add(source.id)
 
-		const migrations = await load(source)
-		for (const name of Object.keys(migrations).sort()) {
-			compiled.push({ name: `${source.id}/${name}`, migration: migrations[name] })
-		}
+		compiled.push(...await load(source))
 	}
 
 	return compiled.sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0)
 }
 
-/** Builds and validates the compiled migration registry for a Node application. */
-export async function registry(root = process.cwd()): Promise<MigrationRegistry> {
+/** Discovers and validates migration source modules for an application build. */
+export async function migrationModules(root = process.cwd()): Promise<readonly MigrationModule[]> {
 	const sources: Source[] = discover(root)
 		.filter(plugin => plugin.migrations)
 		.sort((left, right) => left.name.localeCompare(right.name))
@@ -102,16 +109,12 @@ export async function registry(root = process.cwd()): Promise<MigrationRegistry>
 	return compile(sources)
 }
 
-/** Creates a Kysely runner for an already compiled migration registry. */
-export function migrator(instance: Kysely<any>, compiled: MigrationRegistry): Migrator {
-	return new Migrator({
-		db: instance,
-		// Plugins can gain migrations after a project migration has run. Folder-level
-		// validation keeps each source strict while Kysely ignores only global interleaving.
-		allowUnorderedMigrations: true,
-		provider: provider(compiled)
-	})
+/** Builds and validates the compiled migration registry for a Node application. */
+export async function registry(root = process.cwd()): Promise<MigrationRegistry> {
+	return (await migrationModules(root)).map(({ name, migration }) => ({ name, migration }))
 }
+
+export { migrator } from './migrations'
 
 /** Lists migration state after rejecting history absent from the compiled registry. */
 export async function migrationStatus(instance: Kysely<any>, compiled: MigrationRegistry) {

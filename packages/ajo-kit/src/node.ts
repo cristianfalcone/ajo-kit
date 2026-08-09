@@ -6,6 +6,11 @@ import * as vite from 'vite'
 import sirv from 'sirv'
 import * as headers from './headers'
 import { attach, reader, request, type Handler } from './http'
+import { compile } from './template'
+import { descriptor, engine, type Descriptor, type DescriptorInput, type GraphIssue } from './vite'
+import { migrationModules } from './migrate'
+
+export { compile } from './template'
 
 const fallback = `<!DOCTYPE html>
 <html lang="en">
@@ -20,17 +25,6 @@ const fallback = `<!DOCTYPE html>
   <script src="/src/client" type="module"></script>
 </body>
 </html>`
-
-const markers = /<!--\s*ssr:([A-Za-z0-9_]+)\s*-->/g
-
-/** Compiles an HTML file with ssr:* comments into a slot renderer. */
-export function compile(html: string) {
-
-	const parts = html.split(markers)
-
-	return (slots: Record<string, string>) =>
-		parts.map((part, index) => index % 2 ? slots[part] ?? '' : part).join('')
-}
 
 async function html() {
 	try { return await fs.readFile('./index.html', 'utf-8') }
@@ -137,8 +131,93 @@ export async function start() {
 	return { handler: (req: http.IncomingMessage, res: http.ServerResponse) => assets(req, res, () => inner(req, res)) }
 }
 
-/** Builds client and server bundles into dist/. */
-export async function build() {
+/** Options accepted by the production build. */
+export interface BuildOptions {
+	target?: 'ajo' | 'node'
+	check?: boolean
+}
+
+/** Engine staging information returned by an ajo-target build. */
+export interface EngineOutput {
+	descriptor: Descriptor
+	findings: GraphIssue[]
+	staging: string
+}
+
+const modules = async (root: string, directory = 'server'): Promise<string[]> => {
+	const path = join(root, directory)
+	const entries = await fs.readdir(path, { withFileTypes: true })
+	const files = await Promise.all(entries.map(entry => {
+		const relative = `${directory}/${entry.name}`
+		return entry.isDirectory() ? modules(root, relative) : Promise.resolve(entry.name.endsWith('.js') ? [relative] : [])
+	}))
+	return files.flat().sort()
+}
+
+/** Writes an exact ajoc schema-1 descriptor for a staging tree. */
+export async function emitDescriptor(root: string, input: Omit<DescriptorInput, 'modules'>): Promise<Descriptor> {
+	const value = descriptor({ ...input, modules: await modules(root) })
+	await fs.writeFile(join(root, 'ajoc.json'), JSON.stringify(value, null, '\t') + '\n')
+	return value
+}
+
+async function ajo(options: BuildOptions): Promise<EngineOutput> {
+	const root = process.cwd()
+	const staging = join(root, '.ajo')
+	await fs.rm(staging, { force: true, recursive: true })
+
+	await vite.build({
+		build: {
+			emptyOutDir: true,
+			outDir: '.ajo/client',
+		}
+	})
+
+	const template = await fs.readFile(join(staging, 'client/index.html'), 'utf-8')
+	const migrations = await Promise.all((await migrationModules(root)).map(async ({ name, file }) => ({
+		name,
+		file: await fs.realpath(file),
+	})))
+	const database = migrations.length > 0
+	const target = engine({ template, migrations, database, check: options.check })
+	// A real file: Rolldown resolves entries natively and never consults
+	// plugin hooks for a virtual entry id. .mjs keeps it out of modules().
+	const generated = join(staging, 'entry.gen.mjs')
+	await fs.writeFile(generated, target.code)
+
+	await vite.build({
+		plugins: [target.plugin],
+		build: {
+			copyPublicDir: false,
+			emptyOutDir: true,
+			outDir: '.ajo/server',
+			ssr: generated,
+		}
+	})
+	await fs.rm(generated, { force: true })
+
+	const emitted = await modules(staging)
+	if (emitted.join('\n') !== target.result.files.join('\n')) {
+		throw new Error('Engine server staging files differ from the audited Vite graph')
+	}
+
+	return {
+			descriptor: await emitDescriptor(staging, {
+			migrations: target.result.migrations,
+			data: target.result.database,
+			net: target.result.net,
+		}),
+		findings: target.result.findings,
+		staging,
+	}
+}
+
+/** Builds client/server output for Node or a closed .ajo staging graph. */
+export async function build(options: BuildOptions = {}): Promise<EngineOutput | void> {
+	if (options.target === 'ajo') return ajo(options)
+	if (options.target !== undefined && options.target !== 'node') {
+		throw new Error(`Unknown build target: ${options.target}`)
+	}
 
 	await vite.build({ build: { outDir: 'dist/client' } })
 

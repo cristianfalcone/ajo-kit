@@ -13,7 +13,7 @@ import type {
 } from './constants'
 import { apply, type Head } from './head'
 import { drop, evict, get, set } from './cache'
-import { routes } from 'virtual:ajo/routes'
+import { routes as discovered } from 'virtual:ajo/routes'
 
 // Pattern compilation
 
@@ -76,14 +76,21 @@ export const pages: Page[] = []
 
 export const parents = (segments: string[]) => ancestors(segments).filter(path => layouts.has(path))
 
-for (const [path, loader] of Object.entries(routes as Record<string, Loader>)) {
+/** Installs the page and layout registry generated for the current host build. */
+export function register(routes: Record<string, Loader>): void {
+	layouts.clear()
+	pages.length = 0
 
-	const segments = parts(path)
-	const kind = path.split('/').pop()?.split('.')[0]
+	for (const [path, loader] of Object.entries(routes)) {
+		const segments = parts(path)
+		const kind = path.split('/').pop()?.split('.')[0]
 
-	if (kind === 'layout') layouts.set(segments.join('/'), loader)
-	if (kind === 'page') pages.push({ pattern: match(segments), segments, loader })
+		if (kind === 'layout') layouts.set(segments.join('/'), loader)
+		if (kind === 'page') pages.push({ pattern: match(segments), segments, loader })
+	}
 }
+
+register(discovered as Record<string, Loader>)
 
 // HMR: wrap loaders to use hot-updated modules
 

@@ -4,15 +4,16 @@ import { sha256Hex, utf8ByteLength } from 'ajo-kit/platform'
 import { attach, reader, Reply, request, Router, send, type Handler as Kernel } from './http'
 /** Serializes a value into a completed host-neutral reply. */
 export { send } from './http'
-import App, { resolve, layouts, pages, error, match, parts, parents } from './app'
+import App, { resolve, layouts, pages, error, match, parts, parents, register } from './app'
 import { Failure, links, ancestors, normalize, ajax, api } from './constants'
-import type { State, Data, Entry, Page, Parent, Payload, Request, Middleware, ActionContext } from './constants'
+import type { State, Data, Entry, Page, Parent, Payload, Request, Middleware, ActionContext, Loader } from './constants'
 import { merge, render as view, type Head } from './head'
 import * as headers from './headers'
 import { bump, fresh, topics as sorted, parse, hash, snapshot, type Versions } from './freshness'
 import { elapsed, finish, log, header, start } from './timing'
 import { script } from './ssr'
-import { handlers as files, wares as stacks } from 'virtual:ajo/handlers'
+import { routes } from 'virtual:ajo/routes'
+import { handlers, wares as discoveredWares } from 'virtual:ajo/handlers'
 
 const payload = (head: Head, entries: Data) => ({ data: entries, head })
 
@@ -91,7 +92,7 @@ const connections = new Set<Connection>()
 
 const pending = new Set<string>()
 
-let debounce: NodeJS.Timeout | null = null
+let debounce: ReturnType<typeof setTimeout> | null = null
 
 const limit = 4
 
@@ -158,6 +159,14 @@ const close = (conn: Connection, reason?: string) => {
 
 	connections.delete(conn)
 	conn.close()
+}
+
+/** Closes every tracked live response before a host transport shuts down. */
+export function closeLive(): void {
+	if (debounce) clearTimeout(debounce)
+	debounce = null
+	pending.clear()
+	for (const connection of [...connections]) close(connection)
 }
 
 const revalidate = async (conn: Connection) => {
@@ -240,6 +249,15 @@ type Handler = {
 	actions?: Record<string, Action>
 }
 
+type Load = () => Promise<Record<string, unknown>>
+
+/** Route modules wired into one generated server entry. */
+export interface Registries {
+	routes: Record<string, Loader>
+	handlers: Record<string, Load>
+	wares: Record<string, Load>
+}
+
 type Template = (slots: Record<string, string>) => string
 
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value
@@ -302,7 +320,12 @@ const compatible = (app: Kernel) => Object.assign(app, {
 	}
 })
 /** Creates the host-neutral SSR handler from an HTML slot template. */
-export async function create(template: Template) {
+export async function create(template: Template, registries: Registries = {
+	routes: routes as Registries['routes'],
+	handlers: handlers as Registries['handlers'],
+	wares: discoveredWares as Registries['wares'],
+}) {
+	register(registries.routes)
 
 	const secure: Middleware = (_, res, next) => {
 		headers.set(res, headers.security(), true)
@@ -581,7 +604,7 @@ export async function create(template: Template) {
 
 	const wares = new Map<string, Middleware[]>()
 
-	for (const [file, loader] of Object.entries(stacks as Record<string, () => Promise<Record<string, unknown>>>)) {
+	for (const [file, loader] of Object.entries(registries.wares)) {
 		
 		const exports = await loader()
 		const key = parts(file).join('/')
@@ -592,7 +615,7 @@ export async function create(template: Template) {
 
 	const handlers = new Map<string, Handler>()
 
-	for (const [file, loader] of Object.entries(files as Record<string, () => Promise<Record<string, unknown>>>)) {
+	for (const [file, loader] of Object.entries(registries.handlers)) {
 
 		const exports = await loader()
 		const segments = parts(file)

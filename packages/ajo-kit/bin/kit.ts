@@ -3,6 +3,8 @@ import 'dotenv/config'
 import sade from 'sade'
 import type { Kysely } from 'kysely'
 import * as url from 'node:url'
+import { spawn } from 'node:child_process'
+import { rm } from 'node:fs/promises'
 import { dev, build, start, listen } from 'ajo-kit/node'
 import { defaults } from 'ajo-kit/vite'
 import { discover } from '../src/discover.ts'
@@ -41,8 +43,29 @@ cli.command('dev')
 
 cli.command('build')
 	.describe('Build for production')
-	.action(async () => {
-		await build()
+	.option('-t, --target', 'Build target: node or ajo', 'node')
+	.option('--ajoc', 'ajoc executable path')
+	.option('--check', 'Fail on temporary Node builtin findings')
+	.action(async (opts: { target: string; ajoc?: string; check?: boolean }) => {
+		if (opts.target !== 'node' && opts.target !== 'ajo') throw new Error(`Unknown build target: ${opts.target}`)
+		if (opts.ajoc && opts.target !== 'ajo') throw new Error('--ajoc requires --target ajo')
+
+		await build({ target: opts.target, check: opts.check })
+		if (opts.target !== 'ajo') return
+
+		if (!opts.ajoc) {
+			console.log('ajoc --input .ajo/ajoc.json --output dist/ajo')
+			return
+		}
+
+		await rm('dist/ajo', { force: true, recursive: true })
+		await new Promise<void>((resolve, reject) => {
+			const child = spawn(opts.ajoc!, ['--input', '.ajo/ajoc.json', '--output', 'dist/ajo'], { stdio: 'inherit' })
+			child.once('error', reject)
+			child.once('exit', (code, signal) => code === 0
+				? resolve()
+				: reject(new Error(signal ? `ajoc terminated by ${signal}` : `ajoc exited with status ${code}`)))
+		})
 	})
 
 cli.command('start')

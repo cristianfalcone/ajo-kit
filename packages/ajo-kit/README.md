@@ -97,6 +97,7 @@ export default () => (
 ```bash
 kit dev [-p 5173]
 kit build
+kit build --target ajo [--check] [--ajoc /path/to/ajoc]
 kit start [-p 5173]
 
 kit migrate up [-d ./database.sqlite]
@@ -112,6 +113,11 @@ Defaults:
 - database: `./database.sqlite`
 - migrations folder: `db/migrations`
 - seeds folder: `db/seeds`
+
+The `ajo` build target writes the closed server graph, compiled migration
+registry, transformed client, and `ajoc.json` descriptor to `.ajo/`. Without
+`--ajoc` it prints the exact compiler command; `--check` makes temporary
+Node-builtin findings fatal while auth and mail engine ports are in progress.
 
 ## Routing
 
@@ -490,5 +496,6 @@ await dev(options)
 ```
 
 `dev()`, `build()`, and `start()` expose the CLI runtimes programmatically.
+`build({ target: 'ajo' })` returns the staging descriptor and graph findings.
 `compile()` fills `<!-- ssr:name -->` HTML slots. `listen()` starts an
 application server and can require a strict port.
