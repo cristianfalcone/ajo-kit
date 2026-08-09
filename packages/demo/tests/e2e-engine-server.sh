@@ -19,6 +19,7 @@ export NODE_ENV=production
 export APP_URL=http://127.0.0.1:8080
 export APP_SECRET=ajo-e2e-only-secret-000000000001
 export AJO_E2E_CONTROL=ajo-e2e-only-secret-000000000001
+export AJO_TIMING=1
 export HOST=0.0.0.0
 export PORT=8080
 export AJO_DATA="$data"

@@ -15,6 +15,7 @@ process.env.NODE_ENV = 'production'
 process.env.APP_URL = 'http://127.0.0.1:5181'
 process.env.APP_SECRET = secret
 process.env.AJO_E2E_CONTROL ??= secret
+process.env.AJO_TIMING = '1'
 process.env.DATABASE_PATH = database
 
 migrate(database)
