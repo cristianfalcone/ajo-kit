@@ -4,6 +4,7 @@ import { existsSync, promises as fs } from 'node:fs'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { discover } from './discover'
+import { provider, type CompiledMigration, type MigrationRegistry } from './migrations'
 
 type Migrations = Record<string, Migration>
 type Source = { folder: string; id: string }
@@ -73,46 +74,48 @@ async function load(source: Source): Promise<Migrations> {
 	return migrations
 }
 
-async function merge(sources: Source[]): Promise<Migrations> {
-	const merged: Migrations = {}
+async function compile(sources: Source[]): Promise<MigrationRegistry> {
+	const compiled: CompiledMigration[] = []
 	const ids = new Set<string>()
 
 	for (const source of sources) {
 		if (ids.has(source.id)) throw new Error(`Duplicate migration source "${source.id}"`)
 		ids.add(source.id)
 
-		for (const [name, migration] of Object.entries(await load(source))) {
-			const qualified = `${source.id}/${name}`
-			merged[qualified] = migration
+		const migrations = await load(source)
+		for (const name of Object.keys(migrations).sort()) {
+			compiled.push({ name: `${source.id}/${name}`, migration: migrations[name] })
 		}
 	}
 
-	return merged
+	return compiled.sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0)
 }
 
-export function migrator(instance: Kysely<any>, root = process.cwd()): Migrator {
+/** Builds and validates the compiled migration registry for a Node application. */
+export async function registry(root = process.cwd()): Promise<MigrationRegistry> {
 	const sources: Source[] = discover(root)
 		.filter(plugin => plugin.migrations)
 		.sort((left, right) => left.name.localeCompare(right.name))
 		.map(plugin => ({ folder: plugin.migrations!, id: `plugin/${plugin.name}` }))
 	const project = path.join(root, 'db/migrations')
 	if (existsSync(project)) sources.push({ folder: project, id: 'project' })
+	return compile(sources)
+}
 
+/** Creates a Kysely runner for an already compiled migration registry. */
+export function migrator(instance: Kysely<any>, compiled: MigrationRegistry): Migrator {
 	return new Migrator({
 		db: instance,
 		// Plugins can gain migrations after a project migration has run. Folder-level
 		// validation keeps each source strict while Kysely ignores only global interleaving.
 		allowUnorderedMigrations: true,
-		provider: {
-			async getMigrations() {
-				return merge(sources)
-			}
-		}
+		provider: provider(compiled)
 	})
 }
 
-export async function migrationStatus(instance: Kysely<any>, root = process.cwd()) {
-	const migrations = await migrator(instance, root).getMigrations()
+/** Lists migration state after rejecting history absent from the compiled registry. */
+export async function migrationStatus(instance: Kysely<any>, compiled: MigrationRegistry) {
+	const migrations = await migrator(instance, compiled).getMigrations()
 	const history = await instance
 		.selectFrom('sqlite_master')
 		.select('name')
