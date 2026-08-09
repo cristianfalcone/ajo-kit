@@ -1,4 +1,5 @@
 import type { Stateless } from 'ajo'
+import { locale } from '@kit'
 import clsx from 'clsx'
 import { Chip } from 'ajo-ui-playa/chip'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from 'ajo-ui-playa/empty'
@@ -60,11 +61,11 @@ const formatTime = (value?: string | null) => {
 	const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
 	const days = Math.round((nowDay - dateDay) / 86_400_000)
 
-	if (days === 0) return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(date)
+	if (days === 0) return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date)
 	if (days === 1) return 'Yesterday'
-	if (days < 7) return new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date)
+	if (days < 7) return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date)
 
-	return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
+	return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(date)
 }
 
 export const chatTitle = (chat: Pick<ChatItem, 'name' | 'others'>) =>

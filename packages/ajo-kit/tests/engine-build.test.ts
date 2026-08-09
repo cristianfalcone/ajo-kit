@@ -43,6 +43,30 @@ describe('ajo engine build contract', () => {
 		}
 	})
 
+	test('keeps staged server chunks inside the frozen Intl profile', async () => {
+		const root = await mkdtemp(join(tmpdir(), 'ajo-intl-'))
+		try {
+			await mkdir(join(root, 'server/chunks'), { recursive: true })
+			await Promise.all([
+				writeFile(join(root, 'server/entry.js'), "new Intl.DateTimeFormat('en-US')\n"),
+				writeFile(join(root, 'server/chunks/route.js'), "new Intl.RelativeTimeFormat('en-US')\n"),
+			])
+
+			const input = { migrations: [], data: false, net: false }
+			await expect(emitDescriptor(root, input)).resolves.toMatchObject({
+				modules: ['server/entry.js', 'server/chunks/route.js'],
+			})
+
+			await writeFile(join(root, 'server/chunks/route.js'), 'const language = navigator.language\n')
+			await expect(emitDescriptor(root, input)).rejects.toThrow('server/chunks/route.js: navigator.language')
+
+			await writeFile(join(root, 'server/chunks/route.js'), 'new Intl.NumberFormat()\n')
+			await expect(emitDescriptor(root, input)).rejects.toThrow('server/chunks/route.js: Intl.NumberFormat')
+		} finally {
+			await rm(root, { force: true, recursive: true })
+		}
+	})
+
 	test('classifies only imports forbidden in a closed engine graph', () => {
 		const importer = 'server/entry.js'
 		const findings = graph([

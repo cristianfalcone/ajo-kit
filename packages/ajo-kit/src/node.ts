@@ -154,9 +154,29 @@ const modules = async (root: string, directory = 'server'): Promise<string[]> =>
 	return files.flat().sort()
 }
 
-/** Writes an exact ajoc schema-1 descriptor for a staging tree. */
+const assertIntl = async (root: string, files: string[]) => {
+	const allowed = new Set(['DateTimeFormat', 'RelativeTimeFormat'])
+	const violations: string[] = []
+	const sources = await Promise.all(files.map(async file => ({
+		file,
+		source: await fs.readFile(join(root, file), 'utf8'),
+	})))
+
+	for (const { file, source } of sources) {
+		if (source.includes('navigator.language')) violations.push(`${file}: navigator.language`)
+		for (const match of source.matchAll(/\bIntl\.([A-Za-z_$][\w$]*)\b/g)) {
+			if (!allowed.has(match[1])) violations.push(`${file}: Intl.${match[1]}`)
+		}
+	}
+
+	if (violations.length) throw new Error(`Engine server Intl profile violation:\n${violations.join('\n')}`)
+}
+
+/** Validates a staging tree and writes its exact ajoc schema-1 descriptor. */
 export async function emitDescriptor(root: string, input: Omit<DescriptorInput, 'modules'>): Promise<Descriptor> {
-	const value = descriptor({ ...input, modules: await modules(root) })
+	const files = await modules(root)
+	await assertIntl(root, files)
+	const value = descriptor({ ...input, modules: files })
 	await fs.writeFile(join(root, 'ajoc.json'), JSON.stringify(value, null, '\t') + '\n')
 	return value
 }

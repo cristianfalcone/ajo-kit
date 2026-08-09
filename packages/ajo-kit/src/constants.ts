@@ -352,6 +352,13 @@ export function links(count: number): Link[] {
 
 // Formatting
 
-/** Formats an ISO date for the current locale with compact defaults. */
+/**
+ * The frozen SSR locale. SSR output is deterministic en-US/UTC; locale- or
+ * timezone-sensitive text that must follow the viewer belongs in client-side
+ * post-hydration rendering.
+ */
+export const locale = 'en-US'
+
+/** Formats an ISO date in the frozen SSR locale with compact defaults. */
 export const date = (iso: string, options?: Intl.DateTimeFormatOptions) =>
-	new Date(iso).toLocaleDateString(undefined, options ?? { month: 'short', day: 'numeric', year: 'numeric' })
+	new Date(iso).toLocaleDateString(locale, options ?? { month: 'short', day: 'numeric', year: 'numeric' })

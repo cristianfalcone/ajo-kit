@@ -1,5 +1,5 @@
 import type { Children, Stateful } from 'ajo'
-import type { PageArgs } from '@kit'
+import { locale, type PageArgs } from '@kit'
 import { action } from '@kit/client'
 import { frame, visibility } from 'ajo-cloves'
 import clsx from 'clsx'
@@ -72,7 +72,6 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 	const load = action<LoadPage>('load')
 	const markAsSeen = action<{ ok: true }>('markAsSeen')
 	const vis = visibility(this)
-	const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US'
 	const dayFormatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
 	const timeFormatter = new Intl.DateTimeFormat(locale, { timeStyle: 'short' })
 	const relativeFormatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'long' })
