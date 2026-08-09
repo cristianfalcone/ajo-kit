@@ -1,10 +1,10 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { count, goto, invite, proof, setSignup } from './helpers'
 
-test('invite-only policy hides public signup and blocks direct registration', async ({ page, request, baseURL: base }) => {
+test('invite-only policy hides public signup and blocks direct registration', async ({ page, request, baseURL: base, fixture }) => {
 	const email = `blocked-${Date.now()}@example.com`
 
-	setSignup('invite')
+	await setSignup(fixture, 'invite')
 
 	try {
 		await goto(page, '/login')
@@ -30,15 +30,15 @@ test('invite-only policy hides public signup and blocks direct registration', as
 				status: 403,
 			},
 		})
-		expect(count('users', 'email = ?', email)).toBe(0)
+		expect(await count(fixture, 'users', 'email = ?', email)).toBe(0)
 	} finally {
-		setSignup('open')
+		await setSignup(fixture, 'open')
 	}
 })
 
-test('invitation link creates a non-admin account and cannot be reused', async ({ page, request, baseURL: base }) => {
+test('invitation link creates a non-admin account and cannot be reused', async ({ page, request, baseURL: base, fixture }) => {
 	const email = `invite-${Date.now()}@example.com`
-	const token = invite({ email, name: 'Invited User' })
+	const token = await invite(fixture, { email, name: 'Invited User' })
 
 	await goto(page, `/register/${token}`)
 	await expect(page.getByText(email)).toBeVisible()
@@ -51,8 +51,8 @@ test('invitation link creates a non-admin account and cannot be reused', async (
 	await expect(page).toHaveURL(/\/dashboard$/)
 	await expect(page.getByRole('heading', { name: 'Welcome back, Accepted Invite User' })).toBeVisible()
 	await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0)
-	expect(count('users', 'email = ?', email)).toBe(1)
-	expect(count('invitations', 'email = ? and accepted is not null', email)).toBe(1)
+	expect(await count(fixture, 'users', 'email = ?', email)).toBe(1)
+	expect(await count(fixture, 'invitations', 'email = ? and accepted is not null', email)).toBe(1)
 
 	const reuse = await request.post(`/register/${token}?/default`, {
 		headers: proof(base!),
@@ -63,16 +63,16 @@ test('invitation link creates a non-admin account and cannot be reused', async (
 	})
 
 	expect(reuse.status()).toBe(400)
-	expect(count('users', 'email = ?', email)).toBe(1)
+	expect(await count(fixture, 'users', 'email = ?', email)).toBe(1)
 })
 
-test('invalid invitations fail closed without creating an account', async ({ page, request, baseURL: base }) => {
-	const expired = invite({
+test('invalid invitations fail closed without creating an account', async ({ page, request, baseURL: base, fixture }) => {
+	const expired = await invite(fixture, {
 		email: `expired-${Date.now()}@example.com`,
 		expiry: '2026-01-01T00:00:00.000Z',
 	})
 	const revokedEmail = `revoked-${Date.now()}@example.com`
-	const revoked = invite({ email: revokedEmail, revoked: true })
+	const revoked = await invite(fixture, { email: revokedEmail, revoked: true })
 	const missing = `missing-${Date.now()}`
 
 	for (const token of [expired, revoked, missing]) {
@@ -90,11 +90,11 @@ test('invalid invitations fail closed without creating an account', async ({ pag
 		expect(response.status()).toBe(400)
 	}
 
-	expect(count('users', 'email = ?', revokedEmail)).toBe(0)
+	expect(await count(fixture, 'users', 'email = ?', revokedEmail)).toBe(0)
 })
 
-test('invitation for an existing email fails without consuming the invite', async ({ request, baseURL: base }) => {
-	const token = invite({ email: 'emily@example.com' })
+test('invitation for an existing email fails without consuming the invite', async ({ request, baseURL: base, fixture }) => {
+	const token = await invite(fixture, { email: 'emily@example.com' })
 	const response = await request.post(`/register/${token}?/default`, {
 		headers: proof(base!),
 		data: {
@@ -110,5 +110,5 @@ test('invitation for an existing email fails without consuming the invite', asyn
 			status: 400,
 		},
 	})
-	expect(count('invitations', 'email = ? and accepted is null and revoked is null', 'emily@example.com')).toBe(1)
+	expect(await count(fixture, 'invitations', 'email = ? and accepted is null and revoked is null', 'emily@example.com')).toBe(1)
 })

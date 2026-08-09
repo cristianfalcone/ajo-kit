@@ -1,5 +1,5 @@
 import { get, type IncomingHttpHeaders } from 'node:http'
-import { expect, request as playwright, test } from '@playwright/test'
+import { expect, request as playwright, test } from './test'
 import { proof, admin, login } from './helpers'
 
 const vary = (value: string | undefined, token: string) =>

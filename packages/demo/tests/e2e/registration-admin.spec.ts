@@ -1,12 +1,12 @@
-import { expect, request as playwright, test } from '@playwright/test'
+import { expect, request as playwright, test } from './test'
 import { count, getSignup, goto, login, member, proof, setSignup, signin } from './helpers'
 
-test('admin manages registration policy and invitations', async ({ page, browser, baseURL: base }) => {
+test('admin manages registration policy and invitations', async ({ page, browser, baseURL: base, fixture }) => {
 	const email = `admin-invite-${Date.now()}@example.com`
 	const guest = await browser.newContext({ baseURL: base })
 	const tab = await guest.newPage()
 
-	setSignup('open')
+	await setSignup(fixture, 'open')
 
 	try {
 		await signin(page)
@@ -14,7 +14,7 @@ test('admin manages registration policy and invitations', async ({ page, browser
 		await expect(page.getByRole('heading', { name: 'Registration' })).toBeVisible()
 
 		await page.getByRole('button', { name: 'Invite only' }).click()
-		await expect.poll(() => getSignup()).toBe('invite')
+		await expect.poll(() => getSignup(fixture)).toBe('invite')
 
 		await goto(tab, '/login')
 		await expect(tab.getByRole('link', { name: 'Sign up' })).toHaveCount(0)
@@ -26,21 +26,21 @@ test('admin manages registration policy and invitations', async ({ page, browser
 		await page.locator('input[name="name"]').fill('Admin Invited User')
 		await page.getByRole('button', { name: 'Send Invitation' }).click()
 
-		await expect.poll(() => count('invitations', 'email = ?', email)).toBe(1)
+		await expect.poll(() => count(fixture, 'invitations', 'email = ?', email)).toBe(1)
 		await expect(page.getByText(email)).toBeVisible()
 
 		const row = page.locator('tr', { hasText: email })
 		await row.getByRole('button', { name: 'Revoke invitation' }).click()
-		await expect.poll(() => count('invitations', 'email = ? and revoked is not null', email)).toBe(1)
+		await expect.poll(() => count(fixture, 'invitations', 'email = ? and revoked is not null', email)).toBe(1)
 		await expect(row.getByText('Revoked')).toBeVisible()
 
 		await page.getByRole('button', { name: 'Open' }).click()
-		await expect.poll(() => getSignup()).toBe('open')
+		await expect.poll(() => getSignup(fixture)).toBe('open')
 
 		await goto(tab, '/login')
 		await expect(tab.getByRole('link', { name: 'Sign up' })).toBeVisible()
 	} finally {
-		setSignup('open')
+		await setSignup(fixture, 'open')
 		await guest.close()
 	}
 })

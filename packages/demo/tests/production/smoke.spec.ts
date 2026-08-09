@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs'
+import { readdir, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 const secure = (headers: Record<string, string | undefined>) => {
@@ -10,15 +11,20 @@ const secure = (headers: Record<string, string | undefined>) => {
 	expect(headers['strict-transport-security']).toBeUndefined()
 }
 
-const asset = () => {
-	// The engine differential run points this at the artifact's client root.
-	const root = process.env.AJO_CLIENT_DIST ?? 'dist/client'
-	const html = readFileSync(`${root}/index.html`, 'utf8')
+const asset = (html: string) => {
 	const match = html.match(/src="(\/assets\/[^"]+\.js)"/)
 
 	if (!match) throw new Error('Missing built client asset')
 
 	return match[1]
+}
+
+const files = async (directory: string): Promise<string[]> => {
+	const entries = await readdir(directory, { withFileTypes: true })
+	return (await Promise.all(entries.map(entry => {
+		const path = join(directory, entry.name)
+		return entry.isDirectory() ? files(path) : Promise.resolve([path])
+	}))).flat()
 }
 
 test('built production server serves core smoke paths', async ({ request, baseURL }) => {
@@ -27,10 +33,11 @@ test('built production server serves core smoke paths', async ({ request, baseUR
 	})
 
 	expect(html.status()).toBe(200)
-	expect(await html.text()).toContain('Sign In')
+	const document = await html.text()
+	expect(document).toContain('Sign In')
 	secure(html.headers())
 
-	const script = await request.get(asset())
+	const script = await request.get(asset(document))
 	expect(script.status()).toBe(200)
 	secure(script.headers())
 	expect(script.headers()['content-type']).toContain('javascript')
@@ -63,4 +70,20 @@ test('built production server serves core smoke paths', async ({ request, baseUR
 			message: 'Invalid content',
 		},
 	})
+})
+
+test('normal production artifact excludes the E2E fixture control plane', async ({ request }) => {
+	const response = await request.post('/api/__e2e', {
+		headers: { 'X-Ajo-E2E-Control': 'test-production-secret-0000000000' },
+		data: { op: 'seed' },
+	})
+
+	expect(response.status()).toBe(404)
+
+	const modules = (await files('dist')).filter(file => file.endsWith('.js'))
+	expect(modules.some(file => /fixture-server/i.test(file))).toBe(false)
+
+	const source = (await Promise.all(modules.map(file => readFile(file, 'utf8')))).join('\n')
+	expect(source).not.toContain('/src/__e2e/handler.ts')
+	expect(source).not.toContain('x-ajo-e2e-control')
 })

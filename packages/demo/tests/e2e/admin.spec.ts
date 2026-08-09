@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { goto, signin } from './helpers'
 
 test('admin pages expose bounded lists, pagination and admin-only actions', async ({ page }) => {

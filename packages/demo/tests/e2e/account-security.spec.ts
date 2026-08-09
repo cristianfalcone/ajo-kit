@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import { expect, request as playwright, test } from '@playwright/test'
+import { expect, request as playwright, test } from './test'
 import { count, goto, login, make, proof, signin } from './helpers'
 
-test('password change rotates current session and revokes old credentials', async ({ page, request, baseURL: base }) => {
+test('password change rotates current session and revokes old credentials', async ({ page, request, baseURL: base, fixture }) => {
 	const email = `password-${randomUUID()}@example.com`
-	const user = await make({ email, name: 'Password Lifecycle User' })
+	const user = await make(fixture, { email, name: 'Password Lifecycle User' })
 	const credentials = { email, password: 'password' }
 
 	await signin(page, credentials)
@@ -37,8 +37,8 @@ test('password change rotates current session and revokes old credentials', asyn
 	expect(fresh).toBeTruthy()
 	expect(fresh).not.toBe(old)
 
-	expect(count('sessions', 'user = ?', user)).toBe(1)
-	expect(count('tokens', 'user = ?', user)).toBe(0)
+	expect(await count(fixture, 'sessions', 'user = ?', user)).toBe(1)
+	expect(await count(fixture, 'tokens', 'user = ?', user)).toBe(0)
 	expect((await other.get('/api/me')).status()).toBe(401)
 	expect((await request.get('/api/me', { headers: auth })).status()).toBe(401)
 
@@ -91,9 +91,9 @@ test('account token page creates and revokes a scoped token', async ({ page }) =
 	await expect(row).toHaveCount(0)
 })
 
-test('session page revokes other sessions but keeps the current browser session', async ({ page, baseURL: base }) => {
+test('session page revokes other sessions but keeps the current browser session', async ({ page, baseURL: base, fixture }) => {
 	const email = `sessions-${Date.now()}@example.com`
-	await make({ email, name: 'Sessions User' })
+	await make(fixture, { email, name: 'Sessions User' })
 	const credentials = { email, password: 'password' }
 
 	await signin(page, credentials)

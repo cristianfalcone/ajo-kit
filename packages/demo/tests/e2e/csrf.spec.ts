@@ -1,9 +1,9 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { admin, proof } from './helpers'
 
-test('admin API action rejects cross-site session mutation without same-origin proof', async ({ request }) => {
+test('admin API action rejects cross-site session mutation without same-origin proof', async ({ request, baseURL }) => {
 	await request.post('/login?/default', {
-		headers: proof('http://127.0.0.1:5180'),
+		headers: proof(baseURL!),
 		data: admin,
 	})
 

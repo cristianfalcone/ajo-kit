@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { count, goto } from './helpers'
 
 test('login form rejects invalid credentials and accepts a valid account', async ({ page }) => {
@@ -18,7 +18,7 @@ test('login form rejects invalid credentials and accepts a valid account', async
 	await expect(page.getByRole('link', { name: 'Admin', exact: true })).toBeVisible()
 })
 
-test('registration creates a non-admin account and signs it in', async ({ page }) => {
+test('registration creates a non-admin account and signs it in', async ({ page, fixture }) => {
 	const email = `register-${Date.now()}@example.com`
 
 	await goto(page, '/register')
@@ -31,5 +31,5 @@ test('registration creates a non-admin account and signs it in', async ({ page }
 	await expect(page.getByRole('heading', { name: 'Welcome back, User' })).toBeVisible()
 	await expect(page.getByText(email).first()).toBeVisible()
 	await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0)
-	expect(count('users', 'email = ?', email)).toBe(1)
+	expect(await count(fixture, 'users', 'email = ?', email)).toBe(1)
 })

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { make } from './helpers'
 
 test('bearer API covers login, me, token create/list/delete and logout', async ({ request }) => {
@@ -90,9 +90,9 @@ test('bearer API covers login, me, token create/list/delete and logout', async (
 	expect(gone.status()).toBe(401)
 })
 
-test('api login token is bounded by non-admin account abilities', async ({ request }) => {
+test('api login token is bounded by non-admin account abilities', async ({ request, fixture }) => {
 	const email = `api-member-${Date.now()}@example.com`
-	await make({ email, name: 'API Member' })
+	await make(fixture, { email, name: 'API Member' })
 
 	const res = await request.post('/api/login', {
 		data: {

@@ -2,6 +2,7 @@ import { defineConfig as config, devices } from '@playwright/test'
 
 export default config({
 	testDir: './tests/e2e',
+	globalSetup: './tests/e2e/global-setup.ts',
 	timeout: 30_000,
 	expect: { timeout: 5_000 },
 	workers: 1,
@@ -10,7 +11,7 @@ export default config({
 		trace: 'on-first-retry',
 	},
 	projects: [
-		{ name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+		{ name: 'node', use: { ...devices['Desktop Chrome'] } },
 	],
 	webServer: {
 		command: 'pnpm exec tsx tests/e2e-server.ts',

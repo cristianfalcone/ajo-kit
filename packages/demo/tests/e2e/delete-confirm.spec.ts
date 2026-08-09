@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { count, goto, make, signin } from './helpers'
 
-test('non-admin account delete requires password confirmation and deletes the account', async ({ page }) => {
+test('non-admin account delete requires password confirmation and deletes the account', async ({ page, fixture }) => {
 	const email = `delete-${Date.now()}@example.com`
-	await make({ email, name: 'Delete Flow User' })
+	await make(fixture, { email, name: 'Delete Flow User' })
 
 	await signin(page, { email, password: 'password' })
 	await goto(page, '/account/delete')
@@ -18,13 +18,13 @@ test('non-admin account delete requires password confirmation and deletes the ac
 	await page.getByRole('button', { name: 'Delete My Account' }).click()
 
 	await expect(page).toHaveURL(/\/login$/)
-	expect(count('users', 'email = ?', email)).toBe(0)
+	expect(await count(fixture, 'users', 'email = ?', email)).toBe(0)
 })
 
-test('password confirmation is scoped to the current session', async ({ page, browser, baseURL: base }) => {
+test('password confirmation is scoped to the current session', async ({ page, browser, baseURL: base, fixture }) => {
 	const email = `confirm-scope-${randomUUID()}@example.com`
 	const credentials = { email, password: 'password' }
-	await make({ email, name: 'Confirm Scope User' })
+	await make(fixture, { email, name: 'Confirm Scope User' })
 
 	await signin(page, credentials)
 
@@ -45,9 +45,9 @@ test('password confirmation is scoped to the current session', async ({ page, br
 	await ctx.close()
 })
 
-test('password confirmation rate limits failed attempts', async ({ page }) => {
+test('password confirmation rate limits failed attempts', async ({ page, fixture }) => {
 	const email = `confirm-limit-${randomUUID()}@example.com`
-	await make({ email, name: 'Confirm Limit User' })
+	await make(fixture, { email, name: 'Confirm Limit User' })
 
 	await signin(page, { email, password: 'password' })
 	await goto(page, '/confirm?redirect=/account/delete')

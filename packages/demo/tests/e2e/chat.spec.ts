@@ -1,4 +1,4 @@
-import { expect, request, test } from '@playwright/test'
+import { expect, request, test } from './test'
 import {
 	proof,
 	admin as creds,
@@ -8,9 +8,9 @@ import {
 	member,
 } from './helpers'
 
-test('chat room sends a message and streams it to another active participant', async ({ browser }) => {
-	const ctx = await browser.newContext()
-	const peer = await browser.newContext()
+test('chat room sends a message and streams it to another active participant', async ({ browser, baseURL }) => {
+	const ctx = await browser.newContext({ baseURL })
+	const peer = await browser.newContext({ baseURL })
 	const root = await ctx.newPage()
 	const client = await peer.newPage()
 
@@ -63,9 +63,9 @@ test('chat room sends a message and streams it to another active participant', a
 	}
 })
 
-test('chat sender sees first message and recipient unread badge clears after opening', async ({ browser }) => {
-	const senderContext = await browser.newContext()
-	const recipientContext = await browser.newContext()
+test('chat sender sees first message and recipient unread badge clears after opening', async ({ browser, baseURL }) => {
+	const senderContext = await browser.newContext({ baseURL })
+	const recipientContext = await browser.newContext({ baseURL })
 	const sender = await senderContext.newPage()
 	const recipient = await recipientContext.newPage()
 
@@ -117,9 +117,9 @@ test('chat sender sees first message and recipient unread badge clears after ope
 	}
 })
 
-test('active chat page receives newly created chats in the sidebar list', async ({ browser }) => {
-	const senderContext = await browser.newContext()
-	const recipientContext = await browser.newContext()
+test('active chat page receives newly created chats in the sidebar list', async ({ browser, baseURL }) => {
+	const senderContext = await browser.newContext({ baseURL })
+	const recipientContext = await browser.newContext({ baseURL })
 	const sender = await senderContext.newPage()
 	const recipient = await recipientContext.newPage()
 
@@ -163,9 +163,9 @@ test('active chat page receives newly created chats in the sidebar list', async 
 	}
 })
 
-test('active chat page receives newly created direct chats before any message', async ({ browser }) => {
-	const senderContext = await browser.newContext()
-	const recipientContext = await browser.newContext()
+test('active chat page receives newly created direct chats before any message', async ({ browser, baseURL }) => {
+	const senderContext = await browser.newContext({ baseURL })
+	const recipientContext = await browser.newContext({ baseURL })
 	const sender = await senderContext.newPage()
 	const recipient = await recipientContext.newPage()
 

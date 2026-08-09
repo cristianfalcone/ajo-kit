@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { login, make, proof } from './helpers'
 
 test('limited bearer tokens require matching API abilities', async ({ request }) => {
@@ -47,9 +47,9 @@ test('bearer tokens do not authenticate route actions outside api', async ({ req
 	await expect(response.json()).resolves.toMatchObject({ error: { message: 'Invalid CSRF token' } })
 })
 
-test('cookie-auth API mutations require CSRF proof', async ({ request, baseURL: base }) => {
+test('cookie-auth API mutations require CSRF proof', async ({ request, baseURL: base, fixture }) => {
 	const email = `csrf-api-${Date.now()}@example.com`
-	await make({ email, name: 'CSRF API User' })
+	await make(fixture, { email, name: 'CSRF API User' })
 	await login(request, base!, { email, password: 'password' })
 
 	const blocked = await request.post('/api/tokens', {
@@ -99,9 +99,9 @@ test('cookie-auth API mutations require CSRF proof', async ({ request, baseURL: 
 	})
 })
 
-test('api authorization header takes precedence over session cookies', async ({ request, baseURL: base }) => {
+test('api authorization header takes precedence over session cookies', async ({ request, baseURL: base, fixture }) => {
 	const email = `mixed-api-${Date.now()}@example.com`
-	await make({ email, name: 'Mixed API User' })
+	await make(fixture, { email, name: 'Mixed API User' })
 	await login(request, base!, { email, password: 'password' })
 
 	const response = await request.post('/api/tokens', {

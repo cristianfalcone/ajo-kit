@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto'
-import { expect, request as playwright, test } from '@playwright/test'
+import { expect, request as playwright, test } from './test'
 import { count, goto, login, make, proof, reset } from './helpers'
 
-test('forgot and reset password flow revokes old credentials', async ({ page, request, baseURL: base }) => {
+test('forgot and reset password flow revokes old credentials', async ({ page, request, baseURL: base, fixture }) => {
 	const email = `reset-${randomUUID()}@example.com`
-	const user = await make({ email, name: 'Reset Flow User' })
+	const user = await make(fixture, { email, name: 'Reset Flow User' })
 	const token = `reset-token-${randomUUID()}`
 	const credentials = { email, password: 'password' }
 
-	reset(user, token)
+	await reset(fixture, user, token)
 
 	const stale = await playwright.newContext({ baseURL: base })
 	await login(stale, base!, credentials)
@@ -45,9 +45,9 @@ test('forgot and reset password flow revokes old credentials', async ({ page, re
 	await page.getByRole('button', { name: 'Reset Password' }).click()
 
 	await expect(page).toHaveURL(/\/login$/)
-	expect(count('sessions', 'user = ?', user)).toBe(0)
-	expect(count('tokens', 'user = ?', user)).toBe(0)
-	expect(count('resets', 'user = ?', user)).toBe(0)
+	expect(await count(fixture, 'sessions', 'user = ?', user)).toBe(0)
+	expect(await count(fixture, 'tokens', 'user = ?', user)).toBe(0)
+	expect(await count(fixture, 'resets', 'user = ?', user)).toBe(0)
 	expect((await stale.get('/api/me')).status()).toBe(401)
 	expect((await request.get('/api/me', { headers: auth })).status()).toBe(401)
 

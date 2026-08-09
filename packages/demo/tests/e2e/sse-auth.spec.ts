@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { get, type ClientRequest, type IncomingMessage } from 'node:http'
-import { expect, request, test } from '@playwright/test'
+import { expect, request, test } from './test'
 import { proof, admin as creds, make, login } from './helpers'
 
 type Stream = {
@@ -133,10 +133,10 @@ test('SSE updates private routes while the session remains valid', async ({ base
 	}
 })
 
-test('SSE closes without revalidating private data after its session is revoked', async ({ baseURL: base }) => {
+test('SSE closes without revalidating private data after its session is revoked', async ({ baseURL: base, fixture }) => {
 	const email = `sse-revoke-${Date.now()}@example.com`
 	const credentials = { email, password: 'password' }
-	await make({ email, name: 'SSE Revoked User' })
+	await make(fixture, { email, name: 'SSE Revoked User' })
 
 	const root = await request.newContext({ baseURL: base })
 	const client = await request.newContext({ baseURL: base })
