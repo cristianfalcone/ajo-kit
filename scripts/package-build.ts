@@ -6,6 +6,7 @@ import { build } from 'vite'
 
 type Export = {
 	ajo?: string
+	browser?: string
 	default: string
 	types: string
 }
@@ -117,6 +118,14 @@ for (const name of selected) {
 		}
 		const base = subpath === '.' ? 'index' : subpath.slice(2)
 		entries[`${base}.ajo`] = resolve(directory, entry.ajo)
+	}
+	for (const [subpath, entry] of exports) {
+		if (!entry.browser) continue
+		if (!entry.browser.startsWith('./src/')) {
+			throw new Error(`${name} export ${subpath} has no source browser entry`)
+		}
+		const base = subpath === '.' ? 'index' : subpath.slice(2)
+		entries[`${base}.client`] = resolve(directory, entry.browser)
 	}
 	if (name === 'ajo-kit') entries['bin/kit'] = resolve(directory, 'bin/kit.ts')
 	if (manifest.kit?.migrations) {

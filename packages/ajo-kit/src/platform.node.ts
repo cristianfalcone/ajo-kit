@@ -28,10 +28,13 @@ let argon2: Argon2 | undefined
 // argon2 remains an ajo-kit-auth dependency. This source and the packed dist
 // face are both one directory below their package, so the sibling anchor works
 // in the workspace and for strict node_modules layouts without hoisting.
-// Lazy: createRequire rejects http import.meta.url, and browser-environment
-// consumers of this module never reach the password seam.
-const load = () => argon2 ??=
-	createRequire(new URL('../../ajo-kit-auth/package.json', import.meta.url))('argon2') as Argon2
+// Lazy, and anchored via a dynamic string: browser-environment consumers
+// never reach the password seam, and Vite must not statically rewrite a
+// two-arg `new URL('...', import.meta.url)` into a client asset import (the
+// dev client graph reaches this module through the shared constants).
+const anchor = () =>
+	import.meta.url.replace(/\/ajo-kit\/(?:src|dist)\/[^/]*$/, '/ajo-kit-auth/package.json')
+const load = () => argon2 ??= createRequire(new URL(anchor()))('argon2') as Argon2
 
 const options = () => ({
 	type: load().argon2id,

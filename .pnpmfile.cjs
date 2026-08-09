@@ -20,9 +20,10 @@ module.exports = {
 				const runtime = `./dist/${marked}.js`
 				const types = entry.types.replace(/^\.\/src\//, './dist/').replace(/\.[jt]sx?$/, '.d.ts')
 				const packed = { ...entry, types, import: runtime, default: runtime }
-				// Host-conditioned subpaths ship their ajo build too (the spread
-				// keeps the ajo condition ahead of default in resolution order).
+				// Host-conditioned subpaths ship their ajo/browser builds too (the
+				// spread keeps both conditions ahead of default in resolution order).
 				if (entry.ajo) packed.ajo = `./dist/${marked}.ajo.js`
+				if (entry.browser) packed.browser = `./dist/${marked}.client.js`
 				return [subpath, packed]
 			}))
 			manifest.types = manifest.exports['.'].types

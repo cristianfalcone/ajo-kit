@@ -38,6 +38,7 @@
     },
     "./platform": {
       "types": "./src/platform.ts",
+      "browser": "./src/platform.client.ts",
       "ajo": "./src/platform.ajo.ts",
       "default": "./src/platform.node.ts"
     },
