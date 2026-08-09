@@ -1,6 +1,9 @@
 import * as html from 'ajo/html'
 import type { Component } from 'ajo'
 import { sha256Hex, utf8ByteLength } from 'ajo-kit/platform'
+import { run as runBootstrap } from './bootstrap'
+import type { Kysely } from './database'
+import type { EngineEnvironment } from './engine-config'
 import { attach, reader, Reply, request, Router, send, type Handler as Kernel } from './http'
 /** Serializes a value into a completed host-neutral reply. */
 export { send } from './http'
@@ -256,6 +259,11 @@ export interface Registries {
 	routes: Record<string, Loader>
 	handlers: Record<string, Load>
 	wares: Record<string, Load>
+}
+
+/** Runs the optional bootstrap export from the root wares module. */
+export function bootstrap(database: () => Kysely<any>, config: Readonly<EngineEnvironment>): Promise<void> {
+	return runBootstrap(discoveredWares['/src/wares.ts'], database, config)
 }
 
 type Template = (slots: Record<string, string>) => string

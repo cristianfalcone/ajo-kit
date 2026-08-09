@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { kit } from '../src/vite'
+import { engine, kit } from '../src/vite'
 
 describe('ajo-kit vite plugin', () => {
 	test('native addons are not rewritten to build-machine paths', () => {
@@ -31,5 +31,14 @@ describe('ajo-kit vite plugin', () => {
 		await expect(hook.handler.call(context, '/project/node_modules/ajo-kit-auth/src/token.ts', '/project/src/page.tsx')).rejects.toThrow('Server-only module')
 		await expect(hook.handler.call(context, '/project/node_modules/ajo-kit-auth/src/ability.client.ts', '/project/src/page.tsx')).resolves.toBeUndefined()
 		await expect(hook.handler.call(context, '/project/src/data/dates.client.ts', '/project/src/page.tsx')).resolves.toBeUndefined()
+	})
+
+	test('a root bootstrap export declares engine database use', () => {
+		const target = engine({ template: '', migrations: [], database: false })
+		const transform = target.plugin.transform as (code: string, id: string) => void
+
+		transform('export async function bootstrap() {}', '/project/src/wares.ts')
+
+		expect(target.result.database).toBe(true)
 	})
 })

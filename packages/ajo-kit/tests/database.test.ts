@@ -188,6 +188,15 @@ describe('ajo-kit Node database', () => {
 		await expect(close()).resolves.toBeUndefined()
 		await expect(close()).resolves.toBeUndefined()
 	})
+
+	test('keeps repeated connection setup idempotent for one path', async () => {
+		connect(':memory:')
+		const database = db()
+
+		expect(() => connect(':memory:')).not.toThrow()
+		expect(db()).toBe(database)
+		expect(() => connect('other.sqlite')).toThrow('already connected')
+	})
 })
 
 describe('Ajo database path policy', () => {

@@ -45,10 +45,16 @@ const dialect = (database: BetterSqlite3.Database) => ({
 
 let sqlite: BetterSqlite3.Database | null = null
 let instance: Kysely<any> | null = null
+let location: string | null = null
 
 /** Opens the shared SQLite database and configures safe defaults. */
 export function connect(path = './database.sqlite'): void {
+	if (sqlite) {
+		if (location === path) return
+		throw new Error(`SQLite is already connected at ${location}`)
+	}
 	sqlite = new Database(path)
+	location = path
 	sqlite.pragma('journal_mode = WAL')
 	sqlite.pragma('foreign_keys = ON')
 	sqlite.pragma('busy_timeout = 5000')
@@ -69,6 +75,7 @@ export async function close(): Promise<void> {
 	const database = sqlite
 	instance = null
 	sqlite = null
+	location = null
 
 	try {
 		if (current) await current.destroy()

@@ -250,6 +250,17 @@ const records = (ast: unknown, importer: string): ImportRecord[] => {
 
 const imports = (code: string, importer: string) => records(parseAst(code), importer)
 
+const named = (program: any, name: string) => program.body.some((node: any) => {
+	if (node.type !== 'ExportNamedDeclaration' || node.exportKind === 'type') return false
+
+	const declaration = node.declaration
+	if (declaration?.id?.name === name) return true
+	if (declaration?.declarations?.some((item: any) => item.id?.name === name)) return true
+
+	return node.specifiers?.some((item: any) =>
+		item.exportKind !== 'type' && (item.exported?.name === name || item.exported?.value === name))
+})
+
 const auth = '__AJO_ENGINE_AUTH__'
 const database = '__AJO_ENGINE_DATABASE__'
 
@@ -307,6 +318,9 @@ export function engine(options: {
 			if (!/\.[cm]?[jt]sx?$/.test(file)) return
 			const parsed = parseSync(file, code)
 			const imports = records(parsed.program, file)
+			if (/\/src\/wares\.[jt]sx?$/.test(file) && named(parsed.program, 'bootstrap')) {
+				result.database = true
+			}
 			if (!/\/ajo-kit\/(?:src|dist)\/engine\.[cm]?[jt]s$/.test(file) && imports.some(record =>
 				record.specifier === 'ajo-kit/database' || record.specifier === '@kit/database')) {
 				result.database = true

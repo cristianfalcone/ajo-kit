@@ -234,6 +234,42 @@ export default log
 
 Middlewares are collected from route ancestors and applied to both page and API handlers.
 
+The root `src/wares.ts` module may also export one production bootstrap hook:
+
+```ts
+import type { Bootstrap, Middleware } from '@kit'
+import type { DB } from '/src/data/types'
+
+export const bootstrap: Bootstrap<DB> = async ({ db, config }) => {
+  // Migrations are complete. Perform idempotent application setup here.
+}
+
+export default [] satisfies Middleware[]
+```
+
+The exact type is:
+
+```ts
+type Bootstrap<Database = any> = (context: {
+  db: Kysely<Database>
+  config: Readonly<{
+    database: string
+    host: string
+    port: number
+  }>
+}) => Promise<void>
+```
+
+The Ajo engine loads this named export through the existing root wares registry,
+awaits it after its compiled migrations, then calls `create()` and opens the
+listener. A rejection is fatal and closes the engine database.
+
+The Node production `start()` path awaits the same compiled root export before
+it calls `create()` and before it returns an app to `listen()`. Node migrations
+remain an explicit external step: run `kit migrate up` (or the equivalent)
+before `start()`. The demo differential follows `migrate -> start -> listen`,
+which gives the hook the same after-migration, before-listener position.
+
 ## SSE Topics (Live Updates)
 
 Track topics in loaders, then emit from server code after mutations:

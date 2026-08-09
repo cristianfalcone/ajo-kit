@@ -8,6 +8,8 @@ export default config({
 	// routes or handlers overrides them with a hoisted vi.mock factory.
 	resolve: {
 		alias: {
+			'runtime:app': fileURLToPath(new URL('./packages/ajo-kit/tests/stubs/runtime-app.ts', import.meta.url)),
+			'runtime:http': fileURLToPath(new URL('./packages/ajo-kit/tests/stubs/runtime-http.ts', import.meta.url)),
 			'virtual:ajo/routes': fileURLToPath(new URL('./packages/ajo-kit/tests/stubs/virtual-routes.ts', import.meta.url)),
 			'virtual:ajo/handlers': fileURLToPath(new URL('./packages/ajo-kit/tests/stubs/virtual-handlers.ts', import.meta.url)),
 		},

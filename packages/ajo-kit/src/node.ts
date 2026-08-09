@@ -4,6 +4,8 @@ import { join } from 'node:path'
 import * as http from 'node:http'
 import * as vite from 'vite'
 import sirv from 'sirv'
+import { close, connect, db } from 'ajo-kit/database'
+import { environment } from './engine-config'
 import * as headers from './headers'
 import { attach, reader, request, type Handler } from './http'
 import { compile } from './template'
@@ -120,15 +122,28 @@ export async function dev(options: Options = {}) {
 /** Creates the production Node app from dist/client and dist/server. */
 export async function start() {
 	const entry = url.pathToFileURL(join(process.cwd(), 'dist/server/server.js')).href
-	const { create } = await import(entry)
+	const configured = environment(name => process.env[name], false)
+	const { bootstrap, create } = await import(entry) as typeof import('./server')
+	let connected = false
+	const database = () => {
+		connect(configured.database)
+		connected = true
+		return db()
+	}
 
-	const inner = handler(await create(compile(await fs.readFile(join(process.cwd(), 'dist/client/index.html'), 'utf-8'))))
-	const assets = sirv(join(process.cwd(), 'dist/client'), {
-		extensions: [],
-		setHeaders: res => headers.set(res, headers.security(), true),
-	})
+	try {
+		await bootstrap(database, configured)
+		const inner = handler(await create(compile(await fs.readFile(join(process.cwd(), 'dist/client/index.html'), 'utf-8'))))
+		const assets = sirv(join(process.cwd(), 'dist/client'), {
+			extensions: [],
+			setHeaders: res => headers.set(res, headers.security(), true),
+		})
 
-	return { handler: (req: http.IncomingMessage, res: http.ServerResponse) => assets(req, res, () => inner(req, res)) }
+		return { handler: (req: http.IncomingMessage, res: http.ServerResponse) => assets(req, res, () => inner(req, res)) }
+	} catch (error) {
+		if (connected) await close()
+		throw error
+	}
 }
 
 /** Options accepted by the production build. */

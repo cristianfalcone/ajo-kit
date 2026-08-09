@@ -31,3 +31,5 @@ export type {
 	LayoutArgs,
 	User,
 } from './constants'
+
+export type { Bootstrap } from './bootstrap'

@@ -1,6 +1,7 @@
 import app from 'runtime:app'
 import { files, serve, type Response as RuntimeResponse, type Writer } from 'runtime:http'
 import { close, connect, db } from 'ajo-kit/database'
+import { run as runBootstrap } from './bootstrap'
 import { attach, request, type Reply } from './http'
 import { security } from './headers'
 import { migrator, type MigrationRegistry } from './migrations'
@@ -51,12 +52,19 @@ const secured = (response: RuntimeResponse): RuntimeResponse => ({
 /** Migrates, creates, and binds an ajo-kit application on the ajo runtime. */
 export async function start(input: StartOptions): Promise<void> {
 	const configured = environment(app.env, input.options.auth)
-	const database = input.options.database || input.migrations.length > 0
+	const required = input.options.database || input.migrations.length > 0
+	let connected = false
+	const database = () => {
+		if (!connected) {
+			connect(configured.database)
+			connected = true
+		}
+		return db()
+	}
 
-	if (database) {
-		connect(configured.database)
+	if (required) {
 		try {
-			const { error } = await migrator(db(), input.migrations).migrateToLatest()
+			const { error } = await migrator(database(), input.migrations).migrateToLatest()
 			if (error) throw error
 		} catch (error) {
 			await close()
@@ -66,9 +74,10 @@ export async function start(input: StartOptions): Promise<void> {
 
 	let handler: Awaited<ReturnType<typeof create>>
 	try {
+		await runBootstrap(input.registries.wares['/src/wares.ts'], database, configured)
 		handler = await create(compile(input.template), input.registries)
 	} catch (error) {
-		if (database) await close()
+		if (connected) await close()
 		throw error
 	}
 
@@ -90,13 +99,13 @@ export async function start(input: StartOptions): Promise<void> {
 			return dynamic(reply)
 		})
 	} catch (error) {
-		if (database) await close()
+		if (connected) await close()
 		throw error
 	}
 
 	app.onShutdown(() => {
 		closeLive()
 		server.close()
-		if (database) void close().catch(error => console.error('[ajo] Database shutdown failed:', error))
+		if (connected) void close().catch(error => console.error('[ajo] Database shutdown failed:', error))
 	})
 }
