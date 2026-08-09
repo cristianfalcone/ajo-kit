@@ -389,7 +389,13 @@ export function engine(options: {
 			// resolves away (virtual:uno.css in SSR, treeshaken provider code).
 		},
 		generateBundle(_, bundle) {
-			const chunks = Object.values(bundle).filter(output => output.type === 'chunk')
+			// UnoCSS emits a placeholder chunk for virtual:uno.css and deletes it
+			// from the bundle AFTER this hook runs — auditing it would record a
+			// file that never reaches the staging directory. Nothing may import
+			// it (it only exists when the server graph resolves it away).
+			const chunks = Object.values(bundle)
+				.filter(output => output.type === 'chunk')
+				.filter(chunk => !(chunk.moduleIds.length && chunk.moduleIds.every(id => id.includes('uno.css'))))
 			const ids = chunks.flatMap(chunk => chunk.moduleIds.map(clean))
 			result.auth = ids.some(id => /\/ajo-kit-auth\//.test(id))
 			result.net = ids.some(id => /\/ajo-kit-mail\/(?:src|dist)\/http\.[cm]?[jt]s$/.test(id))
