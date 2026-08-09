@@ -32,6 +32,11 @@
       "types": "./src/node.ts",
       "default": "./src/node.ts"
     },
+    "./platform": {
+      "types": "./src/platform.ts",
+      "ajo": "./src/platform.ajo.ts",
+      "default": "./src/platform.node.ts"
+    },
     "./validate": {
       "types": "./src/validate.ts",
       "default": "./src/validate.ts"

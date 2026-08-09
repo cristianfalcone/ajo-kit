@@ -1,4 +1,5 @@
 import type { Children, Component } from 'ajo'
+import { env } from 'ajo-kit/platform'
 import type { Params } from 'navaid'
 import type { Request, Reply, Middleware } from './http'
 /** Host-neutral request and middleware types used by route modules. */
@@ -74,8 +75,8 @@ export class Invalid extends Failure {
 	}
 }
 
-/** Returns true when the process runs in production mode. */
-export const production = () => process.env.NODE_ENV === 'production'
+/** Returns true when the current host runs in production mode. */
+export const production = () => env('NODE_ENV') === 'production'
 const mask = (status: number, message: string) =>
 	production() && status >= 500 ? 'Internal Server Error' : message
 const config = (message: string) => {
@@ -203,7 +204,7 @@ export const ajax = (req: Request) => {
 export const api = (req: Request) => req.path.startsWith('/api/')
 
 const enabled = (value: string | undefined) => value === '1' || value?.toLowerCase() === 'true'
-const proxy = () => enabled(process.env.TRUST_PROXY)
+const proxy = () => enabled(env('TRUST_PROXY'))
 
 const first = (value: string | string[] | undefined) =>
 	Array.isArray(value) ? value[0] : value
@@ -253,7 +254,7 @@ export const ip = (req: Request) => {
 
 /** Resolves the trusted app origin from APP_URL or the request host. */
 export const origin = (req: Request) => {
-	const configured = process.env.APP_URL
+	const configured = env('APP_URL')
 
 	if (configured) {
 		try {

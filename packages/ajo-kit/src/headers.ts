@@ -1,3 +1,4 @@
+import { env } from 'ajo-kit/platform'
 import type { Value } from './http'
 
 type Target = {
@@ -6,10 +7,13 @@ type Target = {
 }
 
 const https = () => {
-	if (process.env.NODE_ENV !== 'production' || !process.env.APP_URL) return false
+	if (env('NODE_ENV') !== 'production') return false
+
+	const origin = env('APP_URL')
+	if (!origin) return false
 
 	try {
-		return new URL(process.env.APP_URL).protocol === 'https:'
+		return new URL(origin).protocol === 'https:'
 	} catch {
 		return false
 	}

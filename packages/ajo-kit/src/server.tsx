@@ -1,7 +1,7 @@
 import * as html from 'ajo/html'
 import type { Component } from 'ajo'
+import { sha256Hex, utf8ByteLength } from 'ajo-kit/platform'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { createHash } from 'node:crypto'
 import { attach, reader, Reply, request, Router, send, type Handler as Kernel } from './http'
 /** Serializes a value into a completed host-neutral reply. */
 export { send } from './http'
@@ -44,10 +44,10 @@ const scope = (req: Request): string => {
 			: req.user ? `user:${req.user.id}`
 				: undefined
 	if (id === undefined) return 'anon'
-	return createHash('sha256').update(id).digest('hex').slice(0, 16)
+	return sha256Hex(id).slice(0, 16)
 }
 
-const size = (body: string) => Buffer.byteLength(body)
+const size = (body: string) => utf8ByteLength(body)
 
 const vary = 'Accept, Cookie'
 

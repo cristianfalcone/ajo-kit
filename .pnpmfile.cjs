@@ -19,7 +19,11 @@ module.exports = {
 				const marked = /\.client\.[jt]sx?$/.test(entry.types || '') ? `${base}.client` : base
 				const runtime = `./dist/${marked}.js`
 				const types = entry.types.replace(/^\.\/src\//, './dist/').replace(/\.[jt]sx?$/, '.d.ts')
-				return [subpath, { ...entry, types, import: runtime, default: runtime }]
+				const packed = { ...entry, types, import: runtime, default: runtime }
+				// Host-conditioned subpaths ship their ajo build too (the spread
+				// keeps the ajo condition ahead of default in resolution order).
+				if (entry.ajo) packed.ajo = `./dist/${marked}.ajo.js`
+				return [subpath, packed]
 			}))
 			manifest.types = manifest.exports['.'].types
 			if (manifest.name === 'ajo-kit') manifest.bin = { kit: './dist/bin/kit.js' }

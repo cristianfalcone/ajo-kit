@@ -5,6 +5,8 @@ import ts from 'typescript'
 import { build } from 'vite'
 
 type Export = {
+	ajo?: string
+	default: string
 	types: string
 }
 
@@ -99,12 +101,23 @@ for (const name of selected) {
 		if (!entry.types.startsWith('./src/')) {
 			throw new Error(`${name} export ${subpath} has no source types entry`)
 		}
+		if (!entry.default.startsWith('./src/')) {
+			throw new Error(`${name} export ${subpath} has no source default entry`)
+		}
 		// A *.client.* source keeps its marker in the compiled name: the marker
 		// is what exempts client-safe modules from the server-only guard, and
 		// the published dist face must satisfy the same contract as src.
 		const base = subpath === '.' ? 'index' : subpath.slice(2)
-		return [/\.client\.[jt]sx?$/.test(entry.types) ? `${base}.client` : base, resolve(directory, entry.types)]
+		return [/\.client\.[jt]sx?$/.test(entry.default) ? `${base}.client` : base, resolve(directory, entry.default)]
 	}))
+	for (const [subpath, entry] of exports) {
+		if (!entry.ajo) continue
+		if (!entry.ajo.startsWith('./src/')) {
+			throw new Error(`${name} export ${subpath} has no source ajo entry`)
+		}
+		const base = subpath === '.' ? 'index' : subpath.slice(2)
+		entries[`${base}.ajo`] = resolve(directory, entry.ajo)
+	}
 	if (name === 'ajo-kit') entries['bin/kit'] = resolve(directory, 'bin/kit.ts')
 	if (manifest.kit?.migrations) {
 		const migrationDirectory = resolve(directory, manifest.kit.migrations)

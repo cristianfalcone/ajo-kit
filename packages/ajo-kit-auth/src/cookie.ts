@@ -30,5 +30,6 @@ export const write = (res: Response, value: string, remember = false) => {
 }
 
 /** Clears the session cookie on a response. */
-export const clear = (res: Response) =>
+export const clear = (res: Response) => {
 	res.setHeader('Set-Cookie', `${name}=; ${base()}; Max-Age=0`)
+}

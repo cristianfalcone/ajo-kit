@@ -1,7 +1,9 @@
+import { env } from 'ajo-kit/platform'
+
 const disabled = new Set(['', '0', 'false', 'off'])
 
 const active = () => {
-	const value = typeof process === 'undefined' ? undefined : process.env.AJO_TIMING
+	const value = env('AJO_TIMING')
 	return !!value && !disabled.has(value.toLowerCase())
 }
 
