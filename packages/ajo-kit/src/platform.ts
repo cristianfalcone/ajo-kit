@@ -23,6 +23,8 @@ export interface Platform {
 	hmacSha256Hex(key: string, data: string): string
 	/** Generates a canonical unpadded base64url credential. */
 	randomBase64Url(bytes: number): string
+	/** Generates an RFC 4122 version 4 UUID. */
+	randomUUID(): string
 	/** Returns the lowercase SHA-256 hex digest of UTF-8 text or raw bytes. */
 	sha256Hex(data: string | Uint8Array): string
 	/** Compares two byte arrays without data-dependent early exit. */
@@ -49,6 +51,8 @@ export declare const argon2Verify: Platform['argon2Verify']
 export declare const hmacSha256Hex: Platform['hmacSha256Hex']
 /** Type shim for the condition-selected random credential implementation. */
 export declare const randomBase64Url: Platform['randomBase64Url']
+/** Type shim for the condition-selected UUID implementation. */
+export declare const randomUUID: Platform['randomUUID']
 /** Type shim for the condition-selected SHA-256 implementation. */
 export declare const sha256Hex: Platform['sha256Hex']
 /** Type shim for the condition-selected constant-time comparison. */

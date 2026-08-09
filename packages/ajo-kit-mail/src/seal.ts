@@ -1,5 +1,4 @@
-import { randomUUID } from 'node:crypto'
-import { Buffer } from 'node:buffer'
+import { base64UrlEncode, randomUUID, utf8ByteLength } from 'ajo-kit/platform'
 import { Refused, type RefusalCode } from './errors'
 
 /** One mailbox: a bare address, optionally with a display name. */
@@ -80,7 +79,12 @@ const BODY_BYTES = 262_144
 const TIMEOUT = 10_000
 const WORD_BYTES = 45
 
-const bytes = (value: string) => Buffer.byteLength(value, 'utf8')
+const encoder = new TextEncoder()
+const bytes = utf8ByteLength
+const base64 = (value: string) => {
+	const encoded = base64UrlEncode(encoder.encode(value))
+	return encoded.replaceAll('-', '+').replaceAll('_', '/') + '='.repeat((4 - encoded.length % 4) % 4)
+}
 const refusal = (code: RefusalCode): never => {
 	throw new Refused(code)
 }
@@ -237,6 +241,6 @@ export function encode(value: string): string {
 	chunks.push(chunk)
 
 	return chunks
-		.map(part => `=?UTF-8?B?${Buffer.from(part, 'utf8').toString('base64')}?=`)
+		.map(part => `=?UTF-8?B?${base64(part)}?=`)
 		.join('\r\n ')
 }

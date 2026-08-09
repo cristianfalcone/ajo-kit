@@ -4,25 +4,28 @@ import type { Sealed } from './seal'
 
 const RESPONSE_BYTES = 65_536
 
-const payload = async (response: Response): Promise<unknown> => {
-	if (!response.body) return
+const exceeded = () => Object.assign(
+	new TypeError(`Mail provider response exceeds ${RESPONSE_BYTES} bytes`),
+	{ code: 'EBODYLIMIT' },
+)
 
-	const reader = response.body.getReader()
+const streamed = async (stream: ReadableStream<Uint8Array>): Promise<Uint8Array> => {
+	const reader = stream.getReader()
 	const bytes = new Uint8Array(RESPONSE_BYTES)
 	let size = 0
 	let complete = false
 
 	try {
-		while (size < RESPONSE_BYTES) {
+		while (true) {
 			const chunk = await reader.read()
 			if (chunk.done) {
 				complete = true
 				break
 			}
 
-			const length = Math.min(chunk.value.byteLength, RESPONSE_BYTES - size)
-			bytes.set(chunk.value.subarray(0, length), size)
-			size += length
+			if (chunk.value.byteLength > RESPONSE_BYTES - size) throw exceeded()
+			bytes.set(chunk.value, size)
+			size += chunk.value.byteLength
 		}
 	} finally {
 		if (complete) {
@@ -32,8 +35,29 @@ const payload = async (response: Response): Promise<unknown> => {
 		}
 	}
 
-	if (!size) return
-	return JSON.parse(new TextDecoder().decode(bytes.subarray(0, size)))
+	return bytes.subarray(0, size)
+}
+
+const bounded = async (response: Response): Promise<Uint8Array> => {
+	const declared = response.headers.get('Content-Length')
+	if (declared !== null && /^\d+$/.test(declared) && Number(declared) > RESPONSE_BYTES) {
+		await response.body?.cancel().catch(() => {})
+		throw exceeded()
+	}
+
+	// Node fetch exposes a Web stream but ignores maxBody. The ajo Response has
+	// no .body: its fetch has already enforced maxBody before arrayBuffer().
+	if (response.body) return streamed(response.body)
+
+	const bytes = new Uint8Array(await response.arrayBuffer())
+	if (bytes.byteLength > RESPONSE_BYTES) throw exceeded()
+	return bytes
+}
+
+const payload = async (response: Response): Promise<unknown> => {
+	const bytes = await bounded(response)
+	if (!bytes.byteLength) return
+	return JSON.parse(new TextDecoder().decode(bytes))
 }
 
 /** JSON provider settings. The body mapping is the only provider-specific code an app writes. */
@@ -51,7 +75,8 @@ export interface HttpOptions {
 
 /**
  * Creates a provider transport over global fetch. Non-success bodies are
- * cancelled unread, while success bodies are retained only up to 64 KiB.
+ * cancelled unread on Node; successful bodies over 64 KiB fail as a retryable
+ * connection error on both hosts.
  */
 export function http(options: HttpOptions): Transport {
 	const transport: Transport = async mail => {
@@ -67,13 +92,17 @@ export function http(options: HttpOptions): Transport {
 			headers.delete('Idempotency-Key')
 			if (mail.key !== undefined) headers.set('Idempotency-Key', mail.key)
 
-			response = await fetch(options.url, {
+			const init: RequestInit & { maxBody: number } = {
 				method: 'POST',
 				headers,
 				body: JSON.stringify(options.body(mail)),
 				signal: mail.signal,
-			})
+				maxBody: RESPONSE_BYTES,
+			}
+			response = await fetch(options.url, init)
 		} catch (error) {
+			// Engine EDNS/ECONNECT/EPROTO/EBODYLIMIT become retryable connection;
+			// ETLS becomes non-retryable tls; abort reasons become retryable timeout.
 			throw classify(error)
 		}
 

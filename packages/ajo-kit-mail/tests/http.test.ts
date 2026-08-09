@@ -5,11 +5,15 @@ import {
 	type ServerResponse,
 } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { http } from '../src/http'
 import { seal, type Message } from '../src/seal'
 
 const RESPONSE_BYTES = 65_536
+
+afterEach(() => {
+	vi.unstubAllGlobals()
+})
 
 const message = (overrides: Partial<Message> = {}, timeout = 2_000) => seal({
 	to: 'recipient@example.com',
@@ -203,18 +207,16 @@ describe('ajo-kit-mail HTTP transport', () => {
 		})
 	})
 
-	test('parses only the first 64 KiB of a one MiB success response', async () => {
+	test('accepts a complete success response at exactly 64 KiB', async () => {
 		const document = JSON.stringify({ id: 'bounded' })
-		const first = document + ' '.repeat(RESPONSE_BYTES - Buffer.byteLength(document))
-		const rest = 'not-json'.repeat(Math.ceil((1_048_576 - RESPONSE_BYTES) / 8))
-			.slice(0, 1_048_576 - RESPONSE_BYTES)
+		const body = document + ' '.repeat(RESPONSE_BYTES - Buffer.byteLength(document))
 
-		expect(Buffer.byteLength(first) + Buffer.byteLength(rest)).toBe(1_048_576)
+		expect(Buffer.byteLength(body)).toBe(RESPONSE_BYTES)
 
 		await withServer((request, response) => {
 			request.resume()
 			response.writeHead(200, { 'Content-Type': 'application/json' })
-			response.end(first + rest)
+			response.end(body)
 		}, async url => {
 			const transport = http({
 				url,
@@ -223,6 +225,103 @@ describe('ajo-kit-mail HTTP transport', () => {
 			})
 
 			await expect(transport(message())).resolves.toEqual({ id: 'bounded' })
+		})
+	})
+
+	test('cancels and classifies a chunked success response over 64 KiB', async () => {
+		await withServer((request, response) => {
+			request.resume()
+			response.writeHead(200, { 'Content-Type': 'application/json' })
+			response.write(' '.repeat(RESPONSE_BYTES))
+			response.end('x')
+		}, async url => {
+			const transport = http({
+				url,
+				body: mail => ({ id: mail.id }),
+			})
+
+			await expect(transport(message())).rejects.toMatchObject({
+				code: 'connection',
+				retryable: true,
+			})
+		})
+	})
+
+	test('passes the engine response bound and reads its body through arrayBuffer', async () => {
+		const encoded = new TextEncoder().encode('{"id":"engine-42"}')
+		const fetcher = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+			ok: true,
+			status: 200,
+			headers: new Headers(),
+			arrayBuffer: async () => encoded.buffer,
+		}) as Response)
+		vi.stubGlobal('fetch', fetcher)
+		const transport = http({
+			url: 'https://mail.example.test/send',
+			body: mail => ({ id: mail.id }),
+			id: result => (result as { id?: string }).id,
+		})
+
+		await expect(transport(message())).resolves.toEqual({ id: 'engine-42' })
+		expect(fetcher).toHaveBeenCalledOnce()
+		expect(fetcher.mock.calls[0]![1]).toMatchObject({
+			method: 'POST',
+			maxBody: RESPONSE_BYTES,
+		})
+	})
+
+	test('rejects an oversized buffered response if a host violates maxBody', async () => {
+		const encoded = new Uint8Array(RESPONSE_BYTES + 1)
+		vi.stubGlobal('fetch', vi.fn(async () => ({
+			ok: true,
+			status: 200,
+			headers: new Headers(),
+			arrayBuffer: async () => encoded.buffer,
+		}) as Response))
+		const transport = http({
+			url: 'https://mail.example.test/send',
+			body: mail => ({ id: mail.id }),
+		})
+
+		await expect(transport(message())).rejects.toMatchObject({
+			code: 'connection',
+			retryable: true,
+		})
+	})
+
+	test.each([
+		{ engine: 'EDNS', mail: 'connection', retryable: true },
+		{ engine: 'ECONNECT', mail: 'connection', retryable: true },
+		{ engine: 'ETLS', mail: 'tls', retryable: false },
+		{ engine: 'EPROTO', mail: 'connection', retryable: true },
+		{ engine: 'EBODYLIMIT', mail: 'connection', retryable: true },
+	])('maps engine $engine to $mail', async ({ engine, mail, retryable }) => {
+		vi.stubGlobal('fetch', vi.fn().mockRejectedValue(
+			Object.assign(new TypeError('engine fetch failed'), { code: engine }),
+		))
+		const transport = http({
+			url: 'https://mail.example.test/send',
+			body: envelope => ({ id: envelope.id }),
+		})
+
+		await expect(transport(message())).rejects.toMatchObject({
+			code: mail,
+			retryable,
+		})
+	})
+
+	test.each(['AbortError', 'TimeoutError'])('maps engine %s abort reasons to timeout', async name => {
+		const error = new Error('request stopped')
+		error.name = name
+		vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error))
+		const transport = http({
+			url: 'https://mail.example.test/send',
+			body: envelope => ({ id: envelope.id }),
+		})
+
+		await expect(transport(message())).rejects.toMatchObject({
+			code: 'timeout',
+			retryable: true,
 		})
 	})
 

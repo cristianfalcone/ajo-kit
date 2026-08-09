@@ -18,7 +18,7 @@
   "exports": {
     ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
     "./http": { "types": "./src/http.ts", "default": "./src/http.ts" },
-    "./smtp": { "types": "./src/smtp.ts", "default": "./src/smtp.ts" },
+    "./smtp": { "ajo": null, "types": "./src/smtp.ts", "default": "./src/smtp.ts" },
     "./capture": { "types": "./src/capture.ts", "default": "./src/capture.ts" }
   },
   "devDependencies": {

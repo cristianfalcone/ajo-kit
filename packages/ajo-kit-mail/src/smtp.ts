@@ -1,3 +1,5 @@
+// Node-only by design. The ajo package-export condition blocks this subpath,
+// and these static builtins make a forced source import fail the engine graph audit.
 import { isIP, Socket } from 'node:net'
 import { connect as connectTls } from 'node:tls'
 import { createTransport } from 'nodemailer'

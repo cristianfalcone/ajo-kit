@@ -3,6 +3,7 @@ import {
 	createHmac,
 	createPublicKey,
 	randomBytes,
+	randomUUID as uuid,
 	timingSafeEqual as equal,
 	verify,
 } from 'node:crypto'
@@ -127,6 +128,8 @@ export const hmacSha256Hex: Platform['hmacSha256Hex'] = (key, data) =>
 
 export const randomBase64Url: Platform['randomBase64Url'] = count =>
 	randomBytes(count).toString('base64url')
+
+export const randomUUID: Platform['randomUUID'] = uuid
 
 export const sha256Hex: Platform['sha256Hex'] = data =>
 	createHash('sha256').update(data).digest('hex')

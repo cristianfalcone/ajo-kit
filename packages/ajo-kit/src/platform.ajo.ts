@@ -4,6 +4,7 @@ import {
 	argon2Verify,
 	hmacSha256,
 	randomBytes,
+	randomUUID as uuid,
 	sha256,
 	timingSafeEqual,
 	validatePublicKey as validate,
@@ -39,6 +40,8 @@ export const hmacSha256Hex: Platform['hmacSha256Hex'] = (key, data) =>
 
 export const randomBase64Url: Platform['randomBase64Url'] = count =>
 	randomBytes(count).toBase64({ alphabet: 'base64url', omitPadding: true })
+
+export const randomUUID: Platform['randomUUID'] = uuid
 
 export const sha256Hex: Platform['sha256Hex'] = data => sha256(data).toHex()
 

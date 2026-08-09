@@ -9,6 +9,7 @@ declare module 'runtime:crypto' {
 	export function argon2Verify(phc: string, plain: string | Uint8Array): Promise<boolean>
 	export function hmacSha256(key: string | Uint8Array, data: string | Uint8Array): Uint8Array
 	export function randomBytes(length: number): Uint8Array
+	export function randomUUID(): string
 	export function sha256(data: string | Uint8Array): Uint8Array
 	export function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean
 	export function validatePublicKey(key: PublicKey): true

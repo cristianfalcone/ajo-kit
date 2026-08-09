@@ -6,6 +6,7 @@ import {
 	env,
 	hmacSha256Hex,
 	randomBase64Url,
+	randomUUID,
 	sha256Hex,
 	timingSafeEqual,
 	utf8ByteLength,
@@ -71,6 +72,12 @@ describe('ajo-kit Node platform', () => {
 
 		expect(credential).toMatch(/^[A-Za-z0-9_-]{43}$/)
 		expect(base64UrlDecode(credential)).toHaveLength(32)
+	})
+
+	test('generates canonical RFC 4122 version 4 UUIDs', () => {
+		expect(randomUUID()).toMatch(
+			/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+		)
 	})
 
 	test('returns exact SHA-256 hex vectors', () => {

@@ -59,4 +59,17 @@ describe('ajo engine build contract', () => {
 		expect(findings.map(finding => finding.type)).toEqual(['dynamic', 'node', 'bare', 'typescript', 'css'])
 		expect(findings.every(finding => finding.message.includes(importer))).toBe(true)
 	})
+
+	test('fences the SMTP subpath and detects forced Node socket imports', async () => {
+		const manifest = JSON.parse(await readFile(
+			new URL('../../ajo-kit-mail/package.json', import.meta.url),
+			'utf8',
+		)) as { exports: Record<string, { ajo?: unknown }> }
+
+		expect(manifest.exports['./smtp']?.ajo).toBeNull()
+		expect(graph([
+			{ importer: 'server/smtp.js', kind: 'static', literal: true, specifier: 'node:net' },
+			{ importer: 'server/smtp.js', kind: 'static', literal: true, specifier: 'node:tls' },
+		]).map(finding => finding.type)).toEqual(['node', 'node'])
+	})
 })

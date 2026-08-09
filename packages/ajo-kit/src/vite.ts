@@ -349,11 +349,9 @@ export function engine(options: {
 				issue,
 			])).values()]
 
-			const fatal = result.findings.filter(issue => issue.type !== 'node' || options.check)
-			for (const issue of result.findings.filter(issue => issue.type === 'node' && !options.check)) {
-				this.warn(`[ajo] ${issue.message} (temporary warning until engine auth/mail ports land; use --check to fail)`)
+			if (result.findings.length) {
+				this.error(`Engine graph validation failed:\n${result.findings.map(issue => `  - ${issue.message}`).join('\n')}`)
 			}
-			if (fatal.length) this.error(`Engine graph validation failed:\n${fatal.map(issue => `  - ${issue.message}`).join('\n')}`)
 		},
 	}
 

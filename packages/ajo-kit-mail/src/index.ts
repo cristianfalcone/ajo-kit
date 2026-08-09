@@ -1,4 +1,5 @@
 import { configure as seam } from 'ajo-kit/mail'
+import { env } from 'ajo-kit/platform'
 import {
 	Refused,
 	Undelivered,
@@ -99,7 +100,7 @@ const CONTROL = /[\u0000-\u001f\u007f]/
 
 let configuration: Configuration | undefined
 
-const production = () => process.env.NODE_ENV === 'production'
+const production = () => env('NODE_ENV') === 'production'
 
 const refuse = (code: RefusalCode): never => {
 	throw new Refused(code)

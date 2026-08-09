@@ -11,6 +11,11 @@ import {
 	type Sealed,
 } from '../src/seal'
 
+vi.mock('ajo-kit/platform', async importOriginal => ({
+	...await importOriginal<typeof import('ajo-kit/platform')>(),
+	randomUUID: () => '00000000-0000-4000-8000-000000000000',
+}))
+
 const policy: Policy = {
 	from: {
 		address: 'sender@example.com',
@@ -292,6 +297,7 @@ describe('seal deadline and boundary', () => {
 		expect(Object.isFrozen(result.from)).toBe(true)
 		expect(Object.isFrozen(result.to)).toBe(true)
 		expect(Object.isFrozen(result.replyTo)).toBe(true)
+		expect(result.id).toBe('00000000-0000-4000-8000-000000000000')
 		expect(result.signal).toBeInstanceOf(AbortSignal)
 	})
 
@@ -335,5 +341,9 @@ describe('seal helpers', () => {
 		expect(words.every(word => Buffer.byteLength(word, 'ascii') <= 75)).toBe(true)
 		expect(words.every(word => !word.includes('\uFFFD'))).toBe(true)
 		expect(decoded).toBe(value)
+	})
+
+	test('preserves the exact RFC 2047 base64 encoding', () => {
+		expect(encode('Ajo 🌶️')).toBe('=?UTF-8?B?QWpvIPCfjLbvuI8=?=')
 	})
 })
