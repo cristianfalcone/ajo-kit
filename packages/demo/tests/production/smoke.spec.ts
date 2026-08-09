@@ -11,7 +11,9 @@ const secure = (headers: Record<string, string | undefined>) => {
 }
 
 const asset = () => {
-	const html = readFileSync('dist/client/index.html', 'utf8')
+	// The engine differential run points this at the artifact's client root.
+	const root = process.env.AJO_CLIENT_DIST ?? 'dist/client'
+	const html = readFileSync(`${root}/index.html`, 'utf8')
 	const match = html.match(/src="(\/assets\/[^"]+\.js)"/)
 
 	if (!match) throw new Error('Missing built client asset')
