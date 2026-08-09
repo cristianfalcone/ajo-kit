@@ -115,4 +115,23 @@ describe('ajo-kit HTTP kernel', () => {
 		expect(closes).toBe(1)
 		expect(reply.writableEnded).toBe(true)
 	})
+
+	test('attaches SSE through a reply from another module graph', () => {
+		const reply = new Reply()
+		const messages: string[] = []
+		let closes = 0
+
+		const events = reply.sse()
+		events.send('queued')
+		// Models the structurally compatible Reply received from Vite's module graph.
+		attach({ stream: reply.stream } as Reply, {
+			send: message => messages.push(message),
+			close: () => { closes++ },
+			closed: new Promise<void>(() => {}),
+		})
+		events.close()
+
+		expect(messages).toEqual(['queued'])
+		expect(closes).toBe(1)
+	})
 })

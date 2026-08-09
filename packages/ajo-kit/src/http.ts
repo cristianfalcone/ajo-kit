@@ -95,10 +95,11 @@ export type SSE = {
 	closed: Promise<void>
 }
 type Sink = SSE
-type Stream = {
+// The Node adapter and a Vite-loaded server can hold separate copies of this
+// module, so attachment state must travel with the reply instead of module identity.
+type Stream = SSE & {
 	attach: (sink: Sink) => void
 }
-const streams = new WeakMap<Reply, Stream>()
 
 /** Host-neutral response accumulator returned by the ajo-kit handler. */
 export class Reply {
@@ -153,7 +154,7 @@ export class Reply {
 			this.writableEnded = true
 			settle()
 		}
-		const descriptor: SSE = {
+		const descriptor: Stream = {
 			send: text => {
 				if (ended) return
 				if (sink) sink.send(text)
@@ -165,24 +166,22 @@ export class Reply {
 				finish()
 			},
 			closed,
-		}
-
-		this.stream = descriptor
-		streams.set(this, {
 			attach: writer => {
 				if (ended) return writer.close()
 				sink = writer
 				for (const text of queue.splice(0)) writer.send(text)
 				void writer.closed.then(finish, finish)
 			},
-		})
+		}
+
+		this.stream = descriptor
 
 		return descriptor
 	}
 }
 
 /** Attaches a host SSE writer to a reply descriptor. */
-export const attach = (reply: Reply, sink: Sink) => streams.get(reply)?.attach(sink)
+export const attach = (reply: Reply, sink: Sink) => (reply.stream as Stream | undefined)?.attach(sink)
 
 /** Continuation used by ordered HTTP middleware. */
 export type Next = (error?: unknown) => void
