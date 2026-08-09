@@ -1,8 +1,10 @@
 import type { Children, Component } from 'ajo'
 import type { Params } from 'navaid'
-import type { Request, Response, Middleware } from 'polka'
-/** Polka request, response, and middleware types used by route modules. */
-export type { Request, Response, Middleware }
+import type { Request, Reply, Middleware } from './http'
+/** Host-neutral request and middleware types used by route modules. */
+export type { Request, Middleware }
+/** Host-neutral response accumulator used by route modules. */
+export type Response = Reply
 /** Document head payload returned by route head loaders. */
 export type { Head } from './head'
 import type { Head } from './head'
@@ -193,7 +195,10 @@ export const navigate = (to: string) => {
 // Request helpers
 
 /** Returns true when a request expects JSON route/action data. */
-export const ajax = (req: Request) => !!req.headers.accept?.includes('application/json')
+export const ajax = (req: Request) => {
+	const accept = req.headers.accept
+	return Array.isArray(accept) ? accept.some(value => value.includes('application/json')) : !!accept?.includes('application/json')
+}
 /** Returns true when a request targets the /api route namespace. */
 export const api = (req: Request) => req.path.startsWith('/api/')
 
@@ -238,9 +243,10 @@ const forwarded = (header: string | string[] | undefined) => {
 
 /** Resolves the client IP, honoring TRUST_PROXY for forwarded headers. */
 export const ip = (req: Request) => {
+	const remote = req.remoteAddress ?? (req as Request & { socket?: { remoteAddress?: string } }).socket?.remoteAddress
 	const raw = proxy()
-		? forwarded(req.headers['x-forwarded-for']) ?? req.socket?.remoteAddress
-		: req.socket?.remoteAddress
+		? forwarded(req.headers['x-forwarded-for']) ?? remote
+		: remote
 
 	return raw ? address(raw) : 'unknown'
 }
@@ -259,7 +265,7 @@ export const origin = (req: Request) => {
 		}
 	}
 
-	const host = req.headers.host
+	const host = first(req.headers.host)
 	if (!host) throw new Failure(400, 'Missing Host header')
 
 	if (production() && !local(host)) {
@@ -286,9 +292,9 @@ export interface User {
 	[key: string]: unknown
 }
 
-// Request extensions for polka
+// Request extensions
 
-declare module 'polka' {
+declare module './http' {
 	interface Request {
 		user?: User
 		session?: { id: string }

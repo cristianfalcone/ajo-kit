@@ -7,7 +7,7 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
-import type { Middleware, Request } from 'polka'
+import type { Middleware, Request } from '../src/http'
 
 // A ware that lets each test choose an identity per request: a session id, a
 // bearer token id, or an explicit scope override — the three seams the

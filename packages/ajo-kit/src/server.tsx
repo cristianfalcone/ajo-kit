@@ -2,15 +2,12 @@ import * as html from 'ajo/html'
 import type { Component } from 'ajo'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash } from 'node:crypto'
-import polka from 'polka'
-import type { Request, Response, Middleware } from 'polka'
-import { json } from '@polka/parse'
-/** Sends an HTTP response using Polka's send helper. */
-export { default as send } from '@polka/send'
-import send from '@polka/send'
+import { attach, reader, Reply, request, Router, send, type Handler as Kernel } from './http'
+/** Serializes a value into a completed host-neutral reply. */
+export { send } from './http'
 import App, { resolve, layouts, pages, error, match, parts, parents } from './app'
 import { Failure, links, ancestors, normalize, ajax, api } from './constants'
-import type { State, Data, Entry, Page, Parent, Payload } from './constants'
+import type { State, Data, Entry, Page, Parent, Payload, Request, Middleware } from './constants'
 import { merge, render as view, type Head } from './head'
 import * as headers from './headers'
 import { bump, fresh, topics as sorted, parse, hash, snapshot, type Versions } from './freshness'
@@ -60,7 +57,7 @@ const base = (type?: string) => ({
 	...(type && { 'Content-Type': type }),
 })
 
-const done = (req: Request, res: Response, status: number, bytes: number, cache?: string) => {
+const done = (req: Request, res: Reply, status: number, bytes: number, cache?: string) => {
 	const result = finish(req.timing, { status, bytes, cache })
 
 	if (!result) return
@@ -70,7 +67,7 @@ const done = (req: Request, res: Response, status: number, bytes: number, cache?
 	log(`${req.method} ${req.originalUrl}`, result)
 }
 
-const write = (req: Request, res: Response, hash?: string, early = false) => {
+const write = (req: Request, res: Reply, hash?: string, early = false) => {
 	const cache = early ? 'fresh' : 'revalidated'
 
 	res.statusCode = 304
@@ -112,48 +109,8 @@ const matches = (conn: Connection, topics: Set<string>) => {
 	return [...topics].some(topic => conn.topics.has(topic))
 }
 
-const probe = () => {
-	const headers = new Map<string, string | number | readonly string[]>()
-	const res = {
-		statusCode: 200,
-		writableEnded: false,
-		setHeader(key: string, value: string | number | readonly string[]) {
-			headers.set(key.toLowerCase(), value)
-			return res
-		},
-		getHeader(key: string) {
-			return headers.get(key.toLowerCase())
-		},
-		hasHeader(key: string) {
-			return headers.has(key.toLowerCase())
-		},
-		removeHeader(key: string) {
-			headers.delete(key.toLowerCase())
-		},
-		writeHead(status: number, values?: Record<string, string | number | readonly string[]>) {
-			res.statusCode = status
-			if (values) {
-				for (const [key, value] of Object.entries(values)) {
-					if (value !== undefined) res.setHeader(key, value)
-				}
-			}
-			return res
-		},
-		write() {
-			res.writableEnded = true
-			return true
-		},
-		end() {
-			res.writableEnded = true
-			return res
-		}
-	}
-
-	return res as unknown as Response
-}
-
 const run = (ware: Middleware, req: Request) => new Promise<boolean>((resolve, reject) => {
-	const res = probe()
+	const res = new Reply(req.method)
 	let settled = false
 	const settle = (value: boolean) => {
 		if (settled) return
@@ -283,29 +240,71 @@ type Handler = {
 	page?: (req: Request, parent: Parent) => Promise<Entry>
 	layout?: (req: Request, parent: Parent) => Promise<Entry>
 	head?: (req: Request, parent: Parent) => Promise<Head>
-	actions?: Record<string, (req: Request, res: Response) => Promise<unknown>>
+	actions?: Record<string, (req: Request, res: Reply) => Promise<unknown>>
 }
 
 type Template = (slots: Record<string, string>) => string
 
-const parser = json()
+const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value
 
-const body: Middleware = (req, res, next) => {
-	let called = false
-	const done = (err?: Parameters<typeof next>[0]) => {
-		if (called) return
-		called = true
-		next(err)
+const body: Middleware = async (req, _, next) => {
+	if (req.body !== undefined) return next()
+	req.body = {}
+
+	const type = first(req.headers['content-type'])
+	const length = Number.parseInt(first(req.headers['content-length']) ?? '', 10)
+	if (Number.isNaN(length) && req.headers['transfer-encoding'] === undefined) return next()
+	if (type && !type.includes('application/json')) return next()
+	if (length === 0) return next()
+
+	let raw: Uint8Array
+	try {
+		raw = await req.read(100 * 1024)
+	} catch (err) {
+		return next(err)
 	}
 
 	try {
-		parser(req, res, done)
+		req.body = JSON.parse(new TextDecoder().decode(raw))
 	} catch (err) {
-		done(err as Parameters<typeof next>[0])
+		const invalid = Object.assign(new Error('Invalid content'), {
+			status: 422,
+			details: err instanceof Error ? err.message : String(err),
+		})
+		return next(invalid)
 	}
+
+	return next()
 }
 
-/** Creates the SSR Polka app from an HTML slot template. */
+// Keep the existing direct Node-listener surface for callers that have not
+// gone through ajo-kit/node; the returned function itself is the kernel API.
+const compatible = (app: Kernel) => Object.assign(app, {
+	handler(raw: any, res: any) {
+		const incoming = request({
+			method: raw.method ?? 'GET',
+			target: raw.originalUrl ?? raw.url ?? '/',
+			headers: raw.headers,
+			remoteAddress: raw.socket?.remoteAddress,
+			read: reader(raw),
+		})
+		void app(incoming).then(reply => {
+			res.statusCode = reply.statusCode
+			for (const [key, value] of reply.headers) res.setHeader(key, value)
+			if (!reply.stream) return res.end(reply.body)
+			res.flushHeaders()
+			const closed = new Promise<void>(resolve => { res.once('close', resolve); res.once('finish', resolve) })
+			attach(reply, {
+				send: text => { if (!res.writableEnded) res.write(text) },
+				close: () => { if (!res.writableEnded) res.end() },
+				closed,
+			})
+		}, () => {
+			if (!res.headersSent) { res.statusCode = 500; res.end('Internal Server Error') }
+		})
+	}
+})
+/** Creates the host-neutral SSR handler from an HTML slot template. */
 export async function create(template: Template) {
 
 	const secure: Middleware = (_, res, next) => {
@@ -406,10 +405,11 @@ export async function create(template: Template) {
 		res.writeHead(200, {
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache',
-			'Connection': 'keep-alive'
+			'Connection': 'keep-alive',
+			'X-Accel-Buffering': 'no',
 		})
 
-		res.flushHeaders()
+		const stream = res.sse()
 
 		const head = (req.head ?? {}) as Head
 		const entries = (req.entries ?? []) as Data
@@ -423,13 +423,13 @@ export async function create(template: Template) {
 			hash,
 			verify: req.verifyLive,
 			revalidate: req.revalidate!,
-			send: (message) => res.write(`data: ${JSON.stringify(message)}\n\n`),
+			send: (message) => stream.send(`data: ${JSON.stringify(message)}\n\n`),
 			close: () => {}
 		}
 
 		connections.add(conn)
 
-		const heartbeat = setInterval(() => res.write(':hb\n\n'), 30000)
+		const heartbeat = setInterval(() => stream.send(':hb\n\n'), 30000)
 		let closed = false
 
 		const cleanup = () => {
@@ -441,13 +441,13 @@ export async function create(template: Template) {
 
 		conn.close = () => {
 			cleanup()
-			if (!res.writableEnded) res.end()
+			stream.close()
 		}
 
-		req.socket?.on('close', cleanup)
+		void stream.closed.then(cleanup)
 	}
 
-	const render = async (req: Request, res: Response, page: Page, error?: Failure) => {
+	const render = async (req: Request, res: Reply, page: Page, error?: Failure) => {
 
 		const begun = performance.now()
 		const head = (req.head ?? {}) as Head
@@ -522,9 +522,8 @@ export async function create(template: Template) {
 	}
 
 	const action = (segments: string[]): Middleware => async (req, res) => {
-		const url = new URL(req.originalUrl, `http://${req.headers.host}`)
-		const name = [...url.searchParams.keys()].find(key => key.startsWith('/'))?.slice(1) || 'default'
-		let handler: ((req: Request, res: Response) => Promise<unknown>) | undefined
+		const name = Object.keys(req.query).find(key => key.startsWith('/'))?.slice(1) || 'default'
+		let handler: ((req: Request, res: Reply) => Promise<unknown>) | undefined
 
 		for (const path of ancestors(segments).filter(path => handlers.has(path)).reverse()) {
 			handler = handlers.get(path)?.actions?.[name]
@@ -559,17 +558,17 @@ export async function create(template: Template) {
 		res.end()
 	}
 
-	const app = polka({
-		onError: (err, req, res) => {
+	const app = new Router({
+		error: (err, req, res) => {
 			const normalized = normalize(err)
 			if (!(err instanceof Failure) && normalized.status >= 500) console.error(err)
-			if (api(req)) send(res, normalized.status, normalized.toJSON())
-			else render(req, res, error(), normalized)
+			if (api(req)) return send(res, normalized.status, normalized.toJSON())
+			return render(req, res, error(), normalized)
 		},
-		onNoMatch: (req, res) => {
+		missing: (req, res) => {
 			const missing = new Failure(404, 'Not found')
-			if (api(req)) send(res, 404, missing.toJSON())
-			else render(req, res, error(), missing)
+			if (api(req)) return send(res, 404, missing.toJSON())
+			return render(req, res, error(), missing)
 		}
 	})
 
@@ -611,7 +610,7 @@ export async function create(template: Template) {
 			for (const method of methods) {
 				const route = api[method]
 				if (!route) continue
-				app[method](`api/${pattern}`, body, ...collect(segments), route)
+				app.route(method, `api/${pattern}`, body, ...collect(segments), route)
 			}
 		}
 	}
@@ -626,5 +625,5 @@ export async function create(template: Template) {
 		app.post(path, body, ...stack, action(segments))
 	}
 
-	return app
+	return compatible(app.handler)
 }

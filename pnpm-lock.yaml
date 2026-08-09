@@ -52,12 +52,6 @@ importers:
 
   packages/ajo-kit:
     dependencies:
-      '@polka/parse':
-        specifier: 1.0.0-next.28
-        version: 1.0.0-next.28
-      '@polka/send':
-        specifier: 1.0.0-next.28
-        version: 1.0.0-next.28
       '@types/better-sqlite3':
         specifier: ^7.6.13
         version: 7.6.13
@@ -612,13 +606,6 @@ packages:
     resolution: {integrity: sha512-cKA5B6lpFEMyMGjxF54QihfYpB4FkEGH+qZhtArDEG+wezQAJY8Pq6C7T1SjWz+FFzt3TbyoXBQYk/0292TdJA==}
     engines: {node: '>=18'}
     hasBin: true
-
-  '@polka/parse@1.0.0-next.28':
-    resolution: {integrity: sha512-ONgPWMIQXQTpVAzIvINrQfwLrhU+OQ/tpj2D/3a7U7p/QBK+8rI248YIPQg0K8hW891jX3B6W5d9/vCeYD3FdQ==}
-
-  '@polka/send@1.0.0-next.28':
-    resolution: {integrity: sha512-dmDOQD322UiNvlPR7/ugq3bM4JSvZsr27lXs6QE6EBwvvaPyoNfYu5y7cBQ6C8/UnXzBqxhpItNEkUqnkOShtA==}
-    engines: {node: '>=6'}
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
@@ -2865,10 +2852,6 @@ snapshots:
   '@playwright/test@1.61.0':
     dependencies:
       playwright: 1.61.0
-
-  '@polka/parse@1.0.0-next.28': {}
-
-  '@polka/send@1.0.0-next.28': {}
 
   '@polka/url@1.0.0-next.29': {}
 

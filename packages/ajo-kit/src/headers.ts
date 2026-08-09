@@ -1,4 +1,4 @@
-type Value = string | number | readonly string[]
+import type { Value } from './http'
 
 type Target = {
 	setHeader(key: string, value: Value): unknown

@@ -3,9 +3,9 @@ import * as url from 'node:url'
 import { join } from 'node:path'
 import * as http from 'node:http'
 import * as vite from 'vite'
-import polka from 'polka'
 import sirv from 'sirv'
 import * as headers from './headers'
+import { attach, reader, request, type Handler } from './http'
 
 const fallback = `<!DOCTYPE html>
 <html lang="en">
@@ -37,6 +37,44 @@ async function html() {
 	catch { return fallback }
 }
 
+const adapt = (req: http.IncomingMessage) => request({
+	method: req.method ?? 'GET',
+	target: (req as http.IncomingMessage & { originalUrl?: string }).originalUrl ?? req.url ?? '/',
+	headers: req.headers,
+	remoteAddress: req.socket.remoteAddress,
+	read: reader(req),
+})
+
+/** Adapts a host-neutral ajo-kit handler to the Node HTTP transport. */
+export const handler = (app: Handler): http.RequestListener => (req, res) => {
+	void app(adapt(req)).then(reply => {
+		res.statusCode = reply.statusCode
+		for (const [key, value] of reply.headers) res.setHeader(key, value)
+
+		if (reply.stream) {
+			res.flushHeaders()
+			let finish!: () => void
+			const closed = new Promise<void>(resolve => finish = resolve)
+			res.once('close', finish)
+			res.once('finish', finish)
+			attach(reply, {
+				send: text => { if (!res.writableEnded) res.write(text) },
+				close: () => { if (!res.writableEnded) res.end() },
+				closed,
+			})
+			return
+		}
+
+		res.end(reply.body)
+	}, error => {
+		console.error(error)
+		if (!res.headersSent) {
+			res.statusCode = 500
+			res.end('Internal Server Error')
+		} else res.destroy()
+	})
+}
+
 /** Development server options accepted by dev(). */
 export type Options = {
 	hmr?: vite.ServerOptions['hmr']
@@ -45,6 +83,7 @@ export type Options = {
 /** Creates the development Polka app with Vite middleware and route reloads. */
 export async function dev(options: Options = {}) {
 
+	const { default: polka } = await import('polka')
 	const app = polka()
 
 	const server = await vite.createServer({
@@ -59,16 +98,16 @@ export async function dev(options: Options = {}) {
 	const template = compile(raw)
 
 	const { create } = await server.ssrLoadModule('ajo-kit/server')
-	let inner = await create(template)
+	let inner = handler(await create(template))
 
-	app.use((req: any, res: any) => inner.handler(req, res))
+	app.use((req, res) => inner(req, res))
 
 	const route = /(handler|wares|page|layout)\.[jt]sx?$/
 	const reload = async (file: string) => {
 		if (!route.test(file)) return
 		try {
 			const { create } = await server.ssrLoadModule('ajo-kit/server')
-			inner = await create(template)
+			inner = handler(await create(template))
 			console.log('\x1b[32m✓\x1b[0m Server routes reloaded')
 			if (/(page|layout)\.[jt]sx?$/.test(file)) server.ws.send({ type: 'full-reload', path: '*' })
 		} catch (error) {
@@ -84,23 +123,18 @@ export async function dev(options: Options = {}) {
 	return app
 }
 
-/** Creates the production Polka app from dist/client and dist/server. */
+/** Creates the production Node app from dist/client and dist/server. */
 export async function start() {
-
-	const app = polka()
-
 	const entry = url.pathToFileURL(join(process.cwd(), 'dist/server/server.js')).href
 	const { create } = await import(entry)
 
-	const inner = await create(compile(await fs.readFile(join(process.cwd(), 'dist/client/index.html'), 'utf-8')))
-
-	app.use(sirv(join(process.cwd(), 'dist/client'), {
+	const inner = handler(await create(compile(await fs.readFile(join(process.cwd(), 'dist/client/index.html'), 'utf-8'))))
+	const assets = sirv(join(process.cwd(), 'dist/client'), {
 		extensions: [],
 		setHeaders: res => headers.set(res, headers.security(), true),
-	}))
-	app.use((req: any, res: any) => inner.handler(req, res))
+	})
 
-	return app
+	return { handler: (req: http.IncomingMessage, res: http.ServerResponse) => assets(req, res, () => inner(req, res)) }
 }
 
 /** Builds client and server bundles into dist/. */
