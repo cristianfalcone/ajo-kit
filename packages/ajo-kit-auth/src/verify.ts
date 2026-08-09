@@ -1,16 +1,19 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { base64UrlDecode, base64UrlEncode, hmacSha256Hex, timingSafeEqual } from 'ajo-kit/platform'
 import * as secret from './secret'
 
 const hours = 24
+const decoder = new TextDecoder()
+const encoder = new TextEncoder()
+const hex = /^[0-9a-f]+$/i
 
 /** Signs a user id into a time-limited email verification signature. */
 export function sign(user: number): string {
 
 	const expiry = Date.now() + hours * 60 * 60 * 1000
 	const data = `${user}:${expiry}`
-	const sig = createHmac('sha256', secret.value()).update(data).digest('hex')
+	const sig = hmacSha256Hex(secret.value(), data)
 
-	return Buffer.from(`${data}:${sig}`).toString('base64url')
+	return base64UrlEncode(`${data}:${sig}`)
 }
 
 /** Validates an email verification signature and returns its user id. */
@@ -20,14 +23,15 @@ export function validate(signature: string): number | null {
 
 	try {
 
-		const decoded = Buffer.from(signature, 'base64url').toString()
+		const decoded = decoder.decode(base64UrlDecode(signature))
 		const [user, expiry, sig] = decoded.split(':')
 
 		if (Date.now() > Number(expiry)) return null
 
-		const expected = createHmac('sha256', key).update(`${user}:${expiry}`).digest('hex')
-		const actual = Buffer.from(sig, 'hex')
-		const wanted = Buffer.from(expected, 'hex')
+		const expected = hmacSha256Hex(key, `${user}:${expiry}`)
+		if (!sig || !hex.test(sig)) return null
+		const actual = encoder.encode(sig.toLowerCase())
+		const wanted = encoder.encode(expected)
 
 		if (!timingSafeEqual(actual, wanted)) return null
 

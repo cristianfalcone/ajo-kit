@@ -1,7 +1,23 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { db } from 'ajo-kit/database'
+import * as reset from '../src/reset'
 import { create, hash, prune, remove, validate } from '../src/session'
+import * as token from '../src/token'
 import { setup, teardown } from './database.fixture'
+
+const { credential } = vi.hoisted(() => ({
+	credential: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8',
+}))
+
+vi.mock('ajo-kit/platform', async importOriginal => ({
+	...await importOriginal<typeof import('ajo-kit/platform')>(),
+	randomBase64Url: (bytes: number) => {
+		if (bytes !== 32) throw new Error(`Unexpected credential size: ${bytes}`)
+		return credential
+	},
+}))
+
+const stored = 'ea866a757e4c38babfa8127cbe9a409d3e1f93a00ff1488ff735fcf917afffd0'
 
 beforeEach(setup)
 
@@ -39,6 +55,27 @@ describe('ajo-kit-auth session store integration', () => {
 
 		await remove(plain)
 		await expect(validate(plain)).resolves.toBeNull()
+	})
+
+	test('pins the shared session, token, and reset credential vector', async () => {
+		const user = await db<any>()
+			.insertInto('users')
+			.values({
+				name: 'Vector User',
+				email: 'vector@example.com',
+				password: null,
+			})
+			.returning('id')
+			.executeTakeFirstOrThrow()
+
+		expect(await create(user.id)).toBe(credential)
+		expect(await token.create(user.id, 'Vector', [])).toBe(credential)
+		expect(await reset.create(user.id)).toBe(credential)
+		expect(hash(credential)).toBe(stored)
+
+		await expect(db<any>().selectFrom('sessions').select('id').executeTakeFirstOrThrow()).resolves.toEqual({ id: stored })
+		await expect(db<any>().selectFrom('tokens').select('id').executeTakeFirstOrThrow()).resolves.toEqual({ id: stored })
+		await expect(db<any>().selectFrom('resets').select('id').executeTakeFirstOrThrow()).resolves.toEqual({ id: stored })
 	})
 
 	test('validation touches stale activity at a throttled pace', async () => {

@@ -1,8 +1,6 @@
-import { createHash } from 'node:crypto'
-import { generate } from './session'
+import { generate, hash } from './session'
 import { db } from './store'
 
-const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 const hours = 1
 
 /** Creates a password reset token and returns its plaintext value. */

@@ -1,20 +1,21 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
 import { origin, type Request, type Response } from 'ajo-kit'
+import { env, hmacSha256Hex, timingSafeEqual } from 'ajo-kit/platform'
 import { generate } from './session'
 import { parse } from './cookie'
 import * as secret from './secret'
 
 const NAME = 'XSRF-TOKEN'
-const secure = () => process.env.NODE_ENV === 'production' ? '; Secure' : ''
+const encoder = new TextEncoder()
+const hex = /^[0-9a-f]+$/i
+const secure = () => env('NODE_ENV') === 'production' ? '; Secure' : ''
 
 const sign = (session: string, token: string) =>
-	createHmac('sha256', secret.value()).update(`${session}:${token}`).digest('hex')
+	hmacSha256Hex(secret.value(), `${session}:${token}`)
 
 const equal = (left: string, right: string) => {
-	const a = Buffer.from(left, 'hex')
-	const b = Buffer.from(right, 'hex')
+	if (!hex.test(left) || !hex.test(right)) return false
 
-	return a.length === b.length && timingSafeEqual(a, b)
+	return timingSafeEqual(encoder.encode(left.toLowerCase()), encoder.encode(right.toLowerCase()))
 }
 
 const seal = (session: string) => {

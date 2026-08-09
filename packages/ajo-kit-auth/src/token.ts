@@ -1,9 +1,6 @@
-import { createHash } from 'node:crypto'
 import { db } from './store'
-import { generate } from './session'
+import { generate, hash } from './session'
 import type { Ability } from './ability.client'
-
-const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 
 /** Creates an API token and returns its plaintext credential once. */
 export async function create(

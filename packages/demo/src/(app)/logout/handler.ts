@@ -1,7 +1,7 @@
 import * as auth from '@kit/auth'
 import type { Request, Response } from '@kit'
+import { sha256Hex } from '@kit/platform'
 import { send, emit } from '@kit/server'
-import { createHash } from 'node:crypto'
 import { db } from '/src/data'
 
 export default {
@@ -17,7 +17,7 @@ export default {
 
 			if (plain) {
 
-				const id = createHash('sha256').update(plain).digest('hex')
+				const id = sha256Hex(plain)
 
 				await db()
 					.deleteFrom('tokens')

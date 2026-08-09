@@ -1,7 +1,8 @@
 import type { Request, Response } from 'ajo-kit'
+import { env } from 'ajo-kit/platform'
 
 const name = 'session'
-const secure = () => process.env.NODE_ENV === 'production' ? '; Secure' : ''
+const secure = () => env('NODE_ENV') === 'production' ? '; Secure' : ''
 const base = () => `HttpOnly; SameSite=Lax; Path=/${secure()}`
 
 /** Reads one cookie by exact name and rejects duplicates. */

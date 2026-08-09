@@ -1,5 +1,5 @@
-import { createHash, randomBytes } from 'node:crypto'
 import { sql } from 'ajo-kit/database'
+import { randomBase64Url, sha256Hex } from 'ajo-kit/platform'
 import { db } from './store'
 
 const minute = 60 * 1000
@@ -58,12 +58,12 @@ function mark(id: string, last = stamp()) {
 
 /** Generates a random plaintext credential value. */
 export function generate(): string {
-	return randomBytes(32).toString('base64url')
+	return randomBase64Url(32)
 }
 
 /** Hashes a plaintext session credential for database storage. */
 export function hash(plain: string): string {
-	return createHash('sha256').update(plain).digest('hex')
+	return sha256Hex(plain)
 }
 
 /** Creates a cookie session and returns its plaintext credential. */

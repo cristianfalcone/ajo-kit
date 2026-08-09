@@ -1,5 +1,14 @@
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { set, verify } from '../src/csrf'
+
+const { credential } = vi.hoisted(() => ({
+	credential: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8',
+}))
+
+vi.mock('ajo-kit/platform', async importOriginal => ({
+	...await importOriginal<typeof import('ajo-kit/platform')>(),
+	randomBase64Url: () => credential,
+}))
 
 const app = process.env.APP_URL
 const environment = process.env.NODE_ENV
@@ -46,8 +55,12 @@ describe('ajo-kit-auth csrf', () => {
 
 		delete process.env.APP_URL
 		process.env.NODE_ENV = 'development'
+		process.env.APP_SECRET = 'slice-nine-vector-secret'
 
 		const token = set(session as any, csrf.res as any)
+		expect(token).toBe(
+			credential + '.369875d77d4457a88c955f8cfea9cc41c240c48faf5d07455df9364e200af3ae'
+		)
 
 		expect(verify({
 			...session,

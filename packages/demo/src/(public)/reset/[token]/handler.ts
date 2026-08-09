@@ -1,6 +1,6 @@
 import * as auth from '@kit/auth'
 import type { ActionContext, Request, Response } from '@kit'
-import { createHash } from 'node:crypto'
+import { sha256Hex } from '@kit/platform'
 import { object, string, pipe, forward, partialCheck } from '@kit/validate'
 import { db, password } from '/src/data'
 import { parse } from '@kit/validate'
@@ -33,7 +33,7 @@ export const actions = {
 
 		const token = req.params.token
 		const input = parse(Reset, req.body)
-		const reset = createHash('sha256').update(token).digest('hex')
+		const reset = sha256Hex(token)
 		const now = new Date().toISOString()
 		let user!: number
 

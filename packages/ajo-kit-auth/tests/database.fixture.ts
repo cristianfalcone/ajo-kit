@@ -49,6 +49,12 @@ export async function setup() {
 		.addColumn('last', 'text')
 		.addColumn('expiry', 'text')
 		.execute()
+	await db<any>().schema
+		.createTable('resets')
+		.addColumn('id', 'text', column => column.primaryKey())
+		.addColumn('user', 'integer')
+		.addColumn('expiry', 'text')
+		.execute()
 }
 
 export async function teardown() {
