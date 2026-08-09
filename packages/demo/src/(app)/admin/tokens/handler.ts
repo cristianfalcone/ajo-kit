@@ -1,10 +1,9 @@
 import * as auth from '@kit/auth'
-import type { Request } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { object, string } from '@kit/validate'
 import { db } from '/src/data'
 import { info, rows as trim, paginate } from '/src/data/pagination'
 import { parse } from '@kit/validate'
-import { emit } from '@kit/server'
 
 const Revoke = object({ id: string() })
 
@@ -41,7 +40,7 @@ export async function page(req: Request) {
 	}
 }
 export const actions = {
-	default: async (req: Request) => {
+	default: async (req: Request, _res: Response, action: ActionContext) => {
 		const input = parse(Revoke, req.body)
 
 		const token = await db()
@@ -57,7 +56,7 @@ export const actions = {
 			.where('id', '=', token.id)
 			.execute()
 		auth.confirm.clearToken(token.user, token.id)
-		emit(['admin:tokens', 'admin:stats', `tokens:${token.user}`, `dashboard:${token.user}`, `user:${token.user}`])
+		action.emit(['admin:tokens', 'admin:stats', `tokens:${token.user}`, `dashboard:${token.user}`, `user:${token.user}`])
 
 		return { revoked: true }
 	}

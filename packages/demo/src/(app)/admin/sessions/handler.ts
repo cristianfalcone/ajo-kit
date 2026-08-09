@@ -1,10 +1,9 @@
 import * as auth from '@kit/auth'
-import type { Request } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { object, string, pipe, transform, number } from '@kit/validate'
 import { db } from '/src/data'
 import { info, rows as trim, paginate } from '/src/data/pagination'
 import { parse } from '@kit/validate'
-import { emit } from '@kit/server'
 
 const RevokeSession = object({ id: string() })
 const RevokeUser = object({ user: pipe(string(), transform(v => Number(v)), number()) })
@@ -46,7 +45,7 @@ export async function page(req: Request) {
 
 export const actions = {
 
-	revoke: async (req: Request) => {
+	revoke: async (req: Request, _res: Response, action: ActionContext) => {
 
 		const input = parse(RevokeSession, req.body)
 
@@ -65,12 +64,12 @@ export const actions = {
 			.where('id', '=', session.id)
 			.execute()
 		auth.confirm.clearSession(session.user, session.id)
-		emit(['admin:sessions', 'admin:stats', `sessions:${session.user}`, `dashboard:${session.user}`, `user:${session.user}`])
+		action.emit(['admin:sessions', 'admin:stats', `sessions:${session.user}`, `dashboard:${session.user}`, `user:${session.user}`])
 
 		return { revoked: true }
 	},
 
-	revokeUser: async (req: Request) => {
+	revokeUser: async (req: Request, _res: Response, action: ActionContext) => {
 
 		const input = parse(RevokeUser, req.body)
 
@@ -80,7 +79,7 @@ export const actions = {
 			.returning('id')
 			.execute()
 		for (const session of revoked) auth.confirm.clearSession(input.user, session.id)
-		emit(['admin:sessions', 'admin:stats', `sessions:${input.user}`, `dashboard:${input.user}`, `user:${input.user}`])
+		action.emit(['admin:sessions', 'admin:stats', `sessions:${input.user}`, `dashboard:${input.user}`, `user:${input.user}`])
 
 		return { revoked: revoked.length }
 	}

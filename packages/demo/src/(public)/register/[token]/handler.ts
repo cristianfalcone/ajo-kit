@@ -1,8 +1,7 @@
 import * as auth from '@kit/auth'
-import type { Request, Response } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { Failure, ip } from '@kit'
 import { object, optional, string, forward, partialCheck, pipe } from '@kit/validate'
-import { emit } from '@kit/server'
 import { db, password, trimmed } from '/src/data'
 import * as registration from '/src/data/registration'
 import { parse } from '@kit/validate'
@@ -36,7 +35,7 @@ export async function page(req: Request) {
 
 export const actions = {
 
-	default: async (req: Request, res: Response) => {
+	default: async (req: Request, res: Response, action: ActionContext) => {
 		const token = req.params.token
 		const invite = await registration.get(token)
 
@@ -61,7 +60,7 @@ export const actions = {
 		const agent = req.headers['user-agent']
 		const session = await auth.session.create(id, false, ip(req), agent)
 
-		emit([
+		action.emit([
 			`sessions:${id}`,
 			`dashboard:${id}`,
 			`user:${id}`,

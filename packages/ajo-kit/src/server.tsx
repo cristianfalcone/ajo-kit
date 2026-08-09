@@ -1,21 +1,18 @@
 import * as html from 'ajo/html'
 import type { Component } from 'ajo'
 import { sha256Hex, utf8ByteLength } from 'ajo-kit/platform'
-import { AsyncLocalStorage } from 'node:async_hooks'
 import { attach, reader, Reply, request, Router, send, type Handler as Kernel } from './http'
 /** Serializes a value into a completed host-neutral reply. */
 export { send } from './http'
 import App, { resolve, layouts, pages, error, match, parts, parents } from './app'
 import { Failure, links, ancestors, normalize, ajax, api } from './constants'
-import type { State, Data, Entry, Page, Parent, Payload, Request, Middleware } from './constants'
+import type { State, Data, Entry, Page, Parent, Payload, Request, Middleware, ActionContext } from './constants'
 import { merge, render as view, type Head } from './head'
 import * as headers from './headers'
 import { bump, fresh, topics as sorted, parse, hash, snapshot, type Versions } from './freshness'
 import { elapsed, finish, log, header, start } from './timing'
 import { script } from './ssr'
 import { handlers as files, wares as stacks } from 'virtual:ajo/handlers'
-
-const emitted = new AsyncLocalStorage<Set<string>>()
 
 const payload = (head: Head, entries: Data) => ({ data: entries, head })
 
@@ -207,15 +204,13 @@ const revalidate = async (conn: Connection) => {
 	}
 }
 
-/** Marks live data topics as changed and notifies matching SSE clients. */
+/** Broadcasts changed topics to matching SSE clients without action metadata. */
 export function emit(topic: string | string[]) {
 
 	const topics = bump(topic)
-	const store = emitted.getStore()
 
 	topics.forEach(t => {
 		pending.add(t)
-		store?.add(t)
 	})
 
 	if (debounce) return
@@ -236,11 +231,13 @@ const methods: Method[] = ['get', 'post', 'put', 'patch', 'delete', 'options', '
 
 type Api = Partial<Record<Method, Middleware>>
 
+type Action = (req: Request, res: Reply, action: ActionContext) => Promise<unknown>
+
 type Handler = {
 	page?: (req: Request, parent: Parent) => Promise<Entry>
 	layout?: (req: Request, parent: Parent) => Promise<Entry>
 	head?: (req: Request, parent: Parent) => Promise<Head>
-	actions?: Record<string, (req: Request, res: Reply) => Promise<unknown>>
+	actions?: Record<string, Action>
 }
 
 type Template = (slots: Record<string, string>) => string
@@ -523,7 +520,7 @@ export async function create(template: Template) {
 
 	const action = (segments: string[]): Middleware => async (req, res) => {
 		const name = Object.keys(req.query).find(key => key.startsWith('/'))?.slice(1) || 'default'
-		let handler: ((req: Request, res: Reply) => Promise<unknown>) | undefined
+		let handler: Action | undefined
 
 		for (const path of ancestors(segments).filter(path => handlers.has(path)).reverse()) {
 			handler = handlers.get(path)?.actions?.[name]
@@ -533,7 +530,13 @@ export async function create(template: Template) {
 		if (!handler) throw new Failure(400, `Action '${name}' not found`)
 
 		const topics = new Set<string>()
-		const result = await emitted.run(topics, () => handler(req, res)) as { redirect?: string } | void
+		const context: ActionContext = {
+			emit: topic => {
+				emit(topic)
+				sorted(topic).forEach(topic => topics.add(topic))
+			}
+		}
+		const result = await handler(req, res, context) as { redirect?: string } | void
 
 		if (ajax(req)) {
 			const body = result?.redirect ? { redirect: result.redirect } : (result ?? { ok: true })

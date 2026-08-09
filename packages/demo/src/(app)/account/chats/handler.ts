@@ -1,6 +1,5 @@
-import type { Request } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { sql } from '@kit/database'
-import { emit } from '@kit/server'
 import { db } from '/src/data'
 
 const listChats = (user: number) => db()
@@ -63,7 +62,7 @@ export async function layout(req: Request) {
 
 export const actions = {
 
-	start: async (req: Request) => {
+	start: async (req: Request, _res: Response, action: ActionContext) => {
 
 		const { users: raw, name } = req.body as { users: string; name?: string }
 		const users = JSON.parse(raw || '[]') as number[]
@@ -106,7 +105,7 @@ export const actions = {
 			return chat.id
 		})
 
-		emit([
+		action.emit([
 			`chat:${chat}`,
 			...participants.map(user => `chats:${user}`),
 			...participants.map(user => `user:${user}`)

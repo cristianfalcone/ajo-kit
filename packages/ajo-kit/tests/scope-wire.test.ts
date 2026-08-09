@@ -7,7 +7,8 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
-import type { Middleware, Request } from '../src/http'
+import type { ActionContext } from '../src/constants'
+import type { Middleware, Reply, Request } from '../src/http'
 
 // A ware that lets each test choose an identity per request: a session id, a
 // bearer token id, or an explicit scope override — the three seams the
@@ -44,6 +45,22 @@ vi.mock('virtual:ajo/handlers', () => ({
 					revision,
 				}
 			},
+			actions: {
+				alpha: async (_req: Request, _res: Reply, action: ActionContext) => {
+					await new Promise<void>(resolve => setTimeout(resolve, 20))
+					action.emit(['alpha:z', 'alpha:a'])
+					await new Promise<void>(resolve => setTimeout(resolve, 30))
+					action.emit('alpha:m')
+					return { action: 'alpha' }
+				},
+				beta: async (_req: Request, _res: Reply, action: ActionContext) => {
+					await new Promise<void>(resolve => setTimeout(resolve, 10))
+					action.emit('beta:m')
+					await new Promise<void>(resolve => setTimeout(resolve, 20))
+					action.emit(['beta:z', 'beta:a'])
+					return { action: 'beta' }
+				},
+			},
 		}),
 	},
 	wares: {
@@ -79,6 +96,31 @@ const json = async (headers: Record<string, string> = {}) => {
 	})
 	return { response, body: response.status === 304 ? undefined : await response.json() as Body }
 }
+
+const invoke = async (name: string) => {
+	const response = await fetch(`${origin}/?/${name}`, {
+		method: 'POST',
+		headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+		body: '{}',
+	})
+
+	return response.json() as Promise<{
+		action: string
+		topics: string[]
+		versions: Record<string, number>
+	}>
+}
+
+test('concurrent actions collect only their own emitted topics', async () => {
+	const [alpha, beta] = await Promise.all([invoke('alpha'), invoke('beta')])
+
+	expect(alpha.action).toBe('alpha')
+	expect(alpha.topics).toEqual(['alpha:a', 'alpha:m', 'alpha:z'])
+	expect(Object.keys(alpha.versions)).toEqual(alpha.topics)
+	expect(beta.action).toBe('beta')
+	expect(beta.topics).toEqual(['beta:a', 'beta:m', 'beta:z'])
+	expect(Object.keys(beta.versions)).toEqual(beta.topics)
+})
 
 describe('where the scope comes from', () => {
 	test('an anonymous request is scoped anon', async () => {

@@ -26,6 +26,7 @@ afterEach(async () => {
 test('reset action rejects invalid tokens before password hashing', async () => {
 	const dir = mkdtempSync(join(tmpdir(), 'ajo-reset-handler-'))
 	const hash = vi.fn(async () => 'hashed-password')
+	const emit = vi.fn()
 
 	process.env.DATABASE_PATH = join(dir, 'test.sqlite')
 
@@ -41,8 +42,6 @@ test('reset action rejects invalid tokens before password hashing', async () => 
 				},
 			}
 		})
-		vi.doMock('@kit/server', () => ({ emit: vi.fn() }))
-
 		const { db } = await import('/src/data')
 
 		await db().schema
@@ -67,13 +66,14 @@ test('reset action rejects invalid tokens before password hashing', async () => 
 					password: 'password123',
 					confirm: 'password123',
 				},
-			} as any)).rejects.toMatchObject({
+			} as any, undefined as any, { emit })).rejects.toMatchObject({
 				status: 400,
 				message: 'Invalid or expired reset link',
 			})
 		}
 
 		expect(hash).not.toHaveBeenCalled()
+		expect(emit).not.toHaveBeenCalled()
 	} finally {
 		await close()
 		rmSync(dir, { recursive: true, force: true })

@@ -1,10 +1,9 @@
 import * as auth from '@kit/auth'
-import type { Parent, Request, Response } from '@kit'
+import type { ActionContext, Parent, Request, Response } from '@kit'
 import { object, string, optional, pipe, forward, partialCheck } from '@kit/validate'
 import { db, password as passwordField, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
 import { Denied, ip } from '@kit'
-import { emit } from '@kit/server'
 
 const UpdateName = object({
 	name: optional(trimmed, ''),
@@ -50,7 +49,7 @@ export async function page(req: Request, parent: Parent) {
 
 export const actions = {
 
-	name: async (req: Request) => {
+	name: async (req: Request, _res: Response, action: ActionContext) => {
 
 		const input = parse(UpdateName, req.body)
 
@@ -59,12 +58,12 @@ export const actions = {
 			.set({ name: input.name, updated: new Date().toISOString() })
 			.where('id', '=', req.user!.id)
 			.execute()
-		emit([`profile:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:users'])
+		action.emit([`profile:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:users'])
 
 		return { success: true, name: input.name }
 	},
 
-	password: async (req: Request, res: Response) => {
+	password: async (req: Request, res: Response, action: ActionContext) => {
 
 		const input = parse(UpdatePassword, req.body)
 		const id = req.user!.id
@@ -106,7 +105,7 @@ export const actions = {
 
 		auth.cookie.write(res, plain)
 		auth.confirm.clearUser(id)
-		emit([
+		action.emit([
 			`profile:${id}`,
 			`sessions:${id}`,
 			`tokens:${id}`,

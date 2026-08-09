@@ -1,5 +1,5 @@
 import * as auth from '@kit/auth'
-import type { Request, Response } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { send, emit } from '@kit/server'
 import { object, string, optional, pipe, unknown, transform } from '@kit/validate'
 import { db, email } from '/src/data'
@@ -26,7 +26,7 @@ export async function page(req: Request) {
 
 export const actions = {
 
-	default: async (req: Request, res: Response) => {
+	default: async (req: Request, res: Response, action: ActionContext) => {
 
 		const input = parse(Login, req.body)
 		const addr = ip(req)
@@ -52,7 +52,7 @@ export const actions = {
 
 		const agent = req.headers['user-agent']
 		const token = await auth.session.create(user.id, input.remember, addr, agent)
-		emit([`sessions:${user.id}`, `dashboard:${user.id}`, `user:${user.id}`, 'admin:sessions', 'admin:stats'])
+		action.emit([`sessions:${user.id}`, `dashboard:${user.id}`, `user:${user.id}`, 'admin:sessions', 'admin:stats'])
 
 		auth.cookie.write(res, token, input.remember)
 

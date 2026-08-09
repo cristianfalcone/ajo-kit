@@ -124,6 +124,12 @@ export type Payload = [Head, ...Data]
 /** Reads merged data from ancestor loaders. */
 export type Parent = () => Promise<Entry>
 
+/** Per-action commands whose effects are included in that action's response. */
+export type ActionContext = {
+	/** Broadcasts changed topics and records them for this action response. */
+	emit: (topic: string | string[]) => void
+}
+
 // Route module types
 
 /** Runtime shape of a route page or layout module. */

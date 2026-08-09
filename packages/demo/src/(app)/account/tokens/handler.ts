@@ -1,9 +1,8 @@
 import * as auth from '@kit/auth'
-import type { Request } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { object, string, array, optional, pipe, minLength } from '@kit/validate'
 import { db, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
-import { emit } from '@kit/server'
 import { Failure, Forbidden } from '@kit'
 import { delegate, grantable, normalize, unknown as invalid } from '/src/abilities'
 
@@ -45,7 +44,7 @@ export async function page(req: Request) {
 
 export const actions = {
 
-	make: async (req: Request) => {
+	make: async (req: Request, _res: Response, action: ActionContext) => {
 
 		auth.authorize(req, 'tokens:create')
 
@@ -58,12 +57,12 @@ export const actions = {
 		}
 
 		const plain = await auth.token.create(req.user!.id, input.name, abilities)
-		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
+		action.emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		return { token: plain }
 	},
 
-	revoke: async (req: Request) => {
+	revoke: async (req: Request, _res: Response, action: ActionContext) => {
 
 		auth.authorize(req, 'tokens:delete')
 
@@ -86,7 +85,7 @@ export const actions = {
 			.where('id', '=', match.id)
 			.execute()
 		auth.confirm.clearToken(req.user!.id, match.id)
-		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
+		action.emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		return { revoked: true }
 	}

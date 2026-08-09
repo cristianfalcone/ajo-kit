@@ -1,9 +1,8 @@
 import * as auth from '@kit/auth'
-import type { Request, Response } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { Failure, Forbidden, ip, origin } from '@kit'
 import { object, optional, string, forward, partialCheck, pipe } from '@kit/validate'
 import { send } from '@kit/mail'
-import { emit } from '@kit/server'
 import { db, email, password, trimmed } from '/src/data'
 import * as registration from '/src/data/registration'
 import { parse } from '@kit/validate'
@@ -33,7 +32,7 @@ export async function page(req: Request) {
 
 export const actions = {
 
-	default: async (req: Request, res: Response) => {
+	default: async (req: Request, res: Response, action: ActionContext) => {
 
 		if (await registration.policy() === 'invite') {
 			throw new Forbidden('Registration is by invitation only')
@@ -95,7 +94,7 @@ export const actions = {
 
 		const agent = req.headers['user-agent']
 		const token = await auth.session.create(id, false, ip(req), agent)
-		emit([
+		action.emit([
 			`sessions:${id}`,
 			`dashboard:${id}`,
 			`user:${id}`,

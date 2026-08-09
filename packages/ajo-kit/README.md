@@ -142,7 +142,7 @@ first; otherwise the innermost pending layout handles it.
 `handler.ts` supports:
 
 ```ts
-import type { Request, Response } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { send } from '@kit/server'
 import type { Head } from '@kit'
 
@@ -159,7 +159,8 @@ export async function head(req: Request, parent: () => Promise<Record<string, un
 }
 
 export const actions = {
-  async save(req: Request, res: Response) {
+  async save(req: Request, res: Response, action: ActionContext) {
+    action.emit('records')
     return { ok: true }
   }
 }
@@ -177,6 +178,8 @@ Notes:
 - API handlers in `default` must write/send the HTTP response.
 - `actions` are invoked by `POST /current-route?/actionName`.
 - action `"default"` is used when no `?/name` is provided.
+- actions receive an explicit third-argument context; `action.emit()` both
+  broadcasts changed topics and includes them in that action's JSON response.
 - `parent()` resolves merged ancestor loader data.
 
 ## Actions from Client
@@ -231,17 +234,15 @@ Track topics in loaders, then emit from server code after mutations:
 
 ```ts
 // src/chat/handler.ts
-import { emit } from '@kit/server'
-
 export async function page(req) {
   req.track?.('messages')
   return { messages: [] }
 }
 
 export const actions = {
-  async create(req) {
+  async create(req, res, action) {
     // write to DB...
-    emit('messages')
+    action.emit('messages')
     return { ok: true }
   }
 }
@@ -368,6 +369,7 @@ import {
 } from 'ajo-kit'
 import type {
   Action,
+  ActionContext,
   Entry,
   Fields,
   Head,
@@ -399,9 +401,12 @@ send(res, 200, { ok: true })
 emit('posts:list')
 ```
 
-`send()` writes an API response. `emit()` accepts one topic or an array of
-topics and revalidates active routes that track them. Emit after durable writes
-commit.
+`send()` writes an API response. The server-level `emit()` is the broadcast
+path for API handlers, loaders, and other process-level work: it accepts one
+topic or an array, increments topic versions, and revalidates active routes
+that track them. It never adds topics to an action response. Route actions use
+their explicit `action.emit()` context instead. Emit after durable writes
+commit on either path.
 
 ## Head
 

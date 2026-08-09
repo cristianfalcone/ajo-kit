@@ -1,8 +1,7 @@
 import * as auth from '@kit/auth'
-import type { Request } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { Failure, origin } from '@kit'
 import { send } from '@kit/mail'
-import { emit } from '@kit/server'
 import { object, optional, string } from '@kit/validate'
 import { parse } from '@kit/validate'
 import { db, email, trimmed } from '/src/data'
@@ -69,17 +68,17 @@ export async function page(req: Request) {
 
 export const actions = {
 
-	mode: async (req: Request) => {
+	mode: async (req: Request, _res: Response, action: ActionContext) => {
 		auth.authorize(req, 'admin:write')
 
 		const input = parse(Mode, req.body)
 		await registration.set(signup(input.signup), req.user!.id)
-		emit(['admin:registration', 'registration:policy'])
+		action.emit(['admin:registration', 'registration:policy'])
 
 		return { saved: true }
 	},
 
-	invite: async (req: Request) => {
+	invite: async (req: Request, _res: Response, action: ActionContext) => {
 		auth.authorize(req, 'admin:write')
 
 		const input = parse(Invite, req.body)
@@ -111,17 +110,17 @@ export const actions = {
 			text: `${name} invited you to create an account at ${base}.\n\nAccept the invitation: ${link}\n\nThis invitation expires in 7 days. If you were not expecting this email, you can ignore it.`,
 		})
 
-		emit('admin:registration')
+		action.emit('admin:registration')
 
 		return { invited: true }
 	},
 
-	revoke: async (req: Request) => {
+	revoke: async (req: Request, _res: Response, action: ActionContext) => {
 		auth.authorize(req, 'admin:write')
 
 		const input = parse(Revoke, req.body)
 		await registration.revoke(input.id)
-		emit('admin:registration')
+		action.emit('admin:registration')
 
 		return { revoked: true }
 	},

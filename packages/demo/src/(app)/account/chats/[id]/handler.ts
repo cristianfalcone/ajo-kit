@@ -1,7 +1,6 @@
-import type { Request } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { db } from '/src/data'
 import { sql } from '@kit/database'
-import { emit } from '@kit/server'
 import { Missing } from '@kit'
 
 type LoadDirection = 'older' | 'newer'
@@ -120,7 +119,7 @@ export async function page(req: Request) {
 
 export const actions = {
 
-	send: async (req: Request) => {
+	send: async (req: Request, _res: Response, action: ActionContext) => {
 
 		const room = Number(req.params.id)
 		const user = req.user!.id
@@ -162,7 +161,7 @@ export const actions = {
 			return { message, participants }
 		})
 
-		emit([
+		action.emit([
 			`chat:${room}`,
 			...result.participants.map(p => `chats:${p.user}`),
 			...result.participants.map(p => `user:${p.user}`),
@@ -197,7 +196,7 @@ export const actions = {
 		}
 	},
 
-	markAsSeen: async (req: Request) => {
+	markAsSeen: async (req: Request, _res: Response, action: ActionContext) => {
 
 		const room = Number(req.params.id)
 		const user = req.user!.id
@@ -209,7 +208,7 @@ export const actions = {
 			.where('user', '=', user)
 			.execute()
 
-		emit([`user:${user}`, `chats:${user}`])
+		action.emit([`user:${user}`, `chats:${user}`])
 
 		return { ok: true }
 	}

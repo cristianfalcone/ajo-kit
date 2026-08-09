@@ -1,10 +1,9 @@
 import * as auth from '@kit/auth'
-import type { Request, Response } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { object, literal } from '@kit/validate'
 import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { Forbidden } from '@kit'
-import { emit } from '@kit/server'
 import { can } from '/src/abilities'
 
 const Confirm = object({
@@ -13,7 +12,7 @@ const Confirm = object({
 
 export const actions = {
 
-	default: async (req: Request, res: Response) => {
+	default: async (req: Request, res: Response, action: ActionContext) => {
 
 		if (can(req.user!.abilities, 'admin:read')) {
 			throw new Forbidden('Admins cannot delete their own account')
@@ -25,7 +24,7 @@ export const actions = {
 			.deleteFrom('users')
 			.where('id', '=', req.user!.id)
 			.execute()
-		emit([
+		action.emit([
 			'admin:users',
 			'admin:sessions',
 			'admin:tokens',

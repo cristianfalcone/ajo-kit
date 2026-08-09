@@ -1,11 +1,10 @@
 import * as auth from '@kit/auth'
-import type { Request } from '@kit'
+import type { ActionContext, Request, Response } from '@kit'
 import { createHash } from 'node:crypto'
 import { object, string, pipe, forward, partialCheck } from '@kit/validate'
 import { db, password } from '/src/data'
 import { parse } from '@kit/validate'
 import { Failure } from '@kit'
-import { emit } from '@kit/server'
 
 const Reset = pipe(
 	object({
@@ -30,7 +29,7 @@ export async function page(req: Request) {
 
 export const actions = {
 
-	default: async (req: Request) => {
+	default: async (req: Request, _res: Response, action: ActionContext) => {
 
 		const token = req.params.token
 		const input = parse(Reset, req.body)
@@ -58,7 +57,7 @@ export const actions = {
 		})
 
 		auth.confirm.clearUser(user)
-		emit([
+		action.emit([
 			`profile:${user}`,
 			`sessions:${user}`,
 			`tokens:${user}`,
