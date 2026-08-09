@@ -1,3 +1,12 @@
+/** Raw or canonically encoded public-key bytes accepted by each host. */
+export type PublicKeyBytes = string | Uint8Array
+
+/** Public-key descriptions shared by WebAuthn storage and both hosts. */
+export type PublicKey =
+	| { kty: 'EC'; crv: 'P-256'; x: PublicKeyBytes; y: PublicKeyBytes }
+	| { kty: 'OKP'; crv: 'Ed25519'; x: PublicKeyBytes }
+	| { kty: 'RSA'; n: PublicKeyBytes; e: PublicKeyBytes }
+
 /** Host capabilities required by the ajo-kit core runtime. */
 export interface Platform {
 	/** Decodes canonical unpadded base64url into bytes. */
@@ -20,6 +29,10 @@ export interface Platform {
 	timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean
 	/** Returns the number of bytes in a string's UTF-8 encoding. */
 	utf8ByteLength(data: string): number
+	/** Imports and validates a supported public-key description. */
+	validatePublicKey(key: PublicKey): true
+	/** Verifies a WebAuthn signature with the algorithm implied by its key. */
+	verifySignature(key: PublicKey, data: Uint8Array, signature: Uint8Array): boolean
 }
 
 /** Type shim for the condition-selected base64url decoder. */
@@ -42,3 +55,7 @@ export declare const sha256Hex: Platform['sha256Hex']
 export declare const timingSafeEqual: Platform['timingSafeEqual']
 /** Type shim for the condition-selected UTF-8 implementation. */
 export declare const utf8ByteLength: Platform['utf8ByteLength']
+/** Type shim for the condition-selected public-key validator. */
+export declare const validatePublicKey: Platform['validatePublicKey']
+/** Type shim for the condition-selected signature verifier. */
+export declare const verifySignature: Platform['verifySignature']

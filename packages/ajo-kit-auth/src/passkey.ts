@@ -7,7 +7,14 @@
 // `password.verify` ends, and the caller goes on to `session.create` and
 // `cookie.write` as it always did.
 
-import { createHash, createPublicKey, randomBytes } from 'node:crypto'
+import { strictUtf8Decode } from 'ajo-kit/bytes'
+import {
+	base64UrlDecode,
+	base64UrlEncode,
+	randomBase64Url,
+	sha256Hex,
+	type PublicKey as Key,
+} from 'ajo-kit/platform'
 import { db } from './store'
 import {
 	algorithms,
@@ -51,18 +58,20 @@ const relying = (): Party => {
 
 const stamp = (at: number) => new Date(at).toISOString()
 
-const digest = (plain: string) => createHash('sha256').update(plain).digest('hex')
+const digest = (plain: string) => sha256Hex(plain)
 
 const bytes = (value: unknown, what: string) => {
 	// The ceremony types are erased at runtime: what arrives is whatever the
 	// request body parsed into, so a field that is not a string has to be
-	// refused here rather than reaching a Buffer or a query parameter.
+	// refused here rather than reaching a decoder or a query parameter.
 	if (typeof value !== 'string') throw new Malformed(`${what} is not a string`)
-	const decoded = Buffer.from(value, 'base64url')
-	// base64url decoding never throws; it discards what it cannot read, so the
-	// round trip is the only honest check that the caller sent what it claims.
-	if (decoded.toString('base64url') !== value) throw new Malformed(`${what} is not base64url`)
-	return new Uint8Array(decoded)
+	try { return base64UrlDecode(value) }
+	catch { throw new Malformed(`${what} is not base64url`) }
+}
+
+const storedKey = (value: string): Key => {
+	try { return JSON.parse(strictUtf8Decode(base64UrlDecode(value))) as Key }
+	catch { throw new Malformed('stored credential public key is malformed') }
 }
 
 /**
@@ -76,7 +85,7 @@ export const challenge = async (
 	handle?: string,
 ) => {
 
-	const plain = randomBytes(32).toString('base64url')
+	const plain = randomBase64Url(32)
 
 	await db().insertInto('challenges').values({
 		id: digest(plain),
@@ -179,7 +188,7 @@ const identity = async (user: number) => {
 		.where('user', '=', user)
 		.executeTakeFirst()
 
-	return row?.handle ?? randomBytes(32).toString('base64url')
+	return row?.handle ?? randomBase64Url(32)
 }
 
 const credentials = async (user: number) => {
@@ -277,7 +286,7 @@ export const register = async (user: number, response: Attestation) => {
 	// exists that promises a key nothing can verify against.
 	const key = publicKey(parsed.credential.key)
 
-	const id = Buffer.from(parsed.credential.id).toString('base64url')
+	const id = base64UrlEncode(parsed.credential.id)
 
 	if (id !== response.id) throw new Malformed('credential id does not match its attestation')
 
@@ -292,7 +301,7 @@ export const register = async (user: number, response: Attestation) => {
 		// The handle the authenticator was given, not a new one: it is what
 		// the credential will present when it names its own account.
 		handle: issued.handle ?? await identity(user),
-		key: Buffer.from(JSON.stringify(key.key.export({ format: 'jwk' }))).toString('base64url'),
+		key: base64UrlEncode(JSON.stringify(key.key)),
 		alg: key.alg,
 		counter: parsed.counter,
 		transports: response.transports ? JSON.stringify(response.transports) : null,
@@ -358,10 +367,7 @@ export const authenticate = async (response: Assertion): Promise<number> => {
 		throw new Malformed('credential was registered with user verification')
 	}
 
-	const key = {
-		alg: stored.alg,
-		key: createPublicKey({ key: JSON.parse(Buffer.from(stored.key, 'base64url').toString()), format: 'jwk' }),
-	}
+	const key = { alg: stored.alg, key: storedKey(stored.key) }
 
 	if (!signature(key, authData, raw, bytes(response.signature, 'signature'))) {
 		throw new Malformed('signature does not verify')

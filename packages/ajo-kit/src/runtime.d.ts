@@ -1,10 +1,18 @@
 declare module 'runtime:crypto' {
+	type PublicKeyBytes = string | Uint8Array
+	type PublicKey =
+		| { kty: 'EC'; crv: 'P-256'; x: PublicKeyBytes; y: PublicKeyBytes }
+		| { kty: 'OKP'; crv: 'Ed25519'; x: PublicKeyBytes }
+		| { kty: 'RSA'; n: PublicKeyBytes; e: PublicKeyBytes }
+
 	export function argon2Hash(plain: string | Uint8Array): Promise<string>
 	export function argon2Verify(phc: string, plain: string | Uint8Array): Promise<boolean>
 	export function hmacSha256(key: string | Uint8Array, data: string | Uint8Array): Uint8Array
 	export function randomBytes(length: number): Uint8Array
 	export function sha256(data: string | Uint8Array): Uint8Array
 	export function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean
+	export function validatePublicKey(key: PublicKey): true
+	export function verify(key: PublicKey, data: Uint8Array, signature: Uint8Array): boolean
 }
 
 declare module 'runtime:app' {

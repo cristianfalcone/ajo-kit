@@ -6,11 +6,19 @@
 // Written rather than depended upon because the whole job here is attestation
 // `none`, which is what every mainstream passkey provider emits: no statement
 // to check, no certificate chains, no metadata service. That leaves a CBOR
-// subset, fixed-offset parsing, and signatures node:crypto verifies natively.
+// subset, fixed-offset parsing, and host-conditioned signature verification.
 // The moment real attestation is needed — enterprise policy, TPM formats —
 // this is the wrong file and @simplewebauthn/server is the right dependency.
 
-import { createHash, createPublicKey, timingSafeEqual, verify as check } from 'node:crypto'
+import { concatBytes, strictUtf8Decode } from 'ajo-kit/bytes'
+import {
+	base64UrlEncode,
+	sha256Hex,
+	timingSafeEqual,
+	validatePublicKey,
+	verifySignature,
+	type PublicKey as Key,
+} from 'ajo-kit/platform'
 
 /** COSE algorithm identifiers this relying party accepts. */
 export const ES256 = -7
@@ -23,8 +31,6 @@ export const RS256 = -257
  * users out of registering at all.
  */
 export const algorithms = [EdDSA, ES256, RS256]
-
-const decoder = new TextDecoder('utf-8', { fatal: true })
 
 class Malformed extends Error {}
 
@@ -80,7 +86,7 @@ const value = (cursor: Cursor, level = 0): Cbor => {
 		const slice = cursor.bytes.subarray(cursor.at, cursor.at + length)
 		cursor.at += length
 		if (major === 2) return slice
-		try { return decoder.decode(slice) }
+		try { return strictUtf8Decode(slice) }
 		catch { return fail('cbor text is not valid utf-8') }
 	}
 
@@ -194,10 +200,19 @@ const bytes = (key: Map<number | string, Cbor>, label: number, size?: number): U
 	return held
 }
 
-const url = (value: Uint8Array) => Buffer.from(value).toString('base64url')
+const url = (value: Uint8Array) => base64UrlEncode(value)
+
+const digest = (data: string | Uint8Array): Uint8Array => {
+	const hex = sha256Hex(data)
+	const result = new Uint8Array(hex.length / 2)
+	for (let at = 0; at < result.byteLength; at++) {
+		result[at] = Number.parseInt(hex.slice(at * 2, at * 2 + 2), 16)
+	}
+	return result
+}
 
 /**
- * Converts a COSE public key into a Node key object, refusing any key whose
+ * Converts a COSE public key into a stored key description, refusing any key whose
  * declared algorithm and actual key type disagree — the algorithm alone is
  * attacker-supplied and cannot be the only thing consulted.
  */
@@ -207,11 +222,11 @@ export const publicKey = (key: Map<number | string, Cbor>) => {
 
 	if (typeof alg !== 'number') fail('COSE key declares no algorithm')
 
-	// Every import is wrapped: the coordinates are attacker-supplied, and a
-	// point off the curve makes Node throw a TypeError that would otherwise
+	// Every validation is wrapped: the coordinates are attacker-supplied, and a
+	// point off the curve makes the host throw a TypeError that would otherwise
 	// escape a ceremony as a crash rather than a refusal.
-	const imported = (jwk: Record<string, string>) => {
-		try { return createPublicKey({ key: jwk, format: 'jwk' }) }
+	const validated = (stored: Key) => {
+		try { validatePublicKey(stored); return stored }
 		catch { return fail('COSE key does not describe a usable public key') }
 	}
 
@@ -219,7 +234,7 @@ export const publicKey = (key: Map<number | string, Cbor>) => {
 		if (kty !== 2 || key.get(-1) !== 1) fail('ES256 key is not a P-256 key')
 		return {
 			alg,
-			key: imported({ kty: 'EC', crv: 'P-256', x: url(bytes(key, -2, 32)), y: url(bytes(key, -3, 32)) }),
+			key: validated({ kty: 'EC', crv: 'P-256', x: url(bytes(key, -2, 32)), y: url(bytes(key, -3, 32)) }),
 		}
 	}
 
@@ -227,7 +242,7 @@ export const publicKey = (key: Map<number | string, Cbor>) => {
 		if (kty !== 1 || key.get(-1) !== 6) fail('EdDSA key is not an Ed25519 key')
 		return {
 			alg,
-			key: imported({ kty: 'OKP', crv: 'Ed25519', x: url(bytes(key, -2, 32)) }),
+			key: validated({ kty: 'OKP', crv: 'Ed25519', x: url(bytes(key, -2, 32)) }),
 		}
 	}
 
@@ -249,7 +264,7 @@ export const publicKey = (key: Map<number | string, Cbor>) => {
 
 		return {
 			alg,
-			key: imported({ kty: 'RSA', n: url(n), e: url(e) }),
+			key: validated({ kty: 'RSA', n: url(n), e: url(e) }),
 		}
 	}
 
@@ -259,21 +274,25 @@ export const publicKey = (key: Map<number | string, Cbor>) => {
 /**
  * Verifies an assertion signature over `authenticatorData || sha256(clientDataJSON)`.
  *
- * ES256 signatures arrive ASN.1 DER encoded, which is what `node:crypto`
- * expects by default and what WebCrypto's `subtle.verify` does not — the same
- * bytes given to the other API return false rather than throwing, which is the
- * quiet way this gets wrong.
+ * ES256 signatures arrive ASN.1 DER encoded. Both platform faces preserve
+ * that format rather than passing P1363 bytes to a verifier by accident.
  */
 export const signature = (
-	stored: { alg: number; key: ReturnType<typeof createPublicKey> },
+	stored: { alg: number; key: Key },
 	data: Uint8Array,
 	client: Uint8Array,
 	sig: Uint8Array,
 ): boolean => {
-	const signed = Buffer.concat([data, createHash('sha256').update(client).digest()])
 	try {
-		if (stored.alg === EdDSA) return check(null, signed, stored.key, sig)
-		return check('sha256', signed, { key: stored.key, dsaEncoding: 'der' }, sig)
+		if (
+			(stored.alg === ES256 && stored.key.kty !== 'EC') ||
+			(stored.alg === EdDSA && stored.key.kty !== 'OKP') ||
+			(stored.alg === RS256 && stored.key.kty !== 'RSA') ||
+			!algorithms.includes(stored.alg)
+		) return false
+
+		const signed = concatBytes(data, digest(client))
+		return verifySignature(stored.key, signed, sig)
 	} catch {
 		return false
 	}
@@ -284,7 +303,7 @@ export const same = (a: Uint8Array, b: Uint8Array) =>
 	a.length === b.length && timingSafeEqual(a, b)
 
 /** The SHA-256 of an RP ID, as it appears in authenticator data. */
-export const identifier = (rpId: string) => new Uint8Array(createHash('sha256').update(rpId).digest())
+export const identifier = (rpId: string) => digest(rpId)
 
 /** The client data a ceremony must agree with. */
 export type Client = { type: string; challenge: string; origin: string; crossOrigin?: boolean }
@@ -292,7 +311,7 @@ export type Client = { type: string; challenge: string; origin: string; crossOri
 /** Parses clientDataJSON, refusing anything that is not the expected object. */
 export const client = (bytes: Uint8Array): Client => {
 	let parsed: unknown
-	try { parsed = JSON.parse(decoder.decode(bytes)) }
+	try { parsed = JSON.parse(strictUtf8Decode(bytes)) }
 	catch { return fail('client data is not valid JSON') }
 
 	const data = parsed as Client

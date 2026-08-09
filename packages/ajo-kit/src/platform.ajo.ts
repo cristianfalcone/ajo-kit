@@ -6,6 +6,8 @@ import {
 	randomBytes,
 	sha256,
 	timingSafeEqual,
+	validatePublicKey as validate,
+	verify,
 } from 'runtime:crypto'
 import type { Platform } from './platform'
 
@@ -41,5 +43,9 @@ export const randomBase64Url: Platform['randomBase64Url'] = count =>
 export const sha256Hex: Platform['sha256Hex'] = data => sha256(data).toHex()
 
 export { timingSafeEqual }
+
+export const validatePublicKey: Platform['validatePublicKey'] = validate
+
+export const verifySignature: Platform['verifySignature'] = verify
 
 export const utf8ByteLength: Platform['utf8ByteLength'] = data => encoder.encode(data).byteLength

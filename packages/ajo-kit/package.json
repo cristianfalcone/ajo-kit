@@ -41,6 +41,10 @@
       "ajo": "./src/platform.ajo.ts",
       "default": "./src/platform.node.ts"
     },
+    "./bytes": {
+      "types": "./src/bytes.ts",
+      "default": "./src/bytes.ts"
+    },
     "./validate": {
       "types": "./src/validate.ts",
       "default": "./src/validate.ts"

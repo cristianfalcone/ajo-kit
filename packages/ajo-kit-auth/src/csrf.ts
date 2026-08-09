@@ -5,9 +5,9 @@ import { parse } from './cookie'
 import * as secret from './secret'
 
 const NAME = 'XSRF-TOKEN'
-const encoder = new TextEncoder()
 const hex = /^[0-9a-f]+$/i
 const secure = () => env('NODE_ENV') === 'production' ? '; Secure' : ''
+const ascii = (value: string) => Uint8Array.from(value, character => character.charCodeAt(0))
 
 const sign = (session: string, token: string) =>
 	hmacSha256Hex(secret.value(), `${session}:${token}`)
@@ -15,7 +15,7 @@ const sign = (session: string, token: string) =>
 const equal = (left: string, right: string) => {
 	if (!hex.test(left) || !hex.test(right)) return false
 
-	return timingSafeEqual(encoder.encode(left.toLowerCase()), encoder.encode(right.toLowerCase()))
+	return timingSafeEqual(ascii(left.toLowerCase()), ascii(right.toLowerCase()))
 }
 
 const seal = (session: string) => {

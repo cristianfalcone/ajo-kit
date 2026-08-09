@@ -15,7 +15,7 @@ import * as passkey from '../src/passkey'
 import { configure } from '../src/store'
 import { up } from '../migrations/0002_passkeys'
 import { up as initial } from '../migrations/0001_initial'
-import { ES256, EdDSA } from '../src/webauthn'
+import { ES256, EdDSA, RS256 } from '../src/webauthn'
 
 const rpId = 'localhost'
 const origin = 'http://localhost:8080'
@@ -83,6 +83,25 @@ const ed25519 = (): Signer => {
 			[-2, cbor.bytes(Buffer.from(jwk.x, 'base64url'))],
 		]),
 		sign: data => sign(null, data, privateKey),
+	}
+}
+
+/** An RS256 authenticator: a 2048-bit modulus and PKCS#1 SHA-256 signature. */
+const rs256 = (): Signer => {
+	const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+		modulusLength: 2048,
+		publicExponent: 0x10001,
+	})
+	const jwk = publicKey.export({ format: 'jwk' }) as { n: string; e: string }
+	return {
+		id: randomBytes(32),
+		cose: cbor.keys([
+			[1, cbor.int(3)],
+			[3, cbor.int(RS256)],
+			[-1, cbor.bytes(Buffer.from(jwk.n, 'base64url'))],
+			[-2, cbor.bytes(Buffer.from(jwk.e, 'base64url'))],
+		]),
+		sign: data => createSign('sha256').update(data).sign(privateKey),
 	}
 }
 
@@ -199,6 +218,28 @@ describe('the registration ceremony', () => {
 
 		const challenge = await passkey.challenge('authenticate')
 		await expect(passkey.authenticate(assertion(signer, challenge))).resolves.toBe(1)
+	})
+
+	test('an RS256 credential registers and then authenticates', async () => {
+		const signer = rs256()
+		await enroll(signer)
+
+		const challenge = await passkey.challenge('authenticate')
+		await expect(passkey.authenticate(assertion(signer, challenge))).resolves.toBe(1)
+	})
+
+	test('stores a host-neutral JSON public-key description', async () => {
+		const signer = p256()
+		await enroll(signer)
+
+		const row = await db<any>().selectFrom('credentials').select('key').executeTakeFirstOrThrow()
+		const key = JSON.parse(Buffer.from(row.key, 'base64url').toString('utf8'))
+		expect(key).toEqual({
+			kty: 'EC',
+			crv: 'P-256',
+			x: expect.any(String),
+			y: expect.any(String),
+		})
 	})
 
 	test('registration refuses a ceremony for another relying party', async () => {
@@ -488,6 +529,14 @@ describe('what a credential may not become', () => {
 
 		await expect(passkey.register(1, attestation(signer, options.challenge)))
 			.rejects.toThrow(/usable public key/)
+	})
+
+	test('client data containing invalid UTF-8 is refused', async () => {
+		await expect(passkey.register(1, {
+			id: 'credential',
+			clientDataJSON: url(Buffer.from([0xed, 0xa0, 0x80])),
+			attestationObject: '',
+		})).rejects.toThrow(/not valid JSON/)
 	})
 
 	// Backup eligibility is fixed for a credential's life. Gaining it means
