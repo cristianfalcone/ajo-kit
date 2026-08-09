@@ -1,12 +1,11 @@
 import { origin, type Request, type Response } from 'ajo-kit'
-import { env, hmacSha256Hex, timingSafeEqual } from 'ajo-kit/platform'
+import { hmacSha256Hex, timingSafeEqual } from 'ajo-kit/platform'
 import { generate } from './session'
-import { parse } from './cookie'
+import { parse, secure } from './cookie'
 import * as secret from './secret'
 
 const NAME = 'XSRF-TOKEN'
 const hex = /^[0-9a-f]+$/i
-const secure = () => env('NODE_ENV') === 'production' ? '; Secure' : ''
 const ascii = (value: string) => Uint8Array.from(value, character => character.charCodeAt(0))
 
 const sign = (session: string, token: string) =>

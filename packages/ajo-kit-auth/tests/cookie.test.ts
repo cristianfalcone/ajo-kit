@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'vitest'
 import { clear, read, write } from '../src/cookie'
 
-const environment = process.env.NODE_ENV
+const app = process.env.APP_URL
 
 const response = () => {
 	const headers = new Map<string, string>()
@@ -16,8 +16,8 @@ const response = () => {
 }
 
 afterEach(() => {
-	if (environment === undefined) delete process.env.NODE_ENV
-	else process.env.NODE_ENV = environment
+	if (app === undefined) delete process.env.APP_URL
+	else process.env.APP_URL = app
 })
 
 describe('ajo-kit-auth cookie', () => {
@@ -38,8 +38,8 @@ describe('ajo-kit-auth cookie', () => {
 		expect(headers.get('Set-Cookie')).toBe('session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0')
 	})
 
-	test('sets Secure on session cookies in production', () => {
-		process.env.NODE_ENV = 'production'
+	test('sets Secure on session cookies when the app is served over https', () => {
+		process.env.APP_URL = 'https://app.example.com'
 		const { headers, res } = response()
 
 		write(res as any, 'session-token')

@@ -2,7 +2,11 @@ import type { Request, Response } from 'ajo-kit'
 import { env } from 'ajo-kit/platform'
 
 const name = 'session'
-const secure = () => env('NODE_ENV') === 'production' ? '; Secure' : ''
+
+/** Secure follows the app's canonical scheme: an https deployment locks its
+ * cookies to TLS; an http origin must not set a flag its own scheme rejects. */
+export const secure = () => env('APP_URL')?.startsWith('https:') ? '; Secure' : ''
+
 const base = () => `HttpOnly; SameSite=Lax; Path=/${secure()}`
 
 /** Reads one cookie by exact name and rejects duplicates. */

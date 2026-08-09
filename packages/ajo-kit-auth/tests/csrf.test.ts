@@ -38,8 +38,8 @@ afterEach(() => {
 })
 
 describe('ajo-kit-auth csrf', () => {
-	test('sets Secure on csrf cookies in production', () => {
-		process.env.NODE_ENV = 'production'
+	test('sets Secure on csrf cookies when the app is served over https', () => {
+		process.env.APP_URL = 'https://app.example.com'
 		process.env.APP_SECRET = 'test-production-secret-0000000000'
 		const { headers, res } = response()
 
