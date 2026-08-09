@@ -1,3 +1,4 @@
+import { posix } from 'node:path'
 import { normalizePath, parseAst, parseSync, type Plugin } from 'vite'
 import { discover } from './discover'
 
@@ -116,6 +117,12 @@ export interface DescriptorInput {
 	migrations: readonly { name: string; module: string }[]
 	data: boolean
 	net: boolean
+	env?: {
+		required?: readonly string[]
+		optional?: readonly string[]
+	}
+	fs?: { roots: readonly string[] }
+	ipc?: { pipes: readonly string[] }
 }
 
 /** The strict descriptor consumed by ajoc --input. */
@@ -126,14 +133,71 @@ export interface Descriptor {
 	client: 'client'
 	migrations: { name: string; module: string }[]
 	env: {
-		required: ['NODE_ENV', 'APP_URL']
-		optional: ['APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT']
+		required: string[]
+		optional: string[]
 	}
 	data: { required: boolean }
 	fs: { roots: string[] }
 	ipc: { pipes: string[] }
 	capabilities: string[]
 }
+
+const base = {
+	required: ['NODE_ENV', 'APP_URL'],
+	optional: ['APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT'],
+} as const
+
+const strings = (value: unknown, name: string): string[] => {
+	if (!Array.isArray(value)) throw new Error(`${name} must be an array`)
+	return value.map((item, index) => {
+		if (typeof item !== 'string' || !item.length) {
+			throw new Error(`${name}[${index}] must be a non-empty string`)
+		}
+		return item
+	})
+}
+
+const unique = (values: string[], name: string, seen = new Set<string>()) => {
+	for (const [index, value] of values.entries()) {
+		if (seen.has(value)) throw new Error(`${name}[${index}] duplicates "${value}"`)
+		seen.add(value)
+	}
+	return values
+}
+
+const variables = (input: DescriptorInput) => {
+	const seen = new Set<string>([...base.required, ...base.optional])
+	const required = unique(
+		strings(input.env?.required ?? [], 'package.json#kit.engine.env.required'),
+		'package.json#kit.engine.env.required',
+		seen,
+	)
+	const optional = unique(
+		strings(input.env?.optional ?? [], 'package.json#kit.engine.env.optional'),
+		'package.json#kit.engine.env.optional',
+		seen,
+	)
+
+	for (const [kind, values] of [['required', required], ['optional', optional]] as const) {
+		for (const [index, value] of values.entries()) {
+			if (!/^[A-Z_][A-Z0-9_]*$/.test(value)) {
+				throw new Error(`package.json#kit.engine.env.${kind}[${index}] has invalid environment name "${value}"`)
+			}
+		}
+	}
+
+	return {
+		required: [...base.required, ...required.sort()],
+		optional: [...base.optional, ...optional.sort()],
+	}
+}
+
+const paths = (value: unknown, name: string) => unique(strings(value, name), name).map((path, index) => {
+	if (!path.startsWith('/') || path.includes('\\') || posix.normalize(path) !== path || (path !== '/' && path.endsWith('/'))) {
+		throw new Error(`${name}[${index}] must be an absolute normalized POSIX path: "${path}"`)
+	}
+	return path
+}).sort()
 
 /** Build-time migration source passed to the generated engine entry. */
 export interface EngineMigration {
@@ -208,15 +272,10 @@ export function descriptor(input: DescriptorInput): Descriptor {
 		modules: [entry, ...modules.filter(module => module !== entry)],
 		client: 'client',
 		migrations,
-		env: {
-			required: ['NODE_ENV', 'APP_URL'],
-			optional: ['APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT'],
-		},
+		env: variables(input),
 		data: { required: input.data },
-		// Empty authority: the kit does not surface runtime:fs/ipc yet; apps
-		// that need them will declare roots/pipes when the admin port lands.
-		fs: { roots: [] },
-		ipc: { pipes: [] },
+		fs: { roots: paths(input.fs?.roots ?? [], 'package.json#kit.engine.fs.roots') },
+		ipc: { pipes: paths(input.ipc?.pipes ?? [], 'package.json#kit.engine.ipc.pipes') },
 		capabilities: input.net ? ['runtime:net'] : [],
 	}
 }

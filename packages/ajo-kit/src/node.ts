@@ -159,6 +159,77 @@ export interface EngineOutput {
 	staging: string
 }
 
+type AppEngineConfig = {
+	env?: { required?: string[]; optional?: string[] }
+	fs?: { roots: string[] }
+	ipc?: { pipes: string[] }
+}
+
+const object = (value: unknown, name: string): Record<string, unknown> => {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new Error(`${name} must be an object`)
+	}
+	return value as Record<string, unknown>
+}
+
+const keys = (value: Record<string, unknown>, allowed: readonly string[], name: string) => {
+	for (const key of Object.keys(value)) {
+		if (!allowed.includes(key)) throw new Error(`${name} has unknown key "${key}"`)
+	}
+}
+
+const list = (value: unknown, name: string): string[] => {
+	if (!Array.isArray(value)) throw new Error(`${name} must be an array`)
+	return value.map((item, index) => {
+		if (typeof item !== 'string' || !item.length) {
+			throw new Error(`${name}[${index}] must be a non-empty string`)
+		}
+		return item
+	})
+}
+
+const parseEngine = (value: unknown): AppEngineConfig => {
+	if (value === undefined) return {}
+
+	const engine = object(value, 'package.json#kit.engine')
+	keys(engine, ['env', 'fs', 'ipc'], 'package.json#kit.engine')
+	const config: AppEngineConfig = {}
+
+	if ('env' in engine) {
+		const env = object(engine.env, 'package.json#kit.engine.env')
+		keys(env, ['required', 'optional'], 'package.json#kit.engine.env')
+		config.env = {
+			...('required' in env && { required: list(env.required, 'package.json#kit.engine.env.required') }),
+			...('optional' in env && { optional: list(env.optional, 'package.json#kit.engine.env.optional') }),
+		}
+	}
+
+	if ('fs' in engine) {
+		const fs = object(engine.fs, 'package.json#kit.engine.fs')
+		keys(fs, ['roots'], 'package.json#kit.engine.fs')
+		config.fs = { roots: list(fs.roots, 'package.json#kit.engine.fs.roots') }
+	}
+
+	if ('ipc' in engine) {
+		const ipc = object(engine.ipc, 'package.json#kit.engine.ipc')
+		keys(ipc, ['pipes'], 'package.json#kit.engine.ipc')
+		config.ipc = { pipes: list(ipc.pipes, 'package.json#kit.engine.ipc.pipes') }
+	}
+
+	return config
+}
+
+const appEngine = async (root: string): Promise<AppEngineConfig> => {
+	const manifest = JSON.parse(await fs.readFile(join(root, 'package.json'), 'utf8')) as unknown
+	const kit = manifest && typeof manifest === 'object' && !Array.isArray(manifest)
+		? (manifest as Record<string, unknown>).kit
+		: undefined
+	const engine = kit && typeof kit === 'object' && !Array.isArray(kit)
+		? (kit as Record<string, unknown>).engine
+		: undefined
+	return parseEngine(engine)
+}
+
 const modules = async (root: string, directory = 'server'): Promise<string[]> => {
 	const path = join(root, directory)
 	const entries = await fs.readdir(path, { withFileTypes: true })
@@ -188,10 +259,15 @@ const assertIntl = async (root: string, files: string[]) => {
 }
 
 /** Validates a staging tree and writes its exact ajoc schema-1 descriptor. */
-export async function emitDescriptor(root: string, input: Omit<DescriptorInput, 'modules'>): Promise<Descriptor> {
+export async function emitDescriptor(
+	root: string,
+	input: Omit<DescriptorInput, 'modules' | 'env' | 'fs' | 'ipc'>,
+	app = process.cwd(),
+): Promise<Descriptor> {
+	const config = await appEngine(app)
 	const files = await modules(root)
 	await assertIntl(root, files)
-	const value = descriptor({ ...input, modules: files })
+	const value = descriptor({ ...input, ...config, modules: files })
 	await fs.writeFile(join(root, 'ajoc.json'), JSON.stringify(value, null, '\t') + '\n')
 	return value
 }
@@ -237,11 +313,11 @@ async function ajo(options: BuildOptions): Promise<EngineOutput> {
 	}
 
 	return {
-			descriptor: await emitDescriptor(staging, {
+		descriptor: await emitDescriptor(staging, {
 			migrations: target.result.migrations,
 			data: target.result.database,
 			net: target.result.net,
-		}),
+		}, root),
 		findings: target.result.findings,
 		staging,
 	}
