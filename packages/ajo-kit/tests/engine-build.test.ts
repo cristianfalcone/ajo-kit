@@ -35,6 +35,8 @@ describe('ajo engine build contract', () => {
 					optional: ['APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT'],
 				},
 				data: { required: true },
+				fs: { roots: [] },
+				ipc: { pipes: [] },
 				capabilities: ['runtime:net'],
 			})
 			expect(JSON.parse(await readFile(join(root, 'ajoc.json'), 'utf8'))).toEqual(value)

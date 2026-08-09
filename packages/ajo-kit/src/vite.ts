@@ -130,6 +130,8 @@ export interface Descriptor {
 		optional: ['APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT']
 	}
 	data: { required: boolean }
+	fs: { roots: string[] }
+	ipc: { pipes: string[] }
 	capabilities: string[]
 }
 
@@ -211,6 +213,10 @@ export function descriptor(input: DescriptorInput): Descriptor {
 			optional: ['APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT'],
 		},
 		data: { required: input.data },
+		// Empty authority: the kit does not surface runtime:fs/ipc yet; apps
+		// that need them will declare roots/pipes when the admin port lands.
+		fs: { roots: [] },
+		ipc: { pipes: [] },
 		capabilities: input.net ? ['runtime:net'] : [],
 	}
 }
