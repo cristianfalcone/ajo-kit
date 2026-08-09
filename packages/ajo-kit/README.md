@@ -274,9 +274,7 @@ wrong would mean showing one person another person's data, so it fails closed.
 
 - `connect(path?)`
 - `db<T>()`
-- `raw()`
 - `close()`
-- `Database` (better-sqlite3)
 - `sql` and Kysely types
 
 SSE topic versions, active connections, and update fanout are stored in process
@@ -289,6 +287,10 @@ origin. Applications choose how to configure their database path:
 ```ts
 connect(process.env.DATABASE_PATH ?? './database.sqlite')
 ```
+
+The Ajo engine accepts `:memory:` or a relative file path. File paths resolve
+beneath the configured runtime application data root; absolute paths and `..`
+segments are rejected, and file-backed databases require a data root.
 
 `kit migrate` composes:
 

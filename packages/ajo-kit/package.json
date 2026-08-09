@@ -51,7 +51,8 @@
     },
     "./database": {
       "types": "./src/database.ts",
-      "default": "./src/database.ts"
+      "ajo": "./src/database.ajo.ts",
+      "default": "./src/database.node.ts"
     }
   },
   "dependencies": {

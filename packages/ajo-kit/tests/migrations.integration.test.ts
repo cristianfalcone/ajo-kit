@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
-import { close, connect, db } from '../src/database'
+import { close, connect, db } from '../src/database.node'
 import { migrationStatus, migrator } from '../src/migrate'
 
 describe('ajo-kit migrations integration', () => {

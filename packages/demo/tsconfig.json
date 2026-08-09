@@ -22,6 +22,8 @@
       "@kit": ["./node_modules/ajo-kit/src/index.ts"],
       "@kit/auth": ["./node_modules/ajo-kit-auth/src/index.ts"],
       "@kit/auth/ability": ["./node_modules/ajo-kit-auth/src/ability.client.ts"],
+      "@kit/database": ["./node_modules/ajo-kit/src/database.node.ts"],
+      "@kit/platform": ["./node_modules/ajo-kit/src/platform.node.ts"],
       "@kit/*": ["./node_modules/ajo-kit/src/*"]
     }
   }

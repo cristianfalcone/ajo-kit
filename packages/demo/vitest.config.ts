@@ -12,6 +12,10 @@ export default defineConfig({
 			{ find: /^\/src\/(.+)$/, replacement: `${resolve(root, 'src')}/$1` },
 			{ find: '@kit/auth/ability', replacement: resolve(auth, 'ability.client.ts') },
 			{ find: '@kit/auth', replacement: resolve(auth, 'index.ts') },
+			// Host-conditioned subpaths resolve to their Node face here; the raw
+			// file alias below would otherwise land on the contract module.
+			{ find: '@kit/database', replacement: resolve(kit, 'database.node.ts') },
+			{ find: '@kit/platform', replacement: resolve(kit, 'platform.node.ts') },
 			{ find: /^@kit\/(.+)$/, replacement: `${kit}/$1` },
 			{ find: '@kit', replacement: resolve(kit, 'index.ts') },
 		],

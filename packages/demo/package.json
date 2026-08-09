@@ -24,7 +24,9 @@
   },
   "devDependencies": {
     "@playwright/test": "1.61.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "25.9.3",
+    "better-sqlite3": "^12.11.1",
     "tsx": "4.22.4",
     "typescript": "6.0.3",
     "unocss": "66.7.2",

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import { expect, type APIRequestContext, type Page } from '@playwright/test'
 import { password } from 'ajo-kit-auth'
-import { Database } from 'ajo-kit/database'
+import Database from 'better-sqlite3'
 
 export const admin = {
 	email: 'cristian@example.com',
