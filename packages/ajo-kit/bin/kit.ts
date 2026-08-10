@@ -42,24 +42,24 @@ cli.command('dev')
 	})
 
 cli.command('build')
-	.describe('Build for the ajo engine')
-	.option('--ajoc', 'ajoc executable path')
+	.describe('Build for ajo-engine')
+	.option('--compiler', 'ajo-engine-compiler executable path')
 	.option('--check', 'Fail on temporary Node builtin findings')
-	.action(async (opts: { ajoc?: string; check?: boolean }) => {
+	.action(async (opts: { compiler?: string; check?: boolean }) => {
 		await build({ check: opts.check })
 
-		if (!opts.ajoc) {
-			console.log('ajoc --input .ajo/ajoc.json --output dist/ajo')
+		if (!opts.compiler) {
+			console.log('ajo-engine-compiler --input .ajo/compiler.json --output dist/ajo')
 			return
 		}
 
 		await rm('dist/ajo', { force: true, recursive: true })
 		await new Promise<void>((resolve, reject) => {
-			const child = spawn(opts.ajoc!, ['--input', '.ajo/ajoc.json', '--output', 'dist/ajo'], { stdio: 'inherit' })
+			const child = spawn(opts.compiler!, ['--input', '.ajo/compiler.json', '--output', 'dist/ajo'], { stdio: 'inherit' })
 			child.once('error', reject)
 			child.once('exit', (code, signal) => code === 0
 				? resolve()
-				: reject(new Error(signal ? `ajoc terminated by ${signal}` : `ajoc exited with status ${code}`)))
+				: reject(new Error(signal ? `compiler terminated by ${signal}` : `compiler exited with status ${code}`)))
 		})
 	})
 

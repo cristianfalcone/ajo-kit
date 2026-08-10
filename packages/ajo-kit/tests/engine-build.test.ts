@@ -26,7 +26,7 @@ const rejects = async (engine: unknown, message: string) => {
 }
 
 describe('ajo engine build contract', () => {
-	test('emits the exact ajoc descriptor shape from a staging tree', async () => {
+	test('emits the exact compiler descriptor shape from a staging tree', async () => {
 		const { app, staging } = await fixture()
 		try {
 			await mkdir(join(staging, 'server/chunks'), { recursive: true })
@@ -58,7 +58,7 @@ describe('ajo engine build contract', () => {
 				ipc: { pipes: [] },
 				capabilities: ['runtime:net'],
 			})
-			expect(JSON.parse(await readFile(join(staging, 'ajoc.json'), 'utf8'))).toEqual(value)
+			expect(JSON.parse(await readFile(join(staging, 'compiler.json'), 'utf8'))).toEqual(value)
 		} finally {
 			await rm(app, { force: true, recursive: true })
 		}

@@ -13,7 +13,7 @@ let location: string | null = null
 /** Opens the shared SQLite database beneath the runtime application data root. */
 export function connect(path = './database.sqlite'): void {
 	// runtime:sqlite applies busy_timeout, foreign_keys, WAL, and synchronous
-	// defaults while opening the handle; see ajo-js/host/sqlite.c.
+	// defaults while opening the handle; see ajo-js/src/sqlite.c.
 	const resolved = resolveDatabasePath(path, app.data)
 	if (sqlite) {
 		if (location === resolved) return

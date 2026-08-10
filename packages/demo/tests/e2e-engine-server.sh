@@ -26,4 +26,4 @@ export AJO_DATA="$data"
 export DATABASE_PATH=e2e.sqlite
 
 echo "$$" > "$pid"
-exec /root/ajo/bin/ajo "$artifact" >> "$log" 2>&1
+exec /root/ajo/bin/ajo-engine "$artifact" >> "$log" 2>&1

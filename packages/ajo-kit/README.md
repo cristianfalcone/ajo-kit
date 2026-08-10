@@ -24,7 +24,7 @@ stripping for CLI operations and use erasable TypeScript syntax.
   "scripts": {
     "dev": "kit dev",
     "build": "kit build",
-    "artifact": "kit build --ajoc ajoc"
+    "artifact": "kit build --compiler ajo-engine-compiler"
   }
 }
 ```
@@ -97,7 +97,7 @@ export default () => (
 
 ```bash
 kit dev [-p 5173]
-kit build [--check] [--ajoc /path/to/ajoc]
+kit build [--check] [--compiler /path/to/ajo-engine-compiler]
 
 kit migrate up [-d ./database.sqlite]
 kit migrate down [-d ./database.sqlite]
@@ -114,8 +114,8 @@ Defaults:
 - seeds folder: `db/seeds`
 
 `kit build` has one target: the ajo engine. It writes the closed server graph,
-compiled migration registry, transformed client, and `ajoc.json` descriptor to
-`.ajo/`. Without `--ajoc` it prints the exact compiler command. With `--ajoc`,
+compiled migration registry, transformed client, and `compiler.json` descriptor to
+`.ajo/`. Without `--compiler` it prints the exact compiler command. With `--compiler`,
 it seals that staging tree into `dist/ajo`; `--check` makes temporary
 Node-builtin findings fatal while auth and mail engine ports are in progress.
 

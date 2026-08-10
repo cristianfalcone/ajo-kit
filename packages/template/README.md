@@ -7,8 +7,8 @@ complete application slice instead of a collection of disconnected examples.
 
 Development runs on Node because Vite, TypeScript, migrations, and Vitest are
 development tools. `kit build` closes and audits the server graph, compiles the
-migration registry, builds the client, and stages both with `ajoc.json` under
-`.ajo/`. `ajoc` seals that exact staging tree into `dist/ajo`; ajo-server then
+migration registry, builds the client, and stages both with `compiler.json` under
+`.ajo/`. `ajo-engine-compiler` seals that exact staging tree into `dist/ajo`; ajo-server then
 runs its server graph on the ajo runtime and serves its client tree. Node is not
 a production target.
 
@@ -44,7 +44,7 @@ Loaders remain server truth, so the page does not maintain a second notes store.
 ```bash
 pnpm dev       # Node + Vite development server
 pnpm build     # audited engine staging in .ajo/
-pnpm artifact  # build, then seal dist/ajo with ajoc
+pnpm artifact  # build, then seal dist/ajo with ajo-engine-compiler
 ```
 
 Run `pnpm kit migrate up` once before the first development boot; production

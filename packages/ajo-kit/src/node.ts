@@ -234,7 +234,7 @@ const assertIntl = async (root: string, files: string[]) => {
 	if (violations.length) throw new Error(`Engine server Intl profile violation:\n${violations.join('\n')}`)
 }
 
-/** Validates a staging tree and writes its exact ajoc schema-1 descriptor. */
+/** Validates a staging tree and writes its exact compiler schema-1 descriptor. */
 export async function emitDescriptor(
 	root: string,
 	input: Omit<DescriptorInput, 'modules' | 'env' | 'fs' | 'ipc'>,
@@ -244,7 +244,7 @@ export async function emitDescriptor(
 	const files = await modules(root)
 	await assertIntl(root, files)
 	const value = descriptor({ ...input, ...config, modules: files })
-	await fs.writeFile(join(root, 'ajoc.json'), JSON.stringify(value, null, '\t') + '\n')
+	await fs.writeFile(join(root, 'compiler.json'), JSON.stringify(value, null, '\t') + '\n')
 	return value
 }
 

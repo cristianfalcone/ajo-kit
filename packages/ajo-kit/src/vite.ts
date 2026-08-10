@@ -111,7 +111,7 @@ export interface GraphIssue extends ImportRecord {
 	message: string
 }
 
-/** Input used to construct ajoc's exact schema-1 descriptor. */
+/** Input used to construct the compiler's exact schema-1 descriptor. */
 export interface DescriptorInput {
 	modules: readonly string[]
 	migrations: readonly { name: string; module: string }[]
@@ -125,7 +125,7 @@ export interface DescriptorInput {
 	ipc?: { pipes: readonly string[] }
 }
 
-/** The strict descriptor consumed by ajoc --input. */
+/** The strict descriptor consumed by ajo-engine-compiler --input. */
 export interface Descriptor {
 	schema: 1
 	entry: 'server/entry.js'
@@ -250,7 +250,7 @@ export function graph(records: readonly ImportRecord[]): GraphIssue[] {
 	return issues
 }
 
-/** Creates ajoc's exact schema-1 descriptor from one emitted staging graph. */
+/** Creates the compiler's exact schema-1 descriptor from one emitted staging graph. */
 export function descriptor(input: DescriptorInput): Descriptor {
 	const modules = [...new Set(input.modules)].sort()
 	const entry = 'server/entry.js' as const
@@ -385,7 +385,7 @@ export function engine(options: {
 				result.database = true
 			}
 			// Graph validation reads the EMITTED chunks in generateBundle — the
-			// ajoc-eye view. Source records here would flag imports the build
+			// compiler-eye view. Source records here would flag imports the build
 			// resolves away (virtual:uno.css in SSR, treeshaken provider code).
 		},
 		generateBundle(_, bundle) {

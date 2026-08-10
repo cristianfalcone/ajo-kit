@@ -9,7 +9,7 @@
     "kit": "tsx node_modules/ajo-kit/bin/kit.ts",
     "dev": "pnpm kit dev",
     "build": "pnpm kit build",
-    "artifact": "pnpm kit build --ajoc ajoc",
+    "artifact": "pnpm kit build --compiler ajo-engine-compiler",
     "typecheck": "tsc --noEmit",
     "test": "pnpm -w exec vitest run --root packages/template --config vitest.config.ts"
   },
