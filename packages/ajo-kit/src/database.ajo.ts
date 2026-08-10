@@ -3,9 +3,7 @@ import open from 'runtime:sqlite'
 import { Kysely, SqliteDialect } from 'kysely'
 import { resolveDatabasePath } from './database-path'
 
-/** Kysely SQL template helper. */
 export { sql } from 'kysely'
-/** Kysely database and row helper types (the full ./database contract). */
 export type { Kysely, Generated, Selectable, Insertable } from 'kysely'
 
 let sqlite: ReturnType<typeof open> | null = null

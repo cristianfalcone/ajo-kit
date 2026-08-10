@@ -2,7 +2,6 @@ import * as html from 'ajo/html'
 import type { Component } from 'ajo'
 import { sha256Hex, utf8ByteLength } from 'ajo-kit/platform'
 import { Reply, Router, send } from './http'
-/** Serializes a value into a completed host-neutral reply. */
 export { send } from './http'
 import App, { resolve, layouts, pages, error, match, parts, parents, register } from './app'
 import { Failure, links, ancestors, normalize, ajax, api } from './constants'

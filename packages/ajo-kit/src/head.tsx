@@ -33,8 +33,6 @@ const append = <T,>(items: T[], index: Map<string, number>, entry: T, id: string
 	items[position] = entry
 }
 
-// Merge: dedupe by key, last wins
-
 /** Merges route heads, letting later meta/link entries win by key. */
 export function merge(...heads: (Head | undefined)[]): Head {
 
@@ -90,10 +88,9 @@ export function render(head: Head = {}): string {
 	return tags.join('\n  ')
 }
 
-// CSR: update document.head (diff before mutate)
-
 /** Applies a Head object to document.head during client navigation. */
 export function apply(head: Head = {}): void {
+	// Diff existing nodes before mutating them.
 
 	if (head.title && document.title !== head.title) document.title = head.title
 

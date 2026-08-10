@@ -1,4 +1,5 @@
-// D19: Dev-time Node shim for Vite, Vitest, and CLI operations; not production.
+// Dev-time Node shim for Vite, Vitest, and CLI operations. Production
+// executes only on the ajo engine — the kit ships no Node serving path.
 import {
 	createHash,
 	createHmac,

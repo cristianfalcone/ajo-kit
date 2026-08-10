@@ -306,7 +306,7 @@ export class Router {
 
 const status = new Map([[200, 'OK'], [400, 'Bad Request'], [404, 'Not Found'], [500, 'Internal Server Error']])
 
-/** Serializes a value into a completed reply with content headers. */
+/** Serializes a value into a completed host-neutral reply with content headers. */
 export function send(reply: Reply, code = 200, data: unknown = '', headers: Record<string, Value> = {}) {
 	for (const [key, value] of Object.entries(headers)) reply.setHeader(key, value)
 

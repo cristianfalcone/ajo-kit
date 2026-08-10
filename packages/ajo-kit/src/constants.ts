@@ -2,11 +2,9 @@ import type { Children, Component } from 'ajo'
 import { env } from 'ajo-kit/platform'
 import type { Params } from 'navaid'
 import type { Request, Reply, Middleware } from './http'
-/** Host-neutral request and middleware types used by route modules. */
 export type { Request, Middleware }
 /** Host-neutral response accumulator used by route modules. */
 export type Response = Reply
-/** Document head payload returned by route head loaders. */
 export type { Head } from './head'
 import type { Head } from './head'
 import type { Timing } from './timing'
@@ -105,8 +103,6 @@ export function normalize(error: unknown): Failure {
 	return new Failure(status, message(error, status))
 }
 
-// Route path utilities
-
 /** Returns route ancestor keys from outermost to innermost. */
 export const ancestors = (segments: string[]) => segments.map((_, i) => segments.slice(0, i + 1).join('/'))
 
@@ -190,8 +186,6 @@ export type PageArgs<T = Entry> = {
 export type LayoutArgs<T = Entry> = PageArgs<T> & {
 	children: Children
 }
-
-// Navigation helper
 
 /** Pushes a browser URL and asks the client router to navigate. */
 export const navigate = (to: string) => {

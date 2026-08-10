@@ -6,7 +6,6 @@ import {
 } from 'valibot'
 import { Invalid, type Fields } from './constants'
 
-/** Valibot schema builders and type helpers re-exported for app validation. */
 export {
 	object, string, number, boolean, array, optional, literal,
 	pipe, trim, toLowerCase, transform, forward, partialCheck,

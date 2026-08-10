@@ -1,11 +1,10 @@
-// D19: Dev-time Node shim for Vite, Vitest, and CLI database operations.
+// Dev-time Node shim for Vite, Vitest, and CLI database operations.
+// Production executes only on the ajo engine, through database.ajo.ts.
 import { createRequire } from 'node:module'
 import { Kysely, SqliteDialect } from 'kysely'
 import type * as BetterSqlite3 from 'better-sqlite3'
 
-/** Kysely SQL template helper. */
 export { sql } from 'kysely'
-/** Kysely database and row helper types (the full ./database contract). */
 export type { Kysely, Generated, Selectable, Insertable } from 'kysely'
 
 const require = createRequire(import.meta.url)

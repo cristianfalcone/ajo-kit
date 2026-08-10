@@ -1,8 +1,6 @@
 import type { Kysely } from 'kysely'
 
-/** Kysely SQL template helper. */
 export { sql } from 'kysely'
-/** Kysely database and row helper types. */
 export type { Kysely, Generated, Selectable, Insertable } from 'kysely'
 
 /** Opens the shared SQLite database at the given path. */

@@ -79,8 +79,6 @@ export const layouts = new Map<string, Loader>()
 /** Page definitions installed by the generated route registry and consumed by both routers. */
 export const pages: Page[] = []
 
-// Path helpers
-
 /** Selects the registered layout ancestors for a route from outermost to innermost. */
 export const parents = (segments: string[]) => ancestors(segments).filter(path => layouts.has(path))
 
@@ -237,8 +235,6 @@ async function load(url: string): Promise<Load> {
 		since
 	}
 }
-
-// Resolve page: async generator yielding loading then data states
 
 /** Composes a route and yields its pending state before its settled client data. */
 export async function* resolve(

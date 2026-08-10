@@ -1,4 +1,4 @@
-// D19: Node is a dev/build/test host only; production executes on the ajo engine.
+// Node is a dev/build/test host only; production executes on the ajo engine.
 import fs from 'node:fs/promises'
 import { join } from 'node:path'
 import * as http from 'node:http'

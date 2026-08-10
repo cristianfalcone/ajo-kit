@@ -80,8 +80,6 @@ export interface Challenges {
 	created: Generated<string>
 }
 
-// Schema parcial — solo las tablas de auth
-
 /** Database schema fragment owned by ajo-kit-auth. */
 export interface Auth {
 	users: Users

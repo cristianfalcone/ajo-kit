@@ -7,9 +7,7 @@ import { fields, body as make } from './form'
 import { parse } from './ssr'
 import { invalidate } from './cache'
 
-// Action helper for stateful generator components
-
-/** Creates state and submit/invoke helpers for a route action. */
+/** Creates state and submit/invoke helpers for a route action in a stateful generator component. */
 export function action<T = unknown>(name?: string, init?: RequestInit): Action<T> {
 
 	const component = current()
