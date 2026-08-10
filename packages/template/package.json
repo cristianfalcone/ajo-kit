@@ -2,13 +2,16 @@
   "name": "ajo-kit-template",
   "private": true,
   "type": "module",
+  "kit": {
+    "engine": {}
+  },
   "scripts": {
     "kit": "tsx node_modules/ajo-kit/bin/kit.ts",
     "dev": "pnpm kit dev",
     "build": "pnpm kit build",
     "artifact": "pnpm kit build --ajoc ajoc",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm -w exec vitest run packages/template/tests"
+    "test": "pnpm -w exec vitest run --root packages/template --config vitest.config.ts"
   },
   "dependencies": {
     "ajo": "0.1.35",

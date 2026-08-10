@@ -32,15 +32,19 @@ export const base64UrlEncode: Platform['base64UrlEncode'] = data => {
 	return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
 }
 
+/** Reads only variables exposed to the browser through `import.meta.env`. */
 export const env: Platform['env'] = name => {
 	const values = (import.meta as { env?: Record<string, string | undefined> }).env
 	return values?.[name]
 }
 
+/** Throws because password hashing is unavailable in browser bundles. */
 export const argon2Hash: Platform['argon2Hash'] = () => serverOnly('argon2Hash')
 
+/** Throws because password verification is unavailable in browser bundles. */
 export const argon2Verify: Platform['argon2Verify'] = () => serverOnly('argon2Verify')
 
+/** Throws because keyed hashing is unavailable in browser bundles. */
 export const hmacSha256Hex: Platform['hmacSha256Hex'] = () => serverOnly('hmacSha256Hex')
 
 export const randomBase64Url: Platform['randomBase64Url'] = count =>
@@ -48,13 +52,17 @@ export const randomBase64Url: Platform['randomBase64Url'] = count =>
 
 export const randomUUID: Platform['randomUUID'] = () => crypto.randomUUID()
 
+/** Throws because synchronous SHA-256 is unavailable in browser bundles. */
 export const sha256Hex: Platform['sha256Hex'] = () => serverOnly('sha256Hex')
 
+/** Throws because this browser face does not expose a constant-time comparison primitive. */
 export const timingSafeEqual: Platform['timingSafeEqual'] = () => serverOnly('timingSafeEqual')
 
 export const utf8ByteLength: Platform['utf8ByteLength'] = data =>
 	encoder.encode(data).byteLength
 
+/** Throws because public-key validation is server-only. */
 export const validatePublicKey: Platform['validatePublicKey'] = () => serverOnly('validatePublicKey')
 
+/** Throws because WebAuthn signature verification is server-only. */
 export const verifySignature: Platform['verifySignature'] = () => serverOnly('verifySignature')

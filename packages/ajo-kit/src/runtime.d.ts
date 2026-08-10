@@ -21,11 +21,57 @@ declare module 'runtime:app' {
 		argv: readonly string[]
 		data: string | undefined
 		env(name: string): string | undefined
+		hostname(): string
 		onShutdown(callback: () => void): void
 		root: string
+		rssBytes(): number
+		uptimeSeconds(): number
 	}>
 
 	export default app
+}
+
+declare module 'runtime:fs' {
+	/**
+	 * Root-confined filesystem access. Every path must be absolute, normalized
+	 * (no `.`/`..` segments) and inside a root the artifact declared under
+	 * `package.json#kit.engine.fs.roots`; anything else throws. Importing this
+	 * module with no declared roots fails at load.
+	 */
+	export interface FileStat {
+		size: number
+		/** Seconds since the Unix epoch. */
+		mtime: number
+		type: 'file' | 'directory' | 'fifo' | 'other'
+	}
+
+	export interface FileSystemStat {
+		totalBytes: number
+		freeBytes: number
+	}
+
+	/** Reads a UTF-8 file, bounded (default 1 MiB, hard cap 8 MiB). */
+	export function readText(path: string, options?: { maxBytes?: number }): string
+	/** Reads a UTF-8 window of a file; length is capped at 8 MiB. */
+	export function readRange(path: string, offset: number, length: number): string
+	/** Lowercase hex SHA-256 of the file's raw bytes; streaming, no size cap. */
+	export function sha256File(path: string): string
+	export function stat(path: string): FileStat
+	export function statfs(path: string): FileSystemStat
+	/** Watches a directory; returns the disposer that stops the watcher. */
+	export function watchDirectory(path: string, callback: () => void): () => void
+	/** Writes via temp file + rename in the same directory, mode 0600. */
+	export function writeAtomic(path: string, text: string): void
+}
+
+declare module 'runtime:ipc' {
+	/**
+	 * Writes one atomic line (≤ PIPE_BUF) to a FIFO declared under
+	 * `package.json#kit.engine.ipc.pipes`, opened non-blocking. Typed
+	 * failures: ENOENT (missing), ENXIO (no reader), EAGAIN (full) — all
+	 * retryable by the caller. Deliberately NOT exec/spawn.
+	 */
+	export function writePipe(path: string, text: string): void
 }
 
 declare module 'runtime:http' {

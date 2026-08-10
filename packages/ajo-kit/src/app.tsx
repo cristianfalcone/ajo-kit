@@ -20,12 +20,14 @@ import { routes as discovered } from 'virtual:ajo/routes'
 const group = /^\(.*\)$/
 const dynamic = /^\[(.+?)\]$/
 
+/** Compiles filesystem segments into the client router's group-free pattern. */
 export const match = (segments: string[]) =>
 	segments
 		.filter(segment => segment && !group.test(segment))
 		.map(segment => segment.replace(dynamic, (_, name) => name === '...' ? '*' : `:${name}`))
 		.join('/')
 
+/** Extracts route segments from a generated page or layout module path under `/src`. */
 export const parts = (path: string) => path.slice(4).split('/').slice(0, -1)
 
 let initial: State | undefined
@@ -47,6 +49,7 @@ let scope: string | undefined
 // already stopped being.
 let era = 0
 
+/** @internal Exposes the identity era for tests only — not public API. */
 export const current = () => era
 
 /** Adopts a scope declared by a response issued in era `since`. */
@@ -57,11 +60,13 @@ const adopt = (next: string | undefined, since = era) => {
 	era++
 }
 
+/** Seeds the one-shot hydration state and adopts its server-declared cache scope. */
 export function init(state: State | null) {
 	initial = state ?? undefined
 	adopt(initial?.scope)
 }
 
+/** Supplies the inert page module used for missing routes and navigation failures. */
 export const error: () => Page = () => ({
 	segments: [''],
 	loader: async () => ({ default: () => null }),
@@ -69,11 +74,14 @@ export const error: () => Page = () => ({
 
 // Build pages from file system
 
+/** Layout loaders installed by the generated route registry and refreshed by HMR. */
 export const layouts = new Map<string, Loader>()
+/** Page definitions installed by the generated route registry and consumed by both routers. */
 export const pages: Page[] = []
 
 // Path helpers
 
+/** Selects the registered layout ancestors for a route from outermost to innermost. */
 export const parents = (segments: string[]) => ancestors(segments).filter(path => layouts.has(path))
 
 /** Installs the page and layout registry generated for the current host build. */
@@ -232,6 +240,7 @@ async function load(url: string): Promise<Load> {
 
 // Resolve page: async generator yielding loading then data states
 
+/** Composes a route and yields its pending state before its settled client data. */
 export async function* resolve(
 	url: string,
 	layouts: Map<string, Loader>,
@@ -573,4 +582,5 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 App.attrs = { class: 'h-full' }
 
+/** Client root that owns navigation, scoped caching, live updates, and HMR reconciliation. */
 export default App

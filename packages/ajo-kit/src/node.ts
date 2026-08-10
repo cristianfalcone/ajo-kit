@@ -127,7 +127,15 @@ export interface EngineOutput {
 	staging: string
 }
 
-type AppEngineConfig = {
+/**
+ * The `package.json#kit.engine` authority block. Everything is optional and
+ * defaults to empty authority; the engine build validates fail-closed
+ * (duplicates, invalid env names, non-absolute or non-normalized POSIX
+ * paths all fail the build naming the offender) and seals the result into
+ * the artifact descriptor — env names append after the kit's base lists,
+ * roots/pipes become the runtime:fs / runtime:ipc authority.
+ */
+export type AppEngineConfig = {
 	env?: { required?: string[]; optional?: string[] }
 	fs?: { roots: string[] }
 	ipc?: { pipes: string[] }

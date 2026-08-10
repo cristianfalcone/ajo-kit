@@ -1,6 +1,7 @@
 node_modules
-.ajo
-dist
+.ajo/
+dist/
+.tmp/
 database.sqlite
 database.sqlite-wal
 database.sqlite-shm

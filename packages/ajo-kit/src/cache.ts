@@ -1,6 +1,8 @@
 import type { State } from './constants'
 
+/** @internal Cache policy knobs exported for tests only — not public API. */
 export const max = 50
+/** @internal */
 export const ttl = 5 * 60 * 1000
 
 type Meta = {
@@ -22,6 +24,7 @@ const remove = (key: string) => {
 	meta.delete(key)
 }
 
+/** @internal Test-only reset of the process cache — not public API. */
 export const clear = () => {
 	cache.clear()
 	meta.clear()
@@ -32,6 +35,7 @@ type Options = {
 	now?: number
 }
 
+/** Reads an unexpired route only from the caller's declared identity scope. */
 export const get = (url: string, options?: Options) => {
 	if (!options?.scope) return
 
@@ -76,6 +80,7 @@ const prune = (active?: string, time = now()) => {
 	}
 }
 
+/** Stores a scoped route and prunes expired or least-recently-used inactive entries. */
 export const set = (url: string, state: State, options?: Options & { active?: string }) => {
 	if (!options?.scope) return
 
@@ -100,6 +105,7 @@ export const drop = (scope: string) => {
 	}
 }
 
+/** Invalidates routes tracking changed topics, or every scope when no topics are supplied. */
 export const invalidate = (topics?: string[]) => {
 	if (!topics?.length) {
 		clear()

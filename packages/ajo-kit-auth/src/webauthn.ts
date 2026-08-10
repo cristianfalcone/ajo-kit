@@ -22,7 +22,9 @@ import {
 
 /** COSE algorithm identifiers this relying party accepts. */
 export const ES256 = -7
+/** Ed25519 COSE algorithm identifier accepted for passkeys. */
 export const EdDSA = -8
+/** RSA SHA-256 COSE algorithm identifier retained for Windows Hello compatibility. */
 export const RS256 = -257
 
 /**
@@ -32,6 +34,7 @@ export const RS256 = -257
  */
 export const algorithms = [EdDSA, ES256, RS256]
 
+/** Ceremony refusal for malformed or untrusted WebAuthn input. */
 class Malformed extends Error {}
 
 /** Fails the ceremony with a reason that never quotes attacker-supplied bytes. */

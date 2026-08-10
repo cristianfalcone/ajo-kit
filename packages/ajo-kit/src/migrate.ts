@@ -47,6 +47,7 @@ function local(id: string, files: string[]) {
 	return names
 }
 
+/** Chooses the next contiguous project migration name after validating existing files. */
 export function migrationFile(files: string[], name: string) {
 	const safe = name.trim().toLowerCase()
 		.replace(/[^a-z0-9]+/g, '_')

@@ -1,3 +1,4 @@
+/** Finds controls whose submitted values must remain arrays even when only one is selected. */
 export function fields(form: HTMLFormElement): Set<string> {
 
 	const seen = new Set<string>()
@@ -17,6 +18,7 @@ export function fields(form: HTMLFormElement): Set<string> {
 	return arrays
 }
 
+/** Converts string form values into JSON while preserving repeated and array-valued fields. */
 export function body(
 	data: FormData,
 	arrays: Set<string> = new Set()

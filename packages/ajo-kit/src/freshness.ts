@@ -1,7 +1,9 @@
+/** Process-local topic versions carried across route freshness and live-update messages. */
 export type Versions = Record<string, number>
 
 const versions = new Map<string, number>()
 
+/** Produces the compact non-cryptographic identity used for route payload freshness. */
 export function hash(value: string) {
 	let h = 2166136261
 
@@ -13,10 +15,12 @@ export function hash(value: string) {
 	return (h >>> 0).toString(36)
 }
 
+/** Normalizes topics into a unique, stable order for wire payloads. */
 export function topics(topic: string | string[]) {
 	return [...new Set(Array.isArray(topic) ? topic : [topic])].filter(Boolean).sort()
 }
 
+/** Advances each emitted topic once and returns the normalized topic list. */
 export function bump(topic: string | string[]) {
 	const list = topics(topic)
 
@@ -25,6 +29,7 @@ export function bump(topic: string | string[]) {
 	return list
 }
 
+/** Captures current versions for the requested topics, including unseen topics at zero. */
 export function snapshot(keys: Iterable<string>): Versions {
 	const result: Versions = {}
 
@@ -33,6 +38,7 @@ export function snapshot(keys: Iterable<string>): Versions {
 	return result
 }
 
+/** Parses a version header only when it is an object of finite numeric values. */
 export function parse(raw: string | string[] | undefined): Versions | null {
 	if (!raw || Array.isArray(raw)) return null
 
@@ -53,11 +59,13 @@ export function parse(raw: string | string[] | undefined): Versions | null {
 	}
 }
 
+/** Accepts only a non-empty client snapshot whose topic versions are all current. */
 export function fresh(client: Versions | null) {
 	const entries = Object.entries(client ?? {})
 	return entries.length > 0 && entries.every(([topic, version]) => (versions.get(topic) ?? 0) === version)
 }
 
+/** @internal Test-only reset of process topic versions — not public API. */
 export function reset() {
 	versions.clear()
 }

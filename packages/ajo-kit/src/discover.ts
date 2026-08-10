@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+/** Build metadata declared by an installed `ajo-*` package's `kit` field. */
 export interface Plugin {
 	name: string
 	path: string
@@ -10,6 +11,7 @@ export interface Plugin {
 	commands?: string
 }
 
+/** Discovers installed Ajo plugins and resolves their build-time resource paths. */
 export function discover(root = process.cwd()): Plugin[] {
 
 	const modules = join(root, 'node_modules')
