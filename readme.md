@@ -74,4 +74,4 @@ setup, themed component imports, and the complete family catalog.
 `ajo-kit-auth`, and Playa.
 
 It contains routes, auth flows, SQLite migrations, live updates, unit tests,
-integration tests, browser tests, and a production smoke test.
+integration tests, dev-server browser tests, and ajo engine acceptance tests.

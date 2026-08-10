@@ -6,7 +6,7 @@
     "kit": "tsx node_modules/ajo-kit/bin/kit.ts",
     "dev": "pnpm kit dev",
     "build": "pnpm kit build",
-    "start": "pnpm kit start",
+    "artifact": "pnpm kit build --ajoc ajoc",
     "typecheck": "tsc --noEmit",
     "test": "pnpm -w exec vitest run packages/template/tests"
   },

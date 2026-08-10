@@ -99,6 +99,22 @@ test('security headers are applied to HTML, JSON, API and SSE responses', async 
 	secure(sse)
 })
 
+test('sealed engine artifact serves a hashed client asset', async ({ request }, testInfo) => {
+	test.skip(testInfo.project.name !== 'ajo', 'Requires the externally booted engine artifact')
+
+	const html = await request.get('/login', {
+		headers: { Accept: 'text/html' },
+	})
+	const document = await html.text()
+	const path = document.match(/<script[^>]+src="(\/assets\/[^"/]+-[^"/]+\.js)"/)?.[1]
+
+	expect(path).toBeTruthy()
+	const script = await request.get(path!)
+	expect(script.status()).toBe(200)
+	expect(script.headers()['content-type']).toContain('javascript')
+	secure(script.headers())
+})
+
 test('route data uses no-store JSON, ETag, topics, versions and early 304', async ({ request, baseURL: base }) => {
 	const auth = await login(request, base!)
 	expect(auth.redirect).toBe('/dashboard')

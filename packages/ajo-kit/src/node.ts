@@ -1,12 +1,8 @@
+// D19: Node is a dev/build/test host only; production executes on the ajo engine.
 import fs from 'node:fs/promises'
-import * as url from 'node:url'
 import { join } from 'node:path'
 import * as http from 'node:http'
 import * as vite from 'vite'
-import sirv from 'sirv'
-import { close, connect, db } from 'ajo-kit/database'
-import { environment } from './engine-config'
-import * as headers from './headers'
 import { attach, reader, request, type Handler } from './http'
 import { compile } from './template'
 import { descriptor, engine, type Descriptor, type DescriptorInput, type GraphIssue } from './vite'
@@ -41,7 +37,7 @@ const adapt = (req: http.IncomingMessage) => request({
 	read: reader(req),
 })
 
-/** Adapts a host-neutral ajo-kit handler to the Node HTTP transport. */
+/** Adapts a host-neutral ajo-kit handler to the Node dev/test HTTP transport. */
 export const handler = (app: Handler): http.RequestListener => (req, res) => {
 	void app(adapt(req)).then(reply => {
 		res.statusCode = reply.statusCode
@@ -119,40 +115,12 @@ export async function dev(options: Options = {}) {
 	return app
 }
 
-/** Creates the production Node app from dist/client and dist/server. */
-export async function start() {
-	const entry = url.pathToFileURL(join(process.cwd(), 'dist/server/server.js')).href
-	const configured = environment(name => process.env[name], false)
-	const { bootstrap, create } = await import(entry) as typeof import('./server')
-	let connected = false
-	const database = () => {
-		connect(configured.database)
-		connected = true
-		return db()
-	}
-
-	try {
-		await bootstrap(database, configured)
-		const inner = handler(await create(compile(await fs.readFile(join(process.cwd(), 'dist/client/index.html'), 'utf-8'))))
-		const assets = sirv(join(process.cwd(), 'dist/client'), {
-			extensions: [],
-			setHeaders: res => headers.set(res, headers.security(), true),
-		})
-
-		return { handler: (req: http.IncomingMessage, res: http.ServerResponse) => assets(req, res, () => inner(req, res)) }
-	} catch (error) {
-		if (connected) await close()
-		throw error
-	}
-}
-
-/** Options accepted by the production build. */
+/** Options accepted by the engine artifact build. */
 export interface BuildOptions {
-	target?: 'ajo' | 'node'
 	check?: boolean
 }
 
-/** Engine staging information returned by an ajo-target build. */
+/** Engine staging information returned by a build. */
 export interface EngineOutput {
 	descriptor: Descriptor
 	findings: GraphIssue[]
@@ -272,7 +240,8 @@ export async function emitDescriptor(
 	return value
 }
 
-async function ajo(options: BuildOptions): Promise<EngineOutput> {
+/** Builds the client and closed server graph into .ajo and emits its descriptor. */
+export async function build(options: BuildOptions = {}): Promise<EngineOutput> {
 	const root = process.cwd()
 	const staging = join(root, '.ajo')
 	await fs.rm(staging, { force: true, recursive: true })
@@ -323,27 +292,7 @@ async function ajo(options: BuildOptions): Promise<EngineOutput> {
 	}
 }
 
-/** Builds client/server output for Node or a closed .ajo staging graph. */
-export async function build(options: BuildOptions = {}): Promise<EngineOutput | void> {
-	if (options.target === 'ajo') return ajo(options)
-	if (options.target !== undefined && options.target !== 'node') {
-		throw new Error(`Unknown build target: ${options.target}`)
-	}
-
-	await vite.build({ build: { outDir: 'dist/client' } })
-
-	const entry = url.fileURLToPath(import.meta.resolve('ajo-kit/server'))
-
-	await vite.build({
-		build: {
-			outDir: 'dist/server',
-			ssr: entry,
-			rollupOptions: { output: { entryFileNames: 'server.js' } },
-		}
-	})
-}
-
-/** Starts an app, incrementing the port when it is busy unless strict is set. */
+/** Starts a Node dev/test app, incrementing the port unless strict is set. */
 export const listen = (app: any, port = 5173, options: { strict?: boolean } = {}): Promise<number> => new Promise((resolve, reject) => {
 	http.createServer(app.handler)
 		.listen(port, () => {

@@ -11,7 +11,6 @@
     "stories:test:visual": "pnpm --filter ajo-ui-playa stories:test:visual",
     "stories:test:floating": "pnpm --filter ajo-ui-playa stories:test:floating",
     "build": "pnpm --filter ajo-kit-demo build",
-    "start": "pnpm --filter ajo-kit-demo start",
     "typecheck": "tsc --noEmit && pnpm --filter ajo-kit-demo typecheck && pnpm --filter ajo-kit-template typecheck",
     "test": "pnpm test:unit",
     "test:bundle": "pnpm --filter ajo-ui test:bundle",
@@ -23,7 +22,6 @@
     "test:perf:data-table": "node --expose-gc --import tsx packages/ajo-ui/tests/data-table-performance.ts",
     "test:unit": "vitest run && pnpm --filter ajo-kit-demo test && pnpm test:bundle",
     "test:e2e": "pnpm --filter ajo-kit-demo test:e2e",
-    "test:prod": "pnpm --filter ajo-kit-demo test:prod",
     "test:all": "pnpm test:unit && pnpm test:e2e"
   },
   "devDependencies": {

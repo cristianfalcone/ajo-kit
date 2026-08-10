@@ -6,14 +6,12 @@
     "kit": "tsx node_modules/ajo-kit/bin/kit.ts",
     "dev": "pnpm kit dev",
     "build": "pnpm kit build",
-    "start": "pnpm kit start",
     "typecheck": "tsc --noEmit",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test",
-    "test:acceptance": "playwright test -c playwright.acceptance.config.ts",
-    "test:prod": "pnpm build && playwright test -c playwright.production.config.ts"
+    "test:acceptance": "playwright test -c playwright.acceptance.config.ts"
   },
   "dependencies": {
     "ajo": "0.1.35",

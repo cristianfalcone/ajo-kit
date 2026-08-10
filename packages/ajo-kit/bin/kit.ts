@@ -5,7 +5,7 @@ import type { Kysely } from 'kysely'
 import * as url from 'node:url'
 import { spawn } from 'node:child_process'
 import { rm } from 'node:fs/promises'
-import { dev, build, start, listen } from 'ajo-kit/node'
+import { dev, build, listen } from 'ajo-kit/node'
 import { defaults } from 'ajo-kit/vite'
 import { discover } from '../src/discover.ts'
 
@@ -42,16 +42,11 @@ cli.command('dev')
 	})
 
 cli.command('build')
-	.describe('Build for production')
-	.option('-t, --target', 'Build target: node or ajo', 'node')
+	.describe('Build for the ajo engine')
 	.option('--ajoc', 'ajoc executable path')
 	.option('--check', 'Fail on temporary Node builtin findings')
-	.action(async (opts: { target: string; ajoc?: string; check?: boolean }) => {
-		if (opts.target !== 'node' && opts.target !== 'ajo') throw new Error(`Unknown build target: ${opts.target}`)
-		if (opts.ajoc && opts.target !== 'ajo') throw new Error('--ajoc requires --target ajo')
-
-		await build({ target: opts.target, check: opts.check })
-		if (opts.target !== 'ajo') return
+	.action(async (opts: { ajoc?: string; check?: boolean }) => {
+		await build({ check: opts.check })
 
 		if (!opts.ajoc) {
 			console.log('ajoc --input .ajo/ajoc.json --output dist/ajo')
@@ -66,14 +61,6 @@ cli.command('build')
 				? resolve()
 				: reject(new Error(signal ? `ajoc terminated by ${signal}` : `ajoc exited with status ${code}`)))
 		})
-	})
-
-cli.command('start')
-	.describe('Start production server')
-	.option('-p, --port', 'Port number', 5173)
-	.action(async (opts: { port: number }) => {
-		process.env.NODE_ENV ??= 'production'
-		await listen(await start(), opts.port)
 	})
 
 // Migrate commands:

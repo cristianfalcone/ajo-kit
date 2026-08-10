@@ -49,7 +49,7 @@ const secured = (response: RuntimeResponse): RuntimeResponse => ({
 	},
 })
 
-/** Migrates, creates, and binds an ajo-kit application on the ajo runtime. */
+/** Migrates, creates, and binds the sole production runtime: the ajo engine. */
 export async function start(input: StartOptions): Promise<void> {
 	const configured = environment(app.env, input.options.auth)
 	const required = input.options.database || input.migrations.length > 0

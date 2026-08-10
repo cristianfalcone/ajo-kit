@@ -1,7 +1,7 @@
 import type { Kysely } from './database'
 import type { EngineEnvironment } from './engine-config'
 
-/** Application startup hook run after migrations and before request handling. */
+/** Engine startup hook run after migrations and before request handling. */
 export type Bootstrap<Database = any> = (context: {
 	db: Kysely<Database>
 	config: Readonly<EngineEnvironment>
@@ -9,7 +9,7 @@ export type Bootstrap<Database = any> = (context: {
 
 type Root = () => Promise<Record<string, unknown>>
 
-/** Runs the optional bootstrap export from the application root module. */
+/** Runs the optional bootstrap export during ajo engine startup. */
 export async function run(
 	root: Root | undefined,
 	database: () => Kysely<any>,

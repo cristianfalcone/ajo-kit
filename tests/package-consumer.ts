@@ -1107,7 +1107,7 @@ const kitCssProbe = async (directory: string, registry: string) => {
 	// The exact path that shipped unstyled production builds on 2026-07-28: a
 	// consumer of the PUBLISHED ajo-kit resolves /src/client to the compiled
 	// dist/client.js, and the kit plugin's css option must still reach it —
-	// `kit build` has to emit a stylesheet asset and reference it from the
+	// `kit build` has to stage a stylesheet asset and reference it from the
 	// built index.html. The workspace never sees this path (it resolves the
 	// .tsx source), which is how the regression stayed invisible.
 	await writeJson(join(directory, 'package.json'), {
@@ -1189,9 +1189,9 @@ const kitCssProbe = async (directory: string, registry: string) => {
 	await pnpm(['install', '--no-frozen-lockfile'], directory)
 	await pnpm(['exec', 'kit', 'build'], directory)
 
-	const cssFiles = await filesWithExtension(join(directory, 'dist/client'), '.css')
+	const cssFiles = await filesWithExtension(join(directory, '.ajo/client'), '.css')
 	assert(cssFiles.length > 0, 'kit build emitted no stylesheet from the css option')
-	const html = await readFile(join(directory, 'dist/client/index.html'), 'utf8')
+	const html = await readFile(join(directory, '.ajo/client/index.html'), 'utf8')
 	assert.match(html, /<link rel="stylesheet"[^>]*\/assets\/[^"]*\.css/,
 		'built index.html does not reference the stylesheet')
 	const css = (await Promise.all(cssFiles.map(path => readFile(path, 'utf8')))).join('\n')

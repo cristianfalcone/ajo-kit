@@ -1,3 +1,4 @@
+// D19: Dev-time Node shim for Vite, Vitest, and CLI operations; not production.
 import {
 	createHash,
 	createHmac,

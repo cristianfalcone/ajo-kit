@@ -9,9 +9,10 @@ pnpm add ajo ajo-kit
 pnpm add -D vite typescript @types/node
 ```
 
-`ajo-kit` requires `ajo ^0.1.35`, `vite ^8.0.16`, and Node 22.18 or newer.
-TypeScript migrations run through Node's built-in type stripping and use
-erasable TypeScript syntax.
+`ajo-kit` requires `ajo ^0.1.35`, `vite ^8.0.16`, and Node 22.18 or newer as
+its development, build, test, and CLI host. Production applications execute
+only on the ajo engine. TypeScript migrations run through Node's built-in type
+stripping for CLI operations and use erasable TypeScript syntax.
 
 ## Minimal Setup
 
@@ -23,7 +24,7 @@ erasable TypeScript syntax.
   "scripts": {
     "dev": "kit dev",
     "build": "kit build",
-    "start": "kit start"
+    "artifact": "kit build --ajoc ajoc"
   }
 }
 ```
@@ -96,9 +97,7 @@ export default () => (
 
 ```bash
 kit dev [-p 5173]
-kit build
-kit build --target ajo [--check] [--ajoc /path/to/ajoc]
-kit start [-p 5173]
+kit build [--check] [--ajoc /path/to/ajoc]
 
 kit migrate up [-d ./database.sqlite]
 kit migrate down [-d ./database.sqlite]
@@ -114,9 +113,10 @@ Defaults:
 - migrations folder: `db/migrations`
 - seeds folder: `db/seeds`
 
-The `ajo` build target writes the closed server graph, compiled migration
-registry, transformed client, and `ajoc.json` descriptor to `.ajo/`. Without
-`--ajoc` it prints the exact compiler command; `--check` makes temporary
+`kit build` has one target: the ajo engine. It writes the closed server graph,
+compiled migration registry, transformed client, and `ajoc.json` descriptor to
+`.ajo/`. Without `--ajoc` it prints the exact compiler command. With `--ajoc`,
+it seals that staging tree into `dist/ajo`; `--check` makes temporary
 Node-builtin findings fatal while auth and mail engine ports are in progress.
 
 ## Routing
@@ -264,11 +264,9 @@ The Ajo engine loads this named export through the existing root wares registry,
 awaits it after its compiled migrations, then calls `create()` and opens the
 listener. A rejection is fatal and closes the engine database.
 
-The Node production `start()` path awaits the same compiled root export before
-it calls `create()` and before it returns an app to `listen()`. Node migrations
-remain an explicit external step: run `kit migrate up` (or the equivalent)
-before `start()`. The demo differential follows `migrate -> start -> listen`,
-which gives the hook the same after-migration, before-listener position.
+This is an engine-only production hook. `kit migrate` remains available for
+development and operations, while a sealed engine artifact runs its compiled
+migrations before invoking the hook.
 
 ## SSE Topics (Live Updates)
 
@@ -392,7 +390,7 @@ This enables:
 | `ajo-kit/database` or `@kit/database` | SQLite, Kysely, and database lifecycle |
 | `ajo-kit/mail` or `@kit/mail` | Configurable mail transport |
 | `ajo-kit/vite` | Vite plugin, JSX config, and defaults |
-| `ajo-kit/node` | Programmatic development, build, start, and listen runtime |
+| `ajo-kit/node` | Programmatic Node host utilities for development, engine builds, and tests |
 
 ## Core API
 
@@ -511,17 +509,17 @@ export default defineConfig({
 ```
 
 `kit()` configures routes, handlers, aliases, server-only guards, HMR, CSS
-entries, and production SSR. Custom `guard` patterns extend the default client
+entries, and the engine SSR graph. Custom `guard` patterns extend the default client
 graph protection.
 
 `css` entries load before application hydration. `jsx` configures Ajo's
 automatic JSX runtime. The exported `defaults` object contains the database,
 migrations, and seeds paths used by the CLI.
 
-## Node API
+## Node Host API
 
 ```ts
-import { build, compile, dev, listen, start } from 'ajo-kit/node'
+import { build, compile, dev, listen } from 'ajo-kit/node'
 import type { Options } from 'ajo-kit/node'
 
 const options: Options = {
@@ -531,7 +529,9 @@ const options: Options = {
 await dev(options)
 ```
 
-`dev()`, `build()`, and `start()` expose the CLI runtimes programmatically.
-`build({ target: 'ajo' })` returns the staging descriptor and graph findings.
-`compile()` fills `<!-- ssr:name -->` HTML slots. `listen()` starts an
-application server and can require a strict port.
+`dev()` exposes the Vite development shell, and `build()` stages the engine
+artifact inputs while returning the descriptor and graph findings. `compile()`
+fills `<!-- ssr:name -->` HTML slots. `listen()` starts Node-hosted development
+or test applications and can require a strict port. The `default` condition
+faces for `ajo-kit/platform` and `ajo-kit/database` are likewise dev-time Node
+shims for Vite, Vitest, and CLI operations; they are not production runtimes.

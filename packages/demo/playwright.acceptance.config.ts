@@ -9,13 +9,6 @@ export default defineConfig({
 	use: { trace: 'on-first-retry' },
 	projects: [
 		{
-			name: 'node',
-			use: {
-				...devices['Desktop Chrome'],
-				baseURL: 'http://127.0.0.1:5181',
-			},
-		},
-		{
 			name: 'ajo',
 			use: {
 				...devices['Desktop Chrome'],
@@ -23,10 +16,4 @@ export default defineConfig({
 			},
 		},
 	],
-	webServer: {
-		command: 'pnpm exec tsx tests/acceptance-node-server.ts',
-		url: 'http://127.0.0.1:5181/login',
-		reuseExistingServer: false,
-		timeout: 120_000,
-	},
 })

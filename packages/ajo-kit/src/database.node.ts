@@ -1,3 +1,4 @@
+// D19: Dev-time Node shim for Vite, Vitest, and CLI database operations.
 import { createRequire } from 'node:module'
 import { Kysely, SqliteDialect } from 'kysely'
 import type * as BetterSqlite3 from 'better-sqlite3'

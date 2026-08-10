@@ -1,4 +1,5 @@
 node_modules
+.ajo
 dist
 database.sqlite
 database.sqlite-wal

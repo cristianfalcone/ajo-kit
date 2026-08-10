@@ -109,7 +109,7 @@ export async function migrationModules(root = process.cwd()): Promise<readonly M
 	return compile(sources)
 }
 
-/** Builds and validates the compiled migration registry for a Node application. */
+/** Builds and validates the migration registry for Node-hosted dev/ops commands. */
 export async function registry(root = process.cwd()): Promise<MigrationRegistry> {
 	return (await migrationModules(root)).map(({ name, migration }) => ({ name, migration }))
 }

@@ -1,10 +1,7 @@
 import * as html from 'ajo/html'
 import type { Component } from 'ajo'
 import { sha256Hex, utf8ByteLength } from 'ajo-kit/platform'
-import { run as runBootstrap } from './bootstrap'
-import type { Kysely } from './database'
-import type { EngineEnvironment } from './engine-config'
-import { attach, reader, Reply, request, Router, send, type Handler as Kernel } from './http'
+import { Reply, Router, send } from './http'
 /** Serializes a value into a completed host-neutral reply. */
 export { send } from './http'
 import App, { resolve, layouts, pages, error, match, parts, parents, register } from './app'
@@ -261,11 +258,6 @@ export interface Registries {
 	wares: Record<string, Load>
 }
 
-/** Runs the optional bootstrap export from the root wares module. */
-export function bootstrap(database: () => Kysely<any>, config: Readonly<EngineEnvironment>): Promise<void> {
-	return runBootstrap(discoveredWares['/src/wares.ts'], database, config)
-}
-
 type Template = (slots: Record<string, string>) => string
 
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value
@@ -300,33 +292,6 @@ const body: Middleware = async (req, _, next) => {
 	return next()
 }
 
-// Keep the existing direct Node-listener surface for callers that have not
-// gone through ajo-kit/node; the returned function itself is the kernel API.
-const compatible = (app: Kernel) => Object.assign(app, {
-	handler(raw: any, res: any) {
-		const incoming = request({
-			method: raw.method ?? 'GET',
-			target: raw.originalUrl ?? raw.url ?? '/',
-			headers: raw.headers,
-			remoteAddress: raw.socket?.remoteAddress,
-			read: reader(raw),
-		})
-		void app(incoming).then(reply => {
-			res.statusCode = reply.statusCode
-			for (const [key, value] of reply.headers) res.setHeader(key, value)
-			if (!reply.stream) return res.end(reply.body)
-			res.flushHeaders()
-			const closed = new Promise<void>(resolve => { res.once('close', resolve); res.once('finish', resolve) })
-			attach(reply, {
-				send: text => { if (!res.writableEnded) res.write(text) },
-				close: () => { if (!res.writableEnded) res.end() },
-				closed,
-			})
-		}, () => {
-			if (!res.headersSent) { res.statusCode = 500; res.end('Internal Server Error') }
-		})
-	}
-})
 /** Creates the host-neutral SSR handler from an HTML slot template. */
 export async function create(template: Template, registries: Registries = {
 	routes: routes as Registries['routes'],
@@ -659,5 +624,5 @@ export async function create(template: Template, registries: Registries = {
 		app.post(path, body, ...stack, action(segments))
 	}
 
-	return compatible(app.handler)
+	return app.handler
 }
