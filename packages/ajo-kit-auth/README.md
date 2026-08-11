@@ -115,8 +115,11 @@ cookie.write(res, id, remember)
 cookie.clear(res)
 ```
 
-Cookie name is `session`, with `HttpOnly; SameSite=Lax; Path=/` and `Secure`
-in production.
+HTTPS deployments use `__Host-session` with
+`HttpOnly; SameSite=Lax; Path=/; Secure`; the `__Host-` prefix prevents sibling
+subdomains from shadowing the host-only session. Local HTTP development uses
+the unprefixed `session` name because browsers require `Secure` on `__Host-`
+cookies.
 
 ### `csrf`
 

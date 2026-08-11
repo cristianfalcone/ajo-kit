@@ -288,7 +288,11 @@ export const actions = {
 }
 ```
 
-The runtime maintains an SSE stream, revalidates affected routes, and replaces the active route payload when tracked topics change.
+The runtime opens SSE only when the resolved route tracked at least one topic,
+revalidates affected routes, and replaces the active route payload when tracked
+topics change. One process accepts at most 128 live streams and at most 8 per
+session, bearer token, attached user, or anonymous client address; excess
+connections receive `503` or `429` without an SSE upgrade.
 
 ## Route cache and its scope
 

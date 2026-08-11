@@ -21,13 +21,15 @@ afterEach(() => {
 })
 
 describe('ajo-kit-auth cookie', () => {
-	test('writes, reads and clears the session cookie with safe defaults', () => {
+	test('writes, reads and clears the plain session cookie for localhost http', () => {
+		process.env.APP_URL = 'http://localhost:5173'
 		const { headers, res } = response()
 
 		write(res as any, 'session-token', true)
 
 		expect(headers.get('Set-Cookie')).toBe('session=session-token; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000')
-		expect(read({ headers: { cookie: 'theme=dark; session=session-token' } } as any)).toBe('session-token')
+		const cookie = headers.get('Set-Cookie')!.split(';')[0]
+		expect(read({ headers: { cookie: `theme=dark; ${cookie}` } } as any)).toBe('session-token')
 		expect(read({ headers: { cookie: 'not_session=wrong' } } as any)).toBeUndefined()
 		expect(read({ headers: { cookie: 'not_session=wrong; session=real-session' } } as any)).toBe('real-session')
 		expect(read({ headers: { cookie: 'session_id=wrong; xsession=wrong' } } as any)).toBeUndefined()
@@ -38,12 +40,22 @@ describe('ajo-kit-auth cookie', () => {
 		expect(headers.get('Set-Cookie')).toBe('session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0')
 	})
 
-	test('sets Secure on session cookies when the app is served over https', () => {
+	test('uses a host-prefixed session cookie throughout an https round trip', () => {
 		process.env.APP_URL = 'https://app.example.com'
 		const { headers, res } = response()
 
 		write(res as any, 'session-token')
 
-		expect(headers.get('Set-Cookie')).toBe('session=session-token; HttpOnly; SameSite=Lax; Path=/; Secure; Max-Age=2592000')
+		expect(headers.get('Set-Cookie')).toBe('__Host-session=session-token; HttpOnly; SameSite=Lax; Path=/; Secure; Max-Age=2592000')
+		const cookie = headers.get('Set-Cookie')!.split(';')[0]
+		expect(read({ headers: { cookie } } as any)).toBe('session-token')
+		expect(read({ headers: { cookie: 'session=legacy' } } as any)).toBeUndefined()
+		expect(read({ headers: { cookie: `session=junk; ${cookie}` } } as any)).toBe('session-token')
+		expect(read({ headers: { cookie: `session=first; ${cookie}; session=second` } } as any)).toBe('session-token')
+		expect(read({ headers: { cookie: '__Host-session=first; __Host-session=second' } } as any)).toBeUndefined()
+
+		clear(res as any)
+
+		expect(headers.get('Set-Cookie')).toBe('__Host-session=; HttpOnly; SameSite=Lax; Path=/; Secure; Max-Age=0')
 	})
 })

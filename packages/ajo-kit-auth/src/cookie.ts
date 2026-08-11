@@ -1,7 +1,14 @@
 import type { Request, Response } from 'ajo-kit'
 import { env } from 'ajo-kit/platform'
 
-const name = 'session'
+const plain = 'session'
+const host = '__Host-session'
+
+const https = () => env('APP_URL')?.startsWith('https:') ?? false
+
+// Cookie headers omit Domain metadata, so an HTTPS request cannot safely
+// distinguish a legacy host-only cookie from one injected by a subdomain.
+const name = () => https() ? host : plain
 
 /** Secure follows the app's canonical scheme: an https deployment locks its
  * cookies to TLS; an http origin must not set a flag its own scheme rejects. */
@@ -26,15 +33,15 @@ export const parse = (header: string | undefined, key: string) => {
 }
 
 /** Reads the session cookie from a request. */
-export const read = (req: Request) => parse(req.headers.cookie, name)
+export const read = (req: Request) => parse(req.headers.cookie, name())
 
 /** Writes the session cookie to a response. */
 export const write = (res: Response, value: string, remember = false) => {
 	const age = remember ? 31536000 : 2592000
-	res.setHeader('Set-Cookie', `${name}=${value}; ${base()}; Max-Age=${age}`)
+	res.setHeader('Set-Cookie', `${name()}=${value}; ${base()}; Max-Age=${age}`)
 }
 
 /** Clears the session cookie on a response. */
 export const clear = (res: Response) => {
-	res.setHeader('Set-Cookie', `${name}=; ${base()}; Max-Age=0`)
+	res.setHeader('Set-Cookie', `${name()}=; ${base()}; Max-Age=0`)
 }

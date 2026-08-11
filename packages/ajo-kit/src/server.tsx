@@ -4,7 +4,7 @@ import { sha256Hex, utf8ByteLength } from 'ajo-kit/platform'
 import { Reply, Router, send } from './http'
 export { send } from './http'
 import App, { resolve, layouts, pages, error, match, parts, parents, register } from './app'
-import { Failure, links, ancestors, normalize, ajax, api } from './constants'
+import { Failure, links, ancestors, normalize, ajax, api, ip } from './constants'
 import type { State, Data, Entry, Page, Parent, Payload, Request, Middleware, ActionContext, Loader } from './constants'
 import { merge, render as view, type Head } from './head'
 import * as headers from './headers'
@@ -78,6 +78,7 @@ const write = (req: Request, res: Reply, hash?: string, early = false) => {
 type Connection = {
 	req: Request
 	auth: 'anonymous' | 'bearer' | 'session' | 'user'
+	principal: string
 	scope: string
 	topics: Set<string>
 	hash: string
@@ -89,17 +90,45 @@ type Connection = {
 
 const connections = new Set<Connection>()
 
+const principals = new Map<string, number>()
+
 const pending = new Set<string>()
 
 let debounce: ReturnType<typeof setTimeout> | null = null
 
-const limit = 4
+const revalidationLimit = 4
+
+/** Maximum simultaneous live streams held by one server process. */
+const connectionLimit = 128
+
+/** Maximum simultaneous live streams held by one credential or anonymous address. */
+const principalLimit = 8
 
 const mode = (req: Request): Connection['auth'] => {
 	if (req.token) return 'bearer'
 	if (req.session) return 'session'
 	if (req.user) return 'user'
 	return 'anonymous'
+}
+
+const principal = (req: Request) => {
+	if (req.token) return `bearer:${req.token.id}`
+	if (req.session) return `session:${req.session.id}`
+	if (req.user) return `user:${req.user.id}`
+	return `address:${ip(req)}`
+}
+
+const reserve = (conn: Connection) => {
+	connections.add(conn)
+	principals.set(conn.principal, (principals.get(conn.principal) ?? 0) + 1)
+}
+
+const release = (conn: Connection) => {
+	if (!connections.delete(conn)) return
+
+	const count = principals.get(conn.principal) ?? 0
+	if (count <= 1) principals.delete(conn.principal)
+	else principals.set(conn.principal, count - 1)
 }
 
 const matches = (conn: Connection, topics: Set<string>) => {
@@ -148,6 +177,8 @@ const each = async <T,>(items: T[], limit: number, run: (item: T) => Promise<voi
 }
 
 const close = (conn: Connection, reason?: string) => {
+	if (!connections.has(conn)) return
+
 	if (reason) {
 		console.warn('[SSE] Closing live connection:', {
 			reason,
@@ -156,7 +187,6 @@ const close = (conn: Connection, reason?: string) => {
 		})
 	}
 
-	connections.delete(conn)
 	conn.close()
 }
 
@@ -191,6 +221,10 @@ const revalidate = async (conn: Connection) => {
 		conn.req.topics = new Set<string>()
 		const data = await conn.revalidate()
 		conn.topics = conn.req.topics ?? new Set<string>()
+		if (conn.topics.size === 0) {
+			close(conn, 'route is no longer live')
+			return
+		}
 		const [head, ...entries] = data
 		const hash = digest(head, entries)
 
@@ -229,7 +263,7 @@ export function emit(topic: string | string[]) {
 		debounce = null
 
 		const affected = [...connections].filter(conn => matches(conn, current))
-		await each(affected, limit, revalidate)
+		await each(affected, revalidationLimit, revalidate)
 	}, 10)
 }
 
@@ -393,6 +427,24 @@ export async function create(template: Template, registries: Registries = {
 	const sse: Middleware = (req, res, next) => {
 
 		if (req.headers.accept !== 'text/event-stream') return next()
+		if (!req.topics?.size) {
+			res.writeHead(204, base())
+			done(req, res, 204, 0)
+			return res.end()
+		}
+
+		if (connections.size >= connectionLimit) {
+			res.writeHead(503, { ...base(), 'Retry-After': '30' })
+			done(req, res, 503, 0)
+			return res.end()
+		}
+
+		const owner = principal(req)
+		if ((principals.get(owner) ?? 0) >= principalLimit) {
+			res.writeHead(429, { ...base(), 'Retry-After': '30' })
+			done(req, res, 429, 0)
+			return res.end()
+		}
 
 		res.writeHead(200, {
 			'Content-Type': 'text/event-stream',
@@ -410,6 +462,7 @@ export async function create(template: Template, registries: Registries = {
 		const conn: Connection = {
 			req,
 			auth: mode(req),
+			principal: owner,
 			scope: scope(req),
 			topics: req.topics ?? new Set<string>(),
 			hash,
@@ -419,16 +472,22 @@ export async function create(template: Template, registries: Registries = {
 			close: () => {}
 		}
 
-		connections.add(conn)
+		reserve(conn)
 
-		const heartbeat = setInterval(() => stream.send(':hb\n\n'), 30000)
+		const heartbeat = setInterval(() => {
+			try {
+				stream.send(':hb\n\n')
+			} catch {
+				close(conn, 'heartbeat failed')
+			}
+		}, 30000)
 		let closed = false
 
 		const cleanup = () => {
 			if (closed) return
 			closed = true
 			clearInterval(heartbeat)
-			connections.delete(conn)
+			release(conn)
 		}
 
 		conn.close = () => {
@@ -436,7 +495,7 @@ export async function create(template: Template, registries: Registries = {
 			stream.close()
 		}
 
-		void stream.closed.then(cleanup)
+		void stream.closed.then(cleanup, cleanup)
 	}
 
 	const render = async (req: Request, res: Reply, page: Page, error?: Failure) => {
