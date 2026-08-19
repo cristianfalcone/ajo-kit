@@ -91,27 +91,22 @@ class CommandFailure extends Error {
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const require = createRequire(import.meta.url)
 const packageNames = ['ajo-kit', 'ajo-kit-auth', 'ajo-kit-mail', 'ajo-cloves', 'ajo-ui', 'ajo-ui-playa'] as const
-const versions = {
-	'ajo-kit': '0.1.3',
-	'ajo-kit-auth': '0.1.2',
-	'ajo-kit-mail': '0.1.1',
-	'ajo-cloves': '0.1.1',
-	'ajo-ui': '0.1.1',
-	'ajo-ui-playa': '0.1.1',
-} as const
+const versions = Object.fromEntries(packageNames.map(name =>
+	[name, (require(`../packages/${name}/package.json`) as { version: string }).version],
+)) as Record<typeof packageNames[number], string>
 const migrationNames = [
 	'0001_initial',
 	'0002_passkeys',
 ] as const
 const floatingDomVersion = '1.8.0'
 const floatingNames = ['@floating-ui/dom', '@floating-ui/core', '@floating-ui/utils'] as const
-const playaDependencies = { ajo: '0.1.35', 'ajo-ui-playa': '0.1.1' }
+const playaDependencies = { ajo: '0.1.35', 'ajo-ui-playa': versions['ajo-ui-playa'] }
 const validDependencies = {
 	ajo: '0.1.35',
-	'ajo-kit': '0.1.3',
-	'ajo-kit-auth': '0.1.2',
-	'ajo-kit-mail': '0.1.1',
-	'ajo-ui-playa': '0.1.1',
+	'ajo-kit': versions['ajo-kit'],
+	'ajo-kit-auth': versions['ajo-kit-auth'],
+	'ajo-kit-mail': versions['ajo-kit-mail'],
+	'ajo-ui-playa': versions['ajo-ui-playa'],
 }
 const validDevDependencies = { typescript: '6.0.3', unocss: '66.7.2', vite: '8.0.16' }
 const delay = (milliseconds: number) => new Promise(resolveDelay => setTimeout(resolveDelay, milliseconds))
@@ -232,7 +227,9 @@ const startRegistry = async (directory: string, port: number) => {
 	const url = `http://127.0.0.1:${port}`
 
 	try {
-		for (let attempt = 0; attempt < 120; attempt++) {
+		// A cold Verdaccio under load takes tens of seconds to bind on Windows;
+		// this is a readiness window, and a dead child still fails immediately.
+		for (let attempt = 0; attempt < 900; attempt++) {
 			if (child.exitCode !== null) throw new Error(`Verdaccio exited before readiness:\n${logs.slice(-6_000)}`)
 			try {
 				const response = await fetch(`${url}/-/ping`)

@@ -16,6 +16,7 @@
     "test:bundle": "pnpm --filter ajo-ui test:bundle",
     "test:consumer:packages": "tsx tests/package-consumer.ts",
     "build:packages": "tsx scripts/package-build.ts",
+    "repack:sync": "tsx scripts/repack-sync.ts",
     "release:verify": "pnpm typecheck && pnpm test:unit && pnpm test:consumer:packages && pnpm release:artifacts",
     "release:plan": "pnpm --filter ajo-kit --filter ajo-kit-auth --filter ajo-kit-mail --filter ajo-cloves --filter ajo-ui --filter ajo-ui-playa version -r --dry-run",
     "release:artifacts": "pnpm --filter ajo-kit --filter ajo-kit-auth --filter ajo-kit-mail --filter ajo-cloves --filter ajo-ui --filter ajo-ui-playa -r pack --dry-run",
