@@ -80,6 +80,29 @@ export interface Challenges {
 	created: Generated<string>
 }
 
+/** teams table shape. */
+export interface Teams {
+	id: Generated<number>
+	name: string
+	created: Generated<string>
+	updated: string | null
+}
+
+/** teammates table shape linking users to teams with a role. */
+export interface Teammates {
+	team: number
+	user: number
+	role: number
+	created: Generated<string>
+}
+
+/** claims table shape: the subjects a team holds authority over. */
+export interface Claims {
+	team: number
+	subject: string
+	created: Generated<string>
+}
+
 /** Database schema fragment owned by ajo-kit-auth. */
 export interface Auth {
 	users: Users
@@ -90,6 +113,9 @@ export interface Auth {
 	resets: Resets
 	credentials: Credentials
 	challenges: Challenges
+	teams: Teams
+	teammates: Teammates
+	claims: Claims
 }
 
 /** Selected auth user row. */
@@ -100,5 +126,5 @@ export type New = Insertable<Users>
 export type Session = Selectable<Sessions>
 /** Selected auth token row. */
 export type Token = Selectable<Tokens>
-/** Built-in role names used by the demo auth schema. */
-export type Role = 'admin' | 'user'
+/** Selected auth team row. */
+export type Team = Selectable<Teams>

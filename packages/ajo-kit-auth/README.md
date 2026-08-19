@@ -163,6 +163,9 @@ import {
 
 - `auth()` requires an authenticated user.
 - `authorize(req, ...abilities)` checks account and bearer-token abilities.
+- `admit(req, subject, ...abilities)` checks account abilities plus the
+  team-scoped abilities for one subject; bearer tokens must still carry the
+  abilities themselves.
 - `ability(...abilities)` requires account abilities; bearer requests must
   also carry them on the token.
 - `protect('/login')` redirects guests.
@@ -209,7 +212,38 @@ const abilities = await account.abilities(user)
 
 `account.grants(user)` loads assigned role grants. `account.abilities(user)`
 merges them and removes duplicate or redundant wildcard grants. Authorize with
-abilities through `ability()` or `authorize()`.
+abilities through `ability()` or `authorize()`. `account.scoped(user, subject)`
+resolves the abilities a user gains over one subject through team membership;
+global grants stay out on purpose — `admit()` composes both.
+
+### `team`
+
+```ts
+import { admit, team } from '@kit/auth'
+
+const id = await team.create('platform')
+await team.join(id, user, role)
+await team.claim(id, 'app:blog')
+
+await admit(req, 'app:blog', 'apps:operate')
+```
+
+A team is a named group of users; each teammate holds a role from the same
+`roles` catalog global members use. A claim records that the team holds a
+subject — an opaque string your app defines (an app name, a project id, a
+customer). Authority composes one way: global grants always apply everywhere;
+on top, for one subject, a user gains the abilities of every role they hold in
+every team claiming it.
+
+- `create(name)` / `rename(team, name)` / `remove(team)` / `get(team)` /
+  `list()` — lifecycle; `list()` carries member and claim counts.
+- `join(team, user, role)` — one membership per team and user; joining again
+  changes the role. `leave(team, user)` removes it.
+- `members(team)` — users with their role names.
+- `claim(team, subject)` (idempotent) / `release(team, subject)` /
+  `claims(team)` / `holders(subject)`.
+- `of(user)` — the user's teams with role names. `subjects(user)` — every
+  subject reachable through any membership, for scoping list views.
 
 ### `limit`
 
@@ -317,5 +351,5 @@ with the person verified cannot later be used on presence alone.
 ## Types
 
 ```ts
-import type { Ability, Auth, New, Role, Session, Token, User } from '@kit/auth'
+import type { Ability, Auth, New, Session, Team, Token, User } from '@kit/auth'
 ```

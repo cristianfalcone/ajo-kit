@@ -1,6 +1,7 @@
 import type { Middleware, Request, Response } from 'ajo-kit'
 import { Denied, Forbidden, Failure, ajax } from 'ajo-kit'
-import { can } from './ability.client'
+import { can, merge } from './ability.client'
+import { scoped } from './account'
 import { check as confirm, credential } from './confirm'
 import { db } from './store'
 
@@ -57,6 +58,30 @@ export function authorize(req: Request, ...required: string[]) {
 export const ability = (...required: string[]): Middleware => (req, _, next) => {
 	authorize(req, ...required)
 	next()
+}
+
+/**
+ * The subject-scoped sibling of authorize(): passes when the account's
+ * global abilities cover the requirement, or when they do combined with the
+ * abilities the user's teams grant over this one subject. Bearer tokens keep
+ * the same discipline as authorize() — a token is never scoped, so it must
+ * carry the required abilities itself regardless of any team grant.
+ */
+export async function admit(req: Request, subject: string, ...required: string[]) {
+
+	if (!req.user) throw new Denied()
+
+	const account = req.user.abilities ?? []
+	let abilities = account
+
+	if (required.some(ability => !can(account, ability))) {
+		abilities = merge(account, await scoped(req.user.id, subject))
+	}
+
+	const missing = required.find(ability => !can(abilities, ability))
+		?? (req.token ? required.find(ability => !can(req.token!.abilities, ability)) : undefined)
+
+	if (missing) throw new Forbidden(`Missing ability: ${missing}`)
 }
 
 /** Requires recent password confirmation for the current credential. */
