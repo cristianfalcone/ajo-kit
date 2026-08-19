@@ -163,7 +163,10 @@ test('SSE closes without revalidating private data after its session is revoked'
 		await expect(revoke.json()).resolves.toMatchObject({ revoked: true })
 
 		await stream.waitForClose()
-		expect(stream.messages).toHaveLength(0)
+		// The dead credential announces itself before the close — one expired
+		// frame with an empty body — and nothing else may travel: a
+		// revalidated payload would carry data and a hash, which `{}` cannot.
+		expect(stream.messages).toEqual(['{}'])
 	} finally {
 		stream?.close()
 		await root.dispose()
