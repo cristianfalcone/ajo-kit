@@ -97,6 +97,7 @@ const versions = Object.fromEntries(packageNames.map(name =>
 const migrationNames = [
 	'0001_initial',
 	'0002_passkeys',
+	'0003_teams',
 ] as const
 const floatingDomVersion = '1.8.0'
 const floatingNames = ['@floating-ui/dom', '@floating-ui/core', '@floating-ui/utils'] as const
