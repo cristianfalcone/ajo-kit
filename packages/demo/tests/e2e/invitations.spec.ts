@@ -52,7 +52,7 @@ test('invitation link creates a non-admin account and cannot be reused', async (
 	await expect(page.getByRole('heading', { name: 'Welcome back, Accepted Invite User' })).toBeVisible()
 	await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0)
 	expect(await count(fixture, 'users', 'email = ?', email)).toBe(1)
-	expect(await count(fixture, 'invitations', 'email = ? and accepted is not null', email)).toBe(1)
+	expect(await count(fixture, 'invites', 'email = ? and accepted is not null', email)).toBe(1)
 
 	const reuse = await request.post(`/register/${token}?/default`, {
 		headers: proof(base!),
@@ -110,5 +110,5 @@ test('invitation for an existing email fails without consuming the invite', asyn
 			status: 400,
 		},
 	})
-	expect(await count(fixture, 'invitations', 'email = ? and accepted is null and revoked is null', 'emily@example.com')).toBe(1)
+	expect(await count(fixture, 'invites', 'email = ? and accepted is null and revoked is null', 'emily@example.com')).toBe(1)
 })

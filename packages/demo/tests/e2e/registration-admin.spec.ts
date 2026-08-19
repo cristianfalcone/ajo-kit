@@ -26,13 +26,13 @@ test('admin manages registration policy and invitations', async ({ page, browser
 		await page.locator('input[name="name"]').fill('Admin Invited User')
 		await page.getByRole('button', { name: 'Send Invitation' }).click()
 
-		await expect.poll(() => count(fixture, 'invitations', 'email = ?', email)).toBe(1)
+		await expect.poll(() => count(fixture, 'invites', 'email = ?', email)).toBe(1)
 		await expect(page.getByText(email)).toBeVisible()
 
 		const row = page.locator('tr', { hasText: email })
 		await row.getByRole('button', { name: 'Revoke invitation' }).click()
-		await expect.poll(() => count(fixture, 'invitations', 'email = ? and revoked is not null', email)).toBe(1)
-		await expect(row.getByText('Revoked')).toBeVisible()
+		await expect.poll(() => count(fixture, 'invites', 'email = ? and revoked is not null', email)).toBe(1)
+		await expect(row).toHaveCount(0)
 
 		await page.getByRole('button', { name: 'Open' }).click()
 		await expect.poll(() => getSignup(fixture)).toBe('open')

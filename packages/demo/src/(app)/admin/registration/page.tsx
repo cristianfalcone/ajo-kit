@@ -14,19 +14,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'
 import type { Signup } from '/src/data/registration'
 import PageControls, { type PageInfo } from '../pagination'
 
-type Status = 'accepted' | 'expired' | 'pending' | 'revoked'
-
 type Invitation = {
 	id: string
-	email: string
+	email: string | null
 	name: string
 	inviterName: string | null
 	inviterEmail: string | null
 	expiry: string
-	accepted: string | null
-	revoked: string | null
-	created: string
-	status: Status
+	status: 'pending'
 }
 
 type Data = { signup: Signup; invitations: Invitation[]; page: PageInfo }
@@ -35,29 +30,14 @@ type InviteResult = { invited: boolean }
 type RevokeResult = { revoked: boolean }
 
 const statusChip = {
-	accepted: {
-		variant: 'success',
-		class: undefined,
-	},
-	expired: {
-		variant: 'secondary',
-		class: undefined,
-	},
 	pending: {
 		variant: 'warning',
-		class: undefined,
-	},
-	revoked: {
-		variant: 'danger',
 		class: undefined,
 	},
 } as const
 
 const statusText = {
-	accepted: 'Accepted',
-	expired: 'Expired',
 	pending: 'Pending',
-	revoked: 'Revoked',
 } as const
 
 const Registration: Stateful<PageArgs<Data>> = function* (args) {
@@ -164,7 +144,7 @@ const Registration: Stateful<PageArgs<Data>> = function* (args) {
 				<div class="space-y-4">
 					<div class="flex items-center justify-between">
 						<h2 class="text-lg font-semibold text-foreground">
-							Recent Invitations
+							Pending Invitations
 						</h2>
 						<span class="text-sm text-muted-foreground tabular-nums">{invitations.length} shown</span>
 					</div>
@@ -175,7 +155,7 @@ const Registration: Stateful<PageArgs<Data>> = function* (args) {
 									<EmptyMedia variant="icon">
 										<span class="i-lucide-mail size-6" />
 									</EmptyMedia>
-									<EmptyDescription>No invitations created yet</EmptyDescription>
+									<EmptyDescription>No pending invitations</EmptyDescription>
 								</EmptyHeader>
 							</Empty>
 						) : (
@@ -187,7 +167,6 @@ const Registration: Stateful<PageArgs<Data>> = function* (args) {
 											<TableHead>Status</TableHead>
 											<TableHead>Inviter</TableHead>
 											<TableHead>Expiry</TableHead>
-											<TableHead>Created</TableHead>
 											<TableHead class="text-right">Actions</TableHead>
 										</TableRow>
 									</TableHeader>
@@ -198,7 +177,7 @@ const Registration: Stateful<PageArgs<Data>> = function* (args) {
 											return (
 												<TableRow key={row.id}>
 													<TableCell>
-														<div class="font-medium">{row.email}</div>
+														<div class="font-medium">{row.email ?? 'Open invitation'}</div>
 														{row.name && <div class="text-muted-foreground">{row.name}</div>}
 													</TableCell>
 													<TableCell>
@@ -208,24 +187,21 @@ const Registration: Stateful<PageArgs<Data>> = function* (args) {
 													</TableCell>
 													<TableCell>{row.inviterName || row.inviterEmail || 'Unknown'}</TableCell>
 													<TableCell class="text-muted-foreground">{date(row.expiry)}</TableCell>
-													<TableCell class="text-muted-foreground">{date(row.created)}</TableCell>
 													<TableCell class="text-right">
-														{row.status === 'pending' ? (
-															<form set:onsubmit={revoke.submit}>
-																<input type="hidden" name="id" value={row.id} />
-																<Tooltip delayDuration={500}>
-																	<TooltipTrigger
-																		type="submit"
-																		aria-label="Revoke invitation"
-																		disabled={revoke.loading}
-															class={buttonVariants({ variant: 'danger-ghost', size: 'icon-sm' })}
-																	>
-																		<span class="i-lucide-trash-2 size-4" />
-																	</TooltipTrigger>
-																	<TooltipContent>Revoke invitation</TooltipContent>
-																</Tooltip>
-															</form>
-														) : null}
+														<form set:onsubmit={revoke.submit}>
+															<input type="hidden" name="id" value={row.id} />
+															<Tooltip delayDuration={500}>
+																<TooltipTrigger
+																	type="submit"
+																	aria-label="Revoke invitation"
+																	disabled={revoke.loading}
+																	class={buttonVariants({ variant: 'danger-ghost', size: 'icon-sm' })}
+																>
+																	<span class="i-lucide-trash-2 size-4" />
+																</TooltipTrigger>
+																<TooltipContent>Revoke invitation</TooltipContent>
+															</Tooltip>
+														</form>
 													</TableCell>
 												</TableRow>
 											)

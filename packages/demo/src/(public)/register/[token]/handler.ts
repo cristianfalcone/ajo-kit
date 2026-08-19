@@ -3,7 +3,6 @@ import type { ActionContext, Request, Response } from '@kit'
 import { Failure, ip } from '@kit'
 import { object, optional, string, forward, partialCheck, pipe } from '@kit/validate'
 import { db, password, trimmed } from '/src/data'
-import * as registration from '/src/data/registration'
 import { parse } from '@kit/validate'
 
 const Accept = pipe(
@@ -23,13 +22,13 @@ const Accept = pipe(
 )
 
 export async function page(req: Request) {
-	const invite = await registration.get(req.params.token)
+	const invite = await auth.invite.get(req.params.token)
 
 	return {
-		invite: invite && {
+		invite: invite?.email ? {
 			email: invite.email,
 			name: invite.name,
-		},
+		} : null,
 	}
 }
 
@@ -37,9 +36,9 @@ export const actions = {
 
 	default: async (req: Request, res: Response, action: ActionContext) => {
 		const token = req.params.token
-		const invite = await registration.get(token)
+		const invite = await auth.invite.get(token)
 
-		if (!invite) throw new Failure(400, 'Invalid or expired invitation')
+		if (!invite?.email) throw new Failure(400, 'Invalid or expired invitation')
 
 		const input = parse(Accept, req.body)
 		const exists = await db()
@@ -50,9 +49,9 @@ export const actions = {
 
 		if (exists) throw new Failure(400, 'Email already registered')
 
-		const id = await registration.accept(token, {
+		const id = await auth.invite.accept(token, {
 			name: input.name,
-			passwordHash: await auth.password.hash(input.password),
+			password: await auth.password.hash(input.password),
 		})
 
 		if (!id) throw new Failure(400, 'Invalid or expired invitation')

@@ -9,12 +9,6 @@ import { info, paginate, rows as trim } from '/src/data/pagination'
 import * as registration from '/src/data/registration'
 import type { Signup } from '/src/data/registration'
 
-type Row = {
-	accepted: string | null
-	expiry: string
-	revoked: string | null
-}
-
 const Mode = object({ signup: string() })
 const Invite = object({ email, name: optional(trimmed, '') })
 const Revoke = object({ id: string() })
@@ -25,42 +19,27 @@ const signup = (value: string): Signup => {
 	throw new Failure(400, 'Invalid signup mode')
 }
 
-const state = (row: Row) => {
-	if (row.accepted) return 'accepted'
-	if (row.revoked) return 'revoked'
-	if (Date.parse(row.expiry) < Date.now()) return 'expired'
-	return 'pending'
-}
-
 export async function page(req: Request) {
 	req.track?.('admin:registration')
 
 	const pagination = paginate(req, 20, 50)
-	const invitations = await db()
-		.selectFrom('invitations')
-		.leftJoin('users as inviters', 'inviters.id', 'invitations.inviter')
-		.select([
-			'invitations.id',
-			'invitations.email',
-			'invitations.name',
-			'invitations.inviter',
-			'invitations.expiry',
-			'invitations.accepted',
-			'invitations.revoked',
-			'invitations.created',
-			'inviters.name as inviterName',
-			'inviters.email as inviterEmail',
-		])
-		.orderBy('invitations.created', 'desc')
-		.limit(pagination.size + 1)
-		.offset(pagination.offset)
-		.execute()
+	const listed = await auth.invite.list()
+	const invitations = listed.slice(pagination.offset, pagination.offset + pagination.size + 1)
+	const ids = [...new Set(invitations.flatMap(row => row.inviter === null ? [] : [row.inviter]))]
+	const users = ids.length ? await db()
+		.selectFrom('users')
+		.select(['id', 'name', 'email'])
+		.where('id', 'in', ids)
+		.execute() : []
+	const inviters = new Map(users.map(user => [user.id, user]))
 
 	return {
 		signup: await registration.policy(),
 		invitations: trim(pagination, invitations).map(row => ({
 			...row,
-			status: state(row),
+			inviterName: row.inviter === null ? null : inviters.get(row.inviter)?.name ?? null,
+			inviterEmail: row.inviter === null ? null : inviters.get(row.inviter)?.email ?? null,
+			status: 'pending' as const,
 		})),
 		page: info(req, pagination, invitations),
 	}
@@ -93,7 +72,8 @@ export const actions = {
 		auth.limit.hit(inviter)
 		auth.limit.hit(invited, 60 * 60 * 1000)
 
-		const token = await registration.create({
+		const token = await auth.invite.create({
+			role: 'user',
 			email: input.email,
 			name: input.name,
 			inviter: user.id,
@@ -119,7 +99,7 @@ export const actions = {
 		auth.authorize(req, 'admin:write')
 
 		const input = parse(Revoke, req.body)
-		await registration.revoke(input.id)
+		await auth.invite.revoke(input.id)
 		action.emit('admin:registration')
 
 		return { revoked: true }

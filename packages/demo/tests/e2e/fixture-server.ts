@@ -1,7 +1,7 @@
 import * as auth from '@kit/auth'
 import { Failure, type Request, type Response } from '@kit'
 import { configure, type Mail } from '@kit/mail'
-import { env, randomUUID, sha256Hex, timingSafeEqual } from '@kit/platform'
+import { env, randomBase64Url, sha256Hex, timingSafeEqual } from '@kit/platform'
 import { send } from '@kit/server'
 import { bundles } from '/src/abilities'
 import { db } from '/src/data'
@@ -104,7 +104,7 @@ const countInput = (value: unknown): CountQuery => {
 			(where === 'email = ?' || where === 'email = ? and verified is not null')) ||
 		((table === 'sessions' || table === 'tokens' || table === 'resets') &&
 			where === 'user = ?' && typeof valueOf === 'number' && Number.isSafeInteger(valueOf) && valueOf > 0) ||
-		(table === 'invitations' && typeof valueOf === 'string' && [
+		(table === 'invites' && typeof valueOf === 'string' && [
 			'email = ?',
 			'email = ? and accepted is not null',
 			'email = ? and revoked is not null',
@@ -175,7 +175,7 @@ const seed = async () => {
 		await trx.deleteFrom('messages').execute()
 		await trx.deleteFrom('participants').execute()
 		await trx.deleteFrom('chats').execute()
-		await trx.deleteFrom('invitations').execute()
+		await trx.deleteFrom('invites').execute()
 		await trx.deleteFrom('members').execute()
 		await trx.deleteFrom('sessions').execute()
 		await trx.deleteFrom('tokens').execute()
@@ -287,12 +287,14 @@ const putReset = async (input: ResetInput) => {
 }
 
 const putInvitation = async (input: InvitationInput) => {
-	const token = input.token ?? `invite-${randomUUID()}`
+	const token = input.token ?? `ajoinv_${randomBase64Url(32)}`
 	const now = new Date().toISOString()
-	await db().insertInto('invitations').values({
+	await db().insertInto('invites').values({
 		id: sha256Hex(token),
 		email: input.email.trim().toLowerCase(),
 		name: input.name ?? '',
+		role: 'user',
+		team: null,
 		inviter: null,
 		expiry: input.expiry ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
 		accepted: input.accepted ? now : null,
@@ -332,7 +334,7 @@ const count = async (query: CountQuery): Promise<number> => {
 		result = await db().selectFrom('resets').select(db().fn.countAll().as('count'))
 			.where('user', '=', query.value).executeTakeFirstOrThrow()
 	} else {
-		let request = db().selectFrom('invitations').select(db().fn.countAll().as('count'))
+		let request = db().selectFrom('invites').select(db().fn.countAll().as('count'))
 			.where('email', '=', String(query.value))
 		if (query.where.includes('accepted is not null')) request = request.where('accepted', 'is not', null)
 		if (query.where.includes('accepted is null')) request = request.where('accepted', 'is', null)

@@ -11,6 +11,7 @@ Includes:
 - in-memory rate limiting
 - password reset tokens
 - email verification signatures
+- single-use account invitations
 
 ## Install
 
@@ -41,7 +42,7 @@ configure(() => db())
 kit migrate up
 ```
 
-This creates auth tables (`users`, `sessions`, `roles`, `members`, `tokens`, `resets`).
+This creates the auth, passkey, team, and invitation tables.
 
 ### 3. Register auth middlewares
 
@@ -245,6 +246,42 @@ every team claiming it.
 - `of(user)` — the user's teams with role names. `subjects(user)` — every
   subject reachable through any membership, for scoping list views.
 
+### `invite`
+
+```ts
+import { invite } from '@kit/auth'
+
+const token = await invite.create({
+  role: 'member',
+  email: 'person@example.com',
+  name: 'Person',
+  inviter: user,
+})
+
+const pending = await invite.get(token)
+const account = await invite.accept(token, { password: passwordHash })
+await invite.revoke(invitationId)
+const invitations = await invite.list()
+```
+
+`create()` returns a plaintext `ajoinv_` token once; the database stores only
+the SHA-256 hash of the complete token. Invitations expire after seven days by
+default. Supplying an email binds acceptance to its normalized value and
+revokes any previous pending invitation for that email. Without an email, the
+acceptor supplies one and invitations are not deduplicated.
+
+The invitation carries a role name and optional team. Acceptance resolves the
+role from the `roles` catalog and fails closed when it is unknown. A team
+invitation creates a `teammates` row; a global invitation creates a `members`
+row. The optional password is already hashed: accounts accepted with one are
+verified immediately, while accounts accepted without one remain unverified.
+
+A credential-less account can revisit the invitation while completing a
+passkey ceremony. The window closes as soon as the account gains either a
+password or a WebAuthn credential. `list()` returns only unexpired invitations
+that have not been accepted or revoked, using stored ids suitable for
+`revoke()`.
+
 ### `limit`
 
 ```ts
@@ -351,5 +388,5 @@ with the person verified cannot later be used on presence alone.
 ## Types
 
 ```ts
-import type { Ability, Auth, New, Session, Team, Token, User } from '@kit/auth'
+import type { Ability, Auth, Invite, New, Session, Team, Token, User } from '@kit/auth'
 ```

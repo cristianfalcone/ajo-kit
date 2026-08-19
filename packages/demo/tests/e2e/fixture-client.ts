@@ -27,7 +27,7 @@ export type CountQuery =
 	| { table: 'users'; where: 'email = ?' | 'email = ? and verified is not null'; value: string }
 	| { table: 'sessions' | 'tokens' | 'resets'; where: 'user = ?'; value: number }
 	| {
-		table: 'invitations'
+		table: 'invites'
 		where:
 			| 'email = ?'
 			| 'email = ? and accepted is not null'

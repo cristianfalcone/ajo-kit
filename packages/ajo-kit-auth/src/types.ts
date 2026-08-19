@@ -103,6 +103,20 @@ export interface Claims {
 	created: Generated<string>
 }
 
+/** invites table shape for single-use account invitations. */
+export interface Invites {
+	id: string
+	email: string | null
+	name: Generated<string>
+	role: string
+	team: number | null
+	inviter: number | null
+	expiry: string
+	accepted: string | null
+	acceptor: number | null
+	revoked: string | null
+}
+
 /** Database schema fragment owned by ajo-kit-auth. */
 export interface Auth {
 	users: Users
@@ -116,6 +130,7 @@ export interface Auth {
 	teams: Teams
 	teammates: Teammates
 	claims: Claims
+	invites: Invites
 }
 
 /** Selected auth user row. */
@@ -128,3 +143,5 @@ export type Session = Selectable<Sessions>
 export type Token = Selectable<Tokens>
 /** Selected auth team row. */
 export type Team = Selectable<Teams>
+/** Selected auth invitation row. */
+export type Invite = Selectable<Invites>
