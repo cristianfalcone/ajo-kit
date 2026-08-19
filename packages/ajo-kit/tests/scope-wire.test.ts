@@ -13,11 +13,16 @@ import type { Middleware, Reply, Request } from '../src/http'
 // A ware that lets each test choose an identity per request: a session id, a
 // bearer token id, or an explicit scope override — the three seams the
 // derivation reads, plus anonymous when none is present.
+const revoked = new Set<string>()
+
 const identity: Middleware = (req, _res, next) => {
 	const session = req.headers['x-test-session']
 	const token = req.headers['x-test-token']
 	const override = req.headers['x-test-scope']
-	if (typeof session === 'string') req.session = { id: session }
+	// Reset-then-attach, the way the real session ware behaves: revalidation
+	// re-runs this stack on the held request, and a ware that only ever sets
+	// would leave a revoked identity's stale session in place.
+	req.session = typeof session === 'string' && !revoked.has(session) ? { id: session } : undefined
 	if (typeof token === 'string') req.token = { id: token, abilities: [] }
 	if (typeof override === 'string') req.scope = override
 	next()
@@ -203,6 +208,36 @@ describe('where the scope comes from', () => {
 
 		const line = text.split('\n').find(l => l.startsWith('data:'))!
 		expect(JSON.parse(line.slice(5)).scope).toBe(body!.scope)
+	})
+
+	// A dead credential announces itself. When revalidation resolves a
+	// different identity behind an open stream, the server's last frame is
+	// the named `expired` event and then the stream ends — the client acts
+	// on it (its loaders re-run and walk it to login) instead of idling on
+	// stale data behind a session that no longer exists. A reconnect could
+	// never fix that close, which is exactly what the name tells the client.
+	test('a revoked identity hears the expired event before the stream ends', async () => {
+		const response = await fetch(`${origin}/`, {
+			headers: { Accept: 'text/event-stream', 'X-Test-Session': 'mortal-session-id' },
+		})
+		const reader = response.body!.getReader()
+		const { emit } = await import('../src/server')
+
+		const drained = (async () => {
+			const decoder = new TextDecoder()
+			let buffer = ''
+			for (;;) {
+				const { value, done } = await reader.read()
+				if (done) break
+				buffer += decoder.decode(value, { stream: true })
+			}
+			return buffer
+		})()
+
+		setTimeout(() => { revoked.add('mortal-session-id'); revision++; emit('greetings') }, 50)
+		const text = await drained
+
+		expect(text).toContain('event: expired')
 	})
 })
 

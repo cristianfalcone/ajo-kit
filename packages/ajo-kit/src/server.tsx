@@ -85,6 +85,9 @@ type Connection = {
 	verify?: () => Promise<boolean>
 	revalidate: () => Promise<Payload>
 	send: (message: { data: Payload; hash: string; topics: string[]; versions: Versions; scope: string }) => void
+	/** Pushes the named `expired` event so the client knows this close is a
+	 * dead credential, not a network blip — reconnecting cannot help it. */
+	expire: () => void
 	close: () => void
 }
 
@@ -176,15 +179,18 @@ const each = async <T,>(items: T[], limit: number, run: (item: T) => Promise<voi
 	await Promise.all(workers)
 }
 
-const close = (conn: Connection, reason?: string) => {
+const close = (conn: Connection, reason?: string, expired = false) => {
 	if (!connections.has(conn)) return
 
-	if (reason) {
-		console.warn('[SSE] Closing live connection:', {
-			reason,
-			path: conn.req.path,
-			auth: conn.auth,
-		})
+	// One formatted line: the engine console does not serialize objects, and
+	// a reason that prints as [object Object] is a reason lost.
+	if (reason) console.warn(`[SSE] Closing live connection: ${reason} · ${conn.req.path} · ${conn.auth}`)
+
+	// A credential death gets announced before the stream ends: the client
+	// acts on it (re-running its loaders walks it to the login screen)
+	// instead of sitting on stale data behind a dead session.
+	if (expired) {
+		try { conn.expire() } catch { /* the stream is already gone */ }
 	}
 
 	conn.close()
@@ -203,7 +209,7 @@ const revalidate = async (conn: Connection) => {
 		if (!connections.has(conn)) return
 
 		if (conn.verify && !await conn.verify()) {
-			close(conn, 'credential revalidation failed')
+			close(conn, 'credential revalidation failed', true)
 			return
 		}
 
@@ -214,7 +220,7 @@ const revalidate = async (conn: Connection) => {
 		// ends the connection instead of pushing one identity's payload down a
 		// channel another identity now owns.
 		if (scope(conn.req) !== conn.scope) {
-			close(conn, 'identity changed')
+			close(conn, 'identity changed', true)
 			return
 		}
 
@@ -469,6 +475,7 @@ export async function create(template: Template, registries: Registries = {
 			verify: req.verifyLive,
 			revalidate: req.revalidate!,
 			send: (message) => stream.send(`data: ${JSON.stringify(message)}\n\n`),
+			expire: () => stream.send('event: expired\ndata: {}\n\n'),
 			close: () => {}
 		}
 

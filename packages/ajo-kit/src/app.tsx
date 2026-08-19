@@ -340,7 +340,7 @@ type Detail = {
 	topics?: string[]
 }
 
-function stream(update: (message: Message) => void, notify?: (status: Status) => void) {
+function stream(update: (message: Message) => void, notify?: (status: Status) => void, expire?: () => void) {
 
 	let source: EventSource | null = null
 
@@ -365,6 +365,17 @@ function stream(update: (message: Message) => void, notify?: (status: Status) =>
 			const message = JSON.parse(event.data) as Message
 			if (message.data) update(message)
 		}
+
+		// The server names this close a dead credential — reconnecting cannot
+		// help, so the stream ends here and the owner reacts (re-running the
+		// loaders walks an expired session to the login screen) instead of
+		// idling on stale data.
+		source.addEventListener('expired', () => {
+			source?.close()
+			source = null
+			status('closed')
+			expire?.()
+		})
 
 		source.onerror = () => status('connecting')
 	}
@@ -431,7 +442,10 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		if (active.hash && active.scope === scope) set(active.url, active, { scope })
 
 		this.next()
-	}, status => phase = status)
+	// On expiry the loaders re-run for the current URL: the server answers a
+	// dead session with its redirect envelope and refresh() follows it, so
+	// the screen walks itself to login instead of waiting for a click.
+	}, status => phase = status, () => void refresh())
 
 	const go = async (target: Page, options: { scroll?: boolean } = {}) => {
 
