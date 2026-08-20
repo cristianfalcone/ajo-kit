@@ -79,7 +79,7 @@ const storedKey = (value: string): Key => {
  * single-use and expire; `answer` consumes one whether or not the ceremony
  * that follows succeeds.
  */
-export const challenge = async (
+const challenge = async (
 	kind: 'register' | 'authenticate',
 	user?: number,
 	handle?: string,
@@ -259,7 +259,7 @@ export const register = async (user: number, response: Attestation) => {
 	// The challenge was issued for somebody. Registering the credential
 	// against anybody else would let a caller who can name a user id attach
 	// their own authenticator to that account.
-	if (issued.user !== null && issued.user !== user) {
+	if (issued.user !== user) {
 		throw new Malformed('challenge was issued for another account')
 	}
 

@@ -77,6 +77,16 @@ export async function create(input: {
 	const now = stamp()
 
 	await db().transaction().execute(async trx => {
+		if (input.team !== undefined) {
+			const team = await trx
+				.selectFrom('teams')
+				.select('id')
+				.where('id', '=', input.team)
+				.executeTakeFirst()
+
+			if (!team) throw new Error(`Unknown team: ${input.team}`)
+		}
+
 		if (email !== null) {
 			await trx
 				.updateTable('invites')
@@ -113,11 +123,14 @@ export async function get(token: string): Promise<Presentation | null> {
 	return presentable(db(), identity(token))
 }
 
-/** Accepts an invitation atomically, creating or returning its credential-less account. */
+/**
+ * Accepts an invitation atomically. A passwordHash is stored verbatim; an
+ * account is marked verified only for an email-bound invitation with a hash.
+ */
 export async function accept(token: string, input: {
 	email?: string
 	name?: string
-	password?: string
+	passwordHash?: string
 }): Promise<number | null> {
 	const id = identity(token)
 	const now = stamp()
@@ -156,8 +169,8 @@ export async function accept(token: string, input: {
 			.values({
 				email,
 				name: clean(input.name) || view.name,
-				password: input.password ?? null,
-				verified: input.password ? now : null,
+				password: input.passwordHash ?? null,
+				verified: view.email !== null && input.passwordHash ? now : null,
 			})
 			.returning('id')
 			.executeTakeFirstOrThrow()
@@ -179,6 +192,7 @@ export async function accept(token: string, input: {
 			await trx
 				.insertInto('members')
 				.values({ user: created.id, role: role.id })
+				.onConflict(conflict => conflict.doNothing())
 				.execute()
 		}
 

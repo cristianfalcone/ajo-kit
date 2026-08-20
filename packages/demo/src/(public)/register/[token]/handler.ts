@@ -51,7 +51,7 @@ export const actions = {
 
 		const id = await auth.invite.accept(token, {
 			name: input.name,
-			password: await auth.password.hash(input.password),
+			passwordHash: await auth.password.hash(input.password),
 		})
 
 		if (!id) throw new Failure(400, 'Invalid or expired invitation')

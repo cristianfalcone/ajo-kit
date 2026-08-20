@@ -84,7 +84,7 @@ export const actions = {
 			return created.id
 		})
 
-		const link = auth.verify.url(id, base)
+		const link = auth.verify.url(id, input.email, base)
 
 		await send({
 			to: input.email,

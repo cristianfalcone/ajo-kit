@@ -99,6 +99,7 @@ const migrationNames = [
 	'0002_passkeys',
 	'0003_teams',
 	'0004_invites',
+	'0005_integrity',
 ] as const
 const floatingDomVersion = '1.8.0'
 const floatingNames = ['@floating-ui/dom', '@floating-ui/core', '@floating-ui/utils'] as const
@@ -660,6 +661,8 @@ const verifyServerPackages = async (consumer: string) => {
 		"  if (await table('users') !== (applied >= 1)) throw new Error('users table did not match migration state')",
 		"  if (await table('credentials') !== (applied >= 2)) throw new Error('credentials table did not match migration state')",
 		"  if (await table('invites') !== (applied >= 4)) throw new Error('invites table did not match migration state')",
+		"  const index = async name => Boolean(await db().selectFrom('sqlite_master').select('name').where('type', '=', 'index').where('name', '=', name).executeTakeFirst())",
+		"  if (await index('idx_members_user_role') !== (applied >= 5)) throw new Error('member integrity index did not match migration state')",
 		"} finally { await close() }",
 		'',
 	].join('\n'))

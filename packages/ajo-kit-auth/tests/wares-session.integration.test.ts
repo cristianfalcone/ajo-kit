@@ -48,6 +48,13 @@ describe('ajo-kit-auth session middleware integration', () => {
 		expect(req.user.id).toBe(user.id)
 		expect(req.session.id).toBe(sessionHash(plain))
 
+		const role = await db<any>()
+			.insertInto('roles')
+			.values({ name: 'token-reader', abilities: '["tokens:read"]' })
+			.returning('id')
+			.executeTakeFirstOrThrow()
+		await db<any>().insertInto('members').values({ user: user.id, role: role.id }).execute()
+
 		const secret = await tokenCreate(user.id, 'Unit API', ['tokens:read'])
 		const id = createHash('sha256').update(secret).digest('hex')
 		const api = {

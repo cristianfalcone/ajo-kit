@@ -1,8 +1,7 @@
 import * as auth from '@kit/auth'
 import type { ActionContext, Request, Response } from '@kit'
-import { sha256Hex } from '@kit/platform'
 import { object, string, pipe, forward, partialCheck } from '@kit/validate'
-import { db, password } from '/src/data'
+import { password } from '/src/data'
 import { parse } from '@kit/validate'
 import { Failure } from '@kit'
 
@@ -33,30 +32,14 @@ export const actions = {
 
 		const token = req.params.token
 		const input = parse(Reset, req.body)
-		const reset = sha256Hex(token)
-		const now = new Date().toISOString()
-		let user!: number
 
-		await db().transaction().execute(async trx => {
-			const consumed = await trx
-				.deleteFrom('resets')
-				.where('id', '=', reset)
-				.where('expiry', '>=', now)
-				.returning('user')
-				.executeTakeFirst()
+		if (!await auth.reset.validate(token)) throw new Failure(400, 'Invalid or expired reset link')
 
-			if (!consumed) throw new Failure(400, 'Invalid or expired reset link')
+		const hashed = await auth.password.hash(input.password)
+		const user = await auth.reset.consume(token, hashed)
 
-			user = consumed.user
+		if (user === null) throw new Failure(400, 'Invalid or expired reset link')
 
-			const hashed = await auth.password.hash(input.password)
-			await trx.updateTable('users').set({ password: hashed, updated: now }).where('id', '=', user).execute()
-			await trx.deleteFrom('sessions').where('user', '=', user).execute()
-			await trx.deleteFrom('tokens').where('user', '=', user).execute()
-			await trx.deleteFrom('resets').where('user', '=', user).execute()
-		})
-
-		auth.confirm.clearUser(user)
 		action.emit([
 			`profile:${user}`,
 			`sessions:${user}`,

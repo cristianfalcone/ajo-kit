@@ -1,4 +1,4 @@
-// Teams and tenancy. A team is a named group of users; each teammate holds a
+// Teams are subject-scoped authorization groups. Each teammate holds a
 // role from the same roles catalog global members use. A claim records that a
 // team holds a subject — an opaque string the consuming app defines (an app
 // name, a project id). Authority composes one way: global grants always apply
@@ -28,9 +28,18 @@ export async function rename(team: number, name: string): Promise<void> {
 		.execute()
 }
 
-/** Deletes a team; its memberships and claims cascade away. */
+/** Deletes a team, revoking pending invitations before its rows cascade away. */
 export async function remove(team: number): Promise<void> {
-	await db().deleteFrom('teams').where('id', '=', team).execute()
+	await db().transaction().execute(async trx => {
+		await trx
+			.updateTable('invites')
+			.set({ revoked: new Date().toISOString() })
+			.where('team', '=', team)
+			.where('accepted', 'is', null)
+			.where('revoked', 'is', null)
+			.execute()
+		await trx.deleteFrom('teams').where('id', '=', team).execute()
+	})
 }
 
 /** One team row, or undefined. */
@@ -113,6 +122,8 @@ export async function members(team: number): Promise<{ user: number; name: strin
 
 /** Records that the team holds a subject; claiming again is a no-op. */
 export async function claim(team: number, subject: string): Promise<void> {
+	if (!subject.trim()) throw new Error('Team subject is required')
+
 	await db()
 		.insertInto('claims')
 		.values({ team, subject })

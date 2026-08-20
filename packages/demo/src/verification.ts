@@ -26,7 +26,7 @@ export async function resend(req: Request): Promise<VerificationResult> {
 	if (user.verified) throw new Failure(400, 'Email already verified')
 
 	const base = origin(req)
-	const link = auth.verify.url(user.id, base)
+	const link = auth.verify.url(user.id, user.email, base)
 
 	await mail({
 		to: user.email,

@@ -1,5 +1,6 @@
 import { generate, hash } from './session'
 import { db } from './store'
+import { clearUser } from './confirm'
 
 const hours = 1
 
@@ -17,7 +18,7 @@ export async function create(user: number): Promise<string> {
 	return plain
 }
 
-/** Resolves a plaintext reset token to its user id when active. */
+/** Previews whether a reset token is active; only consume() is a mutation boundary. */
 export async function validate(plain: string): Promise<number | null> {
 
 	const id = hash(plain)
@@ -30,6 +31,37 @@ export async function validate(plain: string): Promise<number | null> {
 	if (!reset || new Date(reset.expiry) < new Date()) return null
 
 	return reset.user
+}
+
+/** Atomically consumes a reset, changes the password, and revokes credentials. */
+export async function consume(plain: string, passwordHash: string): Promise<number | null> {
+	const id = hash(plain)
+	const now = new Date().toISOString()
+	const user = await db().transaction().execute(async trx => {
+		const reset = await trx
+			.deleteFrom('resets')
+			.where('id', '=', id)
+			.where('expiry', '>=', now)
+			.returning('user')
+			.executeTakeFirst()
+
+		if (!reset) return null
+
+		await trx
+			.updateTable('users')
+			.set({ password: passwordHash, updated: now })
+			.where('id', '=', reset.user)
+			.execute()
+		await trx.deleteFrom('sessions').where('user', '=', reset.user).execute()
+		await trx.deleteFrom('tokens').where('user', '=', reset.user).execute()
+		await trx.deleteFrom('resets').where('user', '=', reset.user).execute()
+
+		return reset.user
+	})
+
+	if (user !== null) clearUser(user)
+
+	return user
 }
 
 /** Deletes expired password reset tokens. */

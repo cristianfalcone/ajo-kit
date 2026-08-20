@@ -66,7 +66,11 @@ export function hash(plain: string): string {
 	return sha256Hex(plain)
 }
 
-/** Creates a cookie session and returns its plaintext credential. */
+/**
+ * Creates a cookie session and returns its plaintext credential. Remembering
+ * extends only the absolute lifetime from 30 to 365 days; every session keeps
+ * the same 30-minute idle timeout.
+ */
 export const create = async (
 	user: number,
 	remember = false,

@@ -365,8 +365,14 @@ const dispatch = async (input: FixtureOperation) => {
 			return { signup: await getRegistration() }
 		case 'count':
 			return { count: await count(input.query) }
-		case 'verificationPath':
-			return { path: `/verify/${auth.verify.sign(input.user)}` }
+		case 'verificationPath': {
+			const user = await db()
+				.selectFrom('users')
+				.select('email')
+				.where('id', '=', input.user)
+				.executeTakeFirstOrThrow()
+			return { path: `/verify/${auth.verify.sign(input.user, user.email)}` }
+		}
 		case 'mailClear': {
 			const cleared = mail.length
 			mail.length = 0

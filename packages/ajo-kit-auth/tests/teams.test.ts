@@ -1,20 +1,17 @@
-// Teams and tenancy: the fold of teams, teammates and claims, the scoped
+// Subject-scoped teams: the fold of teams, teammates and claims, the scoped
 // ability resolution, and the admit() guard that composes global and
-// team-scoped authority for one subject. The suite runs the real 0003
-// migration so the constraints under test are the shipped ones.
+// team-scoped authority for one subject. The suite runs the real migrations
+// so the constraints under test are the shipped ones.
 
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { db, sql } from 'ajo-kit/database'
-import { down, up } from '../migrations/0003_teams'
+import { down } from '../migrations/0003_teams'
 import { scoped } from '../src/account'
 import { admit } from '../src/guard'
 import * as team from '../src/team'
 import { setup, teardown } from './database.fixture'
 
-beforeEach(async () => {
-	await setup()
-	await up(db<any>())
-})
+beforeEach(setup)
 
 afterEach(teardown)
 
@@ -100,6 +97,13 @@ describe('team lifecycle', () => {
 			{ team: bravo, name: 'bravo', role: 'viewer' },
 		])
 		expect(await team.subjects(1)).toEqual(['app:blog'])
+	})
+
+	test('claim rejects an empty subject', async () => {
+		const alpha = await team.create('alpha')
+
+		await expect(team.claim(alpha, ' \t ')).rejects.toThrow('Team subject is required')
+		expect(await team.claims(alpha)).toEqual([])
 	})
 })
 

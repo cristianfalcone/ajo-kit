@@ -61,7 +61,7 @@ const Login: Stateful<PageArgs<Data>> = function* () {
 
 					<Field orientation="horizontal">
 						<Checkbox id="remember" name="remember" value="true" disabled={form.loading} />
-						<FieldLabel for="remember">Remember me</FieldLabel>
+						<FieldLabel for="remember">Keep me signed in longer</FieldLabel>
 					</Field>
 
 					{form.error && (

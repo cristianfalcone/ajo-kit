@@ -99,9 +99,10 @@ await session.prune()
 `create()` returns the plaintext cookie value. The database stores only a
 SHA-256 hash of that value in `sessions.id`.
 
-Session lifetime is 30 days by default or 365 days with `remember = true`.
-`validate()` enforces a 30-minute idle timeout, removes expired sessions, and
-updates `last` at most once every 5 minutes.
+Session absolute lifetime is 30 days by default or 365 days with
+`remember = true`. Remembering changes only that absolute limit: `validate()`
+enforces the same 30-minute idle timeout for every session, removes expired
+sessions, and updates `last` at most once every 5 minutes.
 
 Pass `activity = false` for background checks such as SSE freshness. `prune()`
 removes expired rows.
@@ -150,6 +151,7 @@ import { wares } from '@kit/auth'
 ```ts
 import {
   ability,
+  admit,
   auth,
   authorize,
   confirmed,
@@ -163,8 +165,10 @@ import {
 ```
 
 - `auth()` requires an authenticated user.
-- `authorize(req, ...abilities)` checks account and bearer-token abilities.
-- `admit(req, subject, ...abilities)` checks account abilities plus the
+- `authorize(req, ...abilities)` is global-only: it checks global account and
+  bearer-token abilities and never consults team claims.
+- `admit(req, subject, ...abilities)` is the subject-scoped check: it checks
+  global account abilities plus the
   team-scoped abilities for one subject; bearer tokens must still carry the
   abilities themselves.
 - `ability(...abilities)` requires account abilities; bearer requests must
@@ -193,8 +197,9 @@ await token.prune()
 ```
 
 Abilities support `*`, exact matches, and resource wildcards like `posts:*`.
-`token.create()` requires explicit abilities; app routes should bound requested
-abilities by the authenticated account and bearer token before creating one.
+`token.create()` reloads the creator's current merged global account abilities
+and refuses the first requested ability they do not cover. A route delegating
+from a bearer token must additionally attenuate the request to that token.
 
 Browser code imports ability helpers from the client-safe subpath:
 
@@ -229,12 +234,14 @@ await team.claim(id, 'app:blog')
 await admit(req, 'app:blog', 'apps:operate')
 ```
 
-A team is a named group of users; each teammate holds a role from the same
-`roles` catalog global members use. A claim records that the team holds a
-subject — an opaque string your app defines (an app name, a project id, a
-customer). Authority composes one way: global grants always apply everywhere;
-on top, for one subject, a user gains the abilities of every role they hold in
-every team claiming it.
+Teams are subject-scoped authorization groups, not tenants or organizations.
+They have no active request context, settings, resource ownership, or data
+isolation; applications own resource isolation and query scoping. Each
+teammate holds a role from the same `roles` catalog global members use. A claim
+records that the team holds a subject — an opaque string your app defines (an
+app name, a project id, a customer). Authority composes one way: global grants
+always apply everywhere; on top, for one subject, a user gains the abilities
+of every role they hold in every team claiming it.
 
 - `create(name)` / `rename(team, name)` / `remove(team)` / `get(team)` /
   `list()` — lifecycle; `list()` carries member and claim counts.
@@ -259,7 +266,7 @@ const token = await invite.create({
 })
 
 const pending = await invite.get(token)
-const account = await invite.accept(token, { password: passwordHash })
+const account = await invite.accept(token, { passwordHash })
 await invite.revoke(invitationId)
 const invitations = await invite.list()
 ```
@@ -270,11 +277,13 @@ default. Supplying an email binds acceptance to its normalized value and
 revokes any previous pending invitation for that email. Without an email, the
 acceptor supplies one and invitations are not deduplicated.
 
-The invitation carries a role name and optional team. Acceptance resolves the
-role from the `roles` catalog and fails closed when it is unknown. A team
-invitation creates a `teammates` row; a global invitation creates a `members`
-row. The optional password is already hashed: accounts accepted with one are
-verified immediately, while accounts accepted without one remain unverified.
+The invitation carries a role name and optional team. Creation fails closed
+when that team does not exist. Acceptance resolves the role from the `roles`
+catalog and fails closed when it is unknown. A team invitation creates a
+`teammates` row; a global invitation creates a `members` row. `passwordHash`
+is stored verbatim. An account is marked verified only when the invitation was
+email-bound and a password hash was supplied; caller-supplied acceptance emails
+and credential-less accounts remain unverified.
 
 A credential-less account can revisit the invitation while completing a
 passkey ceremony. The window closes as soon as the account gains either a
@@ -318,23 +327,28 @@ bearer token credential.
 import { reset } from '@kit/auth'
 
 const plain = await reset.create(user)
-const user = await reset.validate(plain)
+const preview = await reset.validate(plain)
+const user = await reset.consume(plain, passwordHash)
 await reset.prune()
 ```
 
-Reset tokens are SHA-256 hashed in DB and expire in 1 hour.
+Reset tokens are SHA-256 hashed in DB and expire in 1 hour. `validate()` is a
+read-only preview for a GET page; `consume()` is the atomic password-change
+boundary and revokes the user's sessions, API tokens, and other reset tokens.
 
 ### `verify`
 
 ```ts
 import { verify } from '@kit/auth'
 
-const link = verify.url(user, 'https://example.com')
-const verifiedUser = verify.validate(signature)
+const link = verify.url(user, email, 'https://example.com')
+const verifiedUser = await verify.validate(signature)
 ```
 
-HMAC-SHA256 signed token, default expiry 24 hours. Production requires a strong
-`APP_SECRET`.
+HMAC-SHA256 signed token bound to the normalized current email, default expiry
+24 hours. A matching already verified account succeeds without another write.
+The link remains replayable until expiry, but can only affirm the exact address
+it was minted for. Production requires a strong `APP_SECRET`.
 
 ### `passkey`
 

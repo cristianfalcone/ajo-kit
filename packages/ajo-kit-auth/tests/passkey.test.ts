@@ -15,6 +15,9 @@ import * as passkey from '../src/passkey'
 import { configure } from '../src/store'
 import { up } from '../migrations/0002_passkeys'
 import { up as initial } from '../migrations/0001_initial'
+import { up as teams } from '../migrations/0003_teams'
+import { up as invites } from '../migrations/0004_invites'
+import { up as integrity } from '../migrations/0005_integrity'
 import { ES256, EdDSA, RS256 } from '../src/webauthn'
 
 const rpId = 'localhost'
@@ -178,6 +181,9 @@ beforeEach(async () => {
 
 	await initial(db<any>())
 	await up(db<any>())
+	await teams(db<any>())
+	await invites(db<any>())
+	await integrity(db<any>())
 	await db<any>().insertInto('users').values({ id: 1, email: 'owner@example.test' }).execute()
 	await db<any>().insertInto('users').values({ id: 2, email: 'other@example.test' }).execute()
 
@@ -201,6 +207,11 @@ const enroll = async (signer: Signer, user = 1) => {
 	return passkey.register(user, attestation(signer, options.challenge))
 }
 
+const registrationChallenge = async (user: number) =>
+	(await passkey.registration({ id: user, name: `user-${user}@example.test` })).challenge
+
+const authenticationChallenge = async () => (await passkey.authentication()).challenge
+
 describe('the registration ceremony', () => {
 	test('an ES256 credential registers and then authenticates', async () => {
 		const signer = p256()
@@ -208,7 +219,7 @@ describe('the registration ceremony', () => {
 
 		expect(id).toBe(url(signer.id))
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(signer, challenge))).resolves.toBe(1)
 	})
 
@@ -216,7 +227,7 @@ describe('the registration ceremony', () => {
 		const signer = ed25519()
 		await enroll(signer)
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(signer, challenge))).resolves.toBe(1)
 	})
 
@@ -224,7 +235,7 @@ describe('the registration ceremony', () => {
 		const signer = rs256()
 		await enroll(signer)
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(signer, challenge))).resolves.toBe(1)
 	})
 
@@ -244,7 +255,7 @@ describe('the registration ceremony', () => {
 
 	test('registration refuses a ceremony for another relying party', async () => {
 		const signer = p256()
-		const challenge = await passkey.challenge('register', 1)
+		const challenge = await registrationChallenge(1)
 
 		await expect(passkey.register(1, attestation(signer, challenge, { rp: 'evil.test' })))
 			.rejects.toThrow(/another relying party/)
@@ -252,7 +263,7 @@ describe('the registration ceremony', () => {
 
 	test('registration refuses a ceremony nobody was present for', async () => {
 		const signer = p256()
-		const challenge = await passkey.challenge('register', 1)
+		const challenge = await registrationChallenge(1)
 
 		await expect(passkey.register(1, attestation(signer, challenge, { flags: flags.attested })))
 			.rejects.toThrow(/not present/)
@@ -264,7 +275,7 @@ describe('the registration ceremony', () => {
 		const signer = p256()
 		await enroll(signer)
 
-		const challenge = await passkey.challenge('register', 2)
+		const challenge = await registrationChallenge(2)
 		await expect(passkey.register(2, attestation(signer, challenge)))
 			.rejects.toThrow(/already registered/)
 	})
@@ -278,7 +289,7 @@ describe('the registration ceremony', () => {
 
 		await passkey.register(1, attestation(signer, options.challenge))
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(signer, challenge, { handle: options.user.id })))
 			.resolves.toBe(1)
 	})
@@ -288,7 +299,7 @@ describe('the registration ceremony', () => {
 	// another account.
 	test('a challenge issued for one account cannot register a credential on another', async () => {
 		const signer = p256()
-		const challenge = await passkey.challenge('register', 2)
+		const challenge = await registrationChallenge(2)
 
 		await expect(passkey.register(1, attestation(signer, challenge)))
 			.rejects.toThrow(/issued for another account/)
@@ -346,7 +357,7 @@ describe('the authentication ceremony', () => {
 		const signer = p256()
 		await enroll(signer)
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		const response = assertion(signer, challenge)
 		// The same ceremony with one field rewritten after signing: every
 		// other check still passes, so only the signature can catch it.
@@ -366,7 +377,7 @@ describe('the authentication ceremony', () => {
 		await enroll(signer)
 
 		const impostor = p256()
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		// The impostor signs a well-formed ceremony — with the wrong key, and
 		// wearing the real credential's id and handle, so every check but the
 		// signature passes.
@@ -382,7 +393,7 @@ describe('the authentication ceremony', () => {
 		const signer = p256()
 		await enroll(signer)
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(signer, challenge, { from: 'http://localhost:9999' })))
 			.rejects.toThrow(/unexpected origin/)
 	})
@@ -391,7 +402,7 @@ describe('the authentication ceremony', () => {
 		const signer = p256()
 		await enroll(signer)
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(signer, challenge, { rp: 'evil.test' })))
 			.rejects.toThrow(/another relying party/)
 	})
@@ -400,23 +411,27 @@ describe('the authentication ceremony', () => {
 		const signer = p256()
 		await enroll(signer)
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(signer, challenge, { handle: 'somebody-else' })))
 			.rejects.toThrow(/does not belong/)
 	})
 
 	test('an unknown credential is refused', async () => {
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(p256(), challenge))).rejects.toThrow(/unknown/)
 	})
 })
 
 describe('challenges', () => {
+	test('the low-level challenge issuer is not public', () => {
+		expect('challenge' in passkey).toBe(false)
+	})
+
 	test('a challenge answers exactly once', async () => {
 		const signer = p256()
 		await enroll(signer)
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		const response = assertion(signer, challenge)
 
 		await expect(passkey.authenticate(response)).resolves.toBe(1)
@@ -426,7 +441,7 @@ describe('challenges', () => {
 
 	test('a challenge issued for one ceremony cannot answer the other', async () => {
 		const signer = p256()
-		const challenge = await passkey.challenge('register', 1)
+		const challenge = await registrationChallenge(1)
 
 		await expect(passkey.authenticate(assertion(signer, challenge)))
 			.rejects.toThrow(/unknown, expired or already used/)
@@ -447,7 +462,7 @@ describe('challenges', () => {
 		const signer = p256()
 		await enroll(signer)
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		const response = assertion(signer, challenge)
 
 		await db<any>().updateTable('challenges')
@@ -461,12 +476,12 @@ describe('challenges', () => {
 		const signer = p256()
 		await enroll(signer)
 
-		const stale = await passkey.challenge('authenticate')
+		const stale = await authenticationChallenge()
 		await db<any>().updateTable('challenges')
 			.set({ expiry: new Date(Date.now() - 60_000).toISOString() })
 			.execute()
 
-		const live = await passkey.challenge('authenticate')
+		const live = await authenticationChallenge()
 		await passkey.prune()
 
 		expect(await db<any>().selectFrom('challenges').selectAll().execute()).toHaveLength(1)
@@ -551,7 +566,7 @@ describe('what a credential may not become', () => {
 			...attestation(signer, options.challenge, { flags: flags.present | flags.verified | flags.attested }),
 		})
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(signer, challenge, {
 			flags: flags.present | flags.verified | flags.eligible | flags.backed,
 		}))).rejects.toThrow(/backup eligibility/)
@@ -561,7 +576,7 @@ describe('what a credential may not become', () => {
 		const signer = p256()
 		await enroll(signer)
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(signer, challenge, {
 			flags: flags.present | flags.eligible | flags.backed,
 		}))).rejects.toThrow(/user verification/)
@@ -589,7 +604,7 @@ describe('what the ceremonies record', () => {
 		const signer = p256()
 		await enroll(signer)
 
-		const challenge = await passkey.challenge('authenticate')
+		const challenge = await authenticationChallenge()
 		await passkey.authenticate(assertion(signer, challenge, { counter: 42 }))
 
 		const [row] = await passkey.list(1)
@@ -603,10 +618,10 @@ describe('what the ceremonies record', () => {
 		const signer = p256()
 		await enroll(signer)
 
-		const first = await passkey.challenge('authenticate')
+		const first = await authenticationChallenge()
 		await passkey.authenticate(assertion(signer, first, { counter: 10 }))
 
-		const second = await passkey.challenge('authenticate')
+		const second = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(signer, second, { counter: 1 }))).resolves.toBe(1)
 	})
 

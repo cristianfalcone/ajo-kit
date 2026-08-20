@@ -42,7 +42,7 @@ export const protect = (to = '/login') => when(req => !req.user, redirect(to))
 /** Redirects authenticated users away from guest-only routes. */
 export const guest = (to = '/dashboard') => when(req => !!req.user, redirect(to))
 
-/** Throws when the current account or bearer token lacks required abilities. */
+/** Checks global account abilities only, attenuated by any bearer token. */
 export function authorize(req: Request, ...required: string[]) {
 
 	if (!req.user) throw new Denied()
@@ -61,7 +61,8 @@ export const ability = (...required: string[]): Middleware => (req, _, next) => 
 }
 
 /**
- * The subject-scoped sibling of authorize(): passes when the account's
+ * Checks subject-scoped authority. Unlike global-only authorize(), it passes
+ * when the account's
  * global abilities cover the requirement, or when they do combined with the
  * abilities the user's teams grant over this one subject. Bearer tokens keep
  * the same discipline as authorize() — a token is never scoped, so it must

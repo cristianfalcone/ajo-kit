@@ -148,12 +148,12 @@ describe('registration database helpers', () => {
 
 		const id = await invite.accept(token, {
 			name: 'Accepted Name',
-			password: 'hashed-password',
+			passwordHash: 'hashed-password',
 		})
 
 		expect(id).toEqual(expect.any(Number))
 		expect(await invite.get(token)).toBeNull()
-		expect(await invite.accept(token, { password: 'other-hash' })).toBeNull()
+		expect(await invite.accept(token, { passwordHash: 'other-hash' })).toBeNull()
 
 		const user = await db<any>()
 			.selectFrom('users')
@@ -190,7 +190,7 @@ describe('registration database helpers', () => {
 	test('accept leaves an invitation pending when the email already exists', async () => {
 		const token = await invite.create({ role: 'user', email: 'admin@example.com' })
 
-		expect(await invite.accept(token, { password: 'hashed-password' })).toBeNull()
+		expect(await invite.accept(token, { passwordHash: 'hashed-password' })).toBeNull()
 		expect(await invite.get(token)).toEqual({
 			role: 'user',
 			name: '',

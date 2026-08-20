@@ -5,15 +5,17 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { close, connect, db } from 'ajo-kit/database'
+import { close, connect, db, sql } from 'ajo-kit/database'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { up as initial } from '../migrations/0001_initial'
 import { up as passkeys } from '../migrations/0002_passkeys'
 import { up as teams } from '../migrations/0003_teams'
 import { up as invites } from '../migrations/0004_invites'
+import { up as integrity } from '../migrations/0005_integrity'
 import * as invite from '../src/invite'
 import { hash } from '../src/session'
 import { configure } from '../src/store'
+import * as team from '../src/team'
 
 const now = '2026-06-26T00:00:00.000Z'
 let directory: string
@@ -29,6 +31,7 @@ beforeEach(async () => {
 	await passkeys(db<any>())
 	await teams(db<any>())
 	await invites(db<any>())
+	await integrity(db<any>())
 	await db<any>().insertInto('roles').values([
 		{ id: 1, name: 'owner', abilities: '["*"]' },
 		{ id: 2, name: 'member', abilities: '[]' },
@@ -133,9 +136,9 @@ describe('invite presentation', () => {
 		await invite.revoke(hash(revoked))
 
 		expect(await invite.get(expired)).toBeNull()
-		expect(await invite.accept(expired, { password: 'expired-hash' })).toBeNull()
+		expect(await invite.accept(expired, { passwordHash: 'expired-hash' })).toBeNull()
 		expect(await invite.get(revoked)).toBeNull()
-		expect(await invite.accept(revoked, { password: 'revoked-hash' })).toBeNull()
+		expect(await invite.accept(revoked, { passwordHash: 'revoked-hash' })).toBeNull()
 		expect(await invite.list()).toEqual([])
 		expect(await db<any>().selectFrom('invites').select(['id', 'revoked']).orderBy('id').execute()).toEqual([
 			{ id: hash(expired), revoked: null },
@@ -145,18 +148,18 @@ describe('invite presentation', () => {
 })
 
 describe('invite acceptance', () => {
-	test('a password acceptance creates a verified account and closes the window', async () => {
+	test('an email-bound password hash creates a verified account and closes the window', async () => {
 		const token = await invite.create({
 			role: 'member',
 			email: 'password@example.test',
 			name: 'Suggested Name',
 		})
 
-		const user = await invite.accept(token, { name: 'Accepted Name', password: 'password-hash' })
+		const user = await invite.accept(token, { name: 'Accepted Name', passwordHash: 'password-hash' })
 
 		expect(user).toBe(2)
 		expect(await invite.get(token)).toBeNull()
-		expect(await invite.accept(token, { password: 'other-hash' })).toBeNull()
+		expect(await invite.accept(token, { passwordHash: 'other-hash' })).toBeNull()
 		expect(await db<any>().selectFrom('users').select([
 			'id', 'name', 'email', 'password', 'verified',
 		]).where('id', '=', 2).executeTakeFirstOrThrow()).toEqual({
@@ -242,13 +245,27 @@ describe('invite acceptance', () => {
 		})
 		expect(await invite.accept(token, {
 			email: ' Open@Example.TEST ',
-			password: 'open-hash',
+			passwordHash: 'open-hash',
 		})).toBe(2)
 		expect(await db<any>().selectFrom('users').select([
-			'email', 'name',
+			'email', 'name', 'password', 'verified',
 		]).where('id', '=', 2).executeTakeFirstOrThrow()).toEqual({
 			email: 'open@example.test',
 			name: 'Open Invite',
+			password: 'open-hash',
+			verified: null,
+		})
+	})
+
+	test('an email-bound invitation without a password hash stays unverified', async () => {
+		const token = await invite.create({ role: 'member', email: 'bound-bare@example.test' })
+
+		expect(await invite.accept(token, {})).toBe(2)
+		expect(await db<any>().selectFrom('users').select([
+			'password', 'verified',
+		]).where('id', '=', 2).executeTakeFirstOrThrow()).toEqual({
+			password: null,
+			verified: null,
 		})
 	})
 
@@ -262,8 +279,8 @@ describe('invite acceptance', () => {
 		})
 		const global = await invite.create({ role: 'owner', email: 'global@example.test' })
 
-		expect(await invite.accept(scoped, { password: 'scoped-hash' })).toBe(2)
-		expect(await invite.accept(global, { password: 'global-hash' })).toBe(3)
+		expect(await invite.accept(scoped, { passwordHash: 'scoped-hash' })).toBe(2)
+		expect(await invite.accept(global, { passwordHash: 'global-hash' })).toBe(3)
 		expect(await db<any>().selectFrom('teammates').select([
 			'team', 'user', 'role',
 		]).execute()).toEqual([{ team: group.id, user: 2, role: 2 }])
@@ -275,7 +292,7 @@ describe('invite acceptance', () => {
 	test('an unknown role throws and rolls back the account and claim', async () => {
 		const token = await invite.create({ role: 'missing', email: 'missing-role@example.test' })
 
-		await expect(invite.accept(token, { password: 'missing-hash' }))
+		await expect(invite.accept(token, { passwordHash: 'missing-hash' }))
 			.rejects.toThrow('Unknown invitation role: missing')
 		expect(await db<any>().selectFrom('users').select('id')
 			.where('email', '=', 'missing-role@example.test').execute()).toEqual([])
@@ -290,7 +307,7 @@ describe('invite acceptance', () => {
 	test('a duplicate account email returns null without consuming the invite', async () => {
 		const token = await invite.create({ role: 'member', email: 'inviter@example.test' })
 
-		expect(await invite.accept(token, { password: 'duplicate-hash' })).toBeNull()
+		expect(await invite.accept(token, { passwordHash: 'duplicate-hash' })).toBeNull()
 		expect(await invite.get(token)).toEqual({
 			role: 'member',
 			name: '',
@@ -309,8 +326,8 @@ describe('invite acceptance', () => {
 	test('two concurrent password claims produce exactly one account and one winner', async () => {
 		const token = await invite.create({ role: 'member', email: 'race@example.test' })
 		const inputs = [
-			{ name: 'First Claim', password: 'first-hash' },
-			{ name: 'Second Claim', password: 'second-hash' },
+			{ name: 'First Claim', passwordHash: 'first-hash' },
+			{ name: 'Second Claim', passwordHash: 'second-hash' },
 		]
 		const results = await Promise.all(inputs.map(input => invite.accept(token, input)))
 		const winners = results.filter((user): user is number => user !== null)
@@ -325,7 +342,7 @@ describe('invite acceptance', () => {
 			id: winner,
 			email: 'race@example.test',
 			name: inputs[index].name,
-			password: inputs[index].password,
+			password: inputs[index].passwordHash,
 			verified: now,
 		}])
 		expect(await db<any>().selectFrom('invites').select([
@@ -334,5 +351,47 @@ describe('invite acceptance', () => {
 			accepted: now,
 			acceptor: winner,
 		})
+	})
+
+	test('team removal revokes pending invitations and stale tokens stay inert', async () => {
+		const group = await team.create('temporary')
+		const token = await invite.create({
+			role: 'member',
+			email: 'removed-team@example.test',
+			team: group,
+		})
+
+		await team.remove(group)
+
+		expect(await invite.get(token)).toBeNull()
+		expect(await invite.accept(token, { passwordHash: 'unused-hash' })).toBeNull()
+		expect(await db<any>().selectFrom('invites').select([
+			'accepted', 'acceptor', 'revoked',
+		]).where('id', '=', hash(token)).executeTakeFirstOrThrow()).toEqual({
+			accepted: null,
+			acceptor: null,
+			revoked: now,
+		})
+	})
+
+	test('creation rejects an unknown team before publishing an invitation', async () => {
+		await expect(invite.create({ role: 'member', team: 999 }))
+			.rejects.toThrow('Unknown team: 999')
+		expect(await db<any>().selectFrom('invites').select('id').execute()).toEqual([])
+	})
+
+	test('global member attachment is idempotent when the row already exists', async () => {
+		await sql`
+			CREATE TRIGGER attach_member AFTER INSERT ON users
+			WHEN NEW.email = 'attached@example.test'
+			BEGIN
+				INSERT INTO members(user, role) VALUES(NEW.id, 2);
+			END
+		`.execute(db<any>())
+		const token = await invite.create({ role: 'member', email: 'attached@example.test' })
+
+		expect(await invite.accept(token, { passwordHash: 'attached-hash' })).toBe(2)
+		expect(await db<any>().selectFrom('members').select(['user', 'role'])
+			.where('user', '=', 2).execute()).toEqual([{ user: 2, role: 2 }])
 	})
 })
