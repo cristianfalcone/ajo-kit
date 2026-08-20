@@ -1,6 +1,6 @@
 {
   "name": "ajo-kit-auth",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Authentication and authorization for ajo-kit applications",
   "type": "module",
   "files": [
