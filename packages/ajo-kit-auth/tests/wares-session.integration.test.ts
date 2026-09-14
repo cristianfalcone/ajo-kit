@@ -70,7 +70,7 @@ describe('ajo-kit-auth session middleware integration', () => {
 
 		expect(done).toBe(true)
 		expect(api.user.id).toBe(user.id)
-		expect(api.token).toEqual({ id, abilities: ['tokens:read'] })
+		expect(api.token).toEqual({ id, abilities: ['tokens:read'], subject: null })
 		expect(api.session).toBeUndefined()
 
 		await sessionRemove(plain)

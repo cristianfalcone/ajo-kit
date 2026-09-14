@@ -23,7 +23,7 @@ const identity: Middleware = (req, _res, next) => {
 	// re-runs this stack on the held request, and a ware that only ever sets
 	// would leave a revoked identity's stale session in place.
 	req.session = typeof session === 'string' && !revoked.has(session) ? { id: session } : undefined
-	if (typeof token === 'string') req.token = { id: token, abilities: [] }
+	if (typeof token === 'string') req.token = { id: token, abilities: [], subject: null }
 	if (typeof override === 'string') req.scope = override
 	next()
 }

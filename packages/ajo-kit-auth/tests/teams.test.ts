@@ -155,7 +155,7 @@ describe('admit', () => {
 		await expect(admit({} as any, 'app:blog', 'apps:operate')).rejects.toThrow('Authentication required')
 	})
 
-	test('a bearer token is never scoped: it must carry the ability itself', async () => {
+	test('a global bearer token must carry the required subject ability itself', async () => {
 		await seed()
 		const alpha = await team.create('alpha')
 		await team.claim(alpha, 'app:blog')
@@ -163,14 +163,14 @@ describe('admit', () => {
 
 		const blocked = {
 			user: { id: 1, abilities: [] },
-			token: { id: 'token-a', abilities: ['profile:read'] },
+			token: { id: 'token-a', abilities: ['profile:read'], subject: null },
 		} as any
 		await expect(admit(blocked, 'app:blog', 'apps:operate'))
 			.rejects.toThrow('Missing ability: apps:operate')
 
 		const carried = {
 			user: { id: 1, abilities: [] },
-			token: { id: 'token-b', abilities: ['apps:operate'] },
+			token: { id: 'token-b', abilities: ['apps:operate'], subject: null },
 		} as any
 		await expect(admit(carried, 'app:blog', 'apps:operate')).resolves.toBeUndefined()
 	})

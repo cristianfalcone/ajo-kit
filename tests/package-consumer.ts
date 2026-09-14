@@ -100,6 +100,7 @@ const migrationNames = [
 	'0003_teams',
 	'0004_invites',
 	'0005_integrity',
+	'0006_subjects',
 ] as const
 const floatingDomVersion = '1.8.0'
 const floatingNames = ['@floating-ui/dom', '@floating-ui/core', '@floating-ui/utils'] as const
@@ -389,6 +390,15 @@ const consumerFiles = async (directory: string, registry: string) => {
 		include: ['src'],
 	})
 	await write(join(directory, 'src/env.d.ts'), "declare module 'virtual:uno.css'\n")
+	await write(join(directory, 'src/auth-types.ts'), [
+		"import type { Request } from 'ajo-kit'",
+		"import { admit, token } from 'ajo-kit-auth'",
+		"export const create = (user: number) => token.create(user, 'Blog CI', ['apps:deploy'], { subject: 'app:blog', ttl: 60_000 })",
+		"export const revoke = (user: number, id: string): Promise<boolean> => token.revoke(user, id)",
+		"export const subject = (req: Request): string | null | undefined => req.token?.subject",
+		"export const deploy = (req: Request) => admit(req, 'app:blog', 'apps:deploy')",
+		'',
+	].join('\n'))
 	const manifest = parseJson<{ exports: Record<string, unknown> }>(
 		await readFile(join(root, 'packages/ajo-ui-playa/package.json'), 'utf8'),
 	)
@@ -645,11 +655,11 @@ const verifyServerPackages = async (consumer: string) => {
 	}
 
 	// The probe receives how many migrations should be applied and derives the
-	// expected history prefix, plus one table per migration as schema evidence.
+	// expected history prefix and the corresponding schema evidence.
 	const qualified = migrationNames.map(name => `plugin/ajo-kit-auth/${name}`)
 	const migrationProbe = join(consumer, 'migration-state-probe.mjs')
 	await write(migrationProbe, [
-		"import { close, connect, db } from 'ajo-kit/database'",
+		"import { close, connect, db, sql } from 'ajo-kit/database'",
 		"connect(process.argv[2])",
 		"try {",
 		"  const applied = Number(process.argv[3])",
@@ -663,10 +673,50 @@ const verifyServerPackages = async (consumer: string) => {
 		"  if (await table('invites') !== (applied >= 4)) throw new Error('invites table did not match migration state')",
 		"  const index = async name => Boolean(await db().selectFrom('sqlite_master').select('name').where('type', '=', 'index').where('name', '=', name).executeTakeFirst())",
 		"  if (await index('idx_members_user_role') !== (applied >= 5)) throw new Error('member integrity index did not match migration state')",
+		"  const columns = await sql`PRAGMA table_info(tokens)`.execute(db())",
+		"  if (columns.rows.some(row => row.name === 'subject') !== (applied >= 6)) throw new Error('token subject did not match migration state')",
 		"} finally { await close() }",
 		'',
 	].join('\n'))
 	await run(process.execPath, [migrationProbe, database, String(migrationNames.length)], { cwd: consumer })
+
+	const tokenProbe = join(consumer, 'token-probe.mjs')
+	await write(tokenProbe, [
+		"import assert from 'node:assert/strict'",
+		"import { close, connect, db } from 'ajo-kit/database'",
+		"import { admit, authorize, configure, team, token, wares } from 'ajo-kit-auth'",
+		"connect(process.argv[2])",
+		"configure(() => db())",
+		"try {",
+		"  await db().insertInto('users').values([{ id: 1, email: 'developer@example.test' }, { id: 2, email: 'other@example.test' }]).execute()",
+		"  await db().insertInto('roles').values({ id: 1, name: 'developer', abilities: JSON.stringify(['apps:deploy']) }).execute()",
+		"  const group = await team.create('developers')",
+		"  await team.join(group, 1, 1)",
+		"  await team.claim(group, 'app:blog')",
+		"  const plain = await token.create(1, 'Blog CI', ['apps:deploy'], { subject: 'app:blog' })",
+		"  const stored = (await token.list(1))[0]",
+		"  assert.equal(stored.subject, 'app:blog')",
+		"  assert.notEqual(stored.id, plain)",
+		"  const middleware = wares.session()",
+		"  const req = { path: '/api/deploy', headers: { authorization: 'Bearer ' + plain } }",
+		"  await middleware(req, {}, () => {})",
+		"  assert.deepEqual(req.token, { id: stored.id, abilities: ['apps:deploy'], subject: 'app:blog' })",
+		"  await admit(req, 'app:blog', 'apps:deploy')",
+		"  await assert.rejects(() => admit(req, 'app:other', 'apps:deploy'))",
+		"  assert.throws(() => authorize(req, 'apps:deploy'))",
+		"  assert.equal(await token.revoke(2, stored.id), false)",
+		"  assert.ok(await token.validate(plain))",
+		"  assert.equal(await token.revoke(1, stored.id), true)",
+		"  await middleware(req, {}, () => {})",
+		"  assert.equal(req.user, undefined)",
+		"  assert.equal(req.token, undefined)",
+		"  await assert.rejects(() => admit(req, 'app:blog', 'apps:deploy'))",
+		"  console.log('published scoped token flow passed')",
+		"} finally { await close() }",
+		'',
+	].join('\n'))
+	const tokenResult = await run(process.execPath, [tokenProbe, database], { cwd: consumer })
+	assert.match(tokenResult.stdout, /published scoped token flow passed/)
 
 	const status = await pnpm(['exec', 'kit', 'migrate', 'status', '--database', database], consumer)
 	for (const migration of migrationNames) {
@@ -674,7 +724,7 @@ const verifyServerPackages = async (consumer: string) => {
 	}
 
 	// Rollback reverses one qualified identity per run, latest first; walk the
-	// history down to empty so both directions of 0002 get exercised.
+	// history down to empty so every packaged migration runs both directions.
 	for (let applied = migrationNames.length; applied > 0; applied--) {
 		const down = await pnpm(['exec', 'kit', 'migrate', 'down', '--database', database], consumer)
 		assert.match(`${down.stdout}\n${down.stderr}`, new RegExp(`plugin/ajo-kit-auth/${migrationNames[applied - 1]}.*rolled back`))

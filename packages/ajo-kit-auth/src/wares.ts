@@ -56,7 +56,7 @@ export function session(lookup?: Resolve): Middleware {
 				const user = await find(authz.user)
 				if (user) {
 					req.user = user
-					req.token = { id: authz.id, abilities: authz.abilities }
+					req.token = { id: authz.id, abilities: authz.abilities, subject: authz.subject }
 				}
 			}
 

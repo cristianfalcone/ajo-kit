@@ -15,8 +15,8 @@ describe('ajo-kit-auth password confirmation', () => {
 	test('expires and can be cleared by credential or user', () => {
 		const session = { user: { id: 123 }, session: { id: 'session-a' } } as any
 		const other = { user: { id: 123 }, session: { id: 'session-b' } } as any
-		const token = { user: { id: 123 }, token: { id: 'token-a', abilities: ['*'] } } as any
-		const mixed = { user: { id: 123 }, session: { id: 'session-a' }, token: { id: 'token-a', abilities: ['*'] } } as any
+		const token = { user: { id: 123 }, token: { id: 'token-a', abilities: ['*'], subject: null } } as any
+		const mixed = { user: { id: 123 }, session: { id: 'session-a' }, token: { id: 'token-a', abilities: ['*'], subject: null } } as any
 
 		expect(check(session, 1000)).toBe(false)
 

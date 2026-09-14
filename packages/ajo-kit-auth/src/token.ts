@@ -1,32 +1,52 @@
 import { db } from './store'
 import { generate, hash } from './session'
-import { abilities as granted } from './account'
-import { can, intersect } from './ability.client'
+import { abilities as granted, scoped } from './account'
+import { can, intersect, merge } from './ability.client'
+import { clearToken } from './confirm'
 import type { Ability } from './ability.client'
 
-/** Creates an attenuated API token and returns its plaintext credential once. */
+const lifetime = 90 * 24 * 60 * 60 * 1000
+
+/** Creates a token attenuated to current authority, optionally for one exact subject. */
 export async function create(
 	user: number,
 	name: string,
 	abilities: Ability[],
-	ttl: number | null = 90 * 24 * 60 * 60 * 1000 // 90 días default
+	options: { subject?: string; ttl?: number | null } = {}
 ) {
-	const account = await granted(user)
+	if (options.subject !== undefined && (typeof options.subject !== 'string' || !options.subject.trim())) {
+		throw new Error('Token subject is required')
+	}
+
+	const subject = options.subject ?? null
+	const ttl = options.ttl === undefined ? lifetime : options.ttl
+	const expiry = ttl === null ? null : Date.now() + ttl
+
+	if (ttl !== null && (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0 || !Number.isFinite(new Date(expiry!).getTime()))) {
+		throw new Error('Token TTL must be a positive finite duration')
+	}
+	if (subject !== null && (ttl === null || ttl > lifetime)) {
+		throw new Error('Scoped token TTL must not exceed 90 days')
+	}
+
+	const account = subject === null
+		? await granted(user)
+		: merge(await granted(user), await scoped(user, subject))
 	const missing = abilities.find(ability => !can(account, ability))
 
 	if (missing) throw new Error(`Requested ability exceeds account authority: ${missing}`)
 
 	const plain = generate()
 	const id = hash(plain)
-	const expiry = ttl ? new Date(Date.now() + ttl).toISOString() : null
 
 	await db().insertInto('tokens').values({
 		id,
 		user,
 		name,
 		abilities: JSON.stringify(intersect(abilities, account)),
+		subject,
 		last: null,
-		expiry
+		expiry: expiry === null ? null : new Date(expiry).toISOString()
 	}).execute()
 
 	return plain
@@ -39,13 +59,15 @@ export async function validate(plain: string) {
 
 	const token = await db()
 		.selectFrom('tokens')
-		.select(['id', 'user', 'abilities', 'expiry'])
+		.select(['id', 'user', 'abilities', 'subject', 'expiry'])
 		.where('id', '=', id)
 		.executeTakeFirst()
 
 	if (!token) return null
 
-	if (token.expiry && new Date(token.expiry) < new Date()) {
+	if (token.subject !== null && (typeof token.subject !== 'string' || !token.subject.trim() || token.expiry === null)) return null
+
+	if (token.expiry !== null && !(Date.parse(token.expiry) > Date.now())) {
 		await db().deleteFrom('tokens').where('id', '=', id).execute()
 		return null
 	}
@@ -68,9 +90,18 @@ export async function validate(plain: string) {
 	return { ...token, abilities: abilities as Ability[] }
 }
 
-/** Deletes the API token matching a plaintext credential. */
-export const revoke = (plain: string) =>
-	db().deleteFrom('tokens').where('id', '=', hash(plain)).execute()
+/** Revokes a token by full stored id only when it belongs to the given user. */
+export async function revoke(user: number, id: string): Promise<boolean> {
+
+	const result = await db().deleteFrom('tokens')
+		.where('user', '=', user)
+		.where('id', '=', id)
+		.executeTakeFirst()
+
+	if (result.numDeletedRows === 0n) return false
+	clearToken(user, id)
+	return true
+}
 
 /** Deletes every API token owned by a user. */
 export const purge = (user: number) =>
@@ -79,7 +110,7 @@ export const purge = (user: number) =>
 /** Lists stored API tokens for a user without plaintext secrets. */
 export const list = (user: number) =>
 	db().selectFrom('tokens')
-		.select(['id', 'name', 'abilities', 'last', 'expiry', 'created'])
+		.select(['id', 'name', 'abilities', 'subject', 'last', 'expiry', 'created'])
 		.where('user', '=', user)
 		.execute()
 

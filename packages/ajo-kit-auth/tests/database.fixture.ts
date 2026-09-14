@@ -7,6 +7,7 @@ import { up as passkeys } from '../migrations/0002_passkeys'
 import { up as teams } from '../migrations/0003_teams'
 import { up as invites } from '../migrations/0004_invites'
 import { up as integrity } from '../migrations/0005_integrity'
+import { up as subjects } from '../migrations/0006_subjects'
 import { configure } from '../src/store'
 
 let directory: string
@@ -21,6 +22,7 @@ export async function setup() {
 	await teams(db<any>())
 	await invites(db<any>())
 	await integrity(db<any>())
+	await subjects(db<any>())
 }
 
 export async function teardown() {

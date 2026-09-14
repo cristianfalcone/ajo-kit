@@ -5,7 +5,7 @@ Authentication and authorization for `ajo-kit` apps.
 Includes:
 
 - session auth (cookie)
-- bearer tokens with abilities
+- bearer tokens with abilities and optional subject scope
 - CSRF middleware
 - route guards
 - in-memory rate limiting
@@ -166,13 +166,13 @@ import {
 
 - `auth()` requires an authenticated user.
 - `authorize(req, ...abilities)` is global-only: it checks global account and
-  bearer-token abilities and never consults team claims.
+  bearer-token abilities and rejects subject-scoped tokens whenever abilities
+  are required. With no abilities it checks authentication only.
 - `admit(req, subject, ...abilities)` is the subject-scoped check: it checks
-  global account abilities plus the
-  team-scoped abilities for one subject; bearer tokens must still carry the
-  abilities themselves.
-- `ability(...abilities)` requires account abilities; bearer requests must
-  also carry them on the token.
+  global account abilities plus current team grants for one subject. Bearer
+  tokens must carry the required abilities, and a scoped token must match the
+  subject exactly, even if its owner has global `*` authority.
+- `ability(...abilities)` is the middleware form of `authorize()`.
 - `protect('/login')` redirects guests.
 - `guest('/dashboard')` redirects authenticated users.
 - `confirmed(window?)` requires recent password confirmation.
@@ -185,21 +185,61 @@ The same guard functions are available through the `guard` namespace.
 ### `token`
 
 ```ts
-import { can, token } from '@kit/auth'
+import { admit, token } from '@kit/auth'
 
-const plain = await token.create(user, 'My token', ['posts:*'])
-const valid = await token.validate(plain)
-const canWrite = can(valid?.abilities ?? [], 'posts:write')
-await token.revoke(plain)
+const plain = await token.create(user, 'Blog CI', ['apps:deploy'], {
+  subject: 'app:blog',
+})
+// Return plain to its owner once. Subsequent API requests use Bearer auth.
+
+// In an API handler, after wares.session():
+await admit(req, 'app:blog', 'apps:deploy')
+
+const tokens = await token.list(user)
+const selected = tokens.find(item => item.name === 'Blog CI')
+if (selected) await token.revoke(user, selected.id)
 await token.purge(user)
-const all = await token.list(user)
 await token.prune()
 ```
 
+`create(user, name, abilities, options?)` returns the plaintext credential
+once; storage contains only its SHA-256 hash. Without `options.subject`, the
+token is global and issuance checks current global account abilities. With a
+subject, issuance checks those abilities together with current team grants
+for that subject. Requests exceeding that authority are refused.
+
+Subjects are exact, nonblank opaque strings. They have no wildcard, prefix,
+or environment matching. An application that treats production, staging and
+previews as one App maps each target to the same canonical subject before
+calling `admit()`. Applications also own query filtering and list visibility;
+authentication alone does not restrict returned resources.
+
 Abilities support `*`, exact matches, and resource wildcards like `posts:*`.
-`token.create()` reloads the creator's current merged global account abilities
-and refuses the first requested ability they do not cover. A route delegating
-from a bearer token must additionally attenuate the request to that token.
+Use a narrow grant such as `apps:deploy` for a deployment token. Guards check
+both current account authority and the token's abilities on every request,
+so losing required authority through a membership, claim, or role change
+blocks the affected operation on subsequent requests. A scoped token cannot
+satisfy a global ability check.
+
+`options.ttl` is milliseconds and defaults to 90 days. Scoped tokens require
+a finite positive TTL no longer than 90 days. Global tokens also allow
+`ttl: null` for no expiry. `validate(plain)` rejects expired credentials and
+returns the stored identity, including `subject`; it is not an authorization
+check. Middleware exposes `{ id, abilities, subject }` on `req.token`, with
+`subject: null` for global tokens. Use `admit()` or `authorize()` to authorize
+an operation.
+
+`list(user)` exposes full stored IDs, subject, abilities and usage/expiry
+metadata without plaintext secrets. `revoke(user, id)` deletes only a token
+owned by that user, clears its confirmation stamp, and returns whether it
+was deleted. Unknown and foreign IDs return `false`; use the full ID rather
+than a displayed suffix.
+
+Issuance is a trusted server operation: a route delegating from a bearer must
+also restrict the new credential to the parent's subject, abilities and
+remaining lifetime. It must never let a scoped bearer mint a global token.
+The subject migration's rollback deletes scoped tokens before removing the
+column, so rollback cannot turn them into global credentials.
 
 Browser code imports ability helpers from the client-safe subpath:
 
@@ -241,7 +281,8 @@ teammate holds a role from the same `roles` catalog global members use. A claim
 records that the team holds a subject — an opaque string your app defines (an
 app name, a project id, a customer). Authority composes one way: global grants
 always apply everywhere; on top, for one subject, a user gains the abilities
-of every role they hold in every team claiming it.
+of every role they hold in every team claiming it. A bearer token can narrow
+that authority further through its abilities and subject.
 
 - `create(name)` / `rename(team, name)` / `remove(team)` / `get(team)` /
   `list()` — lifecycle; `list()` carries member and claim counts.

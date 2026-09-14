@@ -41,6 +41,8 @@ export interface Tokens {
 	user: number
 	name: string
 	abilities: string
+	/** Exact authorization subject, or null for a global token. */
+	subject: string | null
 	last: string | null
 	expiry: string | null
 	created: Generated<string>

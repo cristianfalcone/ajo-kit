@@ -299,7 +299,8 @@ declare module './http' {
 	interface Request {
 		user?: User
 		session?: { id: string }
-		token?: { id: string; abilities: string[] }
+		/** Bearer identity; a non-null subject requires subject-aware authorization. */
+		token?: { id: string; abilities: string[]; subject: string | null }
 		/** Cache scope override set by auth middleware; the kit derives one otherwise. */
 		scope?: string
 		topics?: Set<string>

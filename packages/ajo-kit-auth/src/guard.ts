@@ -46,6 +46,9 @@ export const guest = (to = '/dashboard') => when(req => !!req.user, redirect(to)
 export function authorize(req: Request, ...required: string[]) {
 
 	if (!req.user) throw new Denied()
+	if (required.length && req.token && req.token.subject !== null) {
+		throw new Forbidden('Scoped token requires subject authorization')
+	}
 
 	const abilities = req.user.abilities ?? []
 	const missing = required.find(ability => !can(abilities, ability))
@@ -61,16 +64,15 @@ export const ability = (...required: string[]): Middleware => (req, _, next) => 
 }
 
 /**
- * Checks subject-scoped authority. Unlike global-only authorize(), it passes
- * when the account's
- * global abilities cover the requirement, or when they do combined with the
- * abilities the user's teams grant over this one subject. Bearer tokens keep
- * the same discipline as authorize() — a token is never scoped, so it must
- * carry the required abilities itself regardless of any team grant.
+ * Checks current account and team authority over one exact subject, bounded
+ * by the bearer token's subject and abilities when present.
  */
 export async function admit(req: Request, subject: string, ...required: string[]) {
 
 	if (!req.user) throw new Denied()
+	if (req.token && req.token.subject !== null && req.token.subject !== subject) {
+		throw new Forbidden('Token subject does not match requested subject')
+	}
 
 	const account = req.user.abilities ?? []
 	let abilities = account
