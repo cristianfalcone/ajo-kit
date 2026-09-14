@@ -1,0 +1,12 @@
+ajo-kit-auth@0.5.0:
+  dir: packages/ajo-kit-auth
+  intents:
+    - petite-sites-boil
+ajo-kit-mail@0.2.0:
+  dir: packages/ajo-kit-mail
+  intents:
+    - cool-walls-run
+ajo-kit@0.2.0:
+  dir: packages/ajo-kit
+  intents:
+    - slimy-jars-return
