@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest'
-import type { Mail } from 'ajo-kit/mail'
+import { send, type Mail } from 'ajo-kit/mail'
 import {
-	adapter,
+	configure,
 	Refused,
 	Undelivered,
 	type Sealed,
@@ -17,14 +17,14 @@ const message = (overrides: Partial<Mail> = {}): Mail => ({
 
 const sender = 'sender@example.com'
 
-describe('ajo-kit mail adapter', () => {
+describe('ajo-kit mail integration', () => {
 	test('delivers a plain Mail as a sealed envelope', async () => {
 		const received: Sealed[] = []
 		const transport: Transport = async mail => {
 			received.push(mail)
 			return { id: 'provider-id' }
 		}
-		const send = adapter({ from: sender, transport })
+		configure({ from: sender, transport })
 
 		await expect(send(message())).resolves.toBeUndefined()
 
@@ -45,7 +45,7 @@ describe('ajo-kit mail adapter', () => {
 		const transport: Transport = async mail => {
 			received.push(mail)
 		}
-		const send = adapter({ from: sender, transport })
+		configure({ from: sender, transport })
 
 		await send(message({ html: '<p>Hello from Ajo</p>' }))
 		await send(message())
@@ -56,7 +56,7 @@ describe('ajo-kit mail adapter', () => {
 
 	test('throws a typed refusal for an invalid recipient', async () => {
 		const transport: Transport = vi.fn(async () => {})
-		const send = adapter({ from: sender, transport })
+		configure({ from: sender, transport })
 		let error: unknown
 
 		try {
@@ -77,7 +77,7 @@ describe('ajo-kit mail adapter', () => {
 		const transport: Transport = async () => {
 			throw { code: 'ECONNRESET' }
 		}
-		const send = adapter({ from: sender, transport })
+		configure({ from: sender, transport })
 
 		await expect(send(message())).rejects.toMatchObject({
 			name: 'Undelivered',
@@ -95,7 +95,7 @@ describe('ajo-kit mail adapter', () => {
 				message: `${body} ${credential}`,
 			}
 		}
-		const send = adapter({ from: sender, transport })
+		configure({ from: sender, transport })
 		let error: unknown
 
 		try {

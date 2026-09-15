@@ -328,7 +328,6 @@ export function engine(options: {
 	template: string
 	migrations: readonly EngineMigration[]
 	database: boolean
-	check?: boolean
 }): { plugin: Plugin; result: EngineBuild; code: string } {
 	const result: EngineBuild = { auth: false, database: options.database, files: [], findings: [], migrations: [], net: false }
 	const migrations = options.migrations.map(migration => ({ ...migration, file: clean(migration.file) }))

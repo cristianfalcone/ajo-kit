@@ -44,9 +44,8 @@ cli.command('dev')
 cli.command('build')
 	.describe('Build for ajo-engine')
 	.option('--compiler', 'ajo-engine-compiler executable path')
-	.option('--check', 'Fail on temporary Node builtin findings')
-	.action(async (opts: { compiler?: string; check?: boolean }) => {
-		await build({ check: opts.check })
+	.action(async (opts: { compiler?: string }) => {
+		await build()
 
 		if (!opts.compiler) {
 			console.log('ajo-engine-compiler --input .ajo/compiler.json --output dist/ajo')

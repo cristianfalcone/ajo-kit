@@ -115,11 +115,6 @@ export async function dev(options: Options = {}) {
 	return app
 }
 
-/** Options accepted by the engine artifact build. */
-export interface BuildOptions {
-	check?: boolean
-}
-
 /** Engine staging information returned by a build. */
 export interface EngineOutput {
 	descriptor: Descriptor
@@ -249,7 +244,7 @@ export async function emitDescriptor(
 }
 
 /** Builds the client and closed server graph into .ajo and emits its descriptor. */
-export async function build(options: BuildOptions = {}): Promise<EngineOutput> {
+export async function build(): Promise<EngineOutput> {
 	const root = process.cwd()
 	const staging = join(root, '.ajo')
 	await fs.rm(staging, { force: true, recursive: true })
@@ -267,7 +262,7 @@ export async function build(options: BuildOptions = {}): Promise<EngineOutput> {
 		file: await fs.realpath(file),
 	})))
 	const database = migrations.length > 0
-	const target = engine({ template, migrations, database, check: options.check })
+	const target = engine({ template, migrations, database })
 	// A real file: Rolldown resolves entries natively and never consults
 	// plugin hooks for a virtual entry id. .mjs keeps it out of modules().
 	const generated = join(staging, 'entry.gen.mjs')

@@ -97,7 +97,7 @@ export default () => (
 
 ```bash
 kit dev [-p 5173]
-kit build [--check] [--compiler /path/to/ajo-engine-compiler]
+kit build [--compiler /path/to/ajo-engine-compiler]
 
 kit migrate up [-d ./database.sqlite]
 kit migrate down [-d ./database.sqlite]
@@ -116,8 +116,8 @@ Defaults:
 `kit build` has one target: the ajo engine. It writes the closed server graph,
 compiled migration registry, transformed client, and `compiler.json` descriptor to
 `.ajo/`. Without `--compiler` it prints the exact compiler command. With `--compiler`,
-it seals that staging tree into `dist/ajo`; `--check` makes temporary
-Node-builtin findings fatal while auth and mail engine ports are in progress.
+it seals that staging tree into `dist/ajo`. Every build rejects Node builtins and
+other imports that violate the engine's closed module graph.
 
 ## Routing
 
