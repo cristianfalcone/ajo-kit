@@ -4,8 +4,8 @@ import { action } from '@kit/client'
 import { Alert, AlertDescription } from 'ajo-ui-playa/alert'
 import Button from 'ajo-ui-playa/button'
 import { CardContent, CardDescription, CardFooter, CardHeader } from 'ajo-ui-playa/card'
-import { Field, FieldDescription, FieldError, FieldLabel } from 'ajo-ui-playa/field'
-import { Input } from 'ajo-ui-playa/input'
+import { FieldError } from 'ajo-ui-playa/field'
+import Password from '../../password'
 
 type Result = { redirect: string }
 
@@ -50,33 +50,7 @@ const Reset: Stateful<PageArgs<Data>> = function* (args) {
 			) : (
 				<CardContent>
 					<form set:onsubmit={form.submit} class="grid gap-6">
-						<Field>
-							<FieldLabel for="password">New Password</FieldLabel>
-							<Input
-								id="password"
-								type="password"
-								name="password"
-								required
-								minlength={8}
-								autocomplete="new-password"
-								disabled={form.loading}
-								aria-describedby="password-hint"
-							/>
-							<FieldDescription id="password-hint">At least 8 characters</FieldDescription>
-						</Field>
-
-						<Field>
-							<FieldLabel for="confirm">Confirm Password</FieldLabel>
-							<Input
-								id="confirm"
-								type="password"
-								name="confirm"
-								required
-								minlength={8}
-								autocomplete="new-password"
-								disabled={form.loading}
-							/>
-						</Field>
+						<Password disabled={form.loading} label="New Password" />
 
 						{form.error && (
 							<FieldError>{form.error.message}</FieldError>
