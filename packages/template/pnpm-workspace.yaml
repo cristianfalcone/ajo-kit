@@ -7,7 +7,7 @@ allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
   - ajo@0.1.35
-  - ajo-kit@0.3.0
+  - ajo-kit@0.3.1
   - ajo-kit-auth@0.6.0
   - ajo-kit-mail@0.3.0
   - ajo-cloves@0.1.2

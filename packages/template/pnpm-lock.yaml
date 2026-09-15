@@ -12,14 +12,14 @@ importers:
         specifier: 0.1.35
         version: 0.1.35
       ajo-kit:
-        specifier: 0.3.0
-        version: 0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0))
+        specifier: 0.3.1
+        version: 0.3.1(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0))
       ajo-kit-auth:
         specifier: 0.6.0
-        version: 0.6.0(ajo-kit@0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0)))
+        version: 0.6.0(ajo-kit@0.3.1(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0)))
       ajo-kit-mail:
         specifier: 0.3.0
-        version: 0.3.0(ajo-kit@0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0)))
+        version: 0.3.0(ajo-kit@0.3.1(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0)))
       ajo-ui-playa:
         specifier: 0.1.2
         version: 0.1.2(ajo@0.1.35)(unocss@66.7.2(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0)))
@@ -500,8 +500,8 @@ packages:
     resolution: {integrity: sha512-AGgrvGFxJ9OYGi4jTLtCc4K7lnCook38SURnjwOAKq8BKMyznTsdyQDNAfOZNU1ooW9sVcD2u5n13FRyLrTIwg==}
     engines: {node: '>=22.18.0'}
 
-  ajo-kit@0.3.0:
-    resolution: {integrity: sha512-lEkqRsiryV21i5LdVotfrZ+t5XAQnVfFSxwP5c5+bP3yJgwUtYiwE8otuLhkDAg7SoFtMjMluSyWlFRLvux0tw==}
+  ajo-kit@0.3.1:
+    resolution: {integrity: sha512-qSuQSwbppq3pcKa8a3tAKiR9oFGCA2anqdceiy1H9+dcyxN8S+CYQFq9noFlGG4Zkfw8NBLFEXY5K5FRWdhJAg==}
     engines: {node: '>=22.18.0'}
     hasBin: true
     peerDependencies:
@@ -1571,18 +1571,18 @@ snapshots:
     dependencies:
       ajo: 0.1.35
 
-  ajo-kit-auth@0.6.0(ajo-kit@0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0))):
+  ajo-kit-auth@0.6.0(ajo-kit@0.3.1(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0))):
     dependencies:
-      ajo-kit: 0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0))
+      ajo-kit: 0.3.1(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0))
       argon2: 0.44.0
 
-  ajo-kit-mail@0.3.0(ajo-kit@0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0))):
+  ajo-kit-mail@0.3.0(ajo-kit@0.3.1(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0))):
     dependencies:
-      ajo-kit: 0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0))
+      ajo-kit: 0.3.1(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0))
 
   ajo-kit-server@0.1.0: {}
 
-  ajo-kit@0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0)):
+  ajo-kit@0.3.1(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(jiti@2.7.0)):
     dependencies:
       '@types/better-sqlite3': 7.6.13
       ajo: 0.1.35
