@@ -4,7 +4,7 @@ import sade from 'sade'
 import type { Kysely } from 'kysely'
 import * as url from 'node:url'
 import { spawn } from 'node:child_process'
-import { rm } from 'node:fs/promises'
+import { mkdir, rm } from 'node:fs/promises'
 import { dev, build, listen } from 'ajo-kit/node'
 import { defaults } from 'ajo-kit/vite'
 import { discover } from '../src/discover.ts'
@@ -53,6 +53,7 @@ cli.command('build')
 			return
 		}
 
+		await mkdir('dist', { recursive: true })
 		await rm('dist/ajo', { force: true, recursive: true })
 		await new Promise<void>((resolve, reject) => {
 			const child = spawn(opts.compiler!, ['--input', '.ajo/compiler.json', '--output', 'dist/ajo'], { stdio: 'inherit' })

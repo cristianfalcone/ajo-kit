@@ -10,3 +10,7 @@ ajo-kit@0.2.0:
   dir: packages/ajo-kit
   intents:
     - slimy-jars-return
+ajo-kit@0.2.1:
+  dir: packages/ajo-kit
+  intents:
+    - loud-baboons-check

@@ -56,9 +56,9 @@ export default defineConfig({
     "jsxImportSource": "ajo",
     "strict": true,
     "paths": {
-      "/src/*": ["src/*"],
-      "@kit": ["node_modules/ajo-kit/src/index.ts"],
-      "@kit/*": ["node_modules/ajo-kit/src/*"]
+      "/src/*": ["./src/*"],
+      "@kit": ["./node_modules/ajo-kit/dist/index.d.ts"],
+      "@kit/*": ["./node_modules/ajo-kit/dist/*"]
     }
   }
 }
@@ -198,7 +198,7 @@ const Page = function* () {
 
   while (true) {
     yield (
-      <form onsubmit={form.submit}>
+      <form set:onsubmit={form.submit}>
         <input name="title" />
         <button disabled={form.loading}>Save</button>
         {form.error && <p>{form.error.message}</p>}

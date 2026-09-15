@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { createServer as createSocketServer } from 'node:net'
 import {
 	access,
+	chmod,
 	cp,
 	mkdir,
 	mkdtemp,
@@ -1249,6 +1250,40 @@ const kitCssProbe = async (directory: string, registry: string) => {
 		'built index.html does not reference the stylesheet')
 	const css = (await Promise.all(cssFiles.map(path => readFile(path, 'utf8')))).join('\n')
 	assert.match(css, /:root\{--radius:0?\.75rem/, 'Playa preflight was absent from the kit build')
+
+	if (process.platform === 'win32') {
+		console.log('package consumer: executable compiler fixture requires POSIX; skipped on Windows')
+		return
+	}
+
+	const compiler = join(directory, 'compiler-fixture.mjs')
+	await write(compiler, [
+		'#!/usr/bin/env node',
+		"import assert from 'node:assert/strict'",
+		"import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'",
+		"import { join } from 'node:path'",
+		"assert.deepEqual(process.argv.slice(2), ['--input', '.ajo/compiler.json', '--output', 'dist/ajo'])",
+		"assert.equal(JSON.parse(readFileSync('.ajo/compiler.json', 'utf8')).schema, 1)",
+		// Like the native compiler, create the output only when its parent exists.
+		"mkdirSync('dist/ajo')",
+		"writeFileSync(join('dist/ajo', 'fixture.txt'), 'compiled')",
+		'',
+	].join('\n'))
+	await chmod(compiler, 0o755)
+	await assert.rejects(access(join(directory, 'dist')), { code: 'ENOENT' })
+	await pnpm(['exec', 'kit', 'build', '--compiler', compiler], directory)
+	assert.equal(await readFile(join(directory, 'dist/ajo/fixture.txt'), 'utf8'), 'compiled')
+
+	await write(join(directory, 'dist/sibling.txt'), 'preserved')
+	await write(join(directory, 'dist/ajo/stale.txt'), 'old artifact')
+	await pnpm(['exec', 'kit', 'build', '--compiler', compiler], directory)
+	await assert.rejects(access(join(directory, 'dist/ajo/stale.txt')), { code: 'ENOENT' })
+	assert.equal(await readFile(join(directory, 'dist/sibling.txt'), 'utf8'), 'preserved')
+
+	await write(compiler, '#!/usr/bin/env node\nprocess.exit(23)\n')
+	const failure = await expectPnpmFailure(['exec', 'kit', 'build', '--compiler', compiler], directory)
+	assert.match(`${failure.stdout}\n${failure.stderr}`, /compiler exited with status 23/)
+	assert.equal(await readFile(join(directory, 'dist/sibling.txt'), 'utf8'), 'preserved')
 }
 
 const hmrProbe = async (directory: string, registry: string) => {
