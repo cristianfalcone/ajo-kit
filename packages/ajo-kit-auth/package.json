@@ -1,6 +1,6 @@
 {
   "name": "ajo-kit-auth",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Authentication and authorization for ajo-kit applications",
   "type": "module",
   "files": [
@@ -18,8 +18,14 @@
     "test": "pnpm -w exec vitest run packages/ajo-kit-auth/tests"
   },
   "exports": {
-    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
-    "./ability": { "types": "./src/ability.client.ts", "default": "./src/ability.client.ts" }
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./ability": {
+      "types": "./src/ability.client.ts",
+      "default": "./src/ability.client.ts"
+    }
   },
   "dependencies": {
     "argon2": "^0.44.0"
@@ -33,7 +39,13 @@
   "engines": {
     "node": ">=22.18.0"
   },
-  "keywords": ["ajo", "authentication", "authorization", "security", "sqlite"],
+  "keywords": [
+    "ajo",
+    "authentication",
+    "authorization",
+    "security",
+    "sqlite"
+  ],
   "author": "Cristian Falcone",
   "license": "ISC",
   "repository": {

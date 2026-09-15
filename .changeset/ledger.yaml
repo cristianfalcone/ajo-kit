@@ -1,11 +1,23 @@
+ajo-cloves@0.1.2:
+  dir: packages/ajo-cloves
+  intents:
+    - wise-beds-knock
 ajo-kit-auth@0.5.0:
   dir: packages/ajo-kit-auth
   intents:
     - petite-sites-boil
+ajo-kit-auth@0.6.0:
+  dir: packages/ajo-kit-auth
+  intents:
+    - silent-papayas-begin
 ajo-kit-mail@0.2.0:
   dir: packages/ajo-kit-mail
   intents:
     - cool-walls-run
+ajo-kit-mail@0.3.0:
+  dir: packages/ajo-kit-mail
+  intents:
+    - puny-bikes-remain
 ajo-kit@0.2.0:
   dir: packages/ajo-kit
   intents:
@@ -14,3 +26,15 @@ ajo-kit@0.2.1:
   dir: packages/ajo-kit
   intents:
     - loud-baboons-check
+ajo-kit@0.3.0:
+  dir: packages/ajo-kit
+  intents:
+    - early-flies-poke
+ajo-ui-playa@0.1.2:
+  dir: packages/ajo-ui-playa
+  intents:
+    - dark-rules-double
+ajo-ui@0.1.2:
+  dir: packages/ajo-ui
+  intents:
+    - sharp-shirts-attend

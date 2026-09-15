@@ -1,5 +1,16 @@
 # ajo-kit-auth
 
+## 0.6.0
+
+### Minor Changes
+
+- Require ajo-kit 0.3 while preserving session, token, and migration behavior.
+
+### Patch Changes
+
+- Updated dependencies:
+  - ajo-kit@0.3.0
+
 ## 0.5.0
 
 ### Minor Changes

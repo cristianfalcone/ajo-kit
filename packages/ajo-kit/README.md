@@ -119,7 +119,7 @@ compiled migration registry, transformed client, and `compiler.json` descriptor 
 it seals that staging tree into `dist/ajo`. Every build rejects Node builtins and
 other imports that violate the engine's closed module graph.
 
-Apps using SQLite must declare their runtime data directory in `package.json`:
+Apps that store SQLite databases on disk must declare their runtime data directory in `package.json`:
 
 ```json
 {

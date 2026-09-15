@@ -1,6 +1,6 @@
 {
   "name": "ajo-ui-playa",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Playa themed UI components and UnoCSS preset for Ajo",
   "type": "module",
   "sideEffects": false,
@@ -292,7 +292,13 @@
   "engines": {
     "node": ">=22.18.0"
   },
-  "keywords": ["ajo", "ui", "components", "unocss", "theme"],
+  "keywords": [
+    "ajo",
+    "ui",
+    "components",
+    "unocss",
+    "theme"
+  ],
   "author": "Cristian Falcone",
   "license": "ISC",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "ajo-ui",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Unstyled accessible UI components for Ajo",
   "type": "module",
   "sideEffects": false,
@@ -186,7 +186,13 @@
   "engines": {
     "node": ">=22.18.0"
   },
-  "keywords": ["ajo", "ui", "components", "accessibility", "headless"],
+  "keywords": [
+    "ajo",
+    "ui",
+    "components",
+    "accessibility",
+    "headless"
+  ],
   "author": "Cristian Falcone",
   "license": "ISC",
   "repository": {

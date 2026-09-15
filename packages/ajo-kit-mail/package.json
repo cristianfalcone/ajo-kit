@@ -1,6 +1,6 @@
 {
   "name": "ajo-kit-mail",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Validated mail contract and pluggable transports for ajo-kit applications",
   "type": "module",
   "files": [
@@ -16,10 +16,23 @@
     "test": "pnpm -w exec vitest run packages/ajo-kit-mail/tests"
   },
   "exports": {
-    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
-    "./http": { "types": "./src/http.ts", "default": "./src/http.ts" },
-    "./smtp": { "ajo": null, "types": "./src/smtp.ts", "default": "./src/smtp.ts" },
-    "./capture": { "types": "./src/capture.ts", "default": "./src/capture.ts" }
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./http": {
+      "types": "./src/http.ts",
+      "default": "./src/http.ts"
+    },
+    "./smtp": {
+      "ajo": null,
+      "types": "./src/smtp.ts",
+      "default": "./src/smtp.ts"
+    },
+    "./capture": {
+      "types": "./src/capture.ts",
+      "default": "./src/capture.ts"
+    }
   },
   "devDependencies": {
     "@types/nodemailer": "^7.0.0",
@@ -38,7 +51,12 @@
   "engines": {
     "node": ">=22.18.0"
   },
-  "keywords": ["ajo", "email", "mail", "security"],
+  "keywords": [
+    "ajo",
+    "email",
+    "mail",
+    "security"
+  ],
   "author": "Cristian Falcone",
   "license": "ISC",
   "repository": {

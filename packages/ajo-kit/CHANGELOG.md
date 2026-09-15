@@ -1,5 +1,11 @@
 # ajo-kit
 
+## 0.3.0
+
+### Minor Changes
+
+- Remove the unused build check option; keep engine graph validation mandatory for every build.
+
 ## 0.2.1
 
 ### Patch Changes
