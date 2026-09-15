@@ -2,7 +2,7 @@
 set -eu
 
 artifact=/root/ajo/e2e-artifact
-data=/root/ajo/e2e-data
+data=/ajo/data/e2e
 log=/root/ajo/e2e-engine.log
 pid=/root/ajo/e2e-engine.pid
 

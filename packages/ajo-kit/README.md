@@ -119,6 +119,22 @@ compiled migration registry, transformed client, and `compiler.json` descriptor 
 it seals that staging tree into `dist/ajo`. Every build rejects Node builtins and
 other imports that violate the engine's closed module graph.
 
+Apps using SQLite must declare their runtime data directory in `package.json`:
+
+```json
+{
+  "kit": {
+    "engine": {
+      "fs": { "roots": ["/ajo/data"] }
+    }
+  }
+}
+```
+
+Create that writable directory and run the engine with `AJO_DATA=/ajo/data`.
+The data path must be inside a declared filesystem root; setting `AJO_DATA`
+alone does not grant access. Use a relative `DATABASE_PATH` within that directory.
+
 ## Routing
 
 File-based routes:

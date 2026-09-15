@@ -2,6 +2,15 @@
   "name": "ajo-kit-demo",
   "private": true,
   "type": "module",
+  "kit": {
+    "engine": {
+      "fs": {
+        "roots": [
+          "/ajo/data"
+        ]
+      }
+    }
+  },
   "scripts": {
     "kit": "tsx node_modules/ajo-kit/bin/kit.ts",
     "dev": "pnpm kit dev",
