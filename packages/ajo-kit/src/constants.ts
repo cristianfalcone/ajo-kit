@@ -336,6 +336,11 @@ export function links(count: number): Link[] {
 			reject = rej
 		})
 
+		// A loader's own rejection reaches the request handler even when no
+		// descendant calls parent(). Observe this copy without changing what
+		// parent() awaits, so an unused link cannot become an unhandled rejection.
+		void promise.catch(() => {})
+
 		const parent = async () =>
 			Object.assign({}, ...await Promise.all(chain.slice(0, depth).map(link => link.deferred.promise)))
 
