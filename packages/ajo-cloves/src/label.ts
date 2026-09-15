@@ -114,17 +114,9 @@ export const label = (host: Host, options: LabelOptions = {}): LabelView => {
 			invalid = next
 		},
 		describe(next) {
-			if (next) {
-				present = true
-				if (described) return
-				described = true
-				schedule()
-				return
-			}
-
-			present = false
-			if (!described) return
-			described = false
+			present = Boolean(next)
+			if (described === present) return
+			described = present
 			schedule()
 		},
 		get labelAttrs() {
