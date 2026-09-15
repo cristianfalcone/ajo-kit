@@ -68,6 +68,14 @@ pnpm add -D unocss@66.7.2
 See the [`ajo-ui-playa` guide](packages/ajo-ui-playa/README.md) for UnoCSS
 setup, themed component imports, and the complete family catalog.
 
+## Standalone Starter
+
+Copy [`packages/template`](packages/template/README.md) into a new project for a
+small private notebook with registration, sessions and CSRF, SQLite migrations,
+owner-scoped notes, live updates, verified email and Playa. Its own lockfile uses
+published packages; the guide covers local setup, tests, the native npm toolchain
+and a scratch container for deployment through `ajo-kit-server`.
+
 ## Example Application
 
 [`packages/demo`](packages/demo) is a complete application using `ajo-kit`,

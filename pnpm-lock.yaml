@@ -214,18 +214,27 @@ importers:
         specifier: 0.1.35
         version: 0.1.35
       ajo-kit:
-        specifier: workspace:*
-        version: link:../ajo-kit
+        specifier: 0.3.0
+        version: 0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
+      ajo-kit-auth:
+        specifier: 0.6.0
+        version: 0.6.0(ajo-kit@0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
+      ajo-kit-mail:
+        specifier: 0.3.0
+        version: 0.3.0(ajo-kit@0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))(nodemailer@7.0.13)
       ajo-ui-playa:
-        specifier: workspace:*
-        version: link:../ajo-ui-playa
+        specifier: 0.1.2
+        version: 0.1.2(ajo@0.1.35)(unocss@66.7.2(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
     devDependencies:
+      '@playwright/test':
+        specifier: 1.61.0
+        version: 1.61.0
       '@types/node':
         specifier: 25.9.3
         version: 25.9.3
-      tsx:
-        specifier: 4.22.4
-        version: 4.22.4
+      ajo-kit-server:
+        specifier: 0.1.0
+        version: 0.1.0
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -235,6 +244,9 @@ importers:
       vite:
         specifier: 8.0.16
         version: 8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)
+      vitest:
+        specifier: 4.1.9
+        version: 4.1.9(@types/node@25.9.3)(happy-dom@20.10.6)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
 packages:
 
@@ -948,6 +960,53 @@ packages:
   agent-base@6.0.2:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
     engines: {node: '>= 6.0.0'}
+
+  ajo-cloves@0.1.2:
+    resolution: {integrity: sha512-1Kh0r7j2RgAJtaRjA2wN8cI/QyUQXG/qHWYriPXjo8UobP2PxBFTls1PqxDTypWKAibtgj8qAU18eXFwRoxbeA==}
+    engines: {node: '>=22.18.0'}
+    peerDependencies:
+      ajo: ^0.1.35
+
+  ajo-kit-auth@0.6.0:
+    resolution: {integrity: sha512-LnuM4k3t+hDZmct4y5mLF26Nf/aXZ4cFD88sBxjSTsz2Msj8ra3QcsGhN5RTYY9Jyuno2Futyku83AhLGAWCpg==}
+    engines: {node: '>=22.18.0'}
+    peerDependencies:
+      ajo-kit: ^0.3.0
+
+  ajo-kit-mail@0.3.0:
+    resolution: {integrity: sha512-yDTAGjBS+JzkWUNmB3podj5ilL51pMXlSTPTftyHP21G0NqHi9gr7o3Y9LW6waCU/muZ6Om/jgjcpE+v3jEoKg==}
+    engines: {node: '>=22.18.0'}
+    peerDependencies:
+      ajo-kit: ^0.3.0
+      nodemailer: ^7.0.0
+    peerDependenciesMeta:
+      nodemailer:
+        optional: true
+
+  ajo-kit-server@0.1.0:
+    resolution: {integrity: sha512-AGgrvGFxJ9OYGi4jTLtCc4K7lnCook38SURnjwOAKq8BKMyznTsdyQDNAfOZNU1ooW9sVcD2u5n13FRyLrTIwg==}
+    engines: {node: '>=22.18.0'}
+
+  ajo-kit@0.3.0:
+    resolution: {integrity: sha512-lEkqRsiryV21i5LdVotfrZ+t5XAQnVfFSxwP5c5+bP3yJgwUtYiwE8otuLhkDAg7SoFtMjMluSyWlFRLvux0tw==}
+    engines: {node: '>=22.18.0'}
+    hasBin: true
+    peerDependencies:
+      ajo: ^0.1.35
+      vite: ^8.0.16
+
+  ajo-ui-playa@0.1.2:
+    resolution: {integrity: sha512-WILlOQz0p1Em2MBmy8izClE11Ii5c81x/y8ZuWQHhP2Sos2jGjS5sglwXseVCz9Xnw6uVccZ4lgxnCygyc0vng==}
+    engines: {node: '>=22.18.0'}
+    peerDependencies:
+      ajo: ^0.1.35
+      unocss: 66.7.2
+
+  ajo-ui@0.1.2:
+    resolution: {integrity: sha512-0U8I+ivwm0AE/Dd7xDR54JGvN1cQD7EjdQD9HjnGdVGLqfjmG+6rPe5+Z7jB7J+0BjdKJ+Cwfs2NiKnSVQ/Sag==}
+    engines: {node: '>=22.18.0'}
+    peerDependencies:
+      ajo: ^0.1.35
 
   ajo@0.1.35:
     resolution: {integrity: sha512-v6zoXJ8ejitoSNKzb5QPLfBbs4jHzGEihaokuZtLZQs2uP0vQI3hvgzANzQQVNX1SbdoCMrb87oymA6J/c/YzQ==}
@@ -3312,6 +3371,54 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
+
+  ajo-cloves@0.1.2(ajo@0.1.35):
+    dependencies:
+      ajo: 0.1.35
+
+  ajo-kit-auth@0.6.0(ajo-kit@0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))):
+    dependencies:
+      ajo-kit: 0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
+      argon2: 0.44.0
+
+  ajo-kit-mail@0.3.0(ajo-kit@0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))(nodemailer@7.0.13):
+    dependencies:
+      ajo-kit: 0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
+    optionalDependencies:
+      nodemailer: 7.0.13
+
+  ajo-kit-server@0.1.0: {}
+
+  ajo-kit@0.3.0(ajo@0.1.35)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)):
+    dependencies:
+      '@types/better-sqlite3': 7.6.13
+      ajo: 0.1.35
+      better-sqlite3: 12.11.1
+      devalue: 5.8.1
+      dotenv: 17.4.2
+      kysely: 0.29.2
+      navaid: 1.2.0
+      polka: 1.0.0-next.28
+      sade: 1.8.1
+      valibot: 1.4.1(typescript@6.0.3)
+      vite: 8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)
+    transitivePeerDependencies:
+      - typescript
+
+  ajo-ui-playa@0.1.2(ajo@0.1.35)(unocss@66.7.2(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))):
+    dependencies:
+      '@iconify-json/lucide': 1.2.113
+      ajo: 0.1.35
+      ajo-ui: 0.1.2(ajo@0.1.35)
+      clsx: 2.1.1
+      unocss: 66.7.2(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
+
+  ajo-ui@0.1.2(ajo@0.1.35):
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      '@tanstack/virtual-core': 3.17.4
+      ajo: 0.1.35
+      ajo-cloves: 0.1.2(ajo@0.1.35)
 
   ajo@0.1.35: {}
 

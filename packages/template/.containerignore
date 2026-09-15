@@ -1,0 +1,12 @@
+*
+!Containerfile
+!runtime/
+!runtime/ajo-engine
+!runtime/notices/
+!runtime/notices/**
+!runtime/ca-certificates.crt
+!runtime/data/
+!runtime/data/.keep
+!dist/
+!dist/ajo/
+!dist/ajo/**

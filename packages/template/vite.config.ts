@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite'
-import { kit, jsx } from 'ajo-kit/vite'
+import { kit } from 'ajo-kit/vite'
 import unocss from 'unocss/vite'
 
 export default defineConfig({
-	plugins: [...kit({ css: ['virtual:uno.css'], guard: [/\/src\/database/] }), unocss()],
-	esbuild: jsx,
+	// The client entry owns a virtual route graph; keep it in Vite's plugin pipeline.
+	optimizeDeps: { exclude: ['ajo-kit/client'] },
+	plugins: [...kit({ css: ['virtual:uno.css'], guard: [/\/src\/(database|mail)/] }), unocss()],
 })

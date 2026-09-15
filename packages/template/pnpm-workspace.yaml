@@ -1,5 +1,5 @@
 packages:
-  - 'packages/*'
+  - '.'
 autoInstallPeers: false
 allowBuilds:
   argon2: true
@@ -7,7 +7,6 @@ allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
   - ajo@0.1.35
-  - '@tanstack/virtual-core@3.17.4'
   - ajo-kit@0.3.0
   - ajo-kit-auth@0.6.0
   - ajo-kit-mail@0.3.0
@@ -15,9 +14,5 @@ minimumReleaseAgeExclude:
   - ajo-ui@0.1.2
   - ajo-ui-playa@0.1.2
   - ajo-kit-server@0.1.0
-versioning:
-  ignore:
-    - ajo-kit-demo
-    - ajo-kit-template
-  changelog:
-    storage: repository
+  - ajo-engine@0.1.0
+  - ajo-engine-compiler@0.1.0

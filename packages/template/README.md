@@ -1,85 +1,188 @@
-# ajo-kit application skeleton
+# Ajo Notes — standalone starter
 
-This package is intentionally small enough to read top to bottom. It shows one
-complete application slice instead of a collection of disconnected examples.
+A small private notebook built with Ajo, ajo-kit, auth, mail and Playa. It includes
+account registration, cookie sessions and CSRF, SQLite migrations, private notes,
+live updates across tabs, and a button to email yourself the latest 50 notes.
+The development mailbox captures messages without contacting an email provider.
 
-## Mental model
+## Start locally
 
-Development runs on Node because Vite, TypeScript, migrations, and Vitest are
-development tools. `kit build` closes and audits the server graph, compiles the
-migration registry, builds the client, and stages both with `compiler.json` under
-`.ajo/`. `ajo-engine-compiler` seals that exact staging tree into `dist/ajo`; ajo-server then
-runs its server graph on the ajo runtime and serves its client tree. Node is not
-a production target.
+Copy **this directory's contents** into a new project outside the Ajo workspace.
+Use Node 22.18 or newer and pnpm 11.15.0. All dependencies resolve from npm;
+there are no source aliases or parent-workspace commands. Rename `name` in
+`package.json` from `ajo-kit-template` to your project name after copying.
 
-## Read the files in this order
-
-- `vite.config.ts` installs the kit route compiler, server-only guard, Ajo JSX,
-  and UnoCSS.
-- `src/database.ts` selects the Node or ajo SQLite face behind one typed Kysely
-  schema.
-- `db/migrations/0001_notes.ts` evolves schema; the build discovers, validates,
-  qualifies, and compiles this registry into the artifact.
-- `src/wares.ts` is the root request boundary and the production bootstrap hook.
-- `src/handler.ts` owns the `/` loader and action beside the route it serves.
-- `src/page.tsx` renders loader data during SSR and invokes the named action in
-  the browser.
-- `src/layout.tsx` shows how layouts wrap descendant route output without a
-  React runtime.
-- `index.html` supplies the head, serialized data, root, and client-entry slots
-  used by SSR and hydration.
-- `tests/handler.test.ts` runs the migration, bootstrap, loader, and action on
-  the Node face with a temporary SQLite database.
-- `vitest.config.ts` keeps tests on public package imports and the Node face.
-- `uno.config.ts` chooses Playa; replace it or use unstyled `ajo-ui` components
-  when the application needs a different visual system.
-
-The loader tracks `notes`. The action validates input, commits one row, then
-emits `notes` through `ActionContext`; the client invalidates matching cache
-entries and the active SSE route is revalidated with a full loader payload.
-Loaders remain server truth, so the page does not maintain a second notes store.
-
-## Three application commands
-
-```bash
-pnpm dev       # Node + Vite development server
-pnpm build     # audited engine staging in .ajo/
-pnpm artifact  # build, then seal dist/ajo with ajo-engine-compiler
+```sh
+pnpm install
+pnpm run setup
+pnpm dev
 ```
 
-Run `pnpm kit migrate up` once before the first development boot; production
-runs the compiled registry automatically before `bootstrap`.
-Run `pnpm test` for the handler test and the public-package build smoke test.
-Run `pnpm typecheck` before handing off a change.
+Open http://localhost:5173, create an account and sign in. Add a note, open
+`/notes` in a second tab, then add or delete a note to see the loader refresh.
+Choose **Send verification email**, open **Verify this email** in the development
+mailbox, then return to your notes. **Email my notes** now captures your notes.
+Sign out to revoke the current session.
 
-## Server-side types
+`pnpm run setup` creates `.env` with a generated secret and mode 0600 if it does
+not exist, then runs the auth plugin and project migrations. It preserves an
+existing `.env`. Development uses `./database.sqlite`; if you change
+`DATABASE_PATH`, run migrations against that same path:
 
-`ajo-kit` exports the host-neutral `Request`, `Response` reply accumulator,
-`Middleware`, `PageArgs`, `LayoutArgs`, `ActionContext`, and `Bootstrap` types.
-`ajo-kit/database` exports Kysely, `Generated`, `Selectable`, `Insertable`, and
-`sql`; use explicit selections so transport data stays intentional.
+```sh
+pnpm kit migrate up --database ./your-database.sqlite
+```
 
-The engine declarations in `ajo-kit/runtime.d.ts` describe `runtime:app`,
-`runtime:crypto`, `runtime:http`, and `runtime:sqlite`, plus root-confined
-`runtime:fs` and FIFO-only `runtime:ipc`. `runtime:app` also exposes hostname,
-RSS bytes, and uptime metrics. Application code normally prefers the portable
-kit faces; import a `runtime:*` module only for an engine-specific capability.
+The local pnpm workspace policy permits the native build steps used by
+`better-sqlite3`, `argon2` and `esbuild`. The standalone lock records the tested
+resolution. New dependencies do not inherit blanket build permission. No Node
+process runs in production.
 
-`package.json#kit.engine` is empty but present so authority has an obvious home;
-its exported TypeScript shape is `AppEngineConfig` from `ajo-kit/node`. Authority
-is declared in that manifest block and sealed into the artifact descriptor.
-Runtime modules expose only that authority, so filesystem roots and IPC pipes
-cannot be widened by application code. Missing, malformed, or undeclared
-authority fails closed during build or module load.
+## Read the application
 
-The named `bootstrap` hook runs after compiled migrations and before the engine
-listens, whether starting audited staging directly or the sealed artifact. It is
-for idempotent seed data and application registration, not schema changes. It
-does not run in `kit dev`; development and operations use `kit migrate`.
+| Path | Responsibility |
+|---|---|
+| `src/wares.ts` | Configure auth and mail; run session and CSRF middleware |
+| `src/(account)` | Registration and sign-in forms/actions, guest guard |
+| `src/database.ts` | Typed schema combining auth tables with app-owned notes |
+| `db/migrations/0001_notes.ts` | Notes, owner foreign key and bounded-list index; up/down |
+| `src/notes` | Protected loader, owner-scoped actions, live data and mailbox |
+| `src/verify/[signature]` | Validate the auth package's address-bound, expiring link |
+| `src/mail.ts` | Capture in development; explicit HTTP provider in production |
+| `vite.config.ts`, `uno.config.ts` | Ajo/kit build and Playa styling |
+| `tests` | Real HTTP auth/data/mail checks, migration checks and browser journey |
 
-## Next
+`/` is a public welcome page and returns 200 for deployment readiness. `/notes`
+requires a session. Every read and write filters by the authenticated owner;
+a caller cannot choose another owner in a submitted body. Loaders are server
+truth. Notes actions emit `notes:<user>` after their writes; mail sends emit
+`mail:<user>`. The active route receives full loader payloads over SSE. The UI
+keeps action state, not another copy of the notes.
 
-Read `packages/demo` for route groups such as `src/(app)`, nested layouts, auth,
-CSRF, abilities, transactional workflows, mail, and browser journeys. Auth is
-deliberately not a baseline dependency: add `ajo-kit-auth` when the domain has
-an identity or authorization boundary.
+Passwords are hashed with the auth package's Argon2 API. Session credentials
+are stored hashed by auth; logout revokes the current credential. The session
+middleware and CSRF middleware protect every unsafe route request, including
+sign-in and registration. Browser form submissions supply same-origin proof.
+The example does not scaffold role administration, passkeys or password recovery;
+add those through the auth package's documented APIs when your app needs them.
+
+## Environment and mail
+
+`.env.example` documents local values; `.env`, databases, compiled artifacts,
+engine binaries and the CA bundle are ignored. Keep real credentials outside
+Git and the container build context.
+
+| Variable | Development | Production |
+|---|---|---|
+| `APP_URL` | `http://localhost:5173` | Exact public HTTPS origin |
+| `APP_SECRET` | Generated by setup | Unique strong random secret, at least 32 characters |
+| `DATABASE_PATH` | `./database.sqlite` | Relative filename, default container value `notes.sqlite` |
+| `AJO_DATA` | Not used by the Node database face | Existing writable `/ajo/data` directory |
+| `MAIL_FROM` | `notes@example.test` | Sender accepted by your provider |
+| `MAIL_URL` | Not used | HTTPS JSON email endpoint |
+| `MAIL_TOKEN` | Not used | Private provider bearer token |
+| `HOST`, `PORT` | CLI uses port 5173 | Container uses `0.0.0.0:8080` |
+
+Mail sends always target the signed-in account's email, not a recipient supplied
+by an action body. The preview filters captured envelopes to that same address,
+retains at most 20 messages across the dev process, and disappears in production.
+Captures are memory-only and reset when the dev process restarts. Notes can only
+be sent after the account's email is verified using the auth package's signed,
+address-bound link (24-hour expiry). Before verification, the only mail allowed
+is a fixed verification message, with no user-supplied content. It is limited to
+one attempt per recipient per hour and five per IP per hour; registration also
+has an IP limit. Login also limits all attempts to 20 per IP per minute, even
+when the email changes, and keeps the five-attempt IP/email limit. A successful
+login clears only that account limit. Notes mail is limited to once per account per minute. Limits
+are process-local and reset on restart; a multi-instance deployment needs a
+shared policy. Delivery failures return a sanitized message. Development uses
+the same verification flow, with the captured link visible only to its account.
+
+Production uses `ajo-kit-mail/http`, with an Authorization bearer header and a
+JSON body `{ from, to, subject, text }`. Adapt the small body mapping in
+`src/mail.ts` if your provider uses a different schema. Supply the three `MAIL_*`
+values on the host; the sealed artifact declares them as required. Capture is
+never used as a production fallback. The container must include CA certificates
+for verified HTTPS delivery.
+
+## Check and build
+
+```sh
+pnpm typecheck
+pnpm test
+pnpm exec playwright install chromium
+pnpm test:e2e
+pnpm build
+```
+
+The browser installation is a one-time development tool download. Tests start
+their own Node development server with temporary SQLite databases and synthetic
+accounts; HTTP mail is never sent. The browser journey tests form submission,
+cross-tab live updates, email verification, private mail preview and logout. `pnpm build` audits the
+closed server graph and stages `.ajo/compiler.json`, server modules, migrations
+and client assets. It does not seal or deploy the app.
+
+## Seal and run on the engine
+
+On a Linux x64 build host, install the matching native npm pair. This is an
+explicit build step so local UI development does not require a Linux-only tool:
+
+```sh
+pnpm add -D --save-exact ajo-engine@0.1.0 ajo-engine-compiler@0.1.0
+pnpm artifact
+```
+
+Both packages contain direct native executables, their bytecode PIN, checksums
+and license notices. Installation runs no compilation or download hook. The
+static compiler runs on the verified musl and glibc Linux x64 environments;
+see the packages' READMEs for the tested matrix. Other operating systems and
+CPU architectures are not supported for sealing/running. Use the same package
+version for both tools and keep the lockfile from this installation.
+
+This writes `dist/ajo`. The production artifact requires `/ajo/data` in its
+filesystem authority. Create that writable directory **inside your disposable
+runtime/container**, set `AJO_DATA=/ajo/data`, and use a relative `DATABASE_PATH`.
+Setting `AJO_DATA` alone does not grant access. Compiled auth/app migrations run
+before the engine starts listening. With production environment variables set
+in that runtime, `ajo-engine dist/ajo` runs the app; `pnpm start` is a local
+convenience for the same command, not a Node production server.
+
+## Package and deploy
+
+The scratch `Containerfile` consumes `dist/ajo`, the matching native runtime and
+its license notices, and the operator's maintained CA bundle from verified
+runtime/base-image inputs. It makes the compiled app and `/ajo/data` accessible
+to uid/gid 1000, then runs the engine as that user. No image build fetches tools
+or embeds credentials. Prepare these inputs after installing the pair above:
+
+```sh
+mkdir -p runtime/notices/licenses
+cp node_modules/ajo-engine/bin/ajo-engine runtime/ajo-engine
+cp node_modules/ajo-engine/LICENSE node_modules/ajo-engine/THIRD_PARTY.md runtime/notices/
+cp -R node_modules/ajo-engine/licenses/. runtime/notices/licenses/
+cp /absolute/path/to/verified/ca-certificates.crt runtime/ca-certificates.crt
+chmod 755 runtime/ajo-engine
+chmod 644 runtime/ca-certificates.crt
+pnpm kit deploy --help
+```
+
+The container preserves the runtime's ISC and third-party notices under
+`/usr/share/licenses/ajo-engine`. Keep those files with any redistributed image.
+
+Before a first deployment, the operator creates the App and its environment on
+ajo-server: persistent data mount, public origin/domain and runtime secrets above.
+The deploy credential grants only that App's `apps:deploy` ability. Store its
+one-time token in a mode-0600 file outside the build context. From a named Git
+branch, with Podman available, build the sealed artifact first and deploy:
+
+```sh
+pnpm run deploy https://panel.example.com --token /private/path/app-token --name my-notes
+```
+
+`kit deploy` builds/saves the Containerfile and waits for the host receipt. It
+does not build the JavaScript first, create the App, configure domains or set
+secrets. `main` selects production, `staging` selects staging, and other named
+branches select private previews. Use the App name covered by the credential;
+the package name `ajo-kit-template` is only the default. Keep a recorded deployment ID
+if observation is interrupted and resume through the CLI. Deployments and cloud
+configuration are operator actions; setup and tests do neither.

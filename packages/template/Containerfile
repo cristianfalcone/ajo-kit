@@ -1,0 +1,11 @@
+FROM scratch
+COPY runtime/ajo-engine /bin/ajo-engine
+COPY runtime/notices /usr/share/licenses/ajo-engine
+COPY --chown=1000:1000 dist/ajo /app
+COPY runtime/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --chown=1000:1000 runtime/data /ajo/data
+USER 1000:1000
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080 AJO_DATA=/ajo/data DATABASE_PATH=notes.sqlite
+EXPOSE 8080
+ENTRYPOINT ["/bin/ajo-engine"]
+CMD ["/app"]
