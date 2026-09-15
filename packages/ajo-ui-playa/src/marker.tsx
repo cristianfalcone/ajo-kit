@@ -44,10 +44,7 @@ export type MarkerIconArgs = WithChildren<IntrinsicElements['span'] & {
 	class?: string
 }>
 
-export type MarkerContentArgs = WithChildren<IntrinsicElements['span'] & {
-	/** Additional UnoCSS classes. */
-	class?: string
-}>
+export type MarkerContentArgs = MarkerIconArgs
 
 type MarkerVariantOptions = {
 	class?: string

@@ -32,10 +32,7 @@ export type TypographyListArgs = WithChildren<(IntrinsicElements['ul'] | Intrins
 	class?: string
 }>
 
-export type TypographyTableContainerArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Additional UnoCSS classes. */
-	class?: string
-}>
+export type TypographyTableContainerArgs = TextArgs<'div'>
 
 const h1 = 'scroll-m-20 text-center text-4xl font-extrabold text-balance'
 const h2 = 'scroll-m-20 border-b pb-2 text-3xl font-semibold first:mt-0'

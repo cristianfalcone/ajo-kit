@@ -15,25 +15,13 @@ export type MessageArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
-export type MessageAvatarArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Additional UnoCSS classes. */
-	class?: string
-}>
+export type MessageAvatarArgs = MessageGroupArgs
 
-export type MessageContentArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Additional UnoCSS classes. */
-	class?: string
-}>
+export type MessageContentArgs = MessageGroupArgs
 
-export type MessageHeaderArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Additional UnoCSS classes. */
-	class?: string
-}>
+export type MessageHeaderArgs = MessageGroupArgs
 
-export type MessageFooterArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Additional UnoCSS classes. */
-	class?: string
-}>
+export type MessageFooterArgs = MessageGroupArgs
 
 // Tight run of one sender's messages; only the last row keeps its bubble
 // tail so the run reads as one set (mirrors BubbleGroup one level up).

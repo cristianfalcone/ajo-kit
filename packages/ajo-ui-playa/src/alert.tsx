@@ -20,15 +20,9 @@ export type AlertTitleArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
-export type AlertDescriptionArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Additional UnoCSS classes. */
-	class?: string
-}>
+export type AlertDescriptionArgs = AlertTitleArgs
 
-export type AlertActionArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Additional UnoCSS classes. */
-	class?: string
-}>
+export type AlertActionArgs = AlertTitleArgs
 
 type AlertVariantOptions = {
 	class?: string

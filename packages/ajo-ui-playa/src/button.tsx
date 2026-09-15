@@ -60,25 +60,14 @@ type ButtonVariantOptions = {
 const base = 'inline-flex shrink-0 items-center justify-center text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-3 active:scale-[0.98] motion-reduce:active:scale-100 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:inset-ring aria-invalid:inset-ring-danger aria-invalid:ring-danger/25 [&_svg]:pointer-events-none [&_svg]:shrink-0'
 
 const variants: Record<ButtonVariant, string> = {
-	default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-	danger: 'bg-danger text-danger-foreground hover:bg-danger/90',
-	'danger-ghost': 'text-danger hover:bg-danger/10 hover:text-danger',
-	outline: 'edge bg-transparent text-foreground hover:bg-accent hover:edge-on-accent hover:text-accent-foreground',
-	secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-	ghost: 'text-foreground hover:bg-accent hover:text-accent-foreground',
-	link: 'text-primary underline-offset-4 hover:underline',
-	'muted-ghost': 'text-muted-foreground hover:bg-accent hover:text-foreground',
-}
-
-const focusRings: Record<ButtonVariant, string> = {
-	default: 'focus-visible:ring-ring/50',
-	danger: 'focus-visible:ring-danger/40',
-	'danger-ghost': 'focus-visible:ring-danger/40',
-	ghost: 'focus-visible:ring-ring/50',
-	link: 'focus-visible:ring-ring/50',
-	'muted-ghost': 'focus-visible:ring-ring/50',
-	outline: 'focus-visible:ring-ring/50',
-	secondary: 'focus-visible:ring-ring/50',
+	default: 'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/50',
+	danger: 'bg-danger text-danger-foreground hover:bg-danger/90 focus-visible:ring-danger/40',
+	'danger-ghost': 'text-danger hover:bg-danger/10 hover:text-danger focus-visible:ring-danger/40',
+	outline: 'edge bg-transparent text-foreground hover:bg-accent hover:edge-on-accent hover:text-accent-foreground focus-visible:ring-ring/50',
+	secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring/50',
+	ghost: 'text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50',
+	link: 'text-primary underline-offset-4 hover:underline focus-visible:ring-ring/50',
+	'muted-ghost': 'text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50',
 }
 
 // Geometry single-owner rule: base emits no geometry, so every size recipe
@@ -107,7 +96,6 @@ export const buttonVariants = ({
 	base,
 	transition && 'transition-all',
 	variants[variant],
-	focusRings[variant],
 	sizes[size],
 	classes,
 )

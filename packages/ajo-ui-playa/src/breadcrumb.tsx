@@ -27,10 +27,7 @@ export type BreadcrumbPageArgs = WithChildren<IntrinsicElements['span'] & {
 	class?: string
 }>
 
-export type BreadcrumbSeparatorArgs = WithChildren<IntrinsicElements['li'] & {
-	/** Additional UnoCSS classes. */
-	class?: string
-}>
+export type BreadcrumbSeparatorArgs = BreadcrumbItemArgs
 
 export type BreadcrumbEllipsisArgs = IntrinsicElements['span'] & {
 	/** Additional UnoCSS classes. */
