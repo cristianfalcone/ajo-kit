@@ -1,5 +1,11 @@
 # ajo-kit
 
+## 0.3.1
+
+### Patch Changes
+
+- Preserve fragment navigation after route rendering and handle loader failures without unhandled parent promise rejections.
+
 ## 0.3.0
 
 ### Minor Changes

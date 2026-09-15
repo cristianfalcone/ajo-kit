@@ -491,7 +491,18 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		if (!hmr) {
 			sse.connect(url)
-			if (scroll) requestAnimationFrame(() => scrollTo({ top: 0, behavior: 'smooth' }))
+			if (scroll) requestAnimationFrame(() => {
+				if (gen !== generation) return
+
+				let fragment = location.hash.slice(1)
+				try { fragment = decodeURIComponent(fragment) } catch { /* A literal percent can be part of an ID. */ }
+
+				const destination = fragment ? document.getElementById(fragment) : null
+				const behavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
+
+				if (destination) destination.scrollIntoView({ behavior })
+				else scrollTo({ top: 0, behavior })
+			})
 		}
 
 		hmr = false
