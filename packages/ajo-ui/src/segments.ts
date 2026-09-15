@@ -20,7 +20,7 @@
  *   the field's hidden value description).
  * - `inferGranularity` — value → defaultValue → placeholderValue →
  *   granularity arg → 'minute'.
- * - `reconciler()` — lastEmitted/lastObserved external-change detection, so
+ * - `reconciler()` — external-change detection, so
  *   echoes of self-emitted values never clobber edits.
  * - `field(options)` — the stateful editing record wiring all of the above:
  *   independently nullable units (hour kept in the display cycle, dayPeriod
@@ -547,21 +547,16 @@ export type Reconciler = {
 
 /** Controlled ↔ editing-state reconciliation: only genuinely external values clobber edits. */
 export const reconciler = (): Reconciler => {
-	let lastEmitted: string | null | undefined
 	let lastObserved: string | null | undefined
 	return {
 		emit(value) {
 			// The owner is expected to hold this value now: an acceptance echo
 			// matches, a rejection or external push differs and re-derives.
-			lastEmitted = lastObserved = value
+			lastObserved = value
 		},
 		observe(value) {
-			if (value === undefined) return false
-			if (value === lastEmitted || value === lastObserved) {
-				lastObserved = value
-				return false
-			}
-			lastEmitted = lastObserved = value
+			if (value === undefined || value === lastObserved) return false
+			lastObserved = value
 			return true
 		},
 	}

@@ -974,6 +974,26 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 		const nextLabel = args.nextMonthLabel ?? (currentView === 'day'
 			? 'Next month'
 			: currentView === 'month' ? 'Next year' : 'Next 12 years')
+		const navButton = (direction: -1 | 1) => {
+			const previous = direction < 0
+			const enabled = previous ? canPreviousView : canNextView
+			const slot = previous ? 'previous' : 'next'
+			return (
+				<button
+					aria-disabled={enabled ? undefined : 'true'}
+					aria-label={previous ? previousLabel : nextLabel}
+					class={args.navButtonClass}
+					data-slot={`calendar-${slot}`}
+					disabled={!enabled}
+					type="button"
+					set:onclick={(event: Event) => navigateView(direction, event)}
+				>
+					{(previous ? args.previousIcon : args.nextIcon) ?? (
+						<span aria-hidden="true" class={previous ? args.previousIconClass : args.nextIconClass} data-slot={`calendar-${slot}-icon`} />
+					)}
+				</button>
+			)
+		}
 
 		yield (
 			<>
@@ -990,19 +1010,7 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 								{/* Nav buttons are caption-row siblings, so a wide month or year
 								    select grows the calendar instead of colliding with them. */}
 								<div class={args.classNames?.caption} data-slot="calendar-caption">
-									{firstMonth ? (
-										<button
-											aria-disabled={canPreviousView ? undefined : 'true'}
-											aria-label={previousLabel}
-											class={args.navButtonClass}
-											data-slot="calendar-previous"
-											disabled={!canPreviousView}
-											type="button"
-											set:onclick={(event: Event) => navigateView(-1, event)}
-										>
-											{args.previousIcon ?? <span aria-hidden="true" class={args.previousIconClass} data-slot="calendar-previous-icon" />}
-										</button>
-									) : (
+									{firstMonth ? navButton(-1) : (
 										<span aria-hidden="true" class={args.navSpacerClass} data-slot="calendar-nav-spacer" />
 									)}
 									{captionLayout === 'button' ? (
@@ -1045,19 +1053,7 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 											)}
 										</div>
 									)}
-									{lastMonth ? (
-										<button
-											aria-disabled={canNextView ? undefined : 'true'}
-											aria-label={nextLabel}
-											class={args.navButtonClass}
-											data-slot="calendar-next"
-											disabled={!canNextView}
-											type="button"
-											set:onclick={(event: Event) => navigateView(1, event)}
-										>
-											{args.nextIcon ?? <span aria-hidden="true" class={args.nextIconClass} data-slot="calendar-next-icon" />}
-										</button>
-									) : (
+									{lastMonth ? navButton(1) : (
 										<span aria-hidden="true" class={args.navSpacerClass} data-slot="calendar-nav-spacer" />
 									)}
 								</div>
@@ -1155,17 +1151,7 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 					}) : (
 						<div key={`${currentView}-${currentView === 'year' ? page.start : visible.year}`} class={args.classNames?.month}>
 							<div class={args.classNames?.caption} data-slot="calendar-caption">
-								<button
-									aria-disabled={canPreviousView ? undefined : 'true'}
-									aria-label={previousLabel}
-									class={args.navButtonClass}
-									data-slot="calendar-previous"
-									disabled={!canPreviousView}
-									type="button"
-									set:onclick={(event: Event) => navigateView(-1, event)}
-								>
-									{args.previousIcon ?? <span aria-hidden="true" class={args.previousIconClass} data-slot="calendar-previous-icon" />}
-								</button>
+								{navButton(-1)}
 								{captionLayout === 'button' ? (
 									<button
 										aria-disabled={currentView === 'year' ? 'true' : undefined}
@@ -1182,17 +1168,7 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 										{currentView === 'month' ? visible.year : `${page.start}–${page.start + 11}`}
 									</div>
 								)}
-								<button
-									aria-disabled={canNextView ? undefined : 'true'}
-									aria-label={nextLabel}
-									class={args.navButtonClass}
-									data-slot="calendar-next"
-									disabled={!canNextView}
-									type="button"
-									set:onclick={(event: Event) => navigateView(1, event)}
-								>
-									{args.nextIcon ?? <span aria-hidden="true" class={args.nextIconClass} data-slot="calendar-next-icon" />}
-								</button>
+								{navButton(1)}
 							</div>
 							{currentView === 'month' ? (
 								<div
