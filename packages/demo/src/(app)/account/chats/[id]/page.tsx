@@ -111,8 +111,6 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 	const unreadVisibilityCheck = frame(() => this.next())
 
-	const clearUnreadVisibilityCheck = () => unreadVisibilityCheck.cancel()
-
 	const scheduleUnreadVisibilityCheck = () => {
 
 		if (import.meta.env.SSR) return
@@ -250,31 +248,22 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		return timeFormatter.format(date)
 	}
 
-	const trimWindow = (items: Message[], edge: 'older' | 'newer') => {
-
+	const retain = (items: Message[], edge: 'older' | 'newer') => {
 		const windowSize = Math.max(pageSize * WINDOW_PAGES, 1)
-
-		if (items.length <= windowSize) return { messages: items, droppedOlder: false, droppedNewer: false }
-
-		const overflow = items.length - windowSize
+		timeline = items
+		if (items.length <= windowSize) return
 
 		if (edge === 'older') {
-			return {
-				messages: items.slice(0, windowSize),
-				droppedOlder: false,
-				droppedNewer: overflow > 0
-			}
-		}
-
-		return {
-			messages: items.slice(overflow),
-			droppedOlder: overflow > 0,
-			droppedNewer: false
+			timeline = items.slice(0, windowSize)
+			canLoadNewer = true
+		} else {
+			timeline = items.slice(items.length - windowSize)
+			canLoadOlder = true
 		}
 	}
 
-	const growPageSize = (...sizes: number[]) => {
-		for (const size of sizes) if (size > pageSize) pageSize = size
+	const growPageSize = (size: number) => {
+		if (size > pageSize) pageSize = size
 		if (pageSize < 1) pageSize = 1
 	}
 
@@ -310,7 +299,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 		lastUnreadCount = unreadCount
 
 		finishUnreadJump()
-		clearUnreadVisibilityCheck()
+		unreadVisibilityCheck.cancel()
 		clearUnreadHighlightTimers()
 
 		unreadHighlightIds = new Set()
@@ -381,12 +370,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 				if (unique.length > 0) {
 
 					const next = wantsOlder ? [...unique, ...timeline] : [...timeline, ...unique]
-					const windowed = trimWindow(next, wantsOlder ? 'older' : 'newer')
-
-					timeline = windowed.messages
-
-					if (windowed.droppedOlder) canLoadOlder = true
-					if (windowed.droppedNewer) canLoadNewer = true
+					retain(next, wantsOlder ? 'older' : 'newer')
 
 					pendingRestoreRef.current = { id: cursor, anchorTop, scrollTop, scrollHeight }
 				}
@@ -454,12 +438,8 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 				if (!timeline.some(message => message.id === result.message.id)) {
 					growPageSize(1)
 
-					const windowed = trimWindow([...timeline, result.message], 'newer')
-
-					timeline = windowed.messages
+					retain([...timeline, result.message], 'newer')
 					canLoadNewer = false
-
-					if (windowed.droppedOlder) canLoadOlder = true
 				}
 
 				shouldJumpToBottom = true
@@ -506,7 +486,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 	this.signal.addEventListener('abort', () => {
 		clearUnreadJumpTimeout()
-		clearUnreadVisibilityCheck()
+		unreadVisibilityCheck.cancel()
 		scrollCheck.cancel()
 		fillViewportLoadOlder.cancel()
 		jumpLoadOlder.cancel()
@@ -566,12 +546,7 @@ const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
 
 					if (append.length > 0) {
 
-						const next = [...timeline, ...append]
-						const windowed = trimWindow(next, 'newer')
-
-						timeline = windowed.messages
-
-						if (windowed.droppedOlder) canLoadOlder = true
+						retain([...timeline, ...append], 'newer')
 					}
 
 				} else {
