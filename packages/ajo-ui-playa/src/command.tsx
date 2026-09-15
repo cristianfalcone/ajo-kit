@@ -28,22 +28,7 @@ import { menuItem, menuShortcut, scrollAreaVariants } from './internal/recipes'
 import { modalCentered, modalClose, modalClosed, modalEnter, modalSurface } from './modal'
 
 export type { CommandArgs, CommandEmptyArgs, CommandFilter, CommandItemArgs, CommandListArgs, CommandSeparatorArgs, CommandShortcutArgs }
-export type CommandDialogArgs = OmitArg<BaseCommandDialogArgs, 'commandClass' | 'closeClass' | 'closeIconClass' | 'descriptionClass' | 'titleClass'> & FixedArgs<'commandClass' | 'closeClass' | 'closeIconClass' | 'descriptionClass' | 'titleClass'> & {
-	/** Additional UnoCSS classes for dialog content. */
-	class?: string
-	/** Initial open state for uncontrolled usage. */
-	defaultOpen?: boolean
-	/** Accessible dialog description. */
-	description?: string
-	/** Called whenever the dialog opens or closes. */
-	onOpenChange?: (open: boolean, event?: Event) => void
-	/** Controlled dialog open state. */
-	open?: boolean
-	/** Show the default close button. */
-	showCloseButton?: boolean
-	/** Accessible dialog title. */
-	title?: string
-}
+export type CommandDialogArgs = OmitArg<BaseCommandDialogArgs, 'commandClass' | 'closeClass' | 'closeIconClass' | 'descriptionClass' | 'titleClass'> & FixedArgs<'commandClass' | 'closeClass' | 'closeIconClass' | 'descriptionClass' | 'titleClass'>
 export type CommandInputArgs = OmitArg<BaseCommandInputArgs, 'iconClass' | 'wrapperClass'> & FixedArgs<'iconClass' | 'wrapperClass'>
 export type CommandGroupArgs = OmitArg<BaseCommandGroupArgs, 'headingClass'> & FixedArgs<'headingClass'>
 

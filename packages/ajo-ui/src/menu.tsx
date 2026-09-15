@@ -151,12 +151,7 @@ export type MenuSubTriggerArgs = MenuItemArgs & {
 	iconClass?: string
 }
 /** Arguments for a nested Menu surface with system-owned positioning and semantics. */
-export type MenuSubContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'aria-labelledby' | 'hidden' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
-	/** Additional UnoCSS classes. */
-	class?: string
-	/** Inline CSS declarations composed with live positioning styles. */
-	style?: string
-}> & FixedArgs<'aria-labelledby' | 'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
+export type MenuSubContentArgs = MenuContentArgs
 
 /** Shared menu state private to Menu parts. */
 type MenuContextValue = {
@@ -181,7 +176,6 @@ type RadioContextValue = {
 type SubContextValue = {
 	adoptTriggerId: PopupView['adoptTriggerId']
 	branch: MenuBranch
-	close: (event?: Event) => void
 	contentId: string
 	contentStyle: PopupView['contentStyle']
 	open: boolean
@@ -641,7 +635,6 @@ const choiceItem = (opts: {
 	indicatorClass?: string
 	indicatorIconClass?: string
 	label: string
-	menu: MenuContextValue | null
 	action: (event: Event) => void
 	onClick: unknown
 	role: 'menuitemcheckbox' | 'menuitemradio'
@@ -699,7 +692,6 @@ const MenuCheckboxItem: Stateless<MenuCheckboxItemArgs> = ({
 		indicatorClass,
 		indicatorIconClass,
 		label: textValue ?? text(children),
-		menu,
 		action: event => onCheckedChange?.(!checkedFlag, event),
 		onClick,
 		role: 'menuitemcheckbox',
@@ -777,7 +769,6 @@ const MenuRadioItem: Stateless<MenuRadioItemArgs> = ({
 		indicatorClass,
 		indicatorIconClass,
 		label: textValue ?? text(children),
-		menu,
 		action: event => group?.change(itemValue, event),
 		onClick,
 		role: 'menuitemradio',
@@ -934,7 +925,6 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 		SubContext({
 			adoptTriggerId: submenu.adoptTriggerId,
 			branch,
-			close,
 			contentId: submenu.contentId,
 			contentStyle: submenu.contentStyle,
 			open: opened,

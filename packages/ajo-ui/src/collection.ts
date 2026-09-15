@@ -73,12 +73,6 @@ export const collection = (kind: string, defaults: ItemsOptions = {}) => {
 		highlight(root, target)
 	}
 
-	/** Focuses the first or last matching item. */
-	const edge = (root: ParentNode | null | undefined, which: 'first' | 'last', opts?: ItemsOptions) => {
-		const list = items(root, opts)
-		focusItem(root, which === 'first' ? list[0] : list[list.length - 1])
-	}
-
 	/** Resolves the item containing an event target. */
 	const item = (event: Event) =>
 		(event.target as HTMLElement | null)?.closest<HTMLElement>(selector)
@@ -148,7 +142,5 @@ export const collection = (kind: string, defaults: ItemsOptions = {}) => {
 		return visible
 	}
 
-	return { all, attrs, clearHighlight, edge, focusItem, highlight, item, items, selector, sweep }
+	return { all, attrs, clearHighlight, focusItem, highlight, item, items, selector, sweep }
 }
-
-export type Collection = ReturnType<typeof collection>
