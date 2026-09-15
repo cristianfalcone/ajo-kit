@@ -66,17 +66,11 @@ const MessageScroller: Stateless<MessageScrollerArgs> = ({ children, class: clas
 const MessageScrollerViewport: Stateless<MessageScrollerViewportArgs> = ({
 	children,
 	class: classes,
-	role = 'region',
-	tabIndex = 0,
-	'aria-label': label = 'Messages',
 	...attrs
 }) => (
 	<BaseMessageScrollerViewport
 		{...attrs}
-		aria-label={label}
 		class={clsx(viewportBase, classes)}
-		role={role}
-		tabIndex={tabIndex}
 	>
 		{children}
 	</BaseMessageScrollerViewport>
@@ -86,17 +80,11 @@ const MessageScrollerViewport: Stateless<MessageScrollerViewportArgs> = ({
 const MessageScrollerContent: Stateless<MessageScrollerContentArgs> = ({
 	children,
 	class: classes,
-	role = 'log',
-	'aria-live': live = 'polite',
-	'aria-relevant': relevant = 'additions',
 	...attrs
 }) => (
 	<BaseMessageScrollerContent
 		{...attrs}
-		aria-live={live}
-		aria-relevant={relevant}
 		class={clsx(contentBase, classes)}
-		role={role}
 	>
 		{children}
 	</BaseMessageScrollerContent>
@@ -106,15 +94,11 @@ const MessageScrollerContent: Stateless<MessageScrollerContentArgs> = ({
 const MessageScrollerItem: Stateless<MessageScrollerItemArgs> = ({
 	children,
 	class: classes,
-	messageId,
-	scrollAnchor = false,
 	...attrs
 }) => (
 	<BaseMessageScrollerItem
 		{...attrs}
 		class={clsx(itemBase, classes)}
-		messageId={messageId}
-		scrollAnchor={scrollAnchor}
 	>
 		{children}
 	</BaseMessageScrollerItem>
@@ -126,11 +110,8 @@ const MessageScrollerButton: Stateless<MessageScrollerButtonArgs> = ({
 	children,
 	class: classes,
 	direction = 'end',
-	disabled,
 	size = 'icon-sm',
-	type = 'button',
 	variant = 'outline',
-	'set:onclick': onClick,
 	...attrs
 }) => {
 	const title = label ?? (direction === 'end' ? 'Scroll to end' : 'Scroll to start')
@@ -143,9 +124,6 @@ const MessageScrollerButton: Stateless<MessageScrollerButtonArgs> = ({
 			data-size={size}
 			data-variant={variant}
 			direction={direction}
-			disabled={disabled}
-			set:onclick={onClick}
-			type={type}
 		>
 			{children ?? (
 				<>

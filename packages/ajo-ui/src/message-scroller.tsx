@@ -145,7 +145,6 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 	let content: HTMLElement | null = null
 	let mutation: MutationObserver | undefined
 	let initialized = false
-	let didInitialScroll = false
 	let following = defaultScrollPosition !== 'start'
 	let currentAutoScroll = autoScroll
 	let currentDefaultPosition = defaultScrollPosition
@@ -409,9 +408,8 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 	})
 
 	const applyInitialScroll = () => {
-		if (didInitialScroll || !viewport) return
+		if (initialized || !viewport) return
 
-		didInitialScroll = true
 		initialized = true
 
 		if (pending) {
@@ -437,7 +435,7 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 	const scheduleInitial = frame(applyInitialScroll)
 
 	const scheduleInitialScroll = () => {
-		if (!browser() || didInitialScroll) return
+		if (!browser() || initialized) return
 
 		scheduleInitial()
 	}

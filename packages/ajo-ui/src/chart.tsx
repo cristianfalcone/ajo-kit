@@ -261,20 +261,14 @@ const defaultFormatValue = (value: number) =>
 const labelFor = (chart: ChartContextValue, row: ChartDatum, index: number) =>
 	chart.formatLabel(chart.xKey ? row[chart.xKey] : undefined, row, index)
 
-const payloadFor = (
-	chart: ChartContextValue,
-	index: number,
-	series = chart.series,
-	colors?: string[],
-) => {
+const payloadFor = (chart: ChartContextValue, index: number) => {
 	const row = chart.data[index] ?? {}
-	return series
-		.map((entry, entryIndex) => {
+	return chart.series
+		.map(entry => {
 			const value = number(row[entry.key])
 			if (value == null) return undefined
-			const color = colors?.[entryIndex] ?? entry.color
 			return {
-				color,
+				color: entry.color,
 				formattedValue: chart.formatValue(value, entry.key, row, index),
 				index,
 				key: entry.key,
@@ -286,11 +280,6 @@ const payloadFor = (
 		.filter(Boolean) as ChartPayload[]
 }
 
-const sameActiveKeys = (current: ChartActive | null, index: number, keys: string[]) =>
-	current?.index === index
-	&& current.items.length === keys.length
-	&& current.items.every((item, itemIndex) => item.key === keys[itemIndex])
-
 const sameActiveTarget = (current: ChartActive | null, index: number, keys: string[]) =>
 	current?.index === index
 	&& current.items.every(item => keys.includes(item.key))
@@ -298,7 +287,10 @@ const sameActiveTarget = (current: ChartActive | null, index: number, keys: stri
 const sameActiveValue = (current: ChartActive | null, next: ChartActive | null) => {
 	if (!current || !next) return current === next
 
-	return sameActiveKeys(current, next.index, next.items.map(item => item.key))
+	const keys = next.items.map(item => item.key)
+	return current.index === next.index
+		&& current.items.length === keys.length
+		&& current.items.every((item, itemIndex) => item.key === keys[itemIndex])
 }
 
 const extent = (chart: ChartContextValue) => {
@@ -372,7 +364,7 @@ const renderIcon = (icon: ChartConfig[string]['icon'], classes: string | undefin
 
 const axis = (
 	chart: ChartContextValue,
-	type: Exclude<ChartType, 'pie'>,
+	rowCenter: (index: number) => number,
 	yTicks: number[],
 	min: number,
 	max: number,
@@ -381,11 +373,6 @@ const axis = (
 	gridStroke?: string,
 ) => {
 	const box = plotBox(chart)
-	const groupWidth = (box.right - box.left) / chart.data.length
-	const xStep = chart.data.length > 1 ? (box.right - box.left) / (chart.data.length - 1) : 0
-	const rowCenter = (index: number) => type === 'bar'
-		? box.left + groupWidth * index + groupWidth / 2
-		: chart.data.length > 1 ? box.left + xStep * index : (box.left + box.right) / 2
 
 	return (
 		<g data-slot="chart-axis">
@@ -677,6 +664,12 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 		}, at)
 	}
 
+	const enter = (index: number, event: FocusEvent | PointerEvent) => {
+		const svg = svgFromEvent(event)
+		const point = rowPoint(index)
+		if (svg) activate(index, referencePoint(svg, point))
+	}
+
 	const pointerMove = (event: PointerEvent) => {
 		const svg = event.currentTarget as SVGSVGElement
 		const cursor = svgPoint(svg, event.clientX, event.clientY)
@@ -720,7 +713,7 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 		>
 			{chart.label ? <title>{chart.label}</title> : null}
 			{chart.description ? <desc id={`${chart.id}-description`}>{chart.description}</desc> : null}
-			{showGrid ? axis(chart, type, yTicks, min, max, axisStroke, axisStrokeOpacity, gridStroke) : showAxis ? axis(chart, type, [], min, max, axisStroke, axisStrokeOpacity, gridStroke) : null}
+			{showGrid ? axis(chart, rowCenter, yTicks, min, max, axisStroke, axisStrokeOpacity, gridStroke) : showAxis ? axis(chart, rowCenter, [], min, max, axisStroke, axisStrokeOpacity, gridStroke) : null}
 			{type === 'bar' ? chart.data.map((row, index) => {
 				const barWidth = clamp(groupWidth * 0.68 / chart.series.length, 6, 42)
 				const groupStart = box.left + groupWidth * index + (groupWidth - barWidth * chart.series.length) / 2
@@ -750,16 +743,8 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 							width={Math.max(2, barWidth - 2)}
 							x={x}
 							y={Math.min(y, yZero)}
-							set:onfocus={(event: FocusEvent) => {
-								const svg = svgFromEvent(event)
-								const point = rowPoint(index)
-								if (svg) activate(index, referencePoint(svg, point))
-							}}
-							set:onpointerenter={(event: PointerEvent) => {
-								const svg = svgFromEvent(event)
-								const point = rowPoint(index)
-								if (svg) activate(index, referencePoint(svg, point))
-							}}
+							set:onfocus={(event: FocusEvent) => enter(index, event)}
+							set:onpointerenter={(event: PointerEvent) => enter(index, event)}
 						/>
 					)
 				})
@@ -790,16 +775,8 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 									stroke={entry.color}
 									stroke-width="2"
 									tabindex="0"
-									set:onfocus={(event: FocusEvent) => {
-										const svg = svgFromEvent(event)
-										const activePoint = rowPoint(index)
-										if (svg) activate(index, referencePoint(svg, activePoint))
-									}}
-									set:onpointerenter={(event: PointerEvent) => {
-										const svg = svgFromEvent(event)
-										const activePoint = rowPoint(index)
-										if (svg) activate(index, referencePoint(svg, activePoint))
-									}}
+									set:onfocus={(event: FocusEvent) => enter(index, event)}
+									set:onpointerenter={(event: PointerEvent) => enter(index, event)}
 								/>
 							)
 						})}
