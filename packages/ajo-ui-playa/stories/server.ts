@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import sade from 'sade'
-import type { Plugin, ViteDevServer } from 'vite'
+import type { Plugin } from 'vite'
 
 type Options = {
 	'update-snapshots'?: boolean
@@ -524,12 +524,8 @@ async function test(options: Options) {
 		if (options.compare) console.log(`Visual baselines matched ${baselineDirectory}`)
 		if (updateSnapshots) console.log(`Visual baselines updated in ${baselineDirectory}`)
 	} finally {
-		await close(server)
+		await server.close()
 	}
-}
-
-async function close(server: ViteDevServer) {
-	await server.close()
 }
 
 const cli = sade('stories')

@@ -255,29 +255,8 @@ const label = (value: unknown) => String(value)
 	.replace(/[-_]+/g, ' ')
 	.replace(/\b\w/g, letter => letter.toUpperCase())
 
-const mergeRecord = (
-	first?: Record<string, unknown>,
-	second?: Record<string, unknown>,
-): Record<string, unknown> => ({
-	...(first ?? {}),
-	...(second ?? {}),
-})
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-
-const mergeArgTypes = (
-	first?: Record<string, ArgType>,
-	second?: Record<string, ArgType>,
-): Record<string, ArgType> => ({
-	...(first ?? {}),
-	...(second ?? {}),
-})
-
-const mergeParameters = (first?: Parameters, second?: Parameters): Parameters => ({
-	...(first ?? {}),
-	...(second ?? {}),
-})
 
 const stringify = (value: unknown) => {
 	try {
@@ -406,9 +385,9 @@ const loadStories = async () => {
 				exportName,
 				meta,
 				story: item,
-				args: mergeRecord(meta.args, item.args),
-				argTypes: mergeArgTypes(meta.argTypes, item.argTypes),
-				parameters: mergeParameters(meta.parameters, item.parameters),
+				args: { ...meta.args, ...item.args },
+				argTypes: { ...meta.argTypes, ...item.argTypes },
+				parameters: { ...meta.parameters, ...item.parameters },
 			})
 		}
 	}
@@ -449,33 +428,20 @@ const storyFrameMessage = (value: unknown): value is StoryFrameMessage => {
 	return false
 }
 
-const storyRenderMessage = (
-	id: string,
-	args: Record<string, unknown>,
-	theme: ThemeMode,
-): StoryRenderMessage => ({
-	args,
-	id,
-	source: 'ajo-stories',
-	theme,
-	type: 'render-story',
-})
-
 const postStoryRender = (
 	target: Window | null | undefined,
 	id: string,
 	args: Record<string, unknown>,
 	theme: ThemeMode,
 ) => {
-	target?.postMessage(storyRenderMessage(id, args, theme), location.origin)
+	target?.postMessage({
+		args,
+		id,
+		source: 'ajo-stories',
+		theme,
+		type: 'render-story',
+	} satisfies StoryRenderMessage, location.origin)
 }
-
-const postStoryFrameRender = (
-	frame: HTMLIFrameElement | null,
-	id: string,
-	args: Record<string, unknown>,
-	theme: ThemeMode,
-) => postStoryRender(frame?.contentWindow, id, args, theme)
 
 const postStoryArg = (id: string, name: string, value: unknown) => {
 	if (!embedded()) return
@@ -578,7 +544,7 @@ const StoryFrame: Stateful<{
 	const src = storyHref(entry.id, '', { args: overrides, canvas: true, preview: true, theme })
 	let frame: HTMLIFrameElement | null = null
 	let current = { id: entry.id, overrides, theme }
-	const send = () => postStoryFrameRender(frame, current.id, current.overrides, current.theme)
+	const send = () => postStoryRender(frame?.contentWindow, current.id, current.overrides, current.theme)
 
 	for (const next of this) {
 		current = { id: next.entry.id, overrides: next.overrides, theme: next.theme }
@@ -635,20 +601,6 @@ const ArgControl: Stateless<{
 					<FieldLabel for={id}>{title}</FieldLabel>
 					{description && <FieldDescription>{description}</FieldDescription>}
 				</FieldContent>
-			</UiField>
-		)
-	}
-
-	if (control === 'text') {
-		return (
-			<UiField>
-				<FieldLabel for={id}>{title}</FieldLabel>
-				<Input
-					id={id}
-					set:value={String(value ?? '')}
-					set:oninput={(event: Event) => setArg(name, input(event).value)}
-				/>
-				{description && <FieldDescription>{description}</FieldDescription>}
 			</UiField>
 		)
 	}

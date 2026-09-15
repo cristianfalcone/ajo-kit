@@ -49,7 +49,6 @@ for (const line of lines) {
 }
 if (!selected.length) throw new Error(`No file:.tarballs overrides found in ${workspace}`)
 
-await run('pnpm', ['build:packages'], root)
 const staging = await mkdtemp(join(tmpdir(), 'repack-sync-'))
 try {
 	for (const name of selected) {
