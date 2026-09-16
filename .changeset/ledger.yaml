@@ -10,6 +10,10 @@ ajo-kit-auth@0.6.0:
   dir: packages/ajo-kit-auth
   intents:
     - silent-papayas-begin
+ajo-kit-auth@0.6.1:
+  dir: packages/ajo-kit-auth
+  intents:
+    - fuzzy-lilies-grab
 ajo-kit-mail@0.2.0:
   dir: packages/ajo-kit-mail
   intents:
@@ -34,6 +38,10 @@ ajo-kit@0.3.1:
   dir: packages/ajo-kit
   intents:
     - kind-years-fall
+ajo-kit@0.3.2:
+  dir: packages/ajo-kit
+  intents:
+    - modern-hounds-hunt
 ajo-ui-playa@0.1.2:
   dir: packages/ajo-ui-playa
   intents:

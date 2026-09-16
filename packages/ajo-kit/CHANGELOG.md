@@ -1,5 +1,11 @@
 # ajo-kit
 
+## 0.3.2
+
+### Patch Changes
+
+- Support host-managed request origins and deterministic engine metadata from explicitly declared plugins.
+
 ## 0.3.1
 
 ### Patch Changes

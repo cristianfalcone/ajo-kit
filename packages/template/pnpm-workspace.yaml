@@ -6,6 +6,9 @@ allowBuilds:
   better-sqlite3: true
   esbuild: true
 minimumReleaseAgeExclude:
+  - ajo-kit@0.3.2
+  - ajo-kit-auth@0.6.1
+  - ajo-kit-server@0.1.1
   - ajo@0.1.35
   - ajo-kit@0.3.1
   - ajo-kit-auth@0.6.0

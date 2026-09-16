@@ -1,5 +1,11 @@
 # ajo-kit-auth
 
+## 0.6.1
+
+### Patch Changes
+
+- Validate cookie-authenticated writes against the current managed App origin and require ajo-kit 0.3.2 or newer.
+
 ## 0.6.0
 
 ### Minor Changes
