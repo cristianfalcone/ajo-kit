@@ -33,6 +33,13 @@ describe('ajo-kit vite plugin', () => {
 		await expect(hook.handler.call(context, '/project/src/data/dates.client.ts', '/project/src/page.tsx')).resolves.toBeUndefined()
 	})
 
+	test('the engine entry loads host origins only when the App declares the integration', () => {
+		const options = { template: '', migrations: [], database: false }
+		expect(engine(options).code).not.toContain("import 'ajo-kit/origins'")
+		expect(engine({ ...options, origins: false }).code).not.toContain("import 'ajo-kit/origins'")
+		expect(engine({ ...options, origins: true }).code).toContain("import 'ajo-kit/origins'")
+	})
+
 	test('a root bootstrap export declares engine database use', () => {
 		const target = engine({ template: '', migrations: [], database: false })
 		const transform = target.plugin.transform as (code: string, id: string) => void

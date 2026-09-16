@@ -342,7 +342,10 @@ memory. Multi-process deployments require shared topic coordination and
 fanout. Store SQLite database files on persistent local disk.
 
 For non-local production, configure `APP_URL` to the public `http` or `https`
-origin. Applications choose how to configure their database path:
+origin. When the host supplies the managed origins manifest through
+`AJO_ORIGINS_FILE`, `APP_URL` must be an exact HTTPS origin with no path,
+credentials, query, or fragment, and must appear in that manifest. Applications
+choose how to configure their database path:
 
 ```ts
 connect(process.env.DATABASE_PATH ?? './database.sqlite')
@@ -398,6 +401,22 @@ This enables:
 - server-only import protection in Vite
 - automatic migration loading
 - CLI command extension via `register(cli)`
+- engine descriptor configuration through `kit.engine`
+
+A plugin's `kit.engine` block uses the same `env`, `fs` and `ipc` shape as the
+App's block. Builds include installed plugins from dependencies and
+devDependencies, validate each declaration, and combine their requirements
+with the App's. Shared entries appear once; a variable required by any
+contributor is required in the final descriptor. Entries remain sorted, and
+malformed or duplicate entries within one declaration fail the build with the
+plugin's name.
+
+For example, `ajo-kit-server` declares the optional `AJO_ORIGINS_FILE` variable
+and the `/ajo/origin` filesystem root. The host provides that directory as a
+read-only mount, including when the App has no custom domains. Builds with
+both declarations load the host-origin reader; Apps without this integration
+keep their existing descriptor and do not load that reader. To run a platform
+artifact directly on the engine, provide the same directory mount.
 
 ## Public Entry Points
 
@@ -451,8 +470,13 @@ import type {
 unknown thrown value into a `Failure`.
 
 `ajax()` and `api()` classify requests. `ip()` resolves the client address, and
-`origin()` resolves the trusted application origin. `navigate()` performs
-client navigation, and `date()` formats ISO timestamps.
+`origin(req)` resolves the canonical application origin from `APP_URL` in
+production, for links that intentionally use that address. `requestOrigin(req)`
+resolves the current request origin; with a managed origins manifest it accepts
+only the direct request host listed by the host. Use it when a request or form
+must stay on the current alias. Adding aliases does not redirect requests or
+share browser cookies, sessions, or passkey registrations between origins.
+`navigate()` performs client navigation, and `date()` formats ISO timestamps.
 
 ## Server API
 

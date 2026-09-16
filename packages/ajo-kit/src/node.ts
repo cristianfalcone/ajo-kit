@@ -7,6 +7,7 @@ import { attach, reader, request, type Handler } from './http'
 import { compile } from './template'
 import { descriptor, engine, type Descriptor, type DescriptorInput, type GraphIssue } from './vite'
 import { migrationModules } from './migrate'
+import { discover } from './discover'
 
 export { compile } from './template'
 
@@ -198,7 +199,33 @@ const appEngine = async (root: string): Promise<AppEngineConfig> => {
 	const engine = kit && typeof kit === 'object' && !Array.isArray(kit)
 		? (kit as Record<string, unknown>).engine
 		: undefined
-	return parseEngine(engine)
+	const config = parseEngine(engine)
+	const contributions = [config]
+	const source = { modules: ['server/entry.js'], migrations: [], data: false, net: false }
+	descriptor({ ...source, ...config })
+
+	for (const plugin of discover(root).sort((left, right) => left.name.localeCompare(right.name))) {
+		if (plugin.engine === undefined) continue
+		try {
+			const contribution = parseEngine(plugin.engine)
+			descriptor({ ...source, ...contribution })
+			contributions.push(contribution)
+		} catch (error) {
+			throw new Error(`${plugin.name}: ${error instanceof Error ? error.message : String(error)}`)
+		}
+	}
+
+	if (contributions.length === 1) return config
+	const required = new Set(contributions.flatMap(item => item.env?.required ?? []))
+	return {
+		env: {
+			required: [...required],
+			optional: [...new Set(contributions.flatMap(item => item.env?.optional ?? []))]
+				.filter(name => !required.has(name)),
+		},
+		fs: { roots: [...new Set(contributions.flatMap(item => item.fs?.roots ?? []))] },
+		ipc: { pipes: [...new Set(contributions.flatMap(item => item.ipc?.pipes ?? []))] },
+	}
 }
 
 const modules = async (root: string, directory = 'server'): Promise<string[]> => {
@@ -229,13 +256,11 @@ const assertIntl = async (root: string, files: string[]) => {
 	if (violations.length) throw new Error(`Engine server Intl profile violation:\n${violations.join('\n')}`)
 }
 
-/** Validates a staging tree and writes its exact compiler schema-1 descriptor. */
-export async function emitDescriptor(
+const writeDescriptor = async (
 	root: string,
 	input: Omit<DescriptorInput, 'modules' | 'env' | 'fs' | 'ipc'>,
-	app = process.cwd(),
-): Promise<Descriptor> {
-	const config = await appEngine(app)
+	config: AppEngineConfig,
+): Promise<Descriptor> => {
 	const files = await modules(root)
 	await assertIntl(root, files)
 	const value = descriptor({ ...input, ...config, modules: files })
@@ -243,9 +268,21 @@ export async function emitDescriptor(
 	return value
 }
 
+/** Validates a staging tree and writes its exact compiler schema-1 descriptor. */
+export async function emitDescriptor(
+	root: string,
+	input: Omit<DescriptorInput, 'modules' | 'env' | 'fs' | 'ipc'>,
+	app = process.cwd(),
+): Promise<Descriptor> {
+	return writeDescriptor(root, input, await appEngine(app))
+}
+
 /** Builds the client and closed server graph into .ajo and emits its descriptor. */
 export async function build(): Promise<EngineOutput> {
 	const root = process.cwd()
+	const config = await appEngine(root)
+	const origins = [...(config.env?.required ?? []), ...(config.env?.optional ?? [])].includes('AJO_ORIGINS_FILE')
+		&& (config.fs?.roots ?? []).includes('/ajo/origin')
 	const staging = join(root, '.ajo')
 	await fs.rm(staging, { force: true, recursive: true })
 
@@ -262,7 +299,7 @@ export async function build(): Promise<EngineOutput> {
 		file: await fs.realpath(file),
 	})))
 	const database = migrations.length > 0
-	const target = engine({ template, migrations, database })
+	const target = engine({ template, migrations, database, origins })
 	// A real file: Rolldown resolves entries natively and never consults
 	// plugin hooks for a virtual entry id. .mjs keeps it out of modules().
 	const generated = join(staging, 'entry.gen.mjs')
@@ -285,11 +322,11 @@ export async function build(): Promise<EngineOutput> {
 	}
 
 	return {
-		descriptor: await emitDescriptor(staging, {
+		descriptor: await writeDescriptor(staging, {
 			migrations: target.result.migrations,
 			data: target.result.database,
 			net: target.result.net,
-		}, root),
+		}, config),
 		findings: target.result.findings,
 		staging,
 	}

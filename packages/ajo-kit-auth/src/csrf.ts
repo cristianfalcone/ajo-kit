@@ -1,4 +1,4 @@
-import { origin, type Request, type Response } from 'ajo-kit'
+import { requestOrigin, type Request, type Response } from 'ajo-kit'
 import { hmacSha256Hex, timingSafeEqual } from 'ajo-kit/platform'
 import { generate } from './session'
 import { parse, secure } from './cookie'
@@ -60,7 +60,7 @@ export function verify(req: Request): boolean {
 
 	if (!source && !referer) return false
 
-	const base = origin(req)
+	const base = requestOrigin(req)
 
 	if (source) {
 		try {

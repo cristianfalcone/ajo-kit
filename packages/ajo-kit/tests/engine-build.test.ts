@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
+import { discover } from '../src/discover'
 import { emitDescriptor } from '../src/node'
 import { graph } from '../src/vite'
 
@@ -14,6 +15,17 @@ const fixture = async (engine?: unknown) => {
 	await writeFile(join(staging, 'server/entry.js'), '')
 	await writeFile(join(app, 'package.json'), JSON.stringify(engine === undefined ? {} : { kit: { engine } }))
 	return { app, staging }
+}
+
+const install = async (app: string, name: string, engine?: unknown, declared = true) => {
+	const location = join(app, 'node_modules', name)
+	await mkdir(location, { recursive: true })
+	await writeFile(join(location, 'package.json'), JSON.stringify({ name, kit: { engine } }))
+	if (declared) {
+		const manifest = JSON.parse(await readFile(join(app, 'package.json'), 'utf8'))
+		manifest.devDependencies = { ...manifest.devDependencies, [name]: '1.0.0' }
+		await writeFile(join(app, 'package.json'), JSON.stringify(manifest))
+	}
 }
 
 const rejects = async (engine: unknown, message: string) => {
@@ -101,6 +113,128 @@ describe('ajo engine build contract', () => {
 				fs: { roots },
 				ipc: { pipes },
 			})
+		} finally {
+			await rm(app, { force: true, recursive: true })
+		}
+	})
+
+	test('installed deployment plugins contribute their engine authority from devDependencies', async () => {
+		const { app, staging } = await fixture({ fs: { roots: ['/ajo/data'] } })
+		try {
+			await install(app, 'ajo-kit-server', {
+				env: { optional: ['AJO_ORIGINS_FILE'] },
+				fs: { roots: ['/ajo/origin'] },
+			})
+			const value = await emitDescriptor(staging, input, app)
+			expect(value.env.optional).toContain('AJO_ORIGINS_FILE')
+			expect(value.fs.roots).toEqual(['/ajo/data', '/ajo/origin'])
+			expect(JSON.parse(await readFile(join(staging, 'compiler.json'), 'utf8'))).toEqual(value)
+		} finally {
+			await rm(app, { force: true, recursive: true })
+		}
+	})
+
+	test('ignores installed plugins that the application did not explicitly declare', async () => {
+		const { app, staging } = await fixture()
+		try {
+			await install(app, 'ajo-shadow', { fs: { roots: ['/ajo/shadow'] } }, false)
+			const value = await emitDescriptor(staging, input, app)
+			expect(value.fs.roots).not.toContain('/ajo/shadow')
+			expect(discover(app)).toEqual([])
+		} finally {
+			await rm(app, { force: true, recursive: true })
+		}
+	})
+
+	test('rejects a declared plugin whose installed package identity is spoofed', async () => {
+		const { app, staging } = await fixture()
+		try {
+			await install(app, 'ajo-example', { fs: { roots: ['/ajo/example'] } })
+			await writeFile(join(app, 'node_modules/ajo-example/package.json'), JSON.stringify({
+				name: 'ajo-spoofed',
+				kit: { name: 'ajo-spoofed', path: '/tmp/spoofed', engine: { fs: { roots: ['/ajo/example'] } } },
+			}))
+			await expect(emitDescriptor(staging, input, app)).rejects.toThrow(
+				'Plugin package identity mismatch: expected "ajo-example"',
+			)
+		} finally {
+			await rm(app, { force: true, recursive: true })
+		}
+	})
+
+	test('derives plugin name and path instead of accepting kit field overrides', async () => {
+		const { app } = await fixture()
+		try {
+			await install(app, 'ajo-example')
+			await writeFile(join(app, 'node_modules/ajo-example/package.json'), JSON.stringify({
+				name: 'ajo-example',
+				kit: { name: 'ajo-spoofed', path: '/tmp/spoofed' },
+			}))
+			expect(discover(app)).toEqual([expect.objectContaining({
+				name: 'ajo-example',
+				path: join(app, 'node_modules/ajo-example'),
+			})])
+		} finally {
+			await rm(app, { force: true, recursive: true })
+		}
+	})
+
+	test('plugins without engine metadata leave the application descriptor unchanged', async () => {
+		const { app, staging } = await fixture()
+		try {
+			const before = await emitDescriptor(staging, input, app)
+			await install(app, 'ajo-example')
+			expect(await emitDescriptor(staging, input, app)).toEqual(before)
+			expect(before.fs.roots).toEqual([])
+			expect(before.env.optional).not.toContain('AJO_ORIGINS_FILE')
+		} finally {
+			await rm(app, { force: true, recursive: true })
+		}
+	})
+
+	test('merges shared authority once, promotes required variables, and sorts contributions', async () => {
+		const { app, staging } = await fixture({
+			env: { optional: ['SHARED', 'APP_OPTIONAL'] },
+			fs: { roots: ['/ajo/data'] },
+			ipc: { pipes: ['/ajo/shared'] },
+		})
+		try {
+			await install(app, 'ajo-zeta', {
+				env: { required: ['SHARED'], optional: ['Z_OPTIONAL'] },
+				fs: { roots: ['/ajo/origin', '/ajo/data'] },
+				ipc: { pipes: ['/ajo/zeta', '/ajo/shared'] },
+			})
+			await install(app, 'ajo-alpha', {
+				env: { required: ['A_REQUIRED'], optional: ['APP_OPTIONAL', 'SHARED'] },
+				fs: { roots: ['/ajo/origin'] },
+			})
+			const value = await emitDescriptor(staging, input, app)
+			expect(value.env.required).toEqual(['NODE_ENV', 'APP_URL', 'A_REQUIRED', 'SHARED'])
+			expect(value.env.optional).toEqual([
+				'APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT', 'APP_OPTIONAL', 'Z_OPTIONAL',
+			])
+			expect(value.fs.roots).toEqual(['/ajo/data', '/ajo/origin'])
+			expect(value.ipc.pipes).toEqual(['/ajo/shared', '/ajo/zeta'])
+		} finally {
+			await rm(app, { force: true, recursive: true })
+		}
+	})
+
+	test('rejects malformed plugin declarations before merging and names the plugin', async () => {
+		const { app, staging } = await fixture()
+		try {
+			for (const [engine, message] of [
+				[null, 'must be an object'],
+				[{ unknown: true }, 'unknown key'],
+				[{ env: { optional: ['APP_URL'] } }, 'duplicates "APP_URL"'],
+				[{ env: { optional: ['invalid-name'] } }, 'invalid environment name'],
+				[{ fs: { roots: ['/ajo/origin', '/ajo/origin'] } }, 'duplicates "/ajo/origin"'],
+				[{ fs: { roots: ['relative'] } }, 'absolute normalized POSIX path'],
+			] as const) {
+				await install(app, 'ajo-example', engine)
+				await expect(emitDescriptor(staging, input, app)).rejects.toThrow('ajo-example:')
+				await expect(emitDescriptor(staging, input, app)).rejects.toThrow(message)
+			}
 		} finally {
 			await rm(app, { force: true, recursive: true })
 		}

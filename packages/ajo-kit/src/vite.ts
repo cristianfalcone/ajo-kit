@@ -328,6 +328,8 @@ export function engine(options: {
 	template: string
 	migrations: readonly EngineMigration[]
 	database: boolean
+	/** Loads the host-origin reader only for Apps declaring its environment and filesystem root. */
+	origins?: boolean
 }): { plugin: Plugin; result: EngineBuild; code: string } {
 	const result: EngineBuild = { auth: false, database: options.database, files: [], findings: [], migrations: [], net: false }
 	const migrations = options.migrations.map(migration => ({ ...migration, file: clean(migration.file) }))
@@ -336,6 +338,7 @@ export function engine(options: {
 	// The generated entry is written to a real staging file: Rolldown resolves
 	// entry modules natively, so a virtual entry id never reaches plugin hooks.
 	const code = [
+		...(options.origins ? ["import 'ajo-kit/origins'"] : []),
 		"import { start } from 'ajo-kit/engine'",
 		"import { routes } from 'virtual:ajo/routes'",
 		"import { handlers, wares } from 'virtual:ajo/handlers'",

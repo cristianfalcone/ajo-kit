@@ -16,6 +16,7 @@ describe('ajo-kit migrations integration', () => {
 
 		mkdirSync(app, { recursive: true })
 		mkdirSync(folder, { recursive: true })
+		writeFileSync(join(root, 'package.json'), JSON.stringify({ devDependencies: { 'ajo-authored': '1.0.0' } }))
 		writeFileSync(join(plugin, 'package.json'), JSON.stringify({
 			name: 'ajo-authored',
 			kit: { migrations: './migrations' },
@@ -192,9 +193,12 @@ describe('ajo-kit migrations integration', () => {
 		}
 	})
 
-	test('registry construction rejects duplicate migration sources', async () => {
+	test('registry construction rejects spoofed plugin migration identities', async () => {
 		const root = mkdtempSync(join(tmpdir(), 'ajo-kit-migrate-source-'))
 		const migration = 'export async function up() {}\nexport async function down() {}\n'
+		writeFileSync(join(root, 'package.json'), JSON.stringify({
+			devDependencies: { 'ajo-first': '1.0.0', 'ajo-second': '1.0.0' },
+		}))
 
 		for (const folder of ['ajo-first', 'ajo-second']) {
 			const plugin = join(root, 'node_modules', folder)
@@ -207,7 +211,7 @@ describe('ajo-kit migrations integration', () => {
 		}
 
 		try {
-			await expect(registry(root)).rejects.toThrow('Duplicate migration source "plugin/ajo-shared"')
+			await expect(registry(root)).rejects.toThrow('Plugin package identity mismatch: expected "ajo-first"')
 		} finally {
 			rmSync(root, { recursive: true, force: true })
 		}

@@ -62,6 +62,11 @@
       "types": "./src/database.ts",
       "ajo": "./src/database.ajo.ts",
       "default": "./src/database.node.ts"
+    },
+    "./origins": {
+      "types": "./src/origins.ts",
+      "ajo": "./src/origins.ajo.ts",
+      "default": "./src/origins.node.ts"
     }
   },
   "dependencies": {

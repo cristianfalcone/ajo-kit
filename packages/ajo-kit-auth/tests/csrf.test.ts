@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { set, verify } from '../src/csrf'
+import { setOriginReader } from '../../ajo-kit/src/constants'
 
 const { credential } = vi.hoisted(() => ({
 	credential: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8',
@@ -13,6 +14,7 @@ vi.mock('ajo-kit/platform', async importOriginal => ({
 const app = process.env.APP_URL
 const environment = process.env.NODE_ENV
 const secret = process.env.APP_SECRET
+const origins = process.env.AJO_ORIGINS_FILE
 
 const response = () => {
 	const headers = new Map<string, string>()
@@ -35,6 +37,8 @@ afterEach(() => {
 	restore('APP_URL', app)
 	restore('APP_SECRET', secret)
 	restore('NODE_ENV', environment)
+	restore('AJO_ORIGINS_FILE', origins)
+	setOriginReader(undefined)
 })
 
 describe('ajo-kit-auth csrf', () => {
@@ -118,10 +122,16 @@ describe('ajo-kit-auth csrf', () => {
 		process.env.APP_URL = 'https://app.test'
 		expect(verify({
 			headers: {
-				host: 'evil.test',
+				host: 'app.test',
 				origin: 'https://app.test',
 			},
 		} as any)).toBe(true)
+		expect(() => verify({
+			headers: {
+				host: 'evil.test',
+				origin: 'https://app.test',
+			},
+		} as any)).toThrow('Misdirected Request')
 		expect(verify({
 			headers: {
 				host: 'app.test',
@@ -129,4 +139,19 @@ describe('ajo-kit-auth csrf', () => {
 			},
 		} as any)).toBe(false)
 	})
+
+	test('checks Origin against the admitted request Host for every alias', () => {
+		process.env.NODE_ENV = 'production'
+		process.env.APP_URL = 'https://app.test'
+		process.env.AJO_ORIGINS_FILE = '/ajo/origin/origins.json'
+		setOriginReader(() => JSON.stringify({
+			schema: 'ajo.origins/v1',
+			origins: ['https://app.test', 'https://alias.test'],
+		}))
+
+		expect(verify({ headers: { host: 'alias.test', origin: 'https://alias.test' } } as any)).toBe(true)
+		expect(verify({ headers: { host: 'alias.test', origin: 'https://app.test' } } as any)).toBe(false)
+		expect(verify({ headers: { host: 'app.test', origin: 'https://alias.test' } } as any)).toBe(false)
+	})
+
 })

@@ -2,6 +2,7 @@ import app from 'runtime:app'
 import { files, serve, type Response as RuntimeResponse, type Writer } from 'runtime:http'
 import { close, connect, db } from 'ajo-kit/database'
 import { run as runBootstrap } from './bootstrap'
+import { normalize, requestOrigin } from './constants'
 import { attach, request, type Reply } from './http'
 import { security } from './headers'
 import { migrator, type MigrationRegistry } from './migrations'
@@ -41,11 +42,12 @@ const dynamic = (reply: Reply): RuntimeResponse => ({
 		: { body: reply.body }),
 })
 
-const secured = (response: RuntimeResponse): RuntimeResponse => ({
+const secured = (response: RuntimeResponse, origins = false): RuntimeResponse => ({
 	...response,
 	headers: {
 		...Object.fromEntries(Object.entries(security()).map(([name, value]) => [name.toLowerCase(), String(value)])),
 		...response.headers,
+		...(origins && { 'x-ajo-origins': 'v1' }),
 	},
 })
 
@@ -86,17 +88,27 @@ export async function start(input: StartOptions): Promise<void> {
 	try {
 		assets = files(`${app.root}/client`)
 		server = serve({ host: configured.host, port: configured.port }, async raw => {
-			const asset = assets(raw)
-			if (asset) return secured(asset)
-
-			const reply = await handler(request({
+			const incoming = request({
 				method: raw.method,
 				target: raw.target,
 				headers: raw.headers,
 				remoteAddress: raw.remoteAddress,
 				read: limit => raw.body(limit),
-			}))
-			return dynamic(reply)
+			})
+			try { requestOrigin(incoming) }
+			catch (error) {
+				const failure = normalize(error)
+				return secured({
+					status: failure.status,
+					headers: { 'cache-control': 'no-store', 'content-type': 'text/plain; charset=utf-8' },
+					body: failure.toJSON().message,
+				})
+			}
+
+			const asset = assets(raw)
+			if (asset) return secured(asset, incoming.originPolicy === 'v1')
+			const reply = await handler(incoming)
+			return secured(dynamic(reply), incoming.originPolicy === 'v1')
 		})
 	} catch (error) {
 		if (connected) await close()

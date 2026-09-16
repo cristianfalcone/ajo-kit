@@ -12,6 +12,7 @@ export {
 	api,
 	ip,
 	origin,
+	requestOrigin,
 	locale,
 	date,
 } from './constants'

@@ -58,7 +58,10 @@ export default [wares.session(), wares.csrf]
 cookie.
 
 `csrf` validates unsafe cookie-auth requests, including `/api/*`. It skips safe
-methods, bearer-token requests, and unauthenticated API requests.
+methods, bearer-token requests, and unauthenticated API requests. On a managed
+App with multiple origins, the browser Origin or Referer must match the current
+request origin. A form on one alias does not authorize a request to another
+alias, even when both belong to the same App.
 
 ### 4. Set secret for verification links
 
@@ -69,8 +72,10 @@ APP_SECRET=<32+ random characters from your secret manager>
 Development can run without this value. Production fails closed when
 `APP_SECRET` is missing, too short, or left as a sample placeholder.
 
-For non-local production, also configure `APP_URL` in the app environment so
-same-origin checks and generated links use the trusted public origin.
+For non-local production, also configure `APP_URL` in the app environment for
+canonical generated links. When the host supplies a managed origins manifest,
+`APP_URL` must be an exact HTTPS origin listed there; form checks use the current
+request origin through `requestOrigin(req)` from `ajo-kit`.
 
 ## Main Exports
 
