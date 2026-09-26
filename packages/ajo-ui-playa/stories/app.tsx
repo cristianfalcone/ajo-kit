@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import { render, type Children, type Stateful, type Stateless } from 'ajo'
 import { context } from 'ajo/context'
-import { scheme, storage } from 'ajo-cloves'
+import { media, storage } from 'ajo-cloves'
 import clsx from 'clsx'
 import Button from 'ajo-ui-playa/button'
 import { Card, CardContent } from 'ajo-ui-playa/card'
@@ -1008,8 +1008,8 @@ const initialState = (stored: string): State => ({
 })
 
 const App: Stateful = function* () {
-	const color = scheme(this)
-	const saved = storage(this, { key: () => themeKey, fallback: 'system' })
+	const dark = media(this, { query: () => '(prefers-color-scheme: dark)' })
+	const saved = storage(this, { key: themeKey, fallback: 'system' })
 	const state = initialState(saved.value)
 	const played = new Set<string>()
 	let pendingFrameRender: StoryRenderMessage | undefined
@@ -1051,7 +1051,7 @@ const App: Stateful = function* () {
 		if (Object.keys(message.args).length) state.live.set(entry.id, message.args)
 		else state.live.delete(entry.id)
 		clearFailure()
-		applyTheme(message.theme, color.dark)
+		applyTheme(message.theme, dark.matches)
 	}
 
 	const sendFrameRender = (target: MessageEventSource | null) => {
@@ -1096,7 +1096,7 @@ const App: Stateful = function* () {
 		state.theme = mode
 		storedTheme = mode
 		saved.set(mode)
-		applyTheme(mode, color.dark)
+		applyTheme(mode, dark.matches)
 	}
 
 	const cycleTheme = () => setTheme(nextTheme(state.theme))
@@ -1185,7 +1185,7 @@ const App: Stateful = function* () {
 			assignArg(event.data.name, event.data.value)
 		})
 	}, { signal: this.signal })
-	applyTheme(state.theme, color.dark)
+	applyTheme(state.theme, dark.matches)
 
 	void loadStories()
 		.then(entries => this.next(() => {
@@ -1216,7 +1216,7 @@ const App: Stateful = function* () {
 			state.theme = isThemeMode(nextStoredTheme) ? nextStoredTheme : 'system'
 		}
 
-		applyTheme(state.theme, color.dark)
+		applyTheme(state.theme, dark.matches)
 
 		const active = state.active
 		const args = active ? storyArgs(active, state) : {}

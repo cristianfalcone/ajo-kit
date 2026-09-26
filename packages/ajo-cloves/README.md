@@ -113,9 +113,8 @@ keyed reconciliation reuses an element.
 
 | Export | Purpose | Key options |
 |---|---|---|
-| `media` | Reactive media-query match shared per query string; false on the server. | `query`; method `sync`. |
-| `scheme` | Reactive OS dark-scheme preference. | No options. |
-| `storage` | Reactive `localStorage` or `sessionStorage` string value with cross-tab sync. | `key`, `fallback`, `area`. |
+| `media` | Reactive media-query match, subscribed at setup; false on the server. Dark mode is `(prefers-color-scheme: dark)`. | `query`; method `sync` (only when the query changes). |
+| `storage` | Reactive `localStorage` string with cross-tab sync; the fallback on the server or when storage throws. Compare the value with known literals. | `key` (string), `fallback`; getter `value`, method `set`. |
 | `scrolling` | Frame-coalesced scroll tracking for a live element. | `target`, `onScroll`, `onEnd`; method `sync`. |
 | `resize` | Shared `ResizeObserver` notifications for a live element. | `target`, `onResize`; method `sync`. |
 | `overflow` | Stamps `data-overflow-x`/`-y` (`start`/`end`/`both`) while content overflows a live scrollable element. | `target`; method `sync`. |
@@ -132,7 +131,7 @@ keyed reconciliation reuses an element.
 | `callHandler` | Composes an optional consumer event handler. | Invokes function values with the original event. |
 | `callRef` | Composes an optional callback ref. | Forwards both element and `null`. |
 | `clamp` | Clamps a number to an inclusive range. | `value`, `min`, `max`. |
-| `remember` | Stores a value in an insertion-ordered bounded cache. | FIFO; default limit 32; positive integer limits only. |
+| `remember` | Stores a value in an insertion-ordered bounded cache. | FIFO; at most 32 keys. |
 | `id` | Monotonic per-prefix id generator. | `prefix`. |
 | `frame` | Coalesces repeated calls into one callback on the next animation frame. | Callback; returned scheduler has `cancel()`. |
 

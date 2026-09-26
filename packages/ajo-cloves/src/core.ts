@@ -53,69 +53,6 @@ export const listen = <K extends keyof GlobalEventHandlersEventMap>(
 	if (dom(host)) on(host, type, handler, host, opts)
 }
 
-type SharedStop = () => void
-
-const sources = new Map<string, {
-	stop: SharedStop
-	subscribers: Set<() => void>
-}>()
-
-/** Subscribes to a lazily-started shared source; the real source stops with the last unsubscribe. */
-export const shared = (
-	key: string,
-	start: (notify: () => void) => SharedStop,
-	fn: () => void,
-	signal: AbortSignal,
-): void => {
-
-	if (signal.aborted) return
-
-	let source = sources.get(key)
-	const created = !source
-
-	if (!source) {
-		source = {
-			stop: () => { },
-			subscribers: new Set(),
-		}
-		sources.set(key, source)
-	}
-
-	source.subscribers.add(fn)
-
-	const unsubscribe = () => {
-
-		const current = sources.get(key)
-
-		if (!current) return
-
-		current.subscribers.delete(fn)
-
-		if (current.subscribers.size) return
-
-		current.stop()
-		sources.delete(key)
-	}
-
-	signal.addEventListener('abort', unsubscribe, { once: true })
-
-	if (!created) return
-
-	try {
-		source.stop = start(() => {
-
-			const current = sources.get(key)
-
-			if (!current) return
-
-			for (const subscriber of [...current.subscribers]) subscriber()
-		})
-	} catch (error) {
-		unsubscribe()
-		throw error
-	}
-}
-
 /** Wraps fn so multiple calls within one frame collapse into one run on the next frame. */
 export const frame = (fn: () => void): (() => void) & { cancel(): void } => {
 
@@ -161,8 +98,7 @@ export const live = <T extends Element>(host: Host, opts: {
 	let scope: AbortController | undefined
 
 	const schedule = frame(() => {
-		const current = target
-		if (current) opts.onChange(current)
+		if (target) opts.onChange(target)
 	})
 
 	const stop = () => {
@@ -181,30 +117,21 @@ export const live = <T extends Element>(host: Host, opts: {
 			const next = opts.target() ?? undefined
 			if (next === target) return
 
-			scope?.abort()
-			scope = undefined
-			schedule.cancel()
-			target = next
-
+			stop()
 			if (!next) return
 
 			const controller = new AbortController()
 			const notify = () => {
-				if (!controller.signal.aborted && target === next) schedule()
+				if (!controller.signal.aborted) schedule()
 			}
+			target = next
 			scope = controller
-			try {
-				opts.bind(next, notify, controller.signal)
-			} catch (error) {
-				if (scope === controller) {
-					controller.abort()
-					scope = undefined
-					target = undefined
-					schedule.cancel()
-				}
-				throw error
-			}
+			opts.bind(next, notify, controller.signal)
 			notify()
+		},
+		/** Schedules `onChange` for the current target on the next frame. */
+		refresh() {
+			if (target) schedule()
 		},
 	}
 }
@@ -214,20 +141,10 @@ const counters: Record<string, number> = Object.create(null)
 /** Monotonic per-prefix unique id. */
 export const id = (prefix: string) => `${prefix}-${counters[prefix] = (counters[prefix] ?? 0) + 1}`
 
-/** Stores a value while keeping at most `limit` insertion-ordered cache keys. */
-export const remember = <Key, Value>(
-	cache: Map<Key, Value>,
-	key: Key,
-	value: Value,
-	limit = 32,
-): Value => {
-	if (!Number.isInteger(limit) || limit < 1) throw new RangeError('remember limit must be a positive integer')
+/** Stores a value while keeping at most 32 insertion-ordered cache keys. */
+export const remember = <Key, Value>(cache: Map<Key, Value>, key: Key, value: Value): Value => {
 	cache.set(key, value)
-	while (cache.size > limit) {
-		const oldest = cache.keys().next()
-		if (oldest.done) break
-		cache.delete(oldest.value)
-	}
+	if (cache.size > 32) cache.delete(cache.keys().next().value!)
 	return value
 }
 

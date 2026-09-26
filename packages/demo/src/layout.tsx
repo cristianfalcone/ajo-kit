@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
 import type { LayoutArgs } from '@kit'
-import { scheme, storage } from 'ajo-cloves'
+import { media, storage } from 'ajo-cloves'
 import Button from 'ajo-ui-playa/button'
 import Spinner from 'ajo-ui-playa/spinner'
 import { Toaster } from 'ajo-ui-playa/toast'
@@ -12,8 +12,8 @@ export const pending = true
 const Layout: Stateful<LayoutArgs> = function* (args) {
 
 	let previous: Children = args.children
-	const color = scheme(this)
-	const saved = storage(this, { key: () => 'theme.v1', fallback: 'system' })
+	const dark = media(this, { query: () => '(prefers-color-scheme: dark)' })
+	const saved = storage(this, { key: 'theme.v1', fallback: 'system' })
 	const current = () => saved.value as ThemeMode
 
 	const apply = (mode: ThemeMode) => {
@@ -22,7 +22,7 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 
 		if (!root) return
 
-		root.classList.toggle('dark', mode === 'dark' || (mode === 'system' && color.dark))
+		root.classList.toggle('dark', mode === 'dark' || (mode === 'system' && dark.matches))
 	}
 
 	const set = (next: ThemeMode) => {

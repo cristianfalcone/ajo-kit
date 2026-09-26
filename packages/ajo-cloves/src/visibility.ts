@@ -1,12 +1,5 @@
 import type { Host } from 'ajo'
-import { dom, shared } from './core'
-
-const start = (notify: () => void) => {
-	document.addEventListener('visibilitychange', notify)
-	return () => document.removeEventListener('visibilitychange', notify)
-}
-
-const read = () => document.visibilityState !== 'hidden'
+import { dom } from './core'
 
 /**
  * Reactive document visibility.
@@ -26,20 +19,11 @@ export const visibility = (host: Host) => {
 		}
 	}
 
-	let current = read()
-
-	shared('visibility', start, () => {
-		const next = read()
-		if (next === current) return
-
-		host.next(() => {
-			current = next
-		})
-	}, host.signal)
+	document.addEventListener('visibilitychange', () => host.next(), { signal: host.signal })
 
 	return {
 		get visible() {
-			return current
+			return document.visibilityState !== 'hidden'
 		},
 	}
 }

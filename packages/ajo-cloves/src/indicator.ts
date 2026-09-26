@@ -1,6 +1,6 @@
 import type { Host } from 'ajo'
-import { dom, frame } from './core'
-import { resize } from './resize'
+import { dom, frame, live } from './core'
+import { subscribe } from './resize'
 
 /**
  * Tracks a marked child inside a live container and stamps its box on the
@@ -38,29 +38,19 @@ export const indicator = (host: Host, opts: {
 		}
 	}
 
-	let container: HTMLElement | undefined
-	let placed = false
+	// The container whose marker is placed; the marker attribute trails the
+	// variables by one frame so the theme's transitioned pseudo-element first
+	// paints already in position.
+	let placed: HTMLElement | undefined
 
-	const clear = (el: HTMLElement) => {
-		el.removeAttribute('data-indicator')
-		for (const name of ['x', 'y', 'w', 'h']) el.style.removeProperty(`--indicator-${name}`)
-		placed = false
-	}
+	const reveal = frame(() => placed?.setAttribute('data-indicator', 'true'))
 
-	// The marker attribute trails the variables by one frame so the theme's
-	// transitioned pseudo-element first paints already in position.
-	const reveal = frame(() => {
-		if (container && placed) container.setAttribute('data-indicator', 'true')
-	})
-
-	const measure = () => {
-		if (!container) return
-
+	const measure = (container: HTMLElement) => {
 		const mark = opts.of(container)
 
 		if (!mark || !container.contains(mark)) {
 			container.removeAttribute('data-indicator')
-			placed = false
+			placed = undefined
 			return
 		}
 
@@ -75,33 +65,28 @@ export const indicator = (host: Host, opts: {
 		style.setProperty('--indicator-h', `${rect.height}px`)
 
 		if (placed) return
-		placed = true
+		placed = container
 		reveal()
 	}
 
-	const schedule = frame(measure)
-
-	const size = resize(host, { target: () => container, onResize: () => schedule() })
-
-	const retarget = (next: HTMLElement | undefined) => {
-		if (next === container) return
-		if (container) clear(container)
-		container = next
-	}
-
-	host.signal.addEventListener('abort', () => {
-		schedule.cancel()
-		reveal.cancel()
-		if (container) clear(container)
-		container = undefined
-	}, { once: true })
+	const view = live(host, {
+		target: opts.target,
+		onChange: measure,
+		bind: (container, notify, signal) => {
+			subscribe(container, notify, signal)
+			signal.addEventListener('abort', () => {
+				reveal.cancel()
+				placed = undefined
+				container.removeAttribute('data-indicator')
+				for (const name of ['x', 'y', 'w', 'h']) container.style.removeProperty(`--indicator-${name}`)
+			}, { once: true })
+		},
+	})
 
 	return {
 		sync() {
-			if (host.signal.aborted) return
-			retarget(opts.target() ?? undefined)
-			size.sync()
-			schedule()
+			view.sync()
+			view.refresh()
 		},
 	}
 }

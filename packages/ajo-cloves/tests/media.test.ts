@@ -9,22 +9,10 @@ import { media } from 'ajo-cloves'
 type View = ReturnType<typeof media>
 
 class Query extends EventTarget {
-	adds = 0
 	matches = false
-	removes = 0
 
 	constructor(readonly media: string) {
 		super()
-	}
-
-	addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions): void {
-		if (type === 'change') this.adds++
-		super.addEventListener(type, listener, options)
-	}
-
-	removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void {
-		if (type === 'change') this.removes++
-		super.removeEventListener(type, listener, options)
 	}
 
 	set(next: boolean) {
@@ -88,16 +76,35 @@ test('shape has exactly the documented fields', () => {
 	expect(Object.keys(needView(view))).toEqual(['matches', 'sync'])
 })
 
-test('two hosts share one MediaQueryList and stop it after the last unsubscribe', () => {
+test('a constant query reacts from setup without sync()', () => {
+	const queries = installMatchMedia()
+
+	function* Gen(this: Host) {
+		const view = media(this, { query: () => '(prefers-color-scheme: dark)' })
+
+		while (true) yield jsx('span', { children: view.matches ? 'dark' : 'light' })
+	}
+
+	render(jsx(Gen, {}), document.body)
+
+	expect(queries).toHaveLength(1)
+	expect(document.body.textContent).toBe('light')
+
+	queries[0].set(true)
+
+	expect(document.body.textContent).toBe('dark')
+})
+
+test('each host subscribes its own list and stops listening when it returns', () => {
 	const queries = installMatchMedia()
 	let hostA: Host | null = null
-	let hostB: Host | null = null
+	const renders = { a: 0, b: 0 }
 
-	function* Child(this: Host, args: { name: string }) {
+	function* Child(this: Host, args: { name: 'a' | 'b' }) {
 		const view = media(this, { query: () => '(min-width: 700px)' })
 
 		while (true) {
-			view.sync()
+			renders[args.name]++
 			yield jsx('span', { children: `${args.name}:${view.matches ? '1' : '0'};` })
 		}
 	}
@@ -105,29 +112,25 @@ test('two hosts share one MediaQueryList and stop it after the last unsubscribe'
 	function* Gen(this: Host) {
 		yield [
 			jsx(Child, { key: 'a', name: 'a', ref: (element: unknown) => hostA = element as Host | null }),
-			jsx(Child, { key: 'b', name: 'b', ref: (element: unknown) => hostB = element as Host | null }),
+			jsx(Child, { key: 'b', name: 'b' }),
 		]
 	}
 
 	render(jsx(Gen, {}), document.body)
 
-	expect(window.matchMedia).toHaveBeenCalledTimes(1)
-	expect(queries[0].adds).toBe(1)
+	expect(queries).toHaveLength(2)
 	expect(document.body.textContent).toBe('a:0;b:0;')
 
 	queries[0].set(true)
+	queries[1].set(true)
 
 	expect(document.body.textContent).toBe('a:1;b:1;')
 
 	needHost(hostA).return()
 	queries[0].set(false)
+	queries[1].set(false)
 
-	expect(document.body.textContent).toBe('a:1;b:0;')
-	expect(queries[0].removes).toBe(0)
-
-	needHost(hostB).return()
-
-	expect(queries[0].removes).toBe(1)
+	expect(renders).toEqual({ a: 2, b: 3 })
 })
 
 test('sync retargets a changed query string and old query changes no longer invalidate', () => {
@@ -156,7 +159,6 @@ test('sync retargets a changed query string and old query changes no longer inva
 	needHost(host).next()
 
 	expect(queries).toHaveLength(2)
-	expect(queries[0].removes).toBe(1)
 
 	queries[0].set(true)
 

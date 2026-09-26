@@ -55,20 +55,14 @@ const installRaf = (): RafStub => {
 	}
 }
 
-const installObserver = ({ failFirstObserve = false } = {}) => {
+const installObserver = () => {
 	const instances: Instance[] = []
 	const Original = globalThis.ResizeObserver
-	let failed = false
 
 	class FakeResizeObserver {
 		callback: ResizeObserverCallback
 		disconnect = vi.fn()
-		observe = vi.fn(() => {
-			if (failFirstObserve && !failed) {
-				failed = true
-				throw new Error('observe failed')
-			}
-		})
+		observe = vi.fn()
 		unobserve = vi.fn()
 
 		constructor(callback: ResizeObserverCallback) {
@@ -242,9 +236,6 @@ test('two hosts share one ResizeObserver entry and disconnect after the last uns
 		expect(observer.instances[1].observe).toHaveBeenCalledWith(needDiv(target))
 		expect(raf.flush()).toBe(1)
 		expect(calls).toEqual(['a', 'b', 'b', 'b'])
-		observer.instances[0].trigger(needDiv(target))
-		expect(raf.flush()).toBe(0)
-		expect(calls).toEqual(['a', 'b', 'b', 'b'])
 		observer.instances[1].trigger(needDiv(target))
 		raf.flush()
 		expect(calls).toEqual(['a', 'b', 'b', 'b', 'b'])
@@ -306,30 +297,6 @@ test('retargeting unregisters the old element and leaves only the new target liv
 
 		expect(ctx.calls).toEqual(['a', 'b', 'b'])
 		expect(observer.instances[0].unobserve).toHaveBeenCalledWith(ctx.a)
-	} finally {
-		raf.restore()
-		observer.restore()
-	}
-})
-
-test('a failed first observe rolls back so the same target can retry', () => {
-	const observer = installObserver({ failFirstObserve: true })
-	const raf = installRaf()
-	const ctx = mount()
-
-	try {
-		ctx.target = ctx.a
-		expect(() => ctx.view.sync()).toThrow('observe failed')
-		expect(observer.instances).toHaveLength(1)
-		expect(observer.instances[0].observe).toHaveBeenCalledTimes(1)
-		expect(observer.instances[0].unobserve).toHaveBeenCalledWith(ctx.a)
-		expect(observer.instances[0].disconnect).toHaveBeenCalledTimes(1)
-
-		ctx.view.sync()
-		expect(observer.instances).toHaveLength(2)
-		expect(observer.instances[1].observe).toHaveBeenCalledWith(ctx.a)
-		expect(raf.flush()).toBe(1)
-		expect(ctx.calls).toEqual(['a'])
 	} finally {
 		raf.restore()
 		observer.restore()

@@ -1,7 +1,6 @@
 import type { Host } from 'ajo'
-import { dom, frame } from './core'
-import { resize } from './resize'
-import { scrolling } from './scrolling'
+import { dom, live } from './core'
+import { subscribe } from './resize'
 
 const edge = (position: number, size: number, span: number): string | null => {
 	if (span - size <= 1) return null
@@ -46,42 +45,28 @@ export const overflow = (host: Host, opts: {
 		}
 	}
 
-	const measure = (el: HTMLElement) => {
-		stamp(el, 'data-overflow-x', edge(el.scrollLeft, el.clientWidth, el.scrollWidth))
-		stamp(el, 'data-overflow-y', edge(el.scrollTop, el.clientHeight, el.scrollHeight))
-	}
-	const clear = (el: HTMLElement) => {
-		stamp(el, 'data-overflow-x', null)
-		stamp(el, 'data-overflow-y', null)
-	}
-	let target: HTMLElement | undefined
-
-	const scroll = scrolling(host, { target: () => target, onScroll: measure })
-	const size = resize(host, { target: () => target, onResize: el => measure(el as HTMLElement) })
-
 	// Content can grow without an element resize or scroll (children added or
-	// relabeled); re-measure on every sync so re-renders refresh the stamps.
-	const schedule = frame(() => {
-		if (target) measure(target)
+	// relabeled), so every sync also refreshes the stamps on the next frame.
+	const view = live(host, {
+		target: opts.target,
+		onChange: el => {
+			stamp(el, 'data-overflow-x', edge(el.scrollLeft, el.clientWidth, el.scrollWidth))
+			stamp(el, 'data-overflow-y', edge(el.scrollTop, el.clientHeight, el.scrollHeight))
+		},
+		bind: (el, notify, signal) => {
+			el.addEventListener('scroll', notify, { passive: true, signal })
+			subscribe(el, notify, signal)
+			signal.addEventListener('abort', () => {
+				stamp(el, 'data-overflow-x', null)
+				stamp(el, 'data-overflow-y', null)
+			}, { once: true })
+		},
 	})
-
-	host.signal.addEventListener('abort', () => {
-		schedule.cancel()
-		if (target) clear(target)
-		target = undefined
-	}, { once: true })
 
 	return {
 		sync() {
-			if (host.signal.aborted) return
-			const next = opts.target() ?? undefined
-			if (next !== target) {
-				if (target) clear(target)
-				target = next
-			}
-			scroll.sync()
-			size.sync()
-			schedule()
+			view.sync()
+			view.refresh()
 		},
 	}
 }

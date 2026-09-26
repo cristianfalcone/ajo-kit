@@ -39,7 +39,7 @@ test.each([
 	expect(browser()).toBe(expected)
 })
 
-test('remember keeps a FIFO-bounded cache without refreshing updated keys', () => {
+test('remember keeps at most 32 keys, first in first out, without refreshing updated keys', () => {
 	const cache = new Map<number, string>()
 	for (let index = 0; index < 32; index++) remember(cache, index, String(index))
 	remember(cache, 0, 'updated')
@@ -49,21 +49,9 @@ test('remember keeps a FIFO-bounded cache without refreshing updated keys', () =
 	expect(cache.has(0)).toBe(false)
 	expect(cache.get(32)).toBe('32')
 
-	const oversized = new Map([[0, '0'], [1, '1'], [2, '2']])
-	remember(oversized, 3, '3', 2)
-	expect([...oversized]).toEqual([[2, '2'], [3, '3']])
-})
+	for (let index = 33; index < 100; index++) remember(cache, index, String(index))
 
-test('remember applies a smaller limit when updating an existing key', () => {
-	const cache = new Map([[0, '0'], [1, '1'], [2, '2']])
-
-	remember(cache, 2, 'updated', 2)
-
-	expect([...cache]).toEqual([[1, '1'], [2, 'updated']])
-})
-
-test.each([0, -1, 1.5, Number.NaN])('remember rejects invalid cache limit %s', limit => {
-	expect(() => remember(new Map(), 'key', 'value', limit)).toThrow(RangeError)
+	expect([...cache.keys()]).toEqual(Array.from({ length: 32 }, (_, index) => index + 68))
 })
 
 test('clamp limits values to an inclusive range', () => {

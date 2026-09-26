@@ -27,7 +27,7 @@ export const scrolling = (host: Host, opts: {
 		}
 	}
 
-	return live(host, {
+	const view = live(host, {
 		target: opts.target,
 		onChange: opts.onScroll,
 		bind: (element, notify, signal) => {
@@ -37,4 +37,6 @@ export const scrolling = (host: Host, opts: {
 			}
 		},
 	})
+
+	return { sync: view.sync }
 }

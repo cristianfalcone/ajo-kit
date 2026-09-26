@@ -1,61 +1,23 @@
 import type { Host } from 'ajo'
-import { dom, shared } from './core'
+import { dom } from './core'
 
-/** Reactive inputs used to configure a shared media-query view. */
+/** Reactive inputs used to configure a media-query view. */
 export type MediaOptions = {
-	/** Current media-query string, read by `sync()`. */
+	/** Current media-query string, read at setup and by `sync()`. */
 	query: () => string
 }
 
-const lists = new Map<string, MediaQueryList>()
-
-const start = (query: string) => (notify: () => void) => {
-	const list = window.matchMedia(query)
-
-	lists.set(query, list)
-	list.addEventListener('change', notify)
-
-	return () => {
-		list.removeEventListener('change', notify)
-		if (lists.get(query) === list) lists.delete(query)
-	}
-}
-
-const read = (query: string | undefined) => query ? lists.get(query)?.matches ?? false : false
-
 /**
- * Reactive media-query match, shared per query string; false on the server.
+ * Reactive media-query match; false on the server. The view subscribes at
+ * setup; call `sync()` only when the query string can change.
  *
  * @example
  * ```ts
- * const narrow = media(this, { query: () => '(max-width: 768px)' })
- * for (const args of this) {
- * 	narrow.sync()
- * 	yield <span>{narrow.matches ? 'narrow' : 'wide'}</span>
- * }
+ * const dark = media(this, { query: () => '(prefers-color-scheme: dark)' })
+ * while (true) yield <span>{dark.matches ? 'dark' : 'light'}</span>
  * ```
  */
 export const media = (host: Host, options: MediaOptions) => {
-	const { query } = options
-	let active: string | undefined
-	let current = false
-	let scope: AbortController | undefined
-
-	const stop = () => {
-		scope?.abort()
-		scope = undefined
-		active = undefined
-	}
-
-	const update = () => {
-		const next = read(active)
-		if (next === current) return
-
-		host.next(() => {
-			current = next
-		})
-	}
-
 	if (!dom(host) || typeof window.matchMedia != 'function') {
 		return {
 			get matches() {
@@ -65,26 +27,29 @@ export const media = (host: Host, options: MediaOptions) => {
 		}
 	}
 
-	host.signal.addEventListener('abort', stop, { once: true })
+	let query: string | undefined
+	let list: MediaQueryList | undefined
+	let scope: AbortController | undefined
+
+	const sync = () => {
+		const next = options.query()
+		if (next === query) return
+
+		scope?.abort()
+		scope = new AbortController()
+		query = next
+		list = window.matchMedia(next)
+		list.addEventListener('change', () => host.next(), { signal: AbortSignal.any([scope.signal, host.signal]) })
+	}
+
+	sync()
 
 	return {
 		get matches() {
-			return read(active)
+			return list?.matches ?? false
 		},
 		sync() {
-			if (host.signal.aborted) return
-
-			const next = query()
-			if (next === active) {
-				current = read(active)
-				return
-			}
-
-			scope?.abort()
-			scope = new AbortController()
-			active = next
-			shared(`media:${next}`, start(next), update, scope.signal)
-			current = read(active)
+			if (!host.signal.aborted) sync()
 		},
 	}
 }

@@ -54,6 +54,32 @@ const installRaf = () => {
 	}
 }
 
+const installObserver = () => {
+	const Original = globalThis.ResizeObserver
+	let notify: ResizeObserverCallback | undefined
+
+	Object.defineProperty(globalThis, 'ResizeObserver', {
+		configurable: true,
+		value: class {
+			constructor(callback: ResizeObserverCallback) {
+				notify = callback
+			}
+			observe() {}
+			unobserve() {}
+			disconnect() {}
+		},
+	})
+
+	return {
+		trigger(target: Element) {
+			notify?.([{ target } as ResizeObserverEntry], {} as ResizeObserver)
+		},
+		restore() {
+			Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, value: Original })
+		},
+	}
+}
+
 const rect = (element: HTMLElement, box: { left: number; top: number; width: number; height: number }) => {
 	Object.defineProperty(element, 'getBoundingClientRect', {
 		configurable: true,
@@ -149,6 +175,46 @@ test('drops the marker when no child matches and cleans up on abort', () => {
 		render(null, document.body)
 		expect(list.style.getPropertyValue('--indicator-w')).toBe('')
 	} finally {
+		raf.restore()
+	}
+})
+
+test('a container resize re-measures on the next frame', () => {
+	const raf = installRaf()
+	const observer = installObserver()
+	let container: HTMLDivElement | null = null
+	let view: View | null = null
+
+	function* Gen(this: Host) {
+		view = indicator(this, {
+			target: () => container,
+			of: root => root.querySelector<HTMLElement>('button'),
+		})
+		yield jsx('div', {
+			ref: (element: unknown) => container = element as HTMLDivElement | null,
+			children: jsx('button', {}),
+		})
+	}
+
+	try {
+		render(jsx(Gen, {}), document.body)
+		const list = needDiv(container)
+		const mark = needEl(list.querySelector<HTMLElement>('button'))
+		rect(list, { left: 0, top: 0, width: 100, height: 20 })
+		rect(mark, { left: 5, top: 2, width: 40, height: 16 })
+
+		needView(view).sync()
+		raf.flush()
+		raf.flush()
+		expect(list.style.getPropertyValue('--indicator-w')).toBe('40px')
+
+		rect(mark, { left: 5, top: 2, width: 60, height: 16 })
+		observer.trigger(list)
+		raf.flush()
+		expect(list.style.getPropertyValue('--indicator-w')).toBe('60px')
+	} finally {
+		render(null, document.body)
+		observer.restore()
 		raf.restore()
 	}
 })

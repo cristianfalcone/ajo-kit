@@ -41,6 +41,7 @@ const installRaf = () => {
 			const pending = [...callbacks]
 			callbacks.clear()
 			for (const [handle, callback] of pending) callback(handle)
+			return pending.length
 		},
 		restore() {
 			Object.defineProperty(globalThis, 'requestAnimationFrame', { configurable: true, value: originalRaf })
@@ -115,6 +116,33 @@ test('clears owned overflow stamps on retarget, null, and host abort', () => {
 		render(null, document.body)
 		expect(second.hasAttribute('data-overflow-x')).toBe(false)
 		expect(second.hasAttribute('data-overflow-y')).toBe(false)
+	} finally {
+		raf.restore()
+	}
+})
+
+test('scroll, resize and re-render share one measure per frame', () => {
+	const raf = installRaf()
+	let list: HTMLDivElement | null = null
+	let view: View | null = null
+
+	function* Gen(this: Host) {
+		view = overflow(this, { target: () => list })
+		yield jsx('div', { ref: (element: unknown) => list = element as HTMLDivElement | null })
+	}
+
+	try {
+		render(jsx(Gen, {}), document.body)
+		const scroller = needDiv(list)
+		metrics(scroller)
+
+		needView(view).sync()
+		expect(raf.flush()).toBe(1)
+		expect(scroller.getAttribute('data-overflow-y')).toBe('both')
+
+		needView(view).sync()
+		scroller.dispatchEvent(new Event('scroll'))
+		expect(raf.flush()).toBe(1)
 	} finally {
 		raf.restore()
 	}

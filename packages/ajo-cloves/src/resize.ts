@@ -1,53 +1,34 @@
 import type { Host } from 'ajo'
 import { dom, live } from './core'
 
-type Callback = (el: Element) => void
-
-const registry = new WeakMap<Element, Set<Callback>>()
+const registry = new WeakMap<Element, Set<() => void>>()
 let observer: ResizeObserver | undefined
 let subscriptions = 0
 
-const notify: ResizeObserverCallback = (entries, source) => {
-	if (source !== observer) return
+const notify: ResizeObserverCallback = entries => {
 	for (const entry of entries) {
-		const callbacks = registry.get(entry.target)
-		if (!callbacks) continue
-
-		for (const callback of [...callbacks]) callback(entry.target)
+		for (const callback of [...registry.get(entry.target) ?? []]) callback()
 	}
 }
 
-const subscribe = (el: Element, fn: Callback, signal: AbortSignal) => {
-	if (signal.aborted) return
-
+/** Calls fn when el resizes through one shared observer, until signal aborts. For sibling cloves only. */
+export const subscribe = (el: Element, fn: () => void, signal: AbortSignal) => {
 	observer ??= new ResizeObserver(notify)
-	const currentObserver = observer
 
-	let callbacks = registry.get(el)
-	if (!callbacks) {
-		callbacks = new Set()
-		try {
-			currentObserver.observe(el)
-		} catch (error) {
-			try { currentObserver.unobserve(el) } catch { }
-			if (!subscriptions) {
-				try { currentObserver.disconnect() } catch { }
-				if (observer === currentObserver) observer = undefined
-			}
-			throw error
-		}
+	const callbacks = registry.get(el) ?? new Set()
+	if (!registry.has(el)) {
 		registry.set(el, callbacks)
+		observer.observe(el)
 	}
 
 	callbacks.add(fn)
 	subscriptions++
 
-	const unsubscribe = () => {
-		const current = registry.get(el)
-		if (!current?.delete(fn)) return
-
+	signal.addEventListener('abort', () => {
+		callbacks.delete(fn)
 		subscriptions--
-		if (!current.size) {
+
+		if (!callbacks.size) {
 			registry.delete(el)
 			observer?.unobserve(el)
 		}
@@ -56,9 +37,7 @@ const subscribe = (el: Element, fn: Callback, signal: AbortSignal) => {
 
 		observer?.disconnect()
 		observer = undefined
-	}
-
-	signal.addEventListener('abort', unsubscribe, { once: true })
+	}, { once: true })
 }
 
 /**
@@ -85,9 +64,11 @@ export const resize = (host: Host, opts: {
 		}
 	}
 
-	return live(host, {
+	const view = live(host, {
 		target: opts.target,
 		onChange: opts.onResize,
-		bind: (element, notify, signal) => subscribe(element, notify, signal),
+		bind: subscribe,
 	})
+
+	return { sync: view.sync }
 }

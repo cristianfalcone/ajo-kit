@@ -245,31 +245,38 @@ test('host reset cancels pending work and leaves the old view inert while a fres
 	}
 })
 
-test('a failed partial bind rolls back and can retry the same target', () => {
+test('refresh schedules the current target once per frame and is inert without one', () => {
 	const raf = installRaf()
-	let attempts = 0
-	const ctx = mount(binding => {
-		if (attempts++ === 0) {
-			binding.notify()
-			throw new Error('bind failed')
-		}
-	})
+	const ctx = mount()
 
 	try {
-		ctx.target = ctx.a
-		expect(() => ctx.view.sync()).toThrow('bind failed')
-
-		const failed = need(ctx.bindings[0])
-		expect(failed.signal.aborted).toBe(true)
-		ctx.a.dispatchEvent(new Event('unit-live'))
-		failed.notify()
+		ctx.view.refresh()
 		expect(raf.flush()).toBe(0)
-		expect(ctx.changes).toEqual([])
 
+		ctx.target = ctx.a
 		ctx.view.sync()
-		expect(ctx.bindings).toHaveLength(2)
+		ctx.view.refresh()
 		expect(raf.flush()).toBe(1)
 		expect(ctx.changes).toEqual(['a'])
+
+		ctx.view.sync()
+		ctx.view.refresh()
+		need(ctx.bindings[0]).notify()
+		ctx.view.refresh()
+		expect(raf.flush()).toBe(1)
+		expect(ctx.changes).toEqual(['a', 'a'])
+
+		ctx.target = null
+		ctx.view.sync()
+		ctx.view.refresh()
+		expect(raf.flush()).toBe(0)
+
+		ctx.target = ctx.b
+		ctx.view.sync()
+		ctx.host.return()
+		ctx.view.refresh()
+		expect(raf.flush()).toBe(0)
+		expect(ctx.changes).toEqual(['a', 'a'])
 	} finally {
 		raf.restore()
 	}

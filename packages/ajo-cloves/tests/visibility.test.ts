@@ -52,28 +52,28 @@ test('shape has exactly the documented fields', () => {
 	expect(Object.keys(needView(view))).toEqual(['visible'])
 })
 
-test('two hosts share the visibility source until the last unsubscribe', () => {
-	const add = vi.spyOn(document, 'addEventListener')
-	const remove = vi.spyOn(document, 'removeEventListener')
+test('each host listens until it returns', () => {
 	let hostA: Host | null = null
-	let hostB: Host | null = null
+	const renders = { a: 0, b: 0 }
 
-	function* Child(this: Host, args: { name: string }) {
+	function* Child(this: Host, args: { name: 'a' | 'b' }) {
 		const view = visibility(this)
 
-		while (true) yield jsx('span', { children: `${args.name}:${view.visible ? 'visible' : 'hidden'};` })
+		while (true) {
+			renders[args.name]++
+			yield jsx('span', { children: `${args.name}:${view.visible ? 'visible' : 'hidden'};` })
+		}
 	}
 
 	function* Gen(this: Host) {
 		yield [
 			jsx(Child, { key: 'a', name: 'a', ref: (element: unknown) => hostA = element as Host | null }),
-			jsx(Child, { key: 'b', name: 'b', ref: (element: unknown) => hostB = element as Host | null }),
+			jsx(Child, { key: 'b', name: 'b' }),
 		]
 	}
 
 	render(jsx(Gen, {}), document.body)
 
-	expect(add.mock.calls.filter(([type]) => type === 'visibilitychange')).toHaveLength(1)
 	expect(document.body.textContent).toBe('a:visible;b:visible;')
 
 	state('hidden')
@@ -84,11 +84,7 @@ test('two hosts share the visibility source until the last unsubscribe', () => {
 	state('visible')
 
 	expect(document.body.textContent).toBe('a:hidden;b:visible;')
-	expect(remove.mock.calls.filter(([type]) => type === 'visibilitychange')).toHaveLength(0)
-
-	needHost(hostB).return()
-
-	expect(remove.mock.calls.filter(([type]) => type === 'visibilitychange')).toHaveLength(1)
+	expect(renders).toEqual({ a: 2, b: 3 })
 })
 
 test('reset recreates a fresh visibility subscription', () => {
