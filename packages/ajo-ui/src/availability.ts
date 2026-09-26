@@ -41,14 +41,8 @@ type DateParts = {
 /** Stable compiled availability view. */
 export type Availability = {
 	day(date: Date): boolean
-	at(date: Date): boolean
 	value(kind: SegmentsKind, value: string): boolean
 	crosses(from: Date, to: Date): boolean
-}
-
-export type AvailabilityCompileOptions = {
-	/** Calendar time zone used for matcher and candidate date parts. */
-	timeZone?: string
 }
 
 const clock = (value: string | undefined, fallback: number) => {
@@ -175,7 +169,10 @@ const addDay = (parts: DateParts): DateParts => {
 /** Compiles date/time expressions into stable day- and instant-granular predicates. */
 export const compile = (
 	matcher: AvailabilityMatcher | AvailabilityMatcher[] | undefined,
-	options: AvailabilityCompileOptions = {},
+	options: {
+		/** Calendar time zone used for matcher and candidate date parts. */
+		timeZone?: string
+	} = {},
 ): Availability | undefined => {
 	if (matcher == null) return undefined
 	const matchers = (Array.isArray(matcher) ? matcher : [matcher]) as AvailabilityMatcher[]
@@ -244,7 +241,6 @@ export const compile = (
 
 	return {
 		day,
-		at,
 		value(kind: SegmentsKind, value: string) {
 			const units = fromISO(kind, value)
 			if (!units) return false

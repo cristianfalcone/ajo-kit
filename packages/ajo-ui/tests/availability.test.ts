@@ -10,10 +10,10 @@ describe('compiled availability', () => {
 		const mondayAtNoon = new Date(2026, 6, 13, 12)
 
 		expect(availability?.day(mondayAtNoon)).toBe(false)
-		expect(availability?.at(mondayAtNoon)).toBe(true)
-		expect(availability?.at(new Date(2026, 6, 13, 12, 59, 59))).toBe(true)
-		expect(availability?.at(new Date(2026, 6, 13, 13))).toBe(false)
-		expect(availability?.at(new Date(2026, 6, 14, 12))).toBe(false)
+		expect(availability?.value('datetime', '2026-07-13T12:00')).toBe(true)
+		expect(availability?.value('datetime', '2026-07-13T12:59:59')).toBe(true)
+		expect(availability?.value('datetime', '2026-07-13T13:00')).toBe(false)
+		expect(availability?.value('datetime', '2026-07-14T12:00')).toBe(false)
 	})
 
 	test('fields within one expression intersect while top-level expressions form alternatives', () => {
@@ -81,8 +81,6 @@ describe('compiled availability', () => {
 		expect(format).toHaveBeenCalledTimes(5)
 		expect(availability?.day(new Date('2026-07-21T09:00:00.000Z'))).toBe(true)
 		expect(format).toHaveBeenCalledTimes(6)
-		expect(availability?.at(new Date('2026-07-21T12:30:00.000Z'))).toBe(false)
-		expect(format).toHaveBeenCalledTimes(7)
 		format.mockRestore()
 	})
 
@@ -152,12 +150,12 @@ describe('compiled availability', () => {
 		const equal = compile({ time: { from: '12:00', to: '12:00' } })
 		const inverted = compile({ time: { from: '13:00', to: '12:00' } })
 
-		expect(afterNoon?.at(new Date(2026, 6, 13, 12))).toBe(true)
-		expect(afterNoon?.at(new Date(2026, 6, 13, 11, 59, 59))).toBe(false)
-		expect(beforeNoon?.at(new Date(2026, 6, 13, 11, 59, 59))).toBe(true)
-		expect(beforeNoon?.at(new Date(2026, 6, 13, 12))).toBe(false)
-		expect(equal?.at(new Date(2026, 6, 13, 12))).toBe(false)
-		expect(inverted?.at(new Date(2026, 6, 13, 23))).toBe(false)
+		expect(afterNoon?.value('time', '12:00')).toBe(true)
+		expect(afterNoon?.value('time', '11:59:59')).toBe(false)
+		expect(beforeNoon?.value('time', '11:59:59')).toBe(true)
+		expect(beforeNoon?.value('time', '12:00')).toBe(false)
+		expect(equal?.value('time', '12:00')).toBe(false)
+		expect(inverted?.value('time', '23:00')).toBe(false)
 	})
 
 	test('serialized years 0001 through 0099 keep their literal year', () => {

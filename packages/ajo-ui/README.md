@@ -75,8 +75,8 @@ components that take `placement` and `gap`.
 
 Components render semantic elements, ARIA attributes, `data-slot` markers, and
 state attributes. Apply visual styles through `class`, family class maps such
-as Calendar's `classNames`, and state attributes (Calendar stamps day state on
-its day button).
+as the `classNames` of Calendar and the InputDate family, and state attributes
+(Calendar stamps day state on its day button).
 
 Boolean state attributes use `data-x="true"` when active. Common
 `data-state` values include `open`, `closed`, `checked`, `unchecked`,

@@ -1,38 +1,8 @@
-/**
- * segments.ts — the pure engine behind the InputDate family (ai/ui.md).
- *
- * No JSX, no DOM; Intl is the only platform dependency. `input-date.tsx`
- * owns rendering, focus, and events, and consumes this surface:
- *
- * - `derive(opts)` — fixed-probe Intl derivation → ordered `Segment`
- *   descriptors (editable units + verbatim literals), resolved hour cycle,
- *   dayPeriod display strings, and localized month names.
- * - `fromISO` / `toISO` — strict parse/serialize of the native normalized
- *   forms (zero-padded, no milliseconds, no 24:00); year 1–9999.
- * - `typeDigit` / `matchName` / `eraseDigit` / `stepValue` — one pure
- *   segment mutation each (digit buffer, name prefix match, backspace,
- *   spin protocol); `spinMove` maps a stepping key to its spin action.
- * - `validate` / `defaultMessage` / `constrain` / `isReversed` — reason-coded
- *   validation with localized default messages, the day clamp, and the range
- *   cross-check (`reversed` is a consumer-raised reason: validate never
- *   returns it).
- * - `formatValue` — human formatting of a committed value (message bounds,
- *   the field's hidden value description).
- * - `inferGranularity` — value → defaultValue → placeholderValue →
- *   granularity arg → 'minute'.
- * - `reconciler()` — external-change detection, so
- *   echoes of self-emitted values never clobber edits.
- * - `field(options)` — the stateful editing record wiring all of the above:
- *   independently nullable units (hour kept in the display cycle, dayPeriod
- *   its own 0/1 unit), the typing buffer, and the eager-constrain commit
- *   pipeline. Every mutation returns an `InputResult` telling the consumer
- *   whether to move focus and what to emit; `emit` is `undefined` when the
- *   public value did not change.
- */
-
-// Types:
+// Pure segment engine of the InputDate family: Intl derivation, strict ISO parsing, typing, stepping and validation.
 
 import { clamp, remember } from 'ajo-cloves'
+
+// Types:
 
 export type SegmentsKind = 'date' | 'datetime' | 'time'
 
@@ -228,22 +198,6 @@ export const derive = (opts: DeriveOptions): Derivation => {
 	}
 }
 
-const TIME_UNITS = new Set<Segment['type']>(['dayPeriod', 'hour', 'minute', 'second'])
-
-/** Returns the contiguous time portion of a derived segment sequence. */
-export const timeRun = (segments: readonly Segment[]): Segment[] => {
-	let first = -1
-	let last = -1
-
-	for (let index = 0; index < segments.length; index++) {
-		if (!TIME_UNITS.has(segments[index]!.type)) continue
-		if (first < 0) first = index
-		last = index
-	}
-
-	return first < 0 ? [] : segments.slice(first, last + 1)
-}
-
 // ISO value model:
 
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -279,7 +233,7 @@ const parseTime = (text: string) => {
 }
 
 /** A fresh editing record: every unit independently empty. */
-export const emptyUnits = (): Units => ({ year: null, month: null, day: null, hour: null, minute: null, second: null, dayPeriod: null })
+const emptyUnits = (): Units => ({ year: null, month: null, day: null, hour: null, minute: null, second: null, dayPeriod: null })
 
 /** Strict parse of the native normalized forms into the editing record; null on anything else. */
 export const fromISO = (kind: SegmentsKind, value: string, hourCycle: HourCycle = 'h23'): Units | null => {
@@ -317,21 +271,18 @@ export const fromISO = (kind: SegmentsKind, value: string, hourCycle: HourCycle 
 
 const pad = (value: number, width: number) => String(value).padStart(width, '0')
 
-// NaN is as missing as null: a serialized NaN would commit as a real value.
-const filled = (value: number | null): value is number => value != null && !Number.isNaN(value)
-
 /** Serializes complete units to the family's normalized form; null while a required unit is missing. */
 export const toISO = (kind: SegmentsKind, units: Units, opts: { hourCycle?: HourCycle; seconds?: boolean } = {}): string | null => {
 	const parts: string[] = []
 	if (kind !== 'time') {
-		if (!filled(units.year) || !filled(units.month) || !filled(units.day)) return null
+		if (units.year == null || units.month == null || units.day == null) return null
 		parts.push(`${pad(units.year, 4)}-${pad(units.month, 2)}-${pad(units.day, 2)}`)
 	}
 	if (kind !== 'date') {
-		if (!filled(units.hour) || !filled(units.minute)) return null
-		if (opts.seconds && !filled(units.second)) return null
+		if (units.hour == null || units.minute == null) return null
+		if (opts.seconds && units.second == null) return null
 		const h12 = (opts.hourCycle ?? 'h23') === 'h12'
-		if (h12 && !filled(units.dayPeriod)) return null
+		if (h12 && units.dayPeriod == null) return null
 		const hour = h12
 			? units.dayPeriod === 1 ? (units.hour === 12 ? 12 : units.hour + 12) : units.hour % 12
 			: units.hour
@@ -463,23 +414,13 @@ export const validate = (kind: SegmentsKind, units: Units, order: SegmentUnit[],
 		if (units[unit] == null) return { code: 'incomplete', unit }
 	}
 	if (units.day != null && units.day > daysInMonth(units.year, units.month)) return { code: 'impossible' }
-	const value = toISO(kind, units, { hourCycle: opts.hourCycle, seconds: opts.seconds })
-	if (value == null) return { code: 'impossible' }
+	// Every ordered unit is filled, so the value serializes.
+	const value = toISO(kind, units, { hourCycle: opts.hourCycle, seconds: opts.seconds })!
 	if (opts.min != null && value < opts.min) return { code: 'rangeUnderflow', min: opts.min }
 	if (opts.max != null && value > opts.max) return { code: 'rangeOverflow', max: opts.max }
 	if (opts.unavailable?.(value)) return { code: 'unavailable' }
 	return null
 }
-
-/** Eager constrain: clamps the day into the real month length, in place. */
-export const constrain = (units: Units): Units => {
-	if (units.day != null) units.day = Math.min(units.day, daysInMonth(units.year, units.month))
-	return units
-}
-
-/** Range cross-check: from > to, in the family's own string format. */
-export const isReversed = (from: string | null | undefined, to: string | null | undefined): boolean =>
-	from != null && to != null && from > to
 
 export type MessageOptions = {
 	kind: SegmentsKind
@@ -544,32 +485,6 @@ export const defaultMessage = (reason: Reason, opts: MessageOptions): string => 
 			return opts.kind === 'time' ? 'This time is unavailable' : 'This date is unavailable'
 		case 'unavailableRange':
 			return 'Range includes unavailable dates'
-	}
-}
-
-// Reconciliation:
-
-export type Reconciler = {
-	/** True when the synced value is an external change: re-derive units, drop the buffer. */
-	observe(value: string | null | undefined): boolean
-	/** Records an emission so the matching echo never re-derives. */
-	emit(value: string | null): void
-}
-
-/** Controlled ↔ editing-state reconciliation: only genuinely external values clobber edits. */
-export const reconciler = (): Reconciler => {
-	let lastObserved: string | null | undefined
-	return {
-		emit(value) {
-			// The owner is expected to hold this value now: an acceptance echo
-			// matches, a rejection or external push differs and re-derives.
-			lastObserved = value
-		},
-		observe(value) {
-			if (value === undefined || value === lastObserved) return false
-			lastObserved = value
-			return true
-		},
 	}
 }
 
@@ -646,7 +561,6 @@ export type FieldView = {
 	blur(): void
 	/** The field's current public value. */
 	value(): string | null
-	complete(): boolean
 	reason(): Reason | null
 	/** Message for the current reason; null while valid. */
 	message(): string | null
@@ -670,7 +584,6 @@ const convertHour = (units: Units, hourCycle: HourCycle) => {
 /** The stateful editing record consumed by the InputDate family; one per field side. */
 export const field = (options: FieldOptions): FieldView => {
 	const units = emptyUnits()
-	const rec = reconciler()
 	let opts = options
 	let derivation!: Derivation
 	let buffer = ''
@@ -706,7 +619,6 @@ export const field = (options: FieldOptions): FieldView => {
 
 	const adopt = (value: string | null) => {
 		const parsed = value == null ? null : fromISO(opts.kind, value, derivation.hourCycle)
-		if (value != null && !parsed) console.warn(`[segments] invalid ${opts.kind} value: "${value}"`)
 		Object.assign(units, parsed ?? emptyUnits())
 		buffer = ''
 		bufferUnit = null
@@ -716,9 +628,10 @@ export const field = (options: FieldOptions): FieldView => {
 	granularity = inferFor(options)
 	configure(options)
 	if (options.defaultValue != null) adopt(options.defaultValue)
-	// Prime with the initial value so a controlled sync that merely agrees with
-	// the pristine state (a range echo syncing the untouched side) never clobbers.
-	rec.emit(committed)
+	// The value the owner should hold after our last emission, primed with the
+	// initial one: its echo (a range echo syncing the untouched side) never
+	// clobbers edits, while a rejection or an external push differs and re-derives.
+	let observed: string | null = committed
 
 	const segmentOf = (unit: SegmentUnit) => derivation.segments.find(segment => segment.type === unit)
 
@@ -739,16 +652,15 @@ export const field = (options: FieldOptions): FieldView => {
 	const resolve = (advance?: boolean, retreat?: boolean): InputResult => {
 		let emit: string | null | undefined
 		if (complete()) {
-			constrain(units)
+			// Eager constrain: the day clamps into the real month length.
+			if (units.day != null) units.day = Math.min(units.day, daysInMonth(units.year, units.month))
 			const value = toISO(opts.kind, units, { hourCycle: derivation.hourCycle, seconds: derivation.withSeconds })
 			if (value != null && value !== committed) {
-				committed = value
-				rec.emit(value)
+				committed = observed = value
 				emit = value
 			}
 		} else if (committed != null) {
-			committed = null
-			rec.emit(null)
+			committed = observed = null
 			emit = null
 		}
 		return { handled: true, advance, retreat, emit }
@@ -799,18 +711,20 @@ export const field = (options: FieldOptions): FieldView => {
 		sync(value, next) {
 			const target = next ?? opts
 			// Granularity is latched: only a genuinely EXTERNAL value (after the
-			// reconciler check) or changed inference inputs re-infer it. A null
+			// echo check) or changed inference inputs re-infer it. A null
 			// echo of complete→incomplete must not narrow the shape — that
 			// strands units (seconds) and silently truncates the next commit.
-			const external = rec.observe(value)
-			if (external) granularity = inferFor(target, value as string | null)
-			else if (inferKey(target) !== inferKey(opts)) {
+			const external = value !== undefined && value !== observed
+			if (external) {
+				observed = value
+				granularity = inferFor(target, value)
+			} else if (inferKey(target) !== inferKey(opts)) {
 				granularity = inferFor(target, committed)
 				// The latch holds while the would-be-dropped segment has a value.
 				if (granularity !== 'second' && units.second != null) granularity = 'second'
 			}
 			configure(target)
-			if (external) adopt(value as string | null)
+			if (external) adopt(value)
 		},
 
 		text(unit) {
@@ -916,7 +830,6 @@ export const field = (options: FieldOptions): FieldView => {
 		},
 
 		value: () => committed,
-		complete,
 		reason,
 
 		message() {

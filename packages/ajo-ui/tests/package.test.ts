@@ -20,7 +20,7 @@ test('the package exports its component families by subpath and no root', async 
 
 	const inputDate = await import('ajo-ui/input-date')
 	expect(inputDate).toHaveProperty('InputDate')
-	expect(inputDate).toHaveProperty('InputDateTimeField')
+	expect(inputDate).toHaveProperty('InputDateField')
 	const menu = await import('ajo-ui/menu')
 	expect(menu).toHaveProperty('Menu')
 	expect(menu).toHaveProperty('MenuSubContent')

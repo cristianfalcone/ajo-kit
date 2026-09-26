@@ -1,13 +1,13 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import Button from 'ajo-ui-playa/button'
 import { Field, FieldLabel } from 'ajo-ui-playa/field'
 import {
 	InputDate,
 	InputDateCalendar,
 	InputDateContent,
 	InputDateField,
-	InputDatePresets,
 	InputDateTrigger,
 	type InputDateRangeValue,
 } from 'ajo-ui-playa/input-date'
@@ -851,18 +851,51 @@ export const Clearable: Story<typeof InputDate> = {
 	},
 }
 
-const holidayPresets = [
+const holidays = [
 	{ label: 'Christmas', value: '2026-12-25' },
 	{ label: 'New year', value: '2027-01-01' },
 ]
 
+// Presets are ordinary buttons over the controlled contract: a click sets the value and closes.
+const PresetsExample: Stateful = function* () {
+	let value: string | null = null
+	let open = false
+	const pick = (next: string) => this.next(() => {
+		value = next
+		open = false
+	})
+
+	while (true) yield (
+		<InputDate
+			name="holiday"
+			onOpenChange={next => this.next(() => open = next)}
+			onValueChange={next => this.next(() => value = next)}
+			open={open}
+			value={value}
+		>
+			<InputDateField />
+			<InputDateTrigger />
+			<InputDateContent>
+				<InputDateCalendar />
+				<div class="flex flex-wrap gap-1 border-t p-2">
+					{holidays.map(holiday => (
+						<Button key={holiday.value} data-preset={holiday.value} size="sm" variant="ghost" set:onclick={() => pick(holiday.value)}>
+							{holiday.label}
+						</Button>
+					))}
+				</div>
+			</InputDateContent>
+		</InputDate>
+	)
+}
+
 export const Presets: Story<typeof InputDate> = {
 	parameters: {
-		docs: { description: 'Preset buttons in the popover footer: a pick commits and closes like a calendar pick.' },
+		docs: { description: 'Preset buttons composed in the popover set the controlled value and close it; no preset API is needed.' },
 	},
 	render: () => (
 		<div data-story-field="holiday">
-			<InputDate calendar name="holiday" presets={holidayPresets} />
+			<PresetsExample />
 		</div>
 	),
 	play: async ({ canvas }) => {
@@ -873,14 +906,12 @@ export const Presets: Story<typeof InputDate> = {
 		await frame()
 		ensure(opened(panel), 'Trigger click must open the popover')
 
-		const buttons = Array.from(panel.querySelectorAll<HTMLButtonElement>('[data-slot="input-date-preset"]'))
-		ensure(buttons.length === 2, 'Both preset buttons must render in the popover footer')
-		const christmas = buttons.find(button => button.textContent?.includes('Christmas'))
+		const christmas = panel.querySelector<HTMLButtonElement>('[data-preset="2026-12-25"]')
 		if (!christmas) throw new Error('The Christmas preset was not rendered')
 		christmas.click()
 		await frame()
-		ensure(value.value === '2026-12-25', `The preset must commit its value, got "${value.value}"`)
-		ensure(!opened(panel), 'A preset pick must close the popover')
+		ensure(value.value === '2026-12-25', `The preset must set the controlled value, got "${value.value}"`)
+		ensure(!opened(panel), 'The preset must close the popover through the controlled open state')
 		ensure(segment(holiday, 'month').textContent === '12' && segment(holiday, 'day').textContent === '25', 'The preset must fill the segments')
 	},
 }
@@ -1047,20 +1078,17 @@ export const RangeReversed: Story<typeof InputDate> = {
 	},
 }
 
-const customPresets = [{ label: 'Mid August', value: '2026-08-15' }]
-
 export const CustomComposition: Story<typeof InputDate> = {
 	parameters: {
-		docs: { description: 'The explicit anatomy the defaults expand to: field, trigger, content, calendar, and presets hand-composed.' },
+		docs: { description: 'The explicit anatomy the defaults expand to: field, trigger, content and calendar hand-composed.' },
 	},
 	render: () => (
 		<div data-story-field="custom">
-			<InputDate defaultValue="2026-08-01" name="custom" presets={customPresets}>
+			<InputDate defaultValue="2026-08-01" name="custom">
 				<InputDateField />
 				<InputDateTrigger />
 				<InputDateContent>
 					<InputDateCalendar />
-					<InputDatePresets />
 				</InputDateContent>
 			</InputDate>
 		</div>
@@ -1078,13 +1106,11 @@ export const CustomComposition: Story<typeof InputDate> = {
 		await frame()
 		ensure(opened(panel), 'The hand-composed trigger must open the popover')
 		ensure(panel.querySelector('[data-slot="calendar"]'), 'The hand-composed content must render the calendar')
-		ensure(panel.querySelector('[data-day="2026-08-20"]'), 'The calendar must open on the committed month')
-
-		const preset = panel.querySelector<HTMLButtonElement>('[data-slot="input-date-preset"]')
-		if (!preset) throw new Error('The hand-composed presets must render')
-		preset.click()
+		const day = panel.querySelector<HTMLButtonElement>('[data-day="2026-08-20"]')
+		if (!day) throw new Error('The calendar must open on the committed month')
+		day.click()
 		await frame()
-		ensure(value.value === '2026-08-15', `The preset must commit its value, got "${value.value}"`)
-		ensure(!opened(panel), 'A preset pick must close the popover')
+		ensure(value.value === '2026-08-20', `The pick must commit its value, got "${value.value}"`)
+		ensure(!opened(panel), 'A pick must close the popover')
 	},
 }

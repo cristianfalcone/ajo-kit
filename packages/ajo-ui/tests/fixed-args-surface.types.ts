@@ -57,6 +57,8 @@ export const fixedDialogContent: DialogContentArgs = { open: true }
 export const fixedInputOTP: InputOTPArgs = { onChange: true }
 // @ts-expect-error InputDateCalendar receives availability policy from its owning field root.
 export const fixedInputDateCalendar: InputDateCalendarArgs = { unavailable: new Date() }
+// @ts-expect-error InputDate values are zone-free wall dates, so the root owns the Calendar zone.
+export const fixedInputDateCalendarZone: InputDateArgs = { calendar: { timeZone: 'Pacific/Kiritimati' } }
 // @ts-expect-error Slider fixes the native input type.
 export const fixedSlider: SliderArgs = { type: 'range' }
 // @ts-expect-error Toaster generates its own children.

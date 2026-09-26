@@ -1,7 +1,7 @@
-import type { Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import type { Children, Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
+import { callHandler, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { compile, compiler, resolveLocale, type Availability, type AvailabilityMatcher } from './availability'
+import { calendarDate, compile, compiler, resolveLocale, type Availability, type AvailabilityMatcher } from './availability'
 import { flag } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Calendar, type CalendarArgs, type CalendarCommonArgs, type CalendarDateRange, type CalendarMatcher } from './calendar'
@@ -12,9 +12,7 @@ import {
 	field,
 	formatValue,
 	fromISO,
-	isReversed,
 	spinMove,
-	timeRun,
 	unitLabel,
 	type FieldOptions,
 	type FieldView,
@@ -42,21 +40,30 @@ export type InputDateRangeValue = {
 /** Public value shape selected by a field's range mode. */
 export type InputDateValue<Range extends boolean = false> = Range extends true ? InputDateRangeValue : string
 
-/** Labelled value that may be committed from an InputDate popover. */
-export type InputDatePreset<Range extends boolean = boolean> = {
-	/** Preset button label. */
-	label: string
-	/** Committed on pick, in the family's own value format. */
-	value: InputDateValue<Range>
-}
-
-type InputDateCalendarOwnedArgs = 'allowNonContiguous' | 'defaultSelected' | 'mode' | 'onSelect' | 'selected' | 'unavailable'
+// Family values are zone-free wall dates, so the root also owns the Calendar zone.
+type InputDateCalendarOwnedArgs = 'allowNonContiguous' | 'defaultSelected' | 'mode' | 'onSelect' | 'selected' | 'timeZone' | 'unavailable'
 
 /** Calendar presentation arguments that remain consumer-configurable inside InputDate. */
 export type InputDateCalendarArgs = OmitArg<CalendarCommonArgs, InputDateCalendarOwnedArgs> & {
 	/** Calendar implementation; the themed layer injects its Calendar here. */
 	component?: Stateless<CalendarArgs>
 } & FixedArgs<InputDateCalendarOwnedArgs>
+
+/** Parts themed by a root's `classNames`: the default composition and the nodes no caller composes. */
+export type InputDateClassName =
+	| 'addon'
+	| 'clear'
+	| 'clear_icon'
+	| 'content'
+	| 'control'
+	| 'field'
+	| 'literal'
+	| 'segment'
+	| 'separator'
+	| 'trigger'
+	| 'trigger_icon'
+
+type ClassNames = Partial<Record<InputDateClassName, string>>
 
 type CommonArgs<Range extends boolean> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange'> & {
 	/** Allow a range to span unavailable days without treating its interior gaps as selected. */
@@ -91,17 +98,17 @@ type CommonArgs<Range extends boolean> = WithChildren<OmitArg<IntrinsicElements[
 	disabled?: boolean
 	/** Focusable no-op segments. */
 	readOnly?: boolean
+	/** Render a clear button while a value exists. */
+	clearable?: boolean
+	/** Classes for the default composition's parts, segments, literals and icons. */
+	classNames?: ClassNames
 	/** Additional classes. */
 	class?: string
 }> & FixedArgs<'onchange'>
 
-type PopupArgs<Range extends boolean> = {
-	/** Opt into the calendar popover; an object forwards args to InputDateCalendar. */
+type PopupArgs = {
+	/** Opt into the calendar popover; an object forwards args to InputDateCalendar. A completed pick closes it. */
 	calendar?: boolean | InputDateCalendarArgs
-	/** Preset values rendered by InputDatePresets; a pick commits and closes. */
-	presets?: InputDatePreset<Range>[]
-	/** Close on a pick. Defaults to single/range-complete for dates, and false while a datetime time surface is composed. */
-	closeOnSelect?: boolean
 	/** Controlled popover state. */
 	open?: boolean
 	/** Initial popover state for uncontrolled usage. */
@@ -120,38 +127,20 @@ type TimeArgs = {
 }
 
 /** Arguments for a segmented date field with optional Calendar composition. */
-export type InputDateArgs<Range extends boolean = false> = CommonArgs<Range> & PopupArgs<Range> & PopupPosition
+export type InputDateArgs<Range extends boolean = false> = CommonArgs<Range> & PopupArgs & PopupPosition
 
 /** Arguments for a segmented wall-time field. */
 export type InputTimeArgs<Range extends boolean = false> = CommonArgs<Range> & TimeArgs & FixedArgs<'gap' | 'placement'>
 
 /** Arguments for a segmented date-time field with optional Calendar composition. */
-export type InputDateTimeArgs<Range extends boolean = false> = CommonArgs<Range> & PopupArgs<Range> & TimeArgs & PopupPosition
+export type InputDateTimeArgs<Range extends boolean = false> = CommonArgs<Range> & PopupArgs & TimeArgs & PopupPosition
 
-/** Arguments for the rendered date-segment group of an InputDate family root. */
+/** Arguments for the segment group of an InputDate family root. */
 export type InputDateFieldArgs = OmitArg<IntrinsicElements['div'], 'children'> & {
 	/** Which range side this group edits; required in range mode, absent in single. */
 	side?: InputDateSide
 	/** Accessible group label; range sides default to Start/End date. */
 	label?: string
-	/** Class for each editable segment. */
-	segmentClass?: string
-	/** Class for literal separators. */
-	literalClass?: string
-	/** Additional classes. */
-	class?: string
-} & FixedArgs<'children'>
-
-/** Arguments for the secondary time-segment group of InputDateTime. */
-export type InputDateTimeFieldArgs = OmitArg<IntrinsicElements['div'], 'children'> & {
-	/** Which range side this time surface edits; absent in single mode. */
-	side?: InputDateSide
-	/** Accessible group label; defaults to Time, Start time, or End time. */
-	label?: string
-	/** Class for each editable time segment. */
-	segmentClass?: string
-	/** Class for literal separators between time segments. */
-	literalClass?: string
 	/** Additional classes. */
 	class?: string
 } & FixedArgs<'children'>
@@ -160,7 +149,6 @@ export type InputDateTimeFieldArgs = OmitArg<IntrinsicElements['div'], 'children
 export type InputDateTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional classes. */
 	class?: string
-	iconClass?: string
 }>
 
 /** Arguments for positioned InputDate popover content. */
@@ -175,22 +163,13 @@ export type InputDateContentArgs = WithChildren<OmitArg<IntrinsicElements['div']
 export type InputDateClearArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional classes. */
 	class?: string
-	iconClass?: string
-}>
-
-/** Arguments for the list of preset values rendered in a date popover. */
-export type InputDatePresetsArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Additional classes. */
-	class?: string
-	buttonClass?: string
 }>
 
 type PublicValue = string | InputDateRangeValue | null
-type InputDateSurface = 'field' | 'popover'
 
 type InputDateRootArgs = WithChildren<{
 	allowNonContiguous?: boolean
-	closeOnSelect?: boolean
+	classNames?: ClassNames
 	defaultOpen?: boolean
 	defaultValue?: string | InputDateRangeValue
 	disabled?: boolean
@@ -207,7 +186,6 @@ type InputDateRootArgs = WithChildren<{
 	onValueChange?: (value: PublicValue, event?: Event) => void
 	open?: boolean
 	placeholderValue?: string
-	presets?: InputDatePreset[]
 	popupFactory?: InputDatePopupFactory
 	range?: boolean
 	readOnly?: boolean
@@ -219,16 +197,16 @@ type InputDateRootArgs = WithChildren<{
 
 type InputDateContextValue = {
 	allowNonContiguous: boolean
-	applyPreset: (value: string | InputDateRangeValue, event: Event) => void
 	calendarDisabled: (user?: CalendarMatcher | CalendarMatcher[]) => CalendarMatcher[] | undefined
 	calendarUnavailable: AvailabilityMatcher | AvailabilityMatcher[] | undefined
+	classNames: ClassNames | undefined
 	clear: (event?: Event) => void
 	contentId: string
 	contentStyle: PopupView['contentStyle']
 	daySelected: () => Date | null
 	disabled: boolean
 	field: (side: InputDateSide) => FieldView
-	groupAttrs: (side: InputDateSide, label?: string, surface?: InputDateSurface) => Record<string, unknown>
+	groupAttrs: (side: InputDateSide, label?: string) => Record<string, unknown>
 	hasValue: boolean
 	kind: SegmentsKind
 	locale: string
@@ -238,18 +216,13 @@ type InputDateContextValue = {
 	open: boolean
 	pickDay: (next: Date | null, event: Event) => void
 	pickRange: (next: CalendarDateRange | null, event: Event) => void
-	popup: (part: string) => boolean
-	presets: InputDatePreset[]
 	range: boolean
 	rangeSelected: () => CalendarDateRange | null
 	readOnly: boolean
-	segmentAttrs: (side: InputDateSide, segment: Segment, label?: string, surface?: InputDateSurface) => Record<string, unknown>
-	segmentText: (side: InputDateSide, segment: Segment, surface?: InputDateSurface) => string
+	segmentAttrs: (side: InputDateSide, segment: Segment, label?: string) => Record<string, unknown>
+	segmentText: (side: InputDateSide, segment: Segment) => string
 	setContent: (element: HTMLDivElement | null) => void
-	registerTimeSurface: (element: HTMLDivElement) => void
-	unregisterTimeSurface: (element: HTMLDivElement) => void
 	setTrigger: (element: HTMLButtonElement | null) => void
-	timeSurface: (part: string) => boolean
 	toggleOpen: (event: Event) => void
 	triggerId: string
 }
@@ -292,6 +265,14 @@ const inputTimePopup: InputDatePopupFactory = (_host, options) => {
 
 const positionedInputDatePopup: InputDatePopupFactory = (host, options) => popup(host, options)
 
+const sides: InputDateSide[] = ['from', 'to']
+
+// Family values are zone-free wall dates: local noon, years 0 to 99 kept literal.
+const unitsToDate = (units: Units | null) =>
+	units?.year != null && units.month != null && units.day != null
+		? calendarDate({ day: units.day, hour: 12, minute: 0, month: units.month, second: 0, year: units.year })
+		: undefined
+
 const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	let kind = initial.kind
 	const rootId = id('input-date')
@@ -305,9 +286,6 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	// SSR emits spinbutton; the hydration attr rewrite is an accepted divergence.
 	const ios = domReady && typeof navigator !== 'undefined' &&
 		(/iP(ad|hone|od)/.test(navigator.userAgent) || (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1))
-	const warned = new Set<string>()
-	const timeSurfaces = new Set<HTMLDivElement>()
-	let closeOnSelect: boolean | undefined
 	let composing: { side: InputDateSide; unit: SegmentUnit; element: HTMLElement; text: string } | null = null
 	let controlId = `${rootId}-control`
 	const unavailableOf = compiler()
@@ -324,7 +302,6 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	let onValueChange: InputDateRootArgs['onValueChange']
 	let closingInside = false
 	let pop: PopupView<HTMLButtonElement, HTMLDivElement>
-	let presets: InputDatePreset[] = []
 	let readOnly = Boolean(initial.readOnly)
 	let required = Boolean(initial.required)
 	let visibleMonth: Date | undefined
@@ -382,11 +359,8 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		valueState.set(composeValue(), event)
 	}
 
-	const segmentsOf = (surface: InputDateSurface = 'field', rendered = true): HTMLElement[] =>
-		domReady
-			? Array.from(this.querySelectorAll<HTMLElement>('[data-segment]'))
-				.filter(item => item.dataset.surface === surface && (!rendered || item.offsetParent !== null))
-			: []
+	const segmentsOf = (scope?: ParentNode): HTMLElement[] =>
+		domReady ? Array.from((scope ?? this).querySelectorAll<HTMLElement>('[data-segment]')) : []
 
 	const segmentOf = (event: Event): HTMLElement | null =>
 		event.target instanceof Element ? event.target.closest<HTMLElement>('[data-segment]') : null
@@ -394,15 +368,11 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	const sideOf = (segment: HTMLElement): InputDateSide =>
 		(segment.dataset.side as InputDateSide) ?? 'from'
 
-	const surfaceOf = (segment: HTMLElement): InputDateSurface =>
-		segment.dataset.surface === 'popover' ? 'popover' : 'field'
-
 	const unitOf = (segment: HTMLElement): SegmentUnit => segment.dataset.segment as SegmentUnit
 
-	// Each rendered surface owns one flat list. Range sides stay adjacent within
-	// the field or popover, but navigation never crosses between those surfaces.
+	// One flat list: range sides stay adjacent in display order.
 	const moveFocus = (from: HTMLElement, step: number) => {
-		const list = segmentsOf(surfaceOf(from))
+		const list = segmentsOf()
 		list[list.indexOf(from) + step]?.focus()
 	}
 
@@ -484,34 +454,9 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		setOpen(next, event)
 	}
 
-	const popupPart = (part: string) => {
-		if (kind !== 'time') return true
-		if (!warned.has(part)) {
-			warned.add(part)
-			console.warn(`[input-date] <${part}> has no effect under InputTime; popup parts require a date family root.`)
-		}
-		return false
-	}
-
-	const timeSurface = (part: string) => {
-		if (kind === 'datetime') return true
-		if (!warned.has(part)) {
-			warned.add(part)
-			console.warn(`[input-date] <${part}> has no effect outside InputDateTime.`)
-		}
-		return false
-	}
-
-	const hasTimeSurface = () => timeSurfaces.size > 0
-
 	// Calendar wiring:
 
-	const dateOfValue = (side: InputDateSide): Date | undefined => {
-		const units = fields[side].units
-		return units.year != null && units.month != null && units.day != null
-			? new Date(units.year, units.month - 1, units.day, 12)
-			: undefined
-	}
+	const dateOfValue = (side: InputDateSide) => unitsToDate(fields[side].units)
 
 	const daySelected = (): Date | null => dateOfValue('from') ?? null
 
@@ -525,13 +470,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 
 	const onMonthChange = (month: Date) => this.next(() => visibleMonth = month)
 
-	const dayOfBound = (value: string | undefined): Date | undefined => {
-		if (!value) return undefined
-		const units = fromISO(kind, value)
-		return units && units.year != null && units.month != null && units.day != null
-			? new Date(units.year, units.month - 1, units.day, 12)
-			: undefined
-	}
+	const dayOfBound = (value: string | undefined) => value ? unitsToDate(fromISO(kind, value)) : undefined
 
 	const syncAvailability = (args: InputDateRootArgs) => {
 		availability = unavailableOf(args.unavailable)
@@ -576,7 +515,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		if (disabled || readOnly) return
 		const result = fields.from.merge(next ? datePatch(fields.from, next) : emptyDate)
 		emitIfChanged([result], event)
-		if (closeOnSelect ?? (Boolean(next) && !hasTimeSurface())) setOpen(false, event)
+		if (next) setOpen(false, event)
 		this.next()
 	}
 
@@ -587,26 +526,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			fields.from.merge(patchFor(fields.from, next?.from)),
 			fields.to.merge(patchFor(fields.to, next?.to)),
 		], event)
-		if (closeOnSelect ?? (Boolean(next?.from && next?.to) && !hasTimeSurface())) setOpen(false, event)
-		this.next()
-	}
-
-	const applyPreset = (value: string | InputDateRangeValue, event: Event) => {
-		if (disabled || readOnly) return
-		const mergeSide = (side: InputDateSide, next: string | null): InputResult => {
-			if (next == null) return fields[side].clear()
-			const units = fromISO(kind, next, fields[side].hourCycle)
-			if (!units) {
-				console.warn(`[input-date] invalid ${kind} preset value: "${next}"`)
-				return { handled: false }
-			}
-			return fields[side].merge(units)
-		}
-		const results = typeof value === 'string'
-			? [mergeSide('from', value)]
-			: [mergeSide('from', value.from), mergeSide('to', value.to)]
-		emitIfChanged(results, event)
-		setOpen(false, event)
+		if (next?.from && next.to) setOpen(false, event)
 		this.next()
 	}
 
@@ -617,7 +537,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		emitIfChanged(results, event)
 		// The clear button unmounts with the value (combobox precedent:
 		// clearing refocuses the input): focus lands on the first segment.
-		if (domReady) queueMicrotask(() => segmentsOf('field')[0]?.focus())
+		if (domReady) queueMicrotask(() => segmentsOf()[0]?.focus())
 		this.next()
 	}
 
@@ -630,8 +550,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		const survives = (item: HTMLElement) =>
 			fields[sideOf(item)].segments.some(segment => segment.type === unitOf(item))
 		if (survives(active)) return
-		const surface = surfaceOf(active)
-		const list = segmentsOf(surface, false)
+		const list = segmentsOf()
 		const index = list.indexOf(active)
 		const target = list.slice(0, Math.max(index, 0)).reverse().find(survives) ?? list.slice(index + 1).find(survives)
 		if (!target) return
@@ -641,15 +560,12 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		queueMicrotask(() => {
 			const current = document.activeElement
 			if (current instanceof HTMLElement && current !== document.body && this.contains(current)) return
-			segmentsOf(surface).find(item => sideOf(item) === side && unitOf(item) === unit)?.focus()
+			segmentsOf().find(item => sideOf(item) === side && unitOf(item) === unit)?.focus()
 		})
 	}
 
 	const nav = roving(this, {
-		items: () => {
-			const active = document.activeElement
-			return segmentsOf(active instanceof HTMLElement && active.dataset.segment ? surfaceOf(active) : 'field')
-		},
+		items: () => segmentsOf(),
 		orientation: () => 'horizontal',
 		dir: () => domReady && getComputedStyle(this).direction === 'rtl' ? 'rtl' : 'ltr',
 		loop: () => false,
@@ -770,15 +686,14 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			if (!disabled) segment.focus()
 			return
 		}
-		const group = target.closest<HTMLElement>('[data-slot="input-date-field"]')
-		if (!group || !this.contains(group)) return
-		// The trigger addon (and any interactive chrome) is exempt.
-		if (target.closest('[data-slot="input-date-trigger"], a, button, input, select, textarea')) return
+		// Interactive chrome and the popover keep their own pointer behavior.
+		if (pop.content?.contains(target) || target.closest('a, button, input, select, textarea')) return
+		// Whitespace, separators and addons walk back to the last filled segment
+		// of the clicked group, else of the whole field.
 		event.preventDefault()
 		if (disabled) return
-		const list = Array.from(group.querySelectorAll<HTMLElement>('[data-segment]'))
-		const filled = [...list].reverse().find(item => item.dataset.placeholder !== 'true')
-		;(filled ?? list[0])?.focus()
+		const list = segmentsOf(target.closest('[data-slot="input-date-field"]') ?? this)
+		;([...list].reverse().find(item => item.dataset.placeholder !== 'true') ?? list[0])?.focus()
 	})
 
 	listen(this, 'focusout', event => {
@@ -801,7 +716,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		document.addEventListener('click', event => {
 			const label = event.target instanceof Element ? event.target.closest('label') : null
 			if (!label || label.getAttribute('for') !== controlId) return
-			segmentsOf('field')[0]?.focus()
+			segmentsOf()[0]?.focus()
 		}, { signal: this.signal })
 
 		// type=hidden resets its own value silently; segment state must follow.
@@ -820,14 +735,12 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		kind = args.kind
 		syncAvailability(args)
 		allowNonContiguous = Boolean(args.allowNonContiguous)
-		closeOnSelect = args.closeOnSelect
 		disabled = Boolean(args.disabled)
 		isRange = Boolean(args.range)
 		locale = resolveLocale(args.locale)
 		const emptyLabel = args.emptyLabel ?? 'Empty'
 		onOpenChange = args.onOpenChange
 		onValueChange = args.onValueChange
-		presets = args.presets ?? []
 		readOnly = Boolean(args.readOnly)
 		required = Boolean(args.required)
 
@@ -853,7 +766,10 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 
 		const reasonFrom = fields.from.reason()
 		const reasonTo = isRange ? fields.to.reason() : null
-		const reversed = isRange && isReversed(fields.from.value(), fields.to.value())
+		// Values compare in the family's own zero-padded string format.
+		const from = fields.from.value()
+		const to = fields.to.value()
+		const reversed = isRange && from != null && to != null && from > to
 		const rangeFrom = isRange ? dateOfValue('from') : undefined
 		const rangeTo = isRange ? dateOfValue('to') : undefined
 		const unavailableRange = !allowNonContiguous && Boolean(rangeFrom && rangeTo && availability?.crosses(rangeFrom, rangeTo))
@@ -903,7 +819,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			return editor.text(unit)
 		}
 
-		const groupAttrs = (side: InputDateSide, label?: string, surface: InputDateSurface = 'field'): Record<string, unknown> => {
+		const groupAttrs = (side: InputDateSide, label?: string): Record<string, unknown> => {
 			const invalid = invalidOf(side)
 			const record: Record<string, unknown> = {
 				'aria-disabled': flag(disabled),
@@ -912,13 +828,10 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 				'data-invalid': flag(invalid),
 				'data-readonly': flag(readOnly),
 				'data-side': side,
-				'data-slot': surface === 'field' ? 'input-date-field' : 'input-date-time-field',
-				'data-surface': surface,
+				'data-slot': 'input-date-field',
 				role: 'group',
 			}
-			if (surface === 'popover') {
-				record['aria-label'] = label
-			} else if (isRange) {
+			if (isRange) {
 				// Each side is its own labelled group; the root carries the field label.
 				record['aria-label'] = sideLabel(side, label)
 			} else {
@@ -931,29 +844,25 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			return record
 		}
 
-		const segmentAttrs = (side: InputDateSide, segment: Segment, label?: string, surface: InputDateSurface = 'field'): Record<string, unknown> => {
+		const segmentAttrs = (side: InputDateSide, segment: Segment, label?: string): Record<string, unknown> => {
 			const unit = segment.type as SegmentUnit
 			const editor = fields[side]
-			const first = surface === 'field' && side === 'from' && unit === firstUnit
+			const first = side === 'from' && unit === firstUnit
 			const filled = editor.units[unit] != null
 			const bounds = editor.bounds(unit)
 			const unitName = unitLabel(locale, unit)
-			const segmentId = first ? controlId : `${rootId}-${surface}-${side}-${unit}`
+			const segmentId = first ? controlId : `${rootId}-${side}-${unit}`
 			// Self-reference technique: aria-labelledby chains the segment itself
 			// (contributing its unit-name aria-label) with the field label, so
 			// every segment announces "month, Date of birth" — iOS VoiceOver
 			// does not announce groups. Range chains the outer label the same way.
 			const labelId = fieldCtx?.ids.label
-			const surfaceLabel = surface === 'popover'
-				? label
-				: isRange
-					? sideLabel(side, label)
-					: label
+			const groupLabel = isRange ? sideLabel(side, label) : label
 			const record: Record<string, unknown> = {
 				'aria-describedby': describedbyOf(side, first),
 				'aria-invalid': flag(invalidOf(side)),
-				'aria-label': surfaceLabel ? `${unitName}, ${surfaceLabel}` : unitName,
-				'aria-labelledby': surface === 'field' && labelId ? `${segmentId} ${labelId}` : undefined,
+				'aria-label': groupLabel ? `${unitName}, ${groupLabel}` : unitName,
+				'aria-labelledby': labelId ? `${segmentId} ${labelId}` : undefined,
 				'aria-readonly': readOnly ? 'true' : undefined,
 				'aria-required': first && required ? 'true' : undefined,
 				autocapitalize: 'off',
@@ -962,7 +871,6 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 				'data-side': side,
 				'data-segment': unit,
 				'data-slot': 'input-date-segment',
-				'data-surface': surface,
 				enterkeyhint: 'next',
 				id: segmentId,
 				role: ios ? 'textbox' : 'spinbutton',
@@ -990,18 +898,18 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			return record
 		}
 
-		const segmentText = (side: InputDateSide, segment: Segment, surface: InputDateSurface = 'field'): string => {
+		const segmentText = (side: InputDateSide, segment: Segment): string => {
 			const unit = segment.type as SegmentUnit
 			// The focused segment holds its snapshot until compositionend.
-			if (composing && composing.side === side && composing.unit === unit && surfaceOf(composing.element) === surface) return composing.text
+			if (composing && composing.side === side && composing.unit === unit) return composing.text
 			return fields[side].text(unit) || segment.placeholder
 		}
 
 		InputDateContext({
 			allowNonContiguous,
-			applyPreset,
 			calendarDisabled,
 			calendarUnavailable: args.unavailable,
+			classNames: args.classNames,
 			clear: clearValue,
 			contentId: pop.contentId,
 			contentStyle: pop.contentStyle,
@@ -1018,33 +926,30 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			open: pop.open,
 			pickDay,
 			pickRange,
-			popup: popupPart,
-			presets,
 			range: isRange,
 			rangeSelected,
 			readOnly,
-			registerTimeSurface: element => timeSurfaces.add(element),
 			segmentAttrs,
 			segmentText,
 			setContent: pop.setContent,
 			setTrigger: pop.setTrigger,
-			timeSurface,
 			toggleOpen,
 			triggerId: pop.triggerId,
-			unregisterTimeSurface: element => timeSurfaces.delete(element),
 		})
 
 		yield (
 			<>
-				{args.name && !isRange
-					? <input data-slot="input-date-hidden" disabled={disabled} name={args.name} set:value={fields.from.value() ?? ''} type="hidden" value={fields.from.value() ?? ''} />
-					: null}
-				{args.name && isRange
-					? <>
-						<input data-slot="input-date-hidden" disabled={disabled} name={`${args.name}[from]`} set:value={fields.from.value() ?? ''} type="hidden" value={fields.from.value() ?? ''} />
-						<input data-slot="input-date-hidden" disabled={disabled} name={`${args.name}[to]`} set:value={fields.to.value() ?? ''} type="hidden" value={fields.to.value() ?? ''} />
-					</>
-					: null}
+				{args.name ? sides.slice(0, isRange ? 2 : 1).map(side => (
+					<input
+						data-slot="input-date-hidden"
+						disabled={disabled}
+						key={side}
+						name={isRange ? `${args.name}[${side}]` : args.name}
+						set:value={fields[side].value() ?? ''}
+						type="hidden"
+						value={fields[side].value() ?? ''}
+					/>
+				)) : null}
 				{args.children}
 				{descriptionText ? <span data-slot="input-date-description" hidden id={descriptionId}>{descriptionText}</span> : null}
 				{message ? <span data-slot="input-date-message" hidden id={messageId}>{message}</span> : null}
@@ -1054,13 +959,58 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 }
 
 
+// The default composition: the segment control, an addon with the clear
+// button and any calendar trigger, then any calendar popover.
+const defaults = (
+	range: boolean | undefined,
+	clearable: boolean | undefined,
+	classNames: ClassNames | undefined,
+	trigger?: Children,
+	content?: Children,
+) => (
+	<>
+		<div class={classNames?.control} data-slot="input-date-control">
+			{range ? (
+				<>
+					<InputDateField class={classNames?.field} side="from" />
+					<div aria-hidden="true" class={classNames?.separator} data-slot="input-date-separator">–</div>
+					<InputDateField class={classNames?.field} side="to" />
+				</>
+			) : <InputDateField class={classNames?.field} />}
+		</div>
+		{clearable || trigger ? (
+			<div class={classNames?.addon} data-slot="input-date-addon">
+				{clearable ? <InputDateClear class={classNames?.clear} /> : null}
+				{trigger}
+			</div>
+		) : null}
+		{content}
+	</>
+)
+
+// Only the date roots reach the calendar parts, so InputTime never bundles
+// Calendar or positioning.
+const calendarDefaults = (
+	range: boolean | undefined,
+	clearable: boolean | undefined,
+	classNames: ClassNames | undefined,
+	calendar: boolean | InputDateCalendarArgs | undefined,
+) => calendar
+	? defaults(range, clearable, classNames, <InputDateTrigger class={classNames?.trigger} />, (
+		<InputDateContent class={classNames?.content}>
+			<InputDateCalendar {...(calendar === true ? {} : calendar)} />
+		</InputDateContent>
+	))
+	: defaults(range, clearable, classNames)
+
 /** Segment-based date field; the calendar popover is an optional part. */
 const InputDate = <Range extends boolean = false>({
 	allowNonContiguous,
 	calendar,
 	children,
 	class: classes,
-	closeOnSelect,
+	classNames,
+	clearable,
 	defaultOpen,
 	defaultValue,
 	disabled,
@@ -1076,7 +1026,6 @@ const InputDate = <Range extends boolean = false>({
 	open,
 	placement,
 	placeholderValue,
-	presets,
 	range,
 	readOnly,
 	required,
@@ -1092,7 +1041,7 @@ const InputDate = <Range extends boolean = false>({
 			{...rootAttrs(attrs as Record<string, unknown>)}
 			{...(range ? { 'attr:role': 'group', 'attr:aria-describedby': fieldCtx?.groupAttrs['aria-describedby'], 'attr:aria-labelledby': fieldCtx?.groupAttrs['aria-labelledby'] } : {})}
 			allowNonContiguous={allowNonContiguous}
-			closeOnSelect={closeOnSelect}
+			classNames={classNames}
 			defaultOpen={defaultOpen}
 			defaultValue={defaultValue as string | InputDateRangeValue | undefined}
 			disabled={disabled}
@@ -1109,7 +1058,6 @@ const InputDate = <Range extends boolean = false>({
 			open={open}
 			placement={placement}
 			placeholderValue={placeholderValue}
-			presets={presets as InputDatePreset[] | undefined}
 			popupFactory={positionedInputDatePopup}
 			range={range}
 			readOnly={readOnly}
@@ -1119,20 +1067,7 @@ const InputDate = <Range extends boolean = false>({
 			attr:class={classes}
 			attr:data-slot="input-date"
 		>
-			{children ?? (
-				<>
-					{range ? <><InputDateField side="from" /><InputDateField side="to" /></> : <InputDateField />}
-					{calendar ? (
-						<>
-							<InputDateTrigger />
-							<InputDateContent>
-								<InputDateCalendar {...(typeof calendar === 'object' ? calendar : {})} />
-								{presets?.length ? <InputDatePresets /> : null}
-							</InputDateContent>
-						</>
-					) : null}
-				</>
-			)}
+			{children ?? calendarDefaults(range, clearable, classNames, calendar)}
 		</InputDateRoot>
 	)
 }
@@ -1142,6 +1077,8 @@ const InputTime = <Range extends boolean = false>({
 	allowNonContiguous,
 	children,
 	class: classes,
+	classNames,
+	clearable,
 	defaultValue,
 	disabled,
 	emptyLabel,
@@ -1169,6 +1106,7 @@ const InputTime = <Range extends boolean = false>({
 			{...rootAttrs(attrs as Record<string, unknown>)}
 			{...(range ? { 'attr:role': 'group', 'attr:aria-describedby': fieldCtx?.groupAttrs['aria-describedby'], 'attr:aria-labelledby': fieldCtx?.groupAttrs['aria-labelledby'] } : {})}
 			allowNonContiguous={allowNonContiguous}
+			classNames={classNames}
 			defaultValue={defaultValue as string | InputDateRangeValue | undefined}
 			disabled={disabled}
 			emptyLabel={emptyLabel}
@@ -1191,18 +1129,19 @@ const InputTime = <Range extends boolean = false>({
 			attr:class={classes}
 			attr:data-slot="input-time"
 		>
-			{children ?? (range ? <><InputDateField side="from" /><InputDateField side="to" /></> : <InputDateField />)}
+			{children ?? defaults(range, clearable, classNames)}
 		</InputDateRoot>
 	)
 }
 
-/** Segment-based date-time field; the calendar merges picked days with entered time. */
+/** Segment-based date-time field; a picked day merges with the entered time. */
 const InputDateTime = <Range extends boolean = false>({
 	allowNonContiguous,
 	calendar,
 	children,
 	class: classes,
-	closeOnSelect,
+	classNames,
+	clearable,
 	defaultOpen,
 	defaultValue,
 	disabled,
@@ -1220,7 +1159,6 @@ const InputDateTime = <Range extends boolean = false>({
 	open,
 	placement,
 	placeholderValue,
-	presets,
 	range,
 	readOnly,
 	required,
@@ -1236,7 +1174,7 @@ const InputDateTime = <Range extends boolean = false>({
 			{...rootAttrs(attrs as Record<string, unknown>)}
 			{...(range ? { 'attr:role': 'group', 'attr:aria-describedby': fieldCtx?.groupAttrs['aria-describedby'], 'attr:aria-labelledby': fieldCtx?.groupAttrs['aria-labelledby'] } : {})}
 			allowNonContiguous={allowNonContiguous}
-			closeOnSelect={closeOnSelect}
+			classNames={classNames}
 			defaultOpen={defaultOpen}
 			defaultValue={defaultValue as string | InputDateRangeValue | undefined}
 			disabled={disabled}
@@ -1255,7 +1193,6 @@ const InputDateTime = <Range extends boolean = false>({
 			open={open}
 			placement={placement}
 			placeholderValue={placeholderValue}
-			presets={presets as InputDatePreset[] | undefined}
 			popupFactory={positionedInputDatePopup}
 			range={range}
 			readOnly={readOnly}
@@ -1266,92 +1203,27 @@ const InputDateTime = <Range extends boolean = false>({
 			attr:class={classes}
 			attr:data-slot="input-datetime"
 		>
-			{children ?? (
-				<>
-					{range ? <><InputDateField side="from" /><InputDateField side="to" /></> : <InputDateField />}
-					{calendar ? (
-						<>
-							<InputDateTrigger />
-							<InputDateContent>
-								<InputDateCalendar {...(typeof calendar === 'object' ? calendar : {})} />
-								{range
-									? <><InputDateTimeField side="from" /><InputDateTimeField side="to" /></>
-									: <InputDateTimeField />}
-								{presets?.length ? <InputDatePresets /> : null}
-							</InputDateContent>
-						</>
-					) : null}
-				</>
-			)}
+			{children ?? calendarDefaults(range, clearable, classNames, calendar)}
 		</InputDateRoot>
 	)
 }
 
-/** Segmented group surface; renders the derived segments and literals closed. */
-const InputDateField: Stateless<InputDateFieldArgs> = ({
-	class: classes,
-	label,
-	literalClass,
-	ref,
-	segmentClass,
-	side,
-	...attrs
-}) => {
+/** One segment group: the root's derived segments and literals for one side. */
+const InputDateField: Stateless<InputDateFieldArgs> = ({ class: classes, label, ref, side, ...attrs }) => {
 	const ctx = InputDateContext()
-	if (!ctx) throw new Error('InputDateField must be used within an InputDate family root.')
-	if (ctx.range && !side) console.warn('[input-date] <InputDateField side> is required in range mode.')
+	if (!ctx) return null
 	const current: InputDateSide = ctx.range ? side ?? 'from' : 'from'
-	const editor = ctx.field(current)
 
 	return (
 		<div {...attrs} {...ctx.groupAttrs(current, label)} class={classes} ref={ref}>
-			{editor.segments.map((segment, index) => segment.editable ? (
+			{ctx.field(current).segments.map((segment, index) => segment.editable ? (
 				// Keyed by unit type: a locale flip reorders through ajo's
 				// focus-preserving keyed path instead of repurposing the focused div.
-				<div key={segment.type} {...ctx.segmentAttrs(current, segment, label)} class={segmentClass}>
+				<div key={segment.type} {...ctx.segmentAttrs(current, segment, label)} class={ctx.classNames?.segment}>
 					{ctx.segmentText(current, segment)}
 				</div>
 			) : (
-				<div aria-hidden="true" class={literalClass} data-slot="input-date-literal" key={`literal-${index}`}>
-					{segment.text}
-				</div>
-			))}
-		</div>
-	)
-}
-
-/** Time run of the bound datetime field, rendered as a second popover surface. */
-const InputDateTimeField: Stateless<InputDateTimeFieldArgs> = ({
-	class: classes,
-	label,
-	literalClass,
-	ref,
-	segmentClass,
-	side,
-	...attrs
-}) => {
-	const ctx = InputDateContext()
-	if (!ctx || !ctx.timeSurface('InputDateTimeField')) return null
-	if (ctx.range && !side) console.warn('[input-date] <InputDateTimeField side> is required in range mode.')
-	const current: InputDateSide = ctx.range ? side ?? 'from' : 'from'
-	const resolvedLabel = label ?? (ctx.range ? current === 'from' ? 'Start time' : 'End time' : 'Time')
-	const editor = ctx.field(current)
-	let registered: HTMLDivElement | null = null
-	const reference = (element: HTMLDivElement | null) => {
-		if (registered && registered !== element) ctx.unregisterTimeSurface(registered)
-		if (element && registered !== element) ctx.registerTimeSurface(element)
-		registered = element
-		callRef(ref, element)
-	}
-
-	return (
-		<div {...attrs} {...ctx.groupAttrs(current, resolvedLabel, 'popover')} class={classes} ref={reference}>
-			{timeRun(editor.segments).map((segment, index) => segment.editable ? (
-				<div key={segment.type} {...ctx.segmentAttrs(current, segment, resolvedLabel, 'popover')} class={segmentClass}>
-					{ctx.segmentText(current, segment, 'popover')}
-				</div>
-			) : (
-				<div aria-hidden="true" class={literalClass} data-slot="input-date-time-literal" key={`literal-${index}`}>
+				<div aria-hidden="true" class={ctx.classNames?.literal} data-slot="input-date-literal" key={`literal-${index}`}>
 					{segment.text}
 				</div>
 			))}
@@ -1364,7 +1236,6 @@ const InputDateTrigger: Stateless<InputDateTriggerArgs> = ({
 	children,
 	class: classes,
 	disabled,
-	iconClass,
 	id: idArg,
 	ref,
 	type = 'button',
@@ -1372,7 +1243,7 @@ const InputDateTrigger: Stateless<InputDateTriggerArgs> = ({
 	...attrs
 }) => {
 	const ctx = InputDateContext()
-	if (ctx && !ctx.popup('InputDateTrigger')) return null
+	if (ctx?.kind === 'time') return null
 	const disabledFlag = Boolean(disabled ?? ctx?.disabled)
 
 	return (
@@ -1399,7 +1270,7 @@ const InputDateTrigger: Stateless<InputDateTriggerArgs> = ({
 			}}
 			type={type}
 		>
-			{children ?? <span aria-hidden="true" class={iconClass} data-slot="input-date-trigger-icon" />}
+			{children ?? <span aria-hidden="true" class={ctx?.classNames?.trigger_icon} data-slot="input-date-trigger-icon" />}
 		</button>
 	)
 }
@@ -1407,7 +1278,7 @@ const InputDateTrigger: Stateless<InputDateTriggerArgs> = ({
 /** Popover panel for the calendar; a dialog anchored to the field group. */
 const InputDateContent: Stateless<InputDateContentArgs> = ({ children, class: classes, ref, style, ...attrs }) => {
 	const ctx = InputDateContext()
-	if (ctx && !ctx.popup('InputDateContent')) return null
+	if (ctx?.kind === 'time') return null
 
 	return (
 		<div
@@ -1433,9 +1304,8 @@ const InputDateContent: Stateless<InputDateContentArgs> = ({ children, class: cl
 /** Calendar wired to the field: picked days fill the date units and commit. */
 const InputDateCalendar: Stateless<InputDateCalendarArgs> = ({ component, ...attrs }) => {
 	const ctx = InputDateContext()
+	if (!ctx || ctx.kind === 'time') return null
 	const CurrentCalendar = component ?? Calendar
-	if (!ctx) return <CurrentCalendar {...attrs as CalendarArgs} />
-	if (!ctx.popup('InputDateCalendar')) return null
 
 	const common = {
 		...attrs,
@@ -1447,6 +1317,7 @@ const InputDateCalendar: Stateless<InputDateCalendarArgs> = ({ component, ...att
 			attrs.onMonthChange?.(month, event)
 			ctx.onMonthChange(month)
 		},
+		timeZone: undefined,
 		unavailable: ctx.calendarUnavailable,
 	}
 
@@ -1476,7 +1347,6 @@ const InputDateClear: Stateless<InputDateClearArgs> = ({
 	children,
 	class: classes,
 	disabled,
-	iconClass,
 	type = 'button',
 	'set:onclick': onClick,
 	...attrs
@@ -1499,37 +1369,8 @@ const InputDateClear: Stateless<InputDateClearArgs> = ({
 			}}
 			type={type}
 		>
-			{children ?? <span aria-hidden="true" class={iconClass} data-slot="input-date-clear-icon" />}
+			{children ?? <span aria-hidden="true" class={ctx?.classNames?.clear_icon} data-slot="input-date-clear-icon" />}
 		</button>
-	)
-}
-
-/** Preset value buttons for the popover; a pick commits and closes. */
-const InputDatePresets: Stateless<InputDatePresetsArgs> = ({
-	buttonClass,
-	children,
-	class: classes,
-	...attrs
-}) => {
-	const ctx = InputDateContext()
-	if (!ctx || !ctx.popup('InputDatePresets')) return null
-	if (!children && !ctx.presets.length) return null
-
-	return (
-		<div {...attrs} class={classes} data-slot="input-date-presets">
-			{children ?? ctx.presets.map(preset => (
-				<button
-					class={buttonClass}
-					data-slot="input-date-preset"
-					disabled={ctx.disabled}
-					key={preset.label}
-					set:onclick={(event: Event) => ctx.applyPreset(preset.value, event)}
-					type="button"
-				>
-					{preset.label}
-				</button>
-			))}
-		</div>
 	)
 }
 
@@ -1539,9 +1380,7 @@ export {
 	InputDateClear,
 	InputDateContent,
 	InputDateField,
-	InputDatePresets,
 	InputDateTime,
-	InputDateTimeField,
 	InputDateTrigger,
 	InputTime,
 }

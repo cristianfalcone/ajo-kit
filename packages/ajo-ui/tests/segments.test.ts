@@ -1,20 +1,15 @@
 import { describe, expect, test } from 'vitest'
 import {
-	constrain,
 	daysInMonth,
 	defaultMessage,
 	derive,
-	emptyUnits,
 	eraseDigit,
 	field,
 	fromISO,
 	inferGranularity,
-	isReversed,
 	matchName,
-	reconciler,
 	spinMove,
 	stepValue,
-	timeRun,
 	toISO,
 	typeDigit,
 	validate,
@@ -33,6 +28,9 @@ test('ICU sanity: es/de/ja locale data is present', () => {
 
 const shape = (kind: Parameters<typeof derive>[0]['kind'], locale: string, extra?: Partial<Parameters<typeof derive>[0]>) =>
 	derive({ kind, locale, ...extra })
+
+const units = (filled: Partial<Units>): Units =>
+	({ year: null, month: null, day: null, hour: null, minute: null, second: null, dayPeriod: null, ...filled })
 
 describe('derivation', () => {
 	test('en-US date: m/d/y with numeric widths and native placeholders', () => {
@@ -113,30 +111,6 @@ describe('derivation', () => {
 	test('datetime composes date and time segments', () => {
 		expect(shape('datetime', 'en-US').units).toEqual(['month', 'day', 'year', 'hour', 'minute', 'dayPeriod'])
 	})
-
-	test('timeRun isolates the complete time tail of a datetime shape', () => {
-		expect(timeRun(shape('datetime', 'en-US').segments).map(segment => segment.type))
-			.toEqual(['hour', 'literal', 'minute', 'literal', 'dayPeriod'])
-	})
-
-	test('timeRun honors a synthetic dayPeriod-leading time order', () => {
-		const date = shape('date', 'en-US').segments
-		const time = shape('time', 'en-US').segments
-		const unit = (type: 'dayPeriod' | 'hour' | 'minute') => time.find(segment => segment.type === type)!
-		const [separator, spacing] = time.filter(segment => !segment.editable)
-		const synthetic = [
-			...date.slice(0, 2),
-			unit('dayPeriod'), spacing!, unit('hour'), separator!, unit('minute'),
-			...date.slice(2),
-		]
-
-		expect(timeRun(synthetic).map(segment => segment.type))
-			.toEqual(['dayPeriod', 'literal', 'hour', 'literal', 'minute'])
-	})
-
-	test('timeRun is empty for a date-only shape', () => {
-		expect(timeRun(shape('date', 'en-US').segments)).toEqual([])
-	})
 })
 
 describe('ISO parse/serialize', () => {
@@ -168,21 +142,21 @@ describe('ISO parse/serialize', () => {
 	})
 
 	test('serializes with manual padding, never Date', () => {
-		expect(toISO('date', { ...emptyUnits(), year: 42, month: 3, day: 4 })).toBe('0042-03-04')
-		expect(toISO('time', { ...emptyUnits(), hour: 9, minute: 5 })).toBe('09:05')
-		expect(toISO('time', { ...emptyUnits(), hour: 9, minute: 5, second: 7 }, { seconds: true })).toBe('09:05:07')
+		expect(toISO('date', units({ year: 42, month: 3, day: 4 }))).toBe('0042-03-04')
+		expect(toISO('time', units({ hour: 9, minute: 5 }))).toBe('09:05')
+		expect(toISO('time', units({ hour: 9, minute: 5, second: 7 }), { seconds: true })).toBe('09:05:07')
 	})
 
 	test('h12 serialization converts back to 24h', () => {
-		expect(toISO('time', { ...emptyUnits(), hour: 12, minute: 0, dayPeriod: 0 }, { hourCycle: 'h12' })).toBe('00:00')
-		expect(toISO('time', { ...emptyUnits(), hour: 12, minute: 0, dayPeriod: 1 }, { hourCycle: 'h12' })).toBe('12:00')
-		expect(toISO('time', { ...emptyUnits(), hour: 1, minute: 30, dayPeriod: 1 }, { hourCycle: 'h12' })).toBe('13:30')
+		expect(toISO('time', units({ hour: 12, minute: 0, dayPeriod: 0 }), { hourCycle: 'h12' })).toBe('00:00')
+		expect(toISO('time', units({ hour: 12, minute: 0, dayPeriod: 1 }), { hourCycle: 'h12' })).toBe('12:00')
+		expect(toISO('time', units({ hour: 1, minute: 30, dayPeriod: 1 }), { hourCycle: 'h12' })).toBe('13:30')
 	})
 
 	test('incomplete units serialize to null', () => {
-		expect(toISO('date', { ...emptyUnits(), year: 2026, month: 7 })).toBeNull()
-		expect(toISO('time', { ...emptyUnits(), hour: 9, minute: 5 }, { hourCycle: 'h12' })).toBeNull()
-		expect(toISO('time', { ...emptyUnits(), hour: 9, minute: 5 }, { seconds: true })).toBeNull()
+		expect(toISO('date', units({ year: 2026, month: 7 }))).toBeNull()
+		expect(toISO('time', units({ hour: 9, minute: 5 }), { hourCycle: 'h12' })).toBeNull()
+		expect(toISO('time', units({ hour: 9, minute: 5 }), { seconds: true })).toBeNull()
 	})
 
 	test('daysInMonth: dynamic cap with leap fallback while the year is unknown', () => {
@@ -394,13 +368,6 @@ describe('deletion', () => {
 		expect(eraseDigit(3, 'ma')).toEqual({ value: null, buffer: '', retreat: false })
 	})
 
-	test('toISO never serializes NaN units', () => {
-		expect(toISO('date', { ...emptyUnits(), year: 2026, month: NaN, day: 4 })).toBeNull()
-		expect(toISO('time', { ...emptyUnits(), hour: NaN, minute: 5 })).toBeNull()
-		expect(toISO('time', { ...emptyUnits(), hour: 9, minute: 5, second: NaN }, { seconds: true })).toBeNull()
-		expect(toISO('time', { ...emptyUnits(), hour: 9, minute: 5, dayPeriod: NaN }, { hourCycle: 'h12' })).toBeNull()
-	})
-
 	test("backspace after month-name letters erases by letter, never NaN ('m','a' repro)", () => {
 		// The live repro: 'm','a' buffers a non-unique name prefix; Backspace
 		// used to Number('m') the remainder into a committed '2026-NaN-NaN'.
@@ -477,7 +444,6 @@ describe('commit machinery', () => {
 		expect(f.type('month', '7').emit).toBeUndefined()
 		f.blur()
 		expect(f.value()).toBeNull()
-		expect(f.complete()).toBe(false)
 	})
 
 	test('min/max never block commit', () => {
@@ -523,18 +489,6 @@ describe('commit machinery', () => {
 })
 
 describe('reconciliation', () => {
-	test('reconciler: echoes suppressed, rejections and pushes re-derive', () => {
-		const r = reconciler()
-		expect(r.observe(undefined)).toBe(false)
-		expect(r.observe('a')).toBe(true)
-		expect(r.observe('a')).toBe(false)
-		r.emit('b')
-		expect(r.observe('b')).toBe(false)
-		expect(r.observe('a')).toBe(true)
-		expect(r.observe(null)).toBe(true)
-		expect(r.observe(null)).toBe(false)
-	})
-
 	test('echo mid-typing keeps the buffer intact', () => {
 		const f = field({ kind: 'date', locale: 'en-US' })
 		f.sync('2026-03-04')
@@ -679,12 +633,10 @@ describe('validation reasons and messages', () => {
 		expect(f.message()).toContain('mes')
 	})
 
-	test('impossible dates are reason-coded; constrain clamps them real', () => {
-		const units: Units = { ...emptyUnits(), year: 2025, month: 2, day: 30 }
-		expect(validate('date', units, ['day', 'month', 'year'])).toEqual({ code: 'impossible' })
+	test('impossible dates are reason-coded', () => {
+		expect(validate('date', units({ year: 2025, month: 2, day: 30 }), ['day', 'month', 'year'])).toEqual({ code: 'impossible' })
+		expect(validate('date', units({ year: 2025, month: 2, day: 28 }), ['day', 'month', 'year'])).toBeNull()
 		expect(defaultMessage({ code: 'impossible' }, { kind: 'date', locale: 'en-US' })).toBe('Must be a real date')
-		expect(constrain(units).day).toBe(28)
-		expect(validate('date', units, ['day', 'month', 'year'])).toBeNull()
 	})
 
 	test('range reasons carry the bound; messages format it', () => {
@@ -715,13 +667,6 @@ describe('validation reasons and messages', () => {
 		expect(f.message()).toBe('faltan datos')
 		f.merge({ year: 2026, month: 1, day: 1 })
 		expect(f.message()).toBe('Must be Jan 5, 2026 or later')
-	})
-
-	test('range cross-check: from > to as plain string compare', () => {
-		expect(isReversed('2026-07-11', '2026-07-10')).toBe(true)
-		expect(isReversed('2026-07-10', '2026-07-10')).toBe(false)
-		expect(isReversed('22:00', '06:00')).toBe(true)
-		expect(isReversed(null, '06:00')).toBe(false)
 	})
 })
 

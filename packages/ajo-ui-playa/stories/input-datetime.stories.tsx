@@ -109,7 +109,7 @@ export const Basic: Story<typeof InputDateTime> = {
 
 export const CalendarMerge: Story<typeof InputDateTime> = {
 	parameters: {
-		docs: { description: 'The popover time footer edits the same field view: staged time survives a day pick, and Escape closes without acting as a commit gate.' },
+		docs: { description: 'A picked day merges with the time entered in the field, or seeds it from the placeholder, commits and closes the calendar.' },
 	},
 	render: () => (
 		<div class="grid w-96 gap-4">
@@ -127,28 +127,22 @@ export const CalendarMerge: Story<typeof InputDateTime> = {
 		const roots = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="input-datetime"]'))
 		if (roots.length !== 2) throw new Error('CalendarMerge story did not render both fields')
 		const [pickup, dropoff] = roots
+		if (roots.some(root => root.querySelectorAll('[data-segment="hour"]').length !== 1)) {
+			throw new Error('Each field must render exactly one hour segment')
+		}
 
+		// Staged time first: no commit yet, the pick merges the date and keeps 2:30 PM.
+		await typeKeys(segment(pickup, 'hour'), '230p')
+		if (val(hidden(pickup, 'pickup')) !== '') throw new Error('Time without a date must not commit')
 		trigger(pickup).click()
 		await frame()
 		if (trigger(pickup).getAttribute('aria-expanded') !== 'true') throw new Error('Trigger did not open the calendar popover')
-		const pickupTime = pickup.querySelector<HTMLElement>('[data-surface="popover"][data-segment="hour"]')
-		if (!pickupTime) throw new Error('Popover time surface was not rendered')
-		// Staged time first: no commit yet, the pick merges the date and keeps 2:30 PM.
-		await typeKeys(pickupTime, '230p')
-		if (val(hidden(pickup, 'pickup')) !== '') throw new Error('Time without a date must not commit')
-
 		day(pickup, '2026-07-15').click()
 		await frame()
 		if (val(hidden(pickup, 'pickup')) !== '2026-07-15T14:30') {
 			throw new Error(`Pick must merge the typed 2:30 PM into 2026-07-15T14:30, got "${val(hidden(pickup, 'pickup'))}"`)
 		}
-		if (trigger(pickup).getAttribute('aria-expanded') !== 'true') throw new Error('A time-enabled pick must keep the popover open')
-		const pickupMinute = pickup.querySelector<HTMLElement>('[data-surface="popover"][data-segment="minute"]')
-		if (!pickupMinute) throw new Error('Popover minute segment was not rendered')
-		pickupMinute.focus()
-		await press(pickupMinute, 'Escape')
-		if (trigger(pickup).getAttribute('aria-expanded') !== 'false') throw new Error('Escape did not close the time-enabled popover')
-		if (document.activeElement !== trigger(pickup)) throw new Error('Escape did not restore focus to the trigger')
+		if (trigger(pickup).getAttribute('aria-expanded') !== 'false') throw new Error('A completed pick must close the popover')
 
 		// No time entered: the pick seeds placeholder-value time.
 		trigger(dropoff).click()
@@ -158,9 +152,7 @@ export const CalendarMerge: Story<typeof InputDateTime> = {
 		if (val(hidden(dropoff, 'dropoff')) !== '2026-07-20T08:00') {
 			throw new Error(`Pick must seed placeholder time into 2026-07-20T08:00, got "${val(hidden(dropoff, 'dropoff'))}"`)
 		}
-		if (trigger(dropoff).getAttribute('aria-expanded') !== 'true') throw new Error('Seeded time surface must keep the popover open')
-		await press(day(dropoff, '2026-07-20'), 'Escape')
-		if (getComputedStyle(content(dropoff)).display !== 'none') throw new Error('Escape left the seeded-time popover visible')
+		if (getComputedStyle(content(dropoff)).display !== 'none') throw new Error('A completed pick left the popover visible')
 
 		await blur()
 	},
@@ -178,15 +170,12 @@ export const Seconds: Story<typeof InputDateTime> = {
 	),
 	play: async ({ canvas }) => {
 		const second = segment(canvas, 'second')
-		const popupSecond = canvas.querySelector<HTMLElement>('[data-surface="popover"][data-segment="second"]')
-		if (!popupSecond) throw new Error('Latched seconds were missing from the popover surface')
 		const value = hidden(canvas, 'backup')
-		if (text(second) !== '30' || text(popupSecond) !== '30') throw new Error('Seconds did not latch across both surfaces')
+		if (text(second) !== '30') throw new Error('Seconds did not latch from the defaultValue')
 		if (val(value) !== '2026-07-10T09:00:30') throw new Error('Seconds field did not adopt its defaultValue')
 
 		await press(second, 'ArrowUp')
 		if (val(value) !== '2026-07-10T09:00:31') throw new Error(`Spinning a complete field must commit eagerly, got "${val(value)}"`)
-		if (text(popupSecond) !== '31') throw new Error('Popover seconds did not reflect the shared edit')
 		await press(second, 'ArrowDown')
 		if (val(value) !== '2026-07-10T09:00:30') throw new Error('ArrowDown did not step the seconds back')
 
@@ -194,9 +183,9 @@ export const Seconds: Story<typeof InputDateTime> = {
 	},
 }
 
-export const PopoverCyclesAndStep: Story<typeof InputDateTime> = {
+export const CyclesAndStep: Story<typeof InputDateTime> = {
 	parameters: {
-		docs: { description: 'The popover inherits 12h/24h shape and minute step from the same field options.' },
+		docs: { description: 'The time segments follow the 12h/24h option and the minute step.' },
 	},
 	render: () => (
 		<div class="grid w-96 gap-4">
@@ -212,30 +201,21 @@ export const PopoverCyclesAndStep: Story<typeof InputDateTime> = {
 		const twelve = canvas.querySelector<HTMLElement>('[data-datetime-example="twelve"]')
 		const twentyFour = canvas.querySelector<HTMLElement>('[data-datetime-example="twenty-four"]')
 		if (!twelve || !twentyFour) throw new Error('Cycle examples were not rendered')
-		trigger(twelve).click()
-		await frame()
-		if (!twelve.querySelector('[data-surface="popover"][data-segment="dayPeriod"]')) {
-			throw new Error('12h popover did not render dayPeriod')
-		}
-		await press(twelve.querySelector<HTMLElement>('[data-surface="popover"][data-segment="hour"]')!, 'Escape')
+		if (!twelve.querySelector('[data-segment="dayPeriod"]')) throw new Error('12h field did not render dayPeriod')
+		if (twentyFour.querySelector('[data-segment="dayPeriod"]')) throw new Error('24h field rendered dayPeriod')
 
-		trigger(twentyFour).click()
-		await frame()
-		if (twentyFour.querySelector('[data-surface="popover"][data-segment="dayPeriod"]')) {
-			throw new Error('24h popover rendered dayPeriod')
-		}
-		const minute = twentyFour.querySelector<HTMLElement>('[data-surface="popover"][data-segment="minute"]')
-		if (!minute) throw new Error('24h popover minute was not rendered')
-		await press(minute, 'ArrowUp')
+		await press(segment(twentyFour, 'minute'), 'ArrowUp')
 		if (val(hidden(twentyFour, 'twenty-four')) !== '2026-07-10T09:15') {
-			throw new Error('Popover minute did not inherit step={15}')
+			throw new Error('The minute segment did not inherit step={15}')
 		}
+
+		await blur()
 	},
 }
 
 export const Range: Story<typeof InputDateTime> = {
 	parameters: {
-		docs: { description: 'Check-in/check-out over one shared calendar with Start time and End time surfaces that keep the popover open after the range completes.' },
+		docs: { description: 'Check-in/check-out over one shared calendar: each end takes the seeded time and the popover closes once both ends are picked.' },
 	},
 	render: () => (
 		<Field class="w-[36rem]">
@@ -266,15 +246,7 @@ export const Range: Story<typeof InputDateTime> = {
 		if (val(from) !== '2026-07-20T15:00' || val(to) !== '2026-07-25T15:00') {
 			throw new Error(`Second pick must complete the range, got from "${val(from)}" to "${val(to)}"`)
 		}
-		if (trigger(canvas).getAttribute('aria-expanded') !== 'true') {
-			throw new Error('Completing a time-enabled range must keep the popover open')
-		}
-		const timeFields = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="input-date-time-field"]'))
-		if (timeFields.length !== 2 || timeFields[0]?.getAttribute('aria-label') !== 'Start time' || timeFields[1]?.getAttribute('aria-label') !== 'End time') {
-			throw new Error('Range did not expose labelled Start time and End time surfaces')
-		}
-		await press(timeFields[1]!.querySelector<HTMLElement>('[data-segment="minute"]')!, 'Escape')
-		if (getComputedStyle(content(canvas)).display !== 'none') throw new Error('Escape left the range popover visible')
+		if (getComputedStyle(content(canvas)).display !== 'none') throw new Error('Completing the range must close the popover')
 	},
 }
 

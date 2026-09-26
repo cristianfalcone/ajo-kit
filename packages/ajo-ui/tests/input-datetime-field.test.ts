@@ -15,16 +15,7 @@ vi.mock('@floating-ui/dom', async importActual => ({
 	computePosition: floating.computePosition,
 }))
 
-import {
-	InputDateCalendar,
-	InputDateContent,
-	InputDate,
-	InputDateField,
-	InputDateTime,
-	InputDateTimeField,
-	InputDateTrigger,
-	InputTime,
-} from '../src/input-date'
+import { InputDate, InputDateTime, InputTime } from '../src/input-date'
 import { nativePopoverHarness } from './native-popover-harness'
 
 const popovers = nativePopoverHarness()
@@ -48,33 +39,15 @@ afterEach(() => {
 	popovers.restore()
 })
 
-const segment = (surface: 'field' | 'popover', unit: string) =>
-	document.querySelector<HTMLElement>(`[data-surface="${surface}"][data-segment="${unit}"]`)!
-
-const DuplicateTimeSurfaces: Stateful = function* () {
-	let duplicate = true
-
-	while (true) yield jsx(InputDateTime, {
-		calendar: true,
-		children: [
-			jsx(InputDateField, {}),
-			jsx(InputDateTrigger, {}),
-			jsx(InputDateContent, {
-				children: [
-					jsx(InputDateCalendar, { defaultMonth: new Date(2026, 6, 1, 12) }),
-					jsx(InputDateTimeField, { id: 'time-one' }),
-					duplicate ? jsx(InputDateTimeField, { id: 'time-two' }) : null,
-				],
-			}),
-			jsx('button', {
-				children: 'Remove duplicate',
-				'data-testid': 'remove-time',
-				'set:onclick': () => this.next(() => duplicate = false),
-				type: 'button',
-			}),
-		],
-	})
+const segment = (unit: string) => document.querySelector<HTMLElement>(`[data-segment="${unit}"]`)!
+const hidden = (name: string) => document.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value
+const openCalendar = async () => {
+	document.querySelector<HTMLButtonElement>('[data-slot="input-date-trigger"]')!.click()
+	const content = document.querySelector<HTMLElement>('[data-slot="input-date-content"]')!
+	await vi.waitFor(() => expect(content.matches(':popover-open')).toBe(true))
+	return content
 }
+const pick = (day: string) => document.querySelector<HTMLButtonElement>(`[data-day="${day}"]`)!.click()
 
 const FamilySwitch: Stateful = function* () {
 	let time = false
@@ -94,65 +67,59 @@ const FamilySwitch: Stateful = function* () {
 	})
 }
 
-test('default datetime composition renders one engine through uniquely identified field and popover surfaces', () => {
+test('a datetime field with a calendar renders one editor: one set of hour and minute segments', () => {
 	const html = ssr(jsx(InputDateTime, {
 		calendar: true,
 		defaultValue: '2026-07-10T12:30',
 		hourCycle: 24,
 	}))
 	const tags = Array.from(html.matchAll(/<div\b[^>]*data-segment="[^"]+"[^>]*>/g), match => match[0])
-	const field = tags.filter(tag => tag.includes('data-surface="field"'))
-	const popover = tags.filter(tag => tag.includes('data-surface="popover"'))
 	const ids = tags.map(tag => tag.match(/\bid="([^"]+)"/)?.[1]).filter(Boolean)
 
-	expect(field.some(tag => tag.includes('data-segment="year"'))).toBe(true)
-	expect(popover.some(tag => tag.includes('data-segment="hour"'))).toBe(true)
-	expect(popover.some(tag => tag.includes('data-segment="minute"'))).toBe(true)
-	expect(popover.some(tag => tag.includes('data-segment="day"'))).toBe(false)
+	expect(tags.filter(tag => tag.includes('data-segment="hour"'))).toHaveLength(1)
+	expect(tags.filter(tag => tag.includes('data-segment="minute"'))).toHaveLength(1)
+	expect(html).toContain('data-slot="calendar"')
 	expect(new Set(ids).size).toBe(ids.length)
 })
 
-test('popover time edits update the same field view and keep day picks open by default', async () => {
+test('picking a day seeds empty time units from the placeholder, commits and closes', async () => {
 	render(jsx(InputDateTime, {
 		calendar: { defaultMonth: new Date(2026, 6, 1, 12) },
-		defaultValue: '2026-07-10T12:30',
 		hourCycle: 24,
 		name: 'meeting',
+		placeholderValue: '2026-01-01T09:15',
 	}), document.body)
 
-	const outerHour = segment('field', 'hour')
-	const popupHour = segment('popover', 'hour')
-	const popupMinute = segment('popover', 'minute')
-	for (const item of [outerHour, popupHour, popupMinute]) {
-		Object.defineProperty(item, 'offsetParent', { configurable: true, get: () => document.body })
-	}
+	const content = await openCalendar()
+	pick('2026-07-11')
+	expect(hidden('meeting')).toBe('2026-07-11T09:15')
+	expect(content.dataset.state).toBe('closed')
+	expect(segment('hour').textContent).toBe('09')
+})
 
-	expect(outerHour.textContent).toBe('12')
-	expect(popupHour.textContent).toBe('12')
-	popupHour.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowUp' }))
-	expect(document.querySelector<HTMLInputElement>('input[name="meeting"]')?.value).toBe('2026-07-10T13:30')
-	expect(outerHour.textContent).toBe('13')
-	expect(popupHour.textContent).toBe('13')
+test('a datetime range picks both ends and then closes, keeping the entered times', async () => {
+	render(jsx(InputDateTime, {
+		calendar: { defaultMonth: new Date(2026, 6, 1, 12) },
+		defaultValue: { from: '2026-07-01T08:00', to: '2026-07-02T18:30' },
+		hourCycle: 24,
+		name: 'stay',
+		range: true,
+	}), document.body)
 
-	popupHour.focus()
-	popupHour.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
-	expect(document.activeElement).toBe(popupMinute)
-
-	const trigger = document.querySelector<HTMLButtonElement>('[data-slot="input-date-trigger"]')!
-	const content = document.querySelector<HTMLElement>('[data-slot="input-date-content"]')!
-	trigger.click()
-	await vi.waitFor(() => expect(content.matches(':popover-open')).toBe(true))
+	const content = await openCalendar()
+	pick('2026-07-11')
 	expect(content.dataset.state).toBe('open')
-	document.querySelector<HTMLButtonElement>('[data-day="2026-07-11"]')!.click()
-	expect(content.dataset.state).toBe('open')
-	expect(document.querySelector<HTMLInputElement>('input[name="meeting"]')?.value).toBe('2026-07-11T13:30')
+	pick('2026-07-14')
+	expect(hidden('stay[from]')).toBe('2026-07-11T08:00')
+	expect(hidden('stay[to]')).toBe('2026-07-14T18:30')
+	expect(content.dataset.state).toBe('closed')
 })
 
 test('segment stepping keys are prevented and step, page and land on the bounds', () => {
 	render(jsx(InputTime, { defaultValue: '09:30', hourCycle: 24, name: 'alarm' }), document.body)
 
-	const hour = segment('field', 'hour')
-	const value = () => document.querySelector<HTMLInputElement>('input[name="alarm"]')?.value
+	const hour = segment('hour')
+	const value = () => hidden('alarm')
 	for (const [key, expected] of [
 		['ArrowDown', '08:30'],
 		['PageUp', '10:30'],
@@ -170,39 +137,6 @@ test('segment stepping keys are prevented and step, page and land on the bounds'
 	const tab = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Tab' })
 	hour.dispatchEvent(tab)
 	expect(tab.defaultPrevented).toBe(false)
-})
-
-test('a datetime composition without a time surface keeps the calendar close default', () => {
-	render(jsx(InputDateTime, {
-		calendar: true,
-		children: [
-			jsx(InputDateField, {}),
-			jsx(InputDateTrigger, {}),
-			jsx(InputDateContent, {
-				children: jsx(InputDateCalendar, { defaultMonth: new Date(2026, 6, 1, 12) }),
-			}),
-		],
-	}), document.body)
-
-	const trigger = document.querySelector<HTMLButtonElement>('[data-slot="input-date-trigger"]')!
-	const content = document.querySelector<HTMLElement>('[data-slot="input-date-content"]')!
-	trigger.click()
-	expect(content.dataset.state).toBe('open')
-	document.querySelector<HTMLButtonElement>('[data-day="2026-07-11"]')!.click()
-	expect(content.dataset.state).toBe('closed')
-})
-
-test('removing one explicit duplicate keeps the remaining time surface registered', async () => {
-	render(jsx(DuplicateTimeSurfaces, {}), document.body)
-	expect(document.querySelectorAll('[data-slot="input-date-time-field"]')).toHaveLength(2)
-	document.querySelector<HTMLButtonElement>('[data-testid="remove-time"]')!.click()
-	expect(document.querySelectorAll('[data-slot="input-date-time-field"]')).toHaveLength(1)
-
-	document.querySelector<HTMLButtonElement>('[data-slot="input-date-trigger"]')!.click()
-	const content = document.querySelector<HTMLElement>('[data-slot="input-date-content"]')!
-	await vi.waitFor(() => expect(content.matches(':popover-open')).toBe(true))
-	document.querySelector<HTMLButtonElement>('[data-day="2026-07-11"]')!.click()
-	expect(content.dataset.state).toBe('open')
 })
 
 test('switching public field families replaces the kind-specific editing root', () => {

@@ -54,12 +54,11 @@ test('an unavailable calendar day remains selectable and commits an invalid endp
 	expect(document.body.textContent).toContain('This date is unavailable')
 })
 
-test('range field segments expose one scoped surface with unique control identities', () => {
+test('range field segments have unique control identities', () => {
 	const html = ssr(jsx(InputDate, { range: true }))
 	const segments = Array.from(html.matchAll(/<div\b[^>]*data-segment="[^"]+"[^>]*>/g), match => match[0])
 	const ids = segments.map(tag => tag.match(/\bid="([^"]+)"/)?.[1]).filter(Boolean)
 
 	expect(segments.length).toBeGreaterThan(4)
-	expect(segments.every(tag => tag.includes('data-surface="field"'))).toBe(true)
 	expect(new Set(ids).size).toBe(ids.length)
 })
