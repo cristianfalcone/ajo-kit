@@ -57,14 +57,11 @@ type TabsRootArgs = WithChildren<{
 type TabsContextValue = {
 	activationMode: TabsActivationMode
 	contentId: (value: string) => string
-	dir: 'ltr' | 'rtl'
-	loop: boolean
 	orientation: TabsOrientation
 	selected: (value: string) => boolean
 	setList: (element: HTMLElement | null) => void
 	setValue: (value: string, event?: Event) => void
 	triggerId: (value: string) => string
-	value: string
 }
 
 const TabsContext = context<TabsContextValue | null>(null)
@@ -107,10 +104,10 @@ const TabsRoot: Stateful<TabsRootArgs> = function* ({ defaultValue, value }) {
 		orientation: () => orientation,
 		dir: () => dir,
 		loop: () => loop,
-		onMove: (target, event) => {
+		// In automatic mode the trigger's focus handler selects it.
+		onMove: target => {
 			target.focus()
 			target.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-			if (activationMode === 'automatic') setValue(String((target as HTMLButtonElement).value), event)
 		},
 	})
 
@@ -132,14 +129,7 @@ const TabsRoot: Stateful<TabsRootArgs> = function* ({ defaultValue, value }) {
 
 	listen(this, 'keydown', (event: KeyboardEvent) => {
 		const target = event.target as HTMLElement | null
-		if (!target?.matches('button[data-slot="tabs-trigger"]')) return
-
-		if (nav.handle(event)) return
-
-		if (activationMode === 'manual' && (event.key === 'Enter' || event.key === ' ')) {
-			event.preventDefault()
-			setValue(String((target as HTMLButtonElement).value), event)
-		}
+		if (target?.matches('button[data-slot="tabs-trigger"]')) nav.handle(event)
 	})
 
 	for (const args of this) {
@@ -153,14 +143,11 @@ const TabsRoot: Stateful<TabsRootArgs> = function* ({ defaultValue, value }) {
 		TabsContext({
 			activationMode,
 			contentId,
-			dir,
-			loop,
 			orientation,
 			selected,
 			setList,
 			setValue,
 			triggerId,
-			value: state.value,
 		})
 
 		edges.sync()
@@ -169,7 +156,6 @@ const TabsRoot: Stateful<TabsRootArgs> = function* ({ defaultValue, value }) {
 		yield <>{args.children}</>
 	}
 }
-
 
 /** Unstyled root provider for tab state. */
 const Tabs: Stateless<TabsArgs> = ({

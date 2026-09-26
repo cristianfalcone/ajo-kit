@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { controlled, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { listen, roving, selection, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import type { FixedArgs, OmitArg } from './utils'
 import { strings } from './utils'
@@ -54,10 +54,7 @@ export type AccordionItemArgs = WithChildren<OmitArg<IntrinsicElements['details'
 export type AccordionTriggerArgs = WithChildren<IntrinsicElements['summary']>
 
 /** Arguments for an Accordion item's collapsible panel. */
-export type AccordionContentArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Classes for an inner content wrapper. */
-	innerClass?: string
-}>
+export type AccordionContentArgs = WithChildren<IntrinsicElements['div']>
 
 type AccordionRootArgs = WithChildren<{
 	collapsible?: boolean
@@ -78,63 +75,31 @@ type AccordionContextValue = {
 
 const AccordionContext = context<AccordionContextValue | null>(null)
 
-const sameArray = (first: string[], second: string[]) =>
-	first.length === second.length && first.every((value, index) => value === second[index])
+const selected = (type: AccordionType, value: unknown) =>
+	type === 'multiple'
+		? strings(value)
+		: value == null || value === '' ? [] : [String(value)]
 
-const AccordionRoot: Stateful<AccordionRootArgs> = function* ({ defaultValue, type, value }) {
+const AccordionRoot: Stateful<AccordionRootArgs> = function* ({ defaultValue, type }) {
 	let collapsible = false
 	let disabled = false
 	let onValueChange: AccordionArgs['onValueChange']
 	let mode: AccordionType = type
-	const multipleState = controlled<string[]>(this, {
-		fallback: type === 'multiple' ? strings(value ?? defaultValue) : [],
+	const open = selection(this, {
+		multiple: () => mode === 'multiple',
+		required: () => mode === 'single' && !collapsible,
+		fallback: selected(type, defaultValue),
 		onChange: (next, event) => {
-			const notify = onValueChange as ((value: string[], event?: Event) => void) | undefined
-			notify?.(next, event)
+			if (mode === 'multiple') {
+				(onValueChange as ((value: string[], event?: Event) => void) | undefined)?.(next, event)
+			} else {
+				(onValueChange as ((value: string, event?: Event) => void) | undefined)?.(next[0] ?? '', event)
+			}
 		},
 	})
-	const singleState = controlled<string>(this, {
-		fallback: type === 'single' ? String(value ?? defaultValue ?? '') : '',
-		onChange: (next, event) => {
-			const notify = onValueChange as ((value: string, event?: Event) => void) | undefined
-			notify?.(next, event)
-		},
-	})
-	let multiple = multipleState.value
-	let single = singleState.value
-
-	const isOpen = (itemValue: string) =>
-		mode === 'multiple' ? multiple.includes(itemValue) : single === itemValue
-
-	const setSingle = (next: string, event?: Event) => {
-		if (next === single) return
-		singleState.set(next, event)
-	}
-
-	const setMultiple = (next: string[], event?: Event) => {
-		if (sameArray(next, multiple)) return
-		multipleState.set(next, event)
-	}
 
 	const toggle = (itemValue: string, event?: Event) => {
-		if (disabled) return
-
-		if (mode === 'multiple') {
-			setMultiple(
-				multiple.includes(itemValue)
-					? multiple.filter(value => value !== itemValue)
-					: [...multiple, itemValue],
-				event,
-			)
-			return
-		}
-
-		if (single === itemValue) {
-			if (collapsible) setSingle('', event)
-			return
-		}
-
-		setSingle(itemValue, event)
+		if (!disabled) open.toggle(itemValue, event)
 	}
 
 	const nav = roving(this, {
@@ -155,16 +120,12 @@ const AccordionRoot: Stateful<AccordionRootArgs> = function* ({ defaultValue, ty
 		collapsible = mode === 'single' && Boolean((args as AccordionSingleArgs).collapsible)
 		disabled = Boolean(args.disabled)
 		onValueChange = args.onValueChange
-		multipleState.sync(mode === 'multiple' && args.value != null ? strings(args.value) : undefined)
-		singleState.sync(mode === 'single' && args.value != null ? String(args.value ?? '') : undefined)
-		multiple = mode === 'multiple' ? multipleState.value : []
-		single = mode === 'single' ? singleState.value : ''
+		open.sync(args.value != null ? selected(mode, args.value) : undefined)
 
-		AccordionContext({ collapsible, disabled, isOpen, toggle, type: mode })
+		AccordionContext({ collapsible, disabled, isOpen: open.has, toggle, type: mode })
 		yield <>{args.children}</>
 	}
 }
-
 
 /** Unstyled root provider for accordion state. */
 const Accordion: Stateless<AccordionArgs> = ({
@@ -243,7 +204,6 @@ const AccordionTrigger: Stateless<AccordionTriggerArgs> = ({
 /** Unstyled accordion panel content. */
 const AccordionContent: Stateless<AccordionContentArgs> = ({
 	children,
-	innerClass,
 	...attrs
 }) => (
 	<CollapsibleContent
@@ -252,9 +212,7 @@ const AccordionContent: Stateless<AccordionContentArgs> = ({
 		role="region"
 		{...attrs}
 	>
-		<div class={innerClass}>
-			{children}
-		</div>
+		{children}
 	</CollapsibleContent>
 )
 

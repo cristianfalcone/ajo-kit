@@ -415,11 +415,15 @@ export const ManualActivation: Story<typeof Tabs> = {
 		if (document.activeElement !== analytics) throw new Error('Manual tabs ArrowRight did not move focus')
 		if (analytics.getAttribute('aria-selected') === 'true') throw new Error('Manual tabs activated on focus')
 
-		analytics.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+		// A trusted Enter or Space activates the button natively, as a click.
+		if (!analytics.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))) {
+			throw new Error('Manual tabs prevented native Enter activation')
+		}
+		analytics.click()
 		await waitFrame()
 
 		if (analytics.getAttribute('aria-selected') !== 'true' || !panel(canvas, 'analytics')) {
-			throw new Error('Manual tabs did not activate on Enter')
+			throw new Error('Manual tabs did not activate on click')
 		}
 	},
 }

@@ -89,30 +89,12 @@ const mainSize = (element: HTMLElement, orientation: ResizableOrientation) => {
 	return orientation === 'horizontal' ? box.width : box.height
 }
 
-const previousPanel = (handle: HTMLElement) => {
-	let node = handle.previousElementSibling
+const sibling = (handle: HTMLElement, direction: 'nextElementSibling' | 'previousElementSibling') => {
+	let node = handle[direction]
 	while (node && !(node instanceof HTMLElement && node.matches('[data-slot="resizable-panel"]'))) {
-		node = node.previousElementSibling
+		node = node[direction]
 	}
 	return node instanceof HTMLElement ? node : null
-}
-
-const nextPanel = (handle: HTMLElement) => {
-	let node = handle.nextElementSibling
-	while (node && !(node instanceof HTMLElement && node.matches('[data-slot="resizable-panel"]'))) {
-		node = node.nextElementSibling
-	}
-	return node instanceof HTMLElement ? node : null
-}
-
-const owningGroup = (handle: HTMLElement) =>
-	handle.closest<HTMLElement>('[data-slot="resizable-panel-group"]')
-
-const setPanelSize = (panel: HTMLElement, px: number, groupSize: number) => {
-	const pct = groupSize > 0 ? px / groupSize * 100 : 0
-	panel.dataset.size = String(pct)
-	panel.style.flex = `0 0 ${px}px`
-	panel.dispatchEvent(new CustomEvent('resize', { detail: { size: pct } }))
 }
 
 const setHandleValue = (session: ResizeSession, prev: number) => {
@@ -127,8 +109,8 @@ const applyResize = (session: ResizeSession, delta: number) => {
 	const prev = clamp(session.prevStart + delta, min, Math.max(min, max))
 	const next = session.total - prev
 
-	setPanelSize(session.prev, prev, session.groupSize)
-	setPanelSize(session.next, next, session.groupSize)
+	session.prev.style.flex = `0 0 ${prev}px`
+	session.next.style.flex = `0 0 ${next}px`
 	setHandleValue(session, prev)
 }
 
@@ -137,8 +119,8 @@ const session = (
 	handle: HTMLElement,
 	orientation: ResizableOrientation,
 ): ResizeSession | null => {
-	const prev = previousPanel(handle)
-	const next = nextPanel(handle)
+	const prev = sibling(handle, 'previousElementSibling')
+	const next = sibling(handle, 'nextElementSibling')
 	const groupSize = mainSize(group, orientation)
 	if (!prev || !next || groupSize <= 0) return null
 
@@ -183,11 +165,18 @@ const ResizablePanelGroupRoot: Stateful<ResizablePanelGroupArgs> = function* () 
 		onEnd: () => restore(),
 	})
 
+	// An enabled handle of this group, not of a nested one.
+	const ownHandle = (event: Event) => {
+		const handle = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-slot="resizable-handle"]')
+		if (!handle || handle.closest('[data-slot="resizable-panel-group"]') !== this) return null
+		return handle.getAttribute('aria-disabled') === 'true' ? null : handle
+	}
+
 	const startPointer = (event: PointerEvent) => {
 		if (active || event.button !== 0) return
 
-		const handle = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-slot="resizable-handle"]')
-		if (!handle || owningGroup(handle) !== this || handle.getAttribute('aria-disabled') === 'true') return
+		const handle = ownHandle(event)
+		if (!handle) return
 
 		const next = session(this, handle, orientation)
 		if (!next) return
@@ -205,8 +194,8 @@ const ResizablePanelGroupRoot: Stateful<ResizablePanelGroupArgs> = function* () 
 	}
 
 	const keyResize = (event: KeyboardEvent) => {
-		const handle = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-slot="resizable-handle"]')
-		if (!handle || owningGroup(handle) !== this || handle.getAttribute('aria-disabled') === 'true') return
+		const handle = ownHandle(event)
+		if (!handle) return
 
 		const step = event.shiftKey ? 50 : 10
 		const delta = orientation === 'horizontal'
@@ -243,7 +232,6 @@ const ResizablePanelGroup: Stateless<ResizablePanelGroupArgs> = ({
 		orientation={orientation}
 		attr:aria-orientation={orientation}
 		attr:data-orientation={orientation}
-		attr:data-panel-group-direction={orientation}
 		attr:data-slot="resizable-panel-group"
 	>
 		{children}
@@ -260,14 +248,12 @@ const ResizablePanel: Stateless<ResizablePanelArgs> = ({
 	...attrs
 }) => {
 	const { orientation } = ResizableContext()
-	const initial = percent(defaultSize, 0)
 
 	return (
 		<div
 			{...attrs}
 			data-max-size={maxSize == null ? undefined : percent(maxSize, 100)}
 			data-min-size={minSize == null ? undefined : percent(minSize, 0)}
-			data-size={defaultSize == null ? undefined : initial}
 			data-slot="resizable-panel"
 			style={style(orientation, defaultSize, minSize, maxSize, styles)}
 		>
@@ -293,7 +279,6 @@ const ResizableHandle: Stateless<ResizableHandleArgs> = ({
 			aria-valuemax="100"
 			aria-valuemin="0"
 			data-orientation={separator}
-			data-panel-group-direction={orientation}
 			data-slot="resizable-handle"
 			role="separator"
 			tabindex={disabled ? -1 : 0}

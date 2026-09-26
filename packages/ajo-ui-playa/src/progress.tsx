@@ -8,32 +8,14 @@ import {
 export type ProgressArgs = BaseProgressArgs & {
 	/** Additional UnoCSS classes for the root. */
 	class?: string
-	/** Additional UnoCSS classes for the indicator. */
-	indicatorClass?: string
 }
 
-const rootBase = 'relative h-2 w-full overflow-hidden rounded-full bg-primary/20'
-const indicatorBase = 'h-full rounded-full bg-primary transition-transform motion-reduce:transition-none'
+const rootBase = 'relative h-2 w-full overflow-hidden rounded-full bg-primary/20 [&>[data-slot=progress-indicator]]:h-full [&>[data-slot=progress-indicator]]:w-full [&>[data-slot=progress-indicator]]:rounded-full [&>[data-slot=progress-indicator]]:bg-primary [&>[data-slot=progress-indicator]]:transition-transform motion-reduce:[&>[data-slot=progress-indicator]]:transition-none [&[data-state=indeterminate]>[data-slot=progress-indicator]]:w-1/3 [&[data-state=indeterminate]>[data-slot=progress-indicator]]:animate-[progress-slide_1.4s_ease-in-out_infinite] motion-reduce:[&[data-state=indeterminate]>[data-slot=progress-indicator]]:animate-none'
 
 /** Progress bar with determinate and indeterminate states. */
 const Progress: Stateless<ProgressArgs> = ({
 	class: classes,
-	indicatorClass,
-	value = null,
 	...attrs
-}) => (
-	<BaseProgress
-		{...attrs}
-		class={clsx(rootBase, classes)}
-		indicatorClass={clsx(
-			indicatorBase,
-			value == null
-				? 'w-1/3 animate-[progress-slide_1.4s_ease-in-out_infinite] motion-reduce:animate-none'
-				: 'w-full',
-			indicatorClass,
-		)}
-		value={value}
-	/>
-)
+}) => <BaseProgress {...attrs} class={clsx(rootBase, classes)} />
 
 export { Progress }

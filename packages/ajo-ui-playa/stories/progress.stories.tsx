@@ -60,7 +60,7 @@ export const WithLabel: Story<typeof Progress> = {
 				<span>Upload progress</span>
 				<span class="ml-auto">66%</span>
 			</FieldLabel>
-			<Progress value={66} id="progress-upload" getValueLabel={value => `${value}% uploaded`} />
+			<Progress value={66} id="progress-upload" aria-valuetext="66% uploaded" />
 		</Field>
 	),
 	play: async ({ canvas }) => {
@@ -92,7 +92,7 @@ export const Indeterminate: Story<typeof Progress> = {
 export const CustomMax: Story<typeof Progress> = {
 	render: () => (
 		<div class="grid w-80 gap-2">
-			<Progress value={24} max={32} aria-label="Files processed" getValueLabel={(value, max) => `${value} of ${max} files`} />
+			<Progress value={24} max={32} aria-label="Files processed" aria-valuetext="24 of 32 files" />
 			<p class="text-sm text-muted-foreground">24 of 32 files</p>
 		</div>
 	),

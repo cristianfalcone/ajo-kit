@@ -71,7 +71,6 @@ const reset = (...items: Array<[HTMLElement | null, string]>) => {
 	for (const [el, flex] of items) {
 		if (!el) continue
 		el.style.flex = flex
-		delete el.dataset.size
 	}
 }
 

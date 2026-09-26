@@ -557,3 +557,15 @@ test('SSR ContextMenu relates its real trigger without a fake anchor', () => {
 	expect(content).toContain('popover="manual"')
 	expect(html).not.toContain('context-menu-anchor')
 })
+
+test('SSR Progress clamps the value to max and passes caller value text through', () => {
+	const html = ssr(jsx(Progress, { 'aria-valuetext': '32 of 32 files', max: 32, value: 40 }))
+
+	expect(html).toContain('aria-valuetext="32 of 32 files"')
+	expect(html).toContain('aria-valuemax="32"')
+	expect(html).toContain('aria-valuenow="32"')
+	expect(html).toContain('data-state="complete"')
+	expect(html).toContain('<div aria-hidden="true" data-slot="progress-indicator" style="transform:translateX(-0%)"></div>')
+	expect(ssr(jsx(Progress, { value: -5 }))).toContain('aria-valuenow="0"')
+	expect(ssr(jsx(Progress, {}))).not.toContain('aria-valuenow')
+})

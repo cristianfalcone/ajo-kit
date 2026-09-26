@@ -2,7 +2,6 @@
 import { InputOTP, type InputOTPArgs } from 'ajo-ui-playa/input-otp'
 import { Marker } from 'ajo-ui-playa/marker'
 import { VirtualList, type VirtualListApi } from 'ajo-ui-playa/virtual-list'
-import type { AccordionContentArgs } from 'ajo-ui-playa/accordion'
 import type { AvatarArgs, AvatarImageArgs } from 'ajo-ui-playa/avatar'
 import type { CalendarSingleArgs } from 'ajo-ui-playa/calendar'
 import type { CarouselButtonArgs } from 'ajo-ui-playa/carousel'
@@ -87,11 +86,6 @@ export type CalendarYearSelectLabelContract = Expect<Equal<CalendarSingleArgs['y
 
 export type AvatarRootDerivesBase = Expect<AvatarArgs extends BaseAvatarArgs ? true : false>
 export type AvatarImageDerivesBase = Expect<AvatarImageArgs extends BaseAvatarImageArgs ? true : false>
-
-export const accordionThemeOwnsInnerClass: AccordionContentArgs = {
-	// @ts-expect-error AccordionContent owns its base inner wrapper recipe.
-	innerClass: 'consumer-inner',
-}
 
 export const carouselThemeOwnsButtonChildren: CarouselButtonArgs = {
 	// @ts-expect-error Carousel buttons own their icon and accessible label children.
