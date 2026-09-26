@@ -34,11 +34,12 @@ export const actions = {
 			const token = await auth.reset.create(user.id)
 			const url = `${base}/reset/${token}`
 
-			await send({
+			// Delivery stays off the response path so known and unknown emails answer alike.
+			send({
 				to: user.email,
 				subject: 'Reset your password',
 				text: `Click here to reset your password: ${url}\n\nThis link expires in 1 hour.`,
-			})
+			}).catch(error => console.error('Password reset mail failed', error))
 		}
 
 		return { message: 'If that email exists, we sent a reset link.' }

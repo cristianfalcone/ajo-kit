@@ -1,6 +1,21 @@
 import type { ActionContext, Request, Response } from '@kit'
+import { Invalid } from '@kit'
 import { sql } from '@kit/database'
-import { db } from '/src/data'
+import { array, integer, maxLength, minValue, number, object, optional, parse, pipe, string, transform } from '@kit/validate'
+import { db, trimmed } from '/src/data'
+
+const json = (value: string): unknown => {
+	try {
+		return JSON.parse(value)
+	} catch {
+		return undefined
+	}
+}
+
+const Start = object({
+	users: pipe(string(), transform(json), array(pipe(number(), integer(), minValue(1)))),
+	name: optional(pipe(trimmed, maxLength(80)), ''),
+})
 
 const listChats = (user: number) => db()
 	.selectFrom('chats')
@@ -64,10 +79,10 @@ export const actions = {
 
 	start: async (req: Request, _res: Response, action: ActionContext) => {
 
-		const { users: raw, name } = req.body as { users: string; name?: string }
-		const users = JSON.parse(raw || '[]') as number[]
+		const { users: selected, name } = parse(Start, req.body)
+		const users = [...new Set(selected)].filter(user => user !== req.user!.id)
 
-		if (!users?.length) throw new Error('Select at least one user')
+		if (!users.length) throw new Invalid({ users: ['Select at least one user'] }, 'Select at least one user')
 
 		if (users.length === 1 && !name) {
 

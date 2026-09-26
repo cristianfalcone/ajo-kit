@@ -33,6 +33,15 @@ export async function login(request: APIRequestContext, base: string, credential
 	return response.json()
 }
 
+/** Reads the page loader data of a route through its JSON navigation response. */
+export async function data(request: APIRequestContext, path: string) {
+	const response = await request.get(path, { headers: { Accept: 'application/json' } })
+
+	expect(response.status()).toBe(200)
+
+	return (await response.json()).data.at(-1)
+}
+
 export async function signin(page: Page, credentials = admin) {
 	await goto(page, '/login')
 	await page.locator('input[name="email"]').fill(credentials.email)

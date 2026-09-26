@@ -1,7 +1,7 @@
 import * as auth from '@kit/auth'
 import type { ActionContext, Request, Response } from '@kit'
 import { object, string, array, optional, pipe, minLength } from '@kit/validate'
-import { db, trimmed } from '/src/data'
+import { trimmed } from '/src/data'
 import { parse } from '@kit/validate'
 import { Failure, Forbidden } from '@kit'
 import { delegate, grantable, normalize, unknown as invalid } from '/src/abilities'
@@ -32,7 +32,7 @@ export async function page(req: Request) {
 
 	return {
 		tokens: tokens.map(t => ({
-			id: t.id.slice(-4),
+			id: t.id,
 			name: t.name,
 			abilities: JSON.parse(t.abilities),
 			last: t.last,
@@ -68,23 +68,8 @@ export const actions = {
 
 		const input = parse(Revoke, req.body)
 
-		const tokens = await db()
-			.selectFrom('tokens')
-			.select(['id'])
-			.where('user', '=', req.user!.id)
-			.execute()
+		if (!await auth.token.revoke(req.user!.id, input.id)) return { revoked: false }
 
-		const match = tokens.find(t => t.id.slice(-4) === input.id)
-
-		if (!match) {
-			return { revoked: false }
-		}
-
-		await db()
-			.deleteFrom('tokens')
-			.where('id', '=', match.id)
-			.execute()
-		auth.confirm.clearToken(req.user!.id, match.id)
 		action.emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		return { revoked: true }

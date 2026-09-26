@@ -55,7 +55,7 @@ const expiry = (value: string | undefined) => {
 const makeInput = (value: unknown): MakeUserInput => {
 	const input = shape(value, ['email', 'password', 'name', 'role', 'verified'])
 	const role = input.role
-	if (role !== undefined && role !== 'admin' && role !== 'user') return invalid()
+	if (role !== undefined && role !== 'admin' && role !== 'support' && role !== 'user') return invalid()
 
 	return {
 		email: text(input, 'email')!,
@@ -197,6 +197,7 @@ const seed = async () => {
 		await trx.insertInto('roles').values([
 			{ id: 1, name: 'admin', abilities: JSON.stringify(bundles.admin) },
 			{ id: 2, name: 'user', abilities: JSON.stringify(bundles.user) },
+			{ id: 3, name: 'support', abilities: JSON.stringify(['admin:read']) },
 		]).execute()
 
 		const cristian = await trx.insertInto('users').values({

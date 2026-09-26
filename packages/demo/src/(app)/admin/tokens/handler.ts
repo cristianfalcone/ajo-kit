@@ -33,7 +33,6 @@ export async function page(req: Request) {
 	return {
 		tokens: rows.map(t => ({
 			...t,
-			id: t.id.slice(-4),
 			abilities: JSON.parse(t.abilities)
 		})),
 		page: info(req, pagination, tokens),
@@ -46,16 +45,11 @@ export const actions = {
 		const token = await db()
 			.selectFrom('tokens')
 			.select(['id', 'user'])
-			.where('id', 'like', `%${input.id}`)
+			.where('id', '=', input.id)
 			.executeTakeFirst()
 
-		if (!token) return { revoked: false }
+		if (!token || !await auth.token.revoke(token.user, token.id)) return { revoked: false }
 
-		await db()
-			.deleteFrom('tokens')
-			.where('id', '=', token.id)
-			.execute()
-		auth.confirm.clearToken(token.user, token.id)
 		action.emit(['admin:tokens', 'admin:stats', `tokens:${token.user}`, `dashboard:${token.user}`, `user:${token.user}`])
 
 		return { revoked: true }

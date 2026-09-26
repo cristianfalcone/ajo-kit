@@ -354,3 +354,35 @@ test('chat unread metadata tracks oldest unseen message and clears when seen', a
 		await client.dispose()
 	}
 })
+
+test('chat actions refuse malformed and over-bound input with 400', async ({ request, baseURL: base }) => {
+	await login(request, base!, creds)
+
+	const me = (await (await request.get('/api/me')).json()).id as number
+	const chats = await request.get('/account/chats', { headers: { Accept: 'application/json' } })
+	const users = (await chats.json()).data.find((entry: { users?: unknown }) => Array.isArray(entry?.users)).users
+	const peer = users.find((user: { name: string }) => user.name === 'Emily Stone').id as number
+	const post = (path: string, data: Record<string, unknown>) => request.post(path, { headers: proof(base!), data })
+
+	for (const [path, data] of [
+		['/account/chats?/start', { users: '[2' }],
+		['/account/chats?/start', { users: '{"0":2}' }],
+		['/account/chats?/start', { users: '[1.5]' }],
+		['/account/chats?/start', { users: '[]' }],
+		['/account/chats?/start', { users: JSON.stringify([me, me]) }],
+		['/account/chats?/start', { users: JSON.stringify([peer]), name: 'x'.repeat(81) }],
+		['/account/chats/1?/send', { text: 42 }],
+		['/account/chats/1?/send', { text: '   ' }],
+		['/account/chats/1?/send', { text: 'x'.repeat(4001) }],
+		['/account/chats/1?/load', { cursor: 'x', direction: 'older' }],
+		['/account/chats/1?/load', { cursor: 0, direction: 'older' }],
+		['/account/chats/1?/load', { cursor: 5, direction: 'sideways' }],
+	] as const) {
+		expect((await post(path, data)).status(), `${path} ${JSON.stringify(data).slice(0, 80)}`).toBe(400)
+	}
+
+	const direct = await post('/account/chats?/start', { users: JSON.stringify([peer, peer, me]) })
+
+	expect(direct.status()).toBe(200)
+	await expect(direct.json()).resolves.toMatchObject({ redirect: expect.stringMatching(/^\/account\/chats\/\d+$/) })
+})

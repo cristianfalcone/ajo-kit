@@ -4,9 +4,7 @@ export { can } from '@kit/auth/ability'
 
 const catalog = {
 	tokens: ['read', 'create', 'delete'],
-	sessions: ['read', 'delete'],
-	profile: ['read', 'update', 'delete'],
-	chats: ['read', 'create', 'send'],
+	profile: ['read'],
 	admin: ['read', 'write'],
 } as const
 

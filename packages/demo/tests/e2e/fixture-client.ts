@@ -4,7 +4,7 @@ export interface MakeUserInput {
 	email: string
 	password?: string
 	name?: string
-	role?: 'admin' | 'user'
+	role?: 'admin' | 'support' | 'user'
 	verified?: boolean
 }
 

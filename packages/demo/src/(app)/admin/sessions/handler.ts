@@ -35,10 +35,7 @@ export async function page(req: Request) {
 	const rows = trim(pagination, sessions)
 
 	return {
-		sessions: rows.map(s => ({
-			...s,
-			id: s.id.slice(0, 8)
-		})),
+		sessions: rows,
 		page: info(req, pagination, sessions),
 	}
 }
@@ -49,20 +46,14 @@ export const actions = {
 
 		const input = parse(RevokeSession, req.body)
 
-		const matches = await db()
-			.selectFrom('sessions')
-			.select(['id', 'user'])
-			.where('id', 'like', `${input.id}%`)
-			.execute()
-
-		if (matches.length !== 1) return { revoked: false }
-
-		const session = matches[0]
-
-		await db()
+		const session = await db()
 			.deleteFrom('sessions')
-			.where('id', '=', session.id)
-			.execute()
+			.where('id', '=', input.id)
+			.returning(['id', 'user'])
+			.executeTakeFirst()
+
+		if (!session) return { revoked: false }
+
 		auth.confirm.clearSession(session.user, session.id)
 		action.emit(['admin:sessions', 'admin:stats', `sessions:${session.user}`, `dashboard:${session.user}`, `user:${session.user}`])
 

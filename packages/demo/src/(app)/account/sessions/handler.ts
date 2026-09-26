@@ -23,7 +23,7 @@ export async function page(req: Request) {
 
 	return {
 		sessions: sessions.map(s => ({
-			id: s.id.slice(0, 8),
+			id: s.id,
 			ip: s.ip,
 			agent: s.agent,
 			last: s.last,
@@ -41,22 +41,17 @@ export const actions = {
 		const cookie = auth.cookie.read(req)
 		const current = cookie ? auth.session.hash(cookie) : undefined
 
-		const matches = await db()
-			.selectFrom('sessions')
-			.select(['id'])
-			.where('user', '=', req.user!.id)
-			.where('id', 'like', `${input.id}%`)
-			.execute()
+		if (input.id === current) return { revoked: false }
 
-		if (matches.length !== 1 || matches[0].id === current) {
-			return { revoked: false }
-		}
-
-		await db()
+		const revoked = await db()
 			.deleteFrom('sessions')
-			.where('id', '=', matches[0].id)
-			.execute()
-		auth.confirm.clearSession(req.user!.id, matches[0].id)
+			.where('user', '=', req.user!.id)
+			.where('id', '=', input.id)
+			.executeTakeFirst()
+
+		if (revoked.numDeletedRows === 0n) return { revoked: false }
+
+		auth.confirm.clearSession(req.user!.id, input.id)
 		action.emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: true }

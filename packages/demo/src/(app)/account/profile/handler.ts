@@ -3,7 +3,7 @@ import type { ActionContext, Parent, Request, Response } from '@kit'
 import { object, string, optional, pipe, forward, partialCheck } from '@kit/validate'
 import { db, password as passwordField, trimmed } from '/src/data'
 import { parse } from '@kit/validate'
-import { Denied, ip } from '@kit'
+import { Denied, Failure, ip } from '@kit'
 
 const UpdateName = object({
 	name: optional(trimmed, ''),
@@ -67,6 +67,13 @@ export const actions = {
 
 		const input = parse(UpdatePassword, req.body)
 		const id = req.user!.id
+		const limit = `password:${id}`
+
+		if (!auth.limit.check(limit)) {
+			throw new Failure(429, 'Too many password attempts. Try again later.')
+		}
+
+		auth.limit.hit(limit)
 
 		const account = await db()
 			.selectFrom('users')
@@ -78,33 +85,22 @@ export const actions = {
 			throw new Denied('Current password is incorrect')
 		}
 
+		auth.limit.clear(limit)
+
 		const hashed = await auth.password.hash(input.password)
-		const plain = auth.session.generate()
-		const session = auth.session.hash(plain)
-		const now = new Date().toISOString()
-		const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
 		await db().transaction().execute(async trx => {
 			await trx.updateTable('users')
-				.set({ password: hashed, updated: now })
+				.set({ password: hashed, updated: new Date().toISOString() })
 				.where('id', '=', id)
 				.execute()
 
 			await trx.deleteFrom('tokens').where('user', '=', id).execute()
 			await trx.deleteFrom('sessions').where('user', '=', id).execute()
-
-			await trx.insertInto('sessions').values({
-				id: session,
-				user: id,
-				expiry,
-				ip: ip(req),
-				agent: req.headers['user-agent'] ?? null,
-				last: now,
-			}).execute()
 		})
 
-		auth.cookie.write(res, plain)
 		auth.confirm.clearUser(id)
+		auth.cookie.write(res, await auth.session.create(id, false, ip(req), req.headers['user-agent']))
 		action.emit([
 			`profile:${id}`,
 			`sessions:${id}`,

@@ -2,7 +2,6 @@ import * as auth from '@kit/auth'
 import type { Request, Response } from '@kit'
 import { send, emit } from '@kit/server'
 import { object, string, array, optional } from '@kit/validate'
-import { db } from '/src/data'
 import { parse } from '@kit/validate'
 import { Missing, Failure, Forbidden } from '@kit'
 import { delegate, grantable, normalize, unknown as invalid } from '/src/abilities'
@@ -11,6 +10,8 @@ const Create = object({
 	name: string(),
 	abilities: optional(array(string()), ['*']),
 })
+
+const Revoke = object({ id: string() })
 
 const requested = (abilities: string[], grants: string[]) => {
 	const requested = normalize(abilities)
@@ -31,8 +32,8 @@ export default {
 
 		const tokens = await auth.token.list(req.user!.id)
 
-		const masked = tokens.map(t => ({
-			id: t.id.slice(-4),
+		const listed = tokens.map(t => ({
+			id: t.id,
 			name: t.name,
 			abilities: JSON.parse(t.abilities),
 			last_used: t.last,
@@ -40,7 +41,7 @@ export default {
 			created: t.created
 		}))
 
-		send(res, 200, { tokens: masked })
+		send(res, 200, { tokens: listed })
 	},
 
 	async post(req: Request, res: Response) {
@@ -87,25 +88,10 @@ export default {
 
 		auth.authorize(req, 'tokens:delete')
 
-		const partialId = req.body.id
+		const input = parse(Revoke, req.body)
 
-		if (!partialId) throw new Failure(400, 'Token ID required')
+		if (!await auth.token.revoke(req.user!.id, input.id)) throw new Missing('Token not found')
 
-		const tokens = await db()
-			.selectFrom('tokens')
-			.select(['id'])
-			.where('user', '=', req.user!.id)
-			.execute()
-
-		const match = tokens.find(t => t.id.slice(-4) === partialId)
-
-		if (!match) throw new Missing('Token not found')
-
-		await db()
-			.deleteFrom('tokens')
-			.where('id', '=', match.id)
-			.execute()
-		auth.confirm.clearToken(req.user!.id, match.id)
 		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		send(res, 200, { message: 'Token revoked' })

@@ -7,9 +7,9 @@ import {
 import { Invalid, type Fields } from './constants'
 
 export {
-	object, string, number, boolean, array, optional, literal,
+	object, string, number, boolean, array, optional, literal, picklist,
 	pipe, trim, toLowerCase, transform, forward, partialCheck,
-	email, minLength, maxLength, unknown,
+	email, minLength, maxLength, integer, minValue, unknown,
 	type GenericSchema, type InferOutput,
 } from 'valibot'
 

@@ -48,8 +48,6 @@ export async function page(req: Request) {
 export const actions = {
 
 	mode: async (req: Request, _res: Response, action: ActionContext) => {
-		auth.authorize(req, 'admin:write')
-
 		const input = parse(Mode, req.body)
 		await registration.set(signup(input.signup), req.user!.id)
 		action.emit(['admin:registration', 'registration:policy'])
@@ -58,8 +56,6 @@ export const actions = {
 	},
 
 	invite: async (req: Request, _res: Response, action: ActionContext) => {
-		auth.authorize(req, 'admin:write')
-
 		const input = parse(Invite, req.body)
 		const user = req.user!
 		const inviter = `invite:admin:${user.id}`
@@ -96,8 +92,6 @@ export const actions = {
 	},
 
 	revoke: async (req: Request, _res: Response, action: ActionContext) => {
-		auth.authorize(req, 'admin:write')
-
 		const input = parse(Revoke, req.body)
 		await auth.invite.revoke(input.id)
 		action.emit('admin:registration')

@@ -65,7 +65,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 									<TableRow key={token.id}>
 										<TableCell>
 											<div class="font-medium">{token.name}</div>
-											<div class="text-muted-foreground font-mono text-xs">****{token.id}</div>
+											<div class="text-muted-foreground font-mono text-xs">****{token.id.slice(-4)}</div>
 										</TableCell>
 										<TableCell>
 											<div>{token.userName}</div>

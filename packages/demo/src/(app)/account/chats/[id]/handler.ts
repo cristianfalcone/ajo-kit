@@ -1,9 +1,11 @@
 import type { ActionContext, Request, Response } from '@kit'
-import { db } from '/src/data'
+import { db, trimmed } from '/src/data'
 import { sql } from '@kit/database'
 import { Missing } from '@kit'
+import { integer, maxLength, minLength, minValue, number, object, parse, picklist, pipe } from '@kit/validate'
 
-type LoadDirection = 'older' | 'newer'
+const Send = object({ text: pipe(trimmed, minLength(1, 'Message cannot be empty'), maxLength(4000)) })
+const Load = object({ cursor: pipe(number(), integer(), minValue(1)), direction: picklist(['older', 'newer']) })
 
 const LIMIT = 10
 
@@ -123,9 +125,7 @@ export const actions = {
 
 		const room = Number(req.params.id)
 		const user = req.user!.id
-		const { text } = req.body as { text: string }
-
-		if (!text?.trim()) throw new Error('Message cannot be empty')
+		const { text } = parse(Send, req.body)
 
 		const result = await db().transaction().execute(async trx => {
 			const inserted = await trx
@@ -133,7 +133,7 @@ export const actions = {
 				.values({
 					chat: room,
 					user: user,
-					text: text.trim(),
+					text,
 					created: now()
 				})
 				.returning('id')
@@ -173,18 +173,7 @@ export const actions = {
 	load: async (req: Request) => {
 
 		const room = Number(req.params.id)
-		const body = (req.body as { cursor?: number | string; direction?: LoadDirection } | undefined) ?? {}
-		const cursor = Number(body.cursor)
-		const direction = body.direction
-
-		if (!Number.isInteger(cursor) || cursor <= 0) {
-			return { messages: [], hasMore: false }
-		}
-
-		if (direction !== 'older' && direction !== 'newer') {
-			return { messages: [], hasMore: false }
-		}
-
+		const { cursor, direction } = parse(Load, req.body)
 		const messages = await listMessages(
 			room,
 			direction === 'older' ? { before: cursor } : { after: cursor }
