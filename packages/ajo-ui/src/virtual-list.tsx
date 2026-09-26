@@ -1,7 +1,6 @@
 import type { Children, IntrinsicElements, Stateful } from 'ajo'
 import { statefulRootAttrs as rootAttrs } from 'ajo-cloves'
-import type { FixedArgs, OmitArg } from './utils'
-import { stlx } from './utils'
+import { type FixedArgs, type OmitArg, stlx } from './utils'
 import { virtual } from './virtual'
 
 /** Identity accepted by a VirtualList item. */
@@ -202,4 +201,3 @@ const VirtualList = <T, Key extends VirtualListKey = VirtualListKey>({
 )
 
 export { VirtualList }
-export default VirtualList

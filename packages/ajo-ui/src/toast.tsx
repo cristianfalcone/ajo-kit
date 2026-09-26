@@ -2,7 +2,9 @@ import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } f
 import { render } from 'ajo'
 import { browser, callHandler, hotkey as bindHotkey, id } from 'ajo-cloves'
 import { closePopover, openPopover } from './native'
-import { clx, popupStyle, toNumber, type FixedArgs, type OmitArg } from './utils'
+import { popupStyle } from './popup'
+import { clx, toNumber } from './shared'
+import type { FixedArgs, OmitArg } from './utils'
 
 /** Visual tone applied to a toast. */
 export type ToastVariant =

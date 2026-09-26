@@ -2,113 +2,43 @@ import type { Children } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
 import { expect, test } from 'vitest'
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-	Avatar,
-	AvatarFallback,
-	AvatarImage,
-	Calendar,
-	Carousel,
-	CarouselContent,
-	CarouselItem,
-	ChartContainer,
-	Checkbox,
-	CheckboxGroup,
-	CheckboxGroupItem,
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-	Command,
-	CommandEmpty,
-	CommandInput,
-	CommandItem,
-	CommandList,
-	ContextMenu,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuTrigger,
-	DataTable,
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogTitle,
-	DialogTrigger,
-	DirectionProvider,
-	Drawer,
-	DrawerContent,
-	DrawerTitle,
-	DrawerTrigger,
-	Menu,
-	MenuContent,
-	MenuItem,
-	MenuRadioGroup,
-	MenuRadioItem,
-	MenuSub,
-	MenuSubContent,
-	MenuSubTrigger,
-	MenuTrigger,
-	Field,
-	InputDate,
-	InputGroup,
-	InputGroupInput,
-	InputOTP,
-	InputOTPGroup,
-	InputOTPSlot,
-	Menubar,
-	MenubarContent,
-	MenubarItem,
-	MenubarMenu,
-	MenubarTrigger,
-	MessageScroller,
-	MessageScrollerContent,
-	MessageScrollerItem,
-	MessageScrollerProvider,
-	MessageScrollerViewport,
-	NavigationMenu,
-	NavigationMenuContent,
-	NavigationMenuItem,
-	NavigationMenuLink,
-	NavigationMenuList,
-	NavigationMenuTrigger,
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-	Progress,
-	RadioGroup,
-	RadioGroupItem,
-	ResizableHandle,
-	ResizablePanel,
-	ResizablePanelGroup,
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectList,
-	SelectTrigger,
-	SelectValue,
-	Sidebar,
-	SidebarContent,
-	SidebarProvider,
-	Slider,
-	Switch,
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-	Toaster,
-	Toggle,
-	ToggleGroup,
-	ToggleGroupItem,
-	Toolbar,
-	ToolbarSeparator,
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-	VirtualList,
-} from 'ajo-ui'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from 'ajo-ui/accordion'
+import { Avatar, AvatarFallback, AvatarImage } from 'ajo-ui/avatar'
+import { Calendar } from 'ajo-ui/calendar'
+import { Carousel, CarouselContent, CarouselItem } from 'ajo-ui/carousel'
+import { ChartContainer } from 'ajo-ui/chart'
+import { Checkbox } from 'ajo-ui/checkbox'
+import { CheckboxGroup, CheckboxGroupItem } from 'ajo-ui/checkbox-group'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from 'ajo-ui/collapsible'
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from 'ajo-ui/command'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from 'ajo-ui/context-menu'
+import { DataTable } from 'ajo-ui/data-table'
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from 'ajo-ui/dialog'
+import { DirectionProvider } from 'ajo-ui/direction'
+import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from 'ajo-ui/drawer'
+import { Field } from 'ajo-ui/field'
+import { InputDate } from 'ajo-ui/input-date'
+import { InputGroup, InputGroupInput } from 'ajo-ui/input-group'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from 'ajo-ui/input-otp'
+import { Menu, MenuContent, MenuItem, MenuRadioGroup, MenuRadioItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from 'ajo-ui/menu'
+import { Menubar, MenubarContent, MenubarItem, MenubarMenu, MenubarTrigger } from 'ajo-ui/menubar'
+import { MessageScroller, MessageScrollerContent, MessageScrollerItem, MessageScrollerProvider, MessageScrollerViewport } from 'ajo-ui/message-scroller'
+import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from 'ajo-ui/navigation-menu'
+import { Popover, PopoverContent, PopoverTrigger } from 'ajo-ui/popover'
+import { Progress } from 'ajo-ui/progress'
+import { RadioGroup, RadioGroupItem } from 'ajo-ui/radio-group'
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from 'ajo-ui/resizable'
+import { Select, SelectContent, SelectItem, SelectList, SelectTrigger, SelectValue } from 'ajo-ui/select'
+import { Sidebar, SidebarContent, SidebarProvider } from 'ajo-ui/sidebar'
+import { Slider } from 'ajo-ui/slider'
+import { Switch } from 'ajo-ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from 'ajo-ui/tabs'
+import { Toaster } from 'ajo-ui/toast'
+import { Toggle } from 'ajo-ui/toggle'
+import { ToggleGroup, ToggleGroupItem } from 'ajo-ui/toggle-group'
+import { Toolbar, ToolbarSeparator } from 'ajo-ui/toolbar'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from 'ajo-ui/tooltip'
+import { VirtualList } from 'ajo-ui/virtual-list'
 
 // The ajo/html host is protocol-only (signal/next/return/throw, no DOM), so
 // any ungated browser wiring in a stateful root's setup phase crashes SSR.

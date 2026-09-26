@@ -1,17 +1,16 @@
 import type { Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { contentAttrs, popup, type PopupView } from './popup'
+import { contentAttrs, popup, type PopupPosition, popupStyle, type PopupView, triggerAttrs } from './popup'
 import { PopupSurface } from './popup-surface'
-import type { ReservedPositionArg } from './position'
-import { popupStyle, triggerAttrs, type FixedArgs, type OmitArg, type PopupPosition } from './utils'
-export type { PopupPlacement, PopupPosition } from './utils'
+import type { FixedArgs, OmitArg } from './utils'
+export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Interaction that opens a popover. */
 export type PopoverOpenOn = 'click' | 'hover'
 
 /** Props for the popover root and its controlled open state. */
-export type PopoverArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange' | ReservedPositionArg> & PopupPosition & {
+export type PopoverArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & PopupPosition & {
 	/** Accessible and visible title owned by the popover surface. */
 	label: string
 	/** Optional visible description associated with the popover surface. */
@@ -32,7 +31,7 @@ export type PopoverArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchan
 	onOpenChange?: (open: boolean, event?: Event) => void
 	/** Additional CSS classes. */
 	class?: string
-}> & FixedArgs<'onchange' | ReservedPositionArg>
+}> & FixedArgs<'onchange'>
 
 type PopoverTriggerSharedArgs = {
 	/** Render the trigger wrapper as an anchor, button, or span. */
@@ -51,14 +50,14 @@ export type PopoverTriggerArgs = WithChildren<
 type PopoverTriggerAllArgs = WithChildren<(IntrinsicElements['a'] & IntrinsicElements['button'] & IntrinsicElements['span']) & PopoverTriggerSharedArgs>
 
 /** Props for the positioned popover panel. Semantics come from the root label. */
-export type PopoverContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'align' | 'aria-describedby' | 'aria-label' | 'aria-labelledby' | 'aria-modal' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
+export type PopoverContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'aria-describedby' | 'aria-label' | 'aria-labelledby' | 'aria-modal' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex'> & {
 	/** Extends the visual surface toward its positioning reference. */
 	arrow?: boolean
 	/** Additional CSS classes. */
 	class?: string
 	/** Inline CSS string. */
 	style?: string
-}> & FixedArgs<'aria-describedby' | 'aria-label' | 'aria-labelledby' | 'aria-modal' | 'gap' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
+}> & FixedArgs<'aria-describedby' | 'aria-label' | 'aria-labelledby' | 'aria-modal' | 'gap' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex'>
 
 /** Props for an explicit positioning anchor. */
 export type PopoverAnchorArgs = WithChildren<IntrinsicElements['div'] & {

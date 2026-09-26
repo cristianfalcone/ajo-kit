@@ -1,8 +1,8 @@
 import type { IntrinsicElements, Stateful, Stateless } from 'ajo'
 import { callHandler, clamp, controlled, listen, move } from 'ajo-cloves'
 import { FieldContext } from './field'
-import type { FixedArgs, OmitArg } from './utils'
-import { clx, flag, stlx, toNumber } from './utils'
+import { clx, flag, toNumber } from './shared'
+import { type FixedArgs, type OmitArg, stlx } from './utils'
 
 /** Axis along which slider values increase. */
 export type SliderOrientation = 'horizontal' | 'vertical'

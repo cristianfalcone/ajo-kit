@@ -26,7 +26,7 @@ module.exports = {
 				if (entry.browser) packed.browser = `./dist/${marked}.client.js`
 				return [subpath, packed]
 			}))
-			manifest.types = manifest.exports['.'].types
+			if (manifest.exports['.']) manifest.types = manifest.exports['.'].types
 			if (manifest.name === 'ajo-kit') manifest.bin = { kit: './dist/bin/kit.js' }
 			if (manifest.kit?.migrations) {
 				manifest.kit = { ...manifest.kit, migrations: './dist/migrations/' }

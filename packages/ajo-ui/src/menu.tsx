@@ -15,17 +15,17 @@ import {
 	type MenuCluster,
 	type MenuInvocationFocus,
 } from './menu-cluster'
-import { contentAttrs, popup, type PopupView } from './popup'
-import type { PositionReference, ReservedPositionArg } from './position'
-import type { FixedArgs, OmitArg, PopupPosition } from './utils'
-import { flag, popupStyle, text, triggerAttrs } from './utils'
-export type { PopupPlacement, PopupPosition } from './utils'
+import { contentAttrs, popup, type PopupPosition, popupStyle, type PopupView, triggerAttrs } from './popup'
+import type { PositionReference } from './position'
+import { flag, text } from './shared'
+import type { FixedArgs, OmitArg } from './utils'
+export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Semantic tone applied to an actionable menu item. */
 export type MenuVariant = 'default' | 'danger'
 
 /** Arguments for the Menu open-state provider. */
-export type MenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange' | ReservedPositionArg> & PopupPosition & {
+export type MenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & PopupPosition & {
 	/** Controlled open state. */
 	open?: boolean
 	/** Initial open state for uncontrolled usage. */
@@ -36,7 +36,7 @@ export type MenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'
 	onOpenChange?: (open: boolean, event?: Event) => void
 	/** Additional UnoCSS classes for the root. */
 	class?: string
-}> & FixedArgs<'onchange' | ReservedPositionArg>
+}> & FixedArgs<'onchange'>
 
 /** Arguments for the button that toggles a Menu. */
 export type MenuTriggerArgs = WithChildren<IntrinsicElements['button'] & {
@@ -45,12 +45,12 @@ export type MenuTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 }>
 
 /** Arguments for the Menu surface; positioning and semantics belong to Menu. */
-export type MenuContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'aria-labelledby' | 'hidden' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
+export type MenuContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'aria-labelledby' | 'hidden' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex'> & {
 	/** Additional UnoCSS classes. */
 	class?: string
 	/** Inline CSS declarations composed with live positioning styles. */
 	style?: string
-}> & FixedArgs<'aria-labelledby' | 'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
+}> & FixedArgs<'aria-labelledby' | 'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex'>
 
 /** Arguments for an actionable item in a Menu. */
 export type MenuItemArgs = WithChildren<IntrinsicElements['div'] & {
@@ -137,14 +137,14 @@ export type MenuShortcutArgs = WithChildren<IntrinsicElements['span'] & {
 }>
 
 /** Arguments for a nested Menu open-state provider. */
-export type MenuSubArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'gap' | 'onchange' | 'placement' | ReservedPositionArg> & {
+export type MenuSubArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'gap' | 'onchange' | 'placement'> & {
 	/** Controlled open state. */
 	open?: boolean
 	/** Initial open state for uncontrolled usage. */
 	defaultOpen?: boolean
 	/** Called whenever the submenu opens or closes. */
 	onOpenChange?: (open: boolean, event?: Event) => void
-}> & FixedArgs<'gap' | 'onchange' | 'placement' | ReservedPositionArg>
+}> & FixedArgs<'gap' | 'onchange' | 'placement'>
 
 /** Arguments for the item that opens a nested Menu. */
 export type MenuSubTriggerArgs = MenuItemArgs & {

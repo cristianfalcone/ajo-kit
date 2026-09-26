@@ -1,8 +1,14 @@
 import type { InputGroupAddonAlign } from 'ajo-ui/input-group'
 import clsx from 'clsx'
 
-// Shared style recipes live behind the family entrypoints. They are implementation
+// Shared recipes live behind the family entrypoints. They are implementation
 // seams between Playa adapters, not part of any component family's public API.
+
+/** Returns true when JSX children carry no visible content. */
+export const emptyChildren = (children: unknown) =>
+	children == null ||
+	children === false ||
+	(Array.isArray(children) && children.every(child => child == null || child === false))
 
 // Native details enter/exit: ::details-content transitions block-size to auto
 // (via the preflight's interpolate-size opt-in), with allow-discrete

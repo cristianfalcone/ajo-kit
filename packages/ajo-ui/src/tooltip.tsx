@@ -1,11 +1,10 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { contentAttrs, popup, type PopupView } from './popup'
+import { contentAttrs, popup, type PopupPosition, popupStyle, type PopupView, triggerAttrs } from './popup'
 import { PopupSurface } from './popup-surface'
-import type { ReservedPositionArg } from './position'
-import { popupStyle, triggerAttrs, type FixedArgs, type OmitArg, type PopupPosition } from './utils'
-export type { PopupPlacement, PopupPosition } from './utils'
+import type { FixedArgs, OmitArg } from './utils'
+export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Props for shared timing and hover defaults inherited by tooltips. */
 export type TooltipProviderArgs = WithChildren<IntrinsicElements['div'] & {
@@ -22,7 +21,7 @@ export type TooltipProviderArgs = WithChildren<IntrinsicElements['div'] & {
 }>
 
 /** Props for the tooltip root and its controlled open state. */
-export type TooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange' | ReservedPositionArg> & PopupPosition & {
+export type TooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & PopupPosition & {
 	/** Controlled open state. */
 	open?: boolean
 	/** Initial open state for uncontrolled usage. */
@@ -37,7 +36,7 @@ export type TooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchan
 	onOpenChange?: (open: boolean, event?: Event) => void
 	/** Additional CSS classes. */
 	class?: string
-}> & FixedArgs<'onchange' | ReservedPositionArg>
+}> & FixedArgs<'onchange'>
 
 /** Props for the button or span that opens a tooltip. */
 export type TooltipTriggerArgs = WithChildren<(IntrinsicElements['button'] & IntrinsicElements['span']) & {
@@ -48,12 +47,12 @@ export type TooltipTriggerArgs = WithChildren<(IntrinsicElements['button'] & Int
 }>
 
 /** Props for the positioned tooltip panel. */
-export type TooltipContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'align' | 'arrow' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
+export type TooltipContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'arrow' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex'> & {
 	/** Additional CSS classes. */
 	class?: string
 	/** Inline CSS string. */
 	style?: string
-}> & FixedArgs<'arrow' | 'gap' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
+}> & FixedArgs<'arrow' | 'gap' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex'>
 
 type ProviderContextValue = {
 	delayDuration: number

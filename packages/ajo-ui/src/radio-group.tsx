@@ -1,7 +1,9 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, dom, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { ariaChecked, bool, flag, syncCheckedState } from './utils'
+import { ariaChecked, syncCheckedState } from './checkbox'
+import { flag } from './shared'
+import { bool } from './utils'
 
 /** Layout and keyboard-navigation axis of a radio group. */
 export type RadioGroupOrientation = 'horizontal' | 'vertical'

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { expect, test } from 'vitest'
-import { syncCheckedState } from '../src/utils'
+import { syncCheckedState } from '../src/checkbox'
 
 test('syncCheckedState mirrors checkbox tri-state and keeps radios binary', () => {
 	const input = document.createElement('input')

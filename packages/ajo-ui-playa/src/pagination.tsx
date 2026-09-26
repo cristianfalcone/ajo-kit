@@ -1,7 +1,7 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
 import clsx from 'clsx'
-import { emptyChildren } from 'ajo-ui/utils'
 import { buttonVariants, type ButtonSize } from './button'
+import { emptyChildren } from './internal/recipes'
 
 export type PaginationArgs = WithChildren<IntrinsicElements['nav'] & {
 	/** Additional UnoCSS classes. */

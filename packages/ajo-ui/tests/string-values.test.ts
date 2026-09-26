@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { strings } from '../src/utils'
+import { strings } from '../src/shared'
 
 test('strings copies only arrays while coercing each present value', () => {
 	expect(strings(undefined)).toEqual([])

@@ -1,6 +1,6 @@
 import type { IntrinsicElements, Stateful } from 'ajo'
 import { announce, dom, listen, statefulRootAttrs as rootAttrs, timer } from 'ajo-cloves'
-import { Checkbox } from './checkbox'
+import { Checkbox, syncCheckedState } from './checkbox'
 import type { DataTableArgs, DataTableColumn, DataTableData, DataTableKey, DataTableLabels } from './data-table-contract'
 import {
 	createDataTableModel,
@@ -25,7 +25,6 @@ import {
 	SelectValue,
 } from './select'
 import { Toolbar } from './toolbar'
-import { syncCheckedState } from './utils'
 
 export type { DataTableArgs, DataTableColumn } from './data-table-contract'
 
@@ -533,4 +532,3 @@ const DataTable = <T extends DataTableData, Key extends DataTableKey = DataTable
 )
 
 export { DataTable }
-export default DataTable

@@ -9,9 +9,8 @@ import {
 	type ChartSeriesEntry as SeriesEntry,
 	type ChartTooltipPositionController,
 } from './chart-context'
-import type { ReservedPositionArg } from './position'
+import { text } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
-import { text } from './utils'
 
 type ChartTheme = 'dark' | 'light'
 
@@ -86,7 +85,7 @@ export type ChartActive = {
 }
 
 /** Arguments for the accessible Chart data and context root. */
-export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'gap' | 'placement' | ReservedPositionArg> & {
+export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'gap' | 'placement'> & {
 	/** Chart series styling keyed by data key. */
 	config: ChartConfig
 	/** Rows to render when using the native SVG chart primitives. */
@@ -115,7 +114,7 @@ export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 
 	palette: string[]
 	/** Classes supplied by the styled wrapper. */
 	class?: string
-}> & FixedArgs<'gap' | 'placement' | ReservedPositionArg>
+}> & FixedArgs<'gap' | 'placement'>
 
 /** Arguments for native cartesian bar, line, and area plots. */
 export type ChartPlotArgs = OmitArg<IntrinsicElements['svg'], 'children'> & {
@@ -143,12 +142,12 @@ export type ChartPieArgs = ChartPlotArgs & {
 }
 
 /** Arguments for the floating active-value tooltip. */
-export type ChartTooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'gap' | 'placement' | ReservedPositionArg> & {
+export type ChartTooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'gap' | 'placement'> & {
 	/** Custom tooltip content, commonly a tooltip-content component. */
 	content?: Children
 	/** Classes supplied by the styled wrapper. */
 	class?: string
-}> & FixedArgs<'defaultIndex' | 'gap' | 'placement' | ReservedPositionArg>
+}> & FixedArgs<'gap' | 'placement'>
 
 type ClassResolver<State> = string | ((state: State) => string | undefined)
 

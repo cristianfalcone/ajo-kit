@@ -2,17 +2,16 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, id, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { bar } from './bar'
-import { contentAttrs, popup, type PopupView } from './popup'
-import type { ReservedPositionArg } from './position'
-import type { FixedArgs, OmitArg, PopupPosition } from './utils'
-import { text, triggerAttrs } from './utils'
-export type { PopupPlacement, PopupPosition } from './utils'
+import { contentAttrs, popup, type PopupPosition, type PopupView, triggerAttrs } from './popup'
+import { text } from './shared'
+import type { FixedArgs, OmitArg } from './utils'
+export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Stable identifier for an open navigation-menu item. */
 export type NavigationMenuValue = string
 
 /** Props for the navigation-menu root and its controlled state. */
-export type NavigationMenuArgs = WithChildren<OmitArg<IntrinsicElements['nav'], 'onchange' | ReservedPositionArg> & PopupPosition & {
+export type NavigationMenuArgs = WithChildren<OmitArg<IntrinsicElements['nav'], 'onchange'> & PopupPosition & {
 	/** Controlled open item value. Empty string closes every content panel. */
 	value?: NavigationMenuValue
 	/** Initial open item value for uncontrolled usage. */
@@ -25,7 +24,7 @@ export type NavigationMenuArgs = WithChildren<OmitArg<IntrinsicElements['nav'], 
 	onValueChange?: (value: NavigationMenuValue, event?: Event) => void
 	/** Additional CSS classes. */
 	class?: string
-}> & FixedArgs<'onchange' | ReservedPositionArg>
+}> & FixedArgs<'onchange'>
 
 /** Props for the list containing navigation-menu items. */
 export type NavigationMenuListArgs = WithChildren<IntrinsicElements['ul'] & {
@@ -34,14 +33,14 @@ export type NavigationMenuListArgs = WithChildren<IntrinsicElements['ul'] & {
 }>
 
 /** Props for a navigation-menu item and its stable value. */
-export type NavigationMenuItemArgs = WithChildren<OmitArg<IntrinsicElements['li'], 'gap' | 'placement' | ReservedPositionArg> & {
+export type NavigationMenuItemArgs = WithChildren<OmitArg<IntrinsicElements['li'], 'gap' | 'placement'> & {
 	/** Stable value used by controlled NavigationMenu state. */
 	value?: NavigationMenuValue
 	/** Disable this item and its trigger. */
 	disabled?: boolean
 	/** Additional CSS classes. */
 	class?: string
-}> & FixedArgs<'gap' | 'placement' | ReservedPositionArg>
+}> & FixedArgs<'gap' | 'placement'>
 
 /** Props for a button that opens a navigation-menu panel. */
 export type NavigationMenuTriggerArgs = WithChildren<IntrinsicElements['button'] & {
@@ -52,12 +51,12 @@ export type NavigationMenuTriggerArgs = WithChildren<IntrinsicElements['button']
 }>
 
 /** Props for a floating navigation-menu panel. */
-export type NavigationMenuContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'aria-labelledby' | 'hidden' | 'id' | 'popover' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
+export type NavigationMenuContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'aria-labelledby' | 'hidden' | 'id' | 'popover' | 'tabindex' | 'tabIndex'> & {
 	/** Additional CSS classes. */
 	class?: string
 	/** Inline CSS declarations composed with live positioning styles. */
 	style?: string
-}> & FixedArgs<'aria-labelledby' | 'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
+}> & FixedArgs<'aria-labelledby' | 'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'tabindex' | 'tabIndex'>
 
 /** Props for an anchor or button rendered inside navigation-menu content. */
 export type NavigationMenuLinkArgs = WithChildren<(IntrinsicElements['a'] & IntrinsicElements['button']) & {

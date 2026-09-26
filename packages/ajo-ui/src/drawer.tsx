@@ -1,7 +1,8 @@
 import type { Stateful, Stateless } from 'ajo'
 import { callRef, move, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { clx, withSlot } from './utils'
+import { clx } from './shared'
+import { withSlot } from './utils'
 import {
 	Dialog,
 	DialogClose,

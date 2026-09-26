@@ -1,9 +1,25 @@
 import type { IntrinsicElements, Stateful, Stateless } from 'ajo'
 import { callHandler, callRef, dom } from 'ajo-cloves'
-import { ariaChecked, bool, flag, syncCheckedState, type CheckedState } from './utils'
+import { flag } from './shared'
+import { bool } from './utils'
 
-/** Visual and ARIA state exposed by a Checkbox. */
-export type CheckboxState = CheckedState
+/** Visual and ARIA state exposed by a Checkbox and shared by native checked controls. */
+export type CheckboxState = 'checked' | 'indeterminate' | 'unchecked'
+
+/** Maps a checked-state token to the native aria-checked vocabulary. */
+export const ariaChecked = (state: CheckboxState) =>
+	state === 'indeterminate' ? 'mixed' : state === 'checked' ? 'true' : 'false'
+
+/** Mirrors a native input's live checked state onto it and one visual companion. */
+export const syncCheckedState = (input: HTMLInputElement, companion?: HTMLElement | null): CheckboxState => {
+	const state = input.type === 'checkbox' && input.indeterminate
+		? 'indeterminate'
+		: input.checked ? 'checked' : 'unchecked'
+	input.dataset.state = state
+	input.setAttribute('aria-checked', ariaChecked(state))
+	if (companion) companion.dataset.state = state
+	return state
+}
 
 /** Arguments for the native checkbox and its visual companion. */
 export type CheckboxArgs = IntrinsicElements['input'] & {

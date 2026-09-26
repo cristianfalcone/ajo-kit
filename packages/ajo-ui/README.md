@@ -15,24 +15,13 @@ pnpm add ajo ajo-ui
 `ajo-ui` requires `ajo ^0.1.35`.
 
 The package is authored in TypeScript and ships generated `.d.ts`
-declarations for the root and every component-family subpath. Published
+declarations for every component-family subpath and `ajo-ui/utils`. Published
 runtime and type entrypoints resolve from `dist/`; implementation source is
 not required in an installed package.
 
 ## Usage
 
-Import a component family from its subpath:
-
-```tsx
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from 'ajo-ui/accordion'
-import { Popover, PopoverContent, PopoverTrigger } from 'ajo-ui/popover'
-```
-
-The package root exports every component family:
-
-```tsx
-import { Tabs, TabsContent, TabsList, TabsTrigger } from 'ajo-ui'
-```
+Import each component family from its subpath; the package has no root entry:
 
 ```tsx
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'ajo-ui/tabs'
@@ -63,43 +52,24 @@ export default () => (
 
 ## Component Utilities
 
-`ajo-ui/utils` provides helpers and types for custom components, themes, and
+`ajo-ui/utils` provides the helpers for custom components, themes, and
 adapters:
 
 ```tsx
-import {
-  ariaChecked,
-  bool,
-  clx,
-  flag,
-  popupStyle,
-  stlx,
-  text,
-  triggerAttrs,
-  withSlot,
-} from 'ajo-ui/utils'
-import type {
-  CheckedState,
-  FixedArgs,
-  OmitArg,
-  PopupPlacement,
-  PopupPosition,
-  StyleInput,
-  StyleObject,
-  StyleValue,
-} from 'ajo-ui/utils'
+import { bool, stlx, withSlot } from 'ajo-ui/utils'
+import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 ```
 
-| Area | Exports |
+| Export | Role |
 |---|---|
-| Popup composition | `PopupPlacement`, `PopupPosition`, `triggerAttrs`, `popupStyle` |
-| Component adapters | `OmitArg`, `FixedArgs`, `withSlot` |
-| Checked state | `CheckedState`, `ariaChecked`, `syncCheckedState` |
-| Values and filtering | `bool`, `flag`, `text`, `strings`, `matchesTokens`, `defaultResultsLabel`, `resolveFilter`, `toNumber`, `emptyChildren` |
-| Classes and styles | `clx`, `stlx`, `StyleValue`, `StyleObject`, `StyleInput` |
+| `OmitArg` | Removes named properties while preserving Ajo's open argument index |
+| `FixedArgs` | Marks properties supplied by an adapter as unavailable to callers |
+| `withSlot` | Wraps a family part with a fixed `data-slot` and optional defaults |
+| `bool` | Parses boolean-ish attribute input (`true`, `''`, `'true'`) |
+| `stlx` | Joins declaration strings and property objects into an inline style |
 
-`OmitArg` removes named properties while preserving Ajo's open argument
-index. `FixedArgs` marks properties supplied by an adapter.
+Popup families export `PopupPlacement` and `PopupPosition` next to the
+components that take `placement` and `gap`.
 
 ## Styling
 

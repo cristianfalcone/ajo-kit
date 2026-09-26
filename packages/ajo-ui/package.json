@@ -15,10 +15,6 @@
     "test:bundle": "pnpm -w exec tsx packages/ajo-ui/tests/bundle.ts"
   },
   "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
-    },
     "./utils": {
       "types": "./src/utils.ts",
       "default": "./src/utils.ts"

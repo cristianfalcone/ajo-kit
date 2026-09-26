@@ -2,7 +2,56 @@ import type { Host } from 'ajo'
 import { callRef, controlled, dismiss, dom, hover, id, resize } from 'ajo-cloves'
 import { closePopover, openPopover, popoverOpen } from './native'
 import { position, type PositionProfile, type PositionReference } from './position'
-import { popupStyle, type PopupPosition } from './utils'
+
+/** Logical placement shared by Ajo popup roots. */
+export type PopupPlacement =
+	| 'top' | 'top-start' | 'top-end'
+	| 'right' | 'right-start' | 'right-end'
+	| 'bottom' | 'bottom-start' | 'bottom-end'
+	| 'left' | 'left-start' | 'left-end'
+	| 'auto'
+
+/** Small semantic positioning contract shared by Ajo popup roots. */
+export type PopupPosition = {
+	/** Preferred logical placement; auto chooses the most available space. */
+	placement?: PopupPlacement
+	/** Distance between the reference and floating box, in CSS pixels. */
+	gap?: number
+}
+
+type TriggerAttrsOptions<Element extends HTMLElement> = {
+	controls?: string
+	describedby?: string
+	expanded?: boolean
+	haspopup?: 'dialog' | 'listbox' | 'menu'
+	id?: unknown
+	open: boolean
+	ref?: unknown
+	setTrigger?: (element: Element | null) => void
+	triggerId?: string
+}
+
+/** Builds state, popup relations, ids and a composed trigger ref. */
+export const triggerAttrs = <Element extends HTMLElement>(options: TriggerAttrsOptions<Element>): Record<string, unknown> => {
+	const { controls, describedby, expanded, haspopup, id, open, ref, setTrigger, triggerId } = options
+	const attrs: Record<string, unknown> = { 'data-state': open ? 'open' : 'closed' }
+	if ('controls' in options) attrs['aria-controls'] = controls
+	if ('describedby' in options) attrs['aria-describedby'] = describedby
+	if ('expanded' in options) attrs['aria-expanded'] = expanded ? 'true' : 'false'
+	if ('haspopup' in options) attrs['aria-haspopup'] = haspopup
+	if ('id' in options || 'triggerId' in options) attrs.id = id ?? triggerId
+	if ('ref' in options || 'setTrigger' in options) {
+		attrs.ref = (element: Element | null) => {
+			setTrigger?.(element)
+			callRef(ref, element)
+		}
+	}
+	return attrs
+}
+
+/** Inline reset for a native popover plus caller-owned declarations. */
+export const popupStyle = (...parts: unknown[]) =>
+	['inset:auto', 'margin:0', ...parts.filter((part): part is string => typeof part === 'string' && part.length > 0)].join(';')
 
 type ContentAttrsOptions<Element extends HTMLElement> = {
 	id?: unknown

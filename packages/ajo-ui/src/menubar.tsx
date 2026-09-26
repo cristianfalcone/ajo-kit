@@ -2,8 +2,9 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, id, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { bar } from './bar'
-import type { ReservedPositionArg } from './position'
-import type { FixedArgs, OmitArg, PopupPosition } from './utils'
+import type { PopupPosition } from './popup'
+import { text } from './shared'
+import { type FixedArgs, type OmitArg, withSlot } from './utils'
 import {
 	Menu,
 	MenuCheckboxItem,
@@ -36,11 +37,10 @@ import type {
 	MenuTriggerArgs,
 } from './menu'
 import { provideMenubarComposition } from './menu-cluster'
-import { text, withSlot } from './utils'
-export type { PopupPlacement, PopupPosition } from './utils'
+export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Arguments for a horizontal Menubar and its controlled open menu. */
-export type MenubarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange' | ReservedPositionArg> & PopupPosition & {
+export type MenubarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & PopupPosition & {
 	/** Controlled open top-level menu value. */
 	value?: string
 	/** Initial open top-level menu value for uncontrolled usage. */
@@ -53,17 +53,17 @@ export type MenubarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchan
 	onValueChange?: (value: string, event?: Event) => void
 	/** Additional UnoCSS classes. */
 	class?: string
-}> & FixedArgs<'onchange' | ReservedPositionArg>
+}> & FixedArgs<'onchange'>
 
 /** Arguments for one value-bearing top-level menu in a Menubar. */
-export type MenubarMenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'gap' | 'placement' | ReservedPositionArg> & {
+export type MenubarMenuArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'gap' | 'placement'> & {
 	/** Top-level menu value used by controlled Menubar state. */
 	value?: string
 	/** Disable this top-level menu. */
 	disabled?: boolean
 	/** Additional UnoCSS classes. */
 	class?: string
-}> & FixedArgs<'gap' | 'placement' | ReservedPositionArg>
+}> & FixedArgs<'gap' | 'placement'>
 
 /** Arguments for the trigger of a top-level Menubar menu. */
 export type MenubarTriggerArgs = WithChildren<MenuTriggerArgs & {

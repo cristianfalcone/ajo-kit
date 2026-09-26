@@ -1,4 +1,4 @@
-import { VirtualList, type VirtualListApi } from 'ajo-ui'
+import { VirtualList, type VirtualListApi } from 'ajo-ui/virtual-list'
 
 type User = {
 	id: string

@@ -16,7 +16,7 @@ import {
 } from '@floating-ui/dom'
 import type { Host } from 'ajo'
 import { dom } from 'ajo-cloves'
-import type { PopupPlacement } from './utils'
+import type { PopupPlacement } from './popup'
 
 export type PositionProfile =
 	| 'popover'
@@ -29,19 +29,6 @@ export type PositionProfile =
 	| 'context'
 	| 'menubar'
 	| 'chart'
-
-/** Raw geometry arguments reserved by the private positioning profiles. */
-export type ReservedPositionArg =
-	| 'align'
-	| 'alignOffset'
-	| 'boundary'
-	| 'collisionPadding'
-	| 'constrain'
-	| 'middleware'
-	| 'platform'
-	| 'side'
-	| 'sideOffset'
-	| 'strategy'
 
 /** Private real-or-virtual reference shape owned at the Adapter boundary. */
 export type PositionReference = ReferenceElement

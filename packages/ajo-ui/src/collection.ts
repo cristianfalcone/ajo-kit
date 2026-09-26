@@ -23,6 +23,27 @@ type SweepOptions = {
 const enabledOf = (item: HTMLElement) =>
 	item.dataset.disabled !== 'true' && !(item as HTMLElement & { disabled?: boolean }).disabled
 
+/** Token match: every whitespace-separated search token appears in the haystack, case-insensitive; an empty search matches. */
+export const matchesTokens = (search: string, haystack: string) => {
+	const query = search.trim().toLowerCase()
+	if (!query) return true
+	const target = haystack.trim().toLowerCase()
+	return query.split(/\s+/).every(part => target.includes(part))
+}
+
+/** Formats the default English result count for filterable collections. */
+export const defaultResultsLabel = (count: number) =>
+	`${count} result${count === 1 ? '' : 's'}`
+
+const passAll = () => true
+
+/** Resolves undefined to the built-in filter, null to unfiltered, and preserves a custom filter. */
+export const resolveFilter = <Args extends unknown[]>(
+	filter: ((...args: Args) => boolean) | null | undefined,
+	fallback: (...args: Args) => boolean,
+): ((...args: Args) => boolean) =>
+	filter === undefined ? fallback : filter ?? passAll
+
 /**
  * One item protocol for list-like families (menus, select, combobox, command):
  * items are marked `data-item="<kind>"` and carry `data-value`, `data-label`,

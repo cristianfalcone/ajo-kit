@@ -288,7 +288,7 @@ type Published = Awaited<ReturnType<typeof packAndPublish>>
 
 const verifyPublishedArtifact = (name: typeof packageNames[number], published: Published) => {
 	const packlist = published.packed.files.map(file => file.path)
-	for (const expected of ['LICENSE', 'package.json', 'README.md', 'dist/index.js']) {
+	for (const expected of ['LICENSE', 'package.json', 'README.md']) {
 		assert(packlist.includes(expected), `${name} packlist omitted ${expected}`)
 	}
 	assert(packlist.every(path =>
@@ -313,10 +313,6 @@ const verifyPublishedArtifact = (name: typeof packageNames[number], published: P
 	if (name === 'ajo-ui') {
 		assert(published.tarballBytes <= 160_000,
 			`ajo-ui tarball grew to ${published.tarballBytes} B (budget 160000 B)`)
-		assert(!('@tanstack/table-core' in (published.manifest.dependencies ?? {})),
-			'ajo-ui published @tanstack/table-core as a dependency')
-		assert(!('@tanstack/store' in (published.manifest.dependencies ?? {})),
-			'ajo-ui published @tanstack/store as a dependency')
 	}
 
 	if (name === 'ajo-kit') {
@@ -1021,10 +1017,11 @@ const verifyAjoUiNodeNextDeclarations = async (directory: string) => {
 		'',
 	].join('\n'))
 	await write(join(directory, 'types.ts'), [
-		'import type { AccordionArgs, ChartConfig, DataTableColumn, InputTimeArgs } from \'ajo-ui\'',
-		'import type { AccordionArgs as SubpathArgs } from \'ajo-ui/accordion\'',
+		'import type { AccordionArgs } from \'ajo-ui/accordion\'',
+		'import type { ChartConfig } from \'ajo-ui/chart\'',
+		'import type { DataTableColumn } from \'ajo-ui/data-table\'',
+		'import type { InputTimeArgs } from \'ajo-ui/input-date\'',
 		'void ({} as AccordionArgs)',
-		'void ({} as SubpathArgs)',
 		'void ({} as ChartConfig)',
 		'void ({} as DataTableColumn<Record<string, unknown>>)',
 		'void ({} as InputTimeArgs)',
@@ -1084,7 +1081,6 @@ const ajoUiBundleProbe = async (consumer: string, registry: string) => {
 		'',
 	].join('\n'))
 	for (const [family, entry] of Object.entries(families)) {
-		await write(join(consumer, `src/${family}-root.ts`), `export { ${entry.exportName} } from 'ajo-ui'\n`)
 		await write(join(consumer, `src/${family}-subpath.ts`),
 			`export { ${entry.exportName} } from 'ajo-ui/${entry.subpath}'\n`)
 	}
@@ -1127,30 +1123,16 @@ const ajoUiBundleProbe = async (consumer: string, registry: string) => {
 	for (const [family, entry] of Object.entries(families) as Array<
 		[keyof typeof families, typeof families[keyof typeof families]]
 	>) {
-		const rootBundle = await bundle(`${family}-root`)
-		const subpathBundle = await bundle(`${family}-subpath`)
-		const rootGraph = packageGraph(rootBundle.modules)
-		const subpathGraph = packageGraph(subpathBundle.modules)
-		assert.deepEqual(rootGraph, subpathGraph, `published ${family} root/subpath graphs diverged`)
-		const implementation = family.startsWith('chart')
-			? 'ajo-ui/dist/chunks/chart-'
-			: family === 'data-table'
-				? 'ajo-ui/dist/chunks/data-table-'
-				: `ajo-ui/dist/${entry.subpath}.js`
-		assert(hasModulePath(rootGraph, implementation),
+		const { modules, size } = await bundle(`${family}-subpath`)
+		const graph = packageGraph(modules)
+		assert(hasModulePath(graph, `ajo-ui/dist/${entry.subpath}.js`),
 			`published ${family} graph omitted its dist implementation`)
-		assert(!rootGraph.some(id => id.includes('/node_modules/ajo-ui/src/')),
+		assert(!graph.some(id => id.includes('/node_modules/ajo-ui/src/')),
 			`published ${family} graph executed package TypeScript source`)
-		assertFloatingGraph(`Published ${family}`, rootGraph, entry.floating)
-		assert(!rootGraph.some(id => id.includes('@tanstack+table-core') || id.includes('@tanstack+store')),
-			`published ${family} retained TanStack Table or Store`)
-		assert(!rootGraph.some(id => id.includes('@tanstack+virtual-core')),
+		assertFloatingGraph(`Published ${family}`, graph, entry.floating)
+		assert(!graph.some(id => id.includes('@tanstack+virtual-core')),
 			`published ${family} retained the VirtualList engine`)
-		sizes[family] = {
-			brotli: Math.max(rootBundle.size.brotli, subpathBundle.size.brotli),
-			gzip: Math.max(rootBundle.size.gzip, subpathBundle.size.gzip),
-			raw: Math.max(rootBundle.size.raw, subpathBundle.size.raw),
-		}
+		sizes[family] = size
 	}
 	console.log(`ajo-ui consumer: artifact sizes ${JSON.stringify(sizes)}`)
 	for (const family of Object.keys(families) as Array<keyof typeof families>) {

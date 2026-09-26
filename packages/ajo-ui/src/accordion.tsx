@@ -1,8 +1,8 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { listen, roving, selection, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { strings } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
-import { strings } from './utils'
 import { Collapsible, CollapsibleContent, CollapsibleContext, CollapsibleTrigger } from './collapsible'
 
 /** Selection model supported by an Accordion root. */

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { defaultResultsLabel, resolveFilter } from '../src/utils'
+import { defaultResultsLabel, resolveFilter } from '../src/collection'
 
 test.each([
 	[0, '0 results'],

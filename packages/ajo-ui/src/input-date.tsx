@@ -2,11 +2,11 @@ import type { Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 
 import { callHandler, callRef, controlled, dom, id, listen, restore, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { compile, type Availability, type AvailabilityMatcher } from './availability'
-import type { ReservedPositionArg } from './position'
-import type { FixedArgs, OmitArg, PopupPosition } from './utils'
+import { flag } from './shared'
+import type { FixedArgs, OmitArg } from './utils'
 import { Calendar, type CalendarArgs, type CalendarCommonArgs, type CalendarDateRange, type CalendarMatcher } from './calendar'
 import { FieldContext } from './field'
-import { contentAttrs, popup, type PopupOptions, type PopupView } from './popup'
+import { contentAttrs, popup, type PopupOptions, type PopupPosition, type PopupView, triggerAttrs } from './popup'
 import {
 	defaultMessage,
 	field,
@@ -26,8 +26,7 @@ import {
 	type SegmentsKind,
 	type Units,
 } from './segments'
-import { flag, triggerAttrs } from './utils'
-export type { PopupPlacement, PopupPosition } from './utils'
+export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Range endpoint edited by a segmented date or time field. */
 export type InputDateSide = 'from' | 'to'
@@ -59,7 +58,7 @@ export type InputDateCalendarArgs = OmitArg<CalendarCommonArgs, InputDateCalenda
 	component?: Stateless<CalendarArgs>
 } & FixedArgs<InputDateCalendarOwnedArgs>
 
-type CommonArgs<Range extends boolean> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange' | ReservedPositionArg> & {
+type CommonArgs<Range extends boolean> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange'> & {
 	/** Allow a range to span unavailable days without treating its interior gaps as selected. */
 	allowNonContiguous?: boolean
 	/** Range mode: two field groups, `{ from, to } | null` value. */
@@ -94,7 +93,7 @@ type CommonArgs<Range extends boolean> = WithChildren<OmitArg<IntrinsicElements[
 	readOnly?: boolean
 	/** Additional classes. */
 	class?: string
-}> & FixedArgs<'onchange' | ReservedPositionArg>
+}> & FixedArgs<'onchange'>
 
 type PopupArgs<Range extends boolean> = {
 	/** Opt into the calendar popover; an object forwards args to InputDateCalendar. */
@@ -165,12 +164,12 @@ export type InputDateTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 }>
 
 /** Arguments for positioned InputDate popover content. */
-export type InputDateContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'hidden' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
+export type InputDateContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'hidden' | 'id' | 'popover' | 'role' | 'tabindex' | 'tabIndex'> & {
 	/** Additional classes. */
 	class?: string
 	/** Inline CSS declarations composed with live positioning styles. */
 	style?: string
-}> & FixedArgs<'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
+}> & FixedArgs<'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'role' | 'tabindex' | 'tabIndex'>
 
 /** Arguments for the button that clears an InputDate family value. */
 export type InputDateClearArgs = WithChildren<IntrinsicElements['button'] & {

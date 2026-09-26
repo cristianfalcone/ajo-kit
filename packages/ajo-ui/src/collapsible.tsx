@@ -1,8 +1,8 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
+import { flag } from './shared'
 import type { OmitArg } from './utils'
 import { callHandler, controlled, dom, id, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { flag } from './utils'
 
 /** Arguments for the controlled or uncontrolled disclosure root. */
 export type CollapsibleArgs = WithChildren<OmitArg<IntrinsicElements['details'], 'open'> & {

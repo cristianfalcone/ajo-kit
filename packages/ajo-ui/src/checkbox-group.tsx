@@ -1,8 +1,8 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { selection, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { flag, strings } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
-import { flag, strings } from './utils'
 import { Checkbox, type CheckboxArgs } from './checkbox'
 
 /** Arguments for a group that coordinates checkbox values. */

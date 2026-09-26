@@ -1,6 +1,6 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
 import clsx from 'clsx'
-import { emptyChildren } from 'ajo-ui/utils'
+import { emptyChildren } from './internal/recipes'
 
 export type BreadcrumbArgs = WithChildren<IntrinsicElements['nav'] & {
 	/** Additional UnoCSS classes. */

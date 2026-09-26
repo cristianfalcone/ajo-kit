@@ -1,9 +1,9 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { announce, callHandler, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { flag, text } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
-import { defaultResultsLabel, flag, matchesTokens, resolveFilter, text } from './utils'
-import { collection } from './collection'
+import { collection, defaultResultsLabel, matchesTokens, resolveFilter } from './collection'
 import {
 	Dialog,
 	DialogClose,

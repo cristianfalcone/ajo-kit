@@ -2,12 +2,11 @@ import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } f
 import { announce, callHandler, callRef, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs, typeahead } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from './input-group'
-import { collection } from './collection'
-import { contentAttrs, popup, type PopupView } from './popup'
-import type { ReservedPositionArg } from './position'
-import type { FixedArgs, OmitArg, PopupPosition } from './utils'
-import { defaultResultsLabel, flag, matchesTokens, resolveFilter, text, triggerAttrs } from './utils'
-export type { PopupPlacement, PopupPosition } from './utils'
+import { collection, defaultResultsLabel, matchesTokens, resolveFilter } from './collection'
+import { contentAttrs, popup, type PopupPosition, type PopupView, triggerAttrs } from './popup'
+import { flag, text } from './shared'
+import type { FixedArgs, OmitArg } from './utils'
+export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Visual size supported by the built-in select trigger. */
 export type SelectSize = 'default' | 'sm'
@@ -16,7 +15,7 @@ export type SelectSize = 'default' | 'sm'
 export type SelectFilter<T = unknown> = (item: T, search: string, text: string) => boolean
 
 /** Props for single- or multiple-selection state and search behavior. */
-export type SelectArgs<T = string, Multiple extends boolean = false> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange' | ReservedPositionArg> & PopupPosition & {
+export type SelectArgs<T = string, Multiple extends boolean = false> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange'> & PopupPosition & {
 	/** Items available to SelectList render functions. */
 	items?: T[]
 	/** Controlled selection; null means controlled-empty. */
@@ -57,7 +56,7 @@ export type SelectArgs<T = string, Multiple extends boolean = false> = WithChild
 	resultsLabel?: (count: number) => string
 	/** Additional UnoCSS classes. */
 	class?: string
-}> & FixedArgs<'onchange' | ReservedPositionArg>
+}> & FixedArgs<'onchange'>
 
 /** Props for the button that opens the select popup. */
 export type SelectTriggerArgs = WithChildren<OmitArg<IntrinsicElements['button'], 'size'> & {
@@ -106,12 +105,12 @@ export type SelectClearArgs = WithChildren<IntrinsicElements['button'] & {
 }>
 
 /** Props for the select popup; positioning and native semantics belong to Select. */
-export type SelectContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'hidden' | 'id' | 'popover' | 'tabindex' | 'tabIndex' | ReservedPositionArg> & {
+export type SelectContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'hidden' | 'id' | 'popover' | 'tabindex' | 'tabIndex'> & {
 	/** Additional UnoCSS classes. */
 	class?: string
 	/** Inline CSS declarations composed with live positioning styles. */
 	style?: string
-}> & FixedArgs<'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'tabindex' | 'tabIndex' | ReservedPositionArg>
+}> & FixedArgs<'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'tabindex' | 'tabIndex'>
 
 /** Props for an option list, including item-renderer children. */
 export type SelectListArgs<T = unknown> = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {

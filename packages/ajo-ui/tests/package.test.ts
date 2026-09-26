@@ -1,53 +1,18 @@
-import { createRequire } from 'node:module'
+import { readdirSync } from 'node:fs'
 import { expect, test } from 'vitest'
 import metadata from '../package.json'
 
-const families = [
-	'accordion',
-	'avatar',
-	'calendar',
-	'carousel',
-	'chart',
-	'checkbox',
-	'checkbox-group',
-	'collapsible',
-	'command',
-	'context-menu',
-	'data-table',
-	'dialog',
-	'direction',
-	'drawer',
-	'field',
-	'input-date',
-	'input-group',
-	'input-otp',
-	'menu',
-	'menubar',
-	'message-scroller',
-	'navigation-menu',
-	'popover',
-	'progress',
-	'radio-group',
-	'resizable',
-	'select',
-	'sidebar',
-	'slider',
-	'switch',
-	'tabs',
-	'toast',
-	'toggle',
-	'toggle-group',
-	'toolbar',
-	'tooltip',
-	'virtual-list',
-] as const
+// Every .tsx module in src is a public family except these private parts.
+const parts = new Set(['chart-tooltip', 'popup-surface'])
+const families = readdirSync(new URL('../src', import.meta.url))
+	.filter(file => file.endsWith('.tsx'))
+	.map(file => file.slice(0, -'.tsx'.length))
+	.filter(family => !parts.has(family))
 
 const entry = (source: string) => ({ default: source, types: source })
-const require = createRequire(import.meta.url)
 
-test('the package exports only its public component families', async () => {
+test('the package exports its component families by subpath and no root', async () => {
 	const expected = Object.fromEntries([
-		['.', entry('./src/index.ts')],
 		['./utils', entry('./src/utils.ts')],
 		...families.map(family => [`./${family}`, entry(`./src/${family}.tsx`)]),
 	])
@@ -63,24 +28,15 @@ test('the package exports only its public component families', async () => {
 	expect(virtualList).toHaveProperty('VirtualList')
 })
 
-test.each([
-	'ajo-ui/data-table-contract',
-	'ajo-ui/data-table-model',
-	'ajo-ui/virtual',
-])('%s remains package-internal', specifier => {
-	let failure: unknown
-	try {
-		require.resolve(specifier)
-	} catch (error) {
-		failure = error
-	}
-	expect(failure).toMatchObject({ code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
+test('ajo-ui/utils exports only the adapter helpers', async () => {
+	expect(Object.keys(await import('ajo-ui/utils')).sort()).toEqual(['bool', 'stlx', 'withSlot'])
 })
 
-test('the root exports direct contexts without hook-shaped accessors', async () => {
-	const surface = await import('ajo-ui')
-	expect(Object.keys(surface).filter(name => /^use[A-Z]/.test(name))).toEqual([])
-	expect(surface).toHaveProperty('VirtualList')
+test('families export named components without defaults or hook-shaped accessors', async () => {
+	for (const family of families) {
+		const names = Object.keys(await import(/* @vite-ignore */ `ajo-ui/${family}`))
+		expect(names.filter(name => name === 'default' || /^use[A-Z]/.test(name)), family).toEqual([])
+	}
 })
 
 test('the manifest declares only direct runtime ownership and the Ajo host contract', () => {
