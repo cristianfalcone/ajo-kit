@@ -3,7 +3,7 @@ import { render } from 'ajo'
 import { browser, callHandler, hotkey as bindHotkey, id } from 'ajo-cloves'
 import { closePopover, openPopover } from './native'
 import { popupStyle } from './popup'
-import { clx, toNumber } from './shared'
+import { clx } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
 
 /** Visual tone applied to a toast. */
@@ -14,10 +14,14 @@ export type ToastVariant =
 	| 'success'
 	| 'warning'
 
-/** Live-region priority category used by a toast. */
-export type ToastType =
-	| 'background'
-	| 'foreground'
+/** Kind of a generated toast, set by the `toast` helper that created it. */
+export type ToastKind =
+	| 'default'
+	| 'error'
+	| 'info'
+	| 'loading'
+	| 'success'
+	| 'warning'
 
 /** Fixed viewport position for generated toasts. */
 export type ToastPosition =
@@ -30,10 +34,6 @@ export type ToastPosition =
 
 /** Props for an individual toast item. */
 export type ToastArgs = WithChildren<IntrinsicElements['li'] & {
-	/** Controlled visibility. Hidden toasts are not rendered. */
-	open?: boolean
-	/** Toast priority hint for live-region behavior. */
-	type?: ToastType
 	/** Toast tone used for data attrs and default live-region role. */
 	variant?: ToastVariant
 	/** Additional classes supplied by a styled wrapper. */
@@ -75,106 +75,113 @@ export type ToastViewportArgs = WithChildren<IntrinsicElements['ol'] & {
 	hotkey?: string[]
 	/** Accessible label for the toast viewport. */
 	label?: string
-	/** Native popover mode. Manual keeps toasts above modal dialogs without light dismiss. */
-	popover?: 'auto' | 'manual'
-	/** Fixed screen position for generated toasts. */
+	/** Fixed screen position of the viewport. */
 	position?: ToastPosition
 	/** Additional classes supplied by a styled wrapper. */
 	class?: string
 }>
 
-/** Props for defaults inherited by generated toasts. */
-export type ToastProviderArgs = WithChildren<{
-	/** Default auto-dismiss duration for generated toasts. */
-	duration?: number
-	/** Accessible label for generated toast viewports. */
-	label?: string
-}>
-
-/** Data accepted when creating or updating an imperative toast. */
-export type ToastInput = {
-	/** Stable id for updating or dismissing this toast. */
+/** Options accepted by `toast()` and its kind helpers. */
+export type ToastOptions = {
+	/** Stable id. Calling `toast` again with it replaces that toast in place. */
 	id?: string
-	/** Toast title. */
-	title?: unknown
 	/** Toast body copy. */
-	description?: unknown
-	/** Optional action element. Prefer ToastAction. */
-	action?: unknown
+	description?: Children
+	/** Action button rendered inside the toast. */
+	action?: {
+		/** Action label. */
+		label: Children
+		/** Called when the action is selected. */
+		onClick?: () => void
+	}
 	/** Additional root classes. */
 	class?: string
-	/** Show this generated toast's close button. */
+	/** Show this toast's close button. Defaults to the Toaster's `closeButton`. */
 	closeButton?: boolean
-	/** Auto-dismiss duration in milliseconds. Pass 0 to keep it open. */
+	/** Auto-dismiss duration in milliseconds; 0 keeps it open. Defaults to the Toaster's `duration`. */
 	duration?: number
-	/** Fixed screen position for this generated toast. */
+	/** Announce assertively (`role="alert"`). Error toasts always do. */
+	important?: boolean
+	/** Fixed screen position. Defaults to the Toaster's `position`. */
 	position?: ToastPosition
-	/** Accessible role. Defaults to status, or alert for danger toasts. */
-	role?: string
-	/** Toast priority hint for live-region behavior. */
-	type?: ToastType
-	/** Toast tone used for data attrs and default live-region role. */
-	variant?: ToastVariant
 }
 
-/** Controller returned after an imperative toast is created. */
-export type ToastController = {
-	id: string
-	dismiss: () => void
-	update: (patch: ToastInput) => void
+/** Messages for `toast.promise`; success and error may derive from the settled value. */
+export type ToastPromiseMessages<T = unknown> = {
+	/** Message shown while the promise is pending. */
+	loading: Children
+	/** Message, or resolver, shown when the promise fulfills. */
+	success: Children | ((value: T) => Children)
+	/** Message, or resolver, shown when the promise rejects. */
+	error: Children | ((error: unknown) => Children)
 }
 
 /** Renderable snapshot of a generated toast. */
-export type ToastView = ToastInput & {
+export type ToastView = ToastOptions & {
 	id: string
+	kind: ToastKind
 	open: boolean
+	title: Children
 }
 
 // `ref` is omitted: the runtime routes a stateful component's ref to its
 // host, so the viewport element ref cannot be part of the public args.
-/** Props for the managed viewport that renders imperative toasts. */
-export type ToasterArgs = OmitArg<ToastViewportArgs, 'children' | 'ref'> & {
+/** Props for the managed viewports that render generated toasts. */
+export type ToasterArgs = OmitArg<ToastViewportArgs, 'children' | 'position' | 'ref'> & {
+	/** Position of toasts that set none. */
+	position?: ToastPosition
 	/** Show every visible toast at full size instead of the compact stack. */
 	expand?: boolean
 	/** Show close buttons on generated toasts. */
 	closeButton?: boolean
 	/** Default auto-dismiss duration for generated toasts. */
 	duration?: number
-	/** Maximum visible generated toasts. */
+	/** Icons rendered before the title, by toast kind. */
+	icons?: Partial<Record<ToastKind, Children>>
+	/** Maximum visible generated toasts per position. */
 	limit?: number
 	/** Pause generated toast timers while the window is blurred. */
 	pauseOnWindowBlur?: boolean
-	contentClass?: string
+	actionClass?: string
 	actionWrapperClass?: string
 	closeClass?: string
 	closeChildren?: Children
+	contentClass?: string
 	descriptionClass?: string
 	titleClass?: string
 	toastClass?: string | ((toast: ToastView) => string | undefined)
 } & FixedArgs<'children' | 'ref'>
 
-type ToastRecord = ToastInput & {
-	id: string
-	open: boolean
-	remaining: number
+type ToastRecord = ToastView & {
+	/** Milliseconds left; unset until a Toaster arms the timer with its default duration. */
+	remaining?: number
 	startedAt: number
 	timeout: ReturnType<typeof setTimeout> | null
 }
 
-type ToastListener = () => void
-
-const defaultDuration = 5000
-const defaultLimit = 3
 const closeDelay = 200
 const hotkeyDefault = ['F8']
 const edgeInset = 16
 const stackGap = 8
 
+// Every position keeps a viewport from the Toaster's first render: each is a
+// polite live region, and screen readers only announce content ADDED to a
+// region already in the accessibility tree.
+const positions: ToastPosition[] = ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right']
+
+const variants: Record<ToastKind, ToastVariant> = {
+	default: 'default',
+	error: 'danger',
+	info: 'info',
+	loading: 'default',
+	success: 'success',
+	warning: 'warning',
+}
+
+// Browser-only store: `add` never writes to it outside a browser, so records
+// cannot leak between server renders that share this module.
 let records: ToastRecord[] = []
-let configuredDuration = defaultDuration
-let configuredLabel: string | undefined
-let configuredPosition: ToastPosition = 'bottom-right'
-const listeners = new Set<ToastListener>()
+const listeners = new Set<() => void>()
 
 const emit = () => {
 	for (const listener of listeners) listener()
@@ -185,87 +192,106 @@ const clearTimer = (record: ToastRecord) => {
 	record.timeout = null
 }
 
-const removeToast = (id: string) => {
-	records = records.filter(record => record.id !== id)
-	emit()
-}
-
 const startTimer = (record: ToastRecord) => {
 	clearTimer(record)
-	if (!browser() || record.remaining <= 0) return
+	if (!record.remaining) return
 
 	record.startedAt = Date.now()
-	record.timeout = setTimeout(() => dismissToast(record.id), record.remaining)
+	record.timeout = setTimeout(() => dismiss(record.id), record.remaining)
 }
 
 const pauseRecord = (record: ToastRecord) => {
 	if (!record.timeout) return
 
 	clearTimer(record)
-	record.remaining = Math.max(0, record.remaining - (Date.now() - record.startedAt))
+	record.remaining = Math.max(0, record.remaining! - (Date.now() - record.startedAt))
 }
 
 const resumeRecord = (record: ToastRecord) => {
-	if (!record.open || record.timeout || record.remaining <= 0) return
+	if (!record.open || record.timeout) return
 	startTimer(record)
 }
 
-const normalize = (input: ToastInput | unknown, options?: Omit<ToastInput, 'title'>): ToastInput => {
-	if (
-		input &&
-		typeof input === 'object' &&
-		(
-			'id' in input ||
-			'title' in input ||
-			'description' in input ||
-			'action' in input ||
-			'closeButton' in input ||
-			'variant' in input ||
-			'duration' in input ||
-			'position' in input
-		)
-	) return input as ToastInput
-
-	return { ...options, title: input }
+const pauseStack = () => {
+	for (const record of records) pauseRecord(record)
 }
 
-const visibleToasts = (limit = defaultLimit, position?: ToastPosition) => {
-	const scoped = position
-		? records.filter(record => record.position === position)
-		: records
-
-	return scoped.slice(0, Math.max(1, limit))
+const resumeStack = () => {
+	for (const record of records) resumeRecord(record)
 }
 
-const subscribeToasts = (listener: ToastListener) => {
-	listeners.add(listener)
-	return () => listeners.delete(listener)
+const add = (kind: ToastKind, title: Children, options: ToastOptions = {}) => {
+	const key = options.id ?? id('toast')
+	if (!browser()) return key
+
+	const existing = records.find(record => record.id === key)
+	const record: ToastRecord = {
+		...options,
+		duration: options.duration ?? (kind === 'loading' ? 0 : undefined),
+		id: key,
+		kind,
+		open: true,
+		startedAt: 0,
+		timeout: null,
+		title,
+	}
+
+	if (existing) clearTimer(existing)
+	records = existing ? records.map(current => current === existing ? record : current) : [record, ...records]
+	emit()
+	return key
 }
 
-const stringValue = (value: unknown) =>
-	typeof value === 'string' ? value : undefined
+/** Dismiss one toast by id, or every toast when no id is passed. */
+const dismiss = (key?: string) => {
+	for (const record of records) {
+		if (!record.open || (key != null && record.id !== key)) continue
+		clearTimer(record)
+		record.open = false
+		setTimeout(() => {
+			records = records.filter(current => current !== record)
+			emit()
+		}, closeDelay)
+	}
+	emit()
+}
 
-const booleanValue = (value: unknown, fallback: boolean) =>
-	typeof value === 'boolean' ? value : fallback
+const resolve = <T,>(message: Children | ((value: T) => Children), value: T) =>
+	typeof message === 'function' ? (message as (value: T) => Children)(value) : message
 
-const hotkeyValue = (value: unknown) =>
-	Array.isArray(value) && value.every(item => typeof item === 'string')
-		? value
-		: hotkeyDefault
+const promise = <T,>(
+	task: Promise<T> | (() => Promise<T>),
+	messages: ToastPromiseMessages<T>,
+	options: ToastOptions = {},
+) => {
+	const key = add('loading', messages.loading, { ...options, duration: 0 })
+	const settled = { ...options, id: key }
 
-const positions = new Set<ToastPosition>([
-	'bottom-center',
-	'bottom-left',
-	'bottom-right',
-	'top-center',
-	'top-left',
-	'top-right',
-])
+	return Promise.resolve().then(() => typeof task === 'function' ? task() : task).then(value => {
+		add('success', resolve(messages.success, value), settled)
+		return value
+	}, (error: unknown) => {
+		add('error', resolve(messages.error, error), settled)
+		throw error
+	})
+}
 
-const positionValue = (value: unknown): ToastPosition =>
-	typeof value === 'string' && positions.has(value as ToastPosition)
-		? value as ToastPosition
-		: 'bottom-right'
+const kind = (type: ToastKind) => (message: Children, options?: ToastOptions) => add(type, message, options)
+
+/**
+ * Show a toast and return its id. Calling again with `{ id }` replaces that
+ * toast; `toast.dismiss(id)` closes it. Outside a browser it only returns an id.
+ */
+export const toast = Object.assign(kind('default'), {
+	error: kind('error'),
+	info: kind('info'),
+	loading: kind('loading'),
+	success: kind('success'),
+	warning: kind('warning'),
+	/** Show a loading toast that becomes a success or error toast when `task` settles. */
+	promise,
+	dismiss,
+})
 
 const composeClick = (
 	previous: unknown,
@@ -275,108 +301,9 @@ const composeClick = (
 	next?.()
 }
 
-const resolveClass = (
-	value: ToasterArgs['toastClass'],
-	toast: ToastView,
-) => typeof value === 'function' ? value(toast) : value
-
-/** Add a generated toast and return controls for updating or dismissing it. */
-export const toast = (
-	input: ToastInput | unknown,
-	options?: Omit<ToastInput, 'title'>,
-): ToastController => {
-	const data = normalize(input, options)
-	const toastId = data.id ?? id('toast')
-	const existing = records.find(record => record.id === toastId)
-	const duration = data.duration ?? existing?.duration ?? configuredDuration
-	const record: ToastRecord = {
-		...existing,
-		...data,
-		id: toastId,
-		duration,
-		open: true,
-		remaining: Math.max(0, duration),
-		startedAt: 0,
-		timeout: existing?.timeout ?? null,
-		variant: data.variant ?? existing?.variant ?? 'default',
-		position: data.position ?? existing?.position ?? configuredPosition,
-	}
-
-	if (existing) {
-		clearTimer(existing)
-		records = records.map(current => current.id === toastId ? record : current)
-	} else {
-		records = [record, ...records]
-	}
-
-	startTimer(record)
-	emit()
-
-	return {
-		id: toastId,
-		dismiss: () => dismissToast(toastId),
-		update: patch => updateToast(toastId, patch),
-	}
-}
-
-/** Update an existing generated toast. */
-export const updateToast = (id: string, patch: ToastInput) => {
-	const record = records.find(current => current.id === id)
-	if (!record) return
-
-	clearTimer(record)
-	Object.assign(record, patch, {
-		duration: patch.duration ?? record.duration,
-		remaining: Math.max(0, patch.duration ?? record.duration ?? defaultDuration),
-	})
-	startTimer(record)
-	emit()
-}
-
-/** Dismiss one generated toast, or every generated toast when no id is passed. */
-export const dismissToast = (id?: string) => {
-	const targets = id ? records.filter(record => record.id === id) : records
-
-	for (const record of targets) {
-		clearTimer(record)
-		record.open = false
-	}
-
-	emit()
-
-	if (!browser()) {
-		records = id ? records.filter(record => record.id !== id) : []
-		emit()
-		return
-	}
-
-	for (const record of targets) {
-		setTimeout(() => removeToast(record.id), closeDelay)
-	}
-}
-
-/** Remove all generated toasts immediately. Useful for deterministic tests and stories. */
-export const clearToasts = () => {
-	for (const record of records) clearTimer(record)
-	records = []
-	emit()
-}
-
-/** Provider for toast defaults. */
-const ToastProvider: Stateless<ToastProviderArgs> = ({
-	children,
-	duration = defaultDuration,
-	label,
-}) => {
-	configuredDuration = duration
-	configuredLabel = label
-	return children
-}
-
 // Inline corner placement per position. The popupStyle reset zeroes the UA
 // popover inset, and inline declarations are the only ones that can win over
-// that reset, so the operative placement lives here; themed position classes
-// agree with (and never fight) these values.
+// that reset, so the operative placement lives here.
 const viewportInsets: Record<ToastPosition, string> = {
 	'bottom-center': 'bottom:0;left:50%;transform:translateX(-50%)',
 	'bottom-left': 'bottom:0;left:0',
@@ -392,26 +319,24 @@ const ToastViewport: Stateless<ToastViewportArgs> = ({
 	class: classes,
 	hotkey = hotkeyDefault,
 	label,
-	popover = 'manual',
 	position = 'bottom-right',
 	style,
 	tabIndex = -1,
 	...attrs
 }) => {
 	const hotkeyText = hotkey.join('+')
-	const title = label ?? configuredLabel ?? `Notifications (${hotkeyText})`
 
 	return (
 		<ol
 			{...attrs}
 			aria-atomic="false"
-			aria-label={title}
+			aria-label={label ?? `Notifications (${hotkeyText})`}
 			aria-live="polite"
 			class={classes}
 			data-hotkey={hotkeyText}
 			data-position={position}
 			data-slot="toast-viewport"
-			popover={popover}
+			popover="manual"
 			role="region"
 			style={popupStyle(
 				// Beyond inset/margin, the UA popover rule paints a bordered
@@ -433,24 +358,21 @@ const ToastViewport: Stateless<ToastViewportArgs> = ({
 const Toast: Stateless<ToastArgs> = ({
 	children,
 	class: classes,
-	open = true,
 	role,
-	type = 'foreground',
 	variant = 'default',
 	...attrs
-}) => open ? (
+}) => (
 	<li
 		{...attrs}
 		class={classes}
 		data-slot="toast"
 		data-state="open"
-		data-type={type}
 		data-variant={variant}
 		role={role ?? (variant === 'danger' ? 'alert' : 'status')}
 	>
 		{children}
 	</li>
-) : null
+)
 
 /** Toast title slot. */
 const ToastTitle = part<ToastTitleArgs>('div', 'toast-title')
@@ -505,63 +427,54 @@ const ToastClose: Stateless<ToastCloseArgs> = ({
 	</button>
 )
 
-/** Render generated toasts from the module-level toast store. */
-const Toaster: Stateful<ToasterArgs> = function* ({
-	hotkey = hotkeyDefault,
-	limit = defaultLimit,
-	pauseOnWindowBlur = true,
-}) {
-	let rootViewport: HTMLOListElement | null = null
-	let portalViewport: HTMLOListElement | null = null
+/**
+ * Render generated toasts from the module-level store in one viewport per
+ * position, each mounted and shown from the first render.
+ */
+const Toaster: Stateful<ToasterArgs> = function* () {
 	let portalMount: HTMLElement | null = null
 	let portalWatch: MutationObserver | null = null
-	let renderPortal: ((items: ToastRecord[]) => void) | null = null
+	let renderPortal: ((empty: boolean) => void) | null = null
 	const modals: HTMLDialogElement[] = []
-	let toasts = visibleToasts(toNumber(limit, defaultLimit))
-	let currentHotkey: string[] = hotkeyValue(hotkey)
-	let currentPauseOnWindowBlur = booleanValue(pauseOnWindowBlur, true)
-	let hovered = false
 	const heights = new Map<string, number>()
+	let hovered: ToastPosition | null = null
+	let front: ToastPosition = 'bottom-right'
+	let hotkey = hotkeyDefault
+	let pauseOnWindowBlur = true
 
 	// While a modal dialog hosts the portal, the toasts live there: the
-	// active viewport is wherever they currently render.
-	const viewport = () => portalMount ? portalViewport : rootViewport
+	// active viewports are wherever they currently render.
+	const active = (): ParentNode => portalMount ?? this
 
 	const measure = () => {
-		const host = viewport()
-		if (!host) return
 		const known = new Set(records.map(record => record.id))
 		let changed = false
 		for (const key of Array.from(heights.keys())) {
 			if (!known.has(key)) heights.delete(key)
 		}
-		for (const element of Array.from(host.querySelectorAll<HTMLElement>('[data-slot="toast"]'))) {
-			const id = element.dataset.toastId
-			if (!id || !known.has(id)) continue
+		for (const element of Array.from(active().querySelectorAll<HTMLElement>('[data-slot="toast"]'))) {
+			const key = element.dataset.toastId
+			if (!key || !known.has(key)) continue
 			const height = element.offsetHeight
-			if (heights.get(id) !== height) {
-				heights.set(id, height)
+			if (heights.get(key) !== height) {
+				heights.set(key, height)
 				changed = true
 			}
 		}
 		if (changed) this.next()
 	}
 
-	// Viewport top-layer lifecycle: shown from mount onward, empty included.
-	// The viewport is the polite live region, and screen readers only announce
-	// content ADDED to a region that already exists in the accessibility tree —
-	// a region that first appears together with its content stays silent, so
-	// hiding while empty would swallow the first role=status toast of every
-	// stack. A shown-but-empty viewport is harmless (pointer-events-none);
-	// hide+show happens ONLY for the epoch re-promotion below.
-	// openPopover/closePopover guard missing support, repeat calls, and
-	// InvalidStateError.
+	// Viewport top-layer lifecycle: shown from mount onward, empty included,
+	// because each viewport is a live region (see `positions`). A shown-but-empty
+	// viewport is harmless (pointer-events-none); hide+show happens ONLY for
+	// the epoch re-promotion below. openPopover/closePopover guard missing
+	// support, repeat calls, and InvalidStateError.
 	//
 	// Modal nuance, verified against Chromium: "hide all popovers" only pops
 	// the auto stack, so showModal() leaves a shown manual viewport open but
 	// BELOW the later-promoted <dialog> (top-layer order is promotion order).
 	// The epochs track modals promoted after our last show; hide+show in the
-	// same task (no paint in between) moves the viewport back above. Gating
+	// same task (no paint in between) moves the viewports back above. Gating
 	// on the epoch keeps re-promotion to once per modal, so ordinary emits do
 	// not flip display and replay the toasts' @starting-style enter
 	// transitions.
@@ -569,36 +482,30 @@ const Toaster: Stateful<ToasterArgs> = function* ({
 	let promotedEpoch = 0
 
 	const syncViewport = () => {
-		if (!rootViewport?.isConnected) return
-		if (promotedEpoch < topLayerEpoch) closePopover(rootViewport)
-		openPopover(rootViewport)
+		for (const viewport of Array.from(this.children) as HTMLElement[]) {
+			if (promotedEpoch < topLayerEpoch) closePopover(viewport)
+			openPopover(viewport)
+		}
 		promotedEpoch = topLayerEpoch
 	}
 
 	const syncPortal = () => {
-		if (portalViewport?.isConnected) openPopover(portalViewport)
+		if (!portalMount?.isConnected) return
+		for (const viewport of Array.from(portalMount.children) as HTMLElement[]) openPopover(viewport)
 	}
 
 	// Foreign hides (an engine hiding popovers on showModal, or an outside
-	// hidePopover call) re-show: the live region must stay present. Our own
+	// hidePopover call) re-show: the live regions must stay present. Our own
 	// hide only happens during epoch re-promotion, which reopens synchronously
 	// before this microtask runs, so neither can loop. Deferred to a microtask
 	// so the re-show lands after the hide settles. Tearing a portal viewport
 	// down never lands here: removal-triggered popover hides fire no toggle.
 	const onViewportToggle = (event: ToggleEvent) => {
 		if (event.newState !== 'closed') return
-		const target = event.currentTarget as HTMLOListElement
 		queueMicrotask(() => {
-			if (target === portalViewport) syncPortal()
-			else if (target === rootViewport) syncViewport()
+			syncViewport()
+			syncPortal()
 		})
-	}
-
-	const pauseStack = () => {
-		for (const record of records) pauseRecord(record)
-	}
-	const resumeStack = () => {
-		for (const record of records) resumeRecord(record)
 	}
 
 	// Portal root: while a modal dialog exposing a portal outlet is open, the
@@ -608,8 +515,8 @@ const Toaster: Stateful<ToasterArgs> = function* ({
 	// above the dialog but never win a hit test (clicks fall through to the
 	// backdrop and light-dismiss the dialog), and their live region is pruned
 	// from the accessibility tree. The outlet carries `skip`, so the dialog's
-	// own tree never reconciles the portal DOM. The root viewport meanwhile
-	// stays shown-but-empty, keeping its polite live region alive for the
+	// own tree never reconciles the portal DOM. The root viewports meanwhile
+	// stay shown-but-empty, keeping their polite live regions alive for the
 	// next root-rendered toast. Modals without an outlet (raw dialogs) keep
 	// the old visible-but-inert behavior.
 	const portalOutlet = (dialog: HTMLDialogElement) =>
@@ -620,7 +527,7 @@ const Toaster: Stateful<ToasterArgs> = function* ({
 	// below the top one is inert too, so falling through to a lower outlet
 	// would trap the toasts inert and painted under the topmost backdrop.
 	// A topmost modal without an outlet returns null — the toasts fall back
-	// to the root viewport (visible-but-inert above the modal).
+	// to the root viewports (visible-but-inert above the modal).
 	const portalTarget = () => {
 		for (let index = modals.length - 1; index >= 0; index--) {
 			const dialog = modals[index]
@@ -644,36 +551,37 @@ const Toaster: Stateful<ToasterArgs> = function* ({
 			portalWatch = new MutationObserver(() => {
 				if ((portalMount && !portalMount.isConnected) || modals.some(dialog => !dialog.isConnected)) rehome()
 			})
-			portalWatch.observe(document.documentElement, { childList: true, subtree: true })
+			portalWatch.observe(this.ownerDocument.documentElement, { childList: true, subtree: true })
 		} else if (!wanted && portalWatch) {
 			portalWatch.disconnect()
 			portalWatch = null
 		}
 	}
 
+	const unmountPortal = () => {
+		if (!portalMount) return
+		render(null, portalMount)
+		portalMount.remove()
+		portalMount = null
+	}
+
 	const rehome = () => {
 		const outlet = portalTarget()
 		if (outlet !== (portalMount?.parentElement ?? null)) {
-			if (portalMount) {
-				render(null, portalMount)
-				portalMount.remove()
-				portalMount = null
-				portalViewport = null
-			}
+			unmountPortal()
 			if (outlet) {
-				portalMount = document.createElement('div')
+				portalMount = this.ownerDocument.createElement('div')
 				portalMount.style.display = 'contents'
 				outlet.append(portalMount)
-				// Two-phase mount: show the EMPTY portal region now so a
+				// Two-phase mount: show the EMPTY portal regions now so a
 				// toast arriving in the upcoming render is an addition to an
-				// existing live region — a region that first appears together
-				// with its content stays silent.
-				renderPortal?.([])
+				// existing live region.
+				renderPortal?.(true)
 			}
 			// The pointer's hover chain broke with the swap; resume and let
 			// a fresh pointerenter on the new viewport re-pause.
 			if (hovered) {
-				hovered = false
+				hovered = null
 				resumeStack()
 			}
 			this.next()
@@ -683,7 +591,7 @@ const Toaster: Stateful<ToasterArgs> = function* ({
 
 	// Modal dialogs fire toggle events on open and close; capture them
 	// document-wide (toggle does not bubble). A modal opening AFTER the
-	// viewport was shown re-promotes it, and a modal exposing a portal
+	// viewports were shown re-promotes them, and a modal exposing a portal
 	// outlet re-homes the toasts into its subtree. Non-modal show() never
 	// enters the top layer, so it neither bumps the epoch nor hosts toasts.
 	const onTopLayerToggle = (event: Event) => {
@@ -704,48 +612,40 @@ const Toaster: Stateful<ToasterArgs> = function* ({
 	}
 
 	const sync = () => this.next()
-	const unsubscribe = subscribeToasts(sync)
+	listeners.add(sync)
 	this.signal.addEventListener('abort', () => {
-		unsubscribe()
+		listeners.delete(sync)
 		portalWatch?.disconnect()
 		portalWatch = null
-		if (portalMount) {
-			render(null, portalMount)
-			portalMount.remove()
-			portalMount = null
-			portalViewport = null
-		}
+		unmountPortal()
 	}, { once: true })
 
-	const focusViewport = (_event: KeyboardEvent) => viewport()?.focus()
-
-	const pauseAll = () => {
-		if (!currentPauseOnWindowBlur) return
-		for (const record of records) pauseRecord(record)
-	}
-	const resumeAll = () => {
-		if (!currentPauseOnWindowBlur) return
-		for (const record of records) resumeRecord(record)
+	const onWindow = (event: Event) => {
+		if (!pauseOnWindowBlur) return
+		if (event.type === 'blur') pauseStack()
+		else resumeStack()
 	}
 
 	bindHotkey(this, {
-		keys: () => currentHotkey.join('+'),
-		active: () => toasts.length > 0,
-		onPress: event => focusViewport(event),
+		keys: () => hotkey.join('+'),
+		active: () => records.length > 0,
+		onPress: () => active().querySelector<HTMLElement>(`[data-slot="toast-viewport"][data-position="${front}"]`)?.focus(),
 	})
 
 	if (browser()) {
-		window.addEventListener('blur', pauseAll, { signal: this.signal })
-		window.addEventListener('focus', resumeAll, { signal: this.signal })
-		document.addEventListener('toggle', onTopLayerToggle, { capture: true, signal: this.signal })
+		const owner = this.ownerDocument
+		owner.defaultView?.addEventListener('blur', onWindow, { signal: this.signal })
+		owner.defaultView?.addEventListener('focus', onWindow, { signal: this.signal })
+		owner.addEventListener('toggle', onTopLayerToggle, { capture: true, signal: this.signal })
 		// Modals already open before this Toaster mounted never fire a toggle
 		// we can see; seed them so the first render can portal into them.
-		for (const dialog of Array.from(document.querySelectorAll<HTMLDialogElement>('dialog'))) {
+		for (const dialog of Array.from(owner.querySelectorAll<HTMLDialogElement>('dialog'))) {
 			if (dialog.matches(':modal')) modals.push(dialog)
 		}
 	}
 
 	for (const {
+		actionClass,
 		actionWrapperClass,
 		class: classes,
 		closeButton = true,
@@ -753,133 +653,139 @@ const Toaster: Stateful<ToasterArgs> = function* ({
 		closeClass,
 		contentClass,
 		descriptionClass,
-		duration = defaultDuration,
+		duration = 5000,
 		expand = false,
-		hotkey = hotkeyDefault,
+		hotkey: keys = hotkeyDefault,
+		icons,
 		label,
-		limit = defaultLimit,
-		pauseOnWindowBlur = true,
+		limit = 3,
+		pauseOnWindowBlur: pause = true,
 		position = 'bottom-right',
 		titleClass,
 		toastClass,
 		...attrs
 	} of this) {
-		const nextClass = stringValue(classes)
-		const nextCloseButton = booleanValue(closeButton, true)
-		const nextDuration = toNumber(duration, defaultDuration)
-		const nextHotkey = hotkeyValue(hotkey)
-		const nextLabel = stringValue(label) ?? configuredLabel
-		const nextLimit = toNumber(limit, defaultLimit)
-		const nextPauseOnWindowBlur = booleanValue(pauseOnWindowBlur, true)
-		const nextPosition = positionValue(position)
+		hotkey = keys
+		pauseOnWindowBlur = pause
+		front = records[0]?.position ?? position
 
-		configuredDuration = nextDuration
-		configuredPosition = nextPosition
-		currentHotkey = nextHotkey
-		currentPauseOnWindowBlur = nextPauseOnWindowBlur
-		toasts = visibleToasts(nextLimit, nextPosition)
+		// A toast's timer starts once a Toaster shows it, with this Toaster's
+		// default duration when the toast set none.
+		for (const record of records) {
+			if (record.remaining != null) continue
+			record.remaining = record.duration ?? duration
+			startTimer(record)
+		}
 
 		// A toast fired while the pointer rests on the stack starts its timer
 		// (pointerenter cannot re-fire under a stationary pointer); re-pause
 		// here so the newcomer freezes with the rest. pauseRecord is idempotent.
 		if (hovered) pauseStack()
 
-		const bottom = nextPosition.startsWith('bottom')
-		const lift = bottom ? -1 : 1
-		const expanded = booleanValue(expand, false) || hovered
-		const frontHeight = heights.get(toasts[0]?.id ?? '') ?? 0
-		const openToasts = toasts.filter(item => item.open)
-		const stackHeight = edgeInset + (expanded
-			? openToasts.reduce((total, item) => total + (heights.get(item.id) ?? 0), 0) + Math.max(0, openToasts.length - 1) * stackGap
-			: frontHeight)
+		const stack = (at: ToastPosition, items: ToastRecord[], portal: boolean) => {
+			const bottom = at.startsWith('bottom')
+			const lift = bottom ? -1 : 1
+			const expanded = expand || hovered === at
+			const frontHeight = heights.get(items[0]?.id ?? '') ?? 0
+			const open = items.filter(item => item.open)
+			const stackHeight = edgeInset + (expanded
+				? open.reduce((total, item) => total + (heights.get(item.id) ?? 0), 0) + Math.max(0, open.length - 1) * stackGap
+				: frontHeight)
 
-		// One builder, two roots: the yielded tree renders the root viewport
-		// (empty while a portal hosts the toasts), and the portal root renders
-		// the same view inside the open modal's outlet.
-		const view = (items: typeof toasts, portal: boolean) => (
-			<ToastViewport
-				{...attrs}
-				class={nextClass}
-				data-portal={portal ? 'true' : undefined}
-				hotkey={nextHotkey}
-				// A caller-passed id must not duplicate across the two
-				// simultaneously mounted viewports; the root keeps it.
-				id={portal ? undefined : attrs.id}
-				label={nextLabel}
-				position={nextPosition}
-				ref={(element: HTMLOListElement | null) => {
-					if (portal) portalViewport = element
-					else rootViewport = element
-				}}
-				style={`--front-toast-height:${frontHeight}px;--toast-gap:${stackGap}px;height:${stackHeight}px`}
-				set:ontoggle={onViewportToggle}
-				set:onpointerenter={() => {
-					if (hovered) return
-					hovered = true
-					pauseStack()
-					this.next()
-				}}
-				set:onpointerleave={() => {
-					if (!hovered) return
-					hovered = false
-					resumeStack()
-					this.next()
-				}}
-			>
-				{items.map((item, index) => {
-					const depth = Math.min(index, 2)
-					const offset = expanded
-						? items.slice(0, index).reduce((total, prior) => prior.open ? total + (heights.get(prior.id) ?? 0) + stackGap : total, 0)
-						: depth * 14
+			return (
+				<ToastViewport
+					key={at}
+					{...attrs}
+					class={classes}
+					data-portal={portal ? 'true' : undefined}
+					hotkey={keys}
+					// A caller-passed id must stay unique: only the root
+					// viewport of the default position keeps it.
+					id={portal || at !== position ? undefined : attrs.id}
+					label={label}
+					position={at}
+					style={`--front-toast-height:${frontHeight}px;--toast-gap:${stackGap}px;height:${stackHeight}px`}
+					set:ontoggle={onViewportToggle}
+					set:onpointerenter={() => {
+						if (hovered === at) return
+						hovered = at
+						pauseStack()
+						this.next()
+					}}
+					set:onpointerleave={() => {
+						if (hovered !== at) return
+						hovered = null
+						resumeStack()
+						this.next()
+					}}
+				>
+					{items.map((item, index) => {
+						const depth = Math.min(index, 2)
+						const offset = expanded
+							? items.slice(0, index).reduce((total, prior) => prior.open ? total + (heights.get(prior.id) ?? 0) + stackGap : total, 0)
+							: depth * 14
+						const icon = icons?.[item.kind]
 
-					return (
-						<Toast
-							class={clx(resolveClass(toastClass, item), item.class)}
-							data-closing={item.open ? 'false' : 'true'}
-							data-expanded={expanded ? 'true' : 'false'}
-							data-front={index === 0 ? 'true' : 'false'}
-							data-side={bottom ? 'bottom' : 'top'}
-							data-toast-id={item.id}
-							data-toast-index={index}
-							key={item.id}
-							role={item.role}
-							set:onfocusin={() => pauseRecord(item)}
-							set:onfocusout={() => resumeRecord(item)}
-							set:onpointerenter={() => pauseRecord(item)}
-							set:onpointerleave={() => {
-								if (!hovered) resumeRecord(item)
-							}}
-							style={[
-								`--toast-y:${lift * offset}px`,
-								`--toast-scale:${expanded ? 1 : 1 - depth * 0.04}`,
-								`z-index:${100 - index}`,
-							].join(';')}
-							type={item.type}
-							variant={item.variant}
-						>
-							<div class={contentClass} data-slot="toast-content">
-								{item.title == null ? null : <ToastTitle class={titleClass}>{item.title}</ToastTitle>}
-								{item.description == null ? null : <ToastDescription class={descriptionClass}>{item.description}</ToastDescription>}
-							</div>
-							{item.action == null ? null : (
-								<div class={actionWrapperClass} data-slot="toast-action-wrapper">
-									{item.action}
+						return (
+							<Toast
+								class={clx(typeof toastClass === 'function' ? toastClass(item) : toastClass, item.class)}
+								data-closing={item.open ? 'false' : 'true'}
+								data-expanded={expanded ? 'true' : 'false'}
+								data-front={index === 0 ? 'true' : 'false'}
+								data-side={bottom ? 'bottom' : 'top'}
+								data-toast-id={item.id}
+								data-toast-index={index}
+								key={item.id}
+								role={item.important || item.kind === 'error' ? 'alert' : 'status'}
+								set:onfocusin={() => pauseRecord(item)}
+								set:onfocusout={() => resumeRecord(item)}
+								set:onpointerenter={() => pauseRecord(item)}
+								set:onpointerleave={() => {
+									if (!hovered) resumeRecord(item)
+								}}
+								style={[
+									`--toast-y:${lift * offset}px`,
+									`--toast-scale:${expanded ? 1 : 1 - depth * 0.04}`,
+									`z-index:${100 - index}`,
+								].join(';')}
+								variant={variants[item.kind]}
+							>
+								<div class={contentClass} data-slot="toast-content">
+									<ToastTitle class={titleClass}>
+										{icon == null ? null : <span data-slot="toast-icon">{icon}</span>}
+										{item.title}
+									</ToastTitle>
+									{item.description == null ? null : <ToastDescription class={descriptionClass}>{item.description}</ToastDescription>}
 								</div>
-							)}
-							{(item.closeButton ?? nextCloseButton) ? (
-								<ToastClose class={closeClass} onClose={() => dismissToast(item.id)}>
-									{closeChildren}
-								</ToastClose>
-							) : null}
-						</Toast>
-					)
-				})}
-			</ToastViewport>
-		)
+								{item.action == null ? null : (
+									<div class={actionWrapperClass} data-slot="toast-action-wrapper">
+										<ToastAction class={actionClass} onAction={item.action.onClick}>{item.action.label}</ToastAction>
+									</div>
+								)}
+								{(item.closeButton ?? closeButton) ? (
+									<ToastClose class={closeClass} onClose={() => dismiss(item.id)}>
+										{closeChildren}
+									</ToastClose>
+								) : null}
+							</Toast>
+						)
+					})}
+				</ToastViewport>
+			)
+		}
 
-		renderPortal = items => {
+		// One builder, two roots: the yielded tree renders the root viewports
+		// (empty while a portal hosts the toasts), and the portal root renders
+		// the same viewports inside the open modal's outlet.
+		const view = (portal: boolean, empty: boolean) => positions.map(at => stack(
+			at,
+			empty ? [] : records.filter(record => (record.position ?? position) === at).slice(0, limit),
+			portal,
+		))
+
+		renderPortal = empty => {
 			if (!portalMount?.isConnected) return
-			render(view(items, true), portalMount)
+			render(view(true, empty), portalMount)
 			syncPortal()
 		}
 
@@ -891,7 +797,7 @@ const Toaster: Stateful<ToasterArgs> = function* ({
 		// its portal on the first render.
 		if (browser()) queueMicrotask(() => {
 			if (portalMount?.isConnected) {
-				renderPortal?.(toasts)
+				renderPortal?.(false)
 			} else if (portalMount || (modals.length && portalTarget())) {
 				rehome()
 			}
@@ -899,7 +805,7 @@ const Toaster: Stateful<ToasterArgs> = function* ({
 			measure()
 		})
 
-		yield view(portalMount ? [] : toasts, false)
+		yield view(false, Boolean(portalMount))
 	}
 }
 
@@ -911,7 +817,6 @@ export {
 	ToastAction,
 	ToastClose,
 	ToastDescription,
-	ToastProvider,
 	ToastTitle,
 	ToastViewport,
 }

@@ -41,7 +41,7 @@ function assertCloseVisible(close: HTMLButtonElement | null): asserts close is H
 }
 
 const DefaultDemo: Stateful = function* () {
-	toast.clear()
+	toast.dismiss()
 
 	const show = () => toast('Event has been created.', {
 		description: 'Sunday, December 03, 2023 at 9:00 AM',
@@ -56,7 +56,7 @@ const DefaultDemo: Stateful = function* () {
 }
 
 const StackedDemo: Stateful = function* () {
-	toast.clear()
+	toast.dismiss()
 
 	const show = () => {
 		toast('Copy Page', { description: 'Copied to clipboard.', duration: 0 })
@@ -80,7 +80,7 @@ const StackedDemo: Stateful = function* () {
 }
 
 const TypesDemo: Stateful = function* () {
-	toast.clear()
+	toast.dismiss()
 
 	while (true) yield (
 		<div class="flex min-h-48 flex-wrap items-center justify-center gap-2">
@@ -96,7 +96,7 @@ const TypesDemo: Stateful = function* () {
 }
 
 const ActionDemo: Stateful = function* () {
-	toast.clear()
+	toast.dismiss()
 
 	const show = () => toast('Event has been created', {
 		action: {
@@ -115,7 +115,7 @@ const ActionDemo: Stateful = function* () {
 }
 
 const PromiseDemo: Stateful = function* () {
-	toast.clear()
+	toast.dismiss()
 
 	const show = () => {
 		void toast.promise(
@@ -137,7 +137,7 @@ const PromiseDemo: Stateful = function* () {
 }
 
 const AboveModalDemo: Stateful = function* () {
-	toast.clear()
+	toast.dismiss()
 
 	const early = () => toast('Deploy queued', { description: 'Fired before the modal opened.', duration: 0 })
 	const inside = () => toast('Saved from the modal', { description: 'Fired while the dialog is open.', duration: 0 })
@@ -162,7 +162,7 @@ const AboveModalDemo: Stateful = function* () {
 }
 
 const PositionDemo: Stateful = function* () {
-	toast.clear()
+	toast.dismiss()
 
 	const show = () => toast('Event has been created', { position: 'top-center' })
 
@@ -175,7 +175,7 @@ const PositionDemo: Stateful = function* () {
 }
 
 const HoverPauseDemo: Stateful = function* () {
-	toast.clear()
+	toast.dismiss()
 
 	const anchor = () => toast('Sticky while hovered', { duration: 0 })
 
@@ -465,10 +465,10 @@ export const AboveModal: Story = {
 			throw new Error('Surviving toasts should re-home to the root viewport after the modal closes')
 		}
 
-		toast.clear()
-		await nextFrame()
+		toast.dismiss()
+		await wait(300)
 		if (canvas.querySelector('[data-slot="toast"]')) {
-			throw new Error('Toast stack should be empty after clear')
+			throw new Error('Toast stack should be empty after dismissing every toast')
 		}
 		if (!viewport.matches(':popover-open')) {
 			throw new Error('Toast viewport live region should stay shown after the stack empties')
@@ -510,7 +510,7 @@ export const HoverPause: Story = {
 			throw new Error('Toast did not resume its timer after the pointer left')
 		}
 
-		toast.clear()
+		toast.dismiss()
 	},
 }
 

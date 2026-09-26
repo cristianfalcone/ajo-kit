@@ -33,7 +33,7 @@ import { Sidebar, SidebarContent, SidebarProvider } from 'ajo-ui/sidebar'
 import { Slider } from 'ajo-ui/slider'
 import { Switch } from 'ajo-ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'ajo-ui/tabs'
-import { Toaster } from 'ajo-ui/toast'
+import { Toaster, toast } from 'ajo-ui/toast'
 import { Toggle } from 'ajo-ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from 'ajo-ui/toggle-group'
 import { Toolbar, ToolbarSeparator } from 'ajo-ui/toolbar'
@@ -282,6 +282,15 @@ for (const [family, root] of Object.entries(roots)) {
 		expect(html.length).toBeGreaterThan(0)
 	})
 }
+
+test('SSR toast() returns an id and leaves the shared store untouched', () => {
+	const id = toast('Request-local', { position: 'top-left' })
+	const html = ssr(jsx(Toaster, {}))
+
+	expect(typeof id).toBe('string')
+	expect(html).not.toContain('Request-local')
+	expect(html).not.toContain('data-slot="toast"')
+})
 
 test('SSR Popover keeps one manual semantic surface with stable trigger relations', () => {
 	const html = ssr(roots.popover())

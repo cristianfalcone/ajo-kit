@@ -138,7 +138,7 @@ export const playa = definePreset(() => ({
         // the whole theme). Only a genuinely missing backdrop-filter gets a
         // solid fallback; doubled selectors outrank the single-class shortcut
         // and utility rules without depending on layer order.
-        '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.glass.glass,.glass-chrome.glass-chrome{background-color:var(--card)}.glass-overlay.glass-overlay,.playa-popover-content>[data-slot=popup-surface]{background-color:var(--popover)}[data-slot=toast][data-slot=toast]{background-color:var(--popover)}[data-slot=toast][data-variant=danger]{background-color:color-mix(in srgb,var(--danger) 12%,var(--popover))}[data-slot=toast][data-variant=info]{background-color:color-mix(in srgb,var(--info) 12%,var(--popover))}[data-slot=toast][data-variant=success]{background-color:color-mix(in srgb,var(--success) 12%,var(--popover))}[data-slot=toast][data-variant=warning]{background-color:color-mix(in srgb,var(--warning) 12%,var(--popover))}}',
+        '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.glass.glass,.glass-chrome.glass-chrome{background-color:var(--card)}.glass-overlay.glass-overlay,.playa-popover-content>[data-slot=popup-surface]{background-color:var(--popover)}[data-slot=toast][data-slot=toast]{background-color:var(--popover)}[data-slot=toast][data-variant=danger]{background-color:color-mix(in srgb,var(--danger) 12%,var(--popover))}[data-slot=toast][data-variant=info]:not(.glass-overlay){background-color:color-mix(in srgb,var(--info) 12%,var(--popover))}[data-slot=toast][data-variant=success]:not(.glass-overlay){background-color:color-mix(in srgb,var(--success) 12%,var(--popover))}[data-slot=toast][data-variant=warning]:not(.glass-overlay){background-color:color-mix(in srgb,var(--warning) 12%,var(--popover))}}',
         // Pressed buttons inside connected groups skip the press scale: group
         // segments touch to share their hairlines, and shrinking one opens a
         // visible gap on both sides.
@@ -160,6 +160,8 @@ export const playa = definePreset(() => ({
         '[data-slot=toast]{position:absolute;left:1rem;right:1rem;width:auto;transform:translateY(var(--toast-y,0)) scale(var(--toast-scale,1))}',
         '[data-slot=toast][data-side=bottom]{bottom:1rem}',
         '[data-slot=toast][data-side=top]{top:1rem}',
+        '[data-slot=toast-title]:has(>[data-slot=toast-icon]){display:flex;align-items:flex-start;gap:.5rem}',
+        '[data-slot=toast-icon]{display:inline-flex;flex-shrink:0;margin-top:.125rem}',
         // The viewport is pointer-events-none, so hover continuity is carried
         // entirely by the toasts' own hit areas: each toast grows an invisible
         // bridge over the gap toward its next-older sibling, and a closing
