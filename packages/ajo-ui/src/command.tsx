@@ -3,7 +3,7 @@ import { announce, callHandler, controlled, dom, id, listen, roving, statefulRoo
 import { context } from 'ajo/context'
 import { activate, flag, text } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
-import { collection, defaultResultsLabel, matchesTokens, resolveFilter } from './collection'
+import { collection, matchesTokens, resolveFilter, resultCount } from './collection'
 import {
 	Dialog,
 	DialogClose,
@@ -71,17 +71,13 @@ export type CommandDialogArgs = WithChildren<OmitArg<IntrinsicElements['dialog']
 	titleClass?: string
 }>
 
-/** Arguments for the search input bound to a Command root. */
-export type CommandInputArgs = OmitArg<IntrinsicElements['input'], 'onchange'> & {
-	/** Controlled input value. Prefer Command `search` for root-level control. */
-	value?: string
-	/** Called whenever the input value changes. */
-	onValueChange?: (value: string, event: Event) => void
+/** Arguments for the search input bound to a Command root; Command `search` owns its value. */
+export type CommandInputArgs = OmitArg<IntrinsicElements['input'], 'onchange' | 'value'> & {
 	/** Additional UnoCSS classes. */
 	class?: string
 	iconClass?: string
 	wrapperClass?: string
-} & FixedArgs<'onchange'>
+} & FixedArgs<'onchange' | 'value'>
 
 /** Arguments for the Command listbox container. */
 export type CommandListArgs = WithChildren<IntrinsicElements['div'] & {
@@ -155,9 +151,7 @@ const commandItems = collection('command')
 
 const CommandRoot: Stateful<CommandArgs> = function* ({ defaultSearch, defaultValue, search, value }) {
 	const commandId = id('command')
-	let announceResults = false
 	let disabled = false
-	let lastResultCount = -1
 	let loop = true
 	let onSearchChange: CommandArgs['onSearchChange']
 	let onValueChange: CommandArgs['onValueChange']
@@ -170,7 +164,7 @@ const CommandRoot: Stateful<CommandArgs> = function* ({ defaultSearch, defaultVa
 		fallback: String(search ?? defaultSearch ?? ''),
 		onChange: (next, event) => onSearchChange?.(next, event),
 	})
-	const live = announce(this)
+	const results = resultCount(announce(this))
 
 	const itemId = (itemValue: string) => `${commandId}-item-${encodeURIComponent(itemValue)}`
 
@@ -182,7 +176,7 @@ const CommandRoot: Stateful<CommandArgs> = function* ({ defaultSearch, defaultVa
 	const setSearch = (next: string, event: Event) => {
 		if (next === searchState.value) return
 		searchState.set(next, event)
-		announceResults = true
+		results.search()
 	}
 
 	const nav = roving(this, {
@@ -252,11 +246,7 @@ const CommandRoot: Stateful<CommandArgs> = function* ({ defaultSearch, defaultVa
 				if (nextValue !== valueState.value) valueState.init(nextValue)
 			}
 
-			if (announceResults && visible.length !== lastResultCount) {
-				live.polite((resultsLabel ?? defaultResultsLabel)(visible.length))
-			}
-			lastResultCount = visible.length
-			announceResults = false
+			results.settle(visible.length, resultsLabel)
 		})
 
 		yield <>{args.children}</>
@@ -355,17 +345,14 @@ const CommandInput: Stateless<CommandInputArgs> = ({
 	class: classes,
 	disabled,
 	iconClass,
-	onValueChange,
 	placeholder = 'Type a command or search...',
 	type: _type,
-	value,
 	wrapperClass,
 	'set:oninput': onInput,
 	...attrs
 }) => {
 	const command = CommandContext()
 	const disabledFlag = Boolean(disabled ?? command?.disabled)
-	const shown = value == null ? command?.search ?? '' : String(value)
 
 	return (
 		<div class={wrapperClass} data-slot="command-input-wrapper">
@@ -382,13 +369,11 @@ const CommandInput: Stateless<CommandInputArgs> = ({
 				placeholder={placeholder}
 				role="combobox"
 				set:oninput={(event: Event) => {
-					const next = (event.target as HTMLInputElement).value
 					callHandler(onInput, event)
 					if (event.defaultPrevented) return
-					onValueChange?.(next, event)
-					command?.setSearch(next, event)
+					command?.setSearch((event.target as HTMLInputElement).value, event)
 				}}
-				set:value={shown}
+				set:value={command?.search ?? ''}
 				type="search"
 			/>
 		</div>

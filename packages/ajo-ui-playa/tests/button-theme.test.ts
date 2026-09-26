@@ -6,7 +6,7 @@ import { buttonVariants } from 'ajo-ui-playa/button'
 import { Calendar } from 'ajo-ui-playa/calendar'
 import { InputDateTrigger } from 'ajo-ui-playa/input-date'
 import { InputGroupButton } from 'ajo-ui-playa/input-group'
-import { SelectInput } from 'ajo-ui-playa/select'
+import { SelectClear } from 'ajo-ui-playa/select'
 
 const tokens = (value: string | undefined) => value?.split(/\s+/) ?? []
 
@@ -34,16 +34,16 @@ describe('button theme composition', () => {
 	it('provides one muted ghost color recipe to composed addon buttons', () => {
 		const recipe = tokens(buttonVariants({ variant: 'muted-ghost' }))
 		const inputDate = InputDateTrigger({}) as VNode & { class?: string }
-		const select = SelectInput({}) as VNode & { clearButtonClass?: string }
+		const select = SelectClear({}) as VNode & { class?: string }
 		const expected = ['text-muted-foreground', 'hover:bg-accent', 'hover:text-foreground']
 
 		expect(expected.every(token => recipe.includes(token))).toBe(true)
 		expect(recipe).not.toContain('text-foreground')
 		expect(recipe).not.toContain('hover:text-accent-foreground')
 		expect(expected.every(token => tokens(inputDate.class).includes(token))).toBe(true)
-		expect(expected.every(token => tokens(select.clearButtonClass).includes(token))).toBe(true)
+		expect(expected.every(token => tokens(select.class).includes(token))).toBe(true)
 		expect(tokens(inputDate.class)).not.toContain('hover:text-accent-foreground')
-		expect(tokens(select.clearButtonClass)).not.toContain('hover:text-accent-foreground')
+		expect(tokens(select.class)).not.toContain('hover:text-accent-foreground')
 	})
 
 	it('keeps every button variant flat: elevation belongs to surfaces, not controls', () => {

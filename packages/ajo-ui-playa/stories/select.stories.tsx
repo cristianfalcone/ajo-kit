@@ -12,6 +12,7 @@ import {
 	SelectChip,
 	SelectChips,
 	SelectChipsInput,
+	SelectClear,
 	SelectContent,
 	SelectCreate,
 	SelectEmpty,
@@ -60,7 +61,7 @@ const countries = [
 	{ code: 'UY', label: 'Uruguay', value: 'uruguay' },
 ] satisfies Country[]
 
-const bind = (setArg: StoryContext['setArg']) => (next: string | null) => setArg('defaultValue', next ?? '')
+const bind = (setArg: StoryContext['setArg']) => (next: string) => setArg('defaultValue', next)
 
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
@@ -123,7 +124,7 @@ const FruitSelect = (args: Record<string, unknown> = {}) => (
 
 const ControlledExample: Stateful = function* () {
 	let value = 'system'
-	const change = (next: string | null) => this.next(() => value = next ?? '')
+	const change = (next: string) => this.next(() => value = next)
 
 	while (true) yield (
 		<Field class="max-w-sm">
@@ -163,17 +164,19 @@ const RejectedCloseExample: Stateful = function* () {
 
 const AutocompleteExample: Stateful = function* () {
 	let value = 'Astro'
-	const change = (next: unknown) => this.next(() => value = String(next ?? ''))
+	const change = (next: string) => this.next(() => value = next)
 
 	while (true) yield (
 		<div class="grid w-[22rem] gap-3">
-			<Select items={frameworks} value={value || null} onValueChange={change} autoHighlight>
-				<SelectInput placeholder="Select framework" showClear />
+			<Select value={value} onValueChange={change} autoHighlight>
+				<SelectInput placeholder="Select framework">
+					<SelectClear />
+				</SelectInput>
 				<SelectContent>
 					<SelectEmpty>No framework found.</SelectEmpty>
-					<SelectList>{(item: string) => (
-						<SelectItem key={item} value={item}>{item}</SelectItem>
-					)}</SelectList>
+					<SelectList>
+						{frameworks.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+					</SelectList>
 				</SelectContent>
 			</Select>
 			<p class="text-sm text-muted-foreground">Selected: {value || 'none'}</p>
@@ -183,11 +186,11 @@ const AutocompleteExample: Stateful = function* () {
 
 const ChipsExample: Stateful = function* () {
 	let value = ['Next.js']
-	const change = (next: unknown) => this.next(() => value = Array.isArray(next) ? next.map(String) : [])
+	const change = (next: string[]) => this.next(() => value = next)
 
 	while (true) yield (
 		<div class="grid w-[26rem] gap-3">
-			<Select items={frameworks} multiple value={value} onValueChange={change} autoHighlight>
+			<Select multiple value={value} onValueChange={change} autoHighlight>
 				<SelectChips>
 					{value.map(item => (
 						<SelectChip key={item} value={item}>{item}</SelectChip>
@@ -196,9 +199,9 @@ const ChipsExample: Stateful = function* () {
 				</SelectChips>
 				<SelectContent>
 					<SelectEmpty>No framework found.</SelectEmpty>
-					<SelectList>{(item: string) => (
-						<SelectItem key={item} value={item}>{item}</SelectItem>
-					)}</SelectList>
+					<SelectList>
+						{frameworks.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+					</SelectList>
 				</SelectContent>
 			</Select>
 			<p class="text-sm text-muted-foreground">Selected: {value.join(', ') || 'none'}</p>
@@ -206,54 +209,58 @@ const ChipsExample: Stateful = function* () {
 	)
 }
 
+// Objects map to string keys: the key selects, textValue labels, keywords search.
+const country = (key: string) => countries.find(item => item.value === key)
+
+// A custom filter: every search word must start a word of the label or keywords.
+const prefixFilter = (_value: string, search: string, text: string) => {
+	const words = text.toLowerCase().split(/\s+/)
+	return search.trim().toLowerCase().split(/\s+/).every(part => words.some(word => word.startsWith(part)))
+}
+
 const CustomExample: Stateful = function* () {
-	let value: Country | undefined = countries[0]
-	const change = (next: unknown) => this.next(() => value = (next ?? undefined) as Country | undefined)
+	let value = countries[0].value
+	const change = (next: string) => this.next(() => value = next)
 
 	while (true) yield (
 		<div class="grid w-[24rem] gap-3">
-			<Select
-				items={countries}
-				value={value ?? null}
-				itemToStringValue={item => item.label}
-				filter={(item, search, label) => `${label} ${item.code}`.toLowerCase().includes(search.trim().toLowerCase())}
-				onValueChange={change}
-				autoHighlight
-			>
+			<Select value={value} filter={prefixFilter} onValueChange={change} autoHighlight>
 				<SelectInput placeholder="Select country" />
 				<SelectContent>
 					<SelectEmpty>No country found.</SelectEmpty>
-					<SelectList>{(item: Country) => (
-						<SelectItem key={item.value} value={item} keywords={[item.code]} data-country={item.value}>
-							<span class="flex size-7 items-center justify-center rounded-sm bg-muted text-xs font-medium">{item.code}</span>
-							<span class="flex flex-col">
-								<span>{item.label}</span>
-								<span class="text-xs text-muted-foreground">{item.value}</span>
-							</span>
-						</SelectItem>
-					)}</SelectList>
+					<SelectList>
+						{countries.map(item => (
+							<SelectItem key={item.value} value={item.value} textValue={item.label} keywords={[item.code]} data-country={item.value}>
+								<span class="flex size-7 items-center justify-center rounded-sm bg-muted text-xs font-medium">{item.code}</span>
+								<span class="flex flex-col">
+									<span>{item.label}</span>
+									<span class="text-xs text-muted-foreground">{item.value}</span>
+								</span>
+							</SelectItem>
+						))}
+					</SelectList>
 				</SelectContent>
 			</Select>
-			<p class="text-sm text-muted-foreground">Selected: {value?.label ?? 'none'}</p>
+			<p class="text-sm text-muted-foreground">Selected: {country(value)?.label ?? 'none'}</p>
 		</div>
 	)
 }
 
 const PopupExample: Stateful = function* () {
-	let value: Country | undefined
-	const change = (next: unknown) => this.next(() => value = (next ?? undefined) as Country | undefined)
+	let value = ''
+	const change = (next: string) => this.next(() => value = next)
 
 	while (true) yield (
-		<Select items={countries} value={value ?? null} itemToStringValue={item => item.label} onValueChange={change} autoHighlight>
+		<Select value={value} onValueChange={change} autoHighlight>
 			<SelectTrigger class="w-[240px]">
 				<SelectValue placeholder="Select country" />
 			</SelectTrigger>
 			<SelectContent class="w-[240px]">
 				<SelectInput class="m-1 mb-0" placeholder="Search country" showTrigger={false} />
 				<SelectEmpty>No country found.</SelectEmpty>
-				<SelectList>{(item: Country) => (
-					<SelectItem key={item.value} value={item}>{item.label}</SelectItem>
-				)}</SelectList>
+				<SelectList>
+					{countries.map(item => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+				</SelectList>
 			</SelectContent>
 		</Select>
 	)
@@ -262,7 +269,7 @@ const PopupExample: Stateful = function* () {
 const TaggingExample: Stateful = function* () {
 	let items = ['ajo', 'vite', 'unocss']
 	let value: string[] = ['ajo']
-	const change = (next: unknown) => this.next(() => value = Array.isArray(next) ? next.map(String) : [])
+	const change = (next: string[]) => this.next(() => value = next)
 	const create = (tag: string) => this.next(() => {
 		if (!items.includes(tag)) items = [...items, tag]
 		value = [...value, tag]
@@ -270,7 +277,7 @@ const TaggingExample: Stateful = function* () {
 
 	while (true) yield (
 		<div class="grid w-[26rem] gap-3">
-			<Select items={items} multiple value={value} onValueChange={change} onCreate={create}>
+			<Select multiple value={value} onValueChange={change} onCreate={create}>
 				<SelectChips>
 					{value.map(item => (
 						<SelectChip key={item} value={item}>{item}</SelectChip>
@@ -314,7 +321,7 @@ const AsyncExample: Stateful = function* () {
 	}
 
 	while (true) yield (
-		<Select class="w-[22rem]" items={items} filter={null} onInputValueChange={search} autoHighlight>
+		<Select class="w-[22rem]" filter={null} onInputValueChange={search} autoHighlight>
 			<SelectInput placeholder="Search frameworks (async)" />
 			<SelectContent>
 				<SelectStatus>
@@ -325,9 +332,9 @@ const AsyncExample: Stateful = function* () {
 							: query ? null : 'Type to search.'}
 				</SelectStatus>
 				{!loading ? <SelectEmpty>No framework found.</SelectEmpty> : null}
-				<SelectList>{(item: string) => (
-					<SelectItem key={item} value={item}>{item}</SelectItem>
-				)}</SelectList>
+				<SelectList>
+					{items.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+				</SelectList>
 			</SelectContent>
 		</Select>
 	)
@@ -853,6 +860,19 @@ export const Autocomplete: Story<typeof Select> = {
 		if (content && getComputedStyle(content).display !== 'none') {
 			throw new Error('Select content stayed visible after closing')
 		}
+
+		// A composed SelectClear takes the chevron's place while a value is selected.
+		const chevron = canvas.querySelector<HTMLElement>('[data-slot="select-input-trigger"]')
+		const clear = canvas.querySelector<HTMLButtonElement>('[data-slot="select-clear"]')
+		if (!chevron || !clear || getComputedStyle(chevron).display !== 'none') {
+			throw new Error('SelectClear did not replace the chevron while a value was selected')
+		}
+		clear.click()
+		await frame()
+		if (!canvas.textContent?.includes('Selected: none') || canvas.querySelector('[data-slot="select-clear"]')) {
+			throw new Error('SelectClear did not clear the selection')
+		}
+		if (getComputedStyle(chevron).display === 'none') throw new Error('The chevron did not return after clearing')
 	},
 }
 
@@ -979,7 +999,7 @@ export const PopupSearch: Story<typeof Select> = {
 		}
 
 		await typeInto(input, 'jap')
-		const japan = canvas.querySelector<HTMLElement>('[data-slot="select-item"][data-value="Japan"]')
+		const japan = canvas.querySelector<HTMLElement>('[data-slot="select-item"][data-value="japan"]')
 		if (!japan || japan.hidden) throw new Error('Popup search did not filter Japan')
 
 		japan.click()
@@ -1040,6 +1060,9 @@ export const GroupsFiltered: Story<typeof Select> = {
 
 		await typeInto(input, 'do')
 		if (!separator()?.hidden) throw new Error('Separator stayed visible after filtering emptied a group')
+		if (canvas.querySelector<HTMLElement>('[data-value="Docs"]')?.dataset.highlighted !== 'true') {
+			throw new Error('autoHighlight did not highlight the first composed match')
+		}
 
 		await typeInto(input, 'dd')
 		const groups = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="select-group"]'))
@@ -1062,13 +1085,13 @@ export const InvalidInput: Story<typeof Select> = {
 	render: () => (
 		<Field invalid class="w-[22rem]">
 			<FieldLabel for="invalid-input-select">Framework</FieldLabel>
-			<Select items={frameworks}>
+			<Select>
 				<SelectInput id="invalid-input-select" aria-invalid="true" placeholder="Select framework" />
 				<SelectContent>
 					<SelectEmpty>No framework found.</SelectEmpty>
-					<SelectList>{(item: string) => (
-						<SelectItem key={item} value={item}>{item}</SelectItem>
-					)}</SelectList>
+					<SelectList>
+						{frameworks.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+					</SelectList>
 				</SelectContent>
 			</Select>
 			<FieldDescription>Choose one framework from the filtered list.</FieldDescription>
@@ -1111,12 +1134,12 @@ export const DisabledInput: Story<typeof Select> = {
 	render: () => (
 		<Field class="w-[22rem]">
 			<FieldLabel>Framework</FieldLabel>
-			<Select items={frameworks} disabled defaultValue="Next.js">
+			<Select disabled defaultValue="Next.js">
 				<SelectInput placeholder="Select framework" />
 				<SelectContent>
-					<SelectList>{(item: string) => (
-						<SelectItem key={item} value={item}>{item}</SelectItem>
-					)}</SelectList>
+					<SelectList>
+						{frameworks.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+					</SelectList>
 				</SelectContent>
 			</Select>
 			<FieldDescription>Disabled select keeps the selected value visible.</FieldDescription>
@@ -1226,14 +1249,14 @@ export const FormMultiple: Story<typeof Select> = {
 	},
 	render: () => (
 		<form id="select-form" class="grid w-[26rem] gap-3">
-			<Select multiple name="stack" defaultValue={['Next.js', 'Astro']} items={frameworks}>
+			<Select multiple name="stack" defaultValue={['Next.js', 'Astro']}>
 				<SelectChips>
 					<SelectChipsInput placeholder="Add framework..." />
 				</SelectChips>
 				<SelectContent>
-					<SelectList>{(item: string) => (
-						<SelectItem key={item} value={item}>{item}</SelectItem>
-					)}</SelectList>
+					<SelectList>
+						{frameworks.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+					</SelectList>
 				</SelectContent>
 			</Select>
 		</form>

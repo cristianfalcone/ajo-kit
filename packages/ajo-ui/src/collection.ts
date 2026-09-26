@@ -13,6 +13,29 @@ export const matchesTokens = (search: string, haystack: string) => {
 export const defaultResultsLabel = (count: number) =>
 	`${count} result${count === 1 ? '' : 's'}`
 
+/**
+ * Result-count announcements for a filterable collection: after a search
+ * change, the next settled visible count is announced once when it differs
+ * from the last one. A count of -1 records that no results are shown.
+ */
+export const resultCount = (live: { polite: (message: string) => void }) => {
+	let pending = false
+	let last = -1
+
+	return {
+		/** Marks the next settle as the result of a search change. */
+		search() {
+			pending = true
+		},
+		/** Records the visible count after a sweep and announces it when a search changed it. */
+		settle(count: number, label: (count: number) => string = defaultResultsLabel) {
+			if (pending && count >= 0 && count !== last) live.polite(label(count))
+			last = count
+			pending = false
+		},
+	}
+}
+
 const passAll = () => true
 
 /** Resolves undefined to the built-in filter, null to unfiltered, and preserves a custom filter. */

@@ -15,8 +15,6 @@ import {
 	SelectItem as BaseSelectItem,
 	SelectLabel as BaseSelectLabel,
 	SelectList as BaseSelectList,
-	SelectScrollDownButton as BaseSelectScrollDownButton,
-	SelectScrollUpButton as BaseSelectScrollUpButton,
 	SelectSeparator as BaseSelectSeparator,
 	SelectStatus as BaseSelectStatus,
 	SelectTrigger as BaseSelectTrigger,
@@ -36,9 +34,7 @@ import type {
 	SelectItemArgs as BaseSelectItemArgs,
 	SelectLabelArgs,
 	SelectListArgs,
-	SelectScrollButtonArgs as BaseSelectScrollButtonArgs,
 	SelectSeparatorArgs,
-	SelectSize,
 	SelectStatusArgs,
 	SelectTriggerArgs as BaseSelectTriggerArgs,
 	SelectValueArgs,
@@ -49,13 +45,17 @@ import { inputGroupAddon, inputGroupAddonAlign, inputGroupInput, inputGroupVaria
 export { SelectGroup, SelectValue } from 'ajo-ui/select'
 export type { PopupPlacement, PopupPosition } from 'ajo-ui/select'
 
-export type { SelectArgs, SelectChipsArgs, SelectChipsInputArgs, SelectContentArgs, SelectCreateArgs, SelectEmptyArgs, SelectFilter, SelectGroupArgs, SelectLabelArgs, SelectListArgs, SelectSeparatorArgs, SelectSize, SelectStatusArgs, SelectValueArgs }
-export type SelectTriggerArgs = OmitArg<BaseSelectTriggerArgs, 'iconClass'> & FixedArgs<'iconClass'>
+export type { SelectArgs, SelectChipsArgs, SelectChipsInputArgs, SelectContentArgs, SelectCreateArgs, SelectEmptyArgs, SelectFilter, SelectGroupArgs, SelectLabelArgs, SelectListArgs, SelectSeparatorArgs, SelectStatusArgs, SelectValueArgs }
+/** Visual size of the Playa select trigger. */
+export type SelectSize = 'default' | 'sm'
+export type SelectTriggerArgs = OmitArg<BaseSelectTriggerArgs, 'iconClass' | 'size'> & FixedArgs<'iconClass'> & {
+	/** Trigger height, stamped as `data-size`. */
+	size?: SelectSize
+}
 export type SelectClearArgs = OmitArg<BaseSelectClearArgs, 'iconClass'> & FixedArgs<'iconClass'>
-export type SelectInputArgs = OmitArg<BaseSelectInputArgs, 'addonClass' | 'buttonClass' | 'buttonIconClass' | 'clearButtonClass' | 'clearIconClass' | 'inputClass'> & FixedArgs<'addonClass' | 'buttonClass' | 'buttonIconClass' | 'clearButtonClass' | 'clearIconClass' | 'inputClass'>
-export type SelectItemArgs<T = unknown> = OmitArg<BaseSelectItemArgs<T>, 'indicatorClass' | 'indicatorIconClass'> & FixedArgs<'indicatorClass' | 'indicatorIconClass'>
-export type SelectChipArgs<T = unknown> = OmitArg<BaseSelectChipArgs<T>, 'removeClass' | 'removeIconClass'> & FixedArgs<'removeClass' | 'removeIconClass'>
-export type SelectScrollButtonArgs = OmitArg<BaseSelectScrollButtonArgs, 'iconClass'> & FixedArgs<'iconClass'>
+export type SelectInputArgs = OmitArg<BaseSelectInputArgs, 'addonClass' | 'buttonClass' | 'buttonIconClass' | 'inputClass'> & FixedArgs<'addonClass' | 'buttonClass' | 'buttonIconClass' | 'inputClass'>
+export type SelectItemArgs = OmitArg<BaseSelectItemArgs, 'indicatorClass' | 'indicatorIconClass'> & FixedArgs<'indicatorClass' | 'indicatorIconClass'>
+export type SelectChipArgs = OmitArg<BaseSelectChipArgs, 'removeClass' | 'removeIconClass'> & FixedArgs<'removeClass' | 'removeIconClass'>
 
 const rootBase = 'playa-select-root'
 const triggerBase = 'playa-select-trigger'
@@ -72,15 +72,16 @@ const indicatorIconClass = 'playa-select-indicator-icon'
 const chipsBase = 'playa-select-chips'
 const chipInputBase = 'playa-select-chips-input'
 const inputButtonBase = clsx(buttonVariants({ size: 'none', variant: 'muted-ghost' }), 'size-6 rounded-[calc(var(--radius)-5px)] [&_svg:not([class*=size-])]:size-4')
-const scrollButtonBase = 'playa-select-scroll-button'
+// A composed SelectClear takes the trigger's place while there is something to clear.
+const inputTriggerBase = clsx(inputButtonBase, '[[data-slot=input-group-addon]:has([data-slot=select-clear])_&]:hidden')
 
 /** Unified select: single, multiple, searchable, editable, chips, and tagging by composition. */
-const Select = <T = string, Multiple extends boolean = false>({ class: classes, ...attrs }: SelectArgs<T, Multiple>) => (
-	<BaseSelect<T, Multiple> {...attrs} class={clsx(rootBase, classes)} />
+const Select = <Multiple extends boolean = false>({ class: classes, ...attrs }: SelectArgs<Multiple>) => (
+	<BaseSelect<Multiple> {...attrs} class={clsx(rootBase, classes)} />
 )
 
 /** Button field for a Select. */
-const SelectTrigger: Stateless<SelectTriggerArgs> = ({ class: classes, ...attrs }) => {
+const SelectTrigger: Stateless<SelectTriggerArgs> = ({ class: classes, size = 'default', ...attrs }) => {
 	const field = FieldContext()
 
 	return (
@@ -88,6 +89,7 @@ const SelectTrigger: Stateless<SelectTriggerArgs> = ({ class: classes, ...attrs 
 			{...(field?.buttonAttrs ?? {})}
 			{...attrs}
 			class={clsx(triggerBase, classes)}
+			data-size={size}
 			iconClass="playa-select-trigger-icon"
 		/>
 	)
@@ -102,21 +104,19 @@ const SelectInput: Stateless<SelectInputArgs> = ({ class: classes, ...attrs }) =
 			{...(field?.controlAttrs ?? {})}
 			{...attrs}
 			addonClass={clsx(inputGroupAddon, inputGroupAddonAlign['inline-end'])}
-			buttonClass={inputButtonBase}
+			buttonClass={inputTriggerBase}
 			buttonIconClass="i-lucide-chevron-down pointer-events-none size-4 text-muted-foreground"
 			class={inputGroupVariants({ class: classes, width: 'auto' })}
-			clearButtonClass={inputButtonBase}
-			clearIconClass="i-lucide-x pointer-events-none size-4"
 			inputClass={inputGroupInput}
 		/>
 	)
 }
 
-/** Button that clears the current selection and search. */
+/** Button that clears the current selection and search; compose it in SelectInput. */
 const SelectClear: Stateless<SelectClearArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSelectClear
 		{...attrs}
-		class={classes}
+		class={clsx(inputButtonBase, classes)}
 		iconClass="i-lucide-x pointer-events-none size-4"
 	/>
 )
@@ -127,12 +127,12 @@ const SelectContent: Stateless<SelectContentArgs> = ({ class: classes, ...attrs 
 )
 
 /** Listbox for Select options. */
-const SelectList: Stateless<SelectListArgs<any>> = ({ class: classes, ...attrs }) => (
+const SelectList: Stateless<SelectListArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSelectList {...attrs} class={clsx(listBase, classes)} />
 )
 
 /** Selectable Select option. */
-const SelectItem: Stateless<SelectItemArgs<any>> = ({ class: classes, ...attrs }) => (
+const SelectItem: Stateless<SelectItemArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSelectItem
 		{...attrs}
 		class={clsx(itemBase, classes)}
@@ -172,7 +172,7 @@ const SelectChips: Stateless<SelectChipsArgs> = ({ class: classes, ...attrs }) =
 )
 
 /** Selected chip for multiple Select usage; composes the Chip visual language. */
-const SelectChip: Stateless<SelectChipArgs<any>> = ({ class: classes, ...attrs }) => (
+const SelectChip: Stateless<SelectChipArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSelectChip
 		{...attrs}
 		class={clsx(chipVariants({ variant: 'secondary' }), 'has-[button]:pr-1', classes)}
@@ -184,24 +184,6 @@ const SelectChip: Stateless<SelectChipArgs<any>> = ({ class: classes, ...attrs }
 /** Input used inside SelectChips. */
 const SelectChipsInput: Stateless<SelectChipsInputArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSelectChipsInput {...attrs} class={clsx(chipInputBase, classes)} />
-)
-
-/** Scroll button for long Select lists. */
-const SelectScrollUpButton: Stateless<SelectScrollButtonArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectScrollUpButton
-		{...attrs}
-		class={clsx(scrollButtonBase, classes)}
-		iconClass="i-lucide-chevron-up size-4"
-	/>
-)
-
-/** Scroll button for long Select lists. */
-const SelectScrollDownButton: Stateless<SelectScrollButtonArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectScrollDownButton
-		{...attrs}
-		class={clsx(scrollButtonBase, classes)}
-		iconClass="i-lucide-chevron-down size-4"
-	/>
 )
 
 export {
@@ -217,8 +199,6 @@ export {
 	SelectItem,
 	SelectLabel,
 	SelectList,
-	SelectScrollDownButton,
-	SelectScrollUpButton,
 	SelectSeparator,
 	SelectStatus,
 	SelectTrigger,

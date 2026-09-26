@@ -290,7 +290,6 @@ export const playa = definePreset(() => ({
     'playa-select-status': 'flex w-full items-center justify-center gap-2 py-2 text-center text-sm text-muted-foreground empty:hidden',
     'playa-select-chips': 'flex min-h-9 flex-wrap items-center gap-1.5 rounded-md edge-input bg-transparent px-2.5 py-1.5 text-sm transition-[color,box-shadow] focus-within:inset-ring-ring focus-within:ring-3 focus-within:ring-ring/25 has-aria-invalid:inset-ring-danger has-aria-invalid:ring-danger/20',
     'playa-select-chips-input': 'min-w-16 flex-1 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
-    'playa-select-scroll-button': 'flex w-full cursor-default items-center justify-center py-1',
     // Checkbox splits into a stateless base and the stateful box: composite
     // recipes (DataTable) re-style the base through slot prefixes, and nesting
     // `has-*` tokens under a slot prefix would hang the `:has()` on the recipe

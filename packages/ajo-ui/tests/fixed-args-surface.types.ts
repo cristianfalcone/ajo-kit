@@ -11,7 +11,7 @@ import type { MenuArgs, MenuContentArgs, MenuSubArgs } from 'ajo-ui/menu'
 import type { MenubarArgs, MenubarMenuArgs } from 'ajo-ui/menubar'
 import type { NavigationMenuArgs, NavigationMenuContentArgs, NavigationMenuItemArgs } from 'ajo-ui/navigation-menu'
 import type { PopoverArgs, PopoverContentArgs } from 'ajo-ui/popover'
-import type { SelectArgs, SelectContentArgs } from 'ajo-ui/select'
+import type { SelectArgs, SelectContentArgs, SelectInputArgs, SelectItemArgs } from 'ajo-ui/select'
 import type { SliderArgs } from 'ajo-ui/slider'
 import type { ToasterArgs } from 'ajo-ui/toast'
 import type { ToggleGroupItemArgs } from 'ajo-ui/toggle-group'
@@ -47,8 +47,10 @@ export const fixedChartContainerPosition: ChartContainerArgs = { gap: 4, placeme
 export const fixedChartTooltipPosition: ChartTooltipArgs = { placement: 'bottom' }
 // @ts-expect-error CheckboxGroup owns item checked state.
 export const fixedCheckboxGroupItem: CheckboxGroupItemArgs = { checked: true, value: 'one' }
-// @ts-expect-error CommandInput replaces native onchange with onValueChange.
+// @ts-expect-error CommandInput replaces native onchange with the Command search.
 export const fixedCommandInput: CommandInputArgs = { onchange: true }
+// @ts-expect-error Command search owns the CommandInput value.
+export const fixedCommandInputValue: CommandInputArgs = { value: 'query' }
 // @ts-expect-error Dialog owns the native dialog open state.
 export const fixedDialogContent: DialogContentArgs = { open: true }
 // @ts-expect-error InputOTP replaces native onChange with onValueChange.
@@ -110,6 +112,10 @@ export const invalidSelectPlacement: SelectArgs = { placement: 'below' }
 export const fixedSelectContentPosition: SelectContentArgs = { gap: 4, placement: 'top' }
 // @ts-expect-error Select owns its native content id, popover state and focus surface.
 export const fixedSelectContentSemantics: SelectContentArgs = { id: 'custom-select', popover: 'auto', tabindex: 0 }
+// @ts-expect-error Select inputValue owns the SelectInput value.
+export const fixedSelectInputValue: SelectInputArgs = { value: 'query' }
+// @ts-expect-error SelectItem ids are generated for aria-activedescendant.
+export const fixedSelectItemId: SelectItemArgs = { id: 'custom-item', value: 'one' }
 
 export const inputDatePositionAtRoot: InputDateArgs = { gap: 8, placement: 'right-start' }
 export const inputDateTimePositionAtRoot: InputDateTimeArgs = { gap: 12, placement: 'top-end' }

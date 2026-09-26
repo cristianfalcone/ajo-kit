@@ -2,26 +2,21 @@ import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } f
 import { announce, callHandler, callRef, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs, typeahead } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from './input-group'
-import { collection, defaultResultsLabel, matchesTokens, resolveFilter } from './collection'
+import { collection, matchesTokens, resolveFilter, resultCount } from './collection'
 import { contentAttrs, popup, type PopupPosition, type PopupView, triggerAttrs } from './popup'
 import { activate, flag, text } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
-/** Visual size supported by the built-in select trigger. */
-export type SelectSize = 'default' | 'sm'
-
-/** Predicate used to include an item in the current search results. */
-export type SelectFilter<T = unknown> = (item: T, search: string, text: string) => boolean
+/** Predicate used to include an item in the current search results; `text` joins its label and keywords. */
+export type SelectFilter = (value: string, search: string, text: string) => boolean
 
 /** Props for single- or multiple-selection state and search behavior. */
-export type SelectArgs<T = string, Multiple extends boolean = false> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange'> & PopupPosition & {
-	/** Items available to SelectList render functions. */
-	items?: T[]
-	/** Controlled selection; null means controlled-empty. */
-	value?: (Multiple extends true ? T[] : T) | null
+export type SelectArgs<Multiple extends boolean = false> = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onchange'> & PopupPosition & {
+	/** Controlled selected key, or keys when multiple; '' or [] is controlled-empty. */
+	value?: Multiple extends true ? string[] : string
 	/** Initial selection for uncontrolled usage. */
-	defaultValue?: Multiple extends true ? T[] : T
+	defaultValue?: Multiple extends true ? string[] : string
 	/** Allow more than one selected item. */
 	multiple?: Multiple
 	/** Controlled search text. */
@@ -36,15 +31,13 @@ export type SelectArgs<T = string, Multiple extends boolean = false> = WithChild
 	defaultOpen?: boolean
 	/** Called when the popup opens or closes. */
 	onOpenChange?: (open: boolean, event?: Event) => void
-	/** Called when the selection changes; emits null (single) or [] (multiple) on clear. */
-	onValueChange?: (value: (Multiple extends true ? T[] : T) | null, event?: Event) => void
+	/** Called when the selection changes; emits '' (single) or [] (multiple) on clear. */
+	onValueChange?: (value: Multiple extends true ? string[] : string, event?: Event) => void
 	/** Called when the SelectCreate row is committed; the consumer owns creation. */
 	onCreate?: (text: string, event?: Event) => void
-	/** String view of an item: display, filter haystack, identity, and form value. */
-	itemToStringValue?: (item: T) => string
 	/** Item filter; null disables internal filtering for externally driven lists. */
-	filter?: SelectFilter<T> | null
-	/** Highlight the first visible item while filtering. */
+	filter?: SelectFilter | null
+	/** Highlight the first visible item while the list is open. */
 	autoHighlight?: boolean
 	/** Name for hidden form submission inputs. */
 	name?: string
@@ -59,9 +52,7 @@ export type SelectArgs<T = string, Multiple extends boolean = false> = WithChild
 }> & FixedArgs<'onchange'>
 
 /** Props for the button that opens the select popup. */
-export type SelectTriggerArgs = WithChildren<OmitArg<IntrinsicElements['button'], 'size'> & {
-	/** Select trigger size. */
-	size?: SelectSize
+export type SelectTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 	iconClass?: string
@@ -75,27 +66,19 @@ export type SelectValueArgs = WithChildren<IntrinsicElements['span'] & {
 	class?: string
 }>
 
-/** Props for a searchable select input and its optional controls. */
-export type SelectInputArgs = WithChildren<OmitArg<IntrinsicElements['input'], 'children' | 'onchange'> & {
+/** Props for a searchable select input; children (such as SelectClear) sit in its inline-end addon. */
+export type SelectInputArgs = WithChildren<OmitArg<IntrinsicElements['input'], 'children' | 'onchange' | 'value'> & {
 	/** Render the dropdown trigger inside the input group. */
 	showTrigger?: boolean
-	/** Render a clear button inside the input group. */
-	showClear?: boolean
-	/** Accessible label for the clear button. */
-	clearLabel?: string
 	/** Accessible label for the dropdown trigger button. */
 	triggerLabel?: string
-	/** Called when input text changes. */
-	onValueChange?: (value: string, event: Event) => void
 	/** Additional UnoCSS classes for the input group. */
 	class?: string
 	addonClass?: string
 	buttonClass?: string
 	buttonIconClass?: string
-	clearButtonClass?: string
-	clearIconClass?: string
 	inputClass?: string
-}> & FixedArgs<'onchange'>
+}> & FixedArgs<'onchange' | 'value'>
 
 /** Props for the button that clears the current selection. */
 export type SelectClearArgs = WithChildren<IntrinsicElements['button'] & {
@@ -112,17 +95,16 @@ export type SelectContentArgs = WithChildren<OmitArg<IntrinsicElements['div'], '
 	style?: string
 }> & FixedArgs<'gap' | 'hidden' | 'id' | 'placement' | 'popover' | 'tabindex' | 'tabIndex'>
 
-/** Props for an option list, including item-renderer children. */
-export type SelectListArgs<T = unknown> = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {
-	children?: Children | ((item: T, index: number) => Children)
+/** Props for the option list. */
+export type SelectListArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
 /** Props for a selectable option and its filtering metadata. */
-export type SelectItemArgs<T = unknown> = WithChildren<OmitArg<IntrinsicElements['div'], 'value'> & {
-	/** Item value selected by this option. */
-	value?: T
+export type SelectItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'id' | 'value'> & {
+	/** Key selected by this option. Defaults to its text. */
+	value?: string
 	/** Plain-text label for display, filtering, and typeahead when children are rich. */
 	textValue?: string
 	/** Extra searchable terms. */
@@ -132,12 +114,12 @@ export type SelectItemArgs<T = unknown> = WithChildren<OmitArg<IntrinsicElements
 	/** Disable activation. */
 	disabled?: boolean
 	/** Called when this option is selected. */
-	onSelect?: (value: T, event: Event) => void
+	onSelect?: (value: string, event: Event) => void
 	/** Additional UnoCSS classes. */
 	class?: string
 	indicatorClass?: string
 	indicatorIconClass?: string
-}>
+}> & FixedArgs<'id'>
 
 /** Props for grouping related select options. */
 export type SelectGroupArgs = WithChildren<IntrinsicElements['div'] & {
@@ -181,12 +163,10 @@ export type SelectChipsArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
-/** Props for a selected-value chip and its optional remove control. */
-export type SelectChipArgs<T = unknown> = WithChildren<IntrinsicElements['span'] & {
-	/** Value removed by the built-in remove button. Defaults to chip text. */
-	value?: T
-	/** Show the built-in remove button. */
-	showRemove?: boolean
+/** Props for a selected-value chip and its remove control. */
+export type SelectChipArgs = WithChildren<IntrinsicElements['span'] & {
+	/** Key removed by the remove button. Defaults to chip text. */
+	value?: string
 	/** Accessible label for the remove button. */
 	removeLabel?: string
 	/** Additional UnoCSS classes. */
@@ -196,19 +176,10 @@ export type SelectChipArgs<T = unknown> = WithChildren<IntrinsicElements['span']
 }>
 
 /** Props for the search input composed inside a chip collection. */
-export type SelectChipsInputArgs = OmitArg<IntrinsicElements['input'], 'onchange'> & {
-	/** Called when input text changes. */
-	onValueChange?: (value: string, event: Event) => void
+export type SelectChipsInputArgs = OmitArg<IntrinsicElements['input'], 'onchange' | 'value'> & {
 	/** Additional UnoCSS classes. */
 	class?: string
-} & FixedArgs<'onchange'>
-
-/** Shared props for select viewport scroll buttons. */
-export type SelectScrollButtonArgs = WithChildren<IntrinsicElements['button'] & {
-	/** Additional UnoCSS classes. */
-	class?: string
-	iconClass?: string
-}>
+} & FixedArgs<'onchange' | 'value'>
 
 type SelectContextValue = {
 	activeId: string
@@ -219,22 +190,21 @@ type SelectContextValue = {
 	create: (event: Event) => void
 	createVisible: boolean
 	disabled: boolean
-	filteredItems: unknown[]
 	hasTrigger: boolean
 	inputId: string
 	itemId: (key: string) => string
 	listId: string
-	matches: (item: unknown, keywords?: string[]) => boolean
+	matches: (key: string, text: string) => boolean
 	multiple: boolean
 	open: boolean
 	searchInPopup: boolean
 	registerLabel: (key: string, label: string) => void
-	remove: (item: unknown, event?: Event) => void
+	remove: (key: string, event?: Event) => void
 	required: boolean
 	search: string
 	selectedKeys: Set<string>
 	selectedLabels: string[]
-	select: (item: unknown, event: Event) => void
+	select: (key: string, event: Event) => void
 	setActive: (key: string) => void
 	setReference: (element: HTMLElement | null, previous?: HTMLElement | null) => void
 	setContent: (element: HTMLDivElement | null) => void
@@ -242,28 +212,16 @@ type SelectContextValue = {
 	setOpen: (open: boolean, event?: Event) => void
 	setSearch: (value: string, event?: Event) => void
 	setTrigger: (element: HTMLButtonElement | null) => void
-	stringValue: (item: unknown) => string
 	adoptTriggerId: PopupView['adoptTriggerId']
 	triggerId: string
 }
 
 const SelectContext = context<SelectContextValue | null>(null)
 
-const fallbackString = (item: unknown): string => {
-	if (item == null) return ''
-	if (typeof item === 'string' || typeof item === 'number' || typeof item === 'bigint') return String(item)
-	if (typeof item === 'object') {
-		const record = item as Record<string, unknown>
-		if (record.label != null) return text(record.label)
-		if (record.value != null) return text(record.value)
-	}
-	return String(item)
-}
+const defaultFilter: SelectFilter = (_value, search, label) => matchesTokens(search, label)
 
-const defaultFilter: SelectFilter = (_item, search, label) => matchesTokens(search, label)
-
-const array = (value: unknown) =>
-	Array.isArray(value) ? value : value == null ? [] : [value]
+const keysOf = (value: string | string[]) =>
+	Array.isArray(value) ? value : value ? [value] : []
 
 // The create row needs a stable collection key that no real item label can mint.
 const CREATE_KEY = '\0create'
@@ -272,7 +230,7 @@ const CREATE_KEY = '\0create'
 // the popover is closed, so rendered-layout checks stay off.
 const selectItems = collection('select', { rendered: false })
 
-const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
+const SelectRoot: Stateful<SelectArgs<boolean>> = function* ({
 	defaultInputValue,
 	defaultOpen,
 	defaultValue,
@@ -285,26 +243,29 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 	const labels = new Map<string, string>()
 	let activeKey = ''
 	let disabled = false
+	let multiple = false
+	let required = false
 	let fieldReference: HTMLElement | null = null
 	let input: HTMLInputElement | null = null
-	let announceResults = false
-	let lastResultCount = -1
-	let onCreate: SelectArgs<any, boolean>['onCreate']
-	let onInputValueChange: SelectArgs<any, boolean>['onInputValueChange']
-	let onOpenChange: SelectArgs<any, boolean>['onOpenChange']
-	let onValueChange: SelectArgs<any, boolean>['onValueChange']
+	let onCreate: SelectArgs<boolean>['onCreate']
+	let onInputValueChange: SelectArgs<boolean>['onInputValueChange']
+	let onOpenChange: SelectArgs<boolean>['onOpenChange']
+	let onValueChange: SelectArgs<boolean>['onValueChange']
 	let pop: PopupView<HTMLButtonElement, HTMLDivElement>
 	const searchState = controlled<string>(this, {
-		fallback: String(inputValue ?? defaultInputValue ?? ''),
+		fallback: inputValue ?? defaultInputValue ?? '',
 		onChange: (next, event) => onInputValueChange?.(next, event),
 	})
-	const valueState = controlled<unknown>(this, {
-		fallback: defaultValue ?? null,
-		onChange: (next, event) => onValueChange?.(next as any, event),
+	const valueState = controlled<string | string[]>(this, {
+		fallback: defaultValue ?? '',
+		onChange: (next, event) => onValueChange?.(next, event),
 	})
 	const live = announce(this)
+	const results = resultCount(live)
 
 	const itemDomId = (key: string) => `${selectId}-item-${encodeURIComponent(key)}`
+
+	const label = (key: string) => labels.get(key) ?? key
 
 	// The in-popup search input must not reference the popup to itself; the
 	// external field, trigger, or field input always wins.
@@ -336,19 +297,23 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 		activeKey = ''
 	}
 
+	// Keyboard entry lands on the selected item, or the first one; arrow-key
+	// opening lands one step past it, native-select style.
+	const entryTarget = (items: HTMLElement[], step = 0) => {
+		const selected = keysOf(valueState.value)
+		const target = items.find(item => selected.includes(item.dataset.value ?? '')) ?? items[0]
+		return step && target ? items[items.indexOf(target) + step] ?? target : target
+	}
+
 	// Once the list is revealed, focus the in-popup search (seeding it) or
-	// the selected item; arrow-key opening lands one step past the selection,
-	// native-select style.
+	// the entry item.
 	const focusAfterReveal = (seed = '', step = 0) => pop.focusAfterReveal(() => {
 		if (inPopup(input)) {
 			input!.focus()
 			if (seed) setSearch(seed)
 			return
 		}
-		const items = selectItems.items(pop.content)
-		let target = items.find(item => selectedKeySet.has(item.dataset.value ?? '')) ?? items[0]
-		if (step && target) target = items[items.indexOf(target) + step] ?? target
-		selectItems.focusItem(pop.content, target)
+		selectItems.focusItem(pop.content, entryTarget(selectItems.items(pop.content), step))
 	})
 
 	const setOpen = (next: boolean, event?: Event) => {
@@ -403,7 +368,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 
 	const setSearch = (next: string, event?: Event) => {
 		searchState.set(next, event)
-		announceResults = true
+		results.search()
 		// Typing (or deleting) keeps the list open; observation owns geometry.
 		if (!pop.open) setOpen(true, event)
 	}
@@ -418,25 +383,67 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 		this.next(() => activeKey = key)
 	}
 
-	// Virtual navigation for input-owned focus; real focus roving lives in the
-	// button branch through collection.focusItem.
+	const select = (key: string, event: Event) => {
+		if (disabled) return
+		const current = keysOf(valueState.value)
+		const selected = current.includes(key)
+		if (multiple) {
+			const next = selected ? current.filter(candidate => candidate !== key) : [...current, key]
+			valueState.set(next, event)
+			live.polite(`${label(key)} ${selected ? 'deselected' : 'selected'}, ${next.length} selected`)
+			searchState.init('')
+			this.next()
+			return
+		}
+
+		// Clicking the selected option again deselects it unless the selection
+		// is required. Either way the click commits, and commits close.
+		if (selected && !required) {
+			valueState.set('', event)
+			live.polite(`${label(key)} deselected`)
+		} else {
+			valueState.set(key, event)
+		}
+		searchState.init('')
+		setOpen(false, event)
+	}
+
+	const remove = (key: string, event?: Event) => {
+		const current = keysOf(valueState.value)
+		if (disabled || !current.includes(key)) return
+		const next = current.filter(candidate => candidate !== key)
+		valueState.set(multiple ? next : '', event)
+		live.polite(`${label(key)} removed, ${next.length} selected`)
+		this.next()
+	}
+
+	const clear = (event?: Event) => {
+		valueState.set(multiple ? [] : '', event)
+		searchState.init('')
+		this.next()
+		input?.focus()
+	}
+
+	const create = (event: Event) => {
+		const value = searchState.value.trim()
+		if (disabled || !value) return
+		onCreate?.(value, event)
+		searchState.init('')
+		this.next()
+	}
+
+	// One option navigator: a combobox input moves a virtual highlight and
+	// stops at the ends; button mode moves real focus and wraps, menu-style.
 	const nav = roving(this, {
 		items: () => selectItems.items(this),
-		loop: () => false,
-		current: () => selectItems.items(this).find(item => item.dataset.value === activeKey),
+		loop: () => !input,
+		current: () => input ? selectItems.items(this).find(item => item.dataset.value === activeKey) : undefined,
 		onMove: target => {
+			if (!input) return selectItems.focusItem(this, target)
 			activeKey = target.dataset.value ?? ''
 			selectItems.highlight(this, target)
 			this.next()
 			queueMicrotask(() => target.scrollIntoView({ block: 'nearest' }))
-		},
-	})
-
-	const focusNav = roving(this, {
-		items: () => selectItems.items(this),
-		onMove: (target, event) => {
-			selectItems.focusItem(this, target)
-			void event
 		},
 	})
 
@@ -453,11 +460,18 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 		},
 	})
 
-	let selectedKeySet = new Set<string>()
-
 	const chipsOf = () => Array.from(this.querySelectorAll<HTMLElement>('[data-slot="select-chip"]'))
 
-	const rtl = () => getComputedStyle(this).direction === 'rtl'
+	const rtl = () => ownerDocument?.defaultView?.getComputedStyle(this).direction === 'rtl'
+
+	// Chip roving: real focus between chips and the input, wrapping past both ends.
+	const chipNav = roving(this, {
+		items: () => input ? [...chipsOf(), input] : chipsOf(),
+		orientation: () => 'horizontal',
+		dir: () => rtl() ? 'rtl' : 'ltr',
+		loop: () => true,
+		onMove: target => target.focus(),
+	})
 
 	listen(this, 'keydown', (event: KeyboardEvent) => {
 		const target = event.target as HTMLElement | null
@@ -465,37 +479,20 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 		// An Escape a descendant already consumed never closes the list.
 		if (event.key === 'Escape' && event.defaultPrevented) return
 
-		// Chip roving: real focus between chips, back to the input past the ends.
 		if (target.dataset.slot === 'select-chip') {
-			const chips = chipsOf()
-			const index = chips.indexOf(target)
-			const forward = rtl() ? 'ArrowLeft' : 'ArrowRight'
-			const backward = rtl() ? 'ArrowRight' : 'ArrowLeft'
-
 			if (event.key === 'Escape') {
 				if (!pop.open) return
 				event.preventDefault()
 				setOpen(false, event)
 				return
 			}
-			if (event.key === backward) {
-				event.preventDefault()
-				if (index > 0) chips[index - 1].focus()
-				else input?.focus()
-				return
-			}
-			if (event.key === forward) {
-				event.preventDefault()
-				if (index < chips.length - 1) chips[index + 1].focus()
-				else input?.focus()
-				return
-			}
+			if (chipNav.handle(event)) return
 			if (event.key === 'Backspace' || event.key === 'Delete') {
 				event.preventDefault()
+				const chips = chipsOf()
+				const index = chips.indexOf(target)
 				const neighbor = chips[index + 1] ?? chips[index - 1]
-				const key = target.dataset.value ?? ''
-				const item = array(valueState.value).find(candidate => itemKeyOf(candidate) === key)
-				if (item !== undefined) removeItem(item, event)
+				remove(target.dataset.value ?? '', event)
 				if (neighbor && neighbor !== target) neighbor.focus()
 				else input?.focus()
 				return
@@ -525,24 +522,16 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			}
 			if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ') {
 				event.preventDefault()
+				const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
 				if (pop.open) {
 					// Mouse-opened popups keep focus on the trigger; keys still work.
-					if (event.key === 'Enter' || event.key === ' ') {
-						setOpen(false, event)
-						return
-					}
-					if (inPopup(input)) {
-						input?.focus()
-						return
-					}
-					const items = selectItems.items(this)
-					let target = items.find(item => selectedKeySet.has(item.dataset.value ?? '')) ?? items[0]
-					if (target) target = items[items.indexOf(target) + (event.key === 'ArrowDown' ? 1 : -1)] ?? target
-					selectItems.focusItem(this, target)
+					if (!step) setOpen(false, event)
+					else if (inPopup(input)) input?.focus()
+					else selectItems.focusItem(this, entryTarget(selectItems.items(this), step))
 					return
 				}
 				setOpen(true, event)
-				focusAfterReveal('', event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0)
+				focusAfterReveal('', step)
 				return
 			}
 			if (inPopup(input)) {
@@ -559,7 +548,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 		}
 
 		// Any input (field, chips, in-popup): virtual focus model.
-		if (target === input || target.dataset.slot === 'select-chips-input' || target.dataset.slot === 'select-input') {
+		if (target === input) {
 			if (event.key === 'Tab') {
 				if (pop.open) setOpen(false, event)
 				return
@@ -588,21 +577,16 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 				setOpen(false, event)
 				return
 			}
-			if (event.key === 'Backspace' && target.dataset.slot === 'select-chips-input' && !(target as HTMLInputElement).value) {
-				const selected = array(valueState.value)
-				if (selected.length) {
-					event.preventDefault()
-					removeItem(selected[selected.length - 1], event)
-				}
+			if (target.dataset.slot !== 'select-chips-input') return
+			if (event.key === 'Backspace' && !input.value) {
+				const selected = keysOf(valueState.value)
+				if (!selected.length) return
+				event.preventDefault()
+				remove(selected[selected.length - 1], event)
 				return
 			}
-			const backward = rtl() ? 'ArrowRight' : 'ArrowLeft'
-			if (event.key === backward && target.dataset.slot === 'select-chips-input' && (target as HTMLInputElement).selectionStart === 0) {
-				const chips = chipsOf()
-				if (chips.length) {
-					event.preventDefault()
-					chips[chips.length - 1].focus()
-				}
+			if (event.key === (rtl() ? 'ArrowRight' : 'ArrowLeft') && input.selectionStart === 0 && chipsOf().length) {
+				chipNav.handle(event)
 			}
 			return
 		}
@@ -618,7 +602,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 				setOpen(false, event)
 				return
 			}
-			if (focusNav.handle(event)) return
+			if (nav.handle(event)) return
 			if (event.key === 'Enter' || event.key === ' ') {
 				const item = selectItems.item(event)
 				if (!item) return
@@ -630,12 +614,10 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 		}
 	})
 
-	let itemKeyOf = (item: unknown) => fallbackString(item)
-
-	let removeItem = (_item: unknown, _event?: Event) => {}
-
 	for (const args of this) {
 		disabled = Boolean(args.disabled)
+		multiple = Boolean(args.multiple)
+		required = Boolean(args.required)
 		onCreate = args.onCreate
 		onInputValueChange = args.onInputValueChange
 		onOpenChange = args.onOpenChange
@@ -646,99 +628,17 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			gap: args.gap,
 		})
 		if (wasOpen && !opened) finishClose()
-		searchState.sync(args.inputValue === undefined ? undefined : String(args.inputValue))
+		searchState.sync(args.inputValue)
 		valueState.sync(args.value)
 
-		const multiple = Boolean(args.multiple)
-		const stringValue = (item: unknown) => args.itemToStringValue?.(item) ?? fallbackString(item)
-		// Identity is the raw string: slugging collides on case, punctuation, and
-		// non-Latin labels, and these keys also mint DOM ids.
-		const itemKey = (item: unknown) => stringValue(item)
-		itemKeyOf = itemKey
-		const rawValue = valueState.value
-		// An empty string is "no selection" for uncontrolled string selects.
-		const selectedItems = multiple ? array(rawValue) : rawValue == null || rawValue === '' ? [] : [rawValue]
-		const selectedKeys = new Set(selectedItems.map(itemKey))
-		selectedKeySet = selectedKeys
+		const selected = keysOf(valueState.value)
+		const selectedKeys = new Set(selected)
 		const search = searchState.value
 		const filter = resolveFilter(args.filter, defaultFilter)
 		const filtering = Boolean(input) && args.filter !== null
-		const filteredItems = filtering
-			? (args.items ?? []).filter(item => filter(item, search, stringValue(item)))
-			: args.items ?? []
-		const matches = (item: unknown, keywords: string[] = []) =>
-			filtering ? filter(item, search, [stringValue(item), ...keywords].join(' ')) : true
-		const label = (item: unknown) => {
-			const key = itemKey(item)
-			return labels.get(key) ?? stringValue(item)
-		}
-		const selectedLabels = selectedItems.map(label)
 		const query = search.trim().toLowerCase()
 		const createVisible = Boolean(onCreate) && Boolean(query) &&
-			![...labels.values(), ...(args.items ?? []).map(stringValue)]
-				.some(candidate => candidate.trim().toLowerCase() === query)
-
-		if (args.autoHighlight && pop.open && filteredItems.length && !filteredItems.some(item => itemKey(item) === activeKey)) {
-			activeKey = itemKey(filteredItems[0])
-		}
-
-		const commitValue = (next: unknown, event?: Event) => {
-			valueState.set(next, event)
-		}
-
-		const select = (item: unknown, event: Event) => {
-			if (disabled) return
-			const key = itemKey(item)
-			if (multiple) {
-				const current = array(valueState.value)
-				const exists = current.some(candidate => itemKey(candidate) === key)
-				const next = exists ? current.filter(candidate => itemKey(candidate) !== key) : [...current, item]
-				commitValue(next, event)
-				live.polite(`${label(item)} ${exists ? 'deselected' : 'selected'}, ${next.length} selected`)
-				searchState.init('')
-				this.next()
-				return
-			}
-
-			// Clicking the selected option again deselects it (null = the
-			// controlled-empty convention) unless the selection is required.
-			// Either way the click commits, and commits close.
-			if (selectedKeys.has(key) && !args.required) {
-				commitValue(null, event)
-				live.polite(`${label(item)} deselected`)
-			} else {
-				commitValue(item, event)
-			}
-			searchState.init('')
-			setOpen(false, event)
-		}
-
-		const remove = (item: unknown, event?: Event) => {
-			if (disabled) return
-			const key = itemKey(item)
-			const current = array(valueState.value)
-			const next = current.filter(candidate => itemKey(candidate) !== key)
-			commitValue(multiple ? next : null, event)
-			live.polite(`${label(item)} removed, ${next.length} selected`)
-			this.next()
-		}
-		removeItem = remove
-
-		const clear = (event?: Event) => {
-			commitValue(multiple ? [] : null, event)
-			searchState.init('')
-			this.next()
-			input?.focus()
-		}
-
-		const create = (event: Event) => {
-			if (disabled) return
-			const value = search.trim()
-			if (!value) return
-			onCreate?.(value, event)
-			searchState.init('')
-			this.next()
-		}
+			![...labels.values()].some(candidate => candidate.trim().toLowerCase() === query)
 
 		SelectContext({
 			activeId: activeKey ? itemDomId(activeKey) : '',
@@ -749,12 +649,11 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			create,
 			createVisible,
 			disabled,
-			filteredItems,
 			hasTrigger: Boolean(pop.trigger),
 			inputId,
 			itemId: itemDomId,
 			listId: `${selectId}-list`,
-			matches,
+			matches: (key, haystack) => !filtering || filter(key, search, haystack),
 			multiple,
 			open: pop.open,
 			searchInPopup: inPopup(input),
@@ -764,10 +663,10 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 				if (selectedKeys.has(key)) queueMicrotask(() => this.next())
 			},
 			remove,
-			required: Boolean(args.required),
+			required,
 			search,
 			selectedKeys,
-			selectedLabels,
+			selectedLabels: selected.map(label),
 			select,
 			setActive,
 			setReference,
@@ -776,7 +675,6 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			setOpen,
 			setSearch,
 			setTrigger,
-			stringValue,
 			adoptTriggerId: pop.adoptTriggerId,
 			get triggerId() { return pop.triggerId },
 		})
@@ -793,35 +691,32 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 				for (const empty of this.querySelectorAll<HTMLElement>('[data-slot="select-empty"]')) empty.hidden = true
 			}
 
-			// A highlight the filter hid must not linger in aria-activedescendant.
-			if (activeKey && !visible.some(item => item.dataset.value === activeKey)) {
-				this.next(() => activeKey = '')
-			}
+			// A highlight the filter hid must not linger in aria-activedescendant;
+			// autoHighlight re-seats it on the first visible item while open.
+			const next = visible.some(item => item.dataset.value === activeKey)
+				? activeKey
+				: args.autoHighlight && pop.open ? visible[0]?.dataset.value ?? '' : ''
+			if (next !== activeKey) this.next(() => activeKey = next)
 
 			// Stale labels (unmounted, unselected) would suppress the create row forever.
 			const mounted = new Set(selectItems.all(this).map(item => item.dataset.value ?? ''))
+			const current = keysOf(valueState.value)
 			for (const key of labels.keys()) {
-				if (!mounted.has(key) && !selectedKeySet.has(key)) labels.delete(key)
+				if (!mounted.has(key) && !current.includes(key)) labels.delete(key)
 			}
 
 			// A rendered SelectStatus owns async/result announcements.
 			const status = this.querySelector('[data-slot="select-status"]')
-			if (pop.open && announceResults && !status && visible.length !== lastResultCount) {
-				live.polite((args.resultsLabel ?? defaultResultsLabel)(visible.length))
-			}
-			lastResultCount = pop.open ? visible.length : -1
-			announceResults = false
+			results.settle(pop.open && !status ? visible.length : -1, args.resultsLabel)
 		})
 
 		yield (
 			<>
 				{args.name && !multiple
-					? <input disabled={disabled} name={args.name} set:value={selectedItems.length ? itemKey(selectedItems[0]) : ''} type="hidden" value={selectedItems.length ? itemKey(selectedItems[0]) : ''} />
+					? <input disabled={disabled} name={args.name} type="hidden" value={selected[0] ?? ''} />
 					: null}
 				{args.name && multiple
-					? selectedItems.map(item => (
-						<input disabled={disabled} key={itemKey(item)} name={args.name} set:value={itemKey(item)} type="hidden" value={itemKey(item)} />
-					))
+					? selected.map(key => <input disabled={disabled} key={key} name={args.name} type="hidden" value={key} />)
 					: null}
 				{args.children}
 			</>
@@ -831,7 +726,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 
 
 /** Unified select: single, multiple, searchable, editable, chips, and tagging by composition. */
-const Select = <T = string, Multiple extends boolean = false>({
+const Select = <Multiple extends boolean = false>({
 	autoHighlight,
 	children,
 	class: classes,
@@ -842,8 +737,6 @@ const Select = <T = string, Multiple extends boolean = false>({
 	filter,
 	gap,
 	inputValue,
-	itemToStringValue,
-	items,
 	multiple,
 	name,
 	onCreate,
@@ -856,7 +749,7 @@ const Select = <T = string, Multiple extends boolean = false>({
 	resultsLabel,
 	value,
 	...attrs
-}: SelectArgs<T, Multiple>) => (
+}: SelectArgs<Multiple>) => (
 	<SelectRoot
 		{...rootAttrs(attrs as Record<string, unknown>)}
 		autoHighlight={autoHighlight}
@@ -864,17 +757,15 @@ const Select = <T = string, Multiple extends boolean = false>({
 		defaultOpen={defaultOpen}
 		defaultValue={defaultValue}
 		disabled={disabled}
-		filter={filter as SelectFilter | null | undefined}
+		filter={filter}
 		gap={gap}
 		inputValue={inputValue}
-		itemToStringValue={itemToStringValue as ((item: unknown) => string) | undefined}
-		items={items}
 		multiple={multiple}
 		name={name}
 		onCreate={onCreate}
 		onInputValueChange={onInputValueChange}
 		onOpenChange={onOpenChange}
-		onValueChange={onValueChange as ((value: unknown, event?: Event) => void) | undefined}
+		onValueChange={onValueChange as SelectArgs<boolean>['onValueChange']}
 		open={open}
 		placement={placement}
 		required={required}
@@ -895,7 +786,6 @@ const SelectTrigger: Stateless<SelectTriggerArgs> = ({
 	iconClass,
 	id: idArg,
 	ref,
-	size = 'default',
 	type = 'button',
 	'set:onclick': onClick,
 	...attrs
@@ -921,7 +811,6 @@ const SelectTrigger: Stateless<SelectTriggerArgs> = ({
 			aria-required={flag(select?.required)}
 			class={classes}
 			data-placeholder={flag(empty)}
-			data-size={size}
 			data-slot="select-trigger"
 			disabled={disabledFlag}
 			role="combobox"
@@ -962,49 +851,65 @@ const SelectValue: Stateless<SelectValueArgs> = ({
 	)
 }
 
-/** Input field or in-popup search box for a Select. */
+/** Combobox wiring shared by SelectInput and SelectChipsInput; the in-popup search is a searchbox. */
+const inputAttrs = (select: SelectContextValue | null, { disabled, onInput, ref }: {
+	disabled: unknown
+	onInput: unknown
+	ref: unknown
+}) => {
+	const searchbox = Boolean(select?.searchInPopup)
+	let mounted: HTMLInputElement | null = null
+
+	return {
+		'aria-activedescendant': select?.activeId || undefined,
+		'aria-autocomplete': 'list',
+		'aria-controls': select?.listId,
+		'aria-expanded': searchbox ? undefined : select?.open ? 'true' : 'false',
+		'aria-haspopup': searchbox ? undefined : 'listbox',
+		'aria-required': flag(select?.required),
+		disabled: Boolean(disabled ?? select?.disabled),
+		ref: (element: HTMLInputElement | null) => {
+			const previous = mounted
+			mounted = element
+			select?.setInput(element, previous)
+			callRef(ref, element)
+		},
+		role: searchbox ? 'searchbox' : 'combobox',
+		'set:onclick': (event: Event) => select?.setOpen(true, event),
+		'set:onfocus': (event: FocusEvent) => select?.setOpen(true, event),
+		'set:oninput': (event: Event) => {
+			callHandler(onInput, event)
+			if (event.defaultPrevented) return
+			select?.setSearch((event.target as HTMLInputElement).value, event)
+		},
+		type: 'text',
+	} as const
+}
+
+/** Input field or in-popup search box for a Select; children sit in its inline-end addon before the trigger. */
 const SelectInput: Stateless<SelectInputArgs> = ({
 	children,
 	addonClass,
 	buttonClass,
 	buttonIconClass,
 	class: classes,
-	clearButtonClass,
-	clearIconClass,
-	clearLabel = 'Clear selection',
 	disabled,
 	id: idArg,
 	inputClass,
-	onValueChange,
-	placeholder,
 	ref,
-	showClear,
 	showTrigger = true,
 	triggerLabel = 'Show options',
-	value,
 	'set:oninput': onInput,
 	...attrs
 }) => {
 	const select = SelectContext()
 	const disabledFlag = Boolean(disabled ?? select?.disabled)
-	const clearable = Boolean(select && (select.selectedKeys.size > 0 || select.search))
-	// The in-popup search is not the field: the trigger stays the combobox.
-	const searchbox = Boolean(select?.searchInPopup)
-	const shown = value == null
-		? select?.open || select?.search
-			? select?.search ?? ''
-			: select?.multiple
-				? ''
-				: select?.selectedLabels[0] ?? ''
-		: String(value)
-	let mounted: HTMLInputElement | null = null
+	const shown = select?.open || select?.search
+		? select.search
+		: select?.multiple
+			? ''
+			: select?.selectedLabels[0] ?? ''
 	let group: HTMLDivElement | null = null
-	const reference = (element: HTMLInputElement | null) => {
-		const previous = mounted
-		mounted = element
-		select?.setInput(element, previous)
-		callRef(ref, element)
-	}
 
 	return (
 		<InputGroup
@@ -1020,34 +925,15 @@ const SelectInput: Stateless<SelectInputArgs> = ({
 		>
 			<InputGroupInput
 				{...attrs}
-				aria-activedescendant={select?.activeId || undefined}
-				aria-autocomplete="list"
-				aria-controls={select?.listId}
-				aria-expanded={searchbox ? undefined : select?.open ? 'true' : 'false'}
-				aria-haspopup={searchbox ? undefined : 'listbox'}
-				aria-required={flag(select?.required)}
+				{...inputAttrs(select, { disabled, onInput, ref })}
 				class={inputClass}
 				data-slot="select-input"
-				disabled={disabledFlag}
 				id={idArg ?? select?.inputId}
-				placeholder={placeholder}
-				ref={reference}
-				role={searchbox ? 'searchbox' : 'combobox'}
-				set:onclick={(event: Event) => select?.setOpen(true, event)}
-				set:onfocus={(event: FocusEvent) => select?.setOpen(true, event)}
-				set:oninput={(event: Event) => {
-					const next = (event.target as HTMLInputElement).value
-					callHandler(onInput, event)
-					if (event.defaultPrevented) return
-					onValueChange?.(next, event)
-					select?.setSearch(next, event)
-				}}
 				set:value={shown}
-				type="text"
 			/>
-			{children}
 			<InputGroupAddon align="inline-end" class={addonClass}>
-				{showTrigger && !(showClear && clearable) ? (
+				{children}
+				{showTrigger ? (
 					<InputGroupButton
 						aria-controls={select?.listId}
 						aria-expanded={select?.open ? 'true' : 'false'}
@@ -1061,24 +947,12 @@ const SelectInput: Stateless<SelectInputArgs> = ({
 						<span aria-hidden="true" class={buttonIconClass} />
 					</InputGroupButton>
 				) : null}
-				{showClear && clearable ? (
-					<InputGroupButton
-						aria-label={clearLabel}
-						class={clearButtonClass}
-						data-slot="select-clear"
-						disabled={disabledFlag}
-						set:onclick={(event: Event) => select?.clear(event)}
-						type="button"
-					>
-						<span aria-hidden="true" class={clearIconClass} />
-					</InputGroupButton>
-				) : null}
 			</InputGroupAddon>
 		</InputGroup>
 	)
 }
 
-/** Button that clears the current selection and search. */
+/** Button that clears the current selection and search; renders only while there is something to clear. */
 const SelectClear: Stateless<SelectClearArgs> = ({
 	children,
 	class: classes,
@@ -1091,7 +965,6 @@ const SelectClear: Stateless<SelectClearArgs> = ({
 	const select = SelectContext()
 	const disabledFlag = Boolean(disabled ?? select?.disabled)
 
-	// Nothing to clear, nothing to render.
 	if (select && !select.selectedKeys.size && !select.search) return null
 
 	return (
@@ -1137,11 +1010,8 @@ const SelectContent: Stateless<SelectContentArgs> = ({ children, class: classes,
 }
 
 /** Listbox for Select options; required in every composition. */
-const SelectList: Stateless<SelectListArgs<any>> = ({ children, class: classes, ...attrs }) => {
+const SelectList: Stateless<SelectListArgs> = ({ children, class: classes, ...attrs }) => {
 	const select = SelectContext()
-	const render = typeof children === 'function'
-		? (select?.filteredItems ?? []).map((item, index) => (children as (item: unknown, index: number) => Children)(item, index))
-		: children
 
 	return (
 		<div
@@ -1153,13 +1023,13 @@ const SelectList: Stateless<SelectListArgs<any>> = ({ children, class: classes, 
 			id={select?.listId}
 			role="listbox"
 		>
-			{render}
+			{children}
 		</div>
 	)
 }
 
 /** Selectable Select option. */
-const SelectItem: Stateless<SelectItemArgs<any>> = ({
+const SelectItem: Stateless<SelectItemArgs> = ({
 	children,
 	disabled,
 	forceMount,
@@ -1175,22 +1045,19 @@ const SelectItem: Stateless<SelectItemArgs<any>> = ({
 	...attrs
 }) => {
 	const select = SelectContext()
-	const item = value ?? text(children)
-	const key = select ? select.stringValue(item) : fallbackString(item)
-	// Rich object items must not register concatenated children text as label;
-	// their display string is itemToStringValue. textValue always wins.
-	const label = textValue ?? (typeof item === 'string' ? text(children) : undefined)
+	const key = value ?? text(children)
+	const label = textValue ?? (text(children) || key)
 	const selected = Boolean(select?.selectedKeys.has(key))
 	const highlighted = select?.activeKey === key
 	const disabledFlag = Boolean(disabled ?? select?.disabled)
-	const hidden = !forceMount && select ? !select.matches(item, keywords) : false
+	const hidden = !forceMount && select ? !select.matches(key, [label, ...keywords].join(' ')) : false
 
-	if (label != null) select?.registerLabel(key, label)
+	select?.registerLabel(key, label)
 
 	return (
 		<div
 			{...attrs}
-			{...selectItems.attrs({ disabled: disabledFlag, label: label ?? key, value: key })}
+			{...selectItems.attrs({ disabled: disabledFlag, label, value: key })}
 			aria-disabled={flag(disabledFlag)}
 			aria-selected={selected ? 'true' : 'false'}
 			data-highlighted={flag(highlighted)}
@@ -1201,8 +1068,8 @@ const SelectItem: Stateless<SelectItemArgs<any>> = ({
 			id={select?.itemId(key)}
 			role="option"
 			set:onclick={activate(disabledFlag, onClick, event => {
-				onSelect?.(item, event)
-				if (!event.defaultPrevented) select?.select(item, event)
+				onSelect?.(key, event)
+				if (!event.defaultPrevented) select?.select(key, event)
 			})}
 			set:onfocus={activate(false, onFocus, () => select?.setActive(key))}
 			set:onpointermove={activate(disabledFlag, onPointerMove, () => select?.setActive(key))}
@@ -1281,39 +1148,35 @@ const SelectChips: Stateless<SelectChipsArgs> = ({
 }
 
 /** Selected chip for multiple Select usage. */
-const SelectChip: Stateless<SelectChipArgs<any>> = ({
+const SelectChip: Stateless<SelectChipArgs> = ({
 	children,
 	class: classes,
 	removeClass,
 	removeLabel,
 	removeIconClass,
-	showRemove = true,
 	value,
 	...attrs
 }) => {
 	const select = SelectContext()
-	const item = value ?? text(children)
-	const key = select ? select.stringValue(item) : fallbackString(item)
+	const key = value ?? text(children)
 
 	return (
 		<span {...attrs} class={classes} data-slot="select-chip" data-value={key} tabindex="-1">
 			{children}
-			{showRemove ? (
-				<button
-					aria-label={removeLabel ?? `Remove ${key}`}
-					class={removeClass}
-					data-slot="select-chip-remove"
-					disabled={select?.disabled}
-					tabindex="-1"
-					type="button"
-					set:onclick={(event: Event) => {
-						event.stopPropagation()
-						select?.remove(item, event)
-					}}
-				>
-					<span aria-hidden="true" class={removeIconClass} />
-				</button>
-			) : null}
+			<button
+				aria-label={removeLabel ?? `Remove ${key}`}
+				class={removeClass}
+				data-slot="select-chip-remove"
+				disabled={select?.disabled}
+				tabindex="-1"
+				type="button"
+				set:onclick={(event: Event) => {
+					event.stopPropagation()
+					select?.remove(key, event)
+				}}
+			>
+				<span aria-hidden="true" class={removeIconClass} />
+			</button>
 		</span>
 	)
 }
@@ -1322,97 +1185,22 @@ const SelectChip: Stateless<SelectChipArgs<any>> = ({
 const SelectChipsInput: Stateless<SelectChipsInputArgs> = ({
 	class: classes,
 	disabled,
-	onValueChange,
-	placeholder,
 	ref,
-	value,
 	'set:oninput': onInput,
 	...attrs
 }) => {
 	const select = SelectContext()
-	const disabledFlag = Boolean(disabled ?? select?.disabled)
-	let mounted: HTMLInputElement | null = null
-	const reference = (element: HTMLInputElement | null) => {
-		const previous = mounted
-		mounted = element
-		select?.setInput(element, previous)
-		callRef(ref, element)
-	}
 
 	return (
 		<input
 			{...attrs}
-			aria-activedescendant={select?.activeId || undefined}
-			aria-autocomplete="list"
-			aria-controls={select?.listId}
-			aria-expanded={select?.open ? 'true' : 'false'}
-			aria-haspopup="listbox"
-			aria-required={flag(select?.required)}
+			{...inputAttrs(select, { disabled, onInput, ref })}
 			class={classes}
 			data-slot="select-chips-input"
-			disabled={disabledFlag}
-			placeholder={placeholder}
-			ref={reference}
-			role="combobox"
-			set:onclick={(event: Event) => select?.setOpen(true, event)}
-			set:onfocus={(event: FocusEvent) => select?.setOpen(true, event)}
-			set:oninput={(event: Event) => {
-				const next = (event.target as HTMLInputElement).value
-				callHandler(onInput, event)
-				if (event.defaultPrevented) return
-				onValueChange?.(next, event)
-				select?.setSearch(next, event)
-			}}
-			set:value={value == null ? select?.search ?? '' : String(value)}
-			type="text"
+			set:value={select?.search ?? ''}
 		/>
 	)
 }
-
-const scrollList = (event: Event, top: number) => {
-	(event.currentTarget as HTMLElement)
-		.closest<HTMLElement>('[data-slot="select-content"]')
-		?.querySelector<HTMLElement>('[data-slot="select-list"]')
-		?.scrollBy({ top })
-}
-
-/** Scroll button for long Select lists. */
-const SelectScrollUpButton: Stateless<SelectScrollButtonArgs> = ({
-	children,
-	class: classes,
-	iconClass,
-	type = 'button',
-	...attrs
-}) => (
-	<button
-		{...attrs}
-		class={classes}
-		data-slot="select-scroll-up-button"
-		set:onclick={(event: Event) => scrollList(event, -96)}
-		type={type}
-	>
-		{children ?? <span aria-hidden="true" class={iconClass} />}
-	</button>
-)
-
-/** Scroll button for long Select lists. */
-const SelectScrollDownButton: Stateless<SelectScrollButtonArgs> = ({
-	children,
-	class: classes,
-	iconClass,
-	type = 'button',
-	...attrs
-}) => (
-	<button
-		{...attrs}
-		class={classes}
-		data-slot="select-scroll-down-button"
-		set:onclick={(event: Event) => scrollList(event, 96)}
-		type={type}
-	>
-		{children ?? <span aria-hidden="true" class={iconClass} />}
-	</button>
-)
 
 export {
 	Select,
@@ -1428,8 +1216,6 @@ export {
 	SelectItem,
 	SelectLabel,
 	SelectList,
-	SelectScrollDownButton,
-	SelectScrollUpButton,
 	SelectSeparator,
 	SelectStatus,
 	SelectTrigger,

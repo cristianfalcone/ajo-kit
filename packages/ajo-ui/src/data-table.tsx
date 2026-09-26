@@ -427,16 +427,16 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 							<nav aria-label={call('pagination', args.label)} data-slot="data-table-pagination">
 								<div data-slot="data-table-page-size">
 									<span>{text('rowsPerPage')}</span>
-									<Select<number>
-										value={view.page.size}
-										onValueChange={value => { if (value !== null) model!.setPageSize(value) }}
+									<Select
+										value={String(view.page.size)}
+										onValueChange={value => { if (value) model!.setPageSize(Number(value)) }}
 									>
 										<SelectTrigger aria-label={text('rowsPerPage')}>
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
 											<SelectList>
-												{view.page.sizes.map(size => <SelectItem key={size} value={size}>{size}</SelectItem>)}
+												{view.page.sizes.map(size => <SelectItem key={size} value={String(size)}>{size}</SelectItem>)}
 											</SelectList>
 										</SelectContent>
 									</Select>
