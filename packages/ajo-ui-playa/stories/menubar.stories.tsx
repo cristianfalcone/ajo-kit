@@ -2,22 +2,19 @@
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
 import {
-	Menubar,
-	MenubarCheckboxItem,
-	MenubarContent,
-	MenubarGroup,
-	MenubarItem,
-	MenubarLabel,
-	MenubarMenu,
-	MenubarRadioGroup,
-	MenubarRadioItem,
-	MenubarSeparator,
-	MenubarShortcut,
-	MenubarSub,
-	MenubarSubContent,
-	MenubarSubTrigger,
-	MenubarTrigger,
-} from 'ajo-ui-playa/menubar'
+	MenuCheckboxItem,
+	MenuGroup,
+	MenuItem,
+	MenuLabel,
+	MenuRadioGroup,
+	MenuRadioItem,
+	MenuSeparator,
+	MenuShortcut,
+	MenuSub,
+	MenuSubContent,
+	MenuSubTrigger,
+} from 'ajo-ui-playa/menu'
+import { Menubar, MenubarContent, MenubarMenu, MenubarTrigger } from 'ajo-ui-playa/menubar'
 
 export default {
 	title: 'UI/Menubar',
@@ -42,52 +39,52 @@ const AppMenubar = ({ onSelect }: { onSelect?: (action: string) => (event: Event
 		<MenubarMenu value="file">
 			<MenubarTrigger id="file-menubar-trigger">File</MenubarTrigger>
 			<MenubarContent class="w-56">
-				<MenubarGroup>
-					<MenubarItem textValue="New Tab" onSelect={onSelect?.('new-tab')}>
+				<MenuGroup>
+					<MenuItem textValue="New Tab" onSelect={onSelect?.('new-tab')}>
 						<span class="i-lucide-file-plus size-4" />
 						New Tab
-						<MenubarShortcut>Ctrl+T</MenubarShortcut>
-					</MenubarItem>
-					<MenubarItem textValue="New Window" onSelect={onSelect?.('new-window')}>
+						<MenuShortcut>Ctrl+T</MenuShortcut>
+					</MenuItem>
+					<MenuItem textValue="New Window" onSelect={onSelect?.('new-window')}>
 						<span class="i-lucide-app-window size-4" />
 						New Window
-					</MenubarItem>
-				</MenubarGroup>
-				<MenubarSeparator />
-				<MenubarGroup>
-					<MenubarItem textValue="Share" onSelect={onSelect?.('share')}>Share</MenubarItem>
-					<MenubarItem textValue="Print" onSelect={onSelect?.('print')}>Print</MenubarItem>
-				</MenubarGroup>
-				<MenubarSeparator />
-				<MenubarItem disabled textValue="Import">Import</MenubarItem>
-				<MenubarItem textValue="Delete" variant="danger" onSelect={onSelect?.('delete')}>
+					</MenuItem>
+				</MenuGroup>
+				<MenuSeparator />
+				<MenuGroup>
+					<MenuItem textValue="Share" onSelect={onSelect?.('share')}>Share</MenuItem>
+					<MenuItem textValue="Print" onSelect={onSelect?.('print')}>Print</MenuItem>
+				</MenuGroup>
+				<MenuSeparator />
+				<MenuItem disabled textValue="Import">Import</MenuItem>
+				<MenuItem textValue="Delete" variant="danger" onSelect={onSelect?.('delete')}>
 					<span class="i-lucide-trash-2 size-4" />
 					Delete
-				</MenubarItem>
+				</MenuItem>
 			</MenubarContent>
 		</MenubarMenu>
 		<MenubarMenu value="edit">
 			<MenubarTrigger id="edit-menubar-trigger">Edit</MenubarTrigger>
 			<MenubarContent class="w-48">
-				<MenubarItem textValue="Undo" onSelect={onSelect?.('undo')}>
+				<MenuItem textValue="Undo" onSelect={onSelect?.('undo')}>
 					Undo
-					<MenubarShortcut>Ctrl+Z</MenubarShortcut>
-				</MenubarItem>
-				<MenubarItem textValue="Redo" onSelect={onSelect?.('redo')}>
+					<MenuShortcut>Ctrl+Z</MenuShortcut>
+				</MenuItem>
+				<MenuItem textValue="Redo" onSelect={onSelect?.('redo')}>
 					Redo
-					<MenubarShortcut>Ctrl+Shift+Z</MenubarShortcut>
-				</MenubarItem>
-				<MenubarSeparator />
-				<MenubarItem textValue="Cut" onSelect={onSelect?.('cut')}>Cut</MenubarItem>
-				<MenubarItem textValue="Copy" onSelect={onSelect?.('copy')}>Copy</MenubarItem>
-				<MenubarItem textValue="Paste" onSelect={onSelect?.('paste')}>Paste</MenubarItem>
+					<MenuShortcut>Ctrl+Shift+Z</MenuShortcut>
+				</MenuItem>
+				<MenuSeparator />
+				<MenuItem textValue="Cut" onSelect={onSelect?.('cut')}>Cut</MenuItem>
+				<MenuItem textValue="Copy" onSelect={onSelect?.('copy')}>Copy</MenuItem>
+				<MenuItem textValue="Paste" onSelect={onSelect?.('paste')}>Paste</MenuItem>
 			</MenubarContent>
 		</MenubarMenu>
 		<MenubarMenu value="view">
 			<MenubarTrigger id="view-menubar-trigger">View</MenubarTrigger>
 			<MenubarContent class="w-52">
-				<MenubarCheckboxItem checked>Show toolbar</MenubarCheckboxItem>
-				<MenubarCheckboxItem>Show sidebar</MenubarCheckboxItem>
+				<MenuCheckboxItem checked>Show toolbar</MenuCheckboxItem>
+				<MenuCheckboxItem>Show sidebar</MenuCheckboxItem>
 			</MenubarContent>
 		</MenubarMenu>
 	</Menubar>
@@ -117,14 +114,14 @@ const CheckboxExample: Stateful = function* () {
 				<MenubarMenu value="view">
 					<MenubarTrigger id="checkbox-menubar-trigger">View</MenubarTrigger>
 					<MenubarContent class="w-56">
-						<MenubarLabel>Panels</MenubarLabel>
-						<MenubarSeparator />
-						<MenubarCheckboxItem checked={toolbar} onCheckedChange={setToolbar}>
+						<MenuLabel>Panels</MenuLabel>
+						<MenuSeparator />
+						<MenuCheckboxItem checked={toolbar} onCheckedChange={setToolbar}>
 							Show toolbar
-						</MenubarCheckboxItem>
-						<MenubarCheckboxItem checked={sidebar} onCheckedChange={setSidebar}>
+						</MenuCheckboxItem>
+						<MenuCheckboxItem checked={sidebar} onCheckedChange={setSidebar}>
 							Show sidebar
-						</MenubarCheckboxItem>
+						</MenuCheckboxItem>
 					</MenubarContent>
 				</MenubarMenu>
 			</Menubar>
@@ -143,13 +140,13 @@ const RadioExample: Stateful = function* () {
 				<MenubarMenu value="profiles">
 					<MenubarTrigger id="radio-menubar-trigger">Profiles</MenubarTrigger>
 					<MenubarContent class="w-56">
-						<MenubarLabel inset>Switch Profile</MenubarLabel>
-						<MenubarSeparator />
-						<MenubarRadioGroup value={profile} onValueChange={setProfile}>
-							<MenubarRadioItem value="personal">Personal</MenubarRadioItem>
-							<MenubarRadioItem value="work">Work</MenubarRadioItem>
-							<MenubarRadioItem value="guest">Guest</MenubarRadioItem>
-						</MenubarRadioGroup>
+						<MenuLabel inset>Switch Profile</MenuLabel>
+						<MenuSeparator />
+						<MenuRadioGroup value={profile} onValueChange={setProfile}>
+							<MenuRadioItem value="personal">Personal</MenuRadioItem>
+							<MenuRadioItem value="work">Work</MenuRadioItem>
+							<MenuRadioItem value="guest">Guest</MenuRadioItem>
+						</MenuRadioGroup>
 					</MenubarContent>
 				</MenubarMenu>
 			</Menubar>
@@ -168,7 +165,7 @@ const RejectedCloseExample: Stateful = function* () {
 				<MenubarMenu value="file">
 					<MenubarTrigger id="rejected-close-menubar-trigger">File</MenubarTrigger>
 					<MenubarContent>
-						<MenubarItem textValue="Persistent action">Persistent action</MenubarItem>
+						<MenuItem textValue="Persistent action">Persistent action</MenuItem>
 					</MenubarContent>
 				</MenubarMenu>
 			</Menubar>
@@ -186,7 +183,7 @@ export const Basic: Story<typeof Menubar> = {
 		trigger.click()
 		await frame()
 
-		const item = canvas.querySelector<HTMLElement>('[data-slot="menubar-item"][data-label="New Tab"]')
+		const item = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="New Tab"]')
 		const content = canvas.querySelector<HTMLElement>('[data-slot="menubar-content"]')
 		if (!item || !content) throw new Error('Menubar content or New Tab item was not rendered')
 		if (trigger.getAttribute('aria-expanded') !== 'true' || !content.matches(':popover-open')) {
@@ -246,7 +243,7 @@ export const Keyboard: Story<typeof Menubar> = {
 
 		// ArrowRight from inside an open menu moves to the adjacent menu (APG)
 		// with its first item focused only after current Floating UI geometry.
-		const firstViewItem = canvas.querySelector<HTMLElement>('[data-slot="menubar-checkbox-item"][data-label="Show toolbar"]')
+		const firstViewItem = canvas.querySelector<HTMLElement>('[data-slot="menu-checkbox-item"][data-label="Show toolbar"]')
 		const viewContent = firstViewItem?.closest<HTMLElement>('[data-slot="menubar-content"]')
 		let focusSawCommittedGeometry = false
 		const observeFocus = () => {
@@ -374,7 +371,7 @@ export const GeometryOverride: Story<typeof Menubar> = {
 			<MenubarMenu value="tools">
 				<MenubarTrigger id="override-menubar-trigger">Tools</MenubarTrigger>
 				<MenubarContent class="w-48">
-					<MenubarItem>Options</MenubarItem>
+					<MenuItem>Options</MenuItem>
 				</MenubarContent>
 			</MenubarMenu>
 		</Menubar>
@@ -448,8 +445,8 @@ export const EdgeScrollDismissal: Story<typeof Menubar> = {
 						<MenubarMenu value="edge">
 							<MenubarTrigger id="edge-menubar-trigger">Edge</MenubarTrigger>
 							<MenubarContent class="w-72">
-								<MenubarItem>First edge action</MenubarItem>
-								<MenubarItem>Second edge action</MenubarItem>
+								<MenuItem>First edge action</MenuItem>
+								<MenuItem>Second edge action</MenuItem>
 							</MenubarContent>
 						</MenubarMenu>
 					</Menubar>
@@ -505,22 +502,22 @@ export const NestedOwnership: Story<typeof Menubar> = {
 			<MenubarMenu value="outer-file">
 				<MenubarTrigger id="outer-file-trigger">File</MenubarTrigger>
 				<MenubarContent>
-					<MenubarItem>Outer action</MenubarItem>
+					<MenuItem>Outer action</MenuItem>
 					<Menubar aria-label="Inner menu">
 						<MenubarMenu value="inner-one">
 							<MenubarTrigger id="inner-one-trigger">Inner One</MenubarTrigger>
-							<MenubarContent><MenubarItem>Inner first</MenubarItem></MenubarContent>
+							<MenubarContent><MenuItem>Inner first</MenuItem></MenubarContent>
 						</MenubarMenu>
 						<MenubarMenu value="inner-two">
 							<MenubarTrigger id="inner-two-trigger">Inner Two</MenubarTrigger>
-							<MenubarContent><MenubarItem>Inner second</MenubarItem></MenubarContent>
+							<MenubarContent><MenuItem>Inner second</MenuItem></MenubarContent>
 						</MenubarMenu>
 					</Menubar>
 				</MenubarContent>
 			</MenubarMenu>
 			<MenubarMenu value="outer-edit">
 				<MenubarTrigger id="outer-edit-trigger">Edit</MenubarTrigger>
-				<MenubarContent><MenubarItem>Outer edit action</MenubarItem></MenubarContent>
+				<MenubarContent><MenuItem>Outer edit action</MenuItem></MenubarContent>
 			</MenubarMenu>
 		</Menubar>
 	),
@@ -603,13 +600,13 @@ export const DisabledFirst: Story = {
 			<MenubarMenu value="archive" disabled>
 				<MenubarTrigger id="disabled-menubar-trigger">Archive</MenubarTrigger>
 				<MenubarContent>
-					<MenubarItem>Restore</MenubarItem>
+					<MenuItem>Restore</MenuItem>
 				</MenubarContent>
 			</MenubarMenu>
 			<MenubarMenu value="tools">
 				<MenubarTrigger id="enabled-menubar-trigger">Tools</MenubarTrigger>
 				<MenubarContent>
-					<MenubarItem>Options</MenubarItem>
+					<MenuItem>Options</MenuItem>
 				</MenubarContent>
 			</MenubarMenu>
 		</Menubar>
@@ -636,7 +633,7 @@ export const Checkboxes: Story = {
 		trigger.click()
 		await frame()
 
-		const sidebar = canvas.querySelector<HTMLElement>('[data-slot="menubar-checkbox-item"][data-label="Show sidebar"]')
+		const sidebar = canvas.querySelector<HTMLElement>('[data-slot="menu-checkbox-item"][data-label="Show sidebar"]')
 		if (!sidebar) throw new Error('Menubar checkbox item was not rendered')
 
 		sidebar.click()
@@ -657,7 +654,7 @@ export const RadioGroup: Story = {
 		trigger.click()
 		await frame()
 
-		const work = canvas.querySelector<HTMLElement>('[data-slot="menubar-radio-item"][data-label="Work"]')
+		const work = canvas.querySelector<HTMLElement>('[data-slot="menu-radio-item"][data-label="Work"]')
 		if (!work) throw new Error('Menubar radio item was not rendered')
 
 		work.click()
@@ -675,24 +672,24 @@ export const Submenu: Story = {
 			<MenubarMenu value="file">
 				<MenubarTrigger id="submenu-menubar-trigger">File</MenubarTrigger>
 				<MenubarContent class="w-56">
-					<MenubarItem>New File</MenubarItem>
-					<MenubarSub>
-						<MenubarSubTrigger textValue="Export">Export</MenubarSubTrigger>
-						<MenubarSubContent>
-							<MenubarItem>PDF</MenubarItem>
-							<MenubarItem>HTML</MenubarItem>
-							<MenubarSeparator />
-							<MenubarItem>Archive</MenubarItem>
-						</MenubarSubContent>
-					</MenubarSub>
-					<MenubarSeparator />
-					<MenubarItem variant="danger">Delete Project</MenubarItem>
+					<MenuItem>New File</MenuItem>
+					<MenuSub>
+						<MenuSubTrigger textValue="Export">Export</MenuSubTrigger>
+						<MenuSubContent>
+							<MenuItem>PDF</MenuItem>
+							<MenuItem>HTML</MenuItem>
+							<MenuSeparator />
+							<MenuItem>Archive</MenuItem>
+						</MenuSubContent>
+					</MenuSub>
+					<MenuSeparator />
+					<MenuItem variant="danger">Delete Project</MenuItem>
 				</MenubarContent>
 			</MenubarMenu>
 			<MenubarMenu value="edit">
 				<MenubarTrigger id="submenu-edit-menubar-trigger">Edit</MenubarTrigger>
 				<MenubarContent>
-					<MenubarItem>Undo</MenubarItem>
+					<MenuItem>Undo</MenuItem>
 				</MenubarContent>
 			</MenubarMenu>
 		</Menubar>
@@ -705,8 +702,8 @@ export const Submenu: Story = {
 		trigger.click()
 		await frame()
 
-		const subTrigger = canvas.querySelector<HTMLElement>('[data-slot="menubar-sub-trigger"]')
-		const subContent = canvas.querySelector<HTMLElement>('[data-slot="menubar-sub-content"]')
+		const subTrigger = canvas.querySelector<HTMLElement>('[data-slot="menu-sub-trigger"]')
+		const subContent = canvas.querySelector<HTMLElement>('[data-slot="menu-sub-content"]')
 		const pdf = subContent?.querySelector<HTMLElement>('[data-label="PDF"]')
 		if (!subTrigger || !subContent || !pdf) throw new Error('Menubar submenu trigger, content, or item was not rendered')
 
@@ -735,25 +732,25 @@ export const WithIcons: Story = {
 			<MenubarMenu value="file">
 				<MenubarTrigger>File</MenubarTrigger>
 				<MenubarContent class="w-56">
-					<MenubarItem>
+					<MenuItem>
 						<span class="i-lucide-file size-4" />
 						New File
-					</MenubarItem>
-					<MenubarItem>
+					</MenuItem>
+					<MenuItem>
 						<span class="i-lucide-folder-open size-4" />
 						Open Folder
-					</MenubarItem>
-					<MenubarSeparator />
-					<MenubarItem variant="danger">
+					</MenuItem>
+					<MenuSeparator />
+					<MenuItem variant="danger">
 						<span class="i-lucide-trash-2 size-4" />
 						Delete
-					</MenubarItem>
+					</MenuItem>
 				</MenubarContent>
 			</MenubarMenu>
 			<MenubarMenu value="more">
 				<MenubarTrigger>More</MenubarTrigger>
 				<MenubarContent>
-					<MenubarItem>Settings</MenubarItem>
+					<MenuItem>Settings</MenuItem>
 				</MenubarContent>
 			</MenubarMenu>
 		</Menubar>

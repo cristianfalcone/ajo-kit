@@ -14,15 +14,8 @@ vi.mock('@floating-ui/dom', async importActual => ({
 	computePosition: floating.computePosition,
 }))
 
-import {
-	ContextMenu,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuSub,
-	ContextMenuSubContent,
-	ContextMenuSubTrigger,
-	ContextMenuTrigger,
-} from '../src/context-menu'
+import { ContextMenu, ContextMenuTrigger } from '../src/context-menu'
+import { MenuContent, MenuItem, MenuSub, MenuSubContent, MenuSubTrigger } from '../src/menu'
 import { nativePopoverHarness } from './native-popover-harness'
 
 const popovers = nativePopoverHarness()
@@ -54,12 +47,12 @@ const escape = (target: HTMLElement) => target.dispatchEvent(new KeyboardEvent('
 const view = () => jsx(ContextMenu, {
 	children: [
 		jsx(ContextMenuTrigger, { children: 'Target', id: 'context-target', key: 'trigger' }),
-		jsx(ContextMenuContent, {
-			children: jsx(ContextMenuSub, {
+		jsx(MenuContent, {
+			children: jsx(MenuSub, {
 				children: [
-					jsx(ContextMenuSubTrigger, { children: 'More', key: 'trigger' }),
-					jsx(ContextMenuSubContent, {
-						children: jsx(ContextMenuItem, { children: 'Child' }),
+					jsx(MenuSubTrigger, { children: 'More', key: 'trigger' }),
+					jsx(MenuSubContent, {
+						children: jsx(MenuItem, { children: 'Child' }),
 						key: 'content',
 					}),
 				],
@@ -72,8 +65,8 @@ const view = () => jsx(ContextMenu, {
 const rootView = () => jsx(ContextMenu, {
 	children: [
 		jsx(ContextMenuTrigger, { children: 'Target', id: 'context-target', key: 'trigger' }),
-		jsx(ContextMenuContent, {
-			children: jsx(ContextMenuItem, { children: 'Action' }),
+		jsx(MenuContent, {
+			children: jsx(MenuItem, { children: 'Action' }),
 			key: 'content',
 		}),
 	],

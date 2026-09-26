@@ -11,17 +11,17 @@ import { Checkbox } from 'ajo-ui/checkbox'
 import { CheckboxGroup, CheckboxGroupItem } from 'ajo-ui/checkbox-group'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from 'ajo-ui/collapsible'
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from 'ajo-ui/command'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from 'ajo-ui/context-menu'
+import { ContextMenu, ContextMenuTrigger } from 'ajo-ui/context-menu'
 import { DataTable } from 'ajo-ui/data-table'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from 'ajo-ui/dialog'
 import { DirectionProvider } from 'ajo-ui/direction'
-import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from 'ajo-ui/drawer'
+import { Drawer, DrawerContent } from 'ajo-ui/drawer'
 import { Field } from 'ajo-ui/field'
 import { InputDate } from 'ajo-ui/input-date'
 import { InputGroup, InputGroupInput } from 'ajo-ui/input-group'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from 'ajo-ui/input-otp'
 import { Menu, MenuContent, MenuItem, MenuRadioGroup, MenuRadioItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from 'ajo-ui/menu'
-import { Menubar, MenubarContent, MenubarItem, MenubarMenu, MenubarTrigger } from 'ajo-ui/menubar'
+import { Menubar, MenubarMenu, MenubarTrigger } from 'ajo-ui/menubar'
 import { MessageScroller, MessageScrollerContent, MessageScrollerItem, MessageScrollerProvider, MessageScrollerViewport } from 'ajo-ui/message-scroller'
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from 'ajo-ui/navigation-menu'
 import { Popover, PopoverContent, PopoverTrigger } from 'ajo-ui/popover'
@@ -97,8 +97,8 @@ const roots: Record<string, () => Children> = {
 	'context-menu': () => jsx(ContextMenu, {
 		children: [
 			jsx(ContextMenuTrigger, { children: 'Target' }),
-			jsx(ContextMenuContent, {
-				children: jsx(ContextMenuItem, { children: 'Item' }),
+			jsx(MenuContent, {
+				children: jsx(MenuItem, { children: 'Item' }),
 			}),
 		],
 	}),
@@ -122,8 +122,8 @@ const roots: Record<string, () => Children> = {
 	direction: () => jsx(DirectionProvider, { children: 'Content', dir: 'rtl' }),
 	drawer: () => jsx(Drawer, {
 		children: [
-			jsx(DrawerTrigger, { children: 'Open' }),
-			jsx(DrawerContent, { children: jsx(DrawerTitle, { children: 'Title' }) }),
+			jsx(DialogTrigger, { children: 'Open' }),
+			jsx(DrawerContent, { children: jsx(DialogTitle, { children: 'Title' }) }),
 		],
 	}),
 	menu: () => jsx(Menu, {
@@ -168,7 +168,7 @@ const roots: Record<string, () => Children> = {
 		children: jsx(MenubarMenu, {
 			children: [
 				jsx(MenubarTrigger, { children: 'File' }),
-				jsx(MenubarContent, { children: jsx(MenubarItem, { children: 'New' }) }),
+				jsx(MenuContent, { children: jsx(MenuItem, { children: 'New' }) }),
 			],
 			value: 'file',
 		}),
@@ -416,8 +416,8 @@ test('SSR Menubar owns shared root positioning and manual menu semantics', () =>
 		children: jsx(MenubarMenu, {
 			children: [
 				jsx(MenubarTrigger, { children: 'File', id: 'menubar-source' }),
-				jsx(MenubarContent, {
-					children: jsx(MenubarItem, { children: 'New' }),
+				jsx(MenuContent, {
+					children: jsx(MenuItem, { children: 'New' }),
 					id: 'ignored-menubar-content',
 					popover: 'auto',
 					role: 'dialog',
@@ -431,7 +431,7 @@ test('SSR Menubar owns shared root positioning and manual menu semantics', () =>
 	}))
 	const root = html.match(/<div[^>]*data-slot="menubar"[^>]*>/)?.[0]
 	const trigger = html.match(/<button[^>]*data-slot="menubar-trigger"[^>]*>/)?.[0]
-	const content = html.match(/<div[^>]*data-slot="menubar-content"[^>]*>/)?.[0]
+	const content = html.match(/<div[^>]*data-slot="menu-content"[^>]*>/)?.[0]
 	const contentId = trigger?.match(/aria-controls="([^"]+)"/)?.[1]
 
 	expect(root).toBeTruthy()
@@ -449,35 +449,17 @@ test('SSR Menubar owns shared root positioning and manual menu semantics', () =>
 	expect(content).not.toContain('ignored-menubar-content')
 })
 
-test('SSR standalone MenubarMenu degrades its trigger to native button semantics', () => {
-	const html = ssr(jsx(MenubarMenu, {
-		children: [
-			jsx(MenubarTrigger, { children: 'Standalone', id: 'standalone-menubar-trigger' }),
-			jsx(MenubarContent, { children: jsx(MenubarItem, { children: 'Action' }) }),
-		],
-		value: 'standalone',
-	}))
-	const trigger = html.match(/<button[^>]*id="standalone-menubar-trigger"[^>]*>/)?.[0]
-
-	expect(trigger).toBeTruthy()
-	expect(trigger).not.toContain('role="menuitem"')
-	expect(trigger).not.toContain('data-menubar-trigger')
-	expect(trigger).not.toContain('data-value=')
-	expect(trigger).not.toContain('tabindex=')
-	expect(trigger).toContain('type="button"')
-})
-
 test('SSR ContextMenu relates its real trigger without a fake anchor', () => {
 	const html = ssr(jsx(ContextMenu, {
 		children: [
 			jsx(ContextMenuTrigger, { children: 'Target', id: 'context-source' }),
-			jsx(ContextMenuContent, {
-				children: jsx(ContextMenuItem, { children: 'Open' }),
+			jsx(MenuContent, {
+				children: jsx(MenuItem, { children: 'Open' }),
 			}),
 		],
 	}))
 	const trigger = html.match(/<div[^>]*data-slot="context-menu-trigger"[^>]*>/)?.[0]
-	const content = html.match(/<div[^>]*data-slot="context-menu-content"[^>]*>/)?.[0]
+	const content = html.match(/<div[^>]*data-slot="menu-content"[^>]*>/)?.[0]
 	const contentId = trigger?.match(/aria-controls="([^"]+)"/)?.[1]
 
 	expect(trigger).toContain('id="context-source"')

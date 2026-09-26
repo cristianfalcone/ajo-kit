@@ -1,24 +1,25 @@
 ﻿import type { Stateless } from 'ajo'
 import clsx from 'clsx'
+import {
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	type DialogDescriptionArgs,
+	type DialogFooterArgs,
+	type DialogHeaderArgs,
+	type DialogTitleArgs,
+} from 'ajo-ui/dialog'
 import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 import {
 	Drawer as BaseDrawer,
 	DrawerContent as BaseDrawerContent,
-	DrawerDescription as BaseDrawerDescription,
-	DrawerFooter as BaseDrawerFooter,
-	DrawerHeader as BaseDrawerHeader,
-	DrawerTitle as BaseDrawerTitle,
 	type DrawerContentArgs as BaseDrawerContentArgs,
 	type DrawerArgs,
-	type DrawerDescriptionArgs,
-	type DrawerFooterArgs,
-	type DrawerHeaderArgs,
 	type DrawerSide,
-	type DrawerTitleArgs,
 } from 'ajo-ui/drawer'
 import { modalClose, modalClosed, modalSurface } from './modal'
-export { DrawerClose, DrawerTrigger } from 'ajo-ui/drawer'
-export type { DrawerArgs, DrawerCloseArgs, DrawerDescriptionArgs, DrawerFooterArgs, DrawerHeaderArgs, DrawerSide, DrawerTitleArgs, DrawerTriggerArgs } from 'ajo-ui/drawer'
+export type { DrawerArgs, DrawerSide } from 'ajo-ui/drawer'
 
 export type DrawerContentArgs = OmitArg<BaseDrawerContentArgs, 'class' | 'closeClass' | 'closeIconClass' | 'handle' | 'handleClass' | 'sideClass'> & FixedArgs<'closeClass' | 'closeIconClass' | 'handleClass' | 'sideClass'> & {
 	/** Additional UnoCSS classes for the drawer panel. */
@@ -42,7 +43,7 @@ const handleSides: Record<DrawerSide, string> = {
 const handleBase = 'mx-auto mt-4 h-2 w-[100px] shrink-0 touch-none cursor-grab rounded-full bg-muted active:cursor-grabbing'
 const headerBase = 'flex flex-col p-4 group-data-[side=bottom]/drawer-content:text-center group-data-[side=top]/drawer-content:text-center md:text-left'
 
-/** Root provider for a modal drawer. */
+/** Root provider for a modal drawer; compose DialogTrigger and DialogClose from the Playa dialog. */
 const Drawer: Stateless<DrawerArgs> = ({
 	class: classes,
 	...attrs
@@ -74,24 +75,24 @@ const DrawerContent: Stateless<DrawerContentArgs> = ({
 	)
 }
 
-/** Header area for drawer title and description. */
-const DrawerHeader: Stateless<DrawerHeaderArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDrawerHeader {...attrs} class={clsx(headerBase, classes)} />
+/** Header area for drawer title and description, themed for the drawer edge. */
+const DrawerHeader: Stateless<DialogHeaderArgs> = ({ class: classes, ...attrs }) => (
+	<DialogHeader {...attrs} class={clsx(headerBase, classes)} data-slot="drawer-header" />
 )
 
-/** Footer area for drawer actions. */
-const DrawerFooter: Stateless<DrawerFooterArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDrawerFooter {...attrs} class={clsx('mt-auto flex flex-col gap-2 p-4 sm:flex-col sm:justify-start', classes)} />
+/** Footer area for drawer actions, pinned to the drawer end. */
+const DrawerFooter: Stateless<DialogFooterArgs> = ({ class: classes, ...attrs }) => (
+	<DialogFooter {...attrs} class={clsx('mt-auto flex flex-col gap-2 p-4 sm:flex-col sm:justify-start', classes)} data-slot="drawer-footer" />
 )
 
 /** Accessible title for DrawerContent. */
-const DrawerTitle: Stateless<DrawerTitleArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDrawerTitle {...attrs} class={clsx('font-semibold text-foreground', classes)} />
+const DrawerTitle: Stateless<DialogTitleArgs> = ({ class: classes, ...attrs }) => (
+	<DialogTitle {...attrs} class={clsx('font-semibold text-foreground', classes)} data-slot="drawer-title" />
 )
 
 /** Accessible description for DrawerContent. */
-const DrawerDescription: Stateless<DrawerDescriptionArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDrawerDescription {...attrs} class={clsx('text-sm text-muted-foreground', classes)} />
+const DrawerDescription: Stateless<DialogDescriptionArgs> = ({ class: classes, ...attrs }) => (
+	<DialogDescription {...attrs} class={clsx('text-sm text-muted-foreground', classes)} data-slot="drawer-description" />
 )
 
 export {

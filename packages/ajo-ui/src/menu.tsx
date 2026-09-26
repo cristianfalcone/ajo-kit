@@ -1,22 +1,20 @@
 import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, controlled, dom, frame, listen, roving, statefulRootAttrs as rootAttrs, typeahead } from 'ajo-cloves'
+import { callHandler, controlled, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { DirectionContext } from './direction'
 import {
 	cluster,
 	focusEdge,
-	isolateMenuComposition,
-	isolateMenuInvocation,
-	menuComposition,
+	LevelContext,
+	MenuContext,
 	menuItems,
-	provideMenuInvocation,
+	MenuRoot,
 	SURFACE_SELECTOR,
-	surfaceItems,
 	type MenuBranch,
 	type MenuCluster,
-	type MenuInvocationFocus,
+	type MenuContextValue,
 } from './menu-cluster'
 import { contentAttrs, popup, type PopupPosition, popupStyle, type PopupView, triggerAttrs } from './popup'
-import type { PositionReference } from './position'
 import { flag, text } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
@@ -153,21 +151,6 @@ export type MenuSubTriggerArgs = MenuItemArgs & {
 /** Arguments for a nested Menu surface with system-owned positioning and semantics. */
 export type MenuSubContentArgs = MenuContentArgs
 
-/** Shared menu state private to Menu parts. */
-type MenuContextValue = {
-	adoptTriggerId: PopupView['adoptTriggerId']
-	close: (event?: Event) => void
-	contentId: string
-	contentStyle: PopupView['contentStyle']
-	disabled: boolean
-	dismiss: (event: Event) => void
-	open: boolean
-	setContent: (element: HTMLDivElement | null) => void
-	setOpen: (open: boolean, event?: Event, focus?: 'first' | 'last') => void
-	setTrigger: (element: HTMLButtonElement | null) => void
-	triggerId: string
-}
-
 type RadioContextValue = {
 	change: (value: string, event: Event) => void
 	value: string
@@ -185,16 +168,8 @@ type SubContextValue = {
 	triggerId: string
 }
 
-type LevelContextValue = {
-	cluster: MenuCluster
-	content: () => HTMLElement | null
-	open: () => boolean
-}
-
-const MenuContext = context<MenuContextValue | null>(null)
 const RadioContext = context<RadioContextValue | null>(null)
 const SubContext = context<SubContextValue | null>(null)
-const LevelContext = context<LevelContextValue | null>(null)
 
 const pointerHighlight = (
 	disabled: boolean,
@@ -207,235 +182,6 @@ const pointerHighlight = (
 	menuItems.focusItem(content, event.currentTarget as HTMLElement)
 	closeSubmenus?.(event, keep)
 }
-
-const MenuRoot: Stateful<MenuArgs> = function* ({ defaultOpen, open }) {
-	const composition = menuComposition()
-	const contextComposition = composition?.profile === 'context' ? composition : null
-	const ownerDocument = dom(this) ? this.ownerDocument : null
-	const node = (value: unknown): value is Node => {
-		const view = ownerDocument?.defaultView
-		return Boolean(view && value instanceof view.Node)
-	}
-	const submenus = cluster()
-	let contextSource: HTMLElement | null = null
-	let disabled = false
-	let focusRestore = 0
-	let geometryReady = false
-	let onOpenChange: MenuArgs['onOpenChange']
-	type MenuFocus = MenuInvocationFocus | 'last'
-	let pendingFocus: MenuFocus | undefined
-	let menu: PopupView<HTMLButtonElement, HTMLDivElement>
-	const commitMenubarFocus = frame(() => {
-		if (composition?.profile === 'menubar' && composition.ackFocus()) {
-			focusEdge(menu.content, 'first')
-		}
-	})
-	this.signal.addEventListener('abort', commitMenubarFocus.cancel)
-
-	menu = popup<HTMLButtonElement, HTMLDivElement>(this, {
-		prefix: 'menu',
-		profile: composition?.profile ?? 'menu',
-		initialOpen: Boolean(open ?? defaultOpen),
-		disabled: () => disabled,
-		onOpenChange: (next, event) => onOpenChange?.(next, event),
-		source: view => contextComposition
-			? contextSource
-			: view.trigger ?? (dom(view.reference) ? view.reference as HTMLElement : null),
-		reopenOnReferenceChange: Boolean(contextComposition),
-		referenceHidden: 'close',
-		dismiss: {
-			prevent: true,
-			outside: true,
-			onDismiss: event => {
-				if (event.type === 'keydown') close(event)
-				else setOpen(false, event)
-			},
-		},
-		onPosition: () => {
-			geometryReady = true
-			if (pendingFocus === 'content') menu.content?.focus()
-			else if (pendingFocus) focusEdge(menu.content, pendingFocus)
-			else if (composition?.profile === 'menubar') commitMenubarFocus()
-			pendingFocus = undefined
-		},
-		onSync: opened => {
-			if (!opened) {
-				commitMenubarFocus.cancel()
-				geometryReady = false
-				menuItems.clearHighlight(menu.content)
-				submenus.close()
-				pendingFocus = undefined
-			}
-		},
-	})
-
-	const focusWhenReady = (focus: MenuFocus) => {
-		if (geometryReady) {
-			if (focus === 'content') menu.content?.focus()
-			else focusEdge(menu.content, focus)
-		}
-		else pendingFocus = focus
-	}
-
-	const setOpen = (next: boolean, event?: Event, focus?: MenuFocus) => {
-		if (disabled && next) return
-		if (next) focusRestore++
-		if (next === menu.open) {
-			if (next && focus) focusWhenReady(focus)
-			return
-		}
-
-		if (!next) {
-			submenus.close(event)
-			pendingFocus = undefined
-		}
-		else geometryReady = false
-		if (next && focus) pendingFocus = focus
-		menu.setOpen(next, event)
-	}
-
-	const invoke = (
-		reference: PositionReference,
-		source: HTMLElement,
-		event: Event,
-		focus: MenuInvocationFocus,
-	) => {
-		geometryReady = false
-		pendingFocus = focus
-		contextSource = source
-		const changed = menu.reference !== reference
-		submenus.close(event)
-		menu.setReference(reference)
-		if (menu.open) {
-			// A ContextMenu virtual point mutates coordinates without changing
-			// identity; no observer can detect that same-reference update.
-			if (!changed) menu.update()
-		} else {
-			menu.setOpen(true, event)
-		}
-	}
-
-	const close = (event?: Event) => {
-		const wasOpen = menu.open
-		const restore = ++focusRestore
-		setOpen(false, event)
-		if (contextComposition) {
-			if (wasOpen && !menu.open) contextComposition.restoreFocus()
-		} else queueMicrotask(() => {
-			if (restore === focusRestore && wasOpen && !menu.open) menu.trigger?.focus()
-		})
-	}
-
-	const dismiss = (event: Event) => {
-		const target = event.target
-		const reference = menu.reference
-		const inside = node(target) && Boolean(
-			this.contains(target)
-			|| menu.trigger?.contains(target)
-			|| menu.content?.contains(target)
-			|| (dom(reference) && reference.contains(target)),
-		)
-		if (inside) submenus.prune(target, event)
-		else setOpen(false, event)
-	}
-
-	// Keyboard movement stays inside the surface that owns focus: an open
-	// submenu cycles its own items, never the parent menu's.
-	const focusedSurface = () => {
-		const active = ownerDocument?.activeElement
-		const surface = dom(active) ? active.closest<HTMLElement>(SURFACE_SELECTOR) : null
-		return surface ?? menu.content
-	}
-
-	const nav = roving(this, {
-		items: () => surfaceItems(focusedSurface()),
-		onMove: target => menuItems.focusItem(focusedSurface(), target),
-	})
-
-	const ta = typeahead(this, {
-		items: () => surfaceItems(focusedSurface()),
-		onMatch: target => menuItems.focusItem(focusedSurface(), target),
-	})
-
-	listen(this, 'keydown', (event: KeyboardEvent) => {
-		if (event.defaultPrevented) return
-		const target = event.target as HTMLElement | null
-		if (!target?.closest('[data-menu-trigger="true"],[data-menu-content="true"]')) return
-
-		if (target.closest('[data-menu-trigger="true"]')) {
-			// A pointer click may have opened the menu without moving focus;
-			// arrows from the still-focused trigger enter it.
-			if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
-				event.preventDefault()
-				setOpen(true, event, 'first')
-			} else if (event.key === 'ArrowUp') {
-				event.preventDefault()
-				setOpen(true, event, 'last')
-			}
-			return
-		}
-
-		if (nav.handle(event)) {
-			return
-		} else if (event.key === 'Enter' || event.key === ' ') {
-			const item = menuItems.item(event)
-			if (!item) return
-			event.preventDefault()
-			item.click()
-		} else if (ta.handle(event)) {
-			event.preventDefault()
-		}
-	})
-
-	for (const args of this) {
-		disabled = Boolean(args.disabled)
-		onOpenChange = args.onOpenChange
-		const wasOpen = menu.open
-		const opened = menu.sync(args.open != null ? Boolean(args.open) : null, {
-			placement: args.placement,
-			gap: args.gap,
-		})
-		if (!wasOpen && opened) focusRestore++
-		if (wasOpen && !opened) {
-			// A controlled close can beat the first geometry commit, so invalidate
-			// focus intent here instead of relying only on popup.onSync(false).
-			geometryReady = false
-			commitMenubarFocus.cancel()
-			pendingFocus = undefined
-			submenus.close()
-		}
-		// Composition applies to exactly this root; arbitrary nested Menu roots
-		// retain their own menu profile and interaction policy.
-		isolateMenuComposition()
-		isolateMenuInvocation()
-
-		MenuContext({
-			adoptTriggerId: menu.adoptTriggerId,
-			close,
-			contentId: menu.contentId,
-			contentStyle: menu.contentStyle,
-			disabled,
-			dismiss,
-			open: opened,
-			setContent: menu.setContent,
-			setOpen,
-			setTrigger: menu.setTrigger,
-			get triggerId() { return menu.triggerId },
-		})
-		if (contextComposition) provideMenuInvocation({
-			adoptTriggerId: menu.adoptTriggerId,
-			contentId: menu.contentId,
-			disabled,
-			invoke: (x, y, event, source, focus) =>
-				contextComposition.invoke(invoke, x, y, event, source, focus),
-			open: opened,
-		})
-
-		LevelContext({ cluster: submenus, content: () => menu.content, open: () => menu.open })
-		yield <>{args.children}</>
-	}
-}
-
 
 /** Root provider for a menu. */
 const Menu: Stateless<MenuArgs> = ({
@@ -810,6 +556,7 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 	let menu: MenuContextValue | null = null
 	let onOpenChange: MenuSubArgs['onOpenChange']
 	const parentCluster = parent?.cluster ?? null
+	let dir: 'ltr' | 'rtl' = 'ltr'
 	let pendingFocus = false
 	let unregister: (() => void) | undefined
 	let branch: MenuBranch
@@ -891,11 +638,14 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 		if (event.defaultPrevented) return
 		const target = event.target as HTMLElement | null
 		if (!target?.closest('[data-menu-sub-trigger="true"],[data-menu-sub-content="true"]')) return
-		if (event.key === 'ArrowRight' && target.matches('[data-menu-sub-trigger="true"]')) {
+		// The inline-end arrow opens, the inline-start arrow closes.
+		const enter = dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight'
+		const leave = dir === 'rtl' ? 'ArrowRight' : 'ArrowLeft'
+		if (event.key === enter && target.matches('[data-menu-sub-trigger="true"]')) {
 			event.preventDefault()
 			setOpen(true, event, true)
-		} else if (event.key === 'ArrowLeft') {
-			// While closed ArrowLeft belongs to an enclosing submenu or menubar.
+		} else if (event.key === leave) {
+			// While closed the key belongs to an enclosing submenu or menubar.
 			if (!submenu.open) return
 			event.preventDefault()
 			close(event)
@@ -904,6 +654,7 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 
 	for (const args of this) {
 		menu = MenuContext()
+		dir = DirectionContext()
 		onOpenChange = args.onOpenChange
 		const parentOpen = parent?.open() ?? menu?.open ?? true
 		if (!parentOpen) {

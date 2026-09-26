@@ -2,15 +2,14 @@
 import type { Stateful } from 'ajo'
 import type { Args, Meta, Story } from './app'
 import Button, { buttonVariants } from 'ajo-ui-playa/button'
+import { DialogClose, DialogTrigger } from 'ajo-ui-playa/dialog'
 import {
 	Drawer,
-	DrawerClose,
 	DrawerContent,
 	DrawerDescription,
 	DrawerFooter,
 	DrawerHeader,
 	DrawerTitle,
-	DrawerTrigger,
 	type DrawerSide,
 } from 'ajo-ui-playa/drawer'
 import Input from 'ajo-ui-playa/input'
@@ -206,7 +205,7 @@ const ProfileContent = ({ description, showCloseButton = true, title }: Args) =>
 		<ProfileFields />
 		<DrawerFooter>
 			<Button type="submit">Save changes</Button>
-			<DrawerClose class={buttonVariants({ variant: 'outline' })}>Close</DrawerClose>
+			<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
 		</DrawerFooter>
 	</DrawerContent>
 )
@@ -223,7 +222,7 @@ const NavigationContent = () => (
 			<a class="rounded-md edge p-3 text-sm" href="#members">Members</a>
 		</div>
 		<DrawerFooter>
-			<DrawerClose class={buttonVariants({ variant: 'outline' })}>Close</DrawerClose>
+			<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
 		</DrawerFooter>
 	</>
 )
@@ -246,14 +245,14 @@ const ControlledExample: Stateful<Args> = function* () {
 export const Basic: Story<typeof Drawer> = {
 	render: ({ description, showCloseButton, side, title, trigger, ...args }) => (
 		<Drawer {...args} side={side}>
-			<DrawerTrigger class={buttonVariants({ variant: 'outline' })}>
+			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				{trigger}
-			</DrawerTrigger>
+			</DialogTrigger>
 			<ProfileContent showCloseButton={showCloseButton} title={title} description={description} />
 		</Drawer>
 	),
 	play: async ({ canvas }) => {
-		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="drawer-trigger"]')
+		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="dialog-trigger"]')
 		const drawer = canvas.querySelector<HTMLDialogElement>('[data-slot="drawer-content"]')
 		if (!trigger || !drawer) throw new Error('Drawer trigger or content was not rendered')
 		if (drawer.open || getComputedStyle(drawer).display !== 'none') {
@@ -301,9 +300,9 @@ export const Sides: Story<typeof Drawer> = {
 		<div class="grid grid-cols-2 gap-2">
 			{sides.map(side => (
 				<Drawer key={side} {...args} side={side}>
-					<DrawerTrigger class={buttonVariants({ variant: 'outline' })}>
+					<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 						{side}
-					</DrawerTrigger>
+					</DialogTrigger>
 					<ProfileContent showCloseButton={showCloseButton} title={title} description={description} />
 				</Drawer>
 			))}
@@ -311,7 +310,7 @@ export const Sides: Story<typeof Drawer> = {
 	),
 	play: async ({ canvas }) => {
 		for (const side of sides) {
-			const trigger = Array.from(canvas.querySelectorAll<HTMLButtonElement>('[data-slot="drawer-trigger"]'))
+			const trigger = Array.from(canvas.querySelectorAll<HTMLButtonElement>('[data-slot="dialog-trigger"]'))
 				.find(button => button.textContent?.trim() === side)
 			if (!trigger) throw new Error(`Drawer trigger for ${side} was not rendered`)
 
@@ -377,9 +376,9 @@ export const NoCloseButton: Story<typeof Drawer> = {
 	},
 	render: ({ description, showCloseButton, side, title, trigger, ...args }) => (
 		<Drawer {...args} side={side}>
-			<DrawerTrigger class={buttonVariants({ variant: 'outline' })}>
+			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				{trigger}
-			</DrawerTrigger>
+			</DialogTrigger>
 			<DrawerContent showCloseButton={showCloseButton}>
 				<DrawerHeader>
 					<DrawerTitle>{title}</DrawerTitle>
@@ -390,13 +389,13 @@ export const NoCloseButton: Story<typeof Drawer> = {
 					<p class="rounded-md edge bg-muted p-3 text-sm">Two people requested access.</p>
 				</div>
 				<DrawerFooter>
-					<DrawerClose class={buttonVariants({ variant: 'outline' })}>Done</DrawerClose>
+					<DialogClose class={buttonVariants({ variant: 'outline' })}>Done</DialogClose>
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
 	),
 	play: async ({ canvas }) => {
-		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="drawer-trigger"]')
+		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="dialog-trigger"]')
 		const drawer = canvas.querySelector<HTMLDialogElement>('[data-slot="drawer-content"]')
 		if (!trigger || !drawer) throw new Error('No close button Drawer trigger or content was not rendered')
 		if (drawer.open || getComputedStyle(drawer).display !== 'none') {
@@ -406,9 +405,9 @@ export const NoCloseButton: Story<typeof Drawer> = {
 		trigger.click()
 		await frame()
 
-		const closes = drawer.querySelectorAll('[data-slot="drawer-close"]')
+		const closes = drawer.querySelectorAll('[data-slot="dialog-close"]')
 		if (!drawer.open) throw new Error('Drawer did not open from trigger')
-		if (closes.length !== 1) throw new Error('Drawer rendered an unexpected default close button')
+		if (drawer.querySelector('[data-slot="drawer-close"]') || closes.length !== 1) throw new Error('Drawer rendered an unexpected default close button')
 
 		const close = closes[0] as HTMLButtonElement | undefined
 		if (!close) throw new Error('Drawer footer close button was not rendered')
@@ -423,16 +422,16 @@ export const NoHandleByDefault: Story<typeof Drawer> = {
 	argTypes: { side: { control: false } },
 	render: () => (
 		<Drawer>
-			<DrawerTrigger class={buttonVariants({ variant: 'outline' })}>
+			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				Open default drawer
-			</DrawerTrigger>
+			</DialogTrigger>
 			<DrawerContent>
 				<NavigationContent />
 			</DrawerContent>
 		</Drawer>
 	),
 	play: async ({ canvas }) => {
-		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="drawer-trigger"]')
+		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="dialog-trigger"]')
 		const drawer = canvas.querySelector<HTMLDialogElement>('[data-slot="drawer-content"]')
 		if (!trigger || !drawer) throw new Error('Default Drawer trigger or content was not rendered')
 		if (canvas.querySelector('[data-slot="drawer-handle"]')) {
@@ -461,16 +460,16 @@ export const DragHandle: Story<typeof Drawer> = {
 	argTypes: { side: { control: false } },
 	render: () => (
 		<Drawer side="bottom">
-			<DrawerTrigger class={buttonVariants({ variant: 'outline' })}>
+			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				Open draggable drawer
-			</DrawerTrigger>
+			</DialogTrigger>
 			<DrawerContent handle>
 				<NavigationContent />
 			</DrawerContent>
 		</Drawer>
 	),
 	play: async ({ canvas }) => {
-		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="drawer-trigger"]')
+		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="dialog-trigger"]')
 		const drawer = canvas.querySelector<HTMLDialogElement>('[data-slot="drawer-content"]')
 		const handle = canvas.querySelector<HTMLElement>('[data-slot="drawer-handle"]')
 		if (!trigger || !drawer || !handle) throw new Error('Drawer handle trigger, content, or handle was not rendered')

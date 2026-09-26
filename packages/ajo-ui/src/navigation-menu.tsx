@@ -2,6 +2,7 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, id, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { bar } from './bar'
+import { type Direction, DirectionContext } from './direction'
 import { contentAttrs, popup, type PopupPosition, type PopupView, triggerAttrs } from './popup'
 import { text } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
@@ -11,7 +12,7 @@ export type { PopupPlacement, PopupPosition } from './popup'
 export type NavigationMenuValue = string
 
 /** Props for the navigation-menu root and its controlled state. */
-export type NavigationMenuArgs = WithChildren<OmitArg<IntrinsicElements['nav'], 'onchange'> & PopupPosition & {
+export type NavigationMenuArgs = WithChildren<OmitArg<IntrinsicElements['nav'], 'dir' | 'onchange'> & PopupPosition & {
 	/** Controlled open item value. Empty string closes every content panel. */
 	value?: NavigationMenuValue
 	/** Initial open item value for uncontrolled usage. */
@@ -20,6 +21,8 @@ export type NavigationMenuArgs = WithChildren<OmitArg<IntrinsicElements['nav'], 
 	openDelay?: number
 	/** Hover-intent delay before a panel closes after the pointer leaves, in milliseconds. */
 	closeDelay?: number
+	/** Text direction for horizontal arrow-key navigation. Defaults to the nearest DirectionProvider. */
+	dir?: Direction
 	/** Called whenever the open item value changes. */
 	onValueChange?: (value: NavigationMenuValue, event?: Event) => void
 	/** Additional CSS classes. */
@@ -101,39 +104,32 @@ type ItemContextValue = {
 const RootContext = context<RootContextValue | null>(null)
 const ItemContext = context<ItemContextValue | null>(null)
 
-const triggers = (root: HTMLElement) =>
-	Array.from(root.querySelectorAll<HTMLButtonElement>('[data-navigation-menu-trigger="true"]'))
-		.filter(trigger =>
-			!trigger.disabled
-			&& trigger.offsetParent !== null
-			&& trigger.closest('[data-slot="navigation-menu"]') === root)
-
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ defaultValue, value }) {
 	let closeDelay = 300
 	const closeFocus = { current: null as HTMLElement | null }
+	let dir: Direction = 'ltr'
 	let onValueChange: NavigationMenuArgs['onValueChange']
 	let openDelay = 200
-	let pendingFocus = ''
 
 	const state = bar(this, {
-		triggers: () => triggers(this),
+		selector: '[data-navigation-menu-trigger="true"]',
+		dir: () => dir,
 		initialValue: String(value ?? defaultValue ?? ''),
 		onValueChange: (next, event) => onValueChange?.(next, event),
 	})
 
 	const openTrigger = () =>
-		triggers(this).find(trigger => trigger.dataset.value === state.value)
+		state.triggers().find(trigger => trigger.dataset.value === state.value)
 
 	const focusPanel = (trigger: HTMLElement) => {
 		const contentId = trigger.getAttribute('aria-controls')
-		const panel = contentId ? document.getElementById(contentId) : null
+		const panel = contentId ? this.ownerDocument.getElementById(contentId) : null
 		panel?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
 	}
 
 	const close = (event?: Event, focus?: HTMLElement | null) => {
-		pendingFocus = ''
 		closeFocus.current = focus ?? null
 		state.close(event)
 	}
@@ -165,7 +161,7 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 				if (event.key === 'ArrowDown') focusPanel(trigger)
 				else close(event)
 			} else {
-				pendingFocus = next
+				state.requestFocus(next)
 				state.setValue(next, event)
 			}
 		}
@@ -181,16 +177,16 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 		if (next && this.contains(next)) return
 		// Window blur (alt-tab) fires focusout with a null relatedTarget while
 		// the focused element stays inside the nav: not a focus departure.
-		if (!next && this.contains(document.activeElement)) return
+		if (!next && this.contains(this.ownerDocument.activeElement)) return
 		close(event)
 	})
 
 	for (const args of this) {
 		closeDelay = Math.max(0, Number(args.closeDelay ?? 300))
+		dir = args.dir ?? 'ltr'
 		onValueChange = args.onValueChange
 		openDelay = Math.max(0, Number(args.openDelay ?? 200))
 		state.sync(args.value != null ? String(args.value ?? '') : undefined)
-		if (pendingFocus && pendingFocus !== state.value) pendingFocus = ''
 		if (closeFocus.current) {
 			const target = closeFocus.current
 			closeFocus.current = null
@@ -202,26 +198,12 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 		RootContext({
 			close,
 			closeDelay,
-			// Pointer-driven opens clear any stale keyboard focus request.
-			follow: (next, event) => {
-				pendingFocus = ''
-				state.follow(next, event)
-			},
+			follow: state.follow,
 			gap: args.gap,
-			open: (next, event) => {
-				// An engine echo for the same keyboard-requested value must not
-				// invalidate its post-geometry focus token. Pointer opens have no
-				// matching token and clear any stale request.
-				if (pendingFocus !== next) pendingFocus = ''
-				state.setValue(next, event)
-			},
+			open: state.setValue,
 			openDelay,
 			placement: args.placement,
-			takeFocus: value => {
-				if (!value || pendingFocus !== value) return false
-				pendingFocus = ''
-				return true
-			},
+			takeFocus: state.takeFocus,
 			value: state.value,
 		})
 
@@ -237,6 +219,7 @@ const NavigationMenu: Stateless<NavigationMenuArgs> = ({
 	class: classes,
 	closeDelay,
 	defaultValue,
+	dir,
 	gap,
 	onValueChange,
 	openDelay,
@@ -248,6 +231,7 @@ const NavigationMenu: Stateless<NavigationMenuArgs> = ({
 		{...rootAttrs(attrs)}
 		closeDelay={closeDelay}
 		defaultValue={defaultValue}
+		dir={dir ?? DirectionContext()}
 		gap={gap}
 		onValueChange={onValueChange}
 		openDelay={openDelay}
@@ -255,6 +239,7 @@ const NavigationMenu: Stateless<NavigationMenuArgs> = ({
 		value={value}
 		attr:class={classes}
 		attr:data-slot="navigation-menu"
+		attr:dir={dir}
 	>
 		{children}
 	</NavigationMenuRoot>
@@ -271,7 +256,7 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 	const fallback = value ?? id('navigation-menu-item')
 	let disabled = false
 	let itemValue = String(fallback)
-	let root: RootContextValue | null = null
+	let root = RootContext()!
 	let item: PopupView<HTMLButtonElement, HTMLDivElement>
 
 	item = popup<HTMLButtonElement, HTMLDivElement>(this, {
@@ -280,24 +265,24 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 		initialOpen: false,
 		disabled: () => disabled,
 		hover: {
-			openDelay: () => root?.openDelay ?? 200,
-			closeDelay: () => root?.closeDelay ?? 300,
+			openDelay: () => root.openDelay,
+			closeDelay: () => root.closeDelay,
 		},
 		onOpenChange: (next, event) => {
-			if (next) root?.open(itemValue, event)
-			else if (root?.value === itemValue) root.close(event)
+			if (next) root.open(itemValue, event)
+			else if (root.value === itemValue) root.close(event)
 		},
 		referenceHidden: 'close',
 		dismiss: {
 			escape: false,
 			outside: true,
 			inside: view => [view.trigger, view.content],
-			onDismiss: event => closeItem(event),
+			onDismiss: event => root.close(event),
 		},
 		onPosition: () => {
 			// Keyboard focus is committed only after the current trigger/content
 			// tuple has real geometry and the panel is visible.
-			if (root?.takeFocus(itemValue)) item.content?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
+			if (root.takeFocus(itemValue)) item.content?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
 		},
 		onSync: opened => {
 			if (!opened) cause = ''
@@ -316,7 +301,7 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 			item.hold('trigger', event)
 			// Open-follows-hover: an already-open bar moves between panels
 			// without re-running the open delay.
-			if (!disabled) root?.follow(itemValue, event)
+			if (!disabled) root.follow(itemValue, event)
 		} else {
 			if (!item.open && cause === 'hover') cause = ''
 			item.release('trigger', event)
@@ -327,48 +312,37 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 		hovering ? item.hold('content', event) : item.release('content', event)
 
 	const registerTriggerFocus = (event: FocusEvent) => {
-		if (!disabled) root?.follow(itemValue, event)
+		if (!disabled) root.follow(itemValue, event)
 	}
-
-	const openItem = (event?: Event) => {
-		if (disabled) return
-		cause = 'press'
-		item.cancelHover()
-		if (root) root.open(itemValue, event)
-		else item.setOpen(true, event)
-	}
-
-	const closeItem = (event?: Event) =>
-		root ? root.close(event) : item.close(event)
 
 	const clickTrigger = (event: Event) => {
 		if (disabled) return
 		if (!item.open) {
-			openItem(event)
+			cause = 'press'
+			item.cancelHover()
+			root.open(itemValue, event)
 		} else if (cause === 'hover') {
 			cause = 'press'
 			item.cancelHover()
 		} else {
-			closeItem(event)
+			root.close(event)
 		}
 	}
 
 	for (const args of this) {
-		root = RootContext()
+		root = RootContext()!
 		itemValue = String(args.value ?? fallback)
 		disabled = Boolean(args.disabled)
-		// Without a NavigationMenu ancestor the item degrades to an
-		// uncontrolled hover panel instead of a permanently-closed one.
-		const opened = item.sync(root ? root.value === itemValue : null, {
-			placement: root?.placement,
-			gap: root?.gap,
+		const opened = item.sync(root.value === itemValue, {
+			placement: root.placement,
+			gap: root.gap,
 		})
 		if (!opened) cause = ''
 
 		ItemContext({
 			adoptTriggerId: item.adoptTriggerId,
 			clickTrigger,
-			close: closeItem,
+			close: root.close,
 			contentId: item.contentId,
 			contentStyle: item.contentStyle,
 			disabled,

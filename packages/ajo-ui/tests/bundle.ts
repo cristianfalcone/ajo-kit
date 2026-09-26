@@ -111,8 +111,8 @@ const contextMenuDirect = await bundle('context-menu-subpath', `
 	globalThis.__ajoFixture = ContextMenu
 `)
 const menubarDirect = await bundle('menubar-subpath', `
-	import { Menubar } from 'ajo-ui/menubar'
-	globalThis.__ajoFixture = Menubar
+	import { Menubar, MenubarMenu } from 'ajo-ui/menubar'
+	globalThis.__ajoFixture = [Menubar, MenubarMenu]
 `)
 const selectDirect = await bundle('select-subpath', `
 	import { Select } from 'ajo-ui/select'

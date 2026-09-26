@@ -1,5 +1,6 @@
 import type { Host } from 'ajo'
 import { controlled, dom, roving, typeahead } from 'ajo-cloves'
+import type { Direction } from './direction'
 
 export type BarView = {
 	/** Open trigger value; '' = every surface closed. */
@@ -19,15 +20,21 @@ export type BarView = {
 	adopt(next: string): void
 	/** Single tab stop: true when the value holds it, resolved against the live row. */
 	isTabbable(value: string): boolean
-	/** Trigger-row keydown skeleton: roving arrows, typeahead, and Escape gated on open. */
+	/** Trigger-row keydown skeleton: roving arrows, typeahead, and Escape gated on open. A pending focus request moves with the row. */
 	handle(event: KeyboardEvent): boolean
+	/** Live enabled, rendered triggers owned by this bar, in DOM order. */
+	triggers(): HTMLButtonElement[]
+	/** Requests keyboard focus into this value's surface once it has geometry. Opening any other value drops it. */
+	requestFocus(value: string): void
+	/** One-shot: true when focus was requested for this value, consuming the request. */
+	takeFocus(value: string): boolean
 }
 
 export type BarOptions = {
-	/** Live enabled trigger row, in DOM order. */
-	triggers: () => HTMLElement[]
-	/** Bar value of one trigger. Default: dataset.value. */
-	value?: (trigger: HTMLElement) => string
+	/** Trigger selector; a nested bar with the host's data-slot keeps its own triggers. */
+	selector: string
+	/** Horizontal arrow direction. */
+	dir: () => Direction
 	/** Value before the first sync; '' = closed. */
 	initialValue?: string
 	/** Blocks opening while true. */
@@ -48,23 +55,33 @@ export type BarOptions = {
  * controlled consumers see a single onValueChange per move.
  */
 export const bar = (host: Host, opts: BarOptions): BarView => {
-	const read = opts.value ?? ((trigger: HTMLElement) => trigger.dataset.value ?? '')
+	const read = (trigger: HTMLElement) => trigger.dataset.value ?? ''
 	const state = controlled<string>(host, {
 		fallback: opts.initialValue ?? '',
 		onChange: opts.onValueChange,
 	})
 	let focused = ''
+	let pending = ''
+
+	const triggers = () => {
+		if (!dom(host)) return []
+		const root = `[data-slot="${host.dataset.slot}"]`
+		return Array.from(host.querySelectorAll<HTMLButtonElement>(opts.selector)).filter(trigger =>
+			!trigger.disabled
+			&& trigger.offsetParent !== null
+			&& trigger.closest(root) === host)
+	}
 
 	// The tab stop resolves against the live row: a stale, removed, or
 	// disabled entry falls back to the first trigger in DOM order.
 	const stop = () => {
-		if (!dom(host)) return ''
-		const row = opts.triggers()
+		const row = triggers()
 		if (!row.length) return ''
 		return focused && row.some(trigger => read(trigger) === focused) ? focused : read(row[0])
 	}
 
 	const setValue = (next: string, event?: Event) => {
+		if (next !== pending) pending = ''
 		if (next && opts.disabled?.()) return
 		if (next === state.value) return
 		if (next) focused = next
@@ -85,10 +102,10 @@ export const bar = (host: Host, opts: BarOptions): BarView => {
 			// focus to its invoker, which would re-run the follow policy and
 			// bounce the open value straight back.
 			if (dom(host)) {
-				const row = opts.triggers()
+				const row = triggers()
 				const target = row.find(trigger => read(trigger) === next)
-				const active = document.activeElement as HTMLElement | null
-				if (target && active && active !== target && (host as unknown as HTMLElement).contains(active) && !row.includes(active)) {
+				const active = host.ownerDocument.activeElement as HTMLButtonElement | null
+				if (target && active && active !== target && host.contains(active) && !row.includes(active)) {
 					target.focus()
 				}
 			}
@@ -99,15 +116,16 @@ export const bar = (host: Host, opts: BarOptions): BarView => {
 	}
 
 	const nav = roving(host, {
-		items: opts.triggers,
+		items: triggers,
 		orientation: () => 'horizontal',
+		dir: opts.dir,
 		loop: () => opts.loop?.() ?? true,
 		// Focus only: the focus event runs the follow policy once.
 		onMove: target => target.focus(),
 	})
 
 	const ta = typeahead(host, {
-		items: opts.triggers,
+		items: triggers,
 		onMatch: (target, event) => {
 			event.preventDefault()
 			target.focus()
@@ -121,7 +139,12 @@ export const bar = (host: Host, opts: BarOptions): BarView => {
 		get focused() {
 			return focused
 		},
-		sync: value => state.sync(value),
+		sync(value) {
+			const current = state.sync(value)
+			// A rejected or superseded controlled value drops the focus request.
+			if (pending !== current) pending = ''
+			return current
+		},
 		setValue,
 		close: event => setValue('', event),
 		follow,
@@ -141,8 +164,6 @@ export const bar = (host: Host, opts: BarOptions): BarView => {
 			return !current || current === value
 		},
 		handle(event) {
-			if (nav.handle(event)) return true
-
 			if (event.key === 'Escape') {
 				if (!state.value) return false
 				event.preventDefault()
@@ -150,7 +171,21 @@ export const bar = (host: Host, opts: BarOptions): BarView => {
 				return true
 			}
 
-			return ta.handle(event)
+			// Moving along the row carries a pending keyboard entry to the
+			// value the move follows.
+			const carry = Boolean(pending)
+			if (!nav.handle(event) && !ta.handle(event)) return false
+			if (carry) pending = state.value
+			return true
+		},
+		triggers,
+		requestFocus(value) {
+			pending = value
+		},
+		takeFocus(value) {
+			if (!value || pending !== value) return false
+			pending = ''
+			return true
 		},
 	}
 }

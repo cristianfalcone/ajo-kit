@@ -2,38 +2,16 @@ import type { Stateful, Stateless } from 'ajo'
 import { callRef, move, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { clx } from './shared'
-import { withSlot } from './utils'
-import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-	type DialogArgs,
-	type DialogCloseArgs,
-	type DialogContentArgs,
-	type DialogDescriptionArgs,
-	type DialogFooterArgs,
-	type DialogHeaderArgs,
-	type DialogTitleArgs,
-	type DialogTriggerArgs,
-} from './dialog'
+import { Dialog, DialogClose, DialogContent, type DialogArgs, type DialogContentArgs } from './dialog'
 
 /** Viewport edge from which a Drawer panel enters. */
 export type DrawerSide = 'top' | 'right' | 'bottom' | 'left'
 
-/** Arguments for the Drawer state provider and entry edge. */
+/** Arguments for the Drawer state provider and entry edge; compose the Dialog parts inside it. */
 export type DrawerArgs = DialogArgs & {
 	/** Edge where the drawer enters from. */
 	side?: DrawerSide
 }
-/** Arguments for a button that opens its nearest Drawer. */
-export type DrawerTriggerArgs = DialogTriggerArgs
-/** Arguments for a button that closes its nearest Drawer. */
-export type DrawerCloseArgs = DialogCloseArgs
 /** Arguments for the Drawer panel, drag handle, and default close control. */
 export type DrawerContentArgs = DialogContentArgs & {
 	closeClass?: string
@@ -48,14 +26,6 @@ export type DrawerContentArgs = DialogContentArgs & {
 	showCloseButton?: boolean
 	sideClass?: Partial<Record<DrawerSide, string>>
 }
-/** Arguments for the title and description area of a Drawer. */
-export type DrawerHeaderArgs = DialogHeaderArgs
-/** Arguments for the action area at the end of a Drawer. */
-export type DrawerFooterArgs = DialogFooterArgs
-/** Arguments for the heading that labels DrawerContent. */
-export type DrawerTitleArgs = DialogTitleArgs
-/** Arguments for the text that describes DrawerContent. */
-export type DrawerDescriptionArgs = DialogDescriptionArgs
 
 type DrawerContextValue = {
 	drag: ReturnType<typeof move>
@@ -151,12 +121,6 @@ const Drawer: Stateless<DrawerArgs> = ({
 	</DrawerRoot>
 )
 
-/** Unstyled button that opens the nearest Drawer. */
-const DrawerTrigger: Stateless<DrawerTriggerArgs> = withSlot<DrawerTriggerArgs>(DialogTrigger, 'drawer-trigger')
-
-/** Unstyled button that closes the nearest Drawer. */
-const DrawerClose: Stateless<DrawerCloseArgs> = withSlot<DrawerCloseArgs>(DialogClose, 'drawer-close')
-
 const transform = (offset: number, side: DrawerSide) => {
 	if (side === 'left') return `translateX(${-offset}px)`
 	if (side === 'right') return `translateX(${offset}px)`
@@ -215,33 +179,12 @@ const DrawerContent: Stateless<DrawerContentArgs> = ({
 			) : null}
 			{children}
 			{showCloseButton ? (
-				<DrawerClose aria-label={closeLabel} class={closeClass}>
+				<DialogClose aria-label={closeLabel} class={closeClass} data-slot="drawer-close">
 					<span aria-hidden="true" class={closeIconClass} data-slot="drawer-close-icon" />
-				</DrawerClose>
+				</DialogClose>
 			) : null}
 		</DialogContent>
 	)
 }
 
-/** Unstyled header area for Drawer title and description. */
-const DrawerHeader: Stateless<DrawerHeaderArgs> = withSlot<DrawerHeaderArgs>(DialogHeader, 'drawer-header')
-
-/** Unstyled footer area for Drawer actions. */
-const DrawerFooter: Stateless<DrawerFooterArgs> = withSlot<DrawerFooterArgs>(DialogFooter, 'drawer-footer')
-
-/** Accessible heading for DrawerContent. */
-const DrawerTitle: Stateless<DrawerTitleArgs> = withSlot<DrawerTitleArgs>(DialogTitle, 'drawer-title')
-
-/** Accessible description for DrawerContent. */
-const DrawerDescription: Stateless<DrawerDescriptionArgs> = withSlot<DrawerDescriptionArgs>(DialogDescription, 'drawer-description')
-
-export {
-	Drawer,
-	DrawerClose,
-	DrawerContent,
-	DrawerDescription,
-	DrawerFooter,
-	DrawerHeader,
-	DrawerTitle,
-	DrawerTrigger,
-}
+export { Drawer, DrawerContent }

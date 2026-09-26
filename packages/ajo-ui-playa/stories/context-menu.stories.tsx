@@ -1,22 +1,21 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { ContextMenu, ContextMenuTrigger } from 'ajo-ui-playa/context-menu'
 import {
-	ContextMenu,
-	ContextMenuCheckboxItem,
-	ContextMenuContent,
-	ContextMenuGroup,
-	ContextMenuItem,
-	ContextMenuLabel,
-	ContextMenuRadioGroup,
-	ContextMenuRadioItem,
-	ContextMenuSeparator,
-	ContextMenuShortcut,
-	ContextMenuSub,
-	ContextMenuSubContent,
-	ContextMenuSubTrigger,
-	ContextMenuTrigger,
-} from 'ajo-ui-playa/context-menu'
+	MenuCheckboxItem,
+	MenuContent,
+	MenuGroup,
+	MenuItem,
+	MenuLabel,
+	MenuRadioGroup,
+	MenuRadioItem,
+	MenuSeparator,
+	MenuShortcut,
+	MenuSub,
+	MenuSubContent,
+	MenuSubTrigger,
+} from 'ajo-ui-playa/menu'
 
 export default {
 	title: 'UI/Context Menu',
@@ -56,7 +55,7 @@ const openContext = async (target: HTMLElement, x?: number, y?: number) => {
 		clientX: x ?? rect.left + rect.width / 2,
 		clientY: y ?? rect.top + rect.height / 2,
 	}))
-	const content = target.closest('[data-slot="context-menu"]')?.querySelector<HTMLElement>('[data-slot="context-menu-content"]')
+	const content = target.closest('[data-slot="context-menu"]')?.querySelector<HTMLElement>('[data-slot="menu-content"]')
 	await until(() => openAndPositioned(content), 'Context menu did not finish its first visible geometry commit')
 }
 
@@ -75,31 +74,31 @@ const BasicExample: Stateful = function* () {
 				<ContextMenuTrigger id="basic-context-target" class={targetClass}>
 					Right click here or press Shift+F10
 				</ContextMenuTrigger>
-				<ContextMenuContent class="w-56">
-					<ContextMenuLabel>File</ContextMenuLabel>
-					<ContextMenuGroup>
-						<ContextMenuItem textValue="Copy" onSelect={select('copy')}>
+				<MenuContent class="w-56">
+					<MenuLabel>File</MenuLabel>
+					<MenuGroup>
+						<MenuItem textValue="Copy" onSelect={select('copy')}>
 							<span class="i-lucide-copy size-4" />
 							Copy
-							<ContextMenuShortcut>Cmd+C</ContextMenuShortcut>
-						</ContextMenuItem>
-						<ContextMenuItem textValue="Duplicate" onSelect={select('duplicate')}>
+							<MenuShortcut>Cmd+C</MenuShortcut>
+						</MenuItem>
+						<MenuItem textValue="Duplicate" onSelect={select('duplicate')}>
 							<span class="i-lucide-copy-plus size-4" />
 							Duplicate
-						</ContextMenuItem>
-						<ContextMenuItem textValue="Rename" onSelect={select('rename')}>
+						</MenuItem>
+						<MenuItem textValue="Rename" onSelect={select('rename')}>
 							<span class="i-lucide-pencil size-4" />
 							Rename
-						</ContextMenuItem>
-					</ContextMenuGroup>
-					<ContextMenuSeparator />
-					<ContextMenuItem disabled textValue="Archive">Archive</ContextMenuItem>
-					<ContextMenuSeparator />
-					<ContextMenuItem textValue="Delete" variant="danger" onSelect={select('delete')}>
+						</MenuItem>
+					</MenuGroup>
+					<MenuSeparator />
+					<MenuItem disabled textValue="Archive">Archive</MenuItem>
+					<MenuSeparator />
+					<MenuItem textValue="Delete" variant="danger" onSelect={select('delete')}>
 						<span class="i-lucide-trash-2 size-4" />
 						Delete
-					</ContextMenuItem>
-				</ContextMenuContent>
+					</MenuItem>
+				</MenuContent>
 			</ContextMenu>
 			<p class="text-sm text-muted-foreground">Action: {action}</p>
 		</div>
@@ -118,19 +117,19 @@ const CheckboxExample: Stateful = function* () {
 				<ContextMenuTrigger id="checkbox-context-target" class={targetClass}>
 					Right click editor surface
 				</ContextMenuTrigger>
-				<ContextMenuContent class="w-56">
-					<ContextMenuLabel>View</ContextMenuLabel>
-					<ContextMenuSeparator />
-					<ContextMenuCheckboxItem checked={comments} onCheckedChange={setComments}>
+				<MenuContent class="w-56">
+					<MenuLabel>View</MenuLabel>
+					<MenuSeparator />
+					<MenuCheckboxItem checked={comments} onCheckedChange={setComments}>
 						Show comments
-					</ContextMenuCheckboxItem>
-					<ContextMenuCheckboxItem checked={minimap} onCheckedChange={setMinimap}>
+					</MenuCheckboxItem>
+					<MenuCheckboxItem checked={minimap} onCheckedChange={setMinimap}>
 						Show minimap
-					</ContextMenuCheckboxItem>
-					<ContextMenuCheckboxItem checked disabled>
+					</MenuCheckboxItem>
+					<MenuCheckboxItem checked disabled>
 						Show gutter
-					</ContextMenuCheckboxItem>
-				</ContextMenuContent>
+					</MenuCheckboxItem>
+				</MenuContent>
 			</ContextMenu>
 			<p class="text-sm text-muted-foreground">Comments: {comments ? 'on' : 'off'}; Minimap: {minimap ? 'on' : 'off'}</p>
 		</div>
@@ -147,15 +146,15 @@ const RadioExample: Stateful = function* () {
 				<ContextMenuTrigger id="radio-context-target" class={targetClass}>
 					Right click workspace
 				</ContextMenuTrigger>
-				<ContextMenuContent class="w-56">
-					<ContextMenuLabel>Density</ContextMenuLabel>
-					<ContextMenuSeparator />
-					<ContextMenuRadioGroup value={mode} onValueChange={setMode}>
-						<ContextMenuRadioItem value="compact">Compact</ContextMenuRadioItem>
-						<ContextMenuRadioItem value="comfortable">Comfortable</ContextMenuRadioItem>
-						<ContextMenuRadioItem value="spacious">Spacious</ContextMenuRadioItem>
-					</ContextMenuRadioGroup>
-				</ContextMenuContent>
+				<MenuContent class="w-56">
+					<MenuLabel>Density</MenuLabel>
+					<MenuSeparator />
+					<MenuRadioGroup value={mode} onValueChange={setMode}>
+						<MenuRadioItem value="compact">Compact</MenuRadioItem>
+						<MenuRadioItem value="comfortable">Comfortable</MenuRadioItem>
+						<MenuRadioItem value="spacious">Spacious</MenuRadioItem>
+					</MenuRadioGroup>
+				</MenuContent>
 			</ContextMenu>
 			<p class="text-sm text-muted-foreground">Density: {mode}</p>
 		</div>
@@ -179,10 +178,10 @@ const RetargetExample: Stateful = function* () {
 				{alternate
 					? <ContextMenuTrigger key="second" id="retarget-context-b" class={targetClass}>Second invoker</ContextMenuTrigger>
 					: <ContextMenuTrigger key="first" id="retarget-context-a" class={targetClass}>First invoker</ContextMenuTrigger>}
-				<ContextMenuContent key="content" class="w-56">
-					<ContextMenuItem>Open</ContextMenuItem>
-					<ContextMenuItem>Rename</ContextMenuItem>
-				</ContextMenuContent>
+				<MenuContent key="content" class="w-56">
+					<MenuItem>Open</MenuItem>
+					<MenuItem>Rename</MenuItem>
+				</MenuContent>
 			</ContextMenu>
 			<output data-context-changes={changes.join(',')} />
 		</div>
@@ -197,14 +196,14 @@ export const Basic: Story<typeof ContextMenu> = {
 
 		await openContext(target)
 
-		const copy = canvas.querySelector<HTMLElement>('[data-slot="context-menu-item"][data-label="Copy"]')
-		const content = canvas.querySelector<HTMLElement>('[data-slot="context-menu-content"]')
+		const copy = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="Copy"]')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
 		if (!copy || !content) throw new Error('Context menu content or Copy item was not rendered')
 		if (!content.matches(':popover-open') || target.getAttribute('data-state') !== 'open') {
 			throw new Error('Context menu did not open from contextmenu event')
 		}
 
-		const duplicate = canvas.querySelector<HTMLElement>('[data-slot="context-menu-item"][data-label="Duplicate"]')
+		const duplicate = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="Duplicate"]')
 		if (!duplicate) throw new Error('Context menu Duplicate item was not rendered')
 
 		duplicate.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
@@ -253,7 +252,7 @@ export const Keyboard: Story<typeof ContextMenu> = {
 		target.focus()
 		const targetRect = target.getBoundingClientRect()
 		target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'F10', shiftKey: true }))
-		const content = canvas.querySelector<HTMLElement>('[data-slot="context-menu-content"]')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
 		if (!content) throw new Error('Keyboard context content was not rendered')
 		await until(() => openAndPositioned(content), 'Keyboard context menu did not commit visible geometry')
 
@@ -286,7 +285,7 @@ export const Retargeting: Story = {
 	render: () => <RetargetExample />,
 	play: async ({ canvas }) => {
 		const first = canvas.querySelector<HTMLElement>('#retarget-context-a')
-		const content = canvas.querySelector<HTMLElement>('[data-slot="context-menu-content"]') as HTMLElement & {
+		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]') as HTMLElement & {
 			showPopover: (options?: { source?: HTMLElement }) => void
 		}
 		const outside = canvas.querySelector<HTMLElement>('#context-outside-target')
@@ -355,7 +354,7 @@ export const Checkboxes: Story = {
 
 		await openContext(target)
 
-		const minimap = canvas.querySelector<HTMLElement>('[data-slot="context-menu-checkbox-item"][data-label="Show minimap"]')
+		const minimap = canvas.querySelector<HTMLElement>('[data-slot="menu-checkbox-item"][data-label="Show minimap"]')
 		if (!minimap) throw new Error('Context checkbox item was not rendered')
 
 		minimap.click()
@@ -375,7 +374,7 @@ export const RadioGroup: Story = {
 
 		await openContext(target)
 
-		const spacious = canvas.querySelector<HTMLElement>('[data-slot="context-menu-radio-item"][data-label="Spacious"]')
+		const spacious = canvas.querySelector<HTMLElement>('[data-slot="menu-radio-item"][data-label="Spacious"]')
 		if (!spacious) throw new Error('Context radio item was not rendered')
 
 		spacious.click()
@@ -393,20 +392,20 @@ export const Submenu: Story = {
 			<ContextMenuTrigger id="submenu-context-target" class={targetClass}>
 				Right click project
 			</ContextMenuTrigger>
-			<ContextMenuContent class="w-56">
-				<ContextMenuItem>Open</ContextMenuItem>
-				<ContextMenuSub>
-					<ContextMenuSubTrigger textValue="Share">Share</ContextMenuSubTrigger>
-					<ContextMenuSubContent>
-						<ContextMenuItem>Email link</ContextMenuItem>
-						<ContextMenuItem>Copy link</ContextMenuItem>
-						<ContextMenuSeparator />
-						<ContextMenuItem>Manage access</ContextMenuItem>
-					</ContextMenuSubContent>
-				</ContextMenuSub>
-				<ContextMenuSeparator />
-				<ContextMenuItem variant="danger">Remove</ContextMenuItem>
-			</ContextMenuContent>
+			<MenuContent class="w-56">
+				<MenuItem>Open</MenuItem>
+				<MenuSub>
+					<MenuSubTrigger textValue="Share">Share</MenuSubTrigger>
+					<MenuSubContent>
+						<MenuItem>Email link</MenuItem>
+						<MenuItem>Copy link</MenuItem>
+						<MenuSeparator />
+						<MenuItem>Manage access</MenuItem>
+					</MenuSubContent>
+				</MenuSub>
+				<MenuSeparator />
+				<MenuItem variant="danger">Remove</MenuItem>
+			</MenuContent>
 		</ContextMenu>
 	),
 	play: async ({ canvas }) => {
@@ -415,13 +414,13 @@ export const Submenu: Story = {
 
 		await openContext(target)
 
-		const subTrigger = canvas.querySelector<HTMLElement>('[data-slot="context-menu-sub-trigger"]')
-		const subContent = canvas.querySelector<HTMLElement>('[data-slot="context-menu-sub-content"]')
-		const email = canvas.querySelector<HTMLElement>('[data-slot="context-menu-sub-content"] [data-label="Email link"]')
-		const remove = canvas.querySelector<HTMLElement>('[data-slot="context-menu-item"][data-label="Remove"]')
+		const subTrigger = canvas.querySelector<HTMLElement>('[data-slot="menu-sub-trigger"]')
+		const subContent = canvas.querySelector<HTMLElement>('[data-slot="menu-sub-content"]')
+		const email = canvas.querySelector<HTMLElement>('[data-slot="menu-sub-content"] [data-label="Email link"]')
+		const remove = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="Remove"]')
 		if (!subTrigger || !subContent || !email || !remove) throw new Error('Context submenu trigger, content, or item was not rendered')
 
-		const content = canvas.querySelector<HTMLElement>('[data-slot="context-menu-content"]')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
 		if (!content) throw new Error('Context submenu parent content was not rendered')
 
 		subTrigger.dispatchEvent(new MouseEvent('mouseenter'))
@@ -464,11 +463,11 @@ export const DisabledFirstItem: Story = {
 			<ContextMenuTrigger id="disabled-first-context-target" class={targetClass}>
 				Right click the archived file
 			</ContextMenuTrigger>
-			<ContextMenuContent class="w-56">
-				<ContextMenuItem disabled textValue="Restore">Restore</ContextMenuItem>
-				<ContextMenuItem textValue="Duplicate">Duplicate</ContextMenuItem>
-				<ContextMenuItem textValue="Delete" variant="danger">Delete</ContextMenuItem>
-			</ContextMenuContent>
+			<MenuContent class="w-56">
+				<MenuItem disabled textValue="Restore">Restore</MenuItem>
+				<MenuItem textValue="Duplicate">Duplicate</MenuItem>
+				<MenuItem textValue="Delete" variant="danger">Delete</MenuItem>
+			</MenuContent>
 		</ContextMenu>
 	),
 	play: async ({ canvas }) => {
@@ -480,9 +479,9 @@ export const DisabledFirstItem: Story = {
 		target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'F10', shiftKey: true }))
 		await frame()
 
-		const content = canvas.querySelector<HTMLElement>('[data-slot="context-menu-content"]')
-		const restore = canvas.querySelector<HTMLElement>('[data-slot="context-menu-item"][data-label="Restore"]')
-		const duplicate = canvas.querySelector<HTMLElement>('[data-slot="context-menu-item"][data-label="Duplicate"]')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
+		const restore = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="Restore"]')
+		const duplicate = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="Duplicate"]')
 		if (!content || !restore || !duplicate) throw new Error('Disabled-first context content or item was not rendered')
 
 		// Focus policy: disabled items render but stay out of the keyboard
@@ -512,12 +511,12 @@ export const LongList: Story = {
 			<ContextMenuTrigger id="long-list-context-target" class={targetClass}>
 				Right click for a long menu
 			</ContextMenuTrigger>
-			<ContextMenuContent class="w-56">
+			<MenuContent class="w-56">
 				{Array.from({ length: 30 }, (_, index) => {
 					const label = `Item ${index + 1}`
-					return <ContextMenuItem textValue={label}>{label}</ContextMenuItem>
+					return <MenuItem textValue={label}>{label}</MenuItem>
 				})}
-			</ContextMenuContent>
+			</MenuContent>
 		</ContextMenu>
 	),
 	play: async ({ canvas }) => {
@@ -528,7 +527,7 @@ export const LongList: Story = {
 		// still forcing both axes through collision handling.
 		await openContext(target, window.innerWidth - 8, window.innerHeight - 8)
 
-		const content = canvas.querySelector<HTMLElement>('[data-slot="context-menu-content"]')
+		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
 		if (!content || !openAndPositioned(content)) throw new Error('Long-list context menu did not open')
 		await until(() => {
 			const rect = content.getBoundingClientRect()
@@ -564,21 +563,21 @@ export const Shortcuts: Story = {
 			<ContextMenuTrigger class={targetClass}>
 				Right click document
 			</ContextMenuTrigger>
-			<ContextMenuContent class="w-56">
-				<ContextMenuItem>
+			<MenuContent class="w-56">
+				<MenuItem>
 					Copy
-					<ContextMenuShortcut>Cmd+C</ContextMenuShortcut>
-				</ContextMenuItem>
-				<ContextMenuItem>
+					<MenuShortcut>Cmd+C</MenuShortcut>
+				</MenuItem>
+				<MenuItem>
 					Paste
-					<ContextMenuShortcut>Cmd+V</ContextMenuShortcut>
-				</ContextMenuItem>
-				<ContextMenuSeparator />
-				<ContextMenuItem variant="danger">
+					<MenuShortcut>Cmd+V</MenuShortcut>
+				</MenuItem>
+				<MenuSeparator />
+				<MenuItem variant="danger">
 					Delete
-					<ContextMenuShortcut>Del</ContextMenuShortcut>
-				</ContextMenuItem>
-			</ContextMenuContent>
+					<MenuShortcut>Del</MenuShortcut>
+				</MenuItem>
+			</MenuContent>
 		</ContextMenu>
 	),
 }

@@ -1,25 +1,3 @@
-export type ItemsOptions = {
-	/** Exclude disabled items. Default: true. */
-	enabled?: boolean
-	/** Require rendered layout (an offsetParent). Default: true. */
-	rendered?: boolean
-	/** Exclude [hidden] items. Default: true. */
-	shown?: boolean
-}
-
-export type ItemAttrs = {
-	'data-item': string
-	'data-disabled'?: 'true'
-	'data-label'?: string
-	'data-value'?: string
-}
-
-type SweepOptions = {
-	empty?: string
-	group?: string
-	separator?: string
-}
-
 const enabledOf = (item: HTMLElement) =>
 	item.dataset.disabled !== 'true' && !(item as HTMLElement & { disabled?: boolean }).disabled
 
@@ -50,27 +28,18 @@ export const resolveFilter = <Args extends unknown[]>(
  * and `data-disabled`; the kind keeps nested families from cross-matching.
  * Discovery is by DOM query (house pattern), highlight is `data-highlighted`.
  */
-export const collection = (kind: string, defaults: ItemsOptions = {}) => {
+export const collection = (kind: string, { rendered = true }: { rendered?: boolean } = {}) => {
 	const selector = `[data-item="${kind}"]`
-	const sweepDefaults: Required<SweepOptions> = {
-		empty: `[data-slot="${kind}-empty"]`,
-		group: `[data-slot="${kind}-group"]`,
-		separator: `[data-slot="${kind}-separator"]`,
-	}
 
 	const all = (root: ParentNode | null | undefined) =>
 		root ? Array.from(root.querySelectorAll<HTMLElement>(selector)) : []
 
-	const items = (root: ParentNode | null | undefined, opts: ItemsOptions = {}) => {
-		const enabled = opts.enabled ?? defaults.enabled ?? true
-		const rendered = opts.rendered ?? defaults.rendered ?? true
-		const shown = opts.shown ?? defaults.shown ?? true
-
-		return all(root).filter(item =>
-			(!shown || !item.hidden) &&
+	/** Shown, enabled items; rendered layout is required unless the collection opts out. */
+	const items = (root: ParentNode | null | undefined) =>
+		all(root).filter(item =>
+			!item.hidden &&
 			(!rendered || item.offsetParent !== null) &&
-			(!enabled || enabledOf(item)))
-	}
+			enabledOf(item))
 
 	const clearHighlight = (root: ParentNode | null | undefined) => {
 		for (const item of all(root)) delete item.dataset.highlighted
@@ -99,7 +68,7 @@ export const collection = (kind: string, defaults: ItemsOptions = {}) => {
 		(event.target as HTMLElement | null)?.closest<HTMLElement>(selector)
 
 	/** Marker attrs for one item, meant for JSX spread. */
-	const attrs = (opts: { disabled?: boolean; label?: string; value?: string } = {}): ItemAttrs => ({
+	const attrs = (opts: { disabled?: boolean; label?: string; value?: string } = {}) => ({
 		'data-item': kind,
 		'data-disabled': opts.disabled ? 'true' : undefined,
 		'data-label': opts.label,
@@ -112,56 +81,42 @@ export const collection = (kind: string, defaults: ItemsOptions = {}) => {
 	 * Separators survive only between visible items: leading, trailing,
 	 * and stacked separators hide as filtering empties their groups.
 	 */
-	const sweep = (root: HTMLElement, opts?: SweepOptions) => {
-		const empty = opts?.empty ?? sweepDefaults.empty
-		const group = opts?.group ?? sweepDefaults.group
-		const separator = opts?.separator ?? sweepDefaults.separator
-
-		if (group) {
-			for (const element of root.querySelectorAll<HTMLElement>(group)) {
-				if (element.dataset.forceMount === 'true') {
-					element.hidden = false
-					continue
-				}
-				element.hidden = !element.querySelector<HTMLElement>(`${selector}:not([hidden])`)
-			}
+	const sweep = (root: HTMLElement) => {
+		for (const group of root.querySelectorAll<HTMLElement>(`[data-slot="${kind}-group"]`)) {
+			group.hidden = group.dataset.forceMount !== 'true' && !group.querySelector(`${selector}:not([hidden])`)
 		}
 
 		// A group hidden by the previous filter makes its children non-rendered.
 		// Reconcile groups first so clearing the filter can measure them again.
 		const visible = items(root)
 
-		if (separator) {
-			const separators = new Set(root.querySelectorAll<HTMLElement>(separator))
-			const order = [...visible, ...separators].sort((a, b) =>
-				a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)
-			const keep = new Set<HTMLElement>()
+		const separators = new Set(root.querySelectorAll<HTMLElement>(`[data-slot="${kind}-separator"]`))
+		const order = [...visible, ...separators].sort((a, b) =>
+			a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)
+		const keep = new Set<HTMLElement>()
 
-			let afterItem = false
-			for (const element of order) {
-				if (!separators.has(element)) { afterItem = true; continue }
-				if (afterItem) keep.add(element)
-				afterItem = false
-			}
-
-			let beforeItem = false
-			for (let index = order.length - 1; index >= 0; index--) {
-				const element = order[index]
-				if (!separators.has(element)) { beforeItem = true; continue }
-				if (!beforeItem) keep.delete(element)
-			}
-
-			for (const separator of separators) separator.hidden = !keep.has(separator)
+		let afterItem = false
+		for (const element of order) {
+			if (!separators.has(element)) { afterItem = true; continue }
+			if (afterItem) keep.add(element)
+			afterItem = false
 		}
 
-		if (empty) {
-			for (const element of root.querySelectorAll<HTMLElement>(empty)) {
-				element.hidden = visible.length > 0
-			}
+		let beforeItem = false
+		for (let index = order.length - 1; index >= 0; index--) {
+			const element = order[index]
+			if (!separators.has(element)) { beforeItem = true; continue }
+			if (!beforeItem) keep.delete(element)
+		}
+
+		for (const separator of separators) separator.hidden = !keep.has(separator)
+
+		for (const empty of root.querySelectorAll<HTMLElement>(`[data-slot="${kind}-empty"]`)) {
+			empty.hidden = visible.length > 0
 		}
 
 		return visible
 	}
 
-	return { all, attrs, clearHighlight, focusItem, highlight, item, items, selector, sweep }
+	return { all, attrs, clearHighlight, focusItem, highlight, item, items, sweep }
 }
