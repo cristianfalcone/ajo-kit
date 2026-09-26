@@ -47,7 +47,7 @@ test('shape has exactly the documented fields', () => {
 
 	render(jsx(Gen, {}), document.body)
 
-	expect(Object.keys(view!)).toEqual(['handle', 'move'])
+	expect(Object.keys(view!)).toEqual(['handle'])
 })
 
 test('reacts to orientation, direction, cross-axis keys, and Home/End', () => {
@@ -178,6 +178,39 @@ test('supports current override for virtual movement without focusing the target
 	expect(document.activeElement).toBe(button(c))
 })
 
+test('without a current item in the list, arrows start at the edge and items are read once per key', () => {
+	let view: ReturnType<typeof roving> | undefined
+	let a: HTMLButtonElement | null = null
+	let b: HTMLButtonElement | null = null
+	let c: HTMLButtonElement | null = null
+	const moved: string[] = []
+	const items = vi.fn(() => [button(a), button(b), button(c)])
+
+	function* Gen(this: Host) {
+		view = roving(this, {
+			items,
+			loop: () => false,
+			current: () => null,
+			onMove: target => moved.push(target.id),
+		})
+
+		yield [
+			jsx('input', { key: 'input' }),
+			jsx('button', { id: 'a', key: 'a', ref: (element: unknown) => a = element as HTMLButtonElement | null }),
+			jsx('button', { id: 'b', key: 'b', ref: (element: unknown) => b = element as HTMLButtonElement | null }),
+			jsx('button', { id: 'c', key: 'c', ref: (element: unknown) => c = element as HTMLButtonElement | null }),
+		]
+	}
+
+	render(jsx(Gen, {}), document.body)
+	document.querySelector('input')!.focus()
+
+	expect(view!.handle(key('ArrowDown'))).toBe(true)
+	expect(view!.handle(key('ArrowUp'))).toBe(true)
+	expect(moved).toEqual(['a', 'c'])
+	expect(items).toHaveBeenCalledTimes(2)
+})
+
 test('unknown keys and empty item lists return false without touching item source or preventDefault', () => {
 	let view: ReturnType<typeof roving> | undefined
 	const items = vi.fn(() => [] as HTMLElement[])
@@ -257,7 +290,7 @@ test('teardown makes old moves unable to render after unmount', () => {
 	const old = view!
 	render(null, document.body)
 
-	old.move(1, key('ArrowDown'))
+	old.handle(key('ArrowDown'))
 
 	expect(document.body.textContent).toBe('')
 })
@@ -305,7 +338,7 @@ test('SSR inert view returns false without touching document', () => {
 			onMove: () => {},
 		})
 
-		const moved = view.handle(key('ArrowDown')) || view.move(1, key('ArrowDown'))
+		const moved = view.handle(key('ArrowDown'))
 		yield jsx('span', { children: moved ? 'moved' : 'server' })
 	}
 

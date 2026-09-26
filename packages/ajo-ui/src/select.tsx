@@ -376,7 +376,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 		restoreFocus()
 		clearFocusIntent()
 		// Closing discards the search so reopening shows the full list.
-		if (!searchState.controlled && searchState.value) searchState.init('')
+		if (searchState.value) searchState.init('')
 		activeKey = ''
 	}
 
@@ -603,12 +603,6 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			}
 			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
 				if (!pop.open) setOpen(true, event)
-				// Without a live highlight the first move lands on the edge, not past it.
-				if (!selectItems.items(this).some(item => item.dataset.value === activeKey)) {
-					event.preventDefault()
-					nav.move(event.key === 'ArrowDown' ? 'first' : 'last', event)
-					return
-				}
 				nav.handle(event)
 				return
 			}
@@ -740,7 +734,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 				const next = exists ? current.filter(candidate => itemKey(candidate) !== key) : [...current, item]
 				commitValue(next, event)
 				live.polite(`${label(item)} ${exists ? 'deselected' : 'selected'}, ${next.length} selected`)
-				if (!searchState.controlled) searchState.init('')
+				searchState.init('')
 				this.next()
 				return
 			}
@@ -754,7 +748,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			} else {
 				commitValue(item, event)
 			}
-			if (!searchState.controlled) searchState.init('')
+			searchState.init('')
 			setOpen(false, event)
 		}
 
@@ -771,7 +765,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 
 		const clear = (event?: Event) => {
 			commitValue(multiple ? [] : null, event)
-			if (!searchState.controlled) searchState.init('')
+			searchState.init('')
 			this.next()
 			input?.focus()
 		}
@@ -781,7 +775,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			const value = search.trim()
 			if (!value) return
 			onCreate?.(value, event)
-			if (!searchState.controlled) searchState.init('')
+			searchState.init('')
 			this.next()
 		}
 

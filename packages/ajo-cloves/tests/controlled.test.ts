@@ -33,7 +33,7 @@ test('shape has exactly the documented fields', () => {
 
 	render(jsx(Gen, {}), document.body)
 
-	expect(Object.keys(view!)).toEqual(['value', 'controlled', 'sync', 'set', 'accept', 'init'])
+	expect(Object.keys(view!)).toEqual(['value', 'controlled', 'sync', 'set', 'init'])
 })
 
 test('reacts to uncontrolled set and controlled sync truth', () => {
@@ -217,26 +217,5 @@ test('set calls onChange before the live value updates', () => {
 	view!.set(true)
 
 	expect(order).toEqual(['set:true:false'])
-	expect(view!.value).toBe(true)
-})
-
-test('accept calls onChange after the live value updates', () => {
-	let view: ReturnType<typeof controlled<boolean>> | undefined
-	const order: string[] = []
-
-	function* Gen(this: Host) {
-		view = controlled(this, {
-			fallback: false,
-			onChange: next => order.push(`accept:${next}:${view!.value}`),
-		})
-
-		while (true) yield jsx('span', { children: view.value ? 'on' : 'off' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	view!.accept(true)
-
-	expect(order).toEqual(['accept:true:true'])
 	expect(view!.value).toBe(true)
 })

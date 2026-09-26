@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateful } from 'ajo'
-import { announce, dom, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { announce, dom, listen, statefulRootAttrs as rootAttrs, timer } from 'ajo-cloves'
 import { Checkbox } from './checkbox'
 import type { DataTableArgs, DataTableColumn, DataTableData, DataTableKey, DataTableLabels } from './data-table-contract'
 import {
@@ -122,10 +122,10 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 	let model: ReturnType<typeof createDataTableModel<any, DataTableKey>> | undefined
 	let table: HTMLTableElement | null = null
 	let searchElement: HTMLInputElement | null = null
-	let resultsTimer: ReturnType<typeof setTimeout> | undefined
 	let composing = false
 	let announceAfterRender: 'deferred' | 'immediate' | undefined
 	const live = announce(this)
+	const results = timer(this)
 	const searchRef = (element: HTMLInputElement | null) => {
 		if (!element) composing = false
 		searchElement = element
@@ -135,8 +135,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 		if (event.target !== searchElement) return
 		composing = true
 		announceAfterRender = undefined
-		if (resultsTimer !== undefined) clearTimeout(resultsTimer)
-		resultsTimer = undefined
+		results.stop()
 	})
 
 	listen(this, 'compositionend', event => {
@@ -166,7 +165,6 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 	}
 
 	this.signal.addEventListener('abort', () => {
-		if (resultsTimer !== undefined) clearTimeout(resultsTimer)
 		composing = false
 		searchElement = null
 		table = null
@@ -192,9 +190,9 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 
 		if (announceAfterRender) {
 			const message = call('results', view.filteredCount)
-			if (resultsTimer !== undefined) clearTimeout(resultsTimer)
+			results.stop()
 			if (announceAfterRender === 'immediate') live.polite(message)
-			else resultsTimer = setTimeout(() => live.polite(message), 200)
+			else results.start(200, () => live.polite(message))
 			announceAfterRender = undefined
 		}
 
@@ -235,8 +233,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 											|| event.keyCode === 229
 										) return
 										announceAfterRender = undefined
-										if (resultsTimer !== undefined) clearTimeout(resultsTimer)
-										resultsTimer = undefined
+										results.stop()
 										live.polite(call('results', view.filteredCount))
 									}}
 									set:value={view.query}

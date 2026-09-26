@@ -140,7 +140,7 @@ const DialogRoot: Stateful<DialogArgs> = function* ({ defaultOpen, open }) {
 		watched.add(element)
 		element.addEventListener('close', event => {
 			if (syncing || current === false) return
-			state.accept(false, event)
+			state.set(false, event)
 			current = state.value
 			focusTrigger()
 		}, { signal: this.signal })

@@ -1,5 +1,5 @@
 import type { Children, IntrinsicElements, Stateful, Stateless } from 'ajo'
-import { controlled, dom, grid, remember, statefulRootAttrs as rootAttrs, type GridMove } from 'ajo-cloves'
+import { controlled, dom, remember, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { calendarDate, compile, type Availability, type AvailabilityMatcher, type CalendarMatcher } from './availability'
 import { DirectionContext } from './direction'
 import type { FixedArgs, OmitArg } from './utils'
@@ -305,6 +305,25 @@ const comparePlain = (first: PlainDate, second: PlainDate) =>
 
 const samePlain = (first: PlainDate, second: PlainDate) =>
 	first.year === second.year && first.month === second.month && first.day === second.day
+
+type GridMove =
+	| { cols: number }
+	| { rows: number }
+	| { edge: 'start' | 'end'; extent: 'row' | 'all' }
+	| { page: number; large: boolean }
+
+/** Grid keys: arrows move cells (columns flip in RTL), Home/End reach the row (Ctrl: all), pages move by period (Shift: large). */
+const gridMove = (event: KeyboardEvent, rtl: boolean): GridMove | undefined => {
+	if (event.key === 'ArrowLeft') return { cols: rtl ? 1 : -1 }
+	if (event.key === 'ArrowRight') return { cols: rtl ? -1 : 1 }
+	if (event.key === 'ArrowUp') return { rows: -1 }
+	if (event.key === 'ArrowDown') return { rows: 1 }
+	if (event.key === 'Home') return { edge: 'start', extent: event.ctrlKey ? 'all' : 'row' }
+	if (event.key === 'End') return { edge: 'end', extent: event.ctrlKey ? 'all' : 'row' }
+	if (event.key === 'PageUp') return { page: -1, large: event.shiftKey }
+	if (event.key === 'PageDown') return { page: 1, large: event.shiftKey }
+	return undefined
+}
 
 const viewRank: Record<CalendarView, number> = { day: 0, month: 1, year: 2 }
 
@@ -873,14 +892,12 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 		focusDay(move.edge === 'start' ? start : { ...start, day: daysInMonth(start) }, args)
 	}
 
-	const nav = grid(this, {
-		rtl: () => currentArgs.dir === 'rtl',
-		onMove,
-	})
-
 	const onCellKeydown = (event: KeyboardEvent) => {
 		if (event.key !== 'Escape' || viewRank[currentView] <= viewRank[minimumView(currentArgs.minView)]) {
-			nav.handle(event)
+			const move = gridMove(event, currentArgs.dir === 'rtl')
+			if (!move) return
+			event.preventDefault()
+			onMove(move, event)
 			return
 		}
 		event.preventDefault()
@@ -900,7 +917,7 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 		monthState.sync(args.month ? monthStart(dateToPlain(args.month, args.timeZone)) : undefined)
 		viewState.sync(args.view === undefined ? undefined : clampView(args.view, args.minView))
 		const clampedView = clampView(viewState.value, args.minView)
-		if (!viewState.controlled && clampedView !== viewState.value) viewState.init(clampedView)
+		if (clampedView !== viewState.value) viewState.init(clampedView)
 		// selected !== undefined binds; null (single, range) and [] (multiple) are controlled-empty.
 		singleState.sync(args.mode === 'multiple' || args.mode === 'range' || args.selected === undefined
 			? undefined

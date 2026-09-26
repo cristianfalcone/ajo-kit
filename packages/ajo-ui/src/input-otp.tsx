@@ -123,7 +123,7 @@ const InputOTPRoot: Stateful<InputOTPRootArgs> = function* ({
 		const parsed = clean(next, length, args.pattern)
 		active = Math.min(nextActive, Math.max(0, length - 1))
 		if (input) input.value = parsed
-		state.accept(parsed, event)
+		state.set(parsed, event)
 	}
 
 	const focus = (index: number) => {

@@ -12,6 +12,7 @@ import {
 	isReversed,
 	matchName,
 	reconciler,
+	spinMove,
 	stepValue,
 	timeRun,
 	toISO,
@@ -287,6 +288,20 @@ describe('typing', () => {
 })
 
 describe('stepping', () => {
+	test('spinMove maps the spinbutton keys and ignores the rest', () => {
+		const move = (key: string) => spinMove({ key } as KeyboardEvent)
+		expect(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowLeft', 'Tab'].map(move)).toEqual([
+			{ step: 1 },
+			{ step: -1 },
+			{ page: 1 },
+			{ page: -1 },
+			{ edge: 'min' },
+			{ edge: 'max' },
+			undefined,
+			undefined,
+		])
+	})
+
 	test('±1 wraps at bounds without carry', () => {
 		expect(stepValue('month', 12, { step: 1 }, 1, 12)).toBe(1)
 		expect(stepValue('month', 1, { step: -1 }, 1, 12)).toBe(12)

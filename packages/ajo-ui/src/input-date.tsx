@@ -1,5 +1,5 @@
 import type { Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, controlled, dom, id, listen, restore, roving, spin, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, callRef, controlled, dom, id, listen, restore, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { compile, type Availability, type AvailabilityMatcher } from './availability'
 import type { ReservedPositionArg } from './position'
@@ -13,6 +13,7 @@ import {
 	formatValue,
 	fromISO,
 	isReversed,
+	spinMove,
 	timeRun,
 	unitLabel,
 	type FieldOptions,
@@ -677,16 +678,6 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		})
 	}
 
-	// Keyboard: spin resolves the APG protocol, roving is Left/Right only.
-	const stepper = spin(this, {
-		onMove: (move, event) => {
-			const segment = segmentOf(event)
-			if (!segment || readOnly || disabled) return
-			const side = sideOf(segment)
-			apply(fields[side].spin(unitOf(segment), move), event, segment)
-		},
-	})
-
 	const nav = roving(this, {
 		items: () => {
 			const active = document.activeElement
@@ -711,7 +702,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		if (!segment) return
 		const side = sideOf(segment)
 		const unit = unitOf(segment)
-		// Pipeline contract: Alt+ArrowDown → spin.handle → roving Left/Right.
+		// Pipeline contract: Alt+ArrowDown → spinMove (APG protocol) → roving Left/Right.
 		// Alt-combos never reach spin: without popup parts composed,
 		// Alt+ArrowDown is a pinned no-op, not a step.
 		if (event.altKey && event.key.startsWith('Arrow')) {
@@ -738,7 +729,12 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			moveFocus(segment, 1)
 			return
 		}
-		if (!readOnly && stepper.handle(event)) return
+		const move = readOnly ? undefined : spinMove(event)
+		if (move) {
+			event.preventDefault()
+			if (!disabled) apply(fields[side].spin(unit, move), event, segment)
+			return
+		}
 		if (!readOnly && (event.key === '+' || event.key === '-')) {
 			event.preventDefault()
 			apply(fields[side].spin(unit, { step: event.key === '+' ? 1 : -1 }), event, segment)

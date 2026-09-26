@@ -85,22 +85,18 @@ keyed reconciliation reuses an element.
 
 | Export | Purpose | Key options |
 |---|---|---|
-| `controlled` | Controlled/uncontrolled value state. | `fallback`, `onChange`; methods `sync`, `set`, `accept`, `init`. |
+| `controlled` | Controlled/uncontrolled value state. | `fallback`, `onChange`; methods `sync`, `set` (notifies `onChange` before the value updates), `init`. |
 | `dismiss` | Escape anywhere in the host's document and optional outside-pointer dismissal. | `active`, `inside`, `escape` (boolean, default true), `outside`, `prevent`, `onDismiss`. |
 | `hover` | Hover intent across named zones with open/close delays. | Required `openDelay`, `closeDelay`, `onChange`; methods `hold`, `release`, `sync`, `cancel`. |
 | `timer` | One-shot timeout cleared with the host. | No options; methods `start`, `stop`; getter `running`. |
-| `roving` | Keyboard movement over a live item list. | `items`, `orientation` (`horizontal` or `vertical`), `dir`, `loop`, `current`, `onMove`. |
+| `roving` | Keyboard movement over a live item list; without a current item, arrows start at the first or last item. | `items`, `orientation` (`horizontal` or `vertical`), `dir`, `loop`, `current`, `onMove`; method `handle`. |
 | `typeahead` | Printable-key buffer matched against `data-label` or text content; resets after 600 ms. | `items`, `onMatch`; method `handle`. |
 | `selection` | Single or multi selection over string values. | `multiple`, `required`, `fallback`, `onChange`; methods `has`, `toggle`, `sync`. |
 | `restore` | Capture and later restore focus. | No options; methods `capture`, `restore`. |
 | `move` | Pointer-drag session lifecycle with deltas and cancellation. | `onStart`, `onMove`, `onEnd` receive `dx`, `dy`, `canceled`; method `start`. |
-| `grid` | Semantic 2D key movement for grids/calendars. | `rtl`, `onMove`; type `GridMove`. |
-| `spin` | Semantic spinbutton key stepping for step, page, and edge movement. | `onMove`; type `SpinMove`. |
 | `label` | Field label/control/description/error id wiring. | `prefix`; returns `LabelView` attr bags. |
 | `hotkey` | Global single-chord keyboard shortcut; a match is always prevented. | `keys`, `active`, `onPress`. |
 | `announce` | Polite screen-reader announcements. | No options; method `polite`; one document-lifetime `role=status` region. |
-| `GridMove` | Type for semantic grid movement. | Variants: `cols`, `rows`, row/all edge, page movement. |
-| `SpinMove` | Type for semantic spinbutton movement. | Variants: `step`, `page`, min/max edge. |
 | `LabelView` | Type for the live field-labelling view. | Ids and label/control/button/group/description/error attr bags. |
 
 ### Positioning

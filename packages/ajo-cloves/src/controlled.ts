@@ -4,7 +4,7 @@ import type { Host } from 'ajo'
 export const controlled = <T>(host: Host, opts: {
 	/** Initial uncontrolled value. */
 	fallback: T
-	/** Called whenever set() or accept() changes the value. */
+	/** Called by set() before the value updates. */
 	onChange?: (value: T, event?: Event) => void
 }) => {
 	let local = opts.fallback
@@ -28,11 +28,6 @@ export const controlled = <T>(host: Host, opts: {
 			opts.onChange?.(next, event)
 			if (!bound) local = next
 			host.next(() => value = next)
-		},
-		accept(next: T, event?: Event) {
-			if (!bound) local = next
-			host.next(() => value = next)
-			opts.onChange?.(next, event)
 		},
 		/** Seeds the uncontrolled value without notifying onChange (lazy defaults). */
 		init(next: T) {

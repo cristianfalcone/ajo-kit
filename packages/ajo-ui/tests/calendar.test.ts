@@ -227,6 +227,41 @@ test('month view commits canonical single, multiple, and inclusive range values'
 	expect(button('[data-month="2024-04"]').dataset.rangeEnd).toBe('true')
 })
 
+test('day grid maps every navigation key to a prevented move, with RTL columns', async () => {
+	render(jsx(Calendar, { defaultMonth: date(2026, 7) }), document.body)
+
+	button('[data-day="2026-07-15"]').focus()
+	for (const [value, day, init] of [
+		['ArrowRight', '2026-07-16'],
+		['ArrowLeft', '2026-07-15'],
+		['ArrowDown', '2026-07-22'],
+		['ArrowUp', '2026-07-15'],
+		['Home', '2026-07-12'],
+		['End', '2026-07-18'],
+		['Home', '2026-07-01', { ctrlKey: true }],
+		['End', '2026-07-31', { ctrlKey: true }],
+		['PageDown', '2026-08-31'],
+		['PageUp', '2026-07-31'],
+		['PageDown', '2027-07-31', { shiftKey: true }],
+		['PageUp', '2026-07-31', { shiftKey: true }],
+	] as const satisfies ReadonlyArray<readonly [string, string, KeyboardEventInit?]>) {
+		const event = await key(document.activeElement as HTMLElement, value, init)
+		expect(event.defaultPrevented).toBe(true)
+		expect((document.activeElement as HTMLElement).dataset.day).toBe(day)
+	}
+
+	const tab = await key(document.activeElement as HTMLElement, 'Tab')
+	expect(tab.defaultPrevented).toBe(false)
+
+	render(null, document.body)
+	render(jsx(Calendar, { defaultMonth: date(2026, 7), dir: 'rtl' }), document.body)
+	button('[data-day="2026-07-15"]').focus()
+	await key(document.activeElement as HTMLElement, 'ArrowLeft')
+	expect((document.activeElement as HTMLElement).dataset.day).toBe('2026-07-16')
+	await key(document.activeElement as HTMLElement, 'ArrowRight')
+	expect((document.activeElement as HTMLElement).dataset.day).toBe('2026-07-15')
+})
+
 test('month grid reuses semantic grid navigation, RTL, paging, and minView Escape propagation', async () => {
 	render(jsx(Calendar, {
 		defaultMonth: date(2026, 7),

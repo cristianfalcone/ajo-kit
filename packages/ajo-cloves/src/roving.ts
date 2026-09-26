@@ -34,42 +34,31 @@ export const roving = (host: Host, opts: {
 	/** Applies the movement. */
 	onMove: (target: HTMLElement, event: KeyboardEvent) => void
 }) => {
-	const inert = {
-		handle: (_event: KeyboardEvent) => false,
-		move: (_step: RovingStep, _event: KeyboardEvent) => false,
-	}
-
-	if (!dom(host)) return inert
-
-	const move = (step: RovingStep, event: KeyboardEvent) => {
-		const list = opts.items()
-		if (!list.length) return false
-
-		const active = opts.current?.() ?? document.activeElement
-		const index = Math.max(0, list.indexOf(active as HTMLElement))
-		const target = step === 'first'
-			? list[0]
-			: step === 'last'
-				? list[list.length - 1]
-				: list[index + step] ?? ((opts.loop?.() ?? true) ? list[step > 0 ? 0 : list.length - 1] : undefined)
-
-		if (!target) return false
-
-		opts.onMove(target, event)
-		return true
-	}
+	if (!dom(host)) return { handle: (_event: KeyboardEvent) => false }
 
 	return {
 		// A recognized navigation key is always consumed when there are items,
 		// even when a loopless boundary produces no movement (no scroll fallthrough).
 		handle(event: KeyboardEvent) {
 			const step = keyStep(event, opts.orientation?.() ?? 'vertical', opts.dir?.() ?? 'ltr')
-			if (step == null || !opts.items().length) return false
+			if (step == null) return false
+
+			const list = opts.items()
+			if (!list.length) return false
 
 			event.preventDefault()
-			move(step, event)
+
+			const last = list.length - 1
+			const index = list.indexOf((opts.current?.() ?? host.ownerDocument.activeElement) as HTMLElement)
+			const edge = (start: boolean) => list[start ? 0 : last]
+			const target = step === 'first' || step === 'last'
+				? edge(step === 'first')
+				: index < 0
+					? edge(step > 0)
+					: list[index + step] ?? ((opts.loop?.() ?? true) ? edge(step > 0) : undefined)
+
+			if (target) opts.onMove(target, event)
 			return true
 		},
-		move,
 	}
 }

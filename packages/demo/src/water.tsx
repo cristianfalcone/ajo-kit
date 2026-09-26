@@ -1,4 +1,5 @@
 import type { Stateful } from 'ajo'
+import { media, resize, timer } from 'ajo-cloves'
 
 export type WaterArgs = {
 	/** Master effect opacity. */
@@ -88,6 +89,26 @@ const Water: Stateful<WaterArgs> = function* (args) {
 
 	let strength = args.strength ?? 0.1
 	let started = false
+	let sized: HTMLCanvasElement | undefined
+	let power = () => {}
+
+	const motion = media(this, { query: () => '(prefers-reduced-motion: reduce)' })
+	const drips = timer(this)
+
+	// ResizeObserver instead of a window listener: the ref runs before
+	// layout, when clientWidth is still 0, and the observer's initial
+	// callback delivers the real size once the canvas is laid out.
+	const size = resize(this, {
+		target: () => sized,
+		onResize: el => {
+			const canvas = el as HTMLCanvasElement
+			// Half-resolution buffer: the waves are smooth gradients, so the
+			// upscale is invisible and the fill cost stays low.
+			const scale = Math.min(globalThis.devicePixelRatio || 1, 2) * 0.5
+			canvas.width = Math.max(1, Math.round(canvas.clientWidth * scale))
+			canvas.height = Math.max(1, Math.round(canvas.clientHeight * scale))
+		},
+	})
 
 	const start = (canvas: HTMLCanvasElement) => {
 
@@ -194,16 +215,6 @@ const Water: Stateful<WaterArgs> = function* (args) {
 		const uUvScale = uniform(render, 'u_uvscale')
 		const uUvOffset = uniform(render, 'u_uvoffset')
 
-		let scale = 1
-
-		const resize = () => {
-			// Half-resolution buffer: the waves are smooth gradients, so the
-			// upscale is invisible and the fill cost stays low.
-			scale = Math.min(globalThis.devicePixelRatio || 1, 2) * 0.5
-			canvas.width = Math.max(1, Math.round(canvas.clientWidth * scale))
-			canvas.height = Math.max(1, Math.round(canvas.clientHeight * scale))
-		}
-
 		const readTheme = () => {
 			const styles = getComputedStyle(document.documentElement)
 			gl.useProgram(render)
@@ -215,12 +226,8 @@ const Water: Stateful<WaterArgs> = function* (args) {
 		themes.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
 		this.signal.addEventListener('abort', () => themes.disconnect())
 
-		// ResizeObserver instead of a window listener: the ref runs before
-		// layout, when clientWidth is still 0, and the observer's initial
-		// callback delivers the real size once the canvas is laid out.
-		const sizes = new ResizeObserver(resize)
-		sizes.observe(canvas)
-		this.signal.addEventListener('abort', () => sizes.disconnect())
+		sized = canvas
+		size.sync()
 
 		// mediump time for the ambient swell: wrap the clock so sin()
 		// precision never degrades. The sim itself is wall-clock free.
@@ -229,7 +236,6 @@ const Water: Stateful<WaterArgs> = function* (args) {
 
 		// Pending splats in CSS px, flushed inside the frame so no GL work
 		// happens from listeners or timers.
-		const motion = matchMedia('(prefers-reduced-motion: reduce)')
 		const pending: Array<{ x: number; y: number; r: number; s: number }> = []
 
 		const splat = (x: number, y: number, r: number, s: number) => {
@@ -238,25 +244,17 @@ const Water: Stateful<WaterArgs> = function* (args) {
 
 		// Sparse random drips: once in a while a droplet lands somewhere and
 		// its ring expands calmly.
-		let timer: ReturnType<typeof setTimeout> | undefined
 		const scheduleDrip = (initial = false) => {
-			if (motion.matches || timer != null) return
-			timer = setTimeout(drip, initial
+			if (motion.matches || drips.running) return
+			drips.start(initial
 				? 1500 + Math.random() * 3000
-				: 4000 + Math.random() * 10000)
+				: 4000 + Math.random() * 10000, drip)
 		}
 		const drip = () => {
-			timer = undefined
 			if (motion.matches) return
 			splat(canvas.clientWidth * (0.08 + 0.84 * Math.random()), canvas.clientHeight * (0.08 + 0.84 * Math.random()), 14 + Math.random() * 10, 0.05 + Math.random() * 0.05)
 			scheduleDrip()
 		}
-		const stopDrips = () => {
-			if (timer == null) return
-			clearTimeout(timer)
-			timer = undefined
-		}
-		this.signal.addEventListener('abort', stopDrips, { once: true })
 
 		// Press-and-drag stirs the water like a finger: the touch lands a drop
 		// and the drag digs a moving trough the wave equation answers with bow
@@ -355,11 +353,11 @@ const Water: Stateful<WaterArgs> = function* (args) {
 			raf = requestAnimationFrame(draw)
 		}
 
-		const power = () => {
+		power = () => {
 			cancelAnimationFrame(raf)
 			raf = 0
 			pending.length = 0
-			stopDrips()
+			drips.stop()
 			if (motion.matches) {
 				gl.clearColor(0, 0, 0, 0)
 				gl.clear(gl.COLOR_BUFFER_BIT)
@@ -369,8 +367,6 @@ const Water: Stateful<WaterArgs> = function* (args) {
 			}
 		}
 
-		motion.addEventListener('change', power, { signal: this.signal })
-
 		this.signal.addEventListener('abort', () => {
 			cancelAnimationFrame(raf)
 		}, { once: true })
@@ -379,8 +375,15 @@ const Water: Stateful<WaterArgs> = function* (args) {
 		power()
 	}
 
+	// media re-renders on a reduced-motion change; the loop powers the scene to match.
+	let reduced = motion.matches
+
 	for (args of this) {
 		strength = args.strength ?? 0.1
+		if (reduced !== motion.matches) {
+			reduced = motion.matches
+			power()
+		}
 		yield <canvas class="size-full" ref={el => el && start(el)} />
 	}
 }

@@ -11,7 +11,7 @@
  *   forms (zero-padded, no milliseconds, no 24:00); year 1–9999.
  * - `typeDigit` / `matchName` / `eraseDigit` / `stepValue` — one pure
  *   segment mutation each (digit buffer, name prefix match, backspace,
- *   spin protocol).
+ *   spin protocol); `spinMove` maps a stepping key to its spin action.
  * - `validate` / `defaultMessage` / `constrain` / `isReversed` — reason-coded
  *   validation with localized default messages, the day clamp, and the range
  *   cross-check (`reversed` is a consumer-raised reason: validate never
@@ -101,6 +101,17 @@ export type Reason =
 	| { code: 'unavailableRange' }
 
 export type SpinAction = { step: 1 | -1 } | { page: 1 | -1 } | { edge: 'max' | 'min' }
+
+/** Spinbutton keys: arrows step, pages page, Home/End land on the bounds. */
+export const spinMove = (event: KeyboardEvent): SpinAction | undefined => {
+	if (event.key === 'ArrowUp') return { step: 1 }
+	if (event.key === 'ArrowDown') return { step: -1 }
+	if (event.key === 'PageUp') return { page: 1 }
+	if (event.key === 'PageDown') return { page: -1 }
+	if (event.key === 'Home') return { edge: 'min' }
+	if (event.key === 'End') return { edge: 'max' }
+	return undefined
+}
 
 export type InputResult = {
 	/** The key produced a mutation: consumer preventDefaults and invalidates. */

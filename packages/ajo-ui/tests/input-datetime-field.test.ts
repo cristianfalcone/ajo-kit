@@ -148,6 +148,30 @@ test('popover time edits update the same field view and keep day picks open by d
 	expect(document.querySelector<HTMLInputElement>('input[name="meeting"]')?.value).toBe('2026-07-11T13:30')
 })
 
+test('segment stepping keys are prevented and step, page and land on the bounds', () => {
+	render(jsx(InputTime, { defaultValue: '09:30', hourCycle: 24, name: 'alarm' }), document.body)
+
+	const hour = segment('field', 'hour')
+	const value = () => document.querySelector<HTMLInputElement>('input[name="alarm"]')?.value
+	for (const [key, expected] of [
+		['ArrowDown', '08:30'],
+		['PageUp', '10:30'],
+		['End', '23:30'],
+		['Home', '00:30'],
+		['ArrowUp', '01:30'],
+		['PageDown', '00:30'],
+	]) {
+		const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key })
+		hour.dispatchEvent(event)
+		expect(event.defaultPrevented).toBe(true)
+		expect(value()).toBe(expected)
+	}
+
+	const tab = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Tab' })
+	hour.dispatchEvent(tab)
+	expect(tab.defaultPrevented).toBe(false)
+})
+
 test('a datetime composition without a time surface keeps the calendar close default', () => {
 	render(jsx(InputDateTime, {
 		calendar: true,
