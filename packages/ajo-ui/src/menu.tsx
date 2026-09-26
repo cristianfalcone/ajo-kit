@@ -15,8 +15,8 @@ import {
 	type MenuContextValue,
 } from './menu-cluster'
 import { contentAttrs, popup, type PopupPosition, popupStyle, type PopupView, triggerAttrs } from './popup'
-import { flag, text } from './shared'
-import type { FixedArgs, OmitArg } from './utils'
+import { activate, flag, text } from './shared'
+import { part, type FixedArgs, type OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Semantic tone applied to an actionable menu item. */
@@ -292,11 +292,7 @@ const MenuContent: Stateless<MenuContentArgs> = ({
 }
 
 /** Group of menu items. */
-const MenuGroup: Stateless<MenuGroupArgs> = ({ children, class: classes, 'data-slot': slot = 'menu-group', ...attrs }) => (
-	<div {...attrs} class={classes} data-slot={slot} role="group">
-		{children}
-	</div>
-)
+const MenuGroup = part<MenuGroupArgs>('div', 'menu-group', { role: 'group' })
 
 /** Non-interactive label inside a menu. */
 const MenuLabel: Stateless<MenuLabelArgs> = ({
@@ -315,18 +311,6 @@ const MenuLabel: Stateless<MenuLabelArgs> = ({
 		{children}
 	</div>
 )
-
-/** Single activation guard for every item kind: disabled check, composed onclick, then the kind's action. */
-const activate = (
-	disabled: boolean,
-	onClick: unknown,
-	action: (event: Event) => void,
-) => (event: Event) => {
-	if (disabled) return
-	callHandler(onClick, event)
-	if (event.defaultPrevented) return
-	action(event)
-}
 
 /** Standard menu action item. */
 const MenuItem: Stateless<MenuItemArgs> = ({
@@ -523,30 +507,10 @@ const MenuRadioItem: Stateless<MenuRadioItemArgs> = ({
 }
 
 /** Visual separator between menu groups. */
-const MenuSeparator: Stateless<MenuSeparatorArgs> = ({ class: classes, 'data-slot': slot = 'menu-separator', ...attrs }) => (
-	<div
-		{...attrs}
-		class={classes}
-		data-slot={slot}
-		role="separator"
-	/>
-)
+const MenuSeparator = part<MenuSeparatorArgs>('div', 'menu-separator', { role: 'separator' })
 
 /** Right-aligned shortcut hint inside a menu item. */
-const MenuShortcut: Stateless<MenuShortcutArgs> = ({
-	children,
-	class: classes,
-	'data-slot': slot = 'menu-shortcut',
-	...attrs
-}) => (
-	<span
-		{...attrs}
-		class={classes}
-		data-slot={slot}
-	>
-		{children}
-	</span>
-)
+const MenuShortcut = part<MenuShortcutArgs>('span', 'menu-shortcut')
 
 const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 	const children = cluster()

@@ -56,7 +56,7 @@ export default () => (
 adapters:
 
 ```tsx
-import { bool, stlx, withSlot } from 'ajo-ui/utils'
+import { bool, part, stlx } from 'ajo-ui/utils'
 import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 ```
 
@@ -64,7 +64,7 @@ import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 |---|---|
 | `OmitArg` | Removes named properties while preserving Ajo's open argument index |
 | `FixedArgs` | Marks properties supplied by an adapter as unavailable to callers |
-| `withSlot` | Wraps a family part with a fixed `data-slot` and optional defaults |
+| `part` | Builds a part from a tag or component: a default `data-slot` the caller may override, fixed attributes, merged `class` |
 | `bool` | Parses boolean-ish attribute input (`true`, `''`, `'true'`) |
 | `stlx` | Joins declaration strings and property objects into an inline style |
 

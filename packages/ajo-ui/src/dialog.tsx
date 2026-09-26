@@ -2,7 +2,7 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, controlled, id, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { triggerAttrs } from './popup'
-import type { FixedArgs, OmitArg } from './utils'
+import { part, type FixedArgs, type OmitArg } from './utils'
 
 /** Arguments for the Dialog state provider and its wrapper host. */
 export type DialogArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
@@ -328,26 +328,10 @@ const DialogContent: Stateless<DialogContentArgs> = ({
 }
 
 /** Unstyled header area for dialog title and description. */
-const DialogHeader: Stateless<DialogHeaderArgs> = ({
-	children,
-	'data-slot': slot = 'dialog-header',
-	...attrs
-}) => (
-	<div {...attrs} data-slot={slot}>
-		{children}
-	</div>
-)
+const DialogHeader = part<DialogHeaderArgs>('div', 'dialog-header')
 
 /** Unstyled footer area for dialog actions. */
-const DialogFooter: Stateless<DialogFooterArgs> = ({
-	children,
-	'data-slot': slot = 'dialog-footer',
-	...attrs
-}) => (
-	<div {...attrs} data-slot={slot}>
-		{children}
-	</div>
-)
+const DialogFooter = part<DialogFooterArgs>('div', 'dialog-footer')
 
 /** Accessible title for DialogContent. */
 const DialogTitle: Stateless<DialogTitleArgs> = ({

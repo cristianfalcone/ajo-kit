@@ -1,8 +1,8 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { announce, callHandler, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { flag, text } from './shared'
-import type { FixedArgs, OmitArg } from './utils'
+import { activate, flag, text } from './shared'
+import { part, type FixedArgs, type OmitArg } from './utils'
 import { collection, defaultResultsLabel, matchesTokens, resolveFilter } from './collection'
 import {
 	Dialog,
@@ -113,7 +113,7 @@ export type CommandSeparatorArgs = IntrinsicElements['div'] & {
 }
 
 /** Arguments for one selectable and filterable command item. */
-export type CommandItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'value'> & {
+export type CommandItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'id' | 'value'> & {
 	/** Stable value used for filtering, selection, and onSelect. */
 	value?: string
 	/** Extra searchable terms. */
@@ -126,7 +126,7 @@ export type CommandItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'va
 	onSelect?: (value: string, event: Event) => void
 	/** Additional UnoCSS classes. */
 	class?: string
-}>
+}> & FixedArgs<'id'>
 
 /** Arguments for shortcut text displayed beside a command item. */
 export type CommandShortcutArgs = WithChildren<IntrinsicElements['span'] & {
@@ -413,11 +413,7 @@ const CommandList: Stateless<CommandListArgs> = ({ children, class: classes, ...
 }
 
 /** Empty state shown when filtering hides every command item. */
-const CommandEmpty: Stateless<CommandEmptyArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-slot="command-empty">
-		{children}
-	</div>
-)
+const CommandEmpty = part<CommandEmptyArgs>('div', 'command-empty')
 
 /** Group of related command items. */
 const CommandGroup: Stateless<CommandGroupArgs> = ({
@@ -441,20 +437,18 @@ const CommandGroup: Stateless<CommandGroupArgs> = ({
 )
 
 /** Visual separator between command groups. */
-const CommandSeparator: Stateless<CommandSeparatorArgs> = ({ class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-slot="command-separator" role="separator" />
-)
+const CommandSeparator = part<CommandSeparatorArgs>('div', 'command-separator', { role: 'separator' })
 
 /** Selectable command option. */
 const CommandItem: Stateless<CommandItemArgs> = ({
 	children,
-	class: classes,
 	disabled,
 	forceMount,
-	id: idArg,
 	keywords = [],
 	onSelect,
 	value,
+	'set:onclick': onClick,
+	'set:onpointermove': onPointerMove,
 	...attrs
 }) => {
 	const command = CommandContext()
@@ -469,22 +463,16 @@ const CommandItem: Stateless<CommandItemArgs> = ({
 			{...commandItems.attrs({ disabled: disabledFlag, value: itemValue })}
 			aria-disabled={flag(disabledFlag)}
 			aria-selected={highlighted ? 'true' : 'false'}
-			class={classes}
 			data-highlighted={flag(highlighted)}
 			data-slot="command-item"
 			hidden={hidden || undefined}
-			id={idArg ?? command?.itemId(itemValue)}
+			id={command?.itemId(itemValue)}
 			role="option"
-			set:onclick={(event: Event) => {
-				if (disabledFlag) return
+			set:onclick={activate(disabledFlag, onClick, event => {
 				onSelect?.(itemValue, event)
-				if (event.defaultPrevented) return
-				command?.setValue(itemValue, event)
-			}}
-			set:onpointermove={(event: Event) => {
-				if (disabledFlag) return
-				command?.setValue(itemValue, event)
-			}}
+				if (!event.defaultPrevented) command?.setValue(itemValue, event)
+			})}
+			set:onpointermove={activate(disabledFlag, onPointerMove, event => command?.setValue(itemValue, event))}
 		>
 			{children}
 		</div>
@@ -492,11 +480,7 @@ const CommandItem: Stateless<CommandItemArgs> = ({
 }
 
 /** Right-aligned shortcut hint inside a CommandItem. */
-const CommandShortcut: Stateless<CommandShortcutArgs> = ({ children, class: classes, ...attrs }) => (
-	<span {...attrs} class={classes} data-slot="command-shortcut">
-		{children}
-	</span>
-)
+const CommandShortcut = part<CommandShortcutArgs>('span', 'command-shortcut')
 
 export {
 	Command,

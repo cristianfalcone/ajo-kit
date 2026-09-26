@@ -4,8 +4,8 @@ import { context } from 'ajo/context'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from './input-group'
 import { collection, defaultResultsLabel, matchesTokens, resolveFilter } from './collection'
 import { contentAttrs, popup, type PopupPosition, type PopupView, triggerAttrs } from './popup'
-import { flag, text } from './shared'
-import type { FixedArgs, OmitArg } from './utils'
+import { activate, flag, text } from './shared'
+import { part, type FixedArgs, type OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Visual size supported by the built-in select trigger. */
@@ -1161,7 +1161,6 @@ const SelectList: Stateless<SelectListArgs<any>> = ({ children, class: classes, 
 /** Selectable Select option. */
 const SelectItem: Stateless<SelectItemArgs<any>> = ({
 	children,
-	class: classes,
 	disabled,
 	forceMount,
 	indicatorClass,
@@ -1170,6 +1169,9 @@ const SelectItem: Stateless<SelectItemArgs<any>> = ({
 	onSelect,
 	textValue,
 	value,
+	'set:onclick': onClick,
+	'set:onfocus': onFocus,
+	'set:onpointermove': onPointerMove,
 	...attrs
 }) => {
 	const select = SelectContext()
@@ -1191,7 +1193,6 @@ const SelectItem: Stateless<SelectItemArgs<any>> = ({
 			{...selectItems.attrs({ disabled: disabledFlag, label: label ?? key, value: key })}
 			aria-disabled={flag(disabledFlag)}
 			aria-selected={selected ? 'true' : 'false'}
-			class={classes}
 			data-highlighted={flag(highlighted)}
 			data-selected={flag(selected)}
 			data-slot="select-item"
@@ -1199,16 +1200,12 @@ const SelectItem: Stateless<SelectItemArgs<any>> = ({
 			hidden={hidden || undefined}
 			id={select?.itemId(key)}
 			role="option"
-			set:onclick={(event: Event) => {
-				if (disabledFlag) return
+			set:onclick={activate(disabledFlag, onClick, event => {
 				onSelect?.(item, event)
-				if (event.defaultPrevented) return
-				select?.select(item, event)
-			}}
-			set:onfocus={() => select?.setActive(key)}
-			set:onpointermove={() => {
-				if (!disabledFlag) select?.setActive(key)
-			}}
+				if (!event.defaultPrevented) select?.select(item, event)
+			})}
+			set:onfocus={activate(false, onFocus, () => select?.setActive(key))}
+			set:onpointermove={activate(disabledFlag, onPointerMove, () => select?.setActive(key))}
 			tabindex={disabledFlag ? undefined : '-1'}
 		>
 			{children}
@@ -1220,37 +1217,19 @@ const SelectItem: Stateless<SelectItemArgs<any>> = ({
 }
 
 /** Group wrapper for Select options. */
-const SelectGroup: Stateless<SelectGroupArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-slot="select-group" role="group">
-		{children}
-	</div>
-)
+const SelectGroup = part<SelectGroupArgs>('div', 'select-group', { role: 'group' })
 
 /** Label for a SelectGroup. */
-const SelectLabel: Stateless<SelectLabelArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-slot="select-label">
-		{children}
-	</div>
-)
+const SelectLabel = part<SelectLabelArgs>('div', 'select-label')
 
 /** Visual separator between Select groups. */
-const SelectSeparator: Stateless<SelectSeparatorArgs> = ({ class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-slot="select-separator" role="separator" />
-)
+const SelectSeparator = part<SelectSeparatorArgs>('div', 'select-separator', { role: 'separator' })
 
 /** Empty state shown when filtering hides every option. */
-const SelectEmpty: Stateless<SelectEmptyArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-slot="select-empty">
-		{children}
-	</div>
-)
+const SelectEmpty = part<SelectEmptyArgs>('div', 'select-empty')
 
 /** Keep-mounted polite live region for async status; children swap. */
-const SelectStatus: Stateless<SelectStatusArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} aria-live="polite" class={classes} data-slot="select-status" role="status">
-		{children}
-	</div>
-)
+const SelectStatus = part<SelectStatusArgs>('div', 'select-status', { 'aria-live': 'polite', role: 'status' })
 
 /** Create-tag row: visible while the search matches no option label exactly. */
 const SelectCreate: Stateless<SelectCreateArgs> = ({ children, class: classes, ...attrs }) => {

@@ -4,7 +4,7 @@ import { browser, callHandler, hotkey as bindHotkey, id } from 'ajo-cloves'
 import { closePopover, openPopover } from './native'
 import { popupStyle } from './popup'
 import { clx, toNumber } from './shared'
-import type { FixedArgs, OmitArg } from './utils'
+import { part, type FixedArgs, type OmitArg } from './utils'
 
 /** Visual tone applied to a toast. */
 export type ToastVariant =
@@ -453,18 +453,10 @@ const Toast: Stateless<ToastArgs> = ({
 ) : null
 
 /** Toast title slot. */
-const ToastTitle: Stateless<ToastTitleArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-slot="toast-title">
-		{children}
-	</div>
-)
+const ToastTitle = part<ToastTitleArgs>('div', 'toast-title')
 
 /** Toast description slot. */
-const ToastDescription: Stateless<ToastDescriptionArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-slot="toast-description">
-		{children}
-	</div>
-)
+const ToastDescription = part<ToastDescriptionArgs>('div', 'toast-description')
 
 /** Toast action button. */
 const ToastAction: Stateless<ToastActionArgs> = ({

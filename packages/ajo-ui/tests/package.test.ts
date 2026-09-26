@@ -29,7 +29,7 @@ test('the package exports its component families by subpath and no root', async 
 })
 
 test('ajo-ui/utils exports only the adapter helpers', async () => {
-	expect(Object.keys(await import('ajo-ui/utils')).sort()).toEqual(['bool', 'stlx', 'withSlot'])
+	expect(Object.keys(await import('ajo-ui/utils')).sort()).toEqual(['bool', 'part', 'stlx'])
 })
 
 test('families export named components without defaults or hook-shaped accessors', async () => {

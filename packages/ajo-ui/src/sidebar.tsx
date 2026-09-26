@@ -2,6 +2,7 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { browser, callHandler, controlled, dom, hotkey, media, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { Drawer, DrawerContent } from './drawer'
+import { part } from './utils'
 
 /** Current expanded or collapsed presentation state. */
 export type SidebarState = 'collapsed' | 'expanded'
@@ -420,77 +421,28 @@ const SidebarRail: Stateless<SidebarRailArgs> = ({
 }
 
 /** Unstyled main content wrapper used with inset sidebars. */
-const SidebarInset: Stateless<SidebarInsetArgs> = ({ children, class: classes, ...attrs }) => (
-	<main
-		{...attrs}
-		class={classes}
-		data-slot="sidebar-inset"
-	>
-		{children}
-	</main>
-)
+const SidebarInset = part<SidebarInsetArgs>('main', 'sidebar-inset')
 
 /** Unstyled input carrying the sidebar slot and data markers. */
-const SidebarInput: Stateless<SidebarInputArgs> = ({ class: classes, ...attrs }) => (
-	<input {...attrs} class={classes} data-sidebar="input" data-slot="sidebar-input" />
-)
+const SidebarInput = part<SidebarInputArgs>('input', 'sidebar-input', { 'data-sidebar': 'input' })
 
 /** Unstyled container for content at the top of a sidebar. */
-const SidebarHeader: Stateless<SidebarSectionArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-sidebar="header" data-slot="sidebar-header">
-		{children}
-	</div>
-)
+const SidebarHeader = part<SidebarSectionArgs>('div', 'sidebar-header', { 'data-sidebar': 'header' })
 
 /** Unstyled container for content at the bottom of a sidebar. */
-const SidebarFooter: Stateless<SidebarSectionArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-sidebar="footer" data-slot="sidebar-footer">
-		{children}
-	</div>
-)
+const SidebarFooter = part<SidebarSectionArgs>('div', 'sidebar-footer', { 'data-sidebar': 'footer' })
 
 /** Unstyled decorative separator between sidebar sections. */
-const SidebarSeparator: Stateless<SidebarSeparatorArgs> = ({ class: classes, ...attrs }) => (
-	<div
-		{...attrs}
-		aria-hidden="true"
-		class={classes}
-		data-sidebar="separator"
-		data-slot="sidebar-separator"
-		role="none"
-	/>
-)
+const SidebarSeparator = part<SidebarSeparatorArgs>('div', 'sidebar-separator', { 'data-sidebar': 'separator', 'aria-hidden': 'true', role: 'none' })
 
 /** Unstyled container for the sidebar's primary content. */
-const SidebarContent: Stateless<SidebarSectionArgs> = ({ children, class: classes, ...attrs }) => (
-	<div
-		{...attrs}
-		class={classes}
-		data-sidebar="content"
-		data-slot="sidebar-content"
-	>
-		{children}
-	</div>
-)
+const SidebarContent = part<SidebarSectionArgs>('div', 'sidebar-content', { 'data-sidebar': 'content' })
 
 /** Unstyled wrapper for a related group of sidebar controls. */
-const SidebarGroup: Stateless<SidebarSectionArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-sidebar="group" data-slot="sidebar-group">
-		{children}
-	</div>
-)
+const SidebarGroup = part<SidebarSectionArgs>('div', 'sidebar-group', { 'data-sidebar': 'group' })
 
 /** Unstyled label for a sidebar group. */
-const SidebarGroupLabel: Stateless<SidebarSectionArgs> = ({ children, class: classes, ...attrs }) => (
-	<div
-		{...attrs}
-		class={classes}
-		data-sidebar="group-label"
-		data-slot="sidebar-group-label"
-	>
-		{children}
-	</div>
-)
+const SidebarGroupLabel = part<SidebarSectionArgs>('div', 'sidebar-group-label', { 'data-sidebar': 'group-label' })
 
 /** Unstyled action button associated with a sidebar group. */
 const SidebarGroupAction: Stateless<SidebarGroupActionArgs> = ({ children, class: classes, type = 'button', ...attrs }) => (
@@ -506,25 +458,13 @@ const SidebarGroupAction: Stateless<SidebarGroupActionArgs> = ({ children, class
 )
 
 /** Unstyled content container inside a sidebar group. */
-const SidebarGroupContent: Stateless<SidebarSectionArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={classes} data-sidebar="group-content" data-slot="sidebar-group-content">
-		{children}
-	</div>
-)
+const SidebarGroupContent = part<SidebarSectionArgs>('div', 'sidebar-group-content', { 'data-sidebar': 'group-content' })
 
 /** Unstyled list for primary sidebar navigation items. */
-const SidebarMenu: Stateless<SidebarMenuArgs> = ({ children, class: classes, ...attrs }) => (
-	<ul {...attrs} class={classes} data-sidebar="menu" data-slot="sidebar-menu">
-		{children}
-	</ul>
-)
+const SidebarMenu = part<SidebarMenuArgs>('ul', 'sidebar-menu', { 'data-sidebar': 'menu' })
 
 /** Unstyled item in the primary sidebar menu. */
-const SidebarMenuItem: Stateless<SidebarMenuItemArgs> = ({ children, class: classes, ...attrs }) => (
-	<li {...attrs} class={classes} data-sidebar="menu-item" data-slot="sidebar-menu-item">
-		{children}
-	</li>
-)
+const SidebarMenuItem = part<SidebarMenuItemArgs>('li', 'sidebar-menu-item', { 'data-sidebar': 'menu-item' })
 
 /** Unstyled primary sidebar menu control rendered as a button or anchor. */
 const SidebarMenuButton: Stateless<SidebarMenuButtonArgs> = ({
@@ -590,16 +530,7 @@ const SidebarMenuAction: Stateless<SidebarMenuActionArgs> = ({ children, class: 
 )
 
 /** Unstyled metadata badge displayed beside a sidebar menu item. */
-const SidebarMenuBadge: Stateless<SidebarMenuBadgeArgs> = ({ children, class: classes, ...attrs }) => (
-	<div
-		{...attrs}
-		class={classes}
-		data-sidebar="menu-badge"
-		data-slot="sidebar-menu-badge"
-	>
-		{children}
-	</div>
-)
+const SidebarMenuBadge = part<SidebarMenuBadgeArgs>('div', 'sidebar-menu-badge', { 'data-sidebar': 'menu-badge' })
 
 /** Unstyled loading placeholder for a sidebar menu item. */
 const SidebarMenuSkeleton: Stateless<SidebarMenuSkeletonArgs> = ({
@@ -617,23 +548,10 @@ const SidebarMenuSkeleton: Stateless<SidebarMenuSkeletonArgs> = ({
 )
 
 /** Unstyled nested list within the sidebar menu. */
-const SidebarMenuSub: Stateless<SidebarMenuSubArgs> = ({ children, class: classes, ...attrs }) => (
-	<ul
-		{...attrs}
-		class={classes}
-		data-sidebar="menu-sub"
-		data-slot="sidebar-menu-sub"
-	>
-		{children}
-	</ul>
-)
+const SidebarMenuSub = part<SidebarMenuSubArgs>('ul', 'sidebar-menu-sub', { 'data-sidebar': 'menu-sub' })
 
 /** Unstyled item in a nested sidebar menu. */
-const SidebarMenuSubItem: Stateless<SidebarMenuSubItemArgs> = ({ children, class: classes, ...attrs }) => (
-	<li {...attrs} class={classes} data-sidebar="menu-sub-item" data-slot="sidebar-menu-sub-item">
-		{children}
-	</li>
-)
+const SidebarMenuSubItem = part<SidebarMenuSubItemArgs>('li', 'sidebar-menu-sub-item', { 'data-sidebar': 'menu-sub-item' })
 
 /** Unstyled anchor for a nested sidebar menu item. */
 const SidebarMenuSubButton: Stateless<SidebarMenuSubButtonArgs> = ({

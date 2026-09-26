@@ -5,7 +5,7 @@ import { bar } from './bar'
 import { type Direction, DirectionContext } from './direction'
 import { contentAttrs, popup, type PopupPosition, type PopupView, triggerAttrs } from './popup'
 import { text } from './shared'
-import type { FixedArgs, OmitArg } from './utils'
+import { part, type FixedArgs, type OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Stable identifier for an open navigation-menu item. */
@@ -238,11 +238,7 @@ const NavigationMenu: Stateless<NavigationMenuArgs> = ({
 )
 
 /** Unstyled horizontal list of navigation menu items. */
-const NavigationMenuList: Stateless<NavigationMenuListArgs> = ({ children, class: classes, ...attrs }) => (
-	<ul {...attrs} class={classes} data-slot="navigation-menu-list">
-		{children}
-	</ul>
-)
+const NavigationMenuList = part<NavigationMenuListArgs>('ul', 'navigation-menu-list')
 
 const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function* ({ value }) {
 	const fallback = value ?? id('navigation-menu-item')

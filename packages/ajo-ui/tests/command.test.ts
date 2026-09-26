@@ -96,3 +96,23 @@ test('inside a Popover the first Escape clears the Command query and only the se
 	expect(onOpenChange).toHaveBeenLastCalledWith(false, expect.any(Event))
 	expect(content.dataset.state).toBe('closed')
 })
+
+test('a caller set:onclick on CommandItem runs first and preventing it skips selection', () => {
+	const onSelect = vi.fn()
+	const onClick = vi.fn((event: Event) => event.preventDefault())
+	render(jsx(Command, {
+		children: jsx(CommandList, {
+			children: [
+				jsx(CommandItem, { children: 'one', key: 'one', onSelect, 'set:onclick': onClick, value: 'one' }),
+				jsx(CommandItem, { children: 'two', key: 'two', onSelect, value: 'two' }),
+			],
+		}),
+	}), document.body)
+
+	const [one, two] = document.querySelectorAll<HTMLElement>('[data-slot="command-item"]')
+	one.click()
+	two.click()
+
+	expect(onClick).toHaveBeenCalledOnce()
+	expect(onSelect.mock.calls.map(([value]) => value)).toEqual(['two'])
+})

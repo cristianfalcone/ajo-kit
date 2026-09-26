@@ -1,3 +1,5 @@
+import { callHandler } from 'ajo-cloves'
+
 /** Marks a boolean state attr: 'true' when set, absent otherwise. */
 export const flag = (value: unknown) => value ? 'true' : undefined
 
@@ -21,4 +23,16 @@ export const clx = (...values: Array<string | false | null | undefined>) =>
 export const toNumber = (value: unknown, fallback: number) => {
 	const next = Number(value)
 	return Number.isFinite(next) ? next : fallback
+}
+
+/** Item activation guard: skips when disabled, runs the caller's handler, then the action unless prevented. */
+export const activate = (
+	disabled: boolean,
+	handler: unknown,
+	action: (event: Event) => void,
+) => (event: Event) => {
+	if (disabled) return
+	callHandler(handler, event)
+	if (event.defaultPrevented) return
+	action(event)
 }

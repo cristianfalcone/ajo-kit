@@ -1008,6 +1008,7 @@ const verifyAjoUiNodeNextDeclarations = async (directory: string) => {
 	// ajo@0.1.35's ambient types.ts is itself invalid under NodeNext. Stub only
 	// that peer so this strictly checks ajo-ui's emitted .d.ts graph instead.
 	await write(join(directory, 'ajo.d.ts'), [
+		'export type Args = Record<string, unknown>',
 		'export type Children = unknown',
 		'export type Host<E extends object = object, A = object> = E & { signal: AbortSignal }',
 		'export type IntrinsicElements = Record<string, Record<string, unknown>>',

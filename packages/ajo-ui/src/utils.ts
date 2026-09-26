@@ -1,7 +1,6 @@
-import type { Stateless } from 'ajo'
+import type { Args as AjoArgs, Stateless } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
-
-type SlotArgs = Record<string, unknown> & { 'data-slot'?: string }
+import { clx } from './shared'
 
 /** Omits named arguments without collapsing Ajo's open Args index signature. */
 export type OmitArg<T, Keys extends PropertyKey> = {
@@ -13,12 +12,18 @@ export type FixedArgs<Keys extends PropertyKey> = {
 	[Key in Keys]?: never
 }
 
-/** Wraps a re-exported family part with a fixed data-slot and optional defaults. */
-export const withSlot = <Args extends SlotArgs>(
-	Component: Stateless<Args>,
+/**
+ * Builds a slot part from a tag or a component. `slot` is a default `data-slot`
+ * the caller may override; `fixed` attributes win over the caller's, except
+ * `class`, which joins the caller's classes. Calls are pure, so unused parts tree-shake.
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const part = <Args extends AjoArgs>(
+	type: string | Stateless<Args>,
 	slot: string,
-	defaults?: Partial<Args>,
-): Stateless<Args> => attrs => jsx(Component, { ...defaults, ...attrs, 'data-slot': slot })
+	fixed?: Record<string, unknown> & { class?: string },
+): Stateless<Args> => ({ class: classes, ...attrs }: Args & { class?: string }) =>
+	jsx(type, { 'data-slot': slot, ...attrs, ...fixed, class: clx(fixed?.class, classes) })
 
 /** Parses boolean-ish attr input (true, '', 'true'). */
 export const bool = (value: unknown) =>
