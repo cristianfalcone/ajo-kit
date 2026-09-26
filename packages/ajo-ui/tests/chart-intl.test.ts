@@ -9,7 +9,7 @@ test('Chart reuses its default number formatter across labels', () => {
 		return new NumberFormat(locale, options)
 	})
 	const chart = {
-		chartId: 'revenue',
+		id: 'revenue',
 		children: jsx(ChartBar, {}),
 		config: { revenue: { label: 'Revenue' } },
 		data: [

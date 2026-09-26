@@ -819,14 +819,13 @@ export const DataUpdateTransitions: Story = {
 		const rect = canvas.querySelector<SVGRectElement>(selector)
 		const button = canvas.querySelector<HTMLButtonElement>('button[data-chart-update="true"]')
 		const chart = canvas.querySelector<HTMLElement>('[data-slot="chart"]')
-		const style = chart?.querySelector<HTMLStyleElement>('style[data-chart-style]')
-		const identity = style?.dataset.chartStyle
+		const style = chart?.querySelector<HTMLStyleElement>('style[data-chart-scope]')
+		const identity = style?.dataset.chartScope
 		if (!rect) throw new Error('Data update story did not render the first desktop bar')
 		if (!button) throw new Error('Data update story did not render the swap button')
 		if (!identity) throw new Error('ChartContainer did not expose its generated style identity')
-		if (chart?.hasAttribute('data-chart')) throw new Error('Chart root retained legacy style identity ownership')
-		if (!style.textContent?.includes(`[data-slot="chart"]:has(>style[data-chart-style="${identity}"])`)) {
-			throw new Error('ChartStyle selector did not use its generated identity')
+		if (!style.textContent?.includes(`[data-chart-scope=${identity}] ~ *`)) {
+			throw new Error('Chart color selector did not use its generated identity')
 		}
 
 		expectTransitionProperties(rect, ['x', 'y', 'width', 'height'])
@@ -839,11 +838,11 @@ export const DataUpdateTransitions: Story = {
 		await waitFrames(2)
 
 		const updated = canvas.querySelector<SVGRectElement>(selector)
-		const updatedStyle = canvas.querySelector<HTMLStyleElement>('[data-slot="chart"] > style[data-chart-style]')
+		const updatedStyle = canvas.querySelector<HTMLStyleElement>('[data-slot="chart"] > style[data-chart-scope]')
 		if (!updated) throw new Error('Data update story lost the first desktop bar after swap')
-		if (updatedStyle?.dataset.chartStyle !== identity) throw new Error('Chart identity changed across a parent rerender')
-		if (!updatedStyle.textContent?.includes(`[data-slot="chart"]:has(>style[data-chart-style="${identity}"])`)) {
-			throw new Error('ChartStyle selector drifted from the stable identity')
+		if (updatedStyle?.dataset.chartScope !== identity) throw new Error('Chart identity changed across a parent rerender')
+		if (!updatedStyle.textContent?.includes(`[data-chart-scope=${identity}] ~ *`)) {
+			throw new Error('Chart color selector drifted from the stable identity')
 		}
 		const after = {
 			height: updated.getAttribute('height'),
@@ -872,19 +871,17 @@ export const ThemedColors: Story = {
 	),
 	play: async ({ canvas }) => {
 		const chart = canvas.querySelector<HTMLElement>('[data-slot="chart"]')
-		const style = chart?.querySelector<HTMLStyleElement>('style[data-chart-style]')
+		const style = chart?.querySelector<HTMLStyleElement>('style[data-chart-scope]')
+		const plot = chart?.querySelector('[data-slot="chart-bar"]')
 		if (chart?.id !== 'Sales Q1/Total') throw new Error('ChartContainer changed the explicit DOM id')
-		if (style?.dataset.chartStyle !== 'chart-Sales%20Q1%2FTotal') {
-			throw new Error('ChartStyle did not encode the explicit DOM id without collisions')
+		if (style?.dataset.chartScope !== 'chart-Sales%20Q1%2FTotal') {
+			throw new Error('ChartContainer did not encode the explicit DOM id without collisions')
 		}
-		if (!style?.textContent?.includes('--color-desktop')) {
-			throw new Error('ChartStyle did not emit theme-aware CSS variables')
+		if (!style.textContent?.includes('[data-chart-scope=chart-Sales\\%20Q1\\%2FTotal] ~ *{--color-desktop:')) {
+			throw new Error('ChartContainer did not emit theme-aware CSS variables under its identity')
 		}
-		if (!style.textContent.includes('[data-slot="chart"]:has(>style[data-chart-style="chart-Sales%20Q1%2FTotal"])')) {
-			throw new Error('ChartStyle selector did not match its explicit identity marker')
-		}
-		if (!getComputedStyle(chart).getPropertyValue('--color-desktop').trim()) {
-			throw new Error('ChartStyle scoped variables did not apply to the chart root')
+		if (!plot || !getComputedStyle(plot).getPropertyValue('--color-desktop').trim()) {
+			throw new Error('Scoped chart colors did not apply to the plot')
 		}
 	},
 }
@@ -912,9 +909,11 @@ export const NestedScopes: Story = {
 		const charts = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="chart"]'))
 		if (charts.length !== 2) throw new Error(`Expected two nested chart roots, got ${charts.length}`)
 
-		const outerColor = getComputedStyle(charts[0]!).getPropertyValue('--color-desktop').trim()
-		const innerColor = getComputedStyle(charts[1]!).getPropertyValue('--color-desktop').trim()
-		if (outerColor !== '#123456') throw new Error(`Inner ChartStyle escaped into outer scope: ${outerColor}`)
-		if (innerColor !== '#abcdef') throw new Error(`Inner ChartStyle did not own its scope: ${innerColor}`)
+		const [outerColor, innerColor] = Array.from(
+			canvas.querySelectorAll('[data-slot="chart-bar"]'),
+			plot => getComputedStyle(plot).getPropertyValue('--color-desktop').trim(),
+		)
+		if (outerColor !== '#123456') throw new Error(`Inner chart colors escaped into outer scope: ${outerColor}`)
+		if (innerColor !== '#abcdef') throw new Error(`Inner chart colors did not own their scope: ${innerColor}`)
 	},
 }

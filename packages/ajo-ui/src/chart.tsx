@@ -15,7 +15,11 @@ import { text } from './utils'
 
 type ChartTheme = 'dark' | 'light'
 
-/** Labels, icons, and colors configured for each chart data key. */
+/**
+ * Labels, icons, and colors configured for each chart data key.
+ * ChartContainer defines each color as a scoped `--color-<key>`, with a `.dark` variant;
+ * keys outside `[A-Za-z0-9_-]` use the palette, and colors containing `;{}<>\` are dropped.
+ */
 export type ChartConfig = Record<
 	string,
 	{
@@ -83,8 +87,6 @@ export type ChartActive = {
 
 /** Arguments for the accessible Chart data and context root. */
 export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'gap' | 'placement' | ReservedPositionArg> & {
-	/** Optional resolved chart identity override; otherwise derived from the DOM id or generated. */
-	chartId?: string
 	/** Chart series styling keyed by data key. */
 	config: ChartConfig
 	/** Rows to render when using the native SVG chart primitives. */
@@ -210,8 +212,8 @@ const DEFAULT_MARGIN: ChartMargin = { bottom: 32, left: 40, right: 16, top: 16 }
 const DEFAULT_WIDTH = 640
 const DEFAULT_HEIGHT = 240
 
-const resolveRootChartId = (value: unknown, fallback: string) =>
-	value ? `chart-${encodeURIComponent(String(value))}` : fallback
+const safeKey = /^[\w-]+$/
+const unsafeColor = /[;{}<>\\]/
 
 const number = (value: unknown) => {
 	const next = Number(value)
@@ -225,7 +227,20 @@ const colorFor = (
 	palette: string[],
 	override?: string,
 ) =>
-	override ?? (config[key]?.color || config[key]?.theme ? `var(--color-${key})` : palette[index % palette.length])
+	override ?? (safeKey.test(key) && (config[key]?.color || config[key]?.theme) ? `var(--color-${key})` : palette[index % palette.length])
+
+/** Scoped `--color-<key>` definitions for configured colors, light first and then `.dark`. */
+const colorStyle = (id: string, config: ChartConfig) => {
+	const scope = `[data-chart-scope=${id.replace(/%/g, '\\%')}] ~ *`
+	return (['light', 'dark'] as const).map(theme => {
+		const vars = Object.entries(config)
+			.map(([key, item]) => [key, item.theme?.[theme] ?? item.color] as const)
+			.filter(([key, color]) => safeKey.test(key) && color && !unsafeColor.test(color))
+			.map(([key, color]) => `--color-${key}:${color};`)
+			.join('')
+		return vars ? `${theme === 'dark' ? '.dark ' : ''}${scope}{${vars}}` : ''
+	}).join('')
+}
 
 const seriesEntries = (
 	config: ChartConfig,
@@ -436,11 +451,7 @@ const slicePath = (center: number, radius: number, innerRadius: number, start: n
 	].join(' ')
 }
 
-type ChartContainerRootArgs = ChartContainerArgs & {
-	rootId?: unknown
-}
-
-const ChartContainerRoot: Stateful<ChartContainerRootArgs> = function* () {
+const ChartContainerRoot: Stateful<ChartContainerArgs> = function* () {
 	let active: ChartActive | null = null
 	const fallbackId = uniqueId('chart')
 	const root = dom(this) ? this : null
@@ -522,7 +533,11 @@ const ChartContainerRoot: Stateful<ChartContainerRootArgs> = function* () {
 	}
 
 	for (const args of this) {
-		const chartId = args.chartId ?? resolveRootChartId(args.rootId, fallbackId)
+		// Percent-encoded down to [\w%-], so the id is a CSS identifier once `%` is escaped.
+		const chartId = args.id
+			? `chart-${encodeURIComponent(String(args.id)).replace(/[^\w%-]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)}`
+			: fallbackId
+		const css = colorStyle(chartId, args.config)
 		const data = args.data ?? []
 		const width = args.width ?? DEFAULT_WIDTH
 		const height = args.height ?? DEFAULT_HEIGHT
@@ -553,14 +568,15 @@ const ChartContainerRoot: Stateful<ChartContainerRootArgs> = function* () {
 		ChartContext(chart)
 		ChartIdContext(chart.id)
 
-		yield <>{args.children}</>
+		yield <>
+			{css && <style data-chart-scope={chartId}>{css}</style>}
+			{args.children}
+		</>
 	}
 }
 
-
 /** Unstyled chart root provider for config, data, tooltip, and legend state. */
 const ChartContainer: Stateless<ChartContainerArgs> = ({
-	chartId,
 	children,
 	class: classes,
 	config,
@@ -581,16 +597,15 @@ const ChartContainer: Stateless<ChartContainerArgs> = ({
 }) => {
 	return <ChartContainerRoot
 		{...rootAttrs(attrs)}
-		chartId={chartId}
 		config={config}
 		data={data}
 		description={description}
 		formatLabel={formatLabel}
 		formatValue={formatValue}
 		height={height}
+		id={id}
 		margin={margin}
 		palette={palette}
-		rootId={id}
 		series={series}
 		type={type}
 		width={width}

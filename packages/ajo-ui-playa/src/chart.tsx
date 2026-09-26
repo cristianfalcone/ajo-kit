@@ -5,14 +5,12 @@ import {
 	ChartArea as BaseChartArea,
 	ChartBar as BaseChartBar,
 	ChartContainer as BaseChartContainer,
-	ChartIdContext,
 	ChartLegend as BaseChartLegend,
 	ChartLegendContent as BaseChartLegendContent,
 	ChartLine as BaseChartLine,
 	ChartPie as BaseChartPie,
 	ChartTooltip as BaseChartTooltip,
 	ChartTooltipContent as BaseChartTooltipContent,
-	type ChartConfig,
 	type ChartContainerArgs as BaseChartContainerArgs,
 	type ChartLegendArgs as BaseChartLegendArgs,
 	type ChartLegendContentArgs as BaseChartLegendContentArgs,
@@ -23,7 +21,6 @@ import {
 } from 'ajo-ui/chart'
 export type { ChartActive, ChartConfig, ChartDatum, ChartMargin, ChartPayload, ChartSeries, ChartSeriesInput, ChartType } from 'ajo-ui/chart'
 
-type Theme = 'dark' | 'light'
 type ChartPlotFixedArgs =
 	| 'axisStroke'
 	| 'axisStrokeOpacity'
@@ -47,8 +44,8 @@ type ChartLegendFixedArgs = 'iconClass' | 'iconWrapperClass' | 'itemClass' | 'sw
 
 export type ChartContainerArgs = OmitArg<
 	BaseChartContainerArgs,
-	'chartId' | 'palette'
-> & FixedArgs<'chartId' | 'palette'>
+	'palette'
+> & FixedArgs<'palette'>
 
 export type ChartPlotArgs = OmitArg<
 	BaseChartPlotArgs,
@@ -77,7 +74,6 @@ export type ChartLegendContentArgs = OmitArg<
 	verticalAlign?: 'bottom' | 'top'
 }
 
-const THEMES: Record<Theme, string> = { dark: '.dark', light: '' }
 const palette = [
 	'var(--chart-1)',
 	'var(--chart-2)',
@@ -105,8 +101,6 @@ const plotAttrs = (classes?: string) => ({
 const ChartContainer: Stateless<ChartContainerArgs> = ({
 	children,
 	class: classes,
-	config,
-	id,
 	type = 'bar',
 	...attrs
 }) => {
@@ -114,12 +108,9 @@ const ChartContainer: Stateless<ChartContainerArgs> = ({
 		<BaseChartContainer
 			{...attrs}
 			class={clsx(rootBase, classes)}
-			config={config}
-			id={id}
 			palette={palette}
 			type={type}
 		>
-			<ChartStyle config={config} />
 			{children ?? (
 				<>
 					{type === 'pie' ? <ChartPie /> : type === 'line' ? <ChartLine /> : type === 'area' ? <ChartArea /> : <ChartBar />}
@@ -129,30 +120,6 @@ const ChartContainer: Stateless<ChartContainerArgs> = ({
 			)}
 		</BaseChartContainer>
 	)
-}
-
-/** CSS variable injector matching chart config color behavior. */
-const ChartStyle: Stateless<{ config: ChartConfig }> = ({ config }) => {
-	const id = ChartIdContext()
-	if (!id) return null
-	const entries = Object.entries(config).filter(([, item]) => item.color || item.theme)
-	if (!entries.length) return null
-	const scope = `[data-slot="chart"]:has(>style[data-chart-style="${id}"])`
-
-	const css = Object.entries(THEMES)
-		.map(([theme, selector]) => {
-			const vars = entries
-				.map(([key, item]) => {
-					const color = item.theme?.[theme as Theme] ?? item.color
-					return color ? `  --color-${key}: ${color};` : ''
-				})
-				.filter(Boolean)
-				.join('\n')
-			return `${selector ? `${selector} ` : ''}${scope} {\n${vars}\n}`
-		})
-		.join('\n')
-
-	return <style data-chart-style={id}>{css}</style>
 }
 
 /** Native SVG bar chart primitive for use inside ChartContainer. */

@@ -136,7 +136,7 @@ const roots: Record<string, () => Children> = {
 		}),
 	}),
 	chart: () => jsx(ChartContainer, {
-		chartId: 'visits',
+		id: 'visits',
 		config: { visits: { color: 'oklch(0.6 0.1 250)', label: 'Visits' } },
 		data: [{ month: 'Jan', visits: 10 }],
 		palette: ['oklch(0.6 0.1 250)'],
