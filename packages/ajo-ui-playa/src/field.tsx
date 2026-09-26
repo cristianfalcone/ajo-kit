@@ -193,7 +193,7 @@ const FieldLabel: Stateless<FieldLabelArgs> = ({
 			{...(field?.labelAttrs ?? {})}
 			{...attrs}
 			class={clsx(
-				'group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:edge [&>*]:data-[slot=field]:p-4 has-data-[state=checked]:inset-ring-primary has-data-[state=checked]:bg-primary/5 has-[:checked]:inset-ring-primary has-[:checked]:bg-primary/5',
+				'group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:edge [&>*]:data-[slot=field]:p-4 has-[:checked]:inset-ring-primary has-[:checked]:bg-primary/5',
 				classes,
 			)}
 			data-slot="field-label"

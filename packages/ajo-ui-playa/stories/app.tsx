@@ -594,8 +594,8 @@ const ArgControl: Stateless<{
 				<Checkbox
 					id={id}
 					name={name}
-					set:checked={Boolean(value)}
-					set:onchange={(event: Event) => setArg(name, input(event).checked)}
+					checked={Boolean(value)}
+					onCheckedChange={checked => setArg(name, checked)}
 				/>
 				<FieldContent>
 					<FieldLabel for={id}>{title}</FieldLabel>

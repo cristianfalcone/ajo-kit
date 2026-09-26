@@ -1,6 +1,6 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import type { OmitArg } from './utils'
-import { callHandler, controlled, dom, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, controlled, dom, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 
 /** Props for a controlled or uncontrolled two-state toggle button. */
 export type ToggleArgs = OmitArg<IntrinsicElements['button'], 'children'> & WithChildren<{
@@ -32,6 +32,13 @@ const ToggleRoot: Stateful<ToggleRootArgs, 'button'> = function* ({ defaultPress
 		onChange: (next, event) => onPressedChange?.(next, event!),
 	})
 
+	listen(this, 'click', (event: MouseEvent) => {
+		callHandler(onClick, event)
+		if (event.defaultPrevented || disabled) return
+
+		state.set(!state.value, event)
+	})
+
 	for (const args of this) {
 		disabled = Boolean(args.disabled)
 		onClick = args.onClick
@@ -41,12 +48,6 @@ const ToggleRoot: Stateful<ToggleRootArgs, 'button'> = function* ({ defaultPress
 		if (dom(this)) {
 			this.dataset.state = stateAttribute(state.value)
 			this.setAttribute('aria-pressed', pressedAttribute(state.value))
-			this.onclick = event => {
-				callHandler(onClick, event)
-				if (event.defaultPrevented || disabled) return
-
-				state.set(!state.value, event)
-			}
 		}
 
 		yield <>{args.children}</>

@@ -8,17 +8,19 @@ import { RadioGroup, RadioGroupItem } from 'ajo-ui-playa/radio-group'
 import Spinner from 'ajo-ui-playa/spinner'
 import { Toggle } from 'ajo-ui-playa/toggle'
 
-test('SSR renders checkbox state attributes without DOM host writes', () => {
+test('SSR renders checkbox state on the host and leaves the native input unmirrored', () => {
 	const html = ssr(jsx(Checkbox, {}))
+	const checked = ssr(jsx(Checkbox, { defaultChecked: true }))
 
 	expect(html).toMatch(/^<span\b(?=[^>]*data-slot="checkbox")(?=[^>]*data-state="unchecked")[^>]*>/)
-	expect(html).toMatch(/<input\b(?=[^>]*data-slot="checkbox-input")(?=[^>]*data-state="unchecked")(?=[^>]*aria-checked="false")[^>]*>/)
+	expect(html).toMatch(/<input\b(?=[^>]*data-slot="checkbox-input")(?![^>]*data-state)(?![^>]*aria-checked)(?![^>]*\schecked\b)[^>]*>/)
+	expect(checked).toMatch(/^<span\b(?=[^>]*data-state="checked")[^>]*>\s*<input\b(?=[^>]*\schecked\b)(?![^>]*defaultchecked)[^>]*>/)
 })
 
 test('SSR renders mixed checkbox and binary radio state without live DOM sync', () => {
 	const checkbox = ssr(jsx(Checkbox, { 'set:indeterminate': true }))
 	expect(checkbox).toMatch(/^<span\b(?=[^>]*data-slot="checkbox")(?=[^>]*data-state="indeterminate")[^>]*>/)
-	expect(checkbox).toMatch(/<input\b(?=[^>]*data-slot="checkbox-input")(?=[^>]*data-state="indeterminate")(?=[^>]*aria-checked="mixed")[^>]*>/)
+	expect(checkbox).toMatch(/<input\b(?=[^>]*data-slot="checkbox-input")(?![^>]*data-state)(?![^>]*aria-checked)[^>]*>/)
 
 	const radio = ssr(jsx(RadioGroup, {
 		children: [
@@ -27,8 +29,9 @@ test('SSR renders mixed checkbox and binary radio state without live DOM sync', 
 		],
 		defaultValue: 'one',
 	}))
-	expect(radio).toMatch(/<span\b(?=[^>]*data-slot="radio-group-item")(?=[^>]*data-state="checked")[^>]*>\s*<input\b(?=[^>]*data-slot="radio-group-input")(?=[^>]*data-state="checked")(?=[^>]*aria-checked="true")(?=[^>]*value="one")[^>]*>/)
-	expect(radio).toMatch(/<span\b(?=[^>]*data-slot="radio-group-item")(?=[^>]*data-state="unchecked")[^>]*>\s*<input\b(?=[^>]*data-slot="radio-group-input")(?=[^>]*data-state="unchecked")(?=[^>]*aria-checked="false")(?=[^>]*value="two")[^>]*>/)
+	expect(radio).toMatch(/<input\b(?=[^>]*data-slot="radio-group-input")(?=[^>]*\schecked\b)(?=[^>]*value="one")[^>]*>/)
+	expect(radio).toMatch(/<input\b(?=[^>]*data-slot="radio-group-input")(?![^>]*\schecked\b)(?=[^>]*value="two")[^>]*>/)
+	expect(radio).not.toMatch(/data-state|aria-checked|aria-orientation/)
 })
 
 test('themed controls normalize bare boolean ARIA attributes through ajo-ui utils', () => {

@@ -10,8 +10,8 @@ import {
 export type SliderOrientation = BaseSliderOrientation
 export type SliderArgs = OmitArg<
 	BaseSliderArgs,
-	'inputClass' | 'rangeClass' | 'thumbClass' | 'trackClass' | 'verticalInputClass'
-> & FixedArgs<'inputClass' | 'rangeClass' | 'thumbClass' | 'trackClass' | 'verticalInputClass'> & { class?: string }
+	'inputClass' | 'rangeClass' | 'thumbClass' | 'trackClass'
+> & FixedArgs<'inputClass' | 'rangeClass' | 'thumbClass' | 'trackClass'> & { class?: string }
 
 const rootBase = 'group/slider relative flex touch-none cursor-pointer select-none items-center outline-none has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50'
 const rootOrientation: Record<SliderOrientation, string> = {
@@ -44,12 +44,11 @@ const Slider: Stateless<SliderArgs> = ({
 		<BaseSlider
 			{...attrs}
 			disabled={disabledFlag}
-			inputClass={inputBase}
+			inputClass={clsx(inputBase, orientation === 'vertical' && '[writing-mode:vertical-lr]')}
 			orientation={orientation}
 			rangeClass={clsx(rangeBase, rangeOrientation[orientation])}
 			thumbClass={thumbBase}
 			trackClass={clsx(trackBase, trackOrientation[orientation])}
-			verticalInputClass="[writing-mode:vertical-lr]"
 			class={clsx(rootBase, rootOrientation[orientation], disabledFlag && 'cursor-not-allowed opacity-50', classes)}
 		/>
 	)

@@ -1,6 +1,7 @@
 import type { IntrinsicElements } from 'ajo'
 import type { AccordionItemArgs } from 'ajo-ui/accordion'
 import type { ChartContainerArgs, ChartPlotArgs, ChartTooltipArgs } from 'ajo-ui/chart'
+import type { CheckboxArgs } from 'ajo-ui/checkbox'
 import type { CheckboxGroupItemArgs } from 'ajo-ui/checkbox-group'
 import type { CommandInputArgs } from 'ajo-ui/command'
 import type { ContextMenuArgs } from 'ajo-ui/context-menu'
@@ -11,8 +12,10 @@ import type { MenuArgs, MenuContentArgs, MenuSubArgs } from 'ajo-ui/menu'
 import type { MenubarArgs, MenubarMenuArgs } from 'ajo-ui/menubar'
 import type { NavigationMenuArgs, NavigationMenuContentArgs, NavigationMenuItemArgs } from 'ajo-ui/navigation-menu'
 import type { PopoverArgs, PopoverContentArgs } from 'ajo-ui/popover'
+import type { RadioGroupItemArgs } from 'ajo-ui/radio-group'
 import type { SelectArgs, SelectContentArgs, SelectInputArgs, SelectItemArgs } from 'ajo-ui/select'
 import type { SliderArgs } from 'ajo-ui/slider'
+import type { SwitchArgs } from 'ajo-ui/switch'
 import type { ToasterArgs } from 'ajo-ui/toast'
 import type { ToggleGroupItemArgs } from 'ajo-ui/toggle-group'
 import type { TooltipArgs, TooltipContentArgs } from 'ajo-ui/tooltip'
@@ -45,6 +48,8 @@ export const fixedChartPlot: ChartPlotArgs = { children: 'caller plot' }
 export const fixedChartContainerPosition: ChartContainerArgs = { gap: 4, placement: 'top' }
 // @ts-expect-error ChartTooltip cannot override its private placement.
 export const fixedChartTooltipPosition: ChartTooltipArgs = { placement: 'bottom' }
+// @ts-expect-error Checkbox keeps its live checked state in `checked`.
+export const fixedCheckboxLiveState: CheckboxArgs = { 'set:checked': true }
 // @ts-expect-error CheckboxGroup owns item checked state.
 export const fixedCheckboxGroupItem: CheckboxGroupItemArgs = { checked: true, value: 'one' }
 // @ts-expect-error CommandInput replaces native onchange with the Command search.
@@ -59,8 +64,12 @@ export const fixedInputOTP: InputOTPArgs = { onChange: true }
 export const fixedInputDateCalendar: InputDateCalendarArgs = { unavailable: new Date() }
 // @ts-expect-error InputDate values are zone-free wall dates, so the root owns the Calendar zone.
 export const fixedInputDateCalendarZone: InputDateArgs = { calendar: { timeZone: 'Pacific/Kiritimati' } }
+// @ts-expect-error RadioGroup owns item checked state.
+export const fixedRadioGroupItem: RadioGroupItemArgs = { checked: true, value: 'one' }
 // @ts-expect-error Slider fixes the native input type.
 export const fixedSlider: SliderArgs = { type: 'range' }
+// @ts-expect-error Switch keeps its live checked state in `checked`.
+export const fixedSwitchLiveState: SwitchArgs = { 'set:checked': true }
 // @ts-expect-error Toaster generates its own children.
 export const fixedToaster: ToasterArgs = { children: 'caller toast' }
 // @ts-expect-error ToggleGroup owns item pressed state.

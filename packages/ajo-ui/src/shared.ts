@@ -19,12 +19,6 @@ export const strings = (value: unknown): string[] =>
 export const clx = (...values: Array<string | false | null | undefined>) =>
 	values.filter(Boolean).join(' ') || undefined
 
-/** Coerces to a finite number, falling back otherwise. */
-export const toNumber = (value: unknown, fallback: number) => {
-	const next = Number(value)
-	return Number.isFinite(next) ? next : fallback
-}
-
 /** Item activation guard: skips when disabled, runs the caller's handler, then the action unless prevented. */
 export const activate = (
 	disabled: boolean,

@@ -1,9 +1,8 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, dom, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { ariaChecked, syncCheckedState } from './checkbox'
 import { flag } from './shared'
-import { bool } from './utils'
+import type { FixedArgs, OmitArg } from './utils'
 
 /** Layout and keyboard-navigation axis of a radio group. */
 export type RadioGroupOrientation = 'horizontal' | 'vertical'
@@ -23,12 +22,14 @@ export type RadioGroupArgs = WithChildren<IntrinsicElements['fieldset'] & {
 }>
 
 /** Props for a radio item and its rendered indicator. */
-export type RadioGroupItemArgs = IntrinsicElements['input'] & {
+export type RadioGroupItemArgs = OmitArg<IntrinsicElements['input'], 'checked' | 'set:checked' | 'value'> & {
+	/** Item value selected through the parent radio group. */
+	value: string
 	/** Classes for the indicator element. */
 	indicatorClass?: string
 	/** Classes for the native input element. */
 	inputClass?: string
-}
+} & FixedArgs<'checked' | 'set:checked'>
 
 type RadioGroupContextValue = {
 	defaultValue?: string
@@ -43,42 +44,9 @@ type RadioGroupRootArgs = WithChildren<RadioGroupContextValue>
 
 const RadioGroupContext = context<RadioGroupContextValue | null>(null)
 
-const syncRadioInput = (input: HTMLInputElement) =>
-	syncCheckedState(input, input.closest<HTMLElement>('[data-slot="radio-group-item"]'))
-
-const syncRadioGroup = (root: HTMLElement) => {
-	for (const input of root.querySelectorAll<HTMLInputElement>('input[data-slot="radio-group-input"]')) {
-		syncRadioInput(input)
-	}
-}
-
-const itemState = (active: boolean | undefined, attrs: IntrinsicElements['input']) =>
-	bool(active ?? attrs['set:checked'] ?? attrs.checked ?? attrs.defaultChecked) ? 'checked' : 'unchecked'
-
-const change = (
-	value: string | undefined,
-	previous: unknown,
-	onValueChange: RadioGroupContextValue['onValueChange'],
-) => (event: Event) => {
-	callHandler(previous, event)
-
-	const input = event.currentTarget as HTMLInputElement
-	if (input.checked && value != null) onValueChange?.(value, event)
-	queueMicrotask(() => {
-		const root = input.closest<HTMLElement>('[data-slot="radio-group"]')
-		if (root) syncRadioGroup(root)
-		else syncRadioInput(input)
-	})
-}
-
 const RadioGroupRoot: Stateful<RadioGroupRootArgs, 'fieldset'> = function* () {
-	listen(this, 'change', () => {
-		queueMicrotask(() => syncRadioGroup(this))
-	})
-
-	for (const { children, defaultValue, disabled, name, onValueChange, required, value } of this) {
-		RadioGroupContext({ defaultValue, disabled, name, onValueChange, required, value })
-		if (dom(this)) queueMicrotask(() => syncRadioGroup(this))
+	for (const { children, ...group } of this) {
+		RadioGroupContext(group)
 		yield <>{children}</>
 	}
 }
@@ -109,7 +77,6 @@ const RadioGroup: Stateless<RadioGroupArgs> = ({
 			onValueChange={onValueChange}
 			required={requiredFlag}
 			value={value}
-			attr:aria-orientation={orientation}
 			attr:data-disabled={flag(disabled)}
 			attr:data-orientation={orientation}
 			attr:data-slot="radio-group"
@@ -122,65 +89,41 @@ const RadioGroup: Stateless<RadioGroupArgs> = ({
 
 /** Unstyled native radio item with indicator slot. */
 const RadioGroupItem: Stateless<RadioGroupItemArgs> = ({
-	checked,
 	class: classes,
 	disabled,
 	indicatorClass,
 	inputClass,
 	name,
-	ref,
 	required,
-	'set:checked': setChecked,
-	'set:onchange': setOnChange,
+	'set:onchange': onChange,
 	type: _type,
 	value,
 	...attrs
 }) => {
 	const group = RadioGroupContext()
-	const itemValue = value == null ? undefined : String(value)
-	const ownChecked = checked == null ? undefined : Boolean(checked)
-	const groupChecked = group?.value != null
-		? itemValue === group.value
-		: group?.defaultValue != null
-			? itemValue === group.defaultValue
-			: undefined
-	const active = ownChecked ?? groupChecked
-	const syncChecked = active ?? setChecked as boolean | undefined
-	const state = itemState(active, { ...attrs, checked, defaultChecked: attrs.defaultChecked, 'set:checked': setChecked })
+	const selected = group?.value ?? group?.defaultValue
+	const active = selected == null ? undefined : value === selected
 	const disabledValue = disabled ?? group?.disabled
 
 	return (
-		<span
-			class={classes}
-			data-disabled={flag(disabledValue)}
-			data-slot="radio-group-item"
-			data-state={state}
-		>
+		<span class={classes} data-disabled={flag(disabledValue)} data-slot="radio-group-item">
 			<input
 				{...attrs}
-				aria-checked={ariaChecked(state)}
 				checked={active}
 				class={inputClass}
 				data-slot="radio-group-input"
-				data-state={state}
 				disabled={disabledValue}
 				name={name ?? group?.name}
-				ref={element => {
-					callRef(ref, element)
-					if (element) queueMicrotask(() => syncRadioInput(element))
-				}}
 				required={required ?? group?.required}
-				set:checked={syncChecked}
-				set:onchange={change(itemValue, setOnChange, group?.onValueChange)}
+				set:checked={active}
+				set:onchange={(event: Event) => {
+					callHandler(onChange, event)
+					if ((event.currentTarget as HTMLInputElement).checked) group?.onValueChange?.(value, event)
+				}}
 				type="radio"
 				value={value}
 			/>
-			<span
-				aria-hidden="true"
-				class={indicatorClass}
-				data-slot="radio-group-indicator"
-				data-state={state}
-			/>
+			<span aria-hidden="true" class={indicatorClass} data-slot="radio-group-indicator" />
 		</span>
 	)
 }

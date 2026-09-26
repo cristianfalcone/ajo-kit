@@ -292,6 +292,22 @@ test('SSR toast() returns an id and leaves the shared store untouched', () => {
 	expect(html).not.toContain('data-slot="toast"')
 })
 
+test('SSR choice groups keep orientation as data and OTP slots stamp only data-active', () => {
+	for (const html of [ssr(roots['radio-group']()), ssr(roots['toggle-group']())]) {
+		expect(html).toContain('data-orientation="')
+		expect(html).not.toContain('aria-orientation')
+	}
+
+	const otp = ssr(jsx(InputOTP, {
+		children: jsx(InputOTPGroup, { children: [0, 1].map(index => jsx(InputOTPSlot, { index, key: index })) }),
+	}))
+	const slots = otp.match(/<div[^>]*data-slot="input-otp-slot"[^>]*>/g) ?? []
+	expect(slots).toHaveLength(2)
+	expect(slots[0]).toContain('data-active="true"')
+	expect(slots[1]).not.toContain('data-active')
+	expect(slots.join('')).not.toContain('data-state')
+})
+
 test('SSR Popover keeps one manual semantic surface with stable trigger relations', () => {
 	const html = ssr(roots.popover())
 	const trigger = html.match(/<button[^>]*data-slot="popover-trigger"[^>]*>/)?.[0]

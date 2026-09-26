@@ -1,7 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless } from 'ajo'
 import { callHandler, clamp, controlled, listen, move } from 'ajo-cloves'
 import { FieldContext } from './field'
-import { clx, flag, toNumber } from './shared'
+import { flag } from './shared'
 import { type FixedArgs, type OmitArg, stlx } from './utils'
 
 /** Axis along which slider values increase. */
@@ -37,11 +37,9 @@ export type SliderArgs = OmitArg<IntrinsicElements['input'], 'children' | 'defau
 	thumbClass?: string
 	/** Classes for the track element. */
 	trackClass?: string
-	/** Extra input classes applied only in vertical orientation. */
-	verticalInputClass?: string
 } & FixedArgs<'children' | 'type'>
 
-type SliderRootArgs = OmitArg<SliderArgs, 'class' | 'inputClass' | 'rangeClass' | 'thumbClass' | 'trackClass' | 'verticalInputClass'> & {
+type SliderRootArgs = OmitArg<SliderArgs, 'class' | 'inputClass' | 'rangeClass' | 'thumbClass' | 'trackClass'> & {
 	inputAttrs: Record<string, unknown>
 	inputClass?: string
 	inputOnChange?: unknown
@@ -49,7 +47,6 @@ type SliderRootArgs = OmitArg<SliderArgs, 'class' | 'inputClass' | 'rangeClass' 
 	rangeClass?: string
 	thumbClass?: string
 	trackClass?: string
-	verticalInputClass?: string
 } & FixedArgs<'class'>
 
 type ValueCallback = (value: number[], event: Event) => void
@@ -64,18 +61,9 @@ type Runtime = {
 	onValueChange?: ValueCallback
 	onValueCommit?: ValueCallback
 	orientation: SliderOrientation
-	step?: number | 'any'
+	step: number | 'any'
 	values: number[]
 }
-
-const sliderStep = (value: unknown): number | 'any' | undefined =>
-	value === 'any' ? 'any' : toNumber(value ?? 1, 1)
-
-const sliderOrientation = (value: unknown): SliderOrientation =>
-	value === 'vertical' ? 'vertical' : 'horizontal'
-
-const valueCallback = (value: unknown): ValueCallback | undefined =>
-	typeof value === 'function' ? value as ValueCallback : undefined
 
 const percent = (value: number, min: number, max: number, inverted: boolean) => {
 	if (max <= min) return 0
@@ -88,8 +76,8 @@ const precision = (value: number) => {
 	return match ? match[1].length : 0
 }
 
-const snap = (value: number, min: number, step: number | 'any' | undefined) => {
-	if (step === 'any' || step == null) return value
+const snap = (value: number, min: number, step: number | 'any') => {
+	if (step === 'any') return value
 	const amount = Number(step)
 	if (!Number.isFinite(amount) || amount <= 0) return value
 	const places = Math.max(precision(min), precision(amount))
@@ -97,19 +85,18 @@ const snap = (value: number, min: number, step: number | 'any' | undefined) => {
 	return Number(next.toFixed(places + 2))
 }
 
+/** Distance kept between adjacent thumbs. */
+const spacing = (steps: number, step: number | 'any') => step === 'any' ? 0 : steps * step
+
 const valuesFrom = (
-	value: unknown,
+	value: number[] | undefined,
 	min: number,
 	max: number,
-	step: number | 'any' | undefined,
-	minStepsBetweenThumbs = 0,
+	step: number | 'any',
+	minStepsBetweenThumbs: number,
 ) => {
-	const raw = Array.isArray(value) && value.length
-		? value.map(item => toNumber(item, min))
-		: [min]
-	const gapStep = step === 'any' ? 0 : toNumber(step ?? 1, 1)
-	const gap = Math.max(0, minStepsBetweenThumbs) * Math.max(0, gapStep)
-	const next = raw
+	const gap = spacing(minStepsBetweenThumbs, step)
+	const next = (value?.length ? value : [min])
 		.map(item => snap(clamp(item, min, max), min, step))
 		.sort((a, b) => a - b)
 
@@ -131,8 +118,7 @@ const sameValues = (first: number[], second: number[]) =>
 
 const replaceValue = (runtime: Runtime, index: number, value: number) => {
 	const next = [...runtime.values]
-	const gapStep = runtime.step === 'any' ? 0 : toNumber(runtime.step ?? 1, 1)
-	const gap = Math.max(0, runtime.minStepsBetweenThumbs) * Math.max(0, gapStep)
+	const gap = spacing(runtime.minStepsBetweenThumbs, runtime.step)
 	const lower = index > 0 ? next[index - 1] + gap : runtime.min
 	const upper = index < next.length - 1 ? next[index + 1] - gap : runtime.max
 	next[index] = snap(clamp(value, lower, upper), runtime.min, runtime.step)
@@ -188,19 +174,16 @@ const inputLabel = (label: unknown, index: number, total: number) => {
 }
 
 const SliderRoot: Stateful<SliderRootArgs, 'span'> = function* ({ defaultValue, max = 100, min = 0, step = 1, value }) {
-	const initialMin = toNumber(min, 0)
-	const initialMax = toNumber(max, 100)
-	const initialStep = sliderStep(step)
-	const initial = valuesFrom(value ?? defaultValue, initialMin, initialMax, initialStep, 0)
+	const initial = valuesFrom(value ?? defaultValue, min, max, step, 0)
 	let runtime: Runtime = {
 		disabled: false,
 		inputs: [],
 		inverted: false,
-		max: initialMax,
-		min: initialMin,
+		max,
+		min,
 		minStepsBetweenThumbs: 0,
 		orientation: 'horizontal',
-		step: initialStep,
+		step,
 		values: initial,
 	}
 	const state = controlled<number[]>(this, {
@@ -254,50 +237,35 @@ const SliderRoot: Stateful<SliderRootArgs, 'span'> = function* ({ defaultValue, 
 		thumbClass,
 		trackClass,
 		value,
-		verticalInputClass,
 	} of this) {
-		const minValue = toNumber(min, 0)
-		const maxValue = toNumber(max, 100)
-		const stepValue = sliderStep(step)
-		const gapValue = toNumber(minStepsBetweenThumbs, 0)
-		const orientationValue = sliderOrientation(orientation)
-		const raw = state.sync(value != null ? value as number[] : undefined)
-		const values = valuesFrom(raw, minValue, maxValue, stepValue, gapValue)
+		const raw = state.sync(value)
+		const values = valuesFrom(raw, min, max, step, minStepsBetweenThumbs)
 		if (!state.controlled && !sameValues(values, raw)) state.init(values)
 
 		runtime = {
 			disabled: Boolean(disabled),
 			inputs: runtime.inputs,
 			inverted: Boolean(inverted),
-			max: maxValue,
-			min: minValue,
-			minStepsBetweenThumbs: gapValue,
-			onValueChange: valueCallback(onValueChange),
-			onValueCommit: valueCallback(onValueCommit),
-			orientation: orientationValue,
-			step: stepValue,
+			max,
+			min,
+			minStepsBetweenThumbs,
+			onValueChange,
+			onValueCommit,
+			orientation,
+			step,
 			values,
 		}
 		runtime.inputs.length = values.length
 
-		const positions = values.map(item => percent(item, minValue, maxValue, runtime.inverted))
+		const positions = values.map(item => percent(item, min, max, runtime.inverted))
 		const start = values.length > 1 ? Math.min(...positions) : 0
 		const end = values.length > 1 ? Math.max(...positions) : positions[0] ?? 0
 		const disabledFlag = disabled ? true : undefined
 
 		yield (
 			<>
-				<span
-					class={trackClass}
-					data-orientation={orientationValue}
-					data-slot="slider-track"
-				>
-					<span
-						class={rangeClass}
-						data-orientation={orientationValue}
-						data-slot="slider-range"
-						style={rangeStyle(orientationValue, start, end)}
-					/>
+				<span class={trackClass} data-slot="slider-track">
+					<span class={rangeClass} data-slot="slider-range" style={rangeStyle(orientation, start, end)} />
 				</span>
 				{values.map((item, index) => {
 					const handleInput = (event: Event) => {
@@ -314,19 +282,18 @@ const SliderRoot: Stateful<SliderRootArgs, 'span'> = function* ({ defaultValue, 
 							key={`slider-input-${index}`}
 							{...inputAttrs}
 							aria-label={inputLabel(inputAttrs['aria-label'], index, values.length)}
-							aria-orientation={orientationValue}
-							class={clx(inputClass, orientationValue === 'vertical' && verticalInputClass)}
-							data-orientation={orientationValue}
+							aria-orientation={orientation}
+							class={inputClass}
 							data-slot="slider-input"
 							disabled={disabledFlag}
 							id={inputId(inputAttrs.id, index, values.length)}
-							max={maxValue}
-							min={minValue}
+							max={max}
+							min={min}
 							ref={element => runtime.inputs[index] = element}
 							set:onchange={handleChange}
 							set:oninput={handleInput}
 							set:value={String(item)}
-							step={stepValue}
+							step={step}
 							type="range"
 							value={item}
 						/>
@@ -337,10 +304,9 @@ const SliderRoot: Stateful<SliderRootArgs, 'span'> = function* ({ defaultValue, 
 						aria-hidden="true"
 						class={thumbClass}
 						data-index={index}
-						data-orientation={orientationValue}
 						data-slot="slider-thumb"
 						key={`slider-thumb-${index}`}
-						style={thumbStyle(orientationValue, item)}
+						style={thumbStyle(orientation, item)}
 					/>
 				))}
 			</>
@@ -371,20 +337,13 @@ const Slider: Stateless<SliderArgs> = ({
 	trackClass,
 	type: _type,
 	value,
-	verticalInputClass,
 	...inputAttrs
 }) => {
 	const disabledFlag = disabled ? true : undefined
-	const preview = valuesFrom(
-		value ?? defaultValue,
-		toNumber(min, 0),
-		toNumber(max, 100),
-		sliderStep(step),
-		toNumber(minStepsBetweenThumbs, 0),
-	)
+	const thumbs = (value ?? defaultValue)?.length || 1
 	const field = FieldContext()
-	const groupAttrs = field && preview.length > 1 ? field.groupAttrs : undefined
-	const controlAttrs = field && preview.length === 1 ? field.controlAttrs : undefined
+	const groupAttrs = field && thumbs > 1 ? field.groupAttrs : undefined
+	const controlAttrs = field && thumbs === 1 ? field.controlAttrs : undefined
 	const effectiveInputAttrs = controlAttrs ? { ...controlAttrs, ...inputAttrs } : inputAttrs
 
 	return (
@@ -407,7 +366,6 @@ const Slider: Stateless<SliderArgs> = ({
 			thumbClass={thumbClass}
 			trackClass={trackClass}
 			value={value}
-			verticalInputClass={verticalInputClass}
 			attr:aria-describedby={groupAttrs?.['aria-describedby']}
 			attr:aria-labelledby={groupAttrs?.['aria-labelledby']}
 			attr:aria-disabled={flag(disabled)}

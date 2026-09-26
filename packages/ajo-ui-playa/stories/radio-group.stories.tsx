@@ -99,11 +99,11 @@ export const Basic: Story<typeof RadioGroup> = {
 		input.click()
 		await frame()
 		if (!input.checked) throw new Error('Radio native input did not select from its visual hit area')
-		if (root.dataset.state !== 'checked' || input.dataset.state !== 'checked' || input.getAttribute('aria-checked') !== 'true') {
-			throw new Error('Selected radio state did not sync onto its input and visual root')
-		}
-		if (previous.checked || previousRoot.dataset.state !== 'unchecked' || previous.dataset.state !== 'unchecked' || previous.getAttribute('aria-checked') !== 'false') {
-			throw new Error('Radio group sweep did not sync the silently unchecked sibling')
+		if (previous.checked) throw new Error('Radio group did not uncheck the previous sibling natively')
+		for (const node of [root, input, previousRoot, previous]) {
+			if (node.hasAttribute('data-state') || node.hasAttribute('aria-checked')) {
+				throw new Error('Radio items mirrored native checked state into attributes')
+			}
 		}
 	},
 }

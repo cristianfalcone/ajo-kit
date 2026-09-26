@@ -49,9 +49,9 @@ const FullAccess: Stateless<FullArgs> = ({ checked, disabled, literal, onChange 
 			id="full-access"
 			name="selected"
 			value="*"
-			set:checked={checked}
+			checked={checked}
 			disabled={disabled}
-			set:onchange={onChange}
+			onCheckedChange={onChange}
 		/>
 		<FieldLabel for="full-access" class="font-semibold leading-5 text-foreground">
 			Full access {literal && <span class="font-medium text-muted-foreground">(*)</span>}
@@ -185,9 +185,9 @@ const AbilityPicker: Stateful<{ grantable: string[], error?: string, loading?: b
 												id={groupId}
 												name="selected"
 												value={group.wildcard}
-												set:checked={broad}
+												checked={broad}
 												disabled={loading}
-												set:onchange={() => wildcard(group.abilities)}
+												onCheckedChange={() => wildcard(group.abilities)}
 											/>
 											<FieldLabel for={groupId}>{group.wildcard}</FieldLabel>
 										</Field>
@@ -202,9 +202,9 @@ const AbilityPicker: Stateful<{ grantable: string[], error?: string, loading?: b
 														id={id}
 														name="selected"
 														value={value}
-														set:checked={selected.has(value)}
+														checked={selected.has(value)}
 														disabled={loading}
-														set:onchange={() => ability(value)}
+														onCheckedChange={() => ability(value)}
 													/>
 													<FieldLabel for={id}>{value}</FieldLabel>
 												</Field>

@@ -14,6 +14,9 @@ import {
 const bind = (setArg: StoryContext['setArg']) => (next: string[]) => setArg('defaultValue', next)
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
+/** The icon Playa masks onto a checkbox indicator. */
+const glyph = (node: HTMLElement) => getComputedStyle(node).maskImage
+
 // Indicator icons transition in (spring pop with a short delay), so state
 // assertions poll until the styles settle instead of reading one frame.
 const until = async (test: () => boolean, error: string) => {
@@ -90,7 +93,7 @@ const SelectAllExample: Stateful = function* () {
 				<Field orientation="horizontal">
 					<Checkbox
 						id="toppings-all"
-						set:checked={all}
+						checked={all}
 						set:indeterminate={value.length > 0 && !all}
 						onCheckedChange={(checked: boolean) => setValue(checked ? [...toppings] : [])}
 					/>
@@ -220,9 +223,8 @@ export const VisualParity: Story = {
 
 		for (const root of [standalone, grouped]) {
 			const input = root.querySelector<HTMLInputElement>('[data-slot="checkbox-input"]')
-			const checked = root.querySelector<HTMLElement>('[data-slot="checkbox-indicator"][data-state="checked"]')
-			const mixed = root.querySelector<HTMLElement>('[data-slot="checkbox-indicator"][data-state="indeterminate"]')
-			if (!input || !checked || !mixed) throw new Error('Checkbox parity input or indicators were not rendered')
+			const indicator = root.querySelector<HTMLElement>('[data-slot="checkbox-indicator"]')
+			if (!input || !indicator) throw new Error('Checkbox parity input or indicator was not rendered')
 			const rootRect = root.getBoundingClientRect()
 			const inputRect = input.getBoundingClientRect()
 			const inputStyle = getComputedStyle(input)
@@ -235,8 +237,8 @@ export const VisualParity: Story = {
 			) {
 				throw new Error('Checkbox visual did not preserve the shared native input overlay')
 			}
-			if (getComputedStyle(checked).opacity !== '1' || getComputedStyle(mixed).opacity !== '0') {
-				throw new Error('Checked Checkbox parity indicators did not resolve to check-only')
+			if (getComputedStyle(indicator).opacity !== '1' || glyph(indicator) === 'none') {
+				throw new Error('Checked Checkbox parity indicator did not show its check')
 			}
 		}
 	},
@@ -306,26 +308,20 @@ export const SelectAll: Story = {
 		const parent = canvas.querySelector<HTMLInputElement>('#toppings-all')
 		const items = Array.from(canvas.querySelectorAll<HTMLInputElement>('[data-slot="checkbox-group-item"] [data-slot="checkbox-input"]'))
 		if (!parent || items.length !== 3) throw new Error('Select all story parts were not rendered')
-		const expectStamp = (input: HTMLInputElement, state: string, aria: string) => {
-			const root = input.closest<HTMLElement>('[data-slot="checkbox"]')
-			if (input.dataset.state !== state || root?.dataset.state !== state || input.getAttribute('aria-checked') !== aria) {
-				throw new Error(`Checkbox stamp mismatch: expected ${state}/${aria}`)
+		const parentRoot = parent.closest<HTMLElement>('[data-slot="checkbox"]')
+		const indicator = parentRoot?.querySelector<HTMLElement>('[data-slot="checkbox-indicator"]')
+		if (!parentRoot || !indicator) throw new Error('Select all parent did not render its indicator')
+		const expectStamp = (state: string) => {
+			if (parentRoot.dataset.state !== state || parent.hasAttribute('data-state') || parent.hasAttribute('aria-checked')) {
+				throw new Error(`Checkbox stamp mismatch: expected ${state} on the host only`)
 			}
 		}
 		if (!parent.indeterminate || parent.checked) {
 			throw new Error('Select all parent did not render indeterminate for a partial selection')
 		}
-		expectStamp(parent, 'indeterminate', 'mixed')
-		const parentRoot = parent.closest<HTMLElement>('[data-slot="checkbox"]')
-		const checkedIndicator = parentRoot?.querySelector<HTMLElement>('[data-slot="checkbox-indicator"][data-state="checked"]')
-		const mixedIndicator = parentRoot?.querySelector<HTMLElement>('[data-slot="checkbox-indicator"][data-state="indeterminate"]')
-		if (!checkedIndicator || !mixedIndicator) {
-			throw new Error('Indeterminate parent did not render both indicators')
-		}
-		await until(
-			() => getComputedStyle(checkedIndicator).opacity === '0' && getComputedStyle(mixedIndicator).opacity === '1',
-			'Indeterminate parent did not show only the mixed indicator',
-		)
+		expectStamp('indeterminate')
+		await until(() => getComputedStyle(indicator).opacity === '1', 'Indeterminate parent did not show its indicator')
+		const mixedGlyph = glyph(indicator)
 
 		parent.click()
 		await frame()
@@ -333,10 +329,10 @@ export const SelectAll: Story = {
 		if (!parent.checked || parent.indeterminate || !items.every(item => item.checked)) {
 			throw new Error('Select all parent did not check every item')
 		}
-		expectStamp(parent, 'checked', 'true')
+		expectStamp('checked')
 		await until(
-			() => getComputedStyle(checkedIndicator).opacity === '1' && getComputedStyle(mixedIndicator).opacity === '0',
-			'Checked parent did not show only the check indicator',
+			() => getComputedStyle(indicator).opacity === '1' && glyph(indicator) !== mixedGlyph,
+			'Checked parent did not swap the mixed glyph for the check',
 		)
 
 		items[0].click()
@@ -345,10 +341,10 @@ export const SelectAll: Story = {
 		if (!parent.indeterminate || items[0].checked) {
 			throw new Error('Unchecking one item did not return the parent to indeterminate')
 		}
-		expectStamp(parent, 'indeterminate', 'mixed')
+		expectStamp('indeterminate')
 		await until(
-			() => getComputedStyle(checkedIndicator).opacity === '0' && getComputedStyle(mixedIndicator).opacity === '1',
-			'Partial selection did not restore only the mixed indicator',
+			() => getComputedStyle(indicator).opacity === '1' && glyph(indicator) === mixedGlyph,
+			'Partial selection did not restore the mixed glyph',
 		)
 
 		parent.click()
@@ -359,6 +355,6 @@ export const SelectAll: Story = {
 		if (parent.checked || parent.indeterminate || items.some(item => item.checked) || !canvas.textContent?.includes('Selected: none')) {
 			throw new Error('Select all parent did not clear the selection')
 		}
-		expectStamp(parent, 'unchecked', 'false')
+		expectStamp('unchecked')
 	},
 }

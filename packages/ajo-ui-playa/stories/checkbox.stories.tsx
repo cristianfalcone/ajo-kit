@@ -56,12 +56,11 @@ const sameColor = (first: string, second: string) => {
 	return a.length === 3 && b.length === 3 && a.every((value, index) => Math.abs(value - b[index]) <= 1)
 }
 
-const bind = (setArg: StoryContext['setArg']) => (event: Event) =>
-	setArg('checked', (event.currentTarget as HTMLInputElement).checked)
+const bind = (setArg: StoryContext['setArg']) => (checked: boolean) => setArg('checked', checked)
 
-const assertLiveState = (input: HTMLInputElement, root: HTMLElement, state: string, aria: string) => {
-	if (root.dataset.state !== state || input.dataset.state !== state || input.getAttribute('aria-checked') !== aria) {
-		throw new Error(`Checkbox live state did not sync as ${state}/${aria}`)
+const assertLiveState = (input: HTMLInputElement, root: HTMLElement, state: string) => {
+	if (root.dataset.state !== state || input.hasAttribute('data-state') || input.hasAttribute('aria-checked')) {
+		throw new Error(`Checkbox live state did not sync as ${state} on the host only`)
 	}
 }
 
@@ -79,7 +78,7 @@ export default {
 		disabled: { control: 'boolean' },
 	},
 	render: (args, { setArg }) => (
-		<Checkbox {...args} set:onchange={bind(setArg)} />
+		<Checkbox {...args} onCheckedChange={bind(setArg)} />
 	),
 	parameters: {
 		docs: { description: 'Native checkbox control styled like Ajo Kit while preserving form behavior.' },
@@ -100,7 +99,7 @@ export const Basic: Story<typeof Checkbox> = {
 		input.click()
 		await frame()
 		if (!input.checked) throw new Error('Checkbox did not toggle when clicked directly')
-		assertLiveState(input, root, 'checked', 'true')
+		assertLiveState(input, root, 'checked')
 	},
 }
 
@@ -108,7 +107,7 @@ export const WithLabel: Story<typeof Checkbox> = {
 	args: { id: 'terms-label', label: 'Accept terms and conditions' },
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" disabled={Boolean(args.disabled)}>
-			<Checkbox {...args} set:onchange={bind(setArg)} />
+			<Checkbox {...args} onCheckedChange={bind(setArg)} />
 			<FieldLabel for={args.id}>{args.label}</FieldLabel>
 		</Field>
 	),
@@ -122,7 +121,7 @@ export const Disabled: Story<typeof Checkbox> = {
 	args: { id: 'terms-disabled', disabled: true, label: 'Accept terms and conditions' },
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" disabled={Boolean(args.disabled)}>
-			<Checkbox {...args} set:onchange={bind(setArg)} />
+			<Checkbox {...args} onCheckedChange={bind(setArg)} />
 			<FieldLabel for={args.id}>{args.label}</FieldLabel>
 		</Field>
 	),
@@ -141,7 +140,7 @@ export const WithDescription: Story<typeof Checkbox> = {
 	},
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" disabled={Boolean(args.disabled)}>
-			<Checkbox {...args} set:onchange={bind(setArg)} />
+			<Checkbox {...args} onCheckedChange={bind(setArg)} />
 			<FieldContent>
 				<FieldLabel for={args.id}>{args.label}</FieldLabel>
 				<FieldDescription>{args.description}</FieldDescription>
@@ -159,7 +158,7 @@ export const Invalid: Story<typeof Checkbox> = {
 	},
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" invalid>
-			<Checkbox {...args} aria-invalid="true" set:onchange={bind(setArg)} />
+			<Checkbox {...args} aria-invalid="true" onCheckedChange={bind(setArg)} />
 			<FieldContent>
 				<FieldLabel for={args.id}>{args.label}</FieldLabel>
 				<FieldError>{args.error}</FieldError>
@@ -208,7 +207,7 @@ export const InvalidChecked: Story<typeof Checkbox> = {
 	},
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" invalid>
-			<Checkbox {...args} aria-invalid="true" set:onchange={bind(setArg)} />
+			<Checkbox {...args} aria-invalid="true" onCheckedChange={bind(setArg)} />
 			<FieldContent>
 				<FieldLabel for={args.id}>{args.label}</FieldLabel>
 				<FieldError>{args.error}</FieldError>
@@ -241,7 +240,14 @@ export const Indeterminate: Story<typeof Checkbox> = {
 	},
 	render: ({ indeterminate, ...args }, { setArg }) => (
 		<Field orientation="horizontal" disabled={Boolean(args.disabled)}>
-			<Checkbox {...args} set:indeterminate={Boolean(indeterminate)} set:onchange={bind(setArg)} />
+			<Checkbox
+				{...args}
+				set:indeterminate={Boolean(indeterminate)}
+				onCheckedChange={checked => {
+					setArg('indeterminate', false)
+					setArg('checked', checked)
+				}}
+			/>
 			<FieldLabel for={args.id}>{args.label}</FieldLabel>
 		</Field>
 	),
@@ -266,11 +272,11 @@ export const Uncontrolled: Story<typeof Checkbox> = {
 		input.click()
 		await frame()
 		if (!input.checked) throw new Error('Uncontrolled Checkbox did not check natively')
-		assertLiveState(input, root, 'checked', 'true')
+		assertLiveState(input, root, 'checked')
 
 		input.click()
 		await frame()
 		if (input.checked) throw new Error('Uncontrolled Checkbox did not uncheck natively')
-		assertLiveState(input, root, 'unchecked', 'false')
+		assertLiveState(input, root, 'unchecked')
 	},
 }

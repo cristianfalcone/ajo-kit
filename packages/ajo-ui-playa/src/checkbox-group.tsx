@@ -10,8 +10,7 @@ import {
 import { FieldContext } from 'ajo-ui/field'
 import {
 	checkboxBox,
-	checkboxCheckedIndicator,
-	checkboxIndeterminateIndicator,
+	checkboxIndicator,
 	checkboxInvalidState,
 	checkboxState,
 	choiceGroupOrientation,
@@ -27,7 +26,7 @@ export type CheckboxGroupArgs = BaseCheckboxGroupArgs & {
 	class?: string
 }
 
-export type CheckboxGroupItemArgs = OmitArg<BaseCheckboxGroupItemArgs, 'checkedIndicatorClass' | 'indeterminateIndicatorClass' | 'inputClass'> & FixedArgs<'checkedIndicatorClass' | 'indeterminateIndicatorClass' | 'inputClass'> & {
+export type CheckboxGroupItemArgs = OmitArg<BaseCheckboxGroupItemArgs, 'indicatorClass' | 'inputClass'> & FixedArgs<'indicatorClass' | 'inputClass'> & {
 	/** Additional UnoCSS classes for the visual checkbox box. */
 	class?: string
 }
@@ -61,9 +60,8 @@ const CheckboxGroupItem: Stateless<CheckboxGroupItemArgs> = ({
 	return (
 		<BaseCheckboxGroupItem
 			{...attrs}
-			checkedIndicatorClass={checkboxCheckedIndicator}
 			class={clsx(checkboxBox, invalid ? checkboxInvalidState : checkboxState, classes)}
-			indeterminateIndicatorClass={checkboxIndeterminateIndicator}
+			indicatorClass={checkboxIndicator}
 			inputClass={choiceInput}
 		/>
 	)

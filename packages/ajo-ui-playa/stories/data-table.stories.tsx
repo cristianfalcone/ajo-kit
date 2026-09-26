@@ -290,19 +290,17 @@ const waitUntil = async (check: () => boolean, timeout = 1200) => {
 
 const waitForVisualCheck = async (input: HTMLInputElement, label: string) => {
 	const root = input.closest<HTMLElement>('[data-slot="checkbox"]')
-	const indicator = root?.querySelector<HTMLElement>('[data-slot="checkbox-indicator"][data-state="checked"]')
+	const indicator = root?.querySelector<HTMLElement>('[data-slot="checkbox-indicator"]')
 	if (!root || !indicator) throw new Error(`${label} checked visual was not rendered`)
 	const matches = () => input.checked
 		&& !input.indeterminate
-		&& input.dataset.state === 'checked'
-		&& input.getAttribute('aria-checked') === 'true'
 		&& root.dataset.state === 'checked'
 		&& getComputedStyle(indicator).opacity === '1'
 		&& getComputedStyle(root).backgroundColor !== 'rgba(0, 0, 0, 0)'
 	try {
 		await waitUntil(matches)
 	} catch {
-		const inputState = `${input.checked}/${input.dataset.state}/${input.getAttribute('aria-checked')}`
+		const inputState = `${input.checked}/${input.indeterminate}`
 		const visualState = `${getComputedStyle(indicator).opacity}/${getComputedStyle(root).backgroundColor}`
 		throw new Error(`${label} remained visually unchecked: input=${inputState} root=${root.dataset.state} visual=${visualState}`)
 	}

@@ -1,7 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { listen, roving, selection, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { flag, strings } from './shared'
+import { flag } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Toggle, type ToggleArgs } from './toggle'
 
@@ -67,7 +67,7 @@ export type ToggleGroupContextValue = {
 	pressed: (value: string) => boolean
 	size?: string
 	spacing: number
-	toggle: (value: string, pressed: boolean, event: Event) => void
+	toggle: (value: string, event: Event) => void
 	type: ToggleGroupType
 	variant?: string
 }
@@ -88,10 +88,8 @@ type ToggleGroupRootArgs = WithChildren<{
 /** Composition context exposing ToggleGroup state and styling markers to descendant items. */
 export const ToggleGroupContext = context<ToggleGroupContextValue | null>(null)
 
-const selected = (type: ToggleGroupType, value: unknown) =>
-	type === 'multiple'
-		? strings(value)
-		: value == null || value === '' ? [] : [String(value)]
+const selected = (type: ToggleGroupType, value: string | string[] | undefined) =>
+	type === 'multiple' ? value as string[] | undefined : value ? [value as string] : []
 
 const isButton = (value: EventTarget | null): value is HTMLButtonElement =>
 	value instanceof HTMLButtonElement && value.dataset.slot === 'toggle-group-item'
@@ -121,7 +119,7 @@ const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue
 	const pressed = (value: string) =>
 		sel.has(value)
 
-	const change = (value: string, _nextPressed: boolean, event: Event) => {
+	const change = (value: string, event: Event) => {
 		if (disabled) return
 		sel.toggle(value, event)
 	}
@@ -151,7 +149,7 @@ const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue
 		disabled = Boolean(args.disabled)
 		loop = args.loop !== false
 		onValueChange = args.onValueChange
-		sel.sync(args.value != null ? selected(type, args.value) : undefined)
+		sel.sync(args.value == null ? undefined : selected(type, args.value))
 
 		ToggleGroupContext({
 			disabled,
@@ -201,7 +199,6 @@ const ToggleGroup: Stateless<ToggleGroupArgs> = ({
 			value={value}
 			variant={variant}
 			attr:aria-disabled={flag(disabledFlag)}
-			attr:aria-orientation={orientation}
 			attr:data-disabled={flag(disabledFlag)}
 			attr:data-orientation={orientation}
 			attr:data-size={size}
@@ -224,11 +221,10 @@ const ToggleGroupItem: Stateless<ToggleGroupItemArgs> = ({
 	...attrs
 }) => {
 	const group = ToggleGroupContext()
-	const itemValue = String(value)
 	const itemSize = size ?? group?.size
 	const itemVariant = variant ?? group?.variant
 	const disabledFlag = Boolean(disabled ?? group?.disabled)
-	const pressed = group?.pressed(itemValue) ?? false
+	const pressed = group?.pressed(value) ?? false
 
 	return (
 		<Toggle
@@ -240,8 +236,8 @@ const ToggleGroupItem: Stateless<ToggleGroupItemArgs> = ({
 			data-variant={itemVariant}
 			disabled={disabledFlag}
 			pressed={pressed}
-			value={itemValue}
-			onPressedChange={(next, event) => group?.toggle(itemValue, next, event)}
+			value={value}
+			onPressedChange={(_pressed, event) => group?.toggle(value, event)}
 		/>
 	)
 }

@@ -1,6 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, clamp, controlled, dom } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { flag } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 
 /** Built-in InputOTP pattern accepting one or more ASCII digits. */
@@ -52,12 +53,9 @@ type InputOTPContextValue = {
 
 const InputOTPContext = context<InputOTPContextValue | null>(null)
 
-const isRegExp = (value: unknown): value is RegExp =>
-	Object.prototype.toString.call(value) === '[object RegExp]'
-
 const accepts = (pattern: RegExp | string | undefined, char: string) => {
 	if (!pattern) return true
-	if (isRegExp(pattern)) {
+	if (pattern instanceof RegExp) {
 		pattern.lastIndex = 0
 		return pattern.test(char)
 	}
@@ -72,7 +70,7 @@ const clean = (value: unknown, maxLength: number, pattern?: RegExp | string) =>
 		.join('')
 
 const inputPattern = (pattern: RegExp | string | undefined) =>
-	isRegExp(pattern) ? pattern.source : pattern
+	pattern instanceof RegExp ? pattern.source : pattern
 
 const nextSelection = (input: HTMLInputElement | null, fallback: number) =>
 	Math.min(input?.selectionStart ?? fallback, Math.max(0, input?.value.length ?? fallback))
@@ -278,16 +276,14 @@ const InputOTPSlot: Stateless<InputOTPSlotArgs> = ({
 	const char = context.value[index]
 	const active = context.active === index
 	const caret = active && !char && !context.disabled
-	const state = active ? 'active' : 'inactive'
 
 	return (
 		<div
 			{...attrs}
 			aria-hidden="true"
-			data-active={active ? 'true' : 'false'}
+			data-active={flag(active)}
 			data-disabled={context.disabled ? 'true' : undefined}
 			data-slot="input-otp-slot"
-			data-state={state}
 			role={role}
 			set:onclick={(event: MouseEvent) => {
 				callHandler(onClick, event)

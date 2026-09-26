@@ -1,7 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { selection, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { flag, strings } from './shared'
+import { flag } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Checkbox, type CheckboxArgs } from './checkbox'
 
@@ -29,7 +29,7 @@ type CheckboxGroupContextValue = {
 	checked: (value: string) => boolean
 	disabled?: boolean
 	name?: string
-	toggle: (value: string, checked: boolean, event: Event) => void
+	toggle: (value: string, event: Event) => void
 }
 
 type CheckboxGroupRootArgs = WithChildren<{
@@ -48,14 +48,14 @@ const CheckboxGroupRoot: Stateful<CheckboxGroupRootArgs> = function* ({ defaultV
 	let onValueChange: CheckboxGroupRootArgs['onValueChange']
 	const sel = selection(this, {
 		multiple: () => true,
-		fallback: strings(defaultValue),
+		fallback: defaultValue,
 		onChange: (next, event) => onValueChange?.(next, event as Event),
 	})
 
 	const checked = (value: string) =>
 		sel.has(value)
 
-	const change = (value: string, _checked: boolean, event: Event) => {
+	const change = (value: string, event: Event) => {
 		if (disabled) return
 		sel.toggle(value, event)
 	}
@@ -64,7 +64,7 @@ const CheckboxGroupRoot: Stateful<CheckboxGroupRootArgs> = function* ({ defaultV
 		disabled = Boolean(args.disabled)
 		name = args.name
 		onValueChange = args.onValueChange
-		sel.sync(args.value != null ? strings(args.value) : undefined)
+		sel.sync(args.value)
 
 		CheckboxGroupContext({ checked, disabled, name, toggle: change })
 
@@ -112,19 +112,16 @@ const CheckboxGroupItem: Stateless<CheckboxGroupItemArgs> = ({
 	...attrs
 }) => {
 	const group = CheckboxGroupContext()
-	const item = String(value)
-	const checked = group?.checked(item) ?? false
 
 	return (
 		<Checkbox
 			{...attrs}
-			checked={checked}
+			checked={group?.checked(value) ?? false}
 			data-slot="checkbox-group-item"
 			disabled={disabled ?? group?.disabled}
 			name={name ?? group?.name}
-			set:checked={checked}
-			value={item}
-			onCheckedChange={(next, event) => group?.toggle(item, next, event)}
+			value={value}
+			onCheckedChange={(_checked, event) => group?.toggle(value, event)}
 		/>
 	)
 }
