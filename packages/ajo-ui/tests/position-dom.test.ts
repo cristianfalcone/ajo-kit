@@ -468,61 +468,10 @@ test('arrow and clipping outputs preserve zero coordinates and clear stale state
 	view.stop()
 })
 
-test('chart uses the transform writer only while active', async () => {
-	const root = document.createElement('div')
-	const target = document.createElement('div')
-	root.append(target)
-	document.body.append(root)
-	const reference = {
-		contextElement: root,
-		getBoundingClientRect: () => new DOMRect(40, 20, 0, 0),
-	}
-	const { element } = host()
-	floating.computePosition.mockResolvedValueOnce({
-		x: 20.5,
-		y: 30.5,
-		placement: 'right',
-		strategy: 'absolute',
-		middlewareData: {},
-	})
-	const view = position(element, {
-		profile: 'chart',
-		boundary: () => root,
-		elements: () => ({ arrow: null, floating: target, reference }),
-	})
-
-	expect(await view.start()).toBe(true)
-	expect(target.style.position).toBe('absolute')
-	expect(target.style.left).toBe('0px')
-	expect(target.style.top).toBe('0px')
-	expect(target.style.transform).toBe('translate(21px, 31px)')
-	expect(target.style.willChange).toBe('transform')
-	expect(target.style.transformOrigin).toBe('')
-	expect(target.dataset.positioned).toBe('true')
-	const options = floating.computePosition.mock.calls[0]?.[2] as {
-		middleware?: Array<{ name: string, options?: { boundary?: Element, crossAxis?: number, mainAxis?: number } }>
-		placement?: string
-		strategy?: string
-	}
-	const names = options.middleware?.map(item => item.name) ?? []
-	expect(options.placement).toBe('right')
-	expect(options.strategy).toBe('absolute')
-	expect(names).toEqual(['offset', 'flip', 'shift'])
-	expect(options.middleware?.[0]?.options).toEqual({ crossAxis: 0, mainAxis: 12 })
-	expect(options.middleware?.[1]?.options?.boundary).toBe(root)
-	expect(options.middleware?.[2]?.options?.boundary).toBe(root)
-	expect(floating.autoUpdate.mock.calls[0]).toHaveLength(3)
-
-	view.stop()
-	expect(target.style.transform).toBe('')
-	expect(target.style.willChange).toBe('')
-	expect(target.dataset.positioned).toBeUndefined()
-})
-
 test('point reference keeps stable identity while reading the current zero-area point', () => {
-	let contextElement: Element = document.createElement('div')
+	const contextElement = document.createElement('div')
 	const point = { x: 14, y: 22 }
-	const reference = pointReference(() => contextElement, () => point)
+	const reference = pointReference(contextElement, () => point)
 
 	expect((reference as { contextElement?: Element }).contextElement).toBe(contextElement)
 	expect(reference.getBoundingClientRect()).toEqual({
@@ -537,9 +486,6 @@ test('point reference keeps stable identity while reading the current zero-area 
 	})
 	point.x = 40
 	point.y = 52
-	const nextContext = document.createElement('svg')
-	contextElement = nextContext
-	expect((reference as { contextElement?: Element }).contextElement).toBe(nextContext)
 	expect(reference.getBoundingClientRect()).toMatchObject({ x: 40, y: 52, top: 52, right: 40 })
 })
 

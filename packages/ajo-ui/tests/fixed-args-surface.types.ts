@@ -1,6 +1,6 @@
 import type { IntrinsicElements } from 'ajo'
 import type { AccordionItemArgs } from 'ajo-ui/accordion'
-import type { ChartContainerArgs, ChartPlotArgs, ChartTooltipArgs } from 'ajo-ui/chart'
+import type { ChartContainerArgs, ChartPlotArgs } from 'ajo-ui/chart'
 import type { CheckboxArgs } from 'ajo-ui/checkbox'
 import type { CheckboxGroupItemArgs } from 'ajo-ui/checkbox-group'
 import type { CommandInputArgs } from 'ajo-ui/command'
@@ -44,10 +44,9 @@ export const fixedArgsRejectValues: FixedArgs<'owned'> = { owned: true }
 export const fixedAccordionItem: AccordionItemArgs = { open: true, value: 'one' }
 // @ts-expect-error ChartPlot generates its own SVG children.
 export const fixedChartPlot: ChartPlotArgs = { children: 'caller plot' }
-// @ts-expect-error Chart placement and gap belong to its private profile.
-export const fixedChartContainerPosition: ChartContainerArgs = { gap: 4, placement: 'top' }
-// @ts-expect-error ChartTooltip cannot override its private placement.
-export const fixedChartTooltipPosition: ChartTooltipArgs = { placement: 'bottom' }
+export const chartSeriesKeys: ChartContainerArgs = { config: { a: { label: 'A' } }, palette: ['blue'], series: ['a'] }
+// @ts-expect-error Chart series are data keys; labels and colors come only from config.
+export const chartSeriesEntries: ChartContainerArgs = { config: {}, palette: ['blue'], series: [{ key: 'a', label: 'A' }] }
 // @ts-expect-error Checkbox keeps its live checked state in `checked`.
 export const fixedCheckboxLiveState: CheckboxArgs = { 'set:checked': true }
 // @ts-expect-error CheckboxGroup owns item checked state.

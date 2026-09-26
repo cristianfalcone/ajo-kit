@@ -336,6 +336,25 @@ export const playa = definePreset(() => ({
       '[&_:where([data-slot=table-caption])]:my-4 [&_:where([data-slot=table-caption])]:text-sm [&_:where([data-slot=table-caption])]:text-muted-foreground',
       '[&_:where([data-align=center])]:text-center [&_:where([data-align=right])]:text-right',
     ].join(' '),
+    // Chart paints the base parts by data-slot and state attributes: SVG
+    // strokes and fills, the tooltip rows by indicator shape and nesting, and
+    // the legend entries. State rules use `:is` to outrank the `:where` base.
+    'playa-chart': [
+      'relative flex aspect-video min-h-[200px] w-full flex-col justify-center text-xs text-muted-foreground',
+      '[&_:where([data-slot=chart-grid]>line)]:[stroke:var(--border)] [&_:where([data-slot=chart-axis]>line)]:[stroke:var(--muted-foreground)] [&_:where([data-slot=chart-axis]>line)]:[stroke-opacity:0.5]',
+      '[&_:where([data-chart-index])]:outline-none [&_:is(rect[data-chart-index]:focus-visible)]:opacity-80 [&_:where(circle[data-chart-index])]:[fill:var(--background)] [&_:where([data-slot=chart-pie]>path)]:[stroke:var(--background)]',
+      '[&_:where([data-slot=chart-pie-total])]:[fill:var(--foreground)] [&_:where([data-slot=chart-pie-total])]:text-sm [&_:where([data-slot=chart-pie-total])]:font-medium',
+      '[&_:where([data-slot=chart-tooltip-label])]:font-medium [&_:is([data-nested]_[data-slot=chart-tooltip-label])]:text-foreground',
+      '[&_:where([data-slot=chart-tooltip-items],[data-slot=chart-tooltip-names])]:grid [&_:where([data-slot=chart-tooltip-items],[data-slot=chart-tooltip-names])]:gap-1.5',
+      '[&_:where([data-slot=chart-tooltip-item])]:flex [&_:where([data-slot=chart-tooltip-item])]:w-full [&_:where([data-slot=chart-tooltip-item])]:items-stretch [&_:where([data-slot=chart-tooltip-item])]:gap-2 [&_:is([data-slot=chart-tooltip-item][data-indicator=dot])]:items-center',
+      '[&_:where([data-slot=chart-tooltip-indicator])]:shrink-0 [&_:where([data-slot=chart-tooltip-indicator])]:rounded-[2px] [&_:where([data-slot=chart-tooltip-indicator])]:border-[--chart-indicator] [&_:where([data-slot=chart-tooltip-indicator])]:bg-[--chart-indicator]',
+      '[&_:is([data-indicator=dot]>[data-slot=chart-tooltip-indicator])]:size-2.5 [&_:is([data-indicator=line]>[data-slot=chart-tooltip-indicator])]:w-1',
+      '[&_:is([data-indicator=dashed]>[data-slot=chart-tooltip-indicator])]:w-0 [&_:is([data-indicator=dashed]>[data-slot=chart-tooltip-indicator])]:[border-width:1.5px] [&_:is([data-indicator=dashed]>[data-slot=chart-tooltip-indicator])]:border-dashed [&_:is([data-indicator=dashed]>[data-slot=chart-tooltip-indicator])]:bg-transparent [&_:is([data-indicator=dashed][data-nested]>[data-slot=chart-tooltip-indicator])]:my-0.5',
+      '[&_:where([data-slot=chart-tooltip-row])]:flex [&_:where([data-slot=chart-tooltip-row])]:flex-1 [&_:where([data-slot=chart-tooltip-row])]:items-center [&_:where([data-slot=chart-tooltip-row])]:justify-between [&_:where([data-slot=chart-tooltip-row])]:gap-4 [&_:where([data-slot=chart-tooltip-row])]:leading-none [&_:is([data-nested]>[data-slot=chart-tooltip-row])]:items-end',
+      '[&_:where([data-slot=chart-tooltip-name])]:text-muted-foreground [&_:where([data-slot=chart-tooltip-value])]:font-mono [&_:where([data-slot=chart-tooltip-value])]:font-medium [&_:where([data-slot=chart-tooltip-value])]:text-foreground [&_:where([data-slot=chart-tooltip-value])]:tabular-nums',
+      '[&_:where([data-slot=chart-tooltip-icon],[data-slot=chart-legend-icon])]:text-muted-foreground [&_:where([data-slot=chart-tooltip-icon]>svg,[data-slot=chart-legend-icon]>svg)]:size-3',
+      '[&_:where([data-slot=chart-legend-item])]:flex [&_:where([data-slot=chart-legend-item])]:items-center [&_:where([data-slot=chart-legend-item])]:gap-1.5 [&_:where([data-slot=chart-legend-swatch])]:size-2 [&_:where([data-slot=chart-legend-swatch])]:shrink-0 [&_:where([data-slot=chart-legend-swatch])]:rounded-[2px]',
+    ].join(' '),
     'playa-data-table': [
       'flex w-full flex-col gap-4',
       '[&_:where([data-slot=data-table-toolbar])]:flex [&_:where([data-slot=data-table-toolbar])]:flex-col [&_:where([data-slot=data-table-toolbar])]:gap-2 sm:[&_:where([data-slot=data-table-toolbar])]:flex-row sm:[&_:where([data-slot=data-table-toolbar])]:items-center sm:[&_:where([data-slot=data-table-toolbar])]:justify-between',

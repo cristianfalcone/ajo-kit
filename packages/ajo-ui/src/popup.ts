@@ -131,7 +131,7 @@ export type PopupView<Trigger extends HTMLElement = HTMLElement, Content extends
 
 export type PopupOptions<View> = {
 	prefix: string
-	profile: Exclude<PositionProfile, 'chart'>
+	profile: PositionProfile
 	initialOpen: boolean
 	disabled?: () => boolean
 	hover?: {

@@ -3,7 +3,7 @@ import { expect, test } from 'vitest'
 import metadata from '../package.json'
 
 // Every .tsx module in src is a public family except these private parts.
-const parts = new Set(['chart-tooltip', 'checked', 'popup-surface'])
+const parts = new Set(['checked', 'popup-surface'])
 const families = readdirSync(new URL('../src', import.meta.url))
 	.filter(file => file.endsWith('.tsx'))
 	.map(file => file.slice(0, -'.tsx'.length))

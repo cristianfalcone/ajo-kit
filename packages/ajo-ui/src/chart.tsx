@@ -1,14 +1,6 @@
 import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callRef, clamp, dom, id as uniqueId, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
-import {
-	ChartContext,
-	ChartIdContext,
-	type ChartContextValue,
-	type ChartPoint as Point,
-	type ChartReferencePoint,
-	type ChartSeriesEntry as SeriesEntry,
-	type ChartTooltipPositionController,
-} from './chart-context'
+import { context } from 'ajo/context'
+import { callRef, clamp, dom, frame, id as uniqueId, resize, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { text } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 
@@ -24,8 +16,8 @@ export type ChartConfig = Record<
 	{
 		/** Human label used by tooltip and legend. */
 		label?: Children
-		/** Optional icon rendered by tooltip and legend. */
-		icon?: Children | ((attrs: { class?: string }) => Children)
+		/** Icon rendered by tooltip and legend in place of the color indicator. */
+		icon?: Children
 		/** CSS color for this data key. */
 		color?: string
 		/** Theme-specific colors for this data key. */
@@ -42,19 +34,6 @@ export type ChartType =
 
 /** One keyed data row consumed by the native chart primitives. */
 export type ChartDatum = Record<string, unknown>
-
-/** Data-key descriptor for one rendered chart series. */
-export type ChartSeries = {
-	/** Object key used for numeric values. */
-	key: string
-	/** Human label. Defaults to config label or key. */
-	label?: Children
-	/** CSS color. Defaults to config color or a chart token. */
-	color?: string
-}
-
-/** Series shorthand accepted by ChartContainer. */
-export type ChartSeriesInput = ChartSeries | string
 
 /** Plot-area inset in SVG user units. */
 export type ChartMargin = {
@@ -85,17 +64,17 @@ export type ChartActive = {
 }
 
 /** Arguments for the accessible Chart data and context root. */
-export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'gap' | 'placement'> & {
-	/** Chart series styling keyed by data key. */
+export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {
+	/** Labels, icons, and colors keyed by data key. */
 	config: ChartConfig
 	/** Rows to render when using the native SVG chart primitives. */
 	data?: ChartDatum[]
 	/** Key used for x-axis/category labels. */
 	xKey?: string
-	/** Native chart type rendered when no children are provided. */
+	/** Selects pie or series legend entries. */
 	type?: ChartType
-	/** Series keys or detailed series entries. Defaults to the config keys. */
-	series?: ChartSeriesInput[]
+	/** Data keys to plot, in order. Defaults to the config keys. */
+	series?: string[]
 	/** Accessible label for the chart image. */
 	label?: string
 	/** Accessible long description for the chart image. */
@@ -112,49 +91,24 @@ export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 
 	formatValue?: (value: number, key: string, row: ChartDatum, index: number) => string
 	/** Color palette used when a series has no configured color. */
 	palette: string[]
-	/** Classes supplied by the styled wrapper. */
-	class?: string
-}> & FixedArgs<'gap' | 'placement'>
+}>
 
 /** Arguments for native cartesian bar, line, and area plots. */
 export type ChartPlotArgs = OmitArg<IntrinsicElements['svg'], 'children'> & {
-	/** Show grid lines. */
+	/** Show horizontal grid lines. */
 	grid?: boolean
-	/** Show axes and labels. */
+	/** Show axis lines and labels. */
 	axis?: boolean
-	/** Classes supplied by the styled wrapper. */
-	class?: string
-	axisStroke?: string
-	axisStrokeOpacity?: string
-	barClass?: string
-	gridStroke?: string
-	pointClass?: string
-	pointFill?: string
 } & FixedArgs<'children'>
 
 /** Arguments for a native pie or donut plot. */
 export type ChartPieArgs = ChartPlotArgs & {
 	/** Inner radius for donut charts, in SVG user units. */
 	innerRadius?: number
-	centerLabelClass?: string
-	centerLabelFill?: string
-	sliceStroke?: string
 }
 
-/** Arguments for the floating active-value tooltip. */
-export type ChartTooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children' | 'gap' | 'placement'> & {
-	/** Custom tooltip content, commonly a tooltip-content component. */
-	content?: Children
-	/** Classes supplied by the styled wrapper. */
-	class?: string
-}> & FixedArgs<'gap' | 'placement'>
-
-type ClassResolver<State> = string | ((state: State) => string | undefined)
-
-type TooltipContentState = {
-	indicator: 'dashed' | 'dot' | 'line'
-	nestLabel: boolean
-}
+/** Arguments for the active-value tooltip; children replace the default content. */
+export type ChartTooltipArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children'>>
 
 /** Arguments for the default tooltip payload renderer. */
 export type ChartTooltipContentArgs = OmitArg<IntrinsicElements['div'], 'children'> & {
@@ -164,52 +118,56 @@ export type ChartTooltipContentArgs = OmitArg<IntrinsicElements['div'], 'childre
 	hideLabel?: boolean
 	/** Hide the color indicator. */
 	hideIndicator?: boolean
-	/** Additional class for the label row. */
-	labelClass?: string
 	/** Format the active label. */
 	labelFormatter?: (label: Children, payload: ChartPayload[]) => Children
 	/** Format each value row. */
 	formatter?: (value: number, key: string, item: ChartPayload, index: number) => Children
-	/** Classes supplied by the styled wrapper. */
-	class?: string
-	formattedValueClass?: string
-	iconClass?: string
-	iconWrapperClass?: string
-	indicatorClass?: ClassResolver<TooltipContentState>
-	itemClass?: ClassResolver<TooltipContentState>
-	itemLabelClass?: string
-	itemsClass?: string
-	nestedLabelClass?: string
-	valueLabelGroupClass?: string
-	valueRowClass?: ClassResolver<{ nestLabel: boolean }>
 } & FixedArgs<'children'>
 
-/** Arguments for the chart legend surface. */
+/** Arguments for the chart legend; children replace the default entries. */
 export type ChartLegendArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {
-	/** Custom legend content, commonly a legend-content component. */
-	content?: Children
-	/** Classes supplied by the styled wrapper. */
-	class?: string
-}>
-
-/** Arguments for the default series legend renderer. */
-export type ChartLegendContentArgs = OmitArg<IntrinsicElements['div'], 'children'> & {
 	/** Hide configured icons and show color swatches instead. */
 	hideIcon?: boolean
-	/** Classes supplied by the styled wrapper. */
-	class?: string
-	iconClass?: string
-	iconWrapperClass?: string
-	itemClass?: string
-	swatchClass?: string
-} & FixedArgs<'children'>
+}>
+
+type Point = { x: number; y: number }
+
+type Series = { color: string; key: string; label: Children }
+
+type ChartState = {
+	active: ChartActive | null
+	clearActive: () => void
+	config: ChartConfig
+	data: ChartDatum[]
+	description?: string
+	formatLabel: (value: unknown, row: ChartDatum, index: number) => Children
+	formatValue: (value: number, key: string, row: ChartDatum, index: number) => string
+	height: number
+	id: string
+	label?: string
+	margin: ChartMargin
+	palette: string[]
+	/** The SVG whose mark is active. */
+	plot: SVGSVGElement | null
+	/** Clears the tooltip when the active plot left the document. */
+	release: () => void
+	root: Element | null
+	series: Series[]
+	setActive: (active: ChartActive, plot: SVGSVGElement) => void
+	type: ChartType
+	width: number
+	xKey?: string
+}
+
+const ChartContext = context<ChartState | null>(null)
 
 /** Read the stable identity resolved by the nearest ChartContainer. */
-export { ChartIdContext }
+export const ChartIdContext = context<string | null>(null)
 
 const DEFAULT_MARGIN: ChartMargin = { bottom: 32, left: 40, right: 16, top: 16 }
 const DEFAULT_WIDTH = 640
 const DEFAULT_HEIGHT = 240
+const TOOLTIP_GAP = 12
 
 const safeKey = /^[\w-]+$/
 const unsafeColor = /[;{}<>\\]/
@@ -219,14 +177,8 @@ const number = (value: unknown) => {
 	return Number.isFinite(next) ? next : undefined
 }
 
-const colorFor = (
-	key: string,
-	index: number,
-	config: ChartConfig,
-	palette: string[],
-	override?: string,
-) =>
-	override ?? (safeKey.test(key) && (config[key]?.color || config[key]?.theme) ? `var(--color-${key})` : palette[index % palette.length])
+const colorFor = (key: string, index: number, config: ChartConfig, palette: string[]) =>
+	safeKey.test(key) && (config[key]?.color || config[key]?.theme) ? `var(--color-${key})` : palette[index % palette.length]
 
 /** Scoped `--color-<key>` definitions for configured colors, light first and then `.dark`. */
 const colorStyle = (id: string, config: ChartConfig) => {
@@ -243,25 +195,22 @@ const colorStyle = (id: string, config: ChartConfig) => {
 
 const seriesEntries = (
 	config: ChartConfig,
-	series: ChartSeriesInput[] | undefined,
-	data: ChartDatum[] | undefined,
+	series: string[] | undefined,
+	data: ChartDatum[],
 	xKey: string | undefined,
 	palette: string[],
 ) => {
-	const raw = series?.length
+	const keys = series?.length
 		? series
 		: Object.keys(config).length
 			? Object.keys(config)
-			: Object.keys(data?.[0] ?? {}).filter(key => key !== xKey && number(data?.[0]?.[key]) != null)
+			: Object.keys(data[0] ?? {}).filter(key => key !== xKey && number(data[0]?.[key]) != null)
 
-	return raw.map((item, index): SeriesEntry => {
-		const entry = typeof item === 'string' ? { key: item } : item
-		return {
-			...entry,
-			color: colorFor(entry.key, index, config, palette, entry.color),
-			label: entry.label ?? config[entry.key]?.label ?? entry.key,
-		}
-	})
+	return keys.map((key, index): Series => ({
+		color: colorFor(key, index, config, palette),
+		key,
+		label: config[key]?.label ?? key,
+	}))
 }
 
 const defaultFormatLabel = (value: unknown, _row: ChartDatum, index: number) =>
@@ -269,13 +218,15 @@ const defaultFormatLabel = (value: unknown, _row: ChartDatum, index: number) =>
 
 let numberFormatter: Intl.NumberFormat | undefined
 
-const defaultFormatValue = (value: number) =>
-	(numberFormatter ??= new Intl.NumberFormat()).format(value)
+/** Locale number format, or a plain rounded number where `Intl.NumberFormat` is absent (Ajo Engine SSR). */
+const defaultFormatValue = (value: number) => typeof Intl.NumberFormat === 'function'
+	? (numberFormatter ??= new Intl.NumberFormat()).format(value)
+	: String(Math.round(value * 1e3) / 1e3)
 
-const labelFor = (chart: ChartContextValue, row: ChartDatum, index: number) =>
+const labelFor = (chart: ChartState, row: ChartDatum, index: number) =>
 	chart.formatLabel(chart.xKey ? row[chart.xKey] : undefined, row, index)
 
-const payloadFor = (chart: ChartContextValue, index: number) => {
+const payloadFor = (chart: ChartState, index: number) => {
 	const row = chart.data[index] ?? {}
 	return chart.series
 		.map(entry => {
@@ -294,20 +245,13 @@ const payloadFor = (chart: ChartContextValue, index: number) => {
 		.filter(Boolean) as ChartPayload[]
 }
 
-const sameActiveTarget = (current: ChartActive | null, index: number, keys: string[]) =>
-	current?.index === index
-	&& current.items.every(item => keys.includes(item.key))
+/** True when the chart already shows this index of this plot for these keys. */
+const showing = (chart: ChartState, index: number, plot: SVGSVGElement, keys: string[]) =>
+	chart.active?.index === index
+	&& chart.plot === plot
+	&& chart.active.items.every(item => keys.includes(item.key))
 
-const sameActiveValue = (current: ChartActive | null, next: ChartActive | null) => {
-	if (!current || !next) return current === next
-
-	const keys = next.items.map(item => item.key)
-	return current.index === next.index
-		&& current.items.length === keys.length
-		&& current.items.every((item, itemIndex) => item.key === keys[itemIndex])
-}
-
-const extent = (chart: ChartContextValue) => {
+const extent = (chart: ChartState) => {
 	const values = chart.data.flatMap(row => chart.series.map(entry => number(row[entry.key])).filter(value => value != null))
 	const min = Math.min(0, ...values)
 	const max = Math.max(0, ...values)
@@ -317,7 +261,7 @@ const extent = (chart: ChartContextValue) => {
 const scaled = (value: number, min: number, max: number, top: number, bottom: number) =>
 	bottom - ((value - min) / (max - min)) * (bottom - top)
 
-const plotBox = (chart: ChartContextValue) => ({
+const plotBox = (chart: ChartState) => ({
 	bottom: chart.height - chart.margin.bottom,
 	left: chart.margin.left,
 	right: chart.width - chart.margin.right,
@@ -348,71 +292,34 @@ const svgPoint = (svg: SVGSVGElement, clientX: number, clientY: number) => {
 	}
 }
 
-const referencePoint = (svg: SVGSVGElement, point: Point): ChartReferencePoint => ({
-	svg,
-	x: point.x,
-	y: point.y,
+/** Index and plot of a focused mark. SVG has no `onfocusin` property, so marks share one focus handler. */
+const focused = (event: FocusEvent) => {
+	const mark = event.currentTarget as SVGElement
+	return [Number(mark.getAttribute('data-chart-index')), mark.ownerSVGElement!] as const
+}
+
+const plotRef = (chart: ChartState, ref: unknown) => (element: SVGSVGElement | null) => {
+	if (!element) chart.release()
+	callRef(ref, element)
+}
+
+/** Shared SVG root attributes for every native plot. */
+const plotAttrs = (chart: ChartState, slot: string, ref: unknown) => ({
+	'aria-describedby': chart.description ? `${chart.id}-description` : undefined,
+	'aria-label': chart.label,
+	'data-slot': slot,
+	height: chart.height,
+	ref: plotRef(chart, ref),
+	role: 'img',
+	width: '100%',
+	xmlns: 'http://www.w3.org/2000/svg',
+	'set:onpointerleave': chart.clearActive,
 })
 
-const plotRef = (chart: ChartContextValue, ref: unknown) => {
-	let current: SVGSVGElement | null = null
-	return (element: SVGSVGElement | null) => {
-		if (current && current !== element) chart.releasePlot(current)
-		current = element
-		callRef(ref, element)
-	}
-}
-
-const svgFromEvent = (event: Event) => {
-	const current = event.currentTarget as SVGElement | null
-	if (current instanceof SVGSVGElement) return current
-	if (current?.ownerSVGElement) return current.ownerSVGElement
-
-	const target = event.target as SVGElement | null
-	if (target instanceof SVGSVGElement) return target
-	return target?.ownerSVGElement ?? null
-}
-
-const renderIcon = (icon: ChartConfig[string]['icon'], classes: string | undefined) =>
-	typeof icon === 'function' ? icon({ class: classes }) : icon
-
-const axis = (
-	chart: ChartContextValue,
-	rowCenter: (index: number) => number,
-	yTicks: number[],
-	min: number,
-	max: number,
-	axisStroke?: string,
-	axisStrokeOpacity?: string,
-	gridStroke?: string,
-) => {
-	const box = plotBox(chart)
-
-	return (
-		<g data-slot="chart-axis">
-			<line x1={box.left} x2={box.right} y1={box.bottom} y2={box.bottom} stroke={axisStroke} stroke-opacity={axisStrokeOpacity} />
-			<line x1={box.left} x2={box.left} y1={box.top} y2={box.bottom} stroke={axisStroke} stroke-opacity={axisStrokeOpacity} />
-			{yTicks.map(tick => {
-				const y = scaled(tick, min, max, box.top, box.bottom)
-				return (
-					<g key={tick}>
-						<line x1={box.left} x2={box.right} y1={y} y2={y} stroke={gridStroke} />
-						<text x={box.left - 8} y={y + 3} fill="currentColor" style="text-anchor:end">
-							{chart.formatValue(tick, '', {}, 0)}
-						</text>
-					</g>
-				)
-			})}
-			{chart.data.map((row, index) => {
-				return (
-					<text key={index} x={rowCenter(index)} y={chart.height - 8} fill="currentColor" style="text-anchor:middle">
-						{text(labelFor(chart, row, index)).slice(0, 12)}
-					</text>
-				)
-			})}
-		</g>
-	)
-}
+const plotTitle = (chart: ChartState) => <>
+	{chart.label ? <title>{chart.label}</title> : null}
+	{chart.description ? <desc id={`${chart.id}-description`}>{chart.description}</desc> : null}
+</>
 
 const linePath = (points: Point[]) =>
 	points.map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.y}`).join(' ')
@@ -451,85 +358,22 @@ const slicePath = (center: number, radius: number, innerRadius: number, start: n
 }
 
 const ChartContainerRoot: Stateful<ChartContainerArgs> = function* () {
-	let active: ChartActive | null = null
 	const fallbackId = uniqueId('chart')
 	const root = dom(this) ? this : null
-	let activePoint: ChartReferencePoint | null = null
-	let lastClientPoint: Point | null = null
-	let tooltip: ChartTooltipPositionController | null = null
-	const tooltipPoint = () => {
-		const next = activePoint ? clientPoint(activePoint.svg, activePoint.x, activePoint.y) : null
-		if (next) lastClientPoint = next
-		if (lastClientPoint) return lastClientPoint
-		const rect = root?.getBoundingClientRect()
-		return { x: rect?.left ?? 0, y: rect?.top ?? 0 }
-	}
-	const tooltipPosition: ChartContextValue['tooltipPosition'] = {
-		boundary: () => root,
-		point: tooltipPoint,
-		reference: () => activePoint?.svg ?? root,
-		register: controller => {
-			if (controller === tooltip) return
-			tooltip?.stop()
-			tooltip = controller
-			if (active && activePoint) controller.schedule(true)
-		},
-		unregister: controller => {
-			if (controller !== tooltip) return
-			controller.stop()
-			tooltip = null
-		},
-	}
-	const movePoint = (next: ChartReferencePoint | undefined) => {
-		if (!next) return 0
-		if (
-			activePoint?.svg === next.svg &&
-			activePoint.x === next.x &&
-			activePoint.y === next.y
-		) return 0
-		const retargeted = activePoint != null && activePoint.svg !== next.svg
-		activePoint = next
-		return retargeted ? 2 : 1
-	}
-	const setActive = (next: ChartActive | null, at?: ChartReferencePoint) => {
-		const movement = next ? movePoint(at) : 0
-		const retargeted = movement === 2
-		if (retargeted) tooltip?.stop()
-		if (!next) {
-			activePoint = null
-			lastClientPoint = null
-			tooltip?.stop()
-		}
-		if (sameActiveValue(active, next)) {
-			if (next && movement) tooltip?.schedule(movement === 2)
-			return
-		}
+	let active: ChartActive | null = null
+	let plot: SVGSVGElement | null = null
 
-		const first = active == null && next != null
-
-		this.next(() => active = next)
-
-		// The tooltip ref/content updates during the render above. Mount/retarget
-		// and point changes collapse into one current Adapter request.
-		if (next && at) tooltip?.schedule(first || retargeted)
+	const setActive = (next: ChartActive, svg: SVGSVGElement) => this.next(() => {
+		active = next
+		plot = svg
+	})
+	const clearActive = () => {
+		if (active) this.next(() => active = plot = null)
 	}
-	const clearActive = () => setActive(null)
-	const releasePlot = (plot: SVGSVGElement) => {
-		if (this.signal.aborted || activePoint?.svg !== plot) return
-		const releasedPoint = activePoint
-		tooltip?.stop()
-		activePoint = null
-		lastClientPoint = null
-		queueMicrotask(() => {
-			if (this.signal.aborted || activePoint) return
-			if (plot.isConnected) {
-				activePoint = releasedPoint
-				if (active && tooltip) tooltip.schedule(true)
-				return
-			}
-			if (active) clearActive()
-		})
-	}
+	// Checked once the render that removed a plot settles.
+	const release = () => queueMicrotask(() => {
+		if (plot && !plot.isConnected) clearActive()
+	})
 
 	for (const args of this) {
 		// Percent-encoded down to [\w%-], so the id is a CSS identifier once `%` is escaped.
@@ -538,11 +382,7 @@ const ChartContainerRoot: Stateful<ChartContainerArgs> = function* () {
 			: fallbackId
 		const css = colorStyle(chartId, args.config)
 		const data = args.data ?? []
-		const width = args.width ?? DEFAULT_WIDTH
-		const height = args.height ?? DEFAULT_HEIGHT
-		const margin = { ...DEFAULT_MARGIN, ...(args.margin ?? {}) }
-		const type = args.type ?? 'bar'
-		const chart: ChartContextValue = {
+		const chart: ChartState = {
 			active,
 			clearActive,
 			config: args.config,
@@ -550,17 +390,18 @@ const ChartContainerRoot: Stateful<ChartContainerArgs> = function* () {
 			description: args.description,
 			formatLabel: args.formatLabel ?? defaultFormatLabel,
 			formatValue: args.formatValue ?? defaultFormatValue,
-			height,
+			height: args.height ?? DEFAULT_HEIGHT,
 			id: chartId,
 			label: args.label,
-			margin,
+			margin: { ...DEFAULT_MARGIN, ...args.margin },
 			palette: args.palette,
-			releasePlot,
+			plot,
+			release,
+			root,
 			series: seriesEntries(args.config, args.series, data, args.xKey, args.palette),
 			setActive,
-			tooltipPosition,
-			type,
-			width,
+			type: args.type ?? 'bar',
+			width: args.width ?? DEFAULT_WIDTH,
 			xKey: args.xKey,
 		}
 
@@ -577,7 +418,6 @@ const ChartContainerRoot: Stateful<ChartContainerArgs> = function* () {
 /** Unstyled chart root provider for config, data, tooltip, and legend state. */
 const ChartContainer: Stateless<ChartContainerArgs> = ({
 	children,
-	class: classes,
 	config,
 	data,
 	description,
@@ -593,8 +433,8 @@ const ChartContainer: Stateless<ChartContainerArgs> = ({
 	width,
 	xKey,
 	...attrs
-}) => {
-	return <ChartContainerRoot
+}) => (
+	<ChartContainerRoot
 		{...rootAttrs(attrs)}
 		config={config}
 		data={data}
@@ -603,31 +443,23 @@ const ChartContainer: Stateless<ChartContainerArgs> = ({
 		formatValue={formatValue}
 		height={height}
 		id={id}
+		label={label}
 		margin={margin}
 		palette={palette}
 		series={series}
 		type={type}
 		width={width}
 		xKey={xKey}
-		attr:class={classes}
 		attr:data-slot="chart"
 		attr:id={id}
-		label={label}
 	>
 		{children}
 	</ChartContainerRoot>
-}
+)
 
 const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> = ({
 	axis: showAxis = true,
-	axisStroke,
-	axisStrokeOpacity,
-	barClass,
-	class: classes,
 	grid: showGrid = true,
-	gridStroke,
-	pointClass,
-	pointFill,
 	ref,
 	type,
 	...attrs
@@ -641,159 +473,119 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 	const groupWidth = (box.right - box.left) / chart.data.length
 	const xStep = chart.data.length > 1 ? (box.right - box.left) / (chart.data.length - 1) : 0
 	const baseline = scaled(0, min, max, box.top, box.bottom)
+	const y = (value: number) => scaled(value, min, max, box.top, box.bottom)
 	const rowCenter = (index: number) => type === 'bar'
 		? box.left + groupWidth * index + groupWidth / 2
 		: chart.data.length > 1 ? box.left + xStep * index : (box.left + box.right) / 2
 	const seriesKeys = chart.series.map(entry => entry.key)
-	const rowY = (index: number) => Math.min(...chart.series.map(entry =>
-		scaled(number(chart.data[index]?.[entry.key]) ?? 0, min, max, box.top, box.bottom)))
-	const rowPoint = (index: number) => ({
-		x: rowCenter(index),
-		y: rowY(index),
+	const mark = (row: ChartDatum, index: number, entry: Series, value: number) => ({
+		'aria-label': `${text(labelFor(chart, row, index))} ${text(entry.label)} ${chart.formatValue(value, entry.key, row, index)}`,
+		'data-active': chart.active?.index === index ? 'true' : undefined,
+		'data-chart-index': index,
+		focusable: 'true',
+		style: `--chart-index:${index}`,
+		tabindex: '0',
+		'set:onfocus': focus,
 	})
-	const points = (entry: SeriesEntry) => chart.data.map((row, index) => ({
-		x: rowCenter(index),
-		y: scaled(number(row[entry.key]) ?? 0, min, max, box.top, box.bottom),
-	}))
 
-	const activate = (index: number, at?: ChartReferencePoint) => {
-		if (sameActiveTarget(chart.active, index, seriesKeys)) {
-			chart.setActive(chart.active, at)
-			return
-		}
+	const activate = (index: number, svg: SVGSVGElement) => {
+		if (showing(chart, index, svg, seriesKeys)) return
 
 		const items = payloadFor(chart, index)
-		if (!items.length) {
-			chart.clearActive()
-			return
-		}
+		if (!items.length) return chart.clearActive()
 
-		const point = rowPoint(index)
 		chart.setActive({
 			index,
 			items,
 			label: labelFor(chart, chart.data[index]!, index),
-			x: point.x,
-			y: point.y,
-		}, at)
-	}
-
-	const enter = (index: number, event: FocusEvent | PointerEvent) => {
-		const svg = svgFromEvent(event)
-		const point = rowPoint(index)
-		if (svg) activate(index, referencePoint(svg, point))
+			x: rowCenter(index),
+			y: Math.min(...chart.series.map(entry => y(number(chart.data[index]?.[entry.key]) ?? 0))),
+		}, svg)
 	}
 
 	const pointerMove = (event: PointerEvent) => {
 		const svg = event.currentTarget as SVGSVGElement
 		const cursor = svgPoint(svg, event.clientX, event.clientY)
-		if (!cursor) {
-			chart.clearActive()
-			return
-		}
-		const sx = cursor.x
+		if (!cursor) return chart.clearActive()
 		const index = type === 'bar'
-			? clamp(Math.floor((sx - box.left) / groupWidth), 0, chart.data.length - 1)
-			: xStep === 0 ? 0 : clamp(Math.round((sx - box.left) / xStep), 0, chart.data.length - 1)
-		const point = rowPoint(index)
-		activate(index, referencePoint(svg, point))
+			? clamp(Math.floor((cursor.x - box.left) / groupWidth), 0, chart.data.length - 1)
+			: xStep === 0 ? 0 : clamp(Math.round((cursor.x - box.left) / xStep), 0, chart.data.length - 1)
+		activate(index, svg)
 	}
 
-	const focusIn = (event: FocusEvent) => {
-		const target = event.target as SVGElement | null
-		const index = Number(target?.getAttribute('data-chart-index'))
-		const svg = svgFromEvent(event)
-		if (!svg || !Number.isInteger(index)) return
-		const point = rowPoint(index)
-		activate(index, referencePoint(svg, point))
-	}
+	const focus = (event: FocusEvent) => activate(...focused(event))
 
 	return (
 		<svg
 			{...attrs}
-			aria-describedby={chart.description ? `${chart.id}-description` : undefined}
-			aria-label={chart.label}
-			class={classes}
-			data-slot={`chart-${type}`}
-			height={chart.height}
-			role="img"
-			ref={plotRef(chart, ref)}
+			{...plotAttrs(chart, `chart-${type}`, ref)}
 			viewBox={`0 0 ${chart.width} ${chart.height}`}
-			width="100%"
-			xmlns="http://www.w3.org/2000/svg"
-			set:onfocusin={focusIn}
-			set:onpointerleave={chart.clearActive}
 			set:onpointermove={pointerMove}
 		>
-			{chart.label ? <title>{chart.label}</title> : null}
-			{chart.description ? <desc id={`${chart.id}-description`}>{chart.description}</desc> : null}
-			{showGrid ? axis(chart, rowCenter, yTicks, min, max, axisStroke, axisStrokeOpacity, gridStroke) : showAxis ? axis(chart, rowCenter, [], min, max, axisStroke, axisStrokeOpacity, gridStroke) : null}
+			{plotTitle(chart)}
+			{showGrid ? (
+				<g data-slot="chart-grid">
+					{yTicks.map(tick => <line key={tick} x1={box.left} x2={box.right} y1={y(tick)} y2={y(tick)} />)}
+				</g>
+			) : null}
+			{showAxis ? (
+				<g data-slot="chart-axis">
+					<line x1={box.left} x2={box.right} y1={box.bottom} y2={box.bottom} />
+					<line x1={box.left} x2={box.left} y1={box.top} y2={box.bottom} />
+					{yTicks.map(tick => (
+						<text key={tick} x={box.left - 8} y={y(tick) + 3} fill="currentColor" style="text-anchor:end">
+							{chart.formatValue(tick, '', {}, 0)}
+						</text>
+					))}
+					{chart.data.map((row, index) => (
+						<text key={`x-${index}`} x={rowCenter(index)} y={chart.height - 8} fill="currentColor" style="text-anchor:middle">
+							{text(labelFor(chart, row, index)).slice(0, 12)}
+						</text>
+					))}
+				</g>
+			) : null}
 			{type === 'bar' ? chart.data.map((row, index) => {
 				const barWidth = clamp(groupWidth * 0.68 / chart.series.length, 6, 42)
 				const groupStart = box.left + groupWidth * index + (groupWidth - barWidth * chart.series.length) / 2
 
 				return chart.series.map((entry, seriesIndex) => {
 					const value = number(row[entry.key]) ?? 0
-					const sign = value === 0 ? 'zero' : value < 0 ? 'negative' : 'positive'
-					const y = scaled(Math.max(0, value), min, max, box.top, box.bottom)
-					const yZero = scaled(Math.min(0, value), min, max, box.top, box.bottom)
-					const height = Math.max(1, Math.abs(yZero - y))
-					const x = groupStart + seriesIndex * barWidth
+					const top = y(Math.max(0, value))
+					const zero = y(Math.min(0, value))
 
 					return (
 						<rect
 							key={`${entry.key}-${index}`}
-							aria-label={`${text(labelFor(chart, row, index))} ${text(entry.label)} ${chart.formatValue(value, entry.key, row, index)}`}
-							class={barClass}
-							data-active={chart.active?.index === index ? 'true' : undefined}
-							data-chart-index={index}
-							data-chart-sign={sign}
+							{...mark(row, index, entry, value)}
+							data-chart-sign={value === 0 ? 'zero' : value < 0 ? 'negative' : 'positive'}
 							data-chart-series={entry.key}
 							fill={entry.color}
-							focusable="true"
-							height={height}
-							style={`--chart-index:${index}`}
-							tabindex="0"
+							height={Math.max(1, Math.abs(zero - top))}
 							width={Math.max(2, barWidth - 2)}
-							x={x}
-							y={Math.min(y, yZero)}
-							set:onfocus={(event: FocusEvent) => enter(index, event)}
-							set:onpointerenter={(event: PointerEvent) => enter(index, event)}
+							x={groupStart + seriesIndex * barWidth}
+							y={Math.min(top, zero)}
 						/>
 					)
 				})
 			}) : chart.series.map(entry => {
-				const entryPoints = points(entry)
+				const points = chart.data.map((row, index) => ({ x: rowCenter(index), y: y(number(row[entry.key]) ?? 0) }))
 				return (
 					<g key={entry.key} data-chart-series={entry.key}>
 						{type === 'area' ? (
-							<path d={areaPath(entryPoints, baseline)} fill={entry.color} fill-opacity="0.18" />
+							<path d={areaPath(points, baseline)} fill={entry.color} fill-opacity="0.18" />
 						) : null}
-						<path d={linePath(entryPoints)} fill="none" pathLength={1} stroke={entry.color} stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
-						{entryPoints.map((point, index) => {
-							const row = chart.data[index]!
-							const value = number(row[entry.key]) ?? 0
-							return (
-								<circle
-									key={`${entry.key}-${index}`}
-									aria-label={`${text(labelFor(chart, row, index))} ${text(entry.label)} ${chart.formatValue(value, entry.key, row, index)}`}
-									class={pointClass}
-									cx={point.x}
-									cy={point.y}
-									data-active={chart.active?.index === index ? 'true' : undefined}
-									data-chart-index={index}
-									fill={pointFill}
-									focusable="true"
-									r="4"
-									style={`--chart-index:${index}`}
-									stroke={entry.color}
-									stroke-width="2"
-									tabindex="0"
-									set:onfocus={(event: FocusEvent) => enter(index, event)}
-									set:onpointerenter={(event: PointerEvent) => enter(index, event)}
-								/>
-							)
-						})}
+						<path d={linePath(points)} fill="none" pathLength={1} stroke={entry.color} stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+						{points.map((point, index) => (
+							<circle
+								key={`${entry.key}-${index}`}
+								{...mark(chart.data[index]!, index, entry, number(chart.data[index]![entry.key]) ?? 0)}
+								cx={point.x}
+								cy={point.y}
+								r="4"
+								stroke={entry.color}
+								stroke-width="2"
+							/>
+						))}
 					</g>
 				)
 			})}
@@ -812,12 +604,8 @@ const ChartArea: Stateless<ChartPlotArgs> = attrs => <ChartPlot {...attrs} type=
 
 /** Unstyled SVG pie/donut chart primitive for use inside ChartContainer. */
 const ChartPie: Stateless<ChartPieArgs> = ({
-	centerLabelClass,
-	centerLabelFill,
-	class: classes,
 	innerRadius = 0,
 	ref,
-	sliceStroke,
 	...attrs
 }) => {
 	const chart = ChartContext()
@@ -830,133 +618,66 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 	const center = size / 2
 	const radius = center - 12
 	let start = -Math.PI / 2
+	const slices = values.map((value, index) => {
+		const end = start + (value / total) * Math.PI * 2
+		const slice = { color: chart.palette[index % chart.palette.length]!, end, middle: (start + end) / 2, start, value }
+		start = end
+		return slice
+	})
 
-	const activate = (index: number, angle: number, color: string, at?: ChartReferencePoint) => {
-		if (sameActiveTarget(chart.active, index, [entry.key])) {
-			chart.setActive(chart.active, at)
-			return
-		}
+	const activate = (index: number, svg: SVGSVGElement) => {
+		if (showing(chart, index, svg, [entry.key])) return
 
-		const point = anglePoint(center, radius * 0.78, angle)
+		const { color, middle, value } = slices[index]!
 		const row = chart.data[index]!
-		const value = values[index] ?? 0
+		const label = labelFor(chart, row, index)
 		chart.setActive({
 			index,
-			items: [{
-				color,
-				formattedValue: chart.formatValue(value, entry.key, row, index),
-				index,
-				key: entry.key,
-				label: labelFor(chart, row, index),
-				row,
-				value,
-			}],
-			label: labelFor(chart, row, index),
-			x: point.x,
-			y: point.y,
-		}, at)
+			items: [{ color, formattedValue: chart.formatValue(value, entry.key, row, index), index, key: entry.key, label, row, value }],
+			label,
+			...anglePoint(center, radius * 0.78, middle),
+		}, svg)
 	}
 
-	const focusIn = (event: FocusEvent) => {
-		const target = event.target as SVGElement | null
-		const index = Number(target?.getAttribute('data-chart-index'))
-		if (!Number.isInteger(index)) return
-		const svg = svgFromEvent(event)
-		if (!svg) return
-		const totalBefore = values.slice(0, index).reduce((sum, value) => sum + value, 0)
-		const value = values[index] ?? 0
-		const start = -Math.PI / 2 + (totalBefore / total) * Math.PI * 2
-		const middle = start + ((value / total) * Math.PI * 2) / 2
-		const point = anglePoint(center, radius * 0.78, middle)
-		activate(index, middle, chart.palette[index % chart.palette.length], referencePoint(svg, point))
-	}
+	const focus = (event: FocusEvent) => activate(...focused(event))
 
 	const pointerMove = (event: PointerEvent) => {
 		const svg = event.currentTarget as SVGSVGElement
-		const cursorPoint = svgPoint(svg, event.clientX, event.clientY)
-		if (!cursorPoint) {
-			chart.clearActive()
-			return
-		}
-		const { x, y } = cursorPoint
-		const distance = Math.hypot(x - center, y - center)
-		if (distance > radius || distance < innerRadius) {
-			chart.clearActive()
-			return
-		}
+		const cursor = svgPoint(svg, event.clientX, event.clientY)
+		const distance = cursor ? Math.hypot(cursor.x - center, cursor.y - center) : Infinity
+		if (!cursor || distance > radius || distance < innerRadius) return chart.clearActive()
 
-		let angle = Math.atan2(y - center, x - center) + Math.PI / 2
-		if (angle < 0) angle += Math.PI * 2
-
-		let cursor = 0
-		for (let index = 0; index < values.length; index++) {
-			const span = ((values[index] ?? 0) / total) * Math.PI * 2
-			if (angle <= cursor + span || index === values.length - 1) {
-				const middle = -Math.PI / 2 + cursor + span / 2
-				const point = anglePoint(center, radius * 0.78, middle)
-				activate(index, middle, chart.palette[index % chart.palette.length], referencePoint(svg, point))
-				return
-			}
-			cursor += span
-		}
+		let angle = Math.atan2(cursor.y - center, cursor.x - center)
+		if (angle < -Math.PI / 2) angle += Math.PI * 2
+		const index = slices.findIndex(slice => angle <= slice.end)
+		activate(index < 0 ? slices.length - 1 : index, svg)
 	}
 
 	return (
 		<svg
 			{...attrs}
-			aria-describedby={chart.description ? `${chart.id}-description` : undefined}
-			aria-label={chart.label}
-			class={classes}
-			data-slot="chart-pie"
-			height={chart.height}
-			role="img"
-			ref={plotRef(chart, ref)}
+			{...plotAttrs(chart, 'chart-pie', ref)}
 			viewBox={`0 0 ${size} ${size}`}
-			width="100%"
-			xmlns="http://www.w3.org/2000/svg"
-			set:onfocusin={focusIn}
-			set:onpointerleave={chart.clearActive}
 			set:onpointermove={pointerMove}
 		>
-			{chart.label ? <title>{chart.label}</title> : null}
-			{chart.description ? <desc id={`${chart.id}-description`}>{chart.description}</desc> : null}
-			{values.map((value, index) => {
-				const angle = (value / total) * Math.PI * 2
-				const end = start + angle
-				const middle = start + angle / 2
-				const color = chart.palette[index % chart.palette.length]
-				const path = slicePath(center, radius, innerRadius, start, end)
-				const row = chart.data[index]!
-				start = end
-
-				return (
-					<path
-						key={index}
-						aria-label={`${text(labelFor(chart, row, index))} ${chart.formatValue(value, entry.key, row, index)}`}
-						d={path}
-						data-active={chart.active?.index === index ? 'true' : undefined}
-						data-chart-index={index}
-						fill={color}
-						focusable="true"
-						style={`--chart-index:${index}`}
-						stroke={sliceStroke}
-						stroke-width="2"
-						tabindex="0"
-						set:onfocus={(event: FocusEvent) => {
-							const svg = svgFromEvent(event)
-							const point = anglePoint(center, radius * 0.78, middle)
-							if (svg) activate(index, middle, color, referencePoint(svg, point))
-						}}
-						set:onpointerenter={(event: PointerEvent) => {
-							const svg = svgFromEvent(event)
-							const point = anglePoint(center, radius * 0.78, middle)
-							if (svg) activate(index, middle, color, referencePoint(svg, point))
-						}}
-					/>
-				)
-			})}
+			{plotTitle(chart)}
+			{slices.map((slice, index) => (
+				<path
+					key={index}
+					aria-label={`${text(labelFor(chart, chart.data[index]!, index))} ${chart.formatValue(slice.value, entry.key, chart.data[index]!, index)}`}
+					d={slicePath(center, radius, innerRadius, slice.start, slice.end)}
+					data-active={chart.active?.index === index ? 'true' : undefined}
+					data-chart-index={index}
+					fill={slice.color}
+					focusable="true"
+					style={`--chart-index:${index}`}
+					stroke-width="2"
+					tabindex="0"
+					set:onfocus={focus}
+				/>
+			))}
 			{innerRadius > 0 ? (
-				<text x={center} y={center} fill={centerLabelFill} class={centerLabelClass} style="text-anchor:middle;dominant-baseline:middle">
+				<text data-slot="chart-pie-total" x={center} y={center} style="text-anchor:middle;dominant-baseline:middle">
 					{chart.formatValue(total, entry.key, {}, 0)}
 				</text>
 			) : null}
@@ -964,57 +685,144 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 	)
 }
 
-/** Unstyled legend layer for native chart primitives. */
-const ChartLegend: Stateless<ChartLegendArgs> = ({
-	children,
-	class: classes,
-	content,
-	...attrs
-}) => (
-	<div key="chart-legend" {...attrs} class={classes} data-slot="chart-legend">
-		{content ?? children ?? <ChartLegendContent />}
-	</div>
-)
+const ChartTooltipRoot: Stateful<WithChildren<{ chart: ChartState }>> = function* ({ chart }) {
+	// Right of the active point with a gap, flipped left when it would overflow the
+	// root, clamped into the root, and translated from the containing block origin.
+	const measure = () => {
+		const { active, plot, root } = chart
+		const point = this.isConnected && active && plot && root ? clientPoint(plot, active.x, active.y) : null
+		if (!point || !root) return
 
-/** Unstyled legend content for native chart payloads. */
-const ChartLegendContent: Stateless<ChartLegendContentArgs> = ({
-	class: classes,
-	hideIcon,
-	iconClass,
-	iconWrapperClass,
-	itemClass,
-	swatchClass,
+		const bounds = root.getBoundingClientRect()
+		const parent = this.offsetParent ?? root
+		const origin = parent.getBoundingClientRect()
+		const ratio = devicePixelRatio || 1
+		const round = (value: number) => Math.round(value * ratio) / ratio
+		const width = this.offsetWidth
+		const height = this.offsetHeight
+		const right = point.x + TOOLTIP_GAP
+		const x = clamp(right + width > bounds.right ? point.x - TOOLTIP_GAP - width : right, bounds.left, bounds.right - width)
+		const y = clamp(point.y - height / 2, bounds.top, bounds.bottom - height)
+
+		this.style.transform = `translate(${round(x - origin.left - parent.clientLeft)}px, ${round(y - origin.top - parent.clientTop)}px)`
+		if (this.dataset.positioned) return
+		// Commit the first position before the stamp lets a theme animate later moves.
+		this.getBoundingClientRect()
+		this.dataset.positioned = 'true'
+	}
+	const place = frame(measure)
+	const size = resize(this, { target: () => chart.root, onResize: measure })
+
+	this.signal.addEventListener('abort', place.cancel, { once: true })
+
+	for (const args of this) {
+		chart = args.chart
+		size.sync()
+		place()
+		yield <>{args.children}</>
+	}
+}
+
+/** Unstyled absolute tooltip that follows the active chart point. */
+const ChartTooltip: Stateless<ChartTooltipArgs> = ({ children, ...attrs }) => {
+	const chart = ChartContext()
+	if (!chart?.active?.items.length) return null
+
+	return (
+		<ChartTooltipRoot
+			key="chart-tooltip"
+			{...rootAttrs(attrs)}
+			chart={chart}
+			attr:data-slot="chart-tooltip"
+			attr:style="position:absolute;left:0;top:0"
+		>
+			{children ?? <ChartTooltipContent />}
+		</ChartTooltipRoot>
+	)
+}
+
+/** Unstyled tooltip body for native chart payloads. */
+const ChartTooltipContent: Stateless<ChartTooltipContentArgs> = ({
+	formatter,
+	hideIndicator,
+	hideLabel,
+	indicator = 'dot',
+	labelFormatter,
 	...attrs
 }) => {
 	const chart = ChartContext()
-	if (!chart) return null
+	const active = chart?.active
+	if (!chart || !active?.items.length) return null
 
-	const entries = chart.type === 'pie'
+	const nested = active.items.length === 1 && indicator !== 'dot'
+	const label = hideLabel ? null : (
+		<div data-slot="chart-tooltip-label">
+			{labelFormatter ? labelFormatter(active.label, active.items) : active.label}
+		</div>
+	)
+
+	return (
+		<div {...attrs} data-slot="chart-tooltip-content">
+			{nested ? null : label}
+			<div data-slot="chart-tooltip-items">
+				{active.items.map((item, index) => {
+					const icon = chart.config[item.key]?.icon
+
+					return (
+						<div
+							key={`${item.key}-${index}`}
+							data-indicator={indicator}
+							data-nested={nested ? 'true' : undefined}
+							data-slot="chart-tooltip-item"
+						>
+							{formatter ? formatter(item.value, item.key, item, index) : (
+								<>
+									{hideIndicator ? null : icon ? (
+										<span aria-hidden="true" data-slot="chart-tooltip-icon">{icon}</span>
+									) : (
+										<span aria-hidden="true" data-slot="chart-tooltip-indicator" style={`--chart-indicator:${item.color}`} />
+									)}
+									<div data-slot="chart-tooltip-row">
+										<div data-slot="chart-tooltip-names">
+											{nested ? label : null}
+											<span data-slot="chart-tooltip-name">{item.label}</span>
+										</div>
+										<span data-slot="chart-tooltip-value">{item.formattedValue}</span>
+									</div>
+								</>
+							)}
+						</div>
+					)
+				})}
+			</div>
+		</div>
+	)
+}
+
+/** Unstyled legend: one entry per series, or per slice for pie charts, unless children replace them. */
+const ChartLegend: Stateless<ChartLegendArgs> = ({
+	children,
+	hideIcon,
+	...attrs
+}) => {
+	const chart = ChartContext()
+	const entries = !chart ? [] : chart.type === 'pie'
 		? chart.data.map((row, index) => ({
 			color: chart.palette[index % chart.palette.length],
 			icon: undefined,
 			key: String(index),
 			label: labelFor(chart, row, index),
 		}))
-		: chart.series.map(entry => ({
-			color: entry.color,
-			icon: chart.config[entry.key]?.icon,
-			key: entry.key,
-			label: entry.label,
-		}))
+		: chart.series.map(entry => ({ ...entry, icon: chart.config[entry.key]?.icon }))
 
 	return (
-		<div
-			{...attrs}
-			class={classes}
-			data-slot="chart-legend-content"
-		>
-			{entries.map(entry => (
-				<div key={entry.key} class={itemClass} data-slot="chart-legend-item">
+		<div key="chart-legend" {...attrs} data-slot="chart-legend">
+			{children ?? entries.map(entry => (
+				<div key={entry.key} data-slot="chart-legend-item">
 					{entry.icon && !hideIcon ? (
-						<span aria-hidden="true" class={iconWrapperClass}>{renderIcon(entry.icon, iconClass)}</span>
+						<span aria-hidden="true" data-slot="chart-legend-icon">{entry.icon}</span>
 					) : (
-						<span aria-hidden="true" class={swatchClass} style={`background:${entry.color}`} />
+						<span aria-hidden="true" data-slot="chart-legend-swatch" style={`background:${entry.color}`} />
 					)}
 					<span>{entry.label}</span>
 				</div>
@@ -1028,9 +836,8 @@ export {
 	ChartBar,
 	ChartContainer,
 	ChartLegend,
-	ChartLegendContent,
 	ChartLine,
 	ChartPie,
+	ChartTooltip,
+	ChartTooltipContent,
 }
-
-export { ChartTooltip, ChartTooltipContent } from './chart-tooltip'

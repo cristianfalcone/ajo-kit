@@ -7,7 +7,6 @@ import {
 	ChartBar,
 	ChartContainer,
 	ChartLegend,
-	ChartLegendContent,
 	ChartLine,
 	ChartPie,
 	ChartTooltip,
@@ -166,19 +165,17 @@ const expectTooltip = (canvas: HTMLElement, text: string) => {
 	return tooltip as HTMLElement
 }
 
+/** True when the tooltip lies inside its chart root, with 1px of slack. */
+const insideRoot = (tooltip: HTMLElement) => {
+	const root = tooltip.closest('[data-slot="chart"]')!.getBoundingClientRect()
+	const tip = tooltip.getBoundingClientRect()
+	return tip.left >= root.left - 1 && tip.right <= root.right + 1 && tip.top >= root.top - 1 && tip.bottom <= root.bottom + 1
+}
+
 const expectTooltipInside = (canvas: HTMLElement) => {
-	const chart = canvas.querySelector<HTMLElement>('[data-slot="chart"]')
-	if (!chart) throw new Error('Chart root was not rendered')
 	const tooltip = canvas.querySelector<HTMLElement>('[data-slot="chart-tooltip"]')
 	if (!tooltip) throw new Error('Chart tooltip was not rendered')
-
-	const root = chart.getBoundingClientRect()
-	const tip = tooltip.getBoundingClientRect()
-	const slack = 1
-	if (tip.left < root.left - slack || tip.right > root.right + slack || tip.top < root.top - slack || tip.bottom > root.bottom + slack) {
-		throw new Error('Chart tooltip escaped the chart root bounds')
-	}
-
+	if (!insideRoot(tooltip)) throw new Error('Chart tooltip escaped the chart root bounds')
 	return tooltip
 }
 
@@ -190,6 +187,12 @@ const expectRectStable = (before: DOMRect, after: DOMRect, label: string) => {
 		Math.abs(before.height - after.height),
 	)
 	if (moved > 1) throw new Error(`${label} moved by ${moved.toFixed(1)}px`)
+}
+
+/** Horizontal gap between a tooltip and the point it sits beside, on either side. */
+const pointGap = (tooltip: HTMLElement, point: { x: number, y: number }) => {
+	const tip = tooltip.getBoundingClientRect()
+	return tip.left >= point.x ? tip.left - point.x : point.x - tip.right
 }
 
 const rectDistance = (left: DOMRect, right: DOMRect) => Math.hypot(
@@ -316,8 +319,8 @@ export const Bar: Story = {
 			class="max-w-3xl rounded-lg glass edge p-4 shadow-xs"
 		>
 			<ChartBar />
-			<ChartTooltip content={<ChartTooltipContent />} />
-			<ChartLegend content={<ChartLegendContent />} />
+			<ChartTooltip><ChartTooltipContent /></ChartTooltip>
+			<ChartLegend />
 		</ChartContainer>
 	),
 	play: async ({ canvas }) => {
@@ -408,7 +411,7 @@ export const BarCorners: Story = {
 
 export const FloatingGeometry: Story = {
 	parameters: {
-		docs: { description: 'Bounded virtual-point tooltip: coalesced endpoints, themed retarget motion, edge flip/shift, SVG resize tracking, keyboard activation, and synchronous cleanup.' },
+		docs: { description: 'Self-positioned tooltip: coalesced endpoints, themed retarget motion, edge flip and clamp, root resize tracking, keyboard activation, and synchronous cleanup.' },
 	},
 	render: () => (
 		<div data-story-field="chart-geometry" style="width:560px">
@@ -464,23 +467,15 @@ export const FloatingGeometry: Story = {
 				clientY: point.y,
 			}))
 		}
-		const datumGap = (tooltip: HTMLElement, index: number) => {
-			const tip = tooltip.getBoundingClientRect()
-			const { x, y } = datumPoint(index)
-			return tooltip.dataset.side === 'left' ? x - tip.right
-				: tooltip.dataset.side === 'right' ? tip.left - x
-					: tooltip.dataset.side === 'top' ? y - tip.bottom
-						: tooltip.dataset.side === 'bottom' ? tip.top - y
-							: Number.POSITIVE_INFINITY
-		}
 		const expectAttached = async (index: number, label: string) => {
 			let tooltip: HTMLElement | null = null
 			let gap = Number.POSITIVE_INFINITY
 			for (let attempt = 0; attempt < 24; attempt++) {
 				tooltip = root.querySelector<HTMLElement>('[data-slot="chart-tooltip"]')
 				if (tooltip) {
-					gap = datumGap(tooltip, index)
-					if (Math.abs(gap - 12) < 2) break
+					gap = pointGap(tooltip, datumPoint(index))
+					// A root resize repositions on the next frame, so a stale box may briefly sit 12px off the moved point.
+					if (Math.abs(gap - 12) < 2 && insideRoot(tooltip)) break
 				}
 				await waitFrames(1)
 			}
@@ -488,7 +483,7 @@ export const FloatingGeometry: Story = {
 			if (Math.abs(gap - 12) >= 2) {
 				const point = datumPoint(index)
 				const tip = tooltip.getBoundingClientRect()
-				throw new Error(`${label} resolved a ${gap.toFixed(1)}px main-axis gap; placement=${tooltip.dataset.placement}; transform=${tooltip.style.transform}; reference=${point.x.toFixed(1)},${point.y.toFixed(1)}; tooltip=${tip.left.toFixed(1)},${tip.top.toFixed(1)}..${tip.right.toFixed(1)},${tip.bottom.toFixed(1)}; text=${tooltip.textContent?.trim()}`)
+				throw new Error(`${label} resolved a ${gap.toFixed(1)}px gap; transform=${tooltip.style.transform}; reference=${point.x.toFixed(1)},${point.y.toFixed(1)}; tooltip=${tip.left.toFixed(1)},${tip.top.toFixed(1)}..${tip.right.toFixed(1)},${tip.bottom.toFixed(1)}; text=${tooltip.textContent?.trim()}`)
 			}
 			expectTooltipInside(canvas)
 			return tooltip
@@ -496,11 +491,11 @@ export const FloatingGeometry: Story = {
 
 		dispatch(0)
 		let tooltip = await expectAttached(0, 'Top-left datum')
-		if (tooltip.dataset.side !== 'right') throw new Error(`Top-left datum expected right placement, got ${tooltip.dataset.placement}`)
+		if (tooltip.getBoundingClientRect().left < datumPoint(0).x) throw new Error('Top-left datum expected the tooltip on its right')
 		if (!tooltip.style.transform.startsWith('translate(') || !tooltip.style.transform.includes(', ')) {
 			throw new Error(`Chart must use one DPR-rounded 2D transform, got ${tooltip.style.transform}`)
 		}
-		if (tooltip.style.willChange !== 'transform') throw new Error('Active Chart tooltip did not mark its transform writer')
+		if (tooltip.dataset.positioned !== 'true') throw new Error('Positioned Chart tooltip did not stamp data-positioned')
 
 		dispatch(1)
 		await expectAttached(1, 'Bottom datum')
@@ -510,7 +505,7 @@ export const FloatingGeometry: Story = {
 		for (const index of [2, 0, 1, 2, 3]) dispatch(index)
 		tooltip = await expectAttached(3, 'Rapid final datum')
 		if (!tooltip.textContent?.includes('Right edge')) throw new Error('Rapid movement did not settle on the final datum')
-		if (tooltip.dataset.side !== 'left') throw new Error(`Right edge did not flip left, got ${tooltip.dataset.placement}`)
+		if (tooltip.getBoundingClientRect().right > datumPoint(3).x) throw new Error('Right edge did not flip the tooltip left')
 
 		const beforeResize = svg.getBoundingClientRect().width
 		wrapper.style.width = '360px'
@@ -526,19 +521,16 @@ export const FloatingGeometry: Story = {
 		tooltip = await expectAttached(0, 'Keyboard datum')
 		if (!tooltip.textContent?.includes('Top left')) throw new Error('Keyboard focus did not activate the focused datum')
 
-		const detached = tooltip
 		svg.dispatchEvent(new PointerEvent('pointerleave'))
 		await waitFrames(2)
 		if (root.querySelector('[data-slot="chart-tooltip"]')) throw new Error('Pointer leave did not remove the Chart tooltip')
-		if (detached.style.transform || detached.style.willChange) throw new Error('Inactive Chart tooltip retained Adapter transform state')
 
 		for (let cycle = 0; cycle < 12; cycle++) {
 			dispatch(cycle % geometryData.length)
-			const current = await expectAttached(cycle % geometryData.length, 'Chart lifecycle cycle')
+			await expectAttached(cycle % geometryData.length, 'Chart lifecycle cycle')
 			svg.dispatchEvent(new PointerEvent('pointerleave'))
 			await waitFrames(1)
 			if (root.querySelector('[data-slot=chart-tooltip]')) throw new Error('A Chart lifecycle cycle retained its tooltip')
-			if (current.style.transform || current.style.willChange) throw new Error('A Chart lifecycle cycle retained Adapter output')
 		}
 
 		// Leave one bounded edge state visible for light/dark visual baselines.
@@ -584,13 +576,7 @@ export const FloatingRetarget: Story = {
 			for (let attempt = 0; attempt < 24; attempt++) {
 				const tooltip = root.querySelector<HTMLElement>('[data-slot="chart-tooltip"]')
 				if (tooltip) {
-					const point = datum(svg, kind).point
-					const tip = tooltip.getBoundingClientRect()
-					gap = tooltip.dataset.side === 'left' ? point.x - tip.right
-						: tooltip.dataset.side === 'right' ? tip.left - point.x
-							: tooltip.dataset.side === 'top' ? point.y - tip.bottom
-								: tooltip.dataset.side === 'bottom' ? tip.top - point.y
-									: Number.POSITIVE_INFINITY
+					gap = pointGap(tooltip, datum(svg, kind).point)
 					if (Math.abs(gap - 12) < 2) return
 				}
 				await waitFrames(1)
@@ -641,7 +627,7 @@ export const Line: Story = {
 			class="max-w-3xl rounded-lg glass edge p-4 shadow-xs"
 		>
 			<ChartLine />
-			<ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+			<ChartTooltip><ChartTooltipContent indicator="line" /></ChartTooltip>
 			<ChartLegend />
 		</ChartContainer>
 	),
@@ -666,7 +652,7 @@ export const Area: Story = {
 			class="max-w-3xl rounded-lg glass edge p-4 shadow-xs"
 		>
 			<ChartArea />
-			<ChartTooltip content={<ChartTooltipContent indicator="dashed" />} />
+			<ChartTooltip><ChartTooltipContent indicator="dashed" /></ChartTooltip>
 			<ChartLegend />
 		</ChartContainer>
 	),
@@ -738,7 +724,7 @@ export const Pie: Story = {
 			class="max-w-xl rounded-lg glass edge p-4 shadow-xs"
 		>
 			<ChartPie innerRadius={58} />
-			<ChartTooltip content={<ChartTooltipContent hideIndicator />} />
+			<ChartTooltip><ChartTooltipContent hideIndicator /></ChartTooltip>
 			<ChartLegend />
 		</ChartContainer>
 	),

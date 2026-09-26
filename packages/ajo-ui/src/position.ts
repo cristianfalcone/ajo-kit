@@ -28,19 +28,16 @@ export type PositionProfile =
 	| 'navigation'
 	| 'context'
 	| 'menubar'
-	| 'chart'
 
 /** Private real-or-virtual reference shape owned at the Adapter boundary. */
 export type PositionReference = ReferenceElement
 
 /** Private zero-area virtual reference shared by point-positioned families. */
 export const pointReference = (
-	contextElement: Element | (() => Element),
+	contextElement: Element,
 	point: () => { x: number; y: number },
 ): PositionReference => ({
-	get contextElement() {
-		return typeof contextElement === 'function' ? contextElement() : contextElement
-	},
+	contextElement,
 	getBoundingClientRect: () => {
 		const { x, y } = point()
 		return { x, y, top: y, right: x, bottom: y, left: x, width: 0, height: 0 }
@@ -83,8 +80,6 @@ type Policy = {
 	crossAxis?: number
 	fallbackAxisSideDirection?: 'end' | 'start'
 	fallbackPlacements?: Placement[]
-	flipFirst?: boolean
-	writer?: 'transform'
 }
 
 const policies: Record<PositionProfile, Policy> = {
@@ -97,7 +92,6 @@ const policies: Record<PositionProfile, Policy> = {
 	navigation: { placement: 'bottom', gap: 8, padding: 8, size: 'both', hidden: true },
 	context: { placement: 'bottom-start', gap: 2, padding: 4, size: 'both', hidden: true },
 	menubar: { placement: 'bottom-start', gap: 8, padding: 4, size: 'both', hidden: true, crossAxis: -4 },
-	chart: { placement: 'right', gap: 12, padding: 8, flipFirst: true, writer: 'transform' },
 }
 
 const inactive = (): PositionView => ({
@@ -152,7 +146,7 @@ const middleware = (
 	})
 	const collision = preferred === 'auto'
 		? [autoPlacement(detect), move]
-		: aligned || policy.flipFirst ? [fallback, move] : [move, fallback]
+		: aligned ? [fallback, move] : [move, fallback]
 	const result: Middleware[] = []
 	// Floating UI requires inline() before offset() so a multiline rect reset
 	// recalculates the requested gap against the selected client rect.
@@ -188,16 +182,7 @@ const clearArrow = (arrow: HTMLElement | null) => {
 	delete arrow.dataset.arrowUncentered
 }
 
-const deactivateFloating = (floating: HTMLElement, profile: PositionProfile) => {
-	if (profile === 'chart') {
-		delete floating.dataset.positioned
-		floating.style.transform = ''
-	}
-	floating.style.willChange = ''
-}
-
-const resetFloating = (floating: HTMLElement, profile: PositionProfile) => {
-	deactivateFloating(floating, profile)
+const resetFloating = (floating: HTMLElement) => {
 	floating.style.position = ''
 	floating.style.left = ''
 	floating.style.top = ''
@@ -229,7 +214,7 @@ const origin = (target: HTMLElement, side: string, align: string) => {
 				: `100% ${cross}`
 }
 
-/** Private Floating UI Adapter shared by popup families and Chart. */
+/** Private Floating UI Adapter shared by popup families. */
 export const position = (host: Host, options: PositionOptions): PositionView => {
 	if (!dom(host) || !host.ownerDocument.defaultView) return inactive()
 
@@ -248,7 +233,6 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 		generation++
 		cleanup = undefined
 		pending = undefined
-		if (current?.floating) deactivateFloating(current.floating, options.profile)
 		try {
 			dispose?.()
 		} catch (error) {
@@ -277,22 +261,9 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 		const x = round(result.x, target)
 		const y = round(result.y, target)
 
-		if (policy.writer === 'transform') {
-			target.style.position = 'absolute'
-			target.style.left = '0px'
-			target.style.top = '0px'
-			target.style.transform = `translate(${x}px, ${y}px)`
-			target.style.willChange = 'transform'
-			if (target.dataset.positioned !== 'true') {
-				// Snap the first endpoint before Playa enables retarget motion.
-				target.getBoundingClientRect()
-				target.dataset.positioned = 'true'
-			}
-		} else {
-			target.style.position = 'fixed'
-			target.style.left = `${x}px`
-			target.style.top = `${y}px`
-		}
+		target.style.position = 'fixed'
+		target.style.left = `${x}px`
+		target.style.top = `${y}px`
 
 		target.dataset.placement = result.placement
 		target.dataset.side = side
@@ -312,9 +283,7 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 		const arrowData = result.middlewareData.arrow
 		clearArrow(arrow)
 		target.style.removeProperty('--popup-arrow-center')
-		if (policy.writer === 'transform') {
-			target.style.transformOrigin = ''
-		} else if (arrow && arrowData) {
+		if (arrow && arrowData) {
 			if (arrowData.x != null) arrow.style.left = `${round(arrowData.x, target)}px`
 			if (arrowData.y != null) arrow.style.top = `${round(arrowData.y, target)}px`
 			const staticSide = side === 'top' ? 'bottom' : side === 'right' ? 'left' : side === 'bottom' ? 'top' : 'right'
@@ -345,7 +314,7 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 		try {
 			const result = await computePosition(elements.reference, elements.floating, {
 				placement,
-				strategy: policy.writer === 'transform' ? 'absolute' : 'fixed',
+				strategy: 'fixed',
 				middleware: middleware(
 					policy,
 					preferred,
@@ -429,7 +398,7 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 		const previous = current
 		stopScope()
 		if (previous?.arrow !== next.arrow) clearArrow(previous?.arrow ?? null)
-		if (previous?.floating && previous.floating !== next.floating) resetFloating(previous.floating, options.profile)
+		if (previous?.floating && previous.floating !== next.floating) resetFloating(previous.floating)
 		current = next
 		active = true
 		hidden = undefined

@@ -135,12 +135,8 @@ const navigationMenuDirect = await bundle('navigation-menu-subpath', `
 	globalThis.__ajoFixture = NavigationMenu
 `)
 const chartDirect = await bundle('chart-subpath', `
-	import { ChartContainer } from 'ajo-ui/chart'
-	globalThis.__ajoFixture = ChartContainer
-`)
-const chartTooltipDirect = await bundle('chart-tooltip-subpath', `
-	import { ChartTooltip } from 'ajo-ui/chart'
-	globalThis.__ajoFixture = ChartTooltip
+	import * as chart from 'ajo-ui/chart'
+	globalThis.__ajoFixture = chart
 `)
 const core = await bundle('virtual-core', `
 	import { Virtualizer, defaultRangeExtractor, elementScroll, measureElement, observeElementOffset, observeElementRect } from '@tanstack/virtual-core'
@@ -175,7 +171,6 @@ console.log(JSON.stringify([
 	inputDateTimeDirect,
 	navigationMenuDirect,
 	chartDirect,
-	chartTooltipDirect,
 	core,
 	virtualList,
 	dataTableModel,
@@ -223,7 +218,6 @@ for (const result of [inputDateDirect, inputDateTimeDirect]) {
 	}
 }
 assertNoFloating(chartDirect)
-assertFloating(chartTooltipDirect)
 const positionedFamilyBudgets = [
 	['Menu', menuDirect, 16 * 1024, 15 * 1024],
 	['ContextMenu', contextMenuDirect, 19 * 1024, 17 * 1024],
@@ -232,8 +226,7 @@ const positionedFamilyBudgets = [
 	['InputDate', inputDateDirect, 32 * 1024, 29 * 1024],
 	['InputDateTime', inputDateTimeDirect, 32 * 1024, 29 * 1024],
 	['NavigationMenu', navigationMenuDirect, 17 * 1024, 16 * 1024],
-	['Chart', chartDirect, 2 * 1024, 2 * 1024],
-	['ChartTooltip', chartTooltipDirect, 12 * 1024, 11 * 1024],
+	['Chart', chartDirect, 6 * 1024, 5 * 1024],
 ] as const
 for (const [family, result, gzipBudget, brotliBudget] of positionedFamilyBudgets) {
 	const gzip = result.gzip - framework.gzip
@@ -282,6 +275,6 @@ console.log(`DataTable own gzip/Brotli beyond Menu: ${dataTableOwnGzip}/${dataTa
 console.log(`Popover incremental gzip/Brotli: ${popoverIncrementalGzip}/${popoverIncrementalBrotli} bytes`)
 console.log(`Tooltip incremental gzip/Brotli: ${tooltipIncrementalGzip}/${tooltipIncrementalBrotli} bytes`)
 console.log(`InputTime incremental gzip/Brotli: ${inputTimeIncrementalGzip}/${inputTimeIncrementalBrotli} bytes`)
-for (const result of [menuDirect, contextMenuDirect, menubarDirect, selectDirect, inputDateDirect, inputDateTimeDirect, navigationMenuDirect, chartDirect, chartTooltipDirect]) {
+for (const result of [menuDirect, contextMenuDirect, menubarDirect, selectDirect, inputDateDirect, inputDateTimeDirect, navigationMenuDirect, chartDirect]) {
 	console.log(`${result.name} incremental gzip/Brotli: ${result.gzip - framework.gzip}/${result.brotli - framework.brotli} bytes`)
 }

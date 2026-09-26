@@ -14,6 +14,7 @@ describe('playa preset', () => {
 			'bg-primary',
 			'edge',
 			'playa-table-container',
+			'playa-chart',
 			'aria-invalid:ring-danger/25',
 			'scroll-fade-x',
 			'i-lucide-check',
@@ -33,6 +34,11 @@ describe('playa preset', () => {
 		expect(css).toContain('rect[data-chart-sign=positive]{clip-path:inset(0 round 4px 4px 0 0) fill-box}')
 		expect(css).toContain('rect[data-chart-sign=negative]{clip-path:inset(0 round 0 0 4px 4px) fill-box}')
 		expect(css).toContain('rect[data-chart-sign=negative]{transform-origin:top center}')
+		// Chart parts are painted by data-slot and state, not by class arguments.
+		expect(css).toContain('.playa-chart :where([data-slot=chart-grid]>line){stroke:var(--border);}')
+		expect(css).toContain('.playa-chart :where(circle[data-chart-index]){fill:var(--background);}')
+		expect(css).toContain('.playa-chart :is([data-slot=chart-tooltip-item][data-indicator=dot]){align-items:center;}')
+		expect(css).toMatch(/\.playa-chart :is\(\[data-indicator=dashed\]>\[data-slot=chart-tooltip-indicator\]\)\{[^}]*border-style:dashed;[^}]*border-width:1\.5px;/)
 	})
 
 	it('does not eagerly emit application-only shortcuts or icons', async () => {

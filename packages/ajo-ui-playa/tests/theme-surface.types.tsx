@@ -15,7 +15,6 @@ import type {
 import type {
 	ChartContainerArgs,
 	ChartLegendArgs,
-	ChartLegendContentArgs,
 	ChartPieArgs,
 	ChartPlotArgs,
 	ChartTooltipArgs,
@@ -108,7 +107,6 @@ export type ThemeClassContracts = [
 	StringClass<CarouselItemArgs>,
 	StringClass<ChartContainerArgs>,
 	StringClass<ChartLegendArgs>,
-	StringClass<ChartLegendContentArgs>,
 	StringClass<ChartPieArgs>,
 	StringClass<ChartPlotArgs>,
 	StringClass<ChartTooltipArgs>,
