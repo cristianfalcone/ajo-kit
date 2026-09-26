@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import { dom, frame, listen, roving, typeahead } from 'ajo-cloves'
+import { dom, listen, roving, typeahead } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { collection } from './collection'
 import type { MenuArgs } from './menu'
@@ -107,17 +107,9 @@ export const MenuRoot: Stateful<MenuRootArgs> = function* ({ ackFocus, defaultOp
 	const submenus = cluster()
 	let contextSource: HTMLElement | null = null
 	let disabled = false
-	let focusRestore = 0
-	let geometryReady = false
 	let onOpenChange: MenuArgs['onOpenChange']
-	let pendingFocus: MenuFocus | undefined
-	let menu: PopupView<HTMLButtonElement, HTMLDivElement>
-	const commitMenubarFocus = frame(() => {
-		if (ackFocus?.()) focusEdge(menu.content, 'first')
-	})
-	this.signal.addEventListener('abort', commitMenubarFocus.cancel)
 
-	menu = popup<HTMLButtonElement, HTMLDivElement>(this, {
+	const menu = popup<HTMLButtonElement, HTMLDivElement>(this, {
 		prefix: 'menu',
 		profile: invoker ? 'context' : ackFocus ? 'menubar' : 'menu',
 		initialOpen: Boolean(open ?? defaultOpen),
@@ -136,53 +128,30 @@ export const MenuRoot: Stateful<MenuRootArgs> = function* ({ ackFocus, defaultOp
 				else setOpen(false, event)
 			},
 		},
-		onPosition: () => {
-			geometryReady = true
-			if (pendingFocus === 'content') menu.content?.focus()
-			else if (pendingFocus) focusEdge(menu.content, pendingFocus)
-			else if (ackFocus) commitMenubarFocus()
-			pendingFocus = undefined
-		},
 		onSync: opened => {
 			if (!opened) {
-				commitMenubarFocus.cancel()
-				geometryReady = false
 				menuItems.clearHighlight(menu.content)
 				submenus.close()
-				pendingFocus = undefined
 			}
 		},
 	})
 
-	const focusWhenReady = (focus: MenuFocus) => {
-		if (geometryReady) {
-			if (focus === 'content') menu.content?.focus()
-			else focusEdge(menu.content, focus)
-		}
-		else pendingFocus = focus
-	}
+	const focusAfterReveal = (focus: MenuFocus) => menu.focusAfterReveal(() => {
+		if (focus === 'content') menu.content?.focus()
+		else focusEdge(menu.content, focus)
+	})
 
 	const setOpen = (next: boolean, event?: Event, focus?: MenuFocus) => {
 		if (disabled && next) return
-		if (next) focusRestore++
-		if (next === menu.open) {
-			if (next && focus) focusWhenReady(focus)
-			return
+		if (next !== menu.open) {
+			if (!next) submenus.close(event)
+			menu.setOpen(next, event)
 		}
-
-		if (!next) {
-			submenus.close(event)
-			pendingFocus = undefined
-		}
-		else geometryReady = false
-		if (next && focus) pendingFocus = focus
-		menu.setOpen(next, event)
+		if (next && focus) focusAfterReveal(focus)
 	}
 
 	const invoke = invoker && ((x: number, y: number, event: Event, source: HTMLElement, focus: 'content' | 'first') => {
 		const reference = invoker(x, y, source)
-		geometryReady = false
-		pendingFocus = focus
 		contextSource = source
 		const changed = menu.reference !== reference
 		submenus.close(event)
@@ -194,18 +163,14 @@ export const MenuRoot: Stateful<MenuRootArgs> = function* ({ ackFocus, defaultOp
 		} else {
 			menu.setOpen(true, event)
 		}
+		focusAfterReveal(focus)
 	})
 
-	// Keyboard close returns focus to the invoking source (ContextMenu) or
-	// the trigger, unless the menu reopened first.
+	// Keyboard and item closes return focus to the invoking source
+	// (ContextMenu) or the trigger, unless the menu reopened first.
 	const close = (event?: Event) => {
-		const wasOpen = menu.open
-		const restore = ++focusRestore
-		const target = invoker ? contextSource : menu.trigger
-		setOpen(false, event)
-		queueMicrotask(() => {
-			if (restore === focusRestore && wasOpen && !menu.open && target?.isConnected) target.focus()
-		})
+		submenus.close(event)
+		menu.close(event, invoker ? contextSource : menu.trigger)
 	}
 
 	const dismiss = (event: Event) => {
@@ -277,15 +242,13 @@ export const MenuRoot: Stateful<MenuRootArgs> = function* ({ ackFocus, defaultOp
 			placement: args.placement,
 			gap: args.gap,
 		})
-		if (!wasOpen && opened) focusRestore++
-		if (wasOpen && !opened) {
-			// A controlled close can beat the first geometry commit, so invalidate
-			// focus intent here instead of relying only on popup.onSync(false).
-			geometryReady = false
-			commitMenubarFocus.cancel()
-			pendingFocus = undefined
-			submenus.close()
-		}
+		// A controlled close can beat the first geometry commit (no onSync).
+		if (wasOpen && !opened) submenus.close()
+		// Menubar keyboard entry: the bar's request is read at reveal, so a
+		// row move before this menu commits can still carry it on.
+		if (!wasOpen && opened && ackFocus) menu.focusAfterReveal(() => {
+			if (ackFocus()) focusEdge(menu.content, 'first')
+		})
 
 		MenuContext({
 			adoptTriggerId: menu.adoptTriggerId,

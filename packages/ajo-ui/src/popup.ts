@@ -95,7 +95,10 @@ export type PopupView<Trigger extends HTMLElement = HTMLElement, Content extends
 	setOpen(open: boolean, event?: Event): void
 	/** Seeds uncontrolled state without notifying onOpenChange. */
 	init(open: boolean): void
-	close(event?: Event): void
+	/** Closes; when given, `restore` gets focus in a microtask if the surface stays closed and it is still connected. */
+	close(event?: Event, restore?: HTMLElement | null): void
+	/** Runs fn once the next opening or retarget is revealed, at once when already revealed; closing or a new reference drops it. */
+	focusAfterReveal(fn: () => void): void
 	hold(zone: string, event: Event): void
 	release(zone: string, event: Event): void
 	cancelHover(): void
@@ -125,8 +128,6 @@ export type PopupOptions<View> = {
 	referenceHidden?: 'close' | 'hide' | 'none'
 	/** Refreshes native source identity when an open reference tuple changes. */
 	reopenOnReferenceChange?: boolean
-	/** Fires after a current explicit geometry commit and the surface is revealed. */
-	onPosition?: (view: View) => void
 	dismiss?: {
 		prevent?: boolean
 		escape?: boolean
@@ -178,6 +179,7 @@ export const popup = <
 		fallback: options.initialOpen,
 		onChange: options.onOpenChange,
 	})
+	let afterReveal: (() => void) | undefined
 	let arrow: HTMLElement | null = null
 	let callerStyle: unknown
 	let concealed = false
@@ -193,7 +195,6 @@ export const popup = <
 	let version = 0
 	let view: View
 	let opening = false
-	let positionTask: Promise<boolean> | undefined
 	let reopen = false
 	let restyling = false
 	let scheduled = false
@@ -247,7 +248,7 @@ export const popup = <
 		geometry.stop()
 		remove(view, target)
 		shown = false
-		positionTask = undefined
+		afterReveal = undefined
 		referenceIsHidden = false
 		if (!target) return
 		conceal(target, false)
@@ -295,7 +296,9 @@ export const popup = <
 		shown = true
 		target.dataset.state = 'open'
 		reveal(target)
-		options.onPosition?.(view)
+		const focus = afterReveal
+		afterReveal = undefined
+		focus?.()
 		if (!wasShown) options.onSync?.(true, view)
 		return true
 	}
@@ -348,20 +351,9 @@ export const popup = <
 			schedule()
 			return
 		}
-		const target = content
+		// An opening pass awaits the same coalesced task and handles its failure.
 		const pending = geometry.update()
-		if (opening || pending === positionTask) return
-		positionTask = pending
-		const clear = () => {
-			if (positionTask === pending) positionTask = undefined
-		}
-		void pending.then(committed => {
-			clear()
-			if (committed && opened && shown && target === content) options.onPosition?.(view)
-		}, error => {
-			clear()
-			report(error)
-		})
+		if (!opening) void pending.catch(report)
 	}
 
 	const arrowSize = resize(host, {
@@ -373,7 +365,6 @@ export const popup = <
 		if (!opened || host.signal.aborted) return
 		version++
 		geometry.stop()
-		positionTask = undefined
 		referenceIsHidden = false
 		if (content) {
 			if (reopenSource) closePopover(content)
@@ -452,7 +443,20 @@ export const popup = <
 			if (opened) schedule()
 			else closeCurrent()
 		},
-		close: (event?: Event) => setOpen(false, event),
+		close(event, restore) {
+			const wasOpen = opened
+			setOpen(false, event)
+			if (!wasOpen || !restore) return
+			const token = version
+			queueMicrotask(() => {
+				if (token === version && !opened && restore.isConnected) restore.focus()
+			})
+		},
+		focusAfterReveal(fn) {
+			if (!opened) return
+			if (shown && !concealed) fn()
+			else afterReveal = fn
+		},
 		hold(zone, event) {
 			if (!options.disabled?.()) intent?.hold(zone, event)
 		},
@@ -465,7 +469,9 @@ export const popup = <
 			trigger = element
 			const referenceChanged = reference() !== previousReference
 			const sourceChanged = source() !== previousSource
-			if (referenceChanged || sourceChanged) restart(sourceChanged)
+			if (!referenceChanged && !sourceChanged) return
+			afterReveal = undefined
+			restart(sourceChanged)
 		},
 		setContent(element) {
 			if (element === content) return
@@ -485,7 +491,9 @@ export const popup = <
 			referenceElement = element
 			const referenceChanged = reference() !== previousReference
 			const sourceChanged = source() !== previousSource
-			if (referenceChanged || sourceChanged) restart(sourceChanged || options.reopenOnReferenceChange)
+			if (!referenceChanged && !sourceChanged) return
+			afterReveal = undefined
+			restart(sourceChanged || options.reopenOnReferenceChange)
 		},
 		update,
 	} as View

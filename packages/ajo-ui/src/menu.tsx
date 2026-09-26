@@ -551,13 +551,10 @@ const MenuShortcut: Stateless<MenuShortcutArgs> = ({
 const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 	const children = cluster()
 	const parent = LevelContext()
-	let focusRestore = 0
-	let geometryReady = false
 	let menu: MenuContextValue | null = null
 	let onOpenChange: MenuSubArgs['onOpenChange']
 	const parentCluster = parent?.cluster ?? null
 	let dir: 'ltr' | 'rtl' = 'ltr'
-	let pendingFocus = false
 	let unregister: (() => void) | undefined
 	let branch: MenuBranch
 	let submenu: PopupView<HTMLElement, HTMLDivElement>
@@ -581,38 +578,20 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 			},
 		},
 		onSync: opened => {
-			if (opened) {
-				geometryReady = true
-				if (pendingFocus) focusEdge(submenu.content, 'first')
-			} else {
-				geometryReady = false
+			if (!opened) {
 				menuItems.clearHighlight(submenu.content)
 				children.close()
 			}
-			pendingFocus = false
 		},
 	})
 
-	const focusWhenReady = () => {
-		if (geometryReady) focusEdge(submenu.content, 'first')
-		else pendingFocus = true
-	}
-
 	const setOpen = (next: boolean, event?: Event, focus = false) => {
-		if (next) focusRestore++
-		if (next === submenu.open) {
-			if (next && focus) focusWhenReady()
-			return
+		if (next !== submenu.open) {
+			if (next) parentCluster?.close(event, branch)
+			else children.close(event)
+			submenu.setOpen(next, event)
 		}
-
-		if (next) {
-			geometryReady = false
-			parentCluster?.close(event, branch)
-		} else {
-			children.close(event)
-		}
-		pendingFocus = next && focus
-		submenu.setOpen(next, event)
+		if (next && focus) submenu.focusAfterReveal(() => focusEdge(submenu.content, 'first'))
 	}
 
 	branch = {
@@ -624,12 +603,8 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 	unregister = parentCluster?.register(branch)
 
 	const close = (event?: Event) => {
-		const wasOpen = submenu.open
-		const restore = ++focusRestore
-		setOpen(false, event)
-		queueMicrotask(() => {
-			if (restore === focusRestore && wasOpen && !submenu.open) submenu.trigger?.focus()
-		})
+		children.close(event)
+		submenu.close(event, submenu.trigger)
 	}
 
 	this.signal.addEventListener('abort', () => unregister?.())
@@ -663,12 +638,7 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 		}
 		const wasOpen = submenu.open
 		const opened = submenu.sync(parentOpen ? (args.open != null ? Boolean(args.open) : null) : false)
-		if (!wasOpen && opened) focusRestore++
-		if (wasOpen && !opened) {
-			geometryReady = false
-			pendingFocus = false
-			children.close()
-		}
+		if (wasOpen && !opened) children.close()
 
 		SubContext({
 			adoptTriggerId: submenu.adoptTriggerId,

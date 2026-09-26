@@ -73,6 +73,8 @@ export type NavigationMenuLinkArgs = WithChildren<(IntrinsicElements['a'] & Intr
 
 type RootContextValue = {
 	close: (event?: Event) => void
+	/** The open item hands the root its Escape closer, which restores focus to its trigger. */
+	claimEscape: (value: string, close: (event: Event) => void) => void
 	closeDelay: number
 	follow: (value: string, event?: Event) => void
 	gap: PopupPosition['gap']
@@ -108,7 +110,6 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 
 const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ defaultValue, value }) {
 	let closeDelay = 300
-	const closeFocus = { current: null as HTMLElement | null }
 	let dir: Direction = 'ltr'
 	let onValueChange: NavigationMenuArgs['onValueChange']
 	let openDelay = 200
@@ -120,18 +121,16 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 		onValueChange: (next, event) => onValueChange?.(next, event),
 	})
 
-	const openTrigger = () =>
-		state.triggers().find(trigger => trigger.dataset.value === state.value)
+	// Escape anywhere in the nav but on a trigger (a panel link, a top-level
+	// link) closes the open panel through its item, which returns focus to
+	// the trigger; while closed the key passes through (a hosting dialog keeps
+	// its Escape).
+	let escape: { value: string, close: (event: Event) => void } | null = null
 
 	const focusPanel = (trigger: HTMLElement) => {
 		const contentId = trigger.getAttribute('aria-controls')
 		const panel = contentId ? this.ownerDocument.getElementById(contentId) : null
 		panel?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
-	}
-
-	const close = (event?: Event, focus?: HTMLElement | null) => {
-		closeFocus.current = focus ?? null
-		state.close(event)
 	}
 
 	listen(this, 'keydown', (event: KeyboardEvent) => {
@@ -141,13 +140,10 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 		const trigger = target?.closest<HTMLButtonElement>('[data-navigation-menu-trigger="true"]')
 
 		if (!trigger) {
-			// Escape inside an open panel returns focus to its trigger and
-			// closes; while closed the key passes through untouched (a hosting
-			// dialog keeps its Escape).
-			if (event.key === 'Escape' && state.value) {
-				event.preventDefault()
-				close(event, openTrigger())
-			}
+			if (event.key !== 'Escape' || !state.value) return
+			event.preventDefault()
+			if (escape?.value === state.value) escape.close(event)
+			else state.close(event)
 			return
 		}
 
@@ -159,7 +155,7 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 			if (state.value === next) {
 				// Already open: ArrowDown enters the panel, Enter/Space toggle closed.
 				if (event.key === 'ArrowDown') focusPanel(trigger)
-				else close(event)
+				else state.close(event)
 			} else {
 				state.requestFocus(next)
 				state.setValue(next, event)
@@ -178,7 +174,7 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 		// Window blur (alt-tab) fires focusout with a null relatedTarget while
 		// the focused element stays inside the nav: not a focus departure.
 		if (!next && this.contains(this.ownerDocument.activeElement)) return
-		close(event)
+		state.close(event)
 	})
 
 	for (const args of this) {
@@ -187,16 +183,12 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 		onValueChange = args.onValueChange
 		openDelay = Math.max(0, Number(args.openDelay ?? 200))
 		state.sync(args.value != null ? String(args.value ?? '') : undefined)
-		if (closeFocus.current) {
-			const target = closeFocus.current
-			closeFocus.current = null
-			if (!state.value) queueMicrotask(() => {
-				if (!state.value) target.focus()
-			})
-		}
 
 		RootContext({
-			close,
+			claimEscape: (value, close) => {
+				escape = { value, close }
+			},
+			close: state.close,
 			closeDelay,
 			follow: state.follow,
 			gap: args.gap,
@@ -279,11 +271,6 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 			inside: view => [view.trigger, view.content],
 			onDismiss: event => root.close(event),
 		},
-		onPosition: () => {
-			// Keyboard focus is committed only after the current trigger/content
-			// tuple has real geometry and the panel is visible.
-			if (root.takeFocus(itemValue)) item.content?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
-		},
 		onSync: opened => {
 			if (!opened) cause = ''
 		},
@@ -315,6 +302,8 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 		if (!disabled) root.follow(itemValue, event)
 	}
 
+	const escape = (event: Event) => item.close(event, item.trigger)
+
 	const clickTrigger = (event: Event) => {
 		if (disabled) return
 		if (!item.open) {
@@ -333,11 +322,18 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 		root = RootContext()!
 		itemValue = String(args.value ?? fallback)
 		disabled = Boolean(args.disabled)
+		const wasOpen = item.open
 		const opened = item.sync(root.value === itemValue, {
 			placement: root.placement,
 			gap: root.gap,
 		})
 		if (!opened) cause = ''
+		else root.claimEscape(itemValue, escape)
+		// Keyboard entry is read once the panel is revealed, so a row move
+		// before this panel commits can still carry it on.
+		if (!wasOpen && opened) item.focusAfterReveal(() => {
+			if (root.takeFocus(itemValue)) item.content?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
+		})
 
 		ItemContext({
 			adoptTriggerId: item.adoptTriggerId,

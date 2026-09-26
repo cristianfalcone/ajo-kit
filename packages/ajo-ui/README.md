@@ -89,6 +89,14 @@ Controlled and uncontrolled families use matching prop groups:
 - `open`, `defaultOpen`, `onOpenChange(open, event)`
 - `checked`, `defaultChecked`, `onCheckedChange(checked, event)`
 
+Escape closes the innermost open surface. A handler that calls
+`preventDefault()` on the Escape keydown consumes it, and no enclosing surface
+closes.
+
+When Select closes itself while focus is in its list, focus returns to the
+trigger or the field input. A close from a controlled parent leaves focus to
+the browser's native popover handling.
+
 ## Localization and Direction
 
 User-visible and assistive-technology strings have English defaults and

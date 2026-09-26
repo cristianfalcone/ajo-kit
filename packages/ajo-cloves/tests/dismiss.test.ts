@@ -81,6 +81,16 @@ test('prevent marks the dismissing Escape as handled', () => {
 	expect(event.defaultPrevented).toBe(true)
 })
 
+test('an Escape a descendant already prevented is consumed and does not dismiss', () => {
+	const fn = vi.fn()
+	const inside = setup({ prevent: true, onDismiss: fn })
+	inside.addEventListener('keydown', event => event.preventDefault())
+
+	inside.dispatchEvent(escape())
+
+	expect(fn).not.toHaveBeenCalled()
+})
+
 test('outside pointerdown dismisses outside the host and inside elements', () => {
 	let extra: HTMLDivElement | null = null
 	const fn = vi.fn()

@@ -289,6 +289,83 @@ test('an update while the first position is pending still reveals the popup', as
 	expect(floating.computePosition).toHaveBeenCalledTimes(2)
 })
 
+const revealedPopup = async () => {
+	floating.computePosition.mockResolvedValue({ x: 10, y: 20, placement: 'bottom', strategy: 'fixed', middlewareData: {} })
+	floating.autoUpdate.mockImplementation((_reference, _floating, update) => {
+		update()
+		return vi.fn()
+	})
+	const { element } = host()
+	const trigger = document.createElement('button')
+	const content = nativeContent()
+	const inside = document.createElement('button')
+	content.append(inside)
+	document.body.append(trigger, content)
+	const view = popup(element, { profile: 'popover', prefix: 'test', initialOpen: false })
+	view.setTrigger(trigger)
+	view.setContent(content)
+	const open = async () => {
+		view.setOpen(true)
+		await vi.waitFor(() => expect(content.dataset.state).toBe('open'))
+	}
+	return { content, inside, open, trigger, view }
+}
+
+test('focus after reveal waits for the revealed surface, runs at once when revealed, and closing drops it', async () => {
+	const { content, open, view } = await revealedPopup()
+	const calls: string[] = []
+	const record = (name: string) => () => calls.push(`${name} ${content.style.visibility || 'visible'}`)
+
+	view.focusAfterReveal(record('closed'))
+	view.setOpen(true)
+	view.focusAfterReveal(record('opening'))
+	expect(calls).toEqual([])
+	await vi.waitFor(() => expect(calls).toEqual(['opening visible']))
+
+	view.focusAfterReveal(record('shown'))
+	expect(calls).toEqual(['opening visible', 'shown visible'])
+
+	view.close()
+	view.setOpen(true)
+	view.focusAfterReveal(record('stale'))
+	view.close()
+	await open()
+	expect(calls).toEqual(['opening visible', 'shown visible'])
+})
+
+test('close returns focus to its target only when it closed the surface and nothing reopened it', async () => {
+	const { inside, open, trigger, view } = await revealedPopup()
+	await open()
+
+	inside.focus()
+	view.close(undefined, trigger)
+	expect(document.activeElement).toBe(inside)
+	await Promise.resolve()
+	expect(document.activeElement).toBe(trigger)
+
+	await open()
+	inside.focus()
+	view.close(undefined, trigger)
+	view.setOpen(true)
+	await Promise.resolve()
+	expect(document.activeElement).toBe(inside)
+
+	view.close()
+	inside.focus()
+	view.close(undefined, trigger)
+	await Promise.resolve()
+	expect(document.activeElement).toBe(inside)
+
+	// A reopen and a close within the same tick supersede the pending restore.
+	await open()
+	inside.focus()
+	view.close(undefined, trigger)
+	view.setOpen(true)
+	view.close()
+	await Promise.resolve()
+	expect(document.activeElement).toBe(inside)
+})
+
 test('abort before the scheduled opening prevents native and geometry work', async () => {
 	let nativeOpen = false
 	const { controller, element } = host()
@@ -622,7 +699,7 @@ test('context retarget refreshes native source while same-reference updates keep
 	}
 	const sources: Array<HTMLElement | undefined> = []
 	const changes = vi.fn()
-	const positioned = vi.fn()
+	const revealed = vi.fn(() => content.style.visibility)
 	content.matches = ((selector: string) => selector === ':popover-open' && nativeOpen) as typeof content.matches
 	content.showPopover = options => {
 		sources.push(options?.source)
@@ -636,7 +713,6 @@ test('context retarget refreshes native source while same-reference updates keep
 		prefix: 'test',
 		initialOpen: false,
 		onOpenChange: changes,
-		onPosition: positioned,
 		reopenOnReferenceChange: true,
 		source: () => source,
 	})
@@ -647,7 +723,11 @@ test('context retarget refreshes native source while same-reference updates keep
 
 	source = secondSource
 	view.setReference(secondReference)
-	await vi.waitFor(() => expect(sources).toHaveLength(2))
+	// A retarget re-conceals the shown surface: focus waits for the new reveal.
+	view.focusAfterReveal(revealed)
+	expect(revealed).not.toHaveBeenCalled()
+	await vi.waitFor(() => expect(revealed).toHaveReturnedWith(''))
+	expect(sources).toHaveLength(2)
 	expect(sources).toEqual([firstSource, secondSource])
 	expect(content.hidePopover).toHaveBeenCalledTimes(1)
 	expect(changes.mock.calls.map(call => call[0])).toEqual([true])
@@ -662,7 +742,7 @@ test('context retarget refreshes native source while same-reference updates keep
 	expect(floating.autoUpdate).toHaveBeenCalledTimes(2)
 	expect(content.hidePopover).toHaveBeenCalledTimes(1)
 	expect(sources).toHaveLength(2)
-	expect(positioned).toHaveBeenCalled()
+	expect(revealed).toHaveBeenCalledOnce()
 })
 
 test('event source identity expires on close before a later programmatic opening', async () => {

@@ -120,8 +120,7 @@ function* popoverEngine(
 			outside: true,
 			onDismiss: (event, view) => {
 				view.cancelHover()
-				view.setOpen(false, event)
-				if (mode === 'click') queueMicrotask(() => view.trigger?.focus())
+				view.close(event, mode === 'click' ? view.trigger : null)
 			},
 		},
 	})

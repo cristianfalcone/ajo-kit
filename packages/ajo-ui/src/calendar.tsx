@@ -901,7 +901,6 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 			return
 		}
 		event.preventDefault()
-		event.stopPropagation()
 		if (currentView === 'year') {
 			changeView('month', currentArgs, event)
 			focusMonthCell(visible, currentArgs)

@@ -1,7 +1,7 @@
 import type { Host } from 'ajo'
 import { dom, on } from './core'
 
-/** Closes a surface on Escape anywhere in its document and/or on pointerdown outside it. */
+/** Closes a surface on Escape anywhere in its document and/or on pointerdown outside it. An Escape a descendant already prevented is consumed and never dismisses. */
 export const dismiss = (host: Host, opts: {
 	/** Gate that enables dismissal channels only while true. */
 	active: () => boolean
@@ -23,7 +23,7 @@ export const dismiss = (host: Host, opts: {
 
 	if (opts.escape ?? true) {
 		on(document, 'keydown', event => {
-			if (event.key !== 'Escape' || !opts.active()) return
+			if (event.key !== 'Escape' || event.defaultPrevented || !opts.active()) return
 			if (opts.prevent) event.preventDefault()
 			opts.onDismiss(event)
 		}, host)

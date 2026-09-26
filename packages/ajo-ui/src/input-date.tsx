@@ -1,5 +1,5 @@
 import type { Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, controlled, dom, id, listen, restore, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, callRef, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { compile, type Availability, type AvailabilityMatcher } from './availability'
 import { flag } from './shared'
@@ -288,6 +288,7 @@ const inputTimePopup: InputDatePopupFactory = (_host, options) => {
 		setOpen: () => undefined,
 		init: () => undefined,
 		close: () => undefined,
+		focusAfterReveal: () => undefined,
 		hold: () => undefined,
 		release: () => undefined,
 		cancelHover: () => undefined,
@@ -330,8 +331,6 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	let locale = resolveLocale(initial.locale)
 	let onOpenChange: InputDateRootArgs['onOpenChange']
 	let onValueChange: InputDateRootArgs['onValueChange']
-	let pendingFocus = false
-	let pendingReference: HTMLElement | null = null
 	let closingInside = false
 	let pop: PopupView<HTMLButtonElement, HTMLDivElement>
 	let presets: InputDatePreset[] = []
@@ -425,18 +424,17 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		return true
 	}
 
-	const focusMemory = restore(this)
-
-	const clearFocusIntent = () => {
-		pendingFocus = false
-		pendingReference = null
-	}
+	// The element that opened the calendar (trigger or segment) gets focus back
+	// when it closes from inside, unless a click back into the field placed it.
+	let returnFocus: HTMLElement | null = null
 
 	const restoreAfterClose = () => {
-		clearFocusIntent()
 		const active = ownerDocument?.activeElement
-		if (dom(active) && pop.content?.contains(active) && !closingInside) focusMemory.restore()
-		else focusMemory.capture(null)
+		const target = returnFocus
+		returnFocus = null
+		if (target && dom(active) && pop.content?.contains(active) && !closingInside) {
+			queueMicrotask(() => target.isConnected && target.focus())
+		}
 		closingInside = false
 	}
 
@@ -457,17 +455,6 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			],
 			onDismiss: event => setOpen(false, event),
 		},
-		onPosition: () => {
-			if (!pendingFocus || pop.reference !== pendingReference) return
-			clearFocusIntent()
-			if (!pop.content) return
-			// The dialog autofocuses the calendar: selected day, today, first enabled.
-			const target = pop.content.querySelector<HTMLElement>('[data-slot="calendar-day-button"][data-state="selected"]:not(:disabled)')
-				?? pop.content.querySelector<HTMLElement>('[data-slot="calendar-day-button"][data-today]:not(:disabled)')
-				?? pop.content.querySelector<HTMLElement>('[data-slot="calendar-day-button"]:not(:disabled)')
-				?? pop.content
-			target.focus()
-		},
 		onSync: opened => {
 			if (!opened) restoreAfterClose()
 		},
@@ -479,22 +466,30 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	const setOpen = (next: boolean, event?: Event) => {
 		if (disabled && next) return
 		if (next === pop.open) return
-		if (next) {
-			// A fresh session follows the committed value again.
-			visibleMonth = undefined
-			pendingFocus = true
-			pendingReference = pop.reference as HTMLElement | null
-		} else {
-			clearFocusIntent()
+		if (!next) {
 			// A pointerdown landing back on our field keeps the click's own focus.
 			closingInside = event?.type === 'pointerdown' && node(event.target) && this.contains(event.target)
+			pop.setOpen(false, event)
+			return
 		}
-		pop.setOpen(next, event)
+		// A fresh session follows the committed value again.
+		visibleMonth = undefined
+		pop.setOpen(true, event)
+		// The dialog autofocuses the calendar: selected day, today, first enabled.
+		pop.focusAfterReveal(() => {
+			const content = pop.content
+			if (!content) return
+			const target = content.querySelector<HTMLElement>('[data-slot="calendar-day-button"][data-state="selected"]:not(:disabled)')
+				?? content.querySelector<HTMLElement>('[data-slot="calendar-day-button"][data-today]:not(:disabled)')
+				?? content.querySelector<HTMLElement>('[data-slot="calendar-day-button"]:not(:disabled)')
+				?? content
+			target.focus()
+		})
 	}
 
 	const toggleOpen = (event: Event) => {
 		const next = !pop.open
-		if (next) focusMemory.capture(pop.trigger)
+		if (next) returnFocus = pop.trigger
 		setOpen(next, event)
 	}
 
@@ -689,7 +684,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		// Consumed only while open, so an ancestor Dialog does not also close;
 		// Escape never clears the value.
 		if (event.key === 'Escape') {
-			if (!pop.open) return
+			if (!pop.open || event.defaultPrevented) return
 			event.preventDefault()
 			setOpen(false, event)
 			return
@@ -704,7 +699,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		if (event.altKey && event.key.startsWith('Arrow')) {
 			if (event.key === 'ArrowDown' && pop.content) {
 				event.preventDefault()
-				focusMemory.capture(segment)
+				returnFocus = segment
 				setOpen(true, event)
 			}
 			return
@@ -865,8 +860,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			placement: args.placement,
 			gap: args.gap,
 		})
-		if (!opened) clearFocusIntent()
-		else closingInside = false
+		if (opened) closingInside = false
 		if (kindChanged && args.value === undefined) {
 			fields.from.sync(sideDefault(args.defaultValue, 'from') ?? null, optionsFor('from', args))
 			fields.to.sync(sideDefault(args.defaultValue, 'to') ?? null, optionsFor('to', args))

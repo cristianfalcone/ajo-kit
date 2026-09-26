@@ -288,16 +288,11 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 	let fieldReference: HTMLElement | null = null
 	let input: HTMLInputElement | null = null
 	let announceResults = false
-	let closeFocus: HTMLElement | null = null
 	let lastResultCount = -1
 	let onCreate: SelectArgs<any, boolean>['onCreate']
 	let onInputValueChange: SelectArgs<any, boolean>['onInputValueChange']
 	let onOpenChange: SelectArgs<any, boolean>['onOpenChange']
 	let onValueChange: SelectArgs<any, boolean>['onValueChange']
-	let pendingFocus = false
-	let pendingReference: HTMLElement | null = null
-	let pendingSeed = ''
-	let pendingStep = 0
 	let pop: PopupView<HTMLButtonElement, HTMLDivElement>
 	const searchState = controlled<string>(this, {
 		fallback: String(inputValue ?? defaultInputValue ?? ''),
@@ -316,13 +311,6 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 	const inPopup = (element: HTMLElement | null) =>
 		Boolean(element && pop.content && pop.content.contains(element))
 
-	const clearFocusIntent = () => {
-		pendingFocus = false
-		pendingReference = null
-		pendingSeed = ''
-		pendingStep = 0
-	}
-
 	pop = popup<HTMLButtonElement, HTMLDivElement>(this, {
 		prefix: 'select',
 		profile: 'select',
@@ -337,61 +325,44 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			inside: view => [dom(view.reference) ? view.reference : null, view.content],
 			onDismiss: event => setOpen(false, event),
 		},
-		onPosition: () => {
-			if (!pendingFocus || pop.reference !== pendingReference) return
-			pendingFocus = false
-			const popupInput = inPopup(input) ? input : null
-			if (popupInput) {
-				popupInput.focus()
-				if (pendingSeed) setSearch(pendingSeed)
-			} else {
-				const items = selectItems.items(pop.content)
-				let target = items.find(item => selectedKeySet.has(item.dataset.value ?? ''))
-					?? items[0]
-				// Arrow-key opening lands one step past the selection, native-select style.
-				if (pendingStep && target) target = items[items.indexOf(target) + pendingStep] ?? target
-				selectItems.focusItem(pop.content, target)
-			}
-			pendingReference = null
-			pendingSeed = ''
-			pendingStep = 0
-		},
 		onSync: opened => {
 			if (!opened) finishClose()
 		},
 	})
 
-	// Focus returns to the field before the popover hides so it never drops to body.
-	const restoreFocus = () => {
-		const active = ownerDocument?.activeElement
-		const target = closeFocus ?? pop.trigger ?? input
-		closeFocus = null
-		if (!active || !pop.content?.contains(active)) return
-		target?.focus()
-	}
-
 	const finishClose = () => {
-		restoreFocus()
-		clearFocusIntent()
 		// Closing discards the search so reopening shows the full list.
 		if (searchState.value) searchState.init('')
 		activeKey = ''
 	}
 
-	const setOpen = (next: boolean, event?: Event, focus?: HTMLElement | null) => {
+	// Once the list is revealed, focus the in-popup search (seeding it) or
+	// the selected item; arrow-key opening lands one step past the selection,
+	// native-select style.
+	const focusAfterReveal = (seed = '', step = 0) => pop.focusAfterReveal(() => {
+		if (inPopup(input)) {
+			input!.focus()
+			if (seed) setSearch(seed)
+			return
+		}
+		const items = selectItems.items(pop.content)
+		let target = items.find(item => selectedKeySet.has(item.dataset.value ?? '')) ?? items[0]
+		if (step && target) target = items[items.indexOf(target) + step] ?? target
+		selectItems.focusItem(pop.content, target)
+	})
+
+	const setOpen = (next: boolean, event?: Event) => {
 		if (disabled && next) return
 		if (next === pop.open) return
-		// The in-popup search input receives focus however the popup opens.
 		if (next) {
-			closeFocus = null
-			if (inPopup(input)) pendingFocus = true
+			pop.setOpen(true, event)
+			// The in-popup search input receives focus however the popup opens.
+			if (inPopup(input)) focusAfterReveal()
+			return
 		}
-		if (!next) {
-			closeFocus = focus ?? null
-			clearFocusIntent()
-		}
-		else pendingReference = pop.reference as HTMLElement | null
-		pop.setOpen(next, event)
+		// Focus inside the list returns to the trigger, or to the field input.
+		const active = ownerDocument?.activeElement
+		pop.close(event, dom(active) && pop.content?.contains(active) ? pop.trigger ?? input : null)
 	}
 
 	const effectiveReference = () =>
@@ -402,7 +373,6 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 	const syncReference = () => {
 		const next = effectiveReference()
 		if (pop.reference === next) return
-		clearFocusIntent()
 		pop.setReference(next)
 	}
 
@@ -492,6 +462,8 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 	listen(this, 'keydown', (event: KeyboardEvent) => {
 		const target = event.target as HTMLElement | null
 		if (!target?.closest('[data-slot^="select"]')) return
+		// An Escape a descendant already consumed never closes the list.
+		if (event.key === 'Escape' && event.defaultPrevented) return
 
 		// Chip roving: real focus between chips, back to the input past the ends.
 		if (target.dataset.slot === 'select-chip') {
@@ -503,7 +475,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			if (event.key === 'Escape') {
 				if (!pop.open) return
 				event.preventDefault()
-				setOpen(false, event, input)
+				setOpen(false, event)
 				return
 			}
 			if (event.key === backward) {
@@ -544,7 +516,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			if (event.key === 'Escape') {
 				if (!pop.open) return
 				event.preventDefault()
-				setOpen(false, event, pop.trigger)
+				setOpen(false, event)
 				return
 			}
 			if (event.key === 'Tab') {
@@ -569,18 +541,16 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 					selectItems.focusItem(this, target)
 					return
 				}
-				pendingFocus = true
-				pendingStep = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
 				setOpen(true, event)
+				focusAfterReveal('', event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0)
 				return
 			}
 			if (inPopup(input)) {
 				// Printable keys open and seed the in-popup search.
 				if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey && event.key !== ' ') {
 					event.preventDefault()
-					pendingFocus = true
-					pendingSeed = event.key
 					setOpen(true, event)
+					focusAfterReveal(event.key)
 				}
 				return
 			}
@@ -615,7 +585,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 				if (!pop.open) return
 				// Always consumed so an ancestor dialog does not also close.
 				event.preventDefault()
-				setOpen(false, event, inPopup(target) ? pop.trigger : null)
+				setOpen(false, event)
 				return
 			}
 			if (event.key === 'Backspace' && target.dataset.slot === 'select-chips-input' && !(target as HTMLInputElement).value) {
@@ -645,7 +615,7 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			}
 			if (event.key === 'Escape') {
 				event.preventDefault()
-				setOpen(false, event, pop.trigger)
+				setOpen(false, event)
 				return
 			}
 			if (focusNav.handle(event)) return
@@ -676,8 +646,6 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			gap: args.gap,
 		})
 		if (wasOpen && !opened) finishClose()
-		else if (!opened) clearFocusIntent()
-		else closeFocus = null
 		searchState.sync(args.inputValue === undefined ? undefined : String(args.inputValue))
 		valueState.sync(args.value)
 
