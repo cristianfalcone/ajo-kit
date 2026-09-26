@@ -1,5 +1,5 @@
 import type { Host } from 'ajo'
-import { callRef, controlled, dismiss, dom, hover, id, resize } from 'ajo-cloves'
+import { callRef, controlled, dismiss, hover, id, resize } from 'ajo-cloves'
 import { closePopover, openPopover, popoverOpen } from './native'
 import { position, type PositionProfile, type PositionReference } from './position'
 
@@ -63,23 +63,17 @@ type ContentAttrsOptions<Element extends HTMLElement> = {
 }
 
 /** Builds native/manual popup attrs and a composed content ref. */
-export const contentAttrs = <Element extends HTMLElement>(options: ContentAttrsOptions<Element>): Record<string, unknown> => {
-	const { id, open, ref, setContent, style, tabindex } = options
-	const attrs: Record<string, unknown> = {
-		popover: 'manual',
-		style: typeof style === 'string' ? style : popupStyle(),
-	}
-	if ('id' in options) attrs.id = id
-	if ('open' in options) attrs['data-state'] = open ? 'open' : 'closed'
-	if ('tabindex' in options) attrs.tabindex = tabindex
-	if ('ref' in options || 'setContent' in options) {
-		attrs.ref = (element: Element | null) => {
-			setContent?.(element)
-			callRef(ref, element)
-		}
-	}
-	return attrs
-}
+export const contentAttrs = <Element extends HTMLElement>({ id, open, ref, setContent, style, tabindex }: ContentAttrsOptions<Element>): Record<string, unknown> => ({
+	popover: 'manual',
+	style: typeof style === 'string' ? style : popupStyle(),
+	id,
+	'data-state': open ? 'open' : 'closed',
+	tabindex,
+	ref: (element: Element | null) => {
+		setContent?.(element)
+		callRef(ref, element)
+	},
+})
 
 export type PopupView<Trigger extends HTMLElement = HTMLElement, Content extends HTMLElement = HTMLDivElement> = {
 	readonly open: boolean
@@ -90,12 +84,11 @@ export type PopupView<Trigger extends HTMLElement = HTMLElement, Content extends
 	readonly contentId: string
 	/** Adopts the trigger's rendered id synchronously, or restores the generated id. */
 	adoptTriggerId(id?: unknown): string
-	/** Composes caller declarations with the live styles owned by popup positioning. */
+	/** Renders the caller's declarations; popup re-applies its own state when they change. */
 	contentStyle(style?: unknown): string
-	/** Owns the internal arrow probe's stable ref and live positioning style. */
+	/** Owns the internal arrow probe's stable ref. */
 	arrowAttrs(): {
 		ref: (element: HTMLElement | null) => void
-		style: string
 	}
 	/** Reads controlled state and current root positioning once per render. */
 	sync(open: boolean | null | undefined, position?: PopupPosition): boolean
@@ -125,7 +118,6 @@ export type PopupOptions<View> = {
 	onOpenChange?: (open: boolean, event?: Event) => void
 	/** Runs after current first geometry commit or after synchronous close. */
 	onSync?: (open: boolean, view: View) => void
-	reference?: (view: View) => PositionReference | null
 	source?: (view: View) => HTMLElement | null
 	boundary?: (view: View) => Element | null
 	/** Optional parent clip used only by reference-hidden detection. */
@@ -146,34 +138,6 @@ export type PopupOptions<View> = {
 
 const stacks = new WeakMap<Document, object[]>()
 const handled = new WeakSet<Event>()
-
-const declaration = (name: string, value: string, priority = '') =>
-	value ? `${name}:${value}${priority ? '!important' : ''}` : ''
-
-const contentOwnedStyle = (element: HTMLElement, arrow: boolean) => [
-	declaration('position', element.style.position),
-	declaration('left', element.style.left),
-	declaration('top', element.style.top),
-	declaration('transform-origin', element.style.transformOrigin),
-	declaration('box-sizing', element.style.boxSizing),
-	declaration('max-width', element.style.maxWidth),
-	declaration('max-height', element.style.maxHeight),
-	declaration('visibility', element.style.visibility, element.style.getPropertyPriority('visibility')),
-	declaration('pointer-events', element.style.pointerEvents, element.style.getPropertyPriority('pointer-events')),
-	declaration('--reference-width', element.style.getPropertyValue('--reference-width')),
-	declaration('--reference-height', element.style.getPropertyValue('--reference-height')),
-	declaration('--available-width', element.style.getPropertyValue('--available-width')),
-	declaration('--available-height', element.style.getPropertyValue('--available-height')),
-	declaration('--popup-arrow-center', element.style.getPropertyValue('--popup-arrow-center')),
-	arrow ? 'overflow:visible' : '',
-].filter(Boolean).join(';')
-
-const arrowOwnedStyle = (element: HTMLElement | null) => element ? [
-	declaration('left', element.style.left),
-	declaration('right', element.style.right),
-	declaration('top', element.style.top),
-	declaration('bottom', element.style.bottom),
-].filter(Boolean).join(';') : ''
 
 const stack = (element: HTMLElement) => {
 	const document = element.ownerDocument
@@ -215,10 +179,10 @@ export const popup = <
 		onChange: options.onOpenChange,
 	})
 	let arrow: HTMLElement | null = null
+	let callerStyle: unknown
+	let concealed = false
 	let content: Content | null = null
-	let contentInputStyle: unknown
 	let opened = state.value
-	let overflowElement: Content | null = null
 	let preferred: PopupPosition = {}
 	let referenceElement: PositionReference | null = null
 	let referenceIsHidden = false
@@ -231,57 +195,23 @@ export const popup = <
 	let opening = false
 	let positionTask: Promise<boolean> | undefined
 	let reopen = false
+	let restyling = false
 	let scheduled = false
-	const inputStyle = dom(host) ? host.ownerDocument.createElement('span').style : null
-	let inputPointerEvents = { priority: '', value: '' }
-	let inputVisibility = { priority: '', value: '' }
 
-	const rememberContentStyle = (style: unknown) => {
-		contentInputStyle = style
-		if (!inputStyle) return
-		inputStyle.cssText = typeof style === 'string' ? style : ''
-		inputPointerEvents = {
-			priority: inputStyle.getPropertyPriority('pointer-events'),
-			value: inputStyle.getPropertyValue('pointer-events'),
-		}
-		inputVisibility = {
-			priority: inputStyle.getPropertyPriority('visibility'),
-			value: inputStyle.getPropertyValue('visibility'),
-		}
-	}
-	const restore = (target: Content, name: string, input: { priority: string; value: string }) => {
-		if (input.value) target.style.setProperty(name, input.value, input.priority)
-		else target.style.removeProperty(name)
-	}
 	const conceal = (target: Content, hidden: boolean) => {
+		concealed = hidden
 		if (hidden) {
 			target.style.setProperty('visibility', 'hidden', 'important')
 			target.style.setProperty('pointer-events', 'none', 'important')
 		} else {
-			restore(target, 'visibility', inputVisibility)
-			restore(target, 'pointer-events', inputPointerEvents)
+			target.style.removeProperty('visibility')
+			target.style.removeProperty('pointer-events')
 		}
 	}
 
-	const reference = () => options.reference?.(view) ?? referenceElement ?? trigger
+	const reference = () => referenceElement ?? trigger
 	const connectedSource = (element: HTMLElement | null | undefined) => element?.isConnected ? element : null
 	const source = () => connectedSource(options.source?.(view)) ?? connectedSource(trigger)
-	const clearOverflow = () => {
-		if (!overflowElement) return
-		const target = overflowElement
-		overflowElement = null
-		if (target === content) {
-			target.setAttribute('style', popupStyle(contentInputStyle, contentOwnedStyle(target, false)))
-		} else {
-			target.style.overflow = ''
-		}
-	}
-	const syncOverflow = () => {
-		if (overflowElement && (overflowElement !== content || !arrow)) clearOverflow()
-		if (!content || !arrow) return
-		overflowElement = content
-		content.style.overflow = 'visible'
-	}
 	const reveal = (target: Content) => {
 		conceal(target, options.referenceHidden === 'hide' && referenceIsHidden)
 	}
@@ -310,25 +240,6 @@ export const popup = <
 		onChange: (next, event) => setOpen(next, event),
 	}) : undefined
 
-	const closeTarget = (target: Content) => {
-		let error: unknown
-		try {
-			if (!closePopover(target)) error = new Error('Failed to close the native popover')
-		} catch (cause) {
-			error = cause
-		} finally {
-			conceal(target, false)
-		}
-		return error
-	}
-
-	const discard = (target: Content) => {
-		remove(view, target)
-		target.dataset.state = 'closed'
-		const error = closeTarget(target)
-		if (error !== undefined && !host.signal.aborted) host.throw(error)
-	}
-
 	const closeCurrent = (target = content, notify = true) => {
 		const wasShown = shown
 		if (target) target.dataset.state = 'closed'
@@ -339,9 +250,9 @@ export const popup = <
 		positionTask = undefined
 		referenceIsHidden = false
 		if (!target) return
-		const error = closeTarget(target)
+		conceal(target, false)
+		closePopover(target)
 		if (wasShown && notify) options.onSync?.(false, view)
-		if (error !== undefined && !host.signal.aborted) host.throw(error)
 	}
 
 	const openCurrent = async () => {
@@ -358,46 +269,35 @@ export const popup = <
 		if (!wasShown) target.dataset.state = 'closed'
 		conceal(target, true)
 
+		let ready = false
 		try {
-			if (!openPopover(target, source())) {
-				throw new Error('Failed to open the native popover')
-			}
+			openPopover(target, source())
 			if (!wasNativeOpen) push(view, target)
-			const committed = await geometry.start()
-			if (
-				!committed ||
-				token !== version ||
-				!opened ||
-				content !== target ||
-				!popoverOpen(target)
-			) {
+			ready = await geometry.start() &&
+				token === version &&
+				opened &&
+				content === target &&
+				popoverOpen(target)
+		} finally {
+			// A replaced content was already closed by setContent; a pending
+			// reopen keeps the surface concealed for the next pass.
+			if (!ready) {
 				geometry.stop()
-				if (reopen && opened && !host.signal.aborted) {
-					if (content === target) conceal(target, true)
-					else discard(target)
-				} else if (opened && content === target && !host.signal.aborted) {
-					view.close()
-				} else if (content === target) {
-					closeCurrent(target)
-				} else {
-					discard(target)
+				if (content === target) {
+					if (reopen) conceal(target, true)
+					else if (opened) view.close()
+					else closeCurrent(target)
 				}
-				return false
 			}
-
-			shown = true
-			target.dataset.state = 'open'
-			reveal(target)
-			options.onPosition?.(view)
-			if (!wasShown) options.onSync?.(true, view)
-			return true
-		} catch (error) {
-			geometry.stop()
-			if (opened && content === target && !host.signal.aborted) view.close()
-			else if (content === target) closeCurrent(target)
-			else discard(target)
-			throw error
 		}
+		if (!ready) return false
+
+		shown = true
+		target.dataset.state = 'open'
+		reveal(target)
+		options.onPosition?.(view)
+		if (!wasShown) options.onSync?.(true, view)
+		return true
 	}
 
 	const run = async () => {
@@ -475,14 +375,21 @@ export const popup = <
 		geometry.stop()
 		positionTask = undefined
 		referenceIsHidden = false
-		if (reopenSource && content && popoverOpen(content)) {
-			const error = closeTarget(content)
-			if (error !== undefined) report(error)
-		}
 		if (content) {
+			if (reopenSource) closePopover(content)
 			conceal(content, true)
 		}
 		schedule()
+	}
+
+	// A new caller style replaced the attribute: re-apply the owned non-geometry
+	// state (arrow overflow, concealment) and let geometry write itself again.
+	const restyle = () => {
+		restyling = false
+		if (!content) return
+		if (arrow) content.style.overflow = 'visible'
+		if (concealed) conceal(content, true)
+		update()
 	}
 
 	const setOpen = (next: boolean, event?: Event) => {
@@ -509,14 +416,15 @@ export const popup = <
 			return triggerId
 		},
 		contentStyle(style) {
-			rememberContentStyle(style)
-			return popupStyle(style, content ? contentOwnedStyle(content, Boolean(arrow)) : '')
+			if (style !== callerStyle && !restyling) {
+				restyling = true
+				queueMicrotask(restyle)
+			}
+			callerStyle = style
+			return popupStyle(style)
 		},
 		arrowAttrs() {
-			return {
-				ref: setArrow,
-				style: arrowOwnedStyle(arrow),
-			}
+			return { ref: setArrow }
 		},
 		sync(open, next = {}) {
 			const changed = preferred.placement !== next.placement || preferred.gap !== next.gap
@@ -555,10 +463,6 @@ export const popup = <
 			const previousReference = reference()
 			const previousSource = source()
 			trigger = element
-			if (element?.id && element.id !== triggerId) {
-				triggerId = element.id
-				queueMicrotask(() => host.next())
-			}
 			const referenceChanged = reference() !== previousReference
 			const sourceChanged = source() !== previousSource
 			if (referenceChanged || sourceChanged) restart(sourceChanged)
@@ -568,8 +472,10 @@ export const popup = <
 			const previous = content
 			if (previous) closeCurrent(previous, false)
 			content = element
-			syncOverflow()
-			if (element) element.dataset.state = 'closed'
+			if (element) {
+				element.dataset.state = 'closed'
+				if (arrow) element.style.overflow = 'visible'
+			}
 			if (opened) schedule()
 		},
 		setReference(element) {
@@ -587,7 +493,11 @@ export const popup = <
 	function setArrow(element: HTMLElement | null) {
 		if (element === arrow) return
 		arrow = element
-		syncOverflow()
+		// Without a probe the caller's own overflow declaration applies again.
+		if (content) {
+			if (arrow) content.style.overflow = 'visible'
+			else content.setAttribute('style', popupStyle(callerStyle))
+		}
 		arrowSize.sync()
 		restart()
 	}
@@ -612,7 +522,6 @@ export const popup = <
 		scheduled = false
 		intent?.sync(false)
 		closeCurrent(content, false)
-		clearOverflow()
 	}, { once: true })
 	return view
 }

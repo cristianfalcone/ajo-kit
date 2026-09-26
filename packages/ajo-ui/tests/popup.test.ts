@@ -34,7 +34,7 @@ beforeEach(() => {
 	floating.computePosition.mockReset()
 })
 
-test('a protocol-only host does not create DOM parser state from the ambient document', () => {
+test('a protocol-only host never creates elements in the ambient document', () => {
 	const controller = new AbortController()
 	const createElement = vi.spyOn(document, 'createElement')
 	const protocol = {
@@ -48,35 +48,16 @@ test('a protocol-only host does not create DOM parser state from the ambient doc
 	createElement.mockRestore()
 })
 
-test('popup creates style parser state in the host owner document', () => {
-	const owner = document.implementation.createHTMLDocument('owner')
-	const controller = new AbortController()
-	const element = owner.createElement('div') as unknown as Host
-	Object.assign(element, {
-		next: vi.fn() as Host['next'],
-		signal: controller.signal,
-		throw: vi.fn() as Host['throw'],
-	})
-	const ambientCreate = vi.spyOn(document, 'createElement')
-	const ownerCreate = vi.spyOn(owner, 'createElement')
-
-	popup(element, { profile: 'popover', prefix: 'test', initialOpen: false })
-	expect(ownerCreate).toHaveBeenCalledWith('span')
-	expect(ambientCreate).not.toHaveBeenCalled()
-	ambientCreate.mockRestore()
-	ownerCreate.mockRestore()
-})
-
-test('trigger id adoption is synchronous and reversible before element refs run', () => {
+test('trigger ids are adopted only at render, never from a registered element', () => {
 	const { element } = host()
 	const view = popup(element, { profile: 'menu', prefix: 'test', initialOpen: false })
 	const generated = view.triggerId
 	const trigger = document.createElement('button')
 	trigger.id = 'custom-trigger'
 
-	expect(view.adoptTriggerId('custom-trigger')).toBe('custom-trigger')
-	expect(view.triggerId).toBe('custom-trigger')
 	view.setTrigger(trigger)
+	expect(view.triggerId).toBe(generated)
+	expect(view.adoptTriggerId('custom-trigger')).toBe('custom-trigger')
 	expect(view.triggerId).toBe('custom-trigger')
 	expect(view.adoptTriggerId()).toBe(generated)
 	expect(view.triggerId).toBe(generated)
@@ -188,47 +169,65 @@ test('ordinary open renders do not reopen or recreate the observation scope', as
 	expect(cleanup).not.toHaveBeenCalled()
 })
 
-test('caller styles survive open rerenders and arrow overflow is reversible', () => {
+const nativeContent = () => {
+	let nativeOpen = false
+	const content = document.createElement('div') as HTMLDivElement & {
+		hidePopover: () => void
+		showPopover: () => void
+	}
+	const matches = content.matches.bind(content)
+	content.matches = ((selector: string) => selector === ':popover-open' ? nativeOpen : matches(selector)) as typeof content.matches
+	content.showPopover = () => nativeOpen = true
+	content.hidePopover = () => nativeOpen = false
+	return content
+}
+
+test('content style is the caller style alone and a new caller style gets popup state back', async () => {
+	floating.computePosition.mockResolvedValue({ x: 10, y: 20, placement: 'bottom', strategy: 'fixed', middlewareData: {} })
+	floating.autoUpdate.mockImplementation((_reference, _floating, update) => {
+		update()
+		return vi.fn()
+	})
 	const { element } = host()
-	const content = document.createElement('div')
+	const trigger = document.createElement('button')
+	const content = nativeContent()
 	const arrow = document.createElement('span')
-	document.body.append(content)
 	content.append(arrow)
+	document.body.append(trigger, content)
 	const view = popup(element, { profile: 'popover', prefix: 'test', initialOpen: false })
-	content.style.cssText = view.contentStyle('color:red;overflow:auto;transform:rotate(3deg)')
-	content.style.position = 'fixed'
-	content.style.left = '12px'
-	content.style.top = '24px'
-	content.style.transformOrigin = '0% 0%'
-	content.style.maxWidth = '240px'
-	content.style.maxHeight = '120px'
-	content.style.setProperty('--available-height', '120px')
-	content.style.setProperty('--popup-arrow-center', '42px')
+	// Stand in for Ajo: it writes the attribute only when the rendered string changes.
+	let rendered = ''
+	const render = (style: string) => {
+		const next = view.contentStyle(style)
+		if (next !== rendered) content.setAttribute('style', rendered = next)
+		return next
+	}
 
+	render('color:red;overflow:auto')
+	view.setTrigger(trigger)
 	view.setContent(content)
-	const arrowAttrs = view.arrowAttrs()
-	arrowAttrs.ref(arrow)
+	view.arrowAttrs().ref(arrow)
+	view.setOpen(true)
+	await vi.waitFor(() => expect(content.dataset.state).toBe('open'))
+	expect(content.style.left).toBe('10px')
 	expect(content.style.overflow).toBe('visible')
 
-	content.setAttribute('style', view.contentStyle('color:blue;overflow:auto;transform:scale(0.9)'))
-	view.setContent(content)
-	expect(content.style.position).toBe('fixed')
-	expect(content.style.left).toBe('12px')
-	expect(content.style.top).toBe('24px')
-	expect(content.style.transformOrigin).toBe('0% 0%')
-	expect(content.style.maxWidth).toBe('240px')
-	expect(content.style.maxHeight).toBe('120px')
-	expect(content.style.getPropertyValue('--available-height')).toBe('120px')
-	expect(content.style.getPropertyValue('--popup-arrow-center')).toBe('42px')
+	expect(render('color:red;overflow:auto')).toBe('inset:auto;margin:0;color:red;overflow:auto')
+	expect(content.style.left).toBe('10px')
+
+	floating.computePosition.mockResolvedValue({ x: 30, y: 40, placement: 'bottom', strategy: 'fixed', middlewareData: {} })
+	render('color:blue;overflow:auto')
+	expect(content.style.left).toBe('')
+	await vi.waitFor(() => expect(content.style.left).toBe('30px'))
+	expect(content.style.top).toBe('40px')
 	expect(content.style.color).toBe('blue')
-	expect(content.style.transform).toBe('scale(0.9)')
 	expect(content.style.overflow).toBe('visible')
+	expect(content.style.visibility).toBe('')
 
-	arrowAttrs.ref(null)
+	view.arrowAttrs().ref(null)
 	expect(content.style.overflow).toBe('auto')
-	expect(content.style.position).toBe('fixed')
-	expect(content.style.left).toBe('12px')
-	expect(content.style.transform).toBe('scale(0.9)')
+	await vi.waitFor(() => expect(content.style.left).toBe('30px'))
+	expect(content.style.color).toBe('blue')
 })
 
 test('one stable ref owns the current internal arrow probe', () => {
@@ -246,16 +245,48 @@ test('one stable ref owns the current internal arrow probe', () => {
 	expect(view.arrowAttrs().ref).toBe(attrs.ref)
 	attrs.ref(first)
 	expect(content.style.overflow).toBe('visible')
-	first.style.left = '8px'
-	expect(view.arrowAttrs().style).toContain('left:8px')
 
 	attrs.ref(second)
-	expect(first.hidden).toBe(false)
-	expect(second.hidden).toBe(false)
 	expect(content.style.overflow).toBe('visible')
 
 	attrs.ref(null)
 	expect(content.style.overflow).toBe('auto')
+})
+
+test('an update while the first position is pending still reveals the popup', async () => {
+	let resolve!: (value: {
+		x: number
+		y: number
+		placement: 'bottom'
+		strategy: 'fixed'
+		middlewareData: Record<string, never>
+	}) => void
+	floating.computePosition
+		.mockReturnValueOnce(new Promise(done => resolve = done))
+		.mockResolvedValue({ x: 30, y: 40, placement: 'bottom', strategy: 'fixed', middlewareData: {} })
+	floating.autoUpdate.mockImplementation((_reference, _floating, update) => {
+		update()
+		return vi.fn()
+	})
+	const { element } = host()
+	const trigger = document.createElement('button')
+	const content = nativeContent()
+	document.body.append(trigger, content)
+	const view = popup(element, { profile: 'popover', prefix: 'test', initialOpen: false })
+	view.setTrigger(trigger)
+	view.setContent(content)
+	view.sync(undefined, { placement: 'bottom' })
+	view.setOpen(true)
+	await vi.waitFor(() => expect(floating.computePosition).toHaveBeenCalledTimes(1))
+
+	view.sync(undefined, { placement: 'top' })
+	resolve({ x: 10, y: 20, placement: 'bottom', strategy: 'fixed', middlewareData: {} })
+
+	await vi.waitFor(() => expect(content.dataset.state).toBe('open'))
+	expect(view.open).toBe(true)
+	expect(content.style.visibility).toBe('')
+	expect(content.style.left).toBe('30px')
+	expect(floating.computePosition).toHaveBeenCalledTimes(2)
 })
 
 test('abort before the scheduled opening prevents native and geometry work', async () => {
@@ -285,38 +316,38 @@ test('abort before the scheduled opening prevents native and geometry work', asy
 	expect(content.dataset.state).toBe('closed')
 })
 
-test('native open failure is observable instead of leaving silent open state', async () => {
+test('without the Popover API an opening closes instead of staying open and hidden', async () => {
+	floating.computePosition.mockResolvedValue({ x: 10, y: 20, placement: 'bottom', strategy: 'fixed', middlewareData: {} })
+	floating.autoUpdate.mockImplementation((_reference, _floating, update) => {
+		update()
+		return vi.fn()
+	})
 	const { element, error } = host()
 	const trigger = document.createElement('button')
-	const content = document.createElement('div') as HTMLDivElement & { showPopover: () => void }
-	const matches = content.matches.bind(content)
-	content.matches = ((selector: string) => selector === ':popover-open' ? false : matches(selector)) as typeof content.matches
-	content.showPopover = vi.fn()
+	const content = document.createElement('div')
 	document.body.append(trigger, content)
+	const changes = vi.fn()
 
-	const view = popup(element, { profile: 'popover', prefix: 'test', initialOpen: false })
+	const view = popup(element, { profile: 'popover', prefix: 'test', initialOpen: false, onOpenChange: changes })
 	view.setTrigger(trigger)
 	view.setContent(content)
-	view.sync(undefined)
 	view.setOpen(true)
 
-	await vi.waitFor(() => expect(error).toHaveBeenCalledTimes(1))
-	expect(error.mock.calls[0]?.[0]).toBeInstanceOf(Error)
-	expect(floating.autoUpdate).not.toHaveBeenCalled()
-	expect(view.open).toBe(false)
+	await vi.waitFor(() => expect(view.open).toBe(false))
+	expect(changes.mock.calls.map(call => call[0])).toEqual([true, false])
 	expect(content.dataset.state).toBe('closed')
 	expect(content.style.visibility).toBe('')
+	expect(error).not.toHaveBeenCalled()
 })
 
-test('scheduled popup failures leave the Promise chain handled before Host.throw runs', async () => {
+test('a throwing native open closes the popup and reaches Host.throw after the Promise chain settles', async () => {
 	const queued: Array<() => void> = []
 	const queue = vi.spyOn(globalThis, 'queueMicrotask').mockImplementation(callback => queued.push(callback))
 	const { element } = host()
 	element.throw = ((error: unknown) => { throw error }) as Host['throw']
 	const trigger = document.createElement('button')
 	const content = document.createElement('div') as HTMLDivElement & { showPopover: () => void }
-	content.matches = ((selector: string) => selector === ':popover-open' ? false : false) as typeof content.matches
-	content.showPopover = vi.fn()
+	content.showPopover = () => { throw new Error('native open failed') }
 	document.body.append(trigger, content)
 	const view = popup(element, { profile: 'popover', prefix: 'test', initialOpen: false })
 	view.setTrigger(trigger)
@@ -329,8 +360,11 @@ test('scheduled popup failures leave the Promise chain handled before Host.throw
 		for (let turn = 0; turn < 6; turn++) await Promise.resolve()
 
 		expect(queued).toHaveLength(1)
-		expect(() => queued[0]?.()).toThrow('Failed to open the native popover')
+		expect(() => queued[0]?.()).toThrow('native open failed')
 		expect(view.open).toBe(false)
+		expect(content.dataset.state).toBe('closed')
+		expect(content.style.visibility).toBe('')
+		expect(floating.autoUpdate).not.toHaveBeenCalled()
 	} finally {
 		queue.mockRestore()
 	}
@@ -424,7 +458,7 @@ test('the hide policy remains hidden when the first geometry commit reports a cl
 		referenceHidden: 'hide',
 	})
 	view.setTrigger(trigger)
-	content.style.cssText = view.contentStyle('visibility:visible!important;pointer-events:auto!important')
+	content.setAttribute('style', view.contentStyle('color:red'))
 	view.setContent(content)
 	view.sync(undefined)
 	view.setOpen(true)
@@ -433,16 +467,17 @@ test('the hide policy remains hidden when the first geometry commit reports a cl
 	expect(content.style.visibility).toBe('hidden')
 	expect(content.style.pointerEvents).toBe('none')
 
+	// A new caller style replaces the attribute; the hidden reference keeps it concealed.
+	content.setAttribute('style', view.contentStyle('color:blue'))
+	await Promise.resolve()
+	expect(content.style.color).toBe('blue')
+	expect(content.style.visibility).toBe('hidden')
+	expect(content.style.pointerEvents).toBe('none')
+
 	await view.update()
 	await vi.waitFor(() => expect(content.hasAttribute('data-reference-hidden')).toBe(false))
-	expect(content.style.visibility).toBe('visible')
-	expect(content.style.pointerEvents).toBe('auto')
-	expect(content.style.getPropertyPriority('visibility')).toBe('important')
-	expect(content.style.getPropertyPriority('pointer-events')).toBe('important')
-
-	view.close()
-	expect(content.style.visibility).toBe('visible')
-	expect(content.style.pointerEvents).toBe('auto')
+	expect(content.style.visibility).toBe('')
+	expect(content.style.pointerEvents).toBe('')
 })
 
 test('outside dismissal follows native open order even when first commits resolve out of order', async () => {
@@ -804,8 +839,6 @@ test('replacing a trigger source retargets native state while an explicit refere
 		prefix: 'test',
 		initialOpen: false,
 		onOpenChange: changes,
-		reference: current => current.reference,
-		source: current => current.trigger,
 	})
 	view.setTrigger(firstTrigger)
 	view.setReference(reference)
@@ -822,7 +855,7 @@ test('replacing a trigger source retargets native state while an explicit refere
 	expect(view.open).toBe(true)
 })
 
-test('native close errors are surfaced after state and styles are fully cleaned', async () => {
+test('a throwing native close reaches the caller after state and styles are cleaned', async () => {
 	let nativeOpen = false
 	floating.computePosition.mockResolvedValue({
 		x: 10,
@@ -854,11 +887,11 @@ test('native close errors are surfaced after state and styles are fully cleaned'
 	view.setOpen(true)
 	await vi.waitFor(() => expect(content.dataset.state).toBe('open'))
 	content.style.pointerEvents = 'none'
-	view.close()
+	expect(() => view.close()).toThrow('native close failed')
 
 	expect(view.open).toBe(false)
 	expect(content.dataset.state).toBe('closed')
 	expect(content.style.visibility).toBe('')
 	expect(content.style.pointerEvents).toBe('')
-	expect(error).toHaveBeenCalledWith(expect.objectContaining({ message: 'native close failed' }))
+	expect(error).not.toHaveBeenCalled()
 })

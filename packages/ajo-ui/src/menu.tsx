@@ -238,7 +238,6 @@ const MenuRoot: Stateful<MenuArgs> = function* ({ defaultOpen, open }) {
 		initialOpen: Boolean(open ?? defaultOpen),
 		disabled: () => disabled,
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
-		reference: view => view.reference ?? view.trigger,
 		source: view => contextComposition
 			? contextSource
 			: view.trigger ?? (dom(view.reference) ? view.reference as HTMLElement : null),
@@ -821,8 +820,6 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 		profile: 'submenu',
 		initialOpen: Boolean(open ?? defaultOpen),
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
-		reference: view => view.trigger,
-		source: view => view.trigger,
 		// A native top-layer child escapes older popup ancestors; limiting
 		// clipping to its direct parent surface avoids false referenceHidden.
 		referenceBoundary: () => parent?.content() ?? null,

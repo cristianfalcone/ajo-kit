@@ -283,7 +283,7 @@ const inputTimePopup: InputDatePopupFactory = (_host, options) => {
 		contentId,
 		adoptTriggerId: () => triggerId,
 		contentStyle: style => typeof style === 'string' ? style : '',
-		arrowAttrs: () => ({ ref: () => undefined, style: '' }),
+		arrowAttrs: () => ({ ref: () => undefined }),
 		sync: () => false,
 		setOpen: () => undefined,
 		init: () => undefined,
@@ -446,11 +446,6 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 		initialOpen: Boolean(initial.open ?? initial.defaultOpen),
 		disabled: () => disabled,
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
-		// The popover anchors to the complete field root, not a segment group or
-		// the 28px icon trigger.
-		reference: view => view.reference,
-		// Native invoker semantics still belong to the calendar button.
-		source: view => view.trigger,
 		referenceHidden: 'close',
 		dismiss: {
 			escape: false,
@@ -477,6 +472,8 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			if (!opened) restoreAfterClose()
 		},
 	})
+	// The popover anchors to the complete field root, not a segment group or the
+	// 28px icon trigger; native invoker semantics stay with the calendar button.
 	pop.setReference(this)
 
 	const setOpen = (next: boolean, event?: Event) => {

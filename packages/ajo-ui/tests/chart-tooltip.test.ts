@@ -56,4 +56,7 @@ test('ChartTooltip mounts and positions against the active SVG point', async () 
 		expect(floating.autoUpdate).toHaveBeenCalledOnce()
 		expect(floating.computePosition).toHaveBeenCalled()
 	})
+	const tooltip = document.querySelector<HTMLElement>('[data-slot="chart-tooltip"]')!
+	await vi.waitFor(() => expect(tooltip.style.transform).toBe('translate(12px, 24px)'))
+	expect(tooltip.dataset.positioned).toBe('true')
 })

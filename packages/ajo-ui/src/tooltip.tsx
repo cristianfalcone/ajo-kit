@@ -62,6 +62,7 @@ type ProviderContextValue = {
 }
 
 type TooltipContextValue = {
+	adoptTriggerId: PopupView['adoptTriggerId']
 	arrowAttrs: PopupView['arrowAttrs']
 	contentId: string
 	contentStyle: PopupView['contentStyle']
@@ -246,6 +247,7 @@ const TooltipTrigger: Stateless<TooltipTriggerArgs> = ({
 }) => {
 	const tooltip = TooltipContext()
 	const disabledFlag = Boolean(disabled ?? tooltip?.disabled)
+	const adoptedId = tooltip?.adoptTriggerId(id)
 	const descriptions = [...new Set(
 		`${describedBy ?? ''} ${tooltip?.contentId ?? ''}`.trim().split(/\s+/).filter(Boolean),
 	)].join(' ') || undefined
@@ -254,7 +256,7 @@ const TooltipTrigger: Stateless<TooltipTriggerArgs> = ({
 		...attrs,
 		...triggerAttrs({
 			describedby: descriptions,
-			id,
+			id: adoptedId ?? id,
 			open: Boolean(tooltip?.open),
 			ref,
 			setTrigger: tooltip?.setTrigger,
@@ -329,7 +331,6 @@ const TooltipContent: Stateless<TooltipContentArgs> = ({
 				ref,
 				setContent: tooltip?.setContent,
 				style: tooltip?.contentStyle(style) ?? popupStyle(style),
-				tabindex: undefined,
 			})}
 			class={classes}
 			data-arrow="true"

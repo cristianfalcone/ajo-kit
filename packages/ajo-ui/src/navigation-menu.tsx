@@ -287,8 +287,6 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 			if (next) root?.open(itemValue, event)
 			else if (root?.value === itemValue) root.close(event)
 		},
-		reference: view => view.trigger,
-		source: view => view.trigger,
 		referenceHidden: 'close',
 		dismiss: {
 			escape: false,

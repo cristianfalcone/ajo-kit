@@ -243,6 +243,7 @@ type SelectContextValue = {
 	setSearch: (value: string, event?: Event) => void
 	setTrigger: (element: HTMLButtonElement | null) => void
 	stringValue: (item: unknown) => string
+	adoptTriggerId: PopupView['adoptTriggerId']
 	triggerId: string
 }
 
@@ -280,13 +281,12 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 }) {
 	const selectId = id('select')
 	const ownerDocument = dom(this) ? this.ownerDocument : null
-	const fallbackInputId = `${selectId}-input`
+	const inputId = `${selectId}-input`
 	const labels = new Map<string, string>()
 	let activeKey = ''
 	let disabled = false
 	let fieldReference: HTMLElement | null = null
 	let input: HTMLInputElement | null = null
-	let inputId = fallbackInputId
 	let announceResults = false
 	let closeFocus: HTMLElement | null = null
 	let lastResultCount = -1
@@ -329,7 +329,6 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 		initialOpen: Boolean(open ?? defaultOpen),
 		disabled: () => disabled,
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
-		reference: view => view.reference,
 		source: view => dom(view.reference) ? view.reference as HTMLElement : null,
 		referenceHidden: 'close',
 		dismiss: {
@@ -416,11 +415,6 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 	const setInput = (element: HTMLInputElement | null, previous?: HTMLInputElement | null) => {
 		if (!element && previous && input !== previous) return
 		input = element
-		const nextInputId = element?.id || fallbackInputId
-		if (nextInputId !== inputId) {
-			inputId = nextInputId
-			queueMicrotask(() => this.next())
-		}
 		syncReference()
 	}
 
@@ -815,7 +809,8 @@ const SelectRoot: Stateful<SelectArgs<any, boolean>> = function* ({
 			setSearch,
 			setTrigger,
 			stringValue,
-			triggerId: pop.triggerId,
+			adoptTriggerId: pop.adoptTriggerId,
+			get triggerId() { return pop.triggerId },
 		})
 
 		if (dom(this)) queueMicrotask(() => {
@@ -940,6 +935,7 @@ const SelectTrigger: Stateless<SelectTriggerArgs> = ({
 	const select = SelectContext()
 	const disabledFlag = Boolean(disabled ?? select?.disabled)
 	const empty = !select?.selectedKeys.size
+	const adoptedId = select?.adoptTriggerId(idArg)
 
 	return (
 		<button
@@ -948,7 +944,7 @@ const SelectTrigger: Stateless<SelectTriggerArgs> = ({
 				controls: select?.listId,
 				expanded: Boolean(select?.open),
 				haspopup: 'listbox',
-				id: idArg,
+				id: adoptedId ?? idArg,
 				open: Boolean(select?.open),
 				ref,
 				setTrigger: select?.setTrigger,

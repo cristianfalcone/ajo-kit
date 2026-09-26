@@ -8,19 +8,14 @@ export type PopoverElement = HTMLElement & {
 export const popoverOpen = (element: HTMLElement) =>
 	typeof element.matches === 'function' && element.matches(':popover-open')
 
-/** Opens a native popover and reports whether it is open. */
+/** Opens a native popover; a no-op where the Popover API is missing. */
 export const openPopover = (element: PopoverElement, source?: HTMLElement | null) => {
-	if (popoverOpen(element)) return true
-	if (typeof element.showPopover !== 'function') return false
+	if (popoverOpen(element) || typeof element.showPopover !== 'function') return
 	if (source) element.showPopover({ source })
 	else element.showPopover()
-	return popoverOpen(element)
 }
 
-/** Closes a native popover and reports whether it is closed. */
+/** Closes a native popover when it is open. */
 export const closePopover = (element: PopoverElement) => {
-	if (!popoverOpen(element)) return true
-	if (typeof element.hidePopover !== 'function') return false
-	element.hidePopover()
-	return !popoverOpen(element)
+	if (popoverOpen(element)) element.hidePopover!()
 }

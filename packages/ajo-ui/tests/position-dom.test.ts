@@ -280,7 +280,7 @@ test('a stopped position never commits an in-flight result', async () => {
 	expect(floating.active).toBe(0)
 })
 
-test('repeated updates coalesce into one trailing calculation', async () => {
+test('updates during a pending start coalesce into one trailing calculation and the start commits', async () => {
 	const reference = document.createElement('button')
 	const target = document.createElement('div')
 	document.body.append(reference, target)
@@ -308,44 +308,6 @@ test('repeated updates coalesce into one trailing calculation', async () => {
 	expect(await Promise.all(updates)).toEqual(Array(100).fill(true))
 	expect(floating.computePosition).toHaveBeenCalledTimes(2)
 	expect(target.style.left).toBe('30px')
-	view.stop()
-})
-
-test('a requested trailing update prevents the in-flight calculation from committing', async () => {
-	const reference = document.createElement('button')
-	const target = document.createElement('div')
-	document.body.append(reference, target)
-	const { element } = host()
-	let resolveInFlight!: (value: {
-		x: number
-		y: number
-		placement: 'bottom'
-		strategy: 'fixed'
-		middlewareData: Record<string, never>
-	}) => void
-	let resolveTrailing!: typeof resolveInFlight
-	const view = position(element, {
-		profile: 'popover',
-		elements: () => ({ arrow: null, floating: target, reference }),
-	})
-
-	expect(await view.start()).toBe(true)
-	floating.computePosition
-		.mockReturnValueOnce(new Promise(done => resolveInFlight = done))
-		.mockReturnValueOnce(new Promise(done => resolveTrailing = done))
-	const update = view.update()
-	const coalesced = view.update()
-	resolveInFlight({ x: 90, y: 80, placement: 'bottom', strategy: 'fixed', middlewareData: {} })
-	for (let turn = 0; turn < 4; turn++) await Promise.resolve()
-
-	expect(floating.computePosition).toHaveBeenCalledTimes(3)
-	expect(target.style.left).toBe('12px')
-	expect(target.style.top).toBe('24px')
-
-	resolveTrailing({ x: 30, y: 20, placement: 'bottom', strategy: 'fixed', middlewareData: {} })
-	expect(await Promise.all([update, coalesced])).toEqual([true, true])
-	expect(target.style.left).toBe('30px')
-	expect(target.style.top).toBe('20px')
 	view.stop()
 })
 
@@ -385,46 +347,6 @@ test('a stale start rejection does not stop the newer observation scope', async 
 	expect(target.style.left).toBe('44px')
 	expect(target.style.top).toBe('55px')
 	expect(floating.active).toBe(1)
-	view.stop()
-})
-
-test('a failed size calculation restores the last committed size outputs', async () => {
-	const reference = document.createElement('button')
-	const target = document.createElement('div')
-	document.body.append(reference, target)
-	const { element } = host()
-	const view = position(element, {
-		profile: 'popover',
-		elements: () => ({ arrow: null, floating: target, reference }),
-	})
-
-	expect(await view.start()).toBe(true)
-	target.style.boxSizing = 'border-box'
-	target.style.maxWidth = '200px'
-	target.style.maxHeight = '100px'
-	target.style.setProperty('--available-height', '100px')
-	floating.computePosition.mockImplementationOnce(async (_reference, floatingElement, options) => {
-		const entries = options?.middleware as Array<{ name?: string }> | undefined
-		const middleware = entries?.find(item => item.name === 'size') as {
-			options: { apply: (state: Record<string, unknown>) => void }
-		}
-		middleware.options.apply({
-			availableHeight: 10,
-			availableWidth: 20,
-			elements: { floating: floatingElement, reference },
-			rects: { reference: { height: 30, width: 40 } },
-		})
-		throw new Error('later middleware failed')
-	})
-
-	await expect(view.update()).rejects.toThrow('later middleware failed')
-	expect(target.style.boxSizing).toBe('border-box')
-	expect(target.style.maxWidth).toBe('200px')
-	expect(target.style.maxHeight).toBe('100px')
-	expect(target.style.getPropertyValue('--available-height')).toBe('100px')
-	expect(target.style.getPropertyValue('--available-width')).toBe('')
-	expect(target.style.getPropertyValue('--reference-height')).toBe('')
-	expect(target.style.getPropertyValue('--reference-width')).toBe('')
 	view.stop()
 })
 

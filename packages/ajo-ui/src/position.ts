@@ -111,9 +111,6 @@ const connected = (reference: PositionReference) => {
 	return !reference.contextElement || reference.contextElement.isConnected
 }
 
-const finite = (value: number | undefined, fallback: number) =>
-	Number.isFinite(value) ? Number(value) : fallback
-
 const round = (value: number, target: Element) => {
 	const ratio = target.ownerDocument.defaultView?.devicePixelRatio || 1
 	return Math.round(value * ratio) / ratio
@@ -220,26 +217,6 @@ const resetFloating = (floating: HTMLElement, profile: PositionProfile) => {
 	delete floating.dataset.escaped
 }
 
-const sizeState = (element: HTMLElement) => ({
-	boxSizing: element.style.boxSizing,
-	maxWidth: element.style.maxWidth,
-	maxHeight: element.style.maxHeight,
-	referenceWidth: element.style.getPropertyValue('--reference-width'),
-	referenceHeight: element.style.getPropertyValue('--reference-height'),
-	availableWidth: element.style.getPropertyValue('--available-width'),
-	availableHeight: element.style.getPropertyValue('--available-height'),
-})
-
-const restoreSize = (element: HTMLElement, state: ReturnType<typeof sizeState>) => {
-	element.style.boxSizing = state.boxSizing
-	element.style.maxWidth = state.maxWidth
-	element.style.maxHeight = state.maxHeight
-	element.style.setProperty('--reference-width', state.referenceWidth)
-	element.style.setProperty('--reference-height', state.referenceHeight)
-	element.style.setProperty('--available-width', state.availableWidth)
-	element.style.setProperty('--available-height', state.availableHeight)
-}
-
 const origin = (target: HTMLElement, side: string, align: string) => {
 	const horizontal = side === 'top' || side === 'bottom'
 	const rtl = horizontal && target.ownerDocument.defaultView?.getComputedStyle(target).direction === 'rtl'
@@ -263,34 +240,14 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 	let generation = 0
 	let hidden: boolean | undefined
 	let pending: Promise<boolean> | undefined
-	let pendingGeneration = -1
 	let requested = 0
-	let sizeGeneration = -1
-	let sizeRestore: (() => void) | undefined
-
-	const rollbackSize = (scope = sizeGeneration) => {
-		if (scope !== sizeGeneration) return
-		const restore = sizeRestore
-		sizeGeneration = -1
-		sizeRestore = undefined
-		restore?.()
-	}
-
-	const commitSize = (scope: number) => {
-		if (scope !== sizeGeneration) return
-		sizeGeneration = -1
-		sizeRestore = undefined
-	}
 
 	const stopScope = () => {
 		const dispose = cleanup
 		active = false
 		generation++
-		requested++
 		cleanup = undefined
 		pending = undefined
-		pendingGeneration = -1
-		rollbackSize()
 		if (current?.floating) deactivateFloating(current.floating, options.profile)
 		try {
 			dispose?.()
@@ -383,7 +340,6 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 	const calculate = async (scope: number, request: number) => {
 		const elements = current
 		if (!elements?.reference || !elements.floating) return false
-		const initialSize = sizeState(elements.floating)
 		const preferred = options.placement?.() ?? policy.placement
 		const placement = preferred === 'auto' ? policy.placement : preferred
 		try {
@@ -393,17 +349,12 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 				middleware: middleware(
 					policy,
 					preferred,
-					finite(options.gap?.(), policy.gap),
+					options.gap?.() ?? policy.gap,
 					options.boundary?.() ?? null,
 					options.referenceBoundary?.() ?? null,
 					elements.arrow,
 					(availableHeight, availableWidth, target, referenceHeight, referenceWidth) => {
 						if (!currentRequest(scope, request, elements) || target !== elements.floating) return
-						if (sizeGeneration !== scope) {
-							rollbackSize()
-							sizeGeneration = scope
-							sizeRestore = () => restoreSize(target, initialSize)
-						}
 						const height = Math.max(0, availableHeight)
 						const width = Math.max(0, availableWidth)
 						target.style.boxSizing = 'border-box'
@@ -416,16 +367,12 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 					},
 				),
 			})
-			if (!currentRequest(scope, request, elements)) {
-				rollbackSize(scope)
-				return false
-			}
+			if (!currentRequest(scope, request, elements)) return false
 			const referenceHidden = commit(elements, result)
-			commitSize(scope)
 			if (referenceHidden !== undefined) options.referenceHidden?.(referenceHidden)
 			return true
 		} catch (error) {
-			rollbackSize(scope)
+			// A superseded request or scope resolves false instead of failing the current one.
 			if (!currentRequest(scope, request, elements)) return false
 			throw error
 		}
@@ -441,22 +388,17 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 		return committed
 	}
 
+	// One in-flight task per scope: requests made while it runs mark it dirty,
+	// and it recalculates until the latest request has been calculated.
 	const update = () => {
 		if (!active) return Promise.resolve(false)
 		requested++
-		const scope = generation
-		if (pending && pendingGeneration === scope) {
-			rollbackSize(scope)
-			return pending
-		}
-		const task = drain(scope)
-		pending = task
-		pendingGeneration = scope
+		if (pending) return pending
+		const task = drain(generation)
 		const clear = () => {
-			if (pending !== task) return
-			pending = undefined
-			pendingGeneration = -1
+			if (pending === task) pending = undefined
 		}
+		pending = task
 		void task.then(clear, clear)
 		return task
 	}
@@ -491,7 +433,6 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 		current = next
 		active = true
 		hidden = undefined
-		requested = 0
 
 		try {
 			let starting = true

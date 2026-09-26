@@ -21,7 +21,7 @@ const PopupSurface: Stateless<PopupSurfaceArgs> = ({ arrow = false, popup }) => 
 					aria-hidden="true"
 					data-slot="popup-arrow"
 					ref={probe?.ref}
-					style={[probeStyle, probe?.style].filter(Boolean).join(';')}
+					style={probeStyle}
 				/>
 			) : null}
 		</>

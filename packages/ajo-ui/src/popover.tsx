@@ -66,6 +66,7 @@ export type PopoverAnchorArgs = WithChildren<IntrinsicElements['div'] & {
 }>
 
 type PopoverContextValue = {
+	adoptTriggerId: PopupView['adoptTriggerId']
 	arrowAttrs: PopupView['arrowAttrs']
 	close: (event?: Event) => void
 	content: HTMLDivElement | null
@@ -113,7 +114,6 @@ function* popoverEngine(
 			closeDelay: () => closeDelay,
 		} : undefined,
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
-		reference: view => view.reference ?? view.trigger,
 		referenceHidden: 'close',
 		dismiss: {
 			prevent: mode === 'hover',
@@ -269,7 +269,7 @@ const PopoverTrigger: Stateless<PopoverTriggerArgs> = args => {
 				controls: popover.contentId,
 				expanded: popover.open,
 				haspopup: 'dialog',
-				id,
+				id: popover.adoptTriggerId(id),
 				open: popover.open,
 				ref,
 				setTrigger: popover.setTrigger,
@@ -348,6 +348,7 @@ const PopoverTrigger: Stateless<PopoverTriggerArgs> = args => {
 		...attrs
 	} = all
 	const disabledFlag = Boolean(disabled ?? popover?.disabled)
+	const adoptedId = popover?.adoptTriggerId(id)
 
 	return (
 		<button
@@ -356,7 +357,7 @@ const PopoverTrigger: Stateless<PopoverTriggerArgs> = args => {
 				controls: popover?.contentId,
 				expanded: Boolean(popover?.open),
 				haspopup: 'dialog',
-				id,
+				id: adoptedId ?? id,
 				open: Boolean(popover?.open),
 				ref,
 				setTrigger: popover?.setTrigger,
