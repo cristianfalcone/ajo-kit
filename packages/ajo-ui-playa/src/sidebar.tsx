@@ -22,7 +22,6 @@ import {
 	SidebarMenuSubButton as BaseSidebarMenuSubButton,
 	SidebarMenuSubItem as BaseSidebarMenuSubItem,
 	SidebarProvider as BaseSidebarProvider,
-	SidebarRail as BaseSidebarRail,
 	SidebarTrigger as BaseSidebarTrigger,
 	type SidebarCollapsible,
 	type SidebarContextValue,
@@ -45,7 +44,6 @@ import {
 	type SidebarMenuSubButtonArgs as BaseSidebarMenuSubButtonArgs,
 	type SidebarMenuSubItemArgs,
 	type SidebarProviderArgs,
-	type SidebarRailArgs,
 	type SidebarSide,
 	type SidebarState,
 	type SidebarTriggerArgs,
@@ -73,7 +71,6 @@ export type {
 	SidebarMenuSubArgs,
 	SidebarMenuSubItemArgs,
 	SidebarProviderArgs,
-	SidebarRailArgs,
 	SidebarSide,
 	SidebarState,
 	SidebarTriggerArgs,
@@ -175,16 +172,6 @@ const SidebarTrigger: Stateless<SidebarTriggerArgs> = ({
 	</BaseSidebarTrigger>
 )
 
-/** Rail hit area used to collapse or expand a sidebar. */
-// Visibility keys on the provider's data-mobile stamp (not a breakpoint):
-// inside the mobile drawer the rail is pointless and must stay hidden.
-const SidebarRail: Stateless<SidebarRailArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSidebarRail
-		{...attrs}
-		class={clsx('absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 after:absolute after:inset-y-0 after:left-1/2 after:w-px hover:after:bg-border group-data-[mobile=false]/sidebar-wrapper:flex', classes)}
-	/>
-)
-
 /** Main content wrapper used with inset sidebars. */
 const SidebarInset: Stateless<SidebarInsetArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSidebarInset {...attrs} class={clsx('relative flex min-w-0 flex-1 flex-col bg-background', classes)} />
@@ -195,7 +182,6 @@ const SidebarInput: Stateless<SidebarInputArgs> = ({ class: classes, ...attrs })
 	<Input
 		{...attrs}
 		class={clsx('h-8 group-data-[collapsible=icon]/sidebar:hidden', classes)}
-		data-sidebar="input"
 	/>
 )
 
@@ -213,7 +199,7 @@ const SidebarFooter: Stateless<SidebarFooterArgs> = ({ class: classes, ...attrs 
 // hand copy, which left the themed separator invisible).
 /** Themed divider between sidebar regions. */
 const SidebarSeparator: Stateless<SidebarSeparatorArgs> = ({ class: classes, ...attrs }) => (
-	<Separator {...attrs} class={clsx('mx-2 w-auto', classes)} data-sidebar="separator" />
+	<Separator {...attrs} class={clsx('mx-2 w-auto', classes)} />
 )
 
 /** Scrollable main region for sidebar groups. */
@@ -279,7 +265,7 @@ const menuButtonClass = (variant: SidebarMenuButtonVariant, size: SidebarMenuBut
 		// icon (not just the last one): composed triggers carry three spans
 		// (icon, label, chevron) and a last-child rule leaves the label
 		// clipping through the rail.
-		'peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left outline-none transition-[width,height,padding] group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 group-data-[collapsible=icon]/sidebar:size-8 group-data-[collapsible=icon]/sidebar:justify-center group-data-[collapsible=icon]/sidebar:!p-2 group-data-[collapsible=icon]/sidebar:[&>span:not(:first-child)]:hidden focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground data-[active=true]:font-medium [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0',
+		'peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left outline-none transition-[width,height,padding] group-has-[[data-slot=sidebar-menu-action]]/menu-item:pr-8 group-data-[collapsible=icon]/sidebar:size-8 group-data-[collapsible=icon]/sidebar:justify-center group-data-[collapsible=icon]/sidebar:!p-2 group-data-[collapsible=icon]/sidebar:[&>span:not(:first-child)]:hidden focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground data-[active=true]:font-medium [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0',
 		buttonVariant[variant],
 		buttonSize[size],
 		classes,
@@ -399,7 +385,6 @@ export {
 	SidebarMenuSubButton,
 	SidebarMenuSubItem,
 	SidebarProvider,
-	SidebarRail,
 	SidebarSeparator,
 	SidebarTrigger,
 }

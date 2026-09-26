@@ -1,8 +1,7 @@
-import type { Stateless } from 'ajo'
+import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
 import clsx from 'clsx'
 import {
 	Command as BaseCommand,
-	CommandDialog as BaseCommandDialog,
 	CommandEmpty as BaseCommandEmpty,
 	CommandGroup as BaseCommandGroup,
 	CommandInput as BaseCommandInput,
@@ -13,7 +12,6 @@ import {
 } from 'ajo-ui/command'
 import type {
 	CommandArgs,
-	CommandDialogArgs as BaseCommandDialogArgs,
 	CommandEmptyArgs,
 	CommandFilter,
 	CommandGroupArgs as BaseCommandGroupArgs,
@@ -23,12 +21,40 @@ import type {
 	CommandSeparatorArgs,
 	CommandShortcutArgs,
 } from 'ajo-ui/command'
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogTitle,
+	type DialogContentArgs,
+} from 'ajo-ui/dialog'
 import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 import { menuItem, menuShortcut, scrollAreaVariants } from './internal/recipes'
 import { modalCentered, modalClose, modalClosed, modalEnter, modalSurface } from './modal'
 
 export type { CommandArgs, CommandEmptyArgs, CommandFilter, CommandItemArgs, CommandListArgs, CommandSeparatorArgs, CommandShortcutArgs }
-export type CommandDialogArgs = OmitArg<BaseCommandDialogArgs, 'commandClass' | 'closeClass' | 'closeIconClass' | 'descriptionClass' | 'titleClass'> & FixedArgs<'commandClass' | 'closeClass' | 'closeIconClass' | 'descriptionClass' | 'titleClass'>
+/** Arguments for a native dialog that owns a Command palette. */
+export type CommandDialogArgs = WithChildren<OmitArg<IntrinsicElements['dialog'], 'open'> & {
+	/** Controlled dialog open state. */
+	open?: boolean
+	/** Initial open state for uncontrolled usage. */
+	defaultOpen?: boolean
+	/** Called whenever the dialog opens or closes. */
+	onOpenChange?: (open: boolean, event?: Event) => void
+	/** Called when the native backdrop is clicked. Prevent default to keep it open. */
+	onPointerDownOutside?: DialogContentArgs['onPointerDownOutside']
+	/** Accessible dialog title. */
+	title?: string
+	/** Accessible dialog description. */
+	description?: string
+	/** Show the default close button. */
+	showCloseButton?: boolean
+	/** Accessible label for the default close button. */
+	closeLabel?: string
+	/** Additional UnoCSS classes for the dialog panel. */
+	class?: string
+}>
 export type CommandInputArgs = OmitArg<BaseCommandInputArgs, 'iconClass' | 'wrapperClass'> & FixedArgs<'iconClass' | 'wrapperClass'>
 export type CommandGroupArgs = OmitArg<BaseCommandGroupArgs, 'headingClass'> & FixedArgs<'headingClass'>
 
@@ -53,16 +79,35 @@ const Command: Stateless<CommandArgs> = ({ class: classes, ...attrs }) => (
 	<BaseCommand {...attrs} class={clsx(base, classes)} />
 )
 
-/** Native dialog wrapper for a Command palette. */
-const CommandDialog: Stateless<CommandDialogArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommandDialog
-		{...attrs}
-		class={clsx(dialogBase, classes)}
-		closeClass={modalClose}
-		closeIconClass="i-lucide-x block size-4"
-		commandClass={clsx(base, dialogCommandBase)}
-		titleClass="sr-only"
-	/>
+/** Native dialog wrapper for a Command palette; keep it open on Escape by preventing the Escape keydown. */
+const CommandDialog: Stateless<CommandDialogArgs> = ({
+	children,
+	class: classes,
+	closeLabel = 'Close',
+	defaultOpen,
+	description = 'Search for a command to run...',
+	onOpenChange,
+	open,
+	showCloseButton = true,
+	title = 'Command Palette',
+	...attrs
+}) => (
+	<Dialog class="contents" defaultOpen={defaultOpen} onOpenChange={onOpenChange} open={open}>
+		<DialogContent {...attrs} class={clsx(dialogBase, classes)} data-slot="command-dialog">
+			<div class="sr-only">
+				<DialogTitle>{title}</DialogTitle>
+				<DialogDescription>{description}</DialogDescription>
+			</div>
+			{showCloseButton ? (
+				<DialogClose aria-label={closeLabel} class={modalClose}>
+					<span aria-hidden="true" class="i-lucide-x block size-4" />
+				</DialogClose>
+			) : null}
+			<Command class={dialogCommandBase}>
+				{children}
+			</Command>
+		</DialogContent>
+	</Dialog>
 )
 
 /** Search input for a Command menu. */

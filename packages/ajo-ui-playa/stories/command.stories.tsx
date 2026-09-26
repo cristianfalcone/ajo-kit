@@ -218,7 +218,8 @@ const GuardedCommandDialogExample: Stateful = function* () {
 			<CommandDialog
 				open={open}
 				onOpenChange={setOpen}
-				onEscapeKeyDown={(event: KeyboardEvent) => {
+				set:onkeydown={(event: KeyboardEvent) => {
+					if (event.key !== 'Escape') return
 					event.preventDefault()
 					this.next(() => escapes++)
 				}}
@@ -608,7 +609,7 @@ export const DialogPreventableDismissal: Story<typeof Command> = {
 		const blockedEscape = escape(input)
 		await frame()
 
-		if (!blockedEscape.defaultPrevented) throw new Error('CommandDialog onEscapeKeyDown did not prevent Escape')
+		if (!blockedEscape.defaultPrevented) throw new Error('CommandDialog set:onkeydown did not prevent Escape')
 		if (!dialog.open || !canvas.textContent?.includes('Escape: 1')) {
 			throw new Error('CommandDialog closed or missed preventable Escape')
 		}

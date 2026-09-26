@@ -4,14 +4,6 @@ import { context } from 'ajo/context'
 import { activate, flag, text } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
 import { collection, matchesTokens, resolveFilter, resultCount } from './collection'
-import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogDescription,
-	DialogTitle,
-	type DialogContentArgs,
-} from './dialog'
 
 /** Predicate used to match a command item against the current search. */
 export type CommandFilter = (value: string, search: string, keywords: string[]) => boolean
@@ -41,35 +33,6 @@ export type CommandArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchan
 	/** Additional UnoCSS classes. */
 	class?: string
 }> & FixedArgs<'onchange'>
-
-/** Arguments for a Dialog that owns a Command surface. */
-export type CommandDialogArgs = WithChildren<OmitArg<IntrinsicElements['dialog'], 'open'> & {
-	/** Controlled dialog open state. */
-	open?: boolean
-	/** Initial open state for uncontrolled usage. */
-	defaultOpen?: boolean
-	/** Called whenever the dialog opens or closes. */
-	onOpenChange?: (open: boolean, event?: Event) => void
-	/** Called when Escape requests dialog close. Prevent default to keep it open. */
-	onEscapeKeyDown?: DialogContentArgs['onEscapeKeyDown']
-	/** Called when the native backdrop is clicked. Prevent default to keep it open. */
-	onPointerDownOutside?: DialogContentArgs['onPointerDownOutside']
-	/** Accessible dialog title. */
-	title?: string
-	/** Accessible dialog description. */
-	description?: string
-	/** Show the default close button. */
-	showCloseButton?: boolean
-	/** Accessible label for the default close button. */
-	closeLabel?: string
-	/** Additional UnoCSS classes for dialog content. */
-	class?: string
-	commandClass?: string
-	closeClass?: string
-	closeIconClass?: string
-	descriptionClass?: string
-	titleClass?: string
-}>
 
 /** Arguments for the search input bound to a Command root; Command `search` owns its value. */
 export type CommandInputArgs = OmitArg<IntrinsicElements['input'], 'onchange' | 'value'> & {
@@ -289,57 +252,6 @@ const Command: Stateless<CommandArgs> = ({
 	</CommandRoot>
 )
 
-/** Native dialog wrapper for a Command palette. */
-const CommandDialog: Stateless<CommandDialogArgs> = ({
-	children,
-	class: classes,
-	defaultOpen,
-	description,
-	commandClass,
-	onOpenChange,
-	open,
-	showCloseButton,
-	closeClass,
-	closeIconClass,
-	closeLabel = 'Close',
-	descriptionClass,
-	onEscapeKeyDown,
-	title,
-	titleClass,
-	onPointerDownOutside,
-	...attrs
-}) => (
-	<Dialog
-		defaultOpen={defaultOpen}
-		onOpenChange={onOpenChange}
-		open={open}
-		class="contents"
-	>
-		<DialogContent
-			{...attrs}
-			class={classes}
-			data-slot="command-dialog"
-			onEscapeKeyDown={onEscapeKeyDown}
-			onPointerDownOutside={onPointerDownOutside}
-		>
-			<div class={titleClass}>
-				<DialogTitle>{title ?? 'Command Palette'}</DialogTitle>
-				<DialogDescription class={descriptionClass}>
-					{description ?? 'Search for a command to run...'}
-				</DialogDescription>
-			</div>
-			{showCloseButton !== false ? (
-				<DialogClose aria-label={closeLabel} class={closeClass}>
-					<span aria-hidden="true" class={closeIconClass} />
-				</DialogClose>
-			) : null}
-			<Command class={commandClass}>
-				{children}
-			</Command>
-		</DialogContent>
-	</Dialog>
-)
-
 /** Search input for a Command menu. */
 const CommandInput: Stateless<CommandInputArgs> = ({
 	class: classes,
@@ -469,7 +381,6 @@ const CommandShortcut = part<CommandShortcutArgs>('span', 'command-shortcut')
 
 export {
 	Command,
-	CommandDialog,
 	CommandEmpty,
 	CommandGroup,
 	CommandInput,

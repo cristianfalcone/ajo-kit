@@ -1,5 +1,5 @@
 import type { Host } from 'ajo'
-import { callRef, controlled, dismiss, hover, id, resize } from 'ajo-cloves'
+import { callHandler, callRef, controlled, dismiss, hover, id, resize } from 'ajo-cloves'
 import { closePopover, openPopover, popoverOpen } from './native'
 import { position, type PositionProfile, type PositionReference } from './position'
 
@@ -48,6 +48,26 @@ export const triggerAttrs = <Element extends HTMLElement>(options: TriggerAttrsO
 	}
 	return attrs
 }
+
+/** Composes a trigger's caller focus and pointer handlers with a hover popup's `focus` and `trigger` zones. */
+export const hoverTrigger = (view: Pick<PopupView, 'hold' | 'release'> | null | undefined, args: Record<string, unknown>, disabled: boolean) => ({
+	'set:onblur': (event: FocusEvent) => {
+		callHandler(args['set:onblur'], event)
+		view?.release('focus', event)
+	},
+	'set:onfocus': (event: FocusEvent) => {
+		callHandler(args['set:onfocus'], event)
+		if (!event.defaultPrevented && !disabled) view?.hold('focus', event)
+	},
+	'set:onmouseenter': (event: MouseEvent) => {
+		callHandler(args['set:onmouseenter'], event)
+		if (!event.defaultPrevented && !disabled) view?.hold('trigger', event)
+	},
+	'set:onmouseleave': (event: MouseEvent) => {
+		callHandler(args['set:onmouseleave'], event)
+		view?.release('trigger', event)
+	},
+})
 
 /** Inline reset for a native popover plus caller-owned declarations. */
 export const popupStyle = (...parts: unknown[]) =>

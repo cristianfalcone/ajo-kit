@@ -1,7 +1,7 @@
-import type { Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
+import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { contentAttrs, popup, type PopupPosition, popupStyle, type PopupView, triggerAttrs } from './popup'
+import { contentAttrs, hoverTrigger, popup, type PopupPosition, popupStyle, type PopupView, triggerAttrs } from './popup'
 import { PopupSurface } from './popup-surface'
 import type { FixedArgs, OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
@@ -65,90 +65,48 @@ export type PopoverAnchorArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
-type PopoverContextValue = {
-	adoptTriggerId: PopupView['adoptTriggerId']
-	arrowAttrs: PopupView['arrowAttrs']
-	close: (event?: Event) => void
-	content: HTMLDivElement | null
-	contentId: string
-	contentStyle: PopupView['contentStyle']
+type PopoverContextValue = PopupView<HTMLElement, HTMLDivElement> & {
 	description?: string
 	disabled: boolean
 	label: string
-	open: boolean
 	openOn: PopoverOpenOn
-	openWithDelay?: (event?: Event) => void
-	registerContentFocus?: (focused: boolean, event?: Event) => void
-	registerContentHover?: (hovering: boolean, event?: Event) => void
-	registerTriggerFocus?: (focused: boolean, event?: Event) => void
-	registerTriggerHover?: (hovering: boolean, event?: Event) => void
-	setReference: (element: HTMLElement | null) => void
-	setContent: (element: HTMLDivElement | null) => void
-	setOpen: (open: boolean, event?: Event) => void
-	setTrigger: (element: HTMLElement | null) => void
-	trigger: HTMLElement | null
-	triggerId: string
 }
 
 const PopoverContext = context<PopoverContextValue | null>(null)
 
-/** Shared root body for both interaction modes; the mode is fixed per host. */
-function* popoverEngine(
-	this: Host<HTMLDivElement, PopoverArgs>,
-	initial: PopoverArgs,
-	mode: PopoverOpenOn,
-) {
+const PopoverRoot: Stateful<PopoverArgs> = function* ({ defaultOpen, open, openOn = 'click' }) {
 	let closeDelay = 300
 	let disabled = false
 	let onOpenChange: PopoverArgs['onOpenChange']
 	let openDelay = 700
-	let popover: PopupView<HTMLElement, HTMLDivElement>
+	const hover = openOn === 'hover'
 
-	popover = popup<HTMLElement, HTMLDivElement>(this, {
+	const popover = popup<HTMLElement, HTMLDivElement>(this, {
 		prefix: 'popover',
 		profile: 'popover',
-		initialOpen: Boolean(initial.open ?? initial.defaultOpen),
+		initialOpen: Boolean(open ?? defaultOpen),
 		disabled: () => disabled,
-		hover: mode === 'hover' ? {
+		hover: hover ? {
 			openDelay: () => openDelay,
 			closeDelay: () => closeDelay,
 		} : undefined,
 		onOpenChange: (next, event) => onOpenChange?.(next, event),
 		referenceHidden: 'close',
 		dismiss: {
-			prevent: mode === 'hover',
+			prevent: hover,
 			outside: true,
 			onDismiss: (event, view) => {
 				view.cancelHover()
-				view.close(event, mode === 'click' ? view.trigger : null)
+				view.close(event, hover ? null : view.trigger)
 			},
 		},
 	})
 
-	const close = (event?: Event) => {
-		popover.cancelHover()
-		popover.close(event)
-	}
-
-	const openWithDelay = (event?: Event) => popover.hold('trigger', event as Event)
-
-	const registerTriggerHover = (hovering: boolean, event?: Event) =>
-		hovering ? popover.hold('trigger', event as Event) : popover.release('trigger', event as Event)
-
-	const registerContentHover = (hovering: boolean, event?: Event) =>
-		hovering ? popover.hold('content', event as Event) : popover.release('content', event as Event)
-
-	const registerTriggerFocus = (focused: boolean, event?: Event) =>
-		focused ? popover.hold('focus-trigger', event as Event) : popover.release('focus-trigger', event as Event)
-
-	const registerContentFocus = (focused: boolean, event?: Event) =>
-		focused ? popover.hold('focus-content', event as Event) : popover.release('focus-content', event as Event)
-
 	for (const args of this) {
-		closeDelay = Math.max(0, Number(args.closeDelay ?? 300))
+		closeDelay = args.closeDelay ?? 300
 		disabled = Boolean(args.disabled)
 		onOpenChange = args.onOpenChange
-		openDelay = Math.max(0, Number(args.openDelay ?? 700))
+		openDelay = args.openDelay ?? 700
 		const opened = popover.sync(args.open == null ? null : Boolean(args.open), {
 			placement: args.placement,
 			gap: args.gap,
@@ -156,34 +114,16 @@ function* popoverEngine(
 
 		PopoverContext({
 			...popover,
-			close: mode === 'hover' ? close : popover.close,
 			description: args.description,
 			disabled,
 			label: args.label,
 			open: opened,
-			openOn: mode,
-			...(mode === 'hover' ? {
-				openWithDelay,
-				registerContentFocus,
-				registerContentHover,
-				registerTriggerFocus,
-				registerTriggerHover,
-			} : {}),
+			openOn,
 		})
 
 		yield <>{args.children}</>
 	}
 }
-
-const PopoverClickRoot: Stateful<PopoverArgs> = function* (args) {
-	yield* popoverEngine.call(this, args, 'click')
-}
-
-
-const PopoverHoverRoot: Stateful<PopoverArgs> = function* (args) {
-	yield* popoverEngine.call(this, args, 'hover')
-}
-
 
 /** Unstyled root provider for a popover. */
 const Popover: Stateless<PopoverArgs> = ({
@@ -199,11 +139,11 @@ const Popover: Stateless<PopoverArgs> = ({
 	onOpenChange,
 	open,
 	openDelay,
-	openOn = 'click',
+	openOn,
 	placement,
 	...attrs
-}) => openOn === 'hover' ? (
-	<PopoverHoverRoot
+}) => (
+	<PopoverRoot
 		{...rootAttrs(attrs)}
 		closeDelay={closeDelay}
 		defaultOpen={defaultOpen}
@@ -214,129 +154,19 @@ const Popover: Stateless<PopoverArgs> = ({
 		onOpenChange={onOpenChange}
 		open={open}
 		openDelay={openDelay}
+		openOn={openOn}
 		placement={placement}
 		attr:class={classes}
 		attr:data-slot={slot}
 	>
 		{children}
-	</PopoverHoverRoot>
-) : (
-	<PopoverClickRoot
-		{...rootAttrs(attrs)}
-		defaultOpen={defaultOpen}
-		description={description}
-		disabled={disabled}
-		gap={gap}
-		label={label}
-		onOpenChange={onOpenChange}
-		open={open}
-		placement={placement}
-		attr:class={classes}
-		attr:data-slot={slot}
-	>
-		{children}
-	</PopoverClickRoot>
+	</PopoverRoot>
 )
 
-/** Unstyled button that opens a Popover. */
+/** Unstyled button, anchor or span that opens a Popover on click, or on hover and focus in hover mode. */
 const PopoverTrigger: Stateless<PopoverTriggerArgs> = args => {
-	const popover = PopoverContext()
-	const all = args as PopoverTriggerAllArgs
-
-	if (popover?.openOn === 'hover') {
-		const {
-			as = 'button',
-			children,
-			class: classes,
-			'data-slot': slot = 'popover-trigger',
-			disabled,
-			id,
-			ref,
-			type = 'button',
-			'set:onblur': onBlur,
-			'set:onfocus': onFocus,
-			'set:onkeydown': onKeydown,
-			'set:onmouseleave': onMouseLeave,
-			'set:onmouseenter': onMouseEnter,
-			...attrs
-		} = all
-		const disabledFlag = Boolean(disabled ?? popover.disabled)
-
-		const common = {
-			...attrs,
-			...triggerAttrs({
-				controls: popover.contentId,
-				expanded: popover.open,
-				haspopup: 'dialog',
-				id: popover.adoptTriggerId(id),
-				open: popover.open,
-				ref,
-				setTrigger: popover.setTrigger,
-				triggerId: popover.triggerId,
-			}),
-			class: classes,
-			'data-slot': slot,
-			'set:onblur': (event: FocusEvent) => {
-				callHandler(onBlur, event)
-				popover.registerTriggerFocus?.(false, event)
-			},
-			'set:onfocus': (event: FocusEvent) => {
-				callHandler(onFocus, event)
-				if (event.defaultPrevented || disabledFlag) return
-				popover.registerTriggerFocus?.(true, event)
-			},
-			'set:onkeydown': (event: KeyboardEvent) => {
-				callHandler(onKeydown, event)
-			},
-			'set:onmouseleave': (event: MouseEvent) => {
-				callHandler(onMouseLeave, event)
-				popover.registerTriggerHover?.(false, event)
-			},
-			'set:onmouseenter': (event: MouseEvent) => {
-				callHandler(onMouseEnter, event)
-				if (event.defaultPrevented || disabledFlag) return
-				popover.registerTriggerHover?.(true, event)
-			},
-		}
-
-		if (as === 'a') {
-			const anchor = attrs as IntrinsicElements['a']
-
-			return (
-				<a
-					{...common}
-					aria-disabled={disabledFlag ? 'true' : undefined}
-					href={disabledFlag ? undefined : anchor.href}
-					tabIndex={disabledFlag ? -1 : anchor.tabIndex}
-				>
-					{children}
-				</a>
-			)
-		}
-
-		if (as === 'span') {
-			return (
-				<span
-					{...common}
-					aria-disabled={disabledFlag ? 'true' : undefined}
-				>
-					{children}
-				</span>
-			)
-		}
-
-		return (
-			<button
-				{...common}
-				disabled={disabledFlag}
-				type={type}
-			>
-				{children}
-			</button>
-		)
-	}
-
 	const {
+		as = 'button',
 		children,
 		'data-slot': slot = 'popover-trigger',
 		disabled,
@@ -345,32 +175,59 @@ const PopoverTrigger: Stateless<PopoverTriggerArgs> = args => {
 		type = 'button',
 		'set:onclick': onClick,
 		...attrs
-	} = all
+	} = args as PopoverTriggerAllArgs
+	const popover = PopoverContext()
 	const disabledFlag = Boolean(disabled ?? popover?.disabled)
-	const adoptedId = popover?.adoptTriggerId(id)
+	const common = {
+		...attrs,
+		...triggerAttrs({
+			controls: popover?.contentId,
+			expanded: Boolean(popover?.open),
+			haspopup: 'dialog',
+			id: popover?.adoptTriggerId(id) ?? id,
+			open: Boolean(popover?.open),
+			ref,
+			setTrigger: popover?.setTrigger,
+			triggerId: popover?.triggerId,
+		}),
+		'data-slot': slot,
+		...(popover?.openOn === 'hover' ? {
+			...hoverTrigger(popover, attrs, disabledFlag),
+			'set:onclick': onClick,
+		} : {
+			'set:onclick': (event: Event) => {
+				callHandler(onClick, event)
+				if (event.defaultPrevented || disabledFlag) return
+				popover?.setOpen(!popover.open, event)
+			},
+		}),
+	}
+
+	if (as === 'a') {
+		const anchor = attrs as IntrinsicElements['a']
+
+		return (
+			<a
+				{...common}
+				aria-disabled={disabledFlag ? 'true' : undefined}
+				href={disabledFlag ? undefined : anchor.href}
+				tabIndex={disabledFlag ? -1 : anchor.tabIndex}
+			>
+				{children}
+			</a>
+		)
+	}
+
+	if (as === 'span') {
+		return (
+			<span {...common} aria-disabled={disabledFlag ? 'true' : undefined}>
+				{children}
+			</span>
+		)
+	}
 
 	return (
-		<button
-			{...attrs}
-			{...triggerAttrs({
-				controls: popover?.contentId,
-				expanded: Boolean(popover?.open),
-				haspopup: 'dialog',
-				id: adoptedId ?? id,
-				open: Boolean(popover?.open),
-				ref,
-				setTrigger: popover?.setTrigger,
-				triggerId: popover?.triggerId,
-			})}
-			data-slot={slot}
-			disabled={disabledFlag}
-			set:onclick={(event: Event) => {
-				callHandler(onClick, event)
-				if (event.defaultPrevented) return
-				popover?.setOpen(!popover.open, event)
-			}}
-			type={type}
-		>
+		<button {...common} disabled={disabledFlag} type={type}>
 			{children}
 		</button>
 	)
@@ -403,90 +260,43 @@ const PopoverAnchor: Stateless<PopoverAnchorArgs> = ({
 }
 
 /** Unstyled floating panel for a Popover. */
-const PopoverContent: Stateless<PopoverContentArgs> = args => {
+const PopoverContent: Stateless<PopoverContentArgs> = ({
+	arrow = false,
+	children,
+	'data-slot': slot = 'popover-content',
+	ref,
+	style,
+	...attrs
+}) => {
 	const popover = PopoverContext()
 	const titleId = popover ? `${popover.contentId}-title` : undefined
 	const descriptionId = popover?.description ? `${popover.contentId}-description` : undefined
-	const heading = popover ? (
-		<div data-slot="popover-header">
-			<h2 data-slot="popover-title" id={titleId}>{popover.label}</h2>
-			{popover.description ? (
-				<p data-slot="popover-description" id={descriptionId}>{popover.description}</p>
-			) : null}
-		</div>
-	) : null
-
-	if (popover?.openOn === 'hover') {
-		const {
-			arrow = false,
-			children,
-			class: classes,
-			'data-slot': slot = 'popover-content',
-			ref,
-			style,
-			'set:onfocusin': onFocusIn,
-			'set:onfocusout': onFocusOut,
-			'set:onmouseleave': onMouseLeave,
-			'set:onmouseenter': onMouseEnter,
-			...attrs
-		} = args
-
-		return (
-			<div
-				{...attrs}
-				{...contentAttrs({
-					id: popover.contentId,
-					open: popover.open,
-					ref,
-					setContent: popover.setContent,
-					style: popover.contentStyle(style),
-					tabindex: '-1',
-				})}
-				aria-describedby={descriptionId}
-				aria-labelledby={titleId}
-				class={classes}
-				data-arrow={arrow ? 'true' : undefined}
-				data-slot={slot}
-				role="dialog"
-				set:onfocusout={(event: FocusEvent) => {
-					callHandler(onFocusOut, event)
-					const next = event.relatedTarget as Node | null
-					if (next && popover.content?.contains(next)) return
-					popover.registerContentFocus?.(false, event)
-				}}
-				set:onfocusin={(event: FocusEvent) => {
-					callHandler(onFocusIn, event)
-					popover.registerContentFocus?.(true, event)
-				}}
-				set:onmouseleave={(event: MouseEvent) => {
-					callHandler(onMouseLeave, event)
-					popover.registerContentHover?.(false, event)
-				}}
-				set:onmouseenter={(event: MouseEvent) => {
-					callHandler(onMouseEnter, event)
-					popover.registerContentHover?.(true, event)
-				}}
-			>
-				<PopupSurface arrow={arrow} popup={popover} />
-				{heading}
-				{children}
-			</div>
-		)
-	}
-
-	const {
-		arrow = false,
-		children,
-		class: classes,
-		'data-slot': slot = 'popover-content',
-		ref,
-		style,
-		...attrs
-	} = args
+	// Hover mode keeps the panel open while the pointer or focus is inside it.
+	const zones = popover?.openOn === 'hover' ? {
+		'set:onfocusin': (event: FocusEvent) => {
+			callHandler(attrs['set:onfocusin'], event)
+			popover.hold('focus-content', event)
+		},
+		'set:onfocusout': (event: FocusEvent) => {
+			callHandler(attrs['set:onfocusout'], event)
+			const next = event.relatedTarget as Node | null
+			if (next && (event.currentTarget as HTMLElement).contains(next)) return
+			popover.release('focus-content', event)
+		},
+		'set:onmouseenter': (event: MouseEvent) => {
+			callHandler(attrs['set:onmouseenter'], event)
+			popover.hold('content', event)
+		},
+		'set:onmouseleave': (event: MouseEvent) => {
+			callHandler(attrs['set:onmouseleave'], event)
+			popover.release('content', event)
+		},
+	} : null
 
 	return (
 		<div
 			{...attrs}
+			{...zones}
 			{...contentAttrs({
 				id: popover?.contentId,
 				open: Boolean(popover?.open),
@@ -497,13 +307,19 @@ const PopoverContent: Stateless<PopoverContentArgs> = args => {
 			})}
 			aria-describedby={descriptionId}
 			aria-labelledby={titleId}
-			class={classes}
 			data-arrow={arrow ? 'true' : undefined}
 			data-slot={slot}
 			role="dialog"
 		>
 			<PopupSurface arrow={arrow} popup={popover} />
-			{heading}
+			{popover ? (
+				<div data-slot="popover-header">
+					<h2 data-slot="popover-title" id={titleId}>{popover.label}</h2>
+					{popover.description ? (
+						<p data-slot="popover-description" id={descriptionId}>{popover.description}</p>
+					) : null}
+				</div>
+			) : null}
 			{children}
 		</div>
 	)

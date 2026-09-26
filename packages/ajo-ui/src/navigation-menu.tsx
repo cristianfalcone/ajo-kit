@@ -178,10 +178,10 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 	})
 
 	for (const args of this) {
-		closeDelay = Math.max(0, Number(args.closeDelay ?? 300))
+		closeDelay = args.closeDelay ?? 300
 		dir = args.dir ?? 'ltr'
 		onValueChange = args.onValueChange
-		openDelay = Math.max(0, Number(args.openDelay ?? 200))
+		openDelay = args.openDelay ?? 200
 		state.sync(args.value != null ? String(args.value ?? '') : undefined)
 
 		RootContext({

@@ -21,7 +21,6 @@ import {
 	SidebarMenuSubButton,
 	SidebarMenuSubItem,
 	SidebarProvider,
-	SidebarRail,
 	SidebarSeparator,
 	SidebarTrigger,
 	sidebarMenuActionVariants,
@@ -122,7 +121,7 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 										<Menu class="!contents" placement="right-start">
 											<MenuTrigger
 												class={sidebarMenuActionVariants({ showOnHover: true })}
-												data-sidebar="menu-action"
+												data-slot="sidebar-menu-action"
 												aria-label={`More for ${project.label}`}
 											>
 												<span class="i-lucide-more-vertical" />
@@ -142,7 +141,7 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 								))}
 								<SidebarMenuItem>
 									<Collapsible defaultOpen class="group/settings">
-										<CollapsibleTrigger class={sidebarMenuButtonVariants()} data-sidebar="menu-button">
+										<CollapsibleTrigger class={sidebarMenuButtonVariants()} data-slot="sidebar-menu-button">
 											<span class="i-lucide-settings" />
 											<span>Settings</span>
 											<span class="i-lucide-chevron-right ml-auto transition-transform group-data-[state=open]/settings:rotate-90" />
@@ -187,7 +186,7 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 					<SidebarMenu>
 						<SidebarMenuItem>
 							<Menu class="!contents" placement="top-start">
-								<MenuTrigger class={sidebarMenuButtonVariants({ size: 'lg' })} data-sidebar="menu-button" data-size="lg">
+								<MenuTrigger class={sidebarMenuButtonVariants({ size: 'lg' })} data-size="lg" data-slot="sidebar-menu-button">
 									<span class="i-lucide-circle-user" />
 									<span>cristian@example.com</span>
 									<span class="i-lucide-chevrons-up-down ml-auto" />
@@ -213,7 +212,6 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 						</SidebarMenuItem>
 					</SidebarMenu>
 				</SidebarFooter>
-				<SidebarRail />
 			</Sidebar>
 		)
 	}
@@ -223,7 +221,7 @@ export default {
 	title: 'UI/Sidebar',
 	component: Sidebar,
 	parameters: {
-		docs: { description: 'Composable Ajo Kit sidebar family with provider state, trigger, rail, groups, menu buttons, badges, submenus, input, and inset content.' },
+		docs: { description: 'Composable Ajo Kit sidebar family with provider state, trigger, groups, menu buttons, badges, submenus, input, and inset content.' },
 		layout: 'fullscreen',
 	},
 } satisfies Meta<typeof Sidebar>
@@ -280,30 +278,30 @@ export const Default: Story<typeof Sidebar> = {
 		if (!canvas.querySelector('[data-slot="sidebar-menu-badge"]')) throw new Error('Sidebar badge was not rendered')
 		if (!canvas.querySelector('[aria-current="page"]')) throw new Error('Active sidebar item should expose aria-current')
 
-		const separator = canvas.querySelector<HTMLElement>('[data-sidebar="separator"]')
+		const separator = sidebar.querySelector<HTMLElement>('[data-slot="separator"]')
 		if (!separator) throw new Error('SidebarSeparator was not rendered')
 		if (separator.getBoundingClientRect().height < 1) throw new Error('SidebarSeparator is invisible (computed height below 1px)')
 
 		// The loading rows read as skeletons: pulse animation on the row.
-		const skeleton = canvas.querySelector<HTMLElement>('[data-sidebar="menu-skeleton"]')
+		const skeleton = canvas.querySelector<HTMLElement>('[data-slot="sidebar-menu-skeleton"]')
 		if (!skeleton) throw new Error('Sidebar skeleton was not rendered')
 		if (getComputedStyle(skeleton).animationName === 'none') {
 			throw new Error('Sidebar skeleton should pulse while loading')
 		}
 
 		// pr-8 must apply to a menu button whose item hosts a SidebarMenuAction
-		// (regression: the single-bracket group-has-[data-sidebar=menu-action]
+		// (regression: the single-bracket group-has-[data-slot=sidebar-menu-action]
 		// arbitrary variant generated an invalid :has() selector, dropping the
 		// rule and letting the action button overlap the label).
-		const action = canvas.querySelector<HTMLElement>('[data-sidebar="menu-action"]')
-		const crowded = action?.closest('li')?.querySelector<HTMLElement>('[data-sidebar="menu-button"]')
+		const action = canvas.querySelector<HTMLElement>('[data-slot="sidebar-menu-action"]')
+		const crowded = action?.closest('li')?.querySelector<HTMLElement>('[data-slot="sidebar-menu-button"]')
 		if (!action || !crowded) throw new Error('Sidebar menu action example was not rendered')
 		if (getComputedStyle(crowded).paddingRight !== '32px') {
 			throw new Error('SidebarMenuButton did not reserve pr-8 space for its SidebarMenuAction')
 		}
 
 		// Selecting an item moves aria-current without navigating.
-		const dashboard = Array.from(canvas.querySelectorAll<HTMLElement>('[data-sidebar="menu-button"]'))
+		const dashboard = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="sidebar-menu-button"]'))
 			.find(node => node.textContent?.includes('Dashboard'))
 		if (!dashboard) throw new Error('Dashboard item was not rendered')
 		dashboard.click()
@@ -311,12 +309,12 @@ export const Default: Story<typeof Sidebar> = {
 		if (dashboard.getAttribute('aria-current') !== 'page') throw new Error('Clicking a sidebar item did not activate it')
 
 		// The search input filters the menu.
-		const input = canvas.querySelector<HTMLInputElement>('[data-sidebar="input"]')
+		const input = sidebar.querySelector<HTMLInputElement>('[data-slot="input"]')
 		if (!input) throw new Error('Sidebar search input was not rendered')
 		input.value = 'tok'
 		input.dispatchEvent(new Event('input', { bubbles: true }))
 		await tick()
-		const labels = Array.from(canvas.querySelectorAll<HTMLElement>('[data-sidebar="menu-button"]')).map(node => node.textContent ?? '')
+		const labels = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="sidebar-menu-button"]')).map(node => node.textContent ?? '')
 		if (!labels.some(label => label.includes('Tokens')) || labels.some(label => label.includes('Dashboard'))) {
 			throw new Error('Sidebar search did not filter the menu items')
 		}
@@ -325,17 +323,17 @@ export const Default: Story<typeof Sidebar> = {
 		await tick()
 
 		// The group action appends a project.
-		const before = canvas.querySelectorAll('[data-sidebar="menu-button"]').length
-		canvas.querySelector<HTMLButtonElement>('[data-sidebar="group-action"]')?.click()
+		const before = canvas.querySelectorAll('[data-slot="sidebar-menu-button"]').length
+		canvas.querySelector<HTMLButtonElement>('[data-slot="sidebar-group-action"]')?.click()
 		await tick()
-		if (canvas.querySelectorAll('[data-sidebar="menu-button"]').length !== before + 1) {
+		if (canvas.querySelectorAll('[data-slot="sidebar-menu-button"]').length !== before + 1) {
 			throw new Error('SidebarGroupAction did not add a project')
 		}
 
 		// The Settings collapsible opens and closes its submenu.
-		const settings = Array.from(canvas.querySelectorAll<HTMLElement>('[data-sidebar="menu-button"]'))
+		const settings = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="sidebar-menu-button"]'))
 			.find(node => node.textContent?.includes('Settings'))
-		const sub = canvas.querySelector<HTMLElement>('[data-sidebar="menu-sub"]')
+		const sub = canvas.querySelector<HTMLElement>('[data-slot="sidebar-menu-sub"]')
 		if (!settings || !sub) throw new Error('Settings collapsible was not rendered')
 		if (sub.getBoundingClientRect().height < 1) throw new Error('Settings submenu should start open')
 		settings.click()
@@ -352,7 +350,7 @@ export const Default: Story<typeof Sidebar> = {
 		if (!sub.checkVisibility()) throw new Error('Settings collapsible did not reopen its submenu')
 
 		// The item action opens its menu.
-		const more = canvas.querySelector<HTMLButtonElement>('[data-sidebar="menu-action"]')
+		const more = canvas.querySelector<HTMLButtonElement>('[data-slot="sidebar-menu-action"]')
 		if (!more) throw new Error('Sidebar menu action was not rendered')
 		more.click()
 		await frame()
@@ -363,7 +361,7 @@ export const Default: Story<typeof Sidebar> = {
 		if (menu.matches(':popover-open')) throw new Error('Escape did not close the action menu')
 
 		// The footer user menu opens.
-		const user = Array.from(canvas.querySelectorAll<HTMLElement>('[data-sidebar="menu-button"]'))
+		const user = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="sidebar-menu-button"]'))
 			.find(node => node.textContent?.includes('cristian@example.com'))
 		if (!user) throw new Error('Sidebar user menu button was not rendered')
 		user.click()
@@ -377,22 +375,14 @@ export const Default: Story<typeof Sidebar> = {
 		// Trigger and shortcut still toggle the sidebar.
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="sidebar-trigger"]')
 		if (!trigger) throw new Error('SidebarTrigger was not rendered')
-		const clearCookie = () => document.cookie = 'sidebar_state=; path=/; max-age=0'
-		clearCookie()
-		try {
-			trigger.click()
-			await tick()
-			if (sidebar.getAttribute('data-state') !== 'collapsed') throw new Error('SidebarTrigger did not collapse the sidebar')
-			if (!document.cookie.split('; ').includes('sidebar_state=false')) throw new Error('Sidebar did not persist its collapsed state')
-			expectDesktopWidth(sidebar, 48)
+		trigger.click()
+		await tick()
+		if (sidebar.getAttribute('data-state') !== 'collapsed') throw new Error('SidebarTrigger did not collapse the sidebar')
+		expectDesktopWidth(sidebar, 48)
 
-			modB()
-			await tick()
-			if (sidebar.getAttribute('data-state') !== 'expanded') throw new Error('mod+b shortcut did not expand the sidebar')
-			if (!document.cookie.split('; ').includes('sidebar_state=true')) throw new Error('Sidebar did not persist its expanded state')
-		} finally {
-			clearCookie()
-		}
+		modB()
+		await tick()
+		if (sidebar.getAttribute('data-state') !== 'expanded') throw new Error('mod+b shortcut did not expand the sidebar')
 	},
 }
 
@@ -553,7 +543,7 @@ export const Controlled: Story<typeof Sidebar> = {
 
 		// Icon mode keeps only the leading icon visible, including on
 		// composed triggers with three spans (icon, label, chevron).
-		const settings = Array.from(canvas.querySelectorAll<HTMLElement>('[data-sidebar="menu-button"]'))
+		const settings = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="sidebar-menu-button"]'))
 			.find(node => node.textContent?.includes('Settings'))
 		const label = settings?.querySelectorAll('span')[1]
 		if (!settings || !label) throw new Error('Settings trigger was not rendered')
@@ -620,13 +610,9 @@ export const Mobile: Story<typeof Sidebar> = {
 			throw new Error('openMobile change did not flow through onOpenChange with the event')
 		}
 
-		// The rail must not render inside the drawer presentation.
-		const rail = drawer.querySelector<HTMLElement>('[data-slot="sidebar-rail"]')
-		if (rail && rail.checkVisibility()) throw new Error('Sidebar rail should stay hidden inside the mobile drawer')
-
 		// Controls inside the drawer stay functional: the user menu opens
 		// above the modal.
-		const user = Array.from(drawer.querySelectorAll<HTMLElement>('[data-sidebar="menu-button"]'))
+		const user = Array.from(drawer.querySelectorAll<HTMLElement>('[data-slot="sidebar-menu-button"]'))
 			.find(node => node.textContent?.includes('cristian@example.com'))
 		if (!user) throw new Error('Drawer user menu button was not rendered')
 		user.click()

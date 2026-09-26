@@ -19,10 +19,9 @@ export type DrawerContentArgs = DialogContentArgs & {
 	closeIconClass?: string
 	/** Accessible label for the default close button. */
 	closeLabel?: string
+	/** Render a pointer-only drag handle; keyboard users close with Escape or the close button. */
 	handle?: boolean
 	handleClass?: string
-	/** Accessible label for the drag handle. */
-	handleLabel?: string
 	showCloseButton?: boolean
 	sideClass?: Partial<Record<DrawerSide, string>>
 }
@@ -135,9 +134,9 @@ const DrawerContent: Stateless<DrawerContentArgs> = ({
 	closeClass,
 	closeIconClass,
 	closeLabel = 'Close',
+	'data-slot': slot = 'drawer-content',
 	handle = false,
 	handleClass,
-	handleLabel = 'Drag to close',
 	ref,
 	showCloseButton = true,
 	sideClass,
@@ -145,10 +144,8 @@ const DrawerContent: Stateless<DrawerContentArgs> = ({
 }) => {
 	const drawer = DrawerContext()
 	const { side } = drawer
-	let panel: HTMLDialogElement | null = null
 
 	const reference = (element: HTMLDialogElement | null) => {
-		panel = element
 		drawer.setPanel(element)
 		callRef(ref, element)
 	}
@@ -158,22 +155,14 @@ const DrawerContent: Stateless<DrawerContentArgs> = ({
 			{...attrs}
 			class={clx(sideClass?.[side], classes)}
 			data-side={side}
-			data-slot="drawer-content"
+			data-slot={slot}
 			ref={reference}
 		>
 			{handle ? (
 				<div
-					aria-label={handleLabel}
+					aria-hidden="true"
 					class={handleClass}
 					data-slot="drawer-handle"
-					role="button"
-					tabIndex={0}
-					set:onkeydown={(event: KeyboardEvent) => {
-						if ((event.key === 'Enter' || event.key === ' ') && panel?.open) {
-							event.preventDefault()
-							panel.close()
-						}
-					}}
 					set:onpointerdown={(event: PointerEvent) => drawer.drag.start(event)}
 				/>
 			) : null}

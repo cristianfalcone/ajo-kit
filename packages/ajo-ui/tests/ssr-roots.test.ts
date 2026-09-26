@@ -328,6 +328,32 @@ test('SSR Popover omits description markup and relation when description is abse
 	expect(html).not.toContain('data-slot="popover-description"')
 })
 
+test('SSR Popover triggers render their `as` element in click and hover modes', () => {
+	for (const openOn of ['click', 'hover'] as const) {
+		const html = ssr(jsx(Popover, {
+			children: jsx(PopoverTrigger, { as: 'a', children: 'Profile', href: '/profile' }),
+			label: 'Profile',
+			openOn,
+		}))
+		const trigger = html.match(/<a[^>]*data-slot="popover-trigger"[^>]*>/)?.[0]
+
+		expect(trigger).toContain('href="/profile"')
+		expect(trigger).toContain('aria-haspopup="dialog"')
+		expect(trigger).not.toContain(' as=')
+		expect(html).not.toContain('<button')
+	}
+})
+
+test('SSR Drawer handle is a pointer-only decoration', () => {
+	const html = ssr(jsx(Drawer, { children: jsx(DrawerContent, { children: 'Panel', handle: true }) }))
+	const handle = html.match(/<div[^>]*data-slot="drawer-handle"[^>]*>/)?.[0]
+
+	expect(handle).toContain('aria-hidden="true"')
+	expect(handle).not.toContain('role=')
+	expect(handle).not.toContain('tabindex')
+	expect(handle).not.toContain('aria-label')
+})
+
 test('SSR Tooltip keeps positioning at the root and one manual semantic surface', () => {
 	const html = ssr(jsx(Tooltip, {
 		children: [

@@ -525,10 +525,10 @@ export const ClippedReference: Story<typeof Tooltip> = {
 	},
 }
 
-export const FocusAndDisabledHover: Story<typeof Tooltip> = {
+export const FocusAndHover: Story<typeof Tooltip> = {
 	argTypes: fixed,
 	render: () => (
-		<Tooltip disableHoverableContent>
+		<Tooltip>
 			<TooltipTrigger class={triggerClass} id="focus-disabled-hover-trigger">
 				Focus and hover
 			</TooltipTrigger>
@@ -546,7 +546,7 @@ export const FocusAndDisabledHover: Story<typeof Tooltip> = {
 		leave(trigger)
 		await wait(100)
 		if (!content.matches(':popover-open')) {
-			throw new Error('Pointer leave closed disableHoverableContent tooltip while focus still held it')
+			throw new Error('Pointer leave closed the tooltip while focus still held it')
 		}
 
 		trigger.blur()
@@ -596,7 +596,7 @@ export const ZeroSkipDelay: Story<typeof Tooltip> = {
 	render: () => (
 		<TooltipProvider delayDuration={300} skipDelayDuration={0}>
 			<div class="flex gap-2">
-				<Tooltip disableHoverableContent>
+				<Tooltip>
 					<TooltipTrigger class={triggerClass} id="zero-skip-first-trigger">First</TooltipTrigger>
 					<TooltipContent>First zero-skip tooltip</TooltipContent>
 				</Tooltip>
@@ -622,7 +622,7 @@ export const ZeroSkipDelay: Story<typeof Tooltip> = {
 		await until(() => firstContent.matches(':popover-open'), 'First zero-skip tooltip did not open after its delay')
 
 		leave(firstTrigger)
-		await until(() => !firstContent.matches(':popover-open'), 'First zero-skip tooltip did not close immediately')
+		await until(() => !firstContent.matches(':popover-open'), 'First zero-skip tooltip did not close after its hover bridge')
 		hover(secondTrigger)
 		await wait(60)
 		if (secondContent.matches(':popover-open')) {

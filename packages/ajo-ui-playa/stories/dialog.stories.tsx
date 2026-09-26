@@ -301,7 +301,12 @@ export const PreventEscape: Story<typeof Dialog> = {
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				{trigger}
 			</DialogTrigger>
-			<DialogContent showCloseButton={showCloseButton} onEscapeKeyDown={event => event.preventDefault()}>
+			<DialogContent
+				showCloseButton={showCloseButton}
+				set:onkeydown={(event: KeyboardEvent) => {
+					if (event.key === 'Escape') event.preventDefault()
+				}}
+			>
 				<DialogHeader>
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription>{description}</DialogDescription>

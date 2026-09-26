@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { browser, callHandler, controlled, dom, hotkey, media, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, controlled, dom, hotkey, media, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { Drawer, DrawerContent } from './drawer'
 import { part } from './utils'
@@ -20,18 +20,12 @@ export type SidebarProviderArgs = WithChildren<IntrinsicElements['div'] & {
 	open?: boolean
 	/**
 	 * Called with the next open state and the triggering event whenever either
-	 * presentation changes: the desktop open state (trigger, rail, shortcut,
-	 * `setOpen`) and the mobile drawer (`setOpenMobile`, drawer dismissal) both
-	 * notify here. Only the desktop state is controllable through `open`; the
-	 * mobile drawer state stays internal.
+	 * presentation changes: the desktop open state (trigger, shortcut, `setOpen`)
+	 * and the mobile drawer (`setOpenMobile`, drawer dismissal) both notify here.
+	 * Only the desktop state is controllable through `open`; the mobile drawer
+	 * state stays internal. Persist the desktop state from here when needed.
 	 */
 	onOpenChange?: (open: boolean, event?: Event) => void
-	/**
-	 * Persists the desktop open state; the default writes the `sidebar_state`
-	 * cookie. Pass false to disable. The cookie is write-only today — reading it
-	 * back into `defaultOpen` (kit SSR loader) is a recorded follow-up.
-	 */
-	persist?: false | ((open: boolean) => void)
 	/** Keyboard shortcut that toggles the sidebar. Default `'mod+b'`; pass false to disable (e.g. for static `collapsible="none"` sidebars). */
 	shortcut?: string | false
 	/** Media query that switches to the mobile presentation. */
@@ -55,25 +49,10 @@ export type SidebarTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 	class?: string
 }>
 
-/** Props for the edge rail that toggles the desktop sidebar. */
-export type SidebarRailArgs = IntrinsicElements['button'] & {
-	class?: string
-}
-
 /** Props for the main-content wrapper paired with an inset sidebar. */
 export type SidebarInsetArgs = WithChildren<IntrinsicElements['main'] & {
 	class?: string
 }>
-
-/** Props for an input styled and identified as sidebar content. */
-export type SidebarInputArgs = IntrinsicElements['input'] & {
-	class?: string
-}
-
-/** Props for a decorative separator between sidebar sections. */
-export type SidebarSeparatorArgs = IntrinsicElements['div'] & {
-	class?: string
-}
 
 /** Shared props for structural sidebar section wrappers. */
 export type SidebarSectionArgs = WithChildren<IntrinsicElements['div'] & {
@@ -179,8 +158,6 @@ export type SidebarContextValue = {
 /** Responsive state and controls provided by the nearest SidebarProvider. */
 export const SidebarContext = context<SidebarContextValue | null>(null)
 
-const cookie = 'sidebar_state'
-const cookieMaxAge = 60 * 60 * 24 * 7
 const defaultMobileQuery = '(max-width: 767px)'
 const defaultShortcut = 'mod+b'
 
@@ -188,11 +165,6 @@ const vars = (style?: string) =>
 	['--sidebar-width:16rem', '--sidebar-width-mobile:18rem', '--sidebar-width-icon:3rem', style]
 		.filter(Boolean)
 		.join(';')
-
-const writeCookie = (open: boolean) => {
-	if (!browser()) return
-	document.cookie = `${cookie}=${open}; path=/; max-age=${cookieMaxAge}`
-}
 
 const sidebar = () => {
 	const value = SidebarContext()
@@ -203,20 +175,16 @@ const sidebar = () => {
 const SidebarProviderRoot: Stateful<SidebarProviderArgs> = function* ({ defaultOpen = true, open }) {
 	let mobileQuery = defaultMobileQuery
 	let onOpenChange: SidebarProviderArgs['onOpenChange']
-	let persist: SidebarProviderArgs['persist']
 	let shortcut: SidebarProviderArgs['shortcut'] = defaultShortcut
 	const mobile = media(this, { query: () => mobileQuery })
 
 	const state = controlled<boolean>(this, {
 		fallback: Boolean(open ?? defaultOpen),
-		onChange: (next, event) => {
-			onOpenChange?.(next, event)
-			if (persist !== false) (persist ?? writeCookie)(next)
-		},
+		onChange: (next, event) => onOpenChange?.(next, event),
 	})
 
-	// The mobile drawer state is never controlled and never persisted, but it
-	// notifies through the same onOpenChange so consumers observe both presentations.
+	// The mobile drawer state is never controlled, but it notifies through the
+	// same onOpenChange so consumers observe both presentations.
 	const mobileState = controlled<boolean>(this, {
 		fallback: false,
 		onChange: (next, event) => onOpenChange?.(next, event),
@@ -236,13 +204,12 @@ const SidebarProviderRoot: Stateful<SidebarProviderArgs> = function* ({ defaultO
 	for (const args of this) {
 		mobileQuery = args.mobileQuery ?? defaultMobileQuery
 		onOpenChange = args.onOpenChange
-		persist = args.persist
 		shortcut = args.shortcut ?? defaultShortcut
 		mobile.sync()
 
 		// Presentation stamp for themes: media queries cannot follow a custom
-		// mobileQuery, so presentation-conditional styling (e.g. hiding the
-		// rail inside the drawer) keys on this instead of a breakpoint.
+		// mobileQuery, so presentation-conditional styling keys on this instead
+		// of a breakpoint.
 		if (dom(this)) this.setAttribute('data-mobile', String(mobile.matches))
 
 		// Leaving the mobile presentation drops the drawer, so an open drawer
@@ -281,7 +248,6 @@ const SidebarProvider: Stateless<SidebarProviderArgs> = ({
 	mobileQuery,
 	onOpenChange,
 	open,
-	persist,
 	shortcut,
 	style,
 	...attrs
@@ -292,7 +258,6 @@ const SidebarProvider: Stateless<SidebarProviderArgs> = ({
 		mobileQuery={mobileQuery}
 		onOpenChange={onOpenChange}
 		open={open}
-		persist={persist}
 		shortcut={shortcut}
 		attr:class={classes}
 		attr:data-slot="sidebar-wrapper"
@@ -333,11 +298,8 @@ const Sidebar: Stateless<SidebarArgs> = ({
 					class={mobileClass ?? classes}
 					data-mobile="true"
 					data-variant={variant}
+					data-slot="sidebar"
 					showCloseButton={false}
-					// DrawerContent pins data-slot="drawer-content" after its spread;
-					// reclaim the slot themes rely on. Ajo skips unchanged attr writes
-					// and re-runs refs each render, so the value survives updates.
-					ref={(element: HTMLDialogElement | null) => element?.setAttribute('data-slot', 'sidebar')}
 				>
 					<div class={mobileContentClass}>
 						{children}
@@ -363,12 +325,6 @@ const Sidebar: Stateless<SidebarArgs> = ({
 	)
 }
 
-/** Toggles the nearest SidebarProvider unless a caller-supplied click handler prevented default. */
-const toggleClick = (ctx: SidebarContextValue, onClick: unknown) => (event: Event) => {
-	callHandler(onClick, event)
-	if (!event.defaultPrevented) ctx.toggleSidebar(event)
-}
-
 /** Unstyled button that toggles the current SidebarProvider. */
 const SidebarTrigger: Stateless<SidebarTriggerArgs> = ({
 	'aria-label': label = 'Toggle Sidebar',
@@ -385,71 +341,41 @@ const SidebarTrigger: Stateless<SidebarTriggerArgs> = ({
 			{...attrs}
 			aria-label={label}
 			class={classes}
-			data-sidebar="trigger"
 			data-slot="sidebar-trigger"
 			type={type}
-			set:onclick={toggleClick(ctx, onClick)}
+			set:onclick={(event: Event) => {
+				callHandler(onClick, event)
+				if (!event.defaultPrevented) ctx.toggleSidebar(event)
+			}}
 		>
 			{children}
 		</button>
 	)
 }
 
-/** Unstyled rail hit area used to collapse or expand a sidebar. */
-const SidebarRail: Stateless<SidebarRailArgs> = ({
-	'aria-label': label = 'Toggle Sidebar',
-	class: classes,
-	type = 'button',
-	'set:onclick': onClick,
-	...attrs
-}) => {
-	const ctx = sidebar()
-
-	return (
-		<button
-			{...attrs}
-			aria-label={label}
-			class={classes}
-			data-sidebar="rail"
-			data-slot="sidebar-rail"
-			tabindex="-1"
-			title={label}
-			type={type}
-			set:onclick={toggleClick(ctx, onClick)}
-		/>
-	)
-}
-
 /** Unstyled main content wrapper used with inset sidebars. */
 const SidebarInset = part<SidebarInsetArgs>('main', 'sidebar-inset')
 
-/** Unstyled input carrying the sidebar slot and data markers. */
-const SidebarInput = part<SidebarInputArgs>('input', 'sidebar-input', { 'data-sidebar': 'input' })
-
 /** Unstyled container for content at the top of a sidebar. */
-const SidebarHeader = part<SidebarSectionArgs>('div', 'sidebar-header', { 'data-sidebar': 'header' })
+const SidebarHeader = part<SidebarSectionArgs>('div', 'sidebar-header')
 
 /** Unstyled container for content at the bottom of a sidebar. */
-const SidebarFooter = part<SidebarSectionArgs>('div', 'sidebar-footer', { 'data-sidebar': 'footer' })
-
-/** Unstyled decorative separator between sidebar sections. */
-const SidebarSeparator = part<SidebarSeparatorArgs>('div', 'sidebar-separator', { 'data-sidebar': 'separator', 'aria-hidden': 'true', role: 'none' })
+const SidebarFooter = part<SidebarSectionArgs>('div', 'sidebar-footer')
 
 /** Unstyled container for the sidebar's primary content. */
-const SidebarContent = part<SidebarSectionArgs>('div', 'sidebar-content', { 'data-sidebar': 'content' })
+const SidebarContent = part<SidebarSectionArgs>('div', 'sidebar-content')
 
 /** Unstyled wrapper for a related group of sidebar controls. */
-const SidebarGroup = part<SidebarSectionArgs>('div', 'sidebar-group', { 'data-sidebar': 'group' })
+const SidebarGroup = part<SidebarSectionArgs>('div', 'sidebar-group')
 
 /** Unstyled label for a sidebar group. */
-const SidebarGroupLabel = part<SidebarSectionArgs>('div', 'sidebar-group-label', { 'data-sidebar': 'group-label' })
+const SidebarGroupLabel = part<SidebarSectionArgs>('div', 'sidebar-group-label')
 
 /** Unstyled action button associated with a sidebar group. */
 const SidebarGroupAction: Stateless<SidebarGroupActionArgs> = ({ children, class: classes, type = 'button', ...attrs }) => (
 	<button
 		{...attrs}
 		class={classes}
-		data-sidebar="group-action"
 		data-slot="sidebar-group-action"
 		type={type}
 	>
@@ -458,13 +384,13 @@ const SidebarGroupAction: Stateless<SidebarGroupActionArgs> = ({ children, class
 )
 
 /** Unstyled content container inside a sidebar group. */
-const SidebarGroupContent = part<SidebarSectionArgs>('div', 'sidebar-group-content', { 'data-sidebar': 'group-content' })
+const SidebarGroupContent = part<SidebarSectionArgs>('div', 'sidebar-group-content')
 
 /** Unstyled list for primary sidebar navigation items. */
-const SidebarMenu = part<SidebarMenuArgs>('ul', 'sidebar-menu', { 'data-sidebar': 'menu' })
+const SidebarMenu = part<SidebarMenuArgs>('ul', 'sidebar-menu')
 
 /** Unstyled item in the primary sidebar menu. */
-const SidebarMenuItem = part<SidebarMenuItemArgs>('li', 'sidebar-menu-item', { 'data-sidebar': 'menu-item' })
+const SidebarMenuItem = part<SidebarMenuItemArgs>('li', 'sidebar-menu-item')
 
 /** Unstyled primary sidebar menu control rendered as a button or anchor. */
 const SidebarMenuButton: Stateless<SidebarMenuButtonArgs> = ({
@@ -488,7 +414,6 @@ const SidebarMenuButton: Stateless<SidebarMenuButtonArgs> = ({
 				aria-current={isActive ? 'page' : undefined}
 				class={classes}
 				data-active={isActive ? 'true' : undefined}
-				data-sidebar="menu-button"
 				data-size={size}
 				data-slot="sidebar-menu-button"
 				title={title}
@@ -505,7 +430,6 @@ const SidebarMenuButton: Stateless<SidebarMenuButtonArgs> = ({
 			{...button}
 			class={classes}
 			data-active={isActive ? 'true' : undefined}
-			data-sidebar="menu-button"
 			data-size={size}
 			data-slot="sidebar-menu-button"
 			title={title}
@@ -521,7 +445,6 @@ const SidebarMenuAction: Stateless<SidebarMenuActionArgs> = ({ children, class: 
 	<button
 		{...attrs}
 		class={classes}
-		data-sidebar="menu-action"
 		data-slot="sidebar-menu-action"
 		type={type}
 	>
@@ -530,7 +453,7 @@ const SidebarMenuAction: Stateless<SidebarMenuActionArgs> = ({ children, class: 
 )
 
 /** Unstyled metadata badge displayed beside a sidebar menu item. */
-const SidebarMenuBadge = part<SidebarMenuBadgeArgs>('div', 'sidebar-menu-badge', { 'data-sidebar': 'menu-badge' })
+const SidebarMenuBadge = part<SidebarMenuBadgeArgs>('div', 'sidebar-menu-badge')
 
 /** Unstyled loading placeholder for a sidebar menu item. */
 const SidebarMenuSkeleton: Stateless<SidebarMenuSkeletonArgs> = ({
@@ -541,17 +464,17 @@ const SidebarMenuSkeleton: Stateless<SidebarMenuSkeletonArgs> = ({
 	width = '70%',
 	...attrs
 }) => (
-	<div {...attrs} class={classes} data-sidebar="menu-skeleton" data-slot="sidebar-menu-skeleton">
-		{showIcon ? <div class={iconClass} data-sidebar="menu-skeleton-icon" /> : null}
-		<div class={textClass} data-sidebar="menu-skeleton-text" style={`max-width:${width}`} />
+	<div {...attrs} class={classes} data-slot="sidebar-menu-skeleton">
+		{showIcon ? <div class={iconClass} data-slot="sidebar-menu-skeleton-icon" /> : null}
+		<div class={textClass} data-slot="sidebar-menu-skeleton-text" style={`max-width:${width}`} />
 	</div>
 )
 
 /** Unstyled nested list within the sidebar menu. */
-const SidebarMenuSub = part<SidebarMenuSubArgs>('ul', 'sidebar-menu-sub', { 'data-sidebar': 'menu-sub' })
+const SidebarMenuSub = part<SidebarMenuSubArgs>('ul', 'sidebar-menu-sub')
 
 /** Unstyled item in a nested sidebar menu. */
-const SidebarMenuSubItem = part<SidebarMenuSubItemArgs>('li', 'sidebar-menu-sub-item', { 'data-sidebar': 'menu-sub-item' })
+const SidebarMenuSubItem = part<SidebarMenuSubItemArgs>('li', 'sidebar-menu-sub-item')
 
 /** Unstyled anchor for a nested sidebar menu item. */
 const SidebarMenuSubButton: Stateless<SidebarMenuSubButtonArgs> = ({
@@ -566,7 +489,6 @@ const SidebarMenuSubButton: Stateless<SidebarMenuSubButtonArgs> = ({
 		aria-current={isActive ? 'page' : undefined}
 		class={classes}
 		data-active={isActive ? 'true' : undefined}
-		data-sidebar="menu-sub-button"
 		data-size={size}
 		data-slot="sidebar-menu-sub-button"
 	>
@@ -583,7 +505,6 @@ export {
 	SidebarGroupContent,
 	SidebarGroupLabel,
 	SidebarHeader,
-	SidebarInput,
 	SidebarInset,
 	SidebarMenu,
 	SidebarMenuAction,
@@ -595,7 +516,5 @@ export {
 	SidebarMenuSubButton,
 	SidebarMenuSubItem,
 	SidebarProvider,
-	SidebarRail,
-	SidebarSeparator,
 	SidebarTrigger,
 }

@@ -30,10 +30,11 @@ export type DialogCloseArgs = WithChildren<IntrinsicElements['button'] & {
 	class?: string
 }>
 
-/** Arguments for the native dialog panel and its dismissal hooks. */
+/**
+ * Arguments for the native dialog panel and its dismissal hooks. To keep the
+ * dialog open on Escape, prevent the Escape `keydown` in `set:onkeydown`.
+ */
 export type DialogContentArgs = WithChildren<OmitArg<IntrinsicElements['dialog'], 'open'> & {
-	/** Called when Escape requests dialog close. Prevent default to keep it open. */
-	onEscapeKeyDown?: (event: KeyboardEvent) => void
 	/** Called when the native backdrop is clicked. Prevent default to keep it open. */
 	onPointerDownOutside?: (event: MouseEvent) => void
 	/** Additional CSS classes for the dialog panel. */
@@ -66,6 +67,8 @@ export type DialogDescriptionArgs = WithChildren<IntrinsicElements['p'] & {
 
 type DialogContextValue = {
 	close: (event?: Event) => void
+	/** Syncs state after the native dialog closed itself (form method=dialog, drag, `close()`). */
+	closed: (event: Event) => void
 	contentId: string
 	descriptionId: string
 	modal: boolean
@@ -95,7 +98,6 @@ const outside = (element: HTMLDialogElement, event: MouseEvent) => {
 
 const DialogRoot: Stateful<DialogArgs> = function* ({ defaultOpen, open }) {
 	const dialogId = id('dialog')
-	const watched = new WeakSet<HTMLDialogElement>()
 	let content: HTMLDialogElement | null = null
 	let modal = true
 	let onOpenChange: DialogArgs['onOpenChange']
@@ -133,17 +135,11 @@ const DialogRoot: Stateful<DialogArgs> = function* ({ defaultOpen, open }) {
 		if (!next) focusTrigger()
 	}
 
-	const setContent = (element: HTMLDialogElement | null) => {
-		content = element
-		if (!element || watched.has(element)) return
-
-		watched.add(element)
-		element.addEventListener('close', event => {
-			if (syncing || current === false) return
-			state.set(false, event)
-			current = state.value
-			focusTrigger()
-		}, { signal: this.signal })
+	const closed = (event: Event) => {
+		if (syncing || current === false) return
+		state.set(false, event)
+		current = state.value
+		focusTrigger()
 	}
 
 	for (const args of this) {
@@ -153,11 +149,12 @@ const DialogRoot: Stateful<DialogArgs> = function* ({ defaultOpen, open }) {
 
 		DialogContext({
 			close: event => setOpen(false, event),
+			closed,
 			contentId: `${dialogId}-content`,
 			descriptionId: `${dialogId}-description`,
 			modal,
 			open: current,
-			setContent,
+			setContent: element => content = element,
 			setOpen,
 			setTrigger: element => trigger = element,
 			titleId: `${dialogId}-title`,
@@ -266,14 +263,13 @@ const DialogContent: Stateless<DialogContentArgs> = ({
 	children,
 	class: classes,
 	'data-slot': slot = 'dialog-content',
-	onEscapeKeyDown,
 	onPointerDownOutside,
 	ref,
 	'aria-describedby': describedBy,
 	'aria-labelledby': labelledBy,
 	'set:oncancel': onCancel,
 	'set:onclick': onClick,
-	'set:onkeydown': onKeydown,
+	'set:onclose': onClose,
 	...attrs
 }) => {
 	const ctx = dialog()
@@ -308,9 +304,9 @@ const DialogContent: Stateless<DialogContentArgs> = ({
 					if (!event.defaultPrevented) ctx.close(event)
 				}
 			}}
-			set:onkeydown={(event: KeyboardEvent) => {
-				if (event.key === 'Escape') onEscapeKeyDown?.(event)
-				callHandler(onKeydown, event)
+			set:onclose={(event: Event) => {
+				callHandler(onClose, event)
+				ctx.closed(event)
 			}}
 		>
 			{children}
