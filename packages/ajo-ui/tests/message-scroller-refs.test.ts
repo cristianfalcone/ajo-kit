@@ -6,8 +6,8 @@ import {
 	MessageScroller,
 	MessageScrollerButton,
 	MessageScrollerContent,
+	MessageScrollerContext,
 	MessageScrollerItem,
-	MessageScrollerProvider,
 	MessageScrollerViewport,
 	type MessageScrollerApi,
 } from '../src/message-scroller'
@@ -20,14 +20,26 @@ const waitFrames = async (count = 1) => {
 	}
 }
 
-test('setApi exposes only the public message-scroller controller', () => {
+const Probe = ({ receive }: { receive: (api: MessageScrollerApi) => void }) => {
+	const api = MessageScrollerContext()
+	if (api) receive(api)
+	return null
+}
+
+test('the MessageScroller root is the only element and context exposes only the public controller', () => {
 	let api: MessageScrollerApi | undefined
 
-	render(jsx(MessageScrollerProvider, {
-		children: null,
-		setApi: (next: MessageScrollerApi) => api = next,
+	render(jsx(MessageScroller, {
+		children: jsx(Probe, { receive: (next: MessageScrollerApi) => api = next }),
+		class: 'transcript',
+		defaultScrollPosition: 'start',
 	}), document.body)
 
+	const root = document.body.firstElementChild as HTMLElement
+	expect(document.body.children).toHaveLength(1)
+	expect(root.dataset.slot).toBe('message-scroller')
+	expect(root.className).toBe('transcript')
+	expect(root.hasAttribute('defaultScrollPosition')).toBe(false)
 	expect(api).toBeDefined()
 	expect(Object.keys(api!)).toEqual([
 		'scrollToEnd',
@@ -36,34 +48,33 @@ test('setApi exposes only the public message-scroller controller', () => {
 		'scrollable',
 		'visibility',
 	])
-	for (const registrar of ['setButton', 'setContent', 'setItem', 'setRoot', 'setViewport']) {
+	for (const registrar of ['api', 'setButton', 'setContent', 'setItem', 'setViewport']) {
 		expect(api).not.toHaveProperty(registrar)
 	}
 })
 
-const RetargetingScroller: Stateful<{ setApi: (api: MessageScrollerApi) => void }> = function* ({ setApi }) {
+// Message ids can be user-derived, so the fixture uses one that would break a selector.
+const retargeted = 'new"] message'
+
+const RetargetingScroller: Stateful<{ receive: (api: MessageScrollerApi) => void }> = function* ({ receive }) {
 	let swapped = false
 	const swap = () => this.next(() => swapped = true)
 
-	while (true) yield jsx(MessageScrollerProvider, {
+	while (true) yield jsx(MessageScroller, {
 		children: [
 			jsx('button', { 'data-retarget': '', 'set:onclick': swap, type: 'button' }),
-			jsx(MessageScroller, {
-				children: [
-					jsx(MessageScrollerViewport, {
-						children: jsx(MessageScrollerContent, {
-							children: jsx(MessageScrollerItem, {
-								children: 'Message',
-								messageId: swapped ? 'new-message' : 'old-message',
-							}),
-						}),
+			jsx(Probe, { receive }),
+			jsx(MessageScrollerViewport, {
+				children: jsx(MessageScrollerContent, {
+					children: jsx(MessageScrollerItem, {
+						children: 'Message',
+						messageId: swapped ? retargeted : 'old-message',
 					}),
-					jsx(MessageScrollerButton, { direction: swapped ? 'start' : 'end' }),
-				],
+				}),
 			}),
+			jsx(MessageScrollerButton, { direction: swapped ? 'start' : 'end' }),
 		],
 		defaultScrollPosition: 'start',
-		setApi,
 	})
 }
 
@@ -75,25 +86,23 @@ test('message-scroller parts compose consumer refs through mount and unmount', (
 		seen.set(part, values)
 	}
 
-	render(jsx(MessageScrollerProvider, {
-		children: jsx(MessageScroller, {
-			children: [
-				jsx(MessageScrollerViewport, {
-					children: jsx(MessageScrollerContent, {
-						children: jsx(MessageScrollerItem, {
-							children: 'Message',
-							messageId: 'message-1',
-							ref: capture('item'),
-						}),
-						ref: capture('content'),
+	render(jsx(MessageScroller, {
+		children: [
+			jsx(MessageScrollerViewport, {
+				children: jsx(MessageScrollerContent, {
+					children: jsx(MessageScrollerItem, {
+						children: 'Message',
+						messageId: 'message-1',
+						ref: capture('item'),
 					}),
-					ref: capture('viewport'),
+					ref: capture('content'),
 				}),
-				jsx(MessageScrollerButton, { direction: 'start', ref: capture('start') }),
-				jsx(MessageScrollerButton, { direction: 'end', ref: capture('end') }),
-			],
-			ref: capture('root'),
-		}),
+				ref: capture('viewport'),
+			}),
+			jsx(MessageScrollerButton, { direction: 'start', ref: capture('start') }),
+			jsx(MessageScrollerButton, { direction: 'end', ref: capture('end') }),
+		],
+		ref: capture('root'),
 	}), document.body)
 
 	for (const [part, selector] of [
@@ -115,7 +124,7 @@ test('message-scroller parts compose consumer refs through mount and unmount', (
 
 test('item ids and button directions retarget without stale registrations', async () => {
 	let api: MessageScrollerApi | undefined
-	render(jsx(RetargetingScroller, { setApi: (next: MessageScrollerApi) => api = next }), document.body)
+	render(jsx(RetargetingScroller, { receive: (next: MessageScrollerApi) => api = next }), document.body)
 
 	const viewport = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]')
 	const item = document.querySelector<HTMLElement>('[data-slot="message-scroller-item"]')
@@ -144,7 +153,7 @@ test('item ids and button directions retarget without stale registrations', asyn
 	await waitFrames(2)
 	expect(document.querySelector('[data-slot="message-scroller-item"]')).toBe(item)
 	expect(document.querySelector('[data-slot="message-scroller-button"]')).toBe(button)
-	expect(item.dataset.messageId).toBe('new-message')
+	expect(item.dataset.messageId).toBe(retargeted)
 	expect(button.dataset.direction).toBe('start')
 
 	viewport.scrollTop = 0
@@ -155,6 +164,64 @@ test('item ids and button directions retarget without stale registrations', asyn
 	scrollCalls.length = 0
 	expect(api.scrollToMessage('old-message', { behavior: 'auto' })).toBe(false)
 	expect(scrollCalls).toHaveLength(0)
-	expect(api.scrollToMessage('new-message', { behavior: 'auto' })).toBe(true)
+	expect(api.scrollToMessage(retargeted, { behavior: 'auto' })).toBe(true)
 	expect(scrollCalls).toHaveLength(1)
+})
+
+test('one edge reading drives the controller, the edge buttons and data-overflow-y', async () => {
+	let api: MessageScrollerApi | undefined
+	render(jsx(MessageScroller, {
+		children: [
+			jsx(Probe, { receive: (next: MessageScrollerApi) => api = next }),
+			jsx(MessageScrollerViewport, {
+				children: jsx(MessageScrollerContent, {
+					children: jsx(MessageScrollerItem, { children: 'Message', messageId: 'message-1' }),
+				}),
+			}),
+			jsx(MessageScrollerButton, { direction: 'start' }),
+			jsx(MessageScrollerButton, { direction: 'end' }),
+		],
+		defaultScrollPosition: 'start',
+	}), document.body)
+
+	const root = document.querySelector<HTMLElement>('[data-slot="message-scroller"]')
+	const viewport = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]')
+	const start = document.querySelector<HTMLElement>('[data-direction="start"]')
+	const end = document.querySelector<HTMLElement>('[data-direction="end"]')
+	if (!root || !viewport || !start || !end || !api) throw new Error('Edge fixture did not render')
+
+	let height = 100
+	Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 100 })
+	Object.defineProperty(viewport, 'scrollHeight', { configurable: true, get: () => height })
+	Object.defineProperty(viewport, 'scrollTo', {
+		configurable: true,
+		value: ({ top = 0 }: ScrollToOptions) => viewport.scrollTop = top,
+	})
+	await waitFrames(4)
+
+	const scrollTo = async (top: number) => {
+		viewport.scrollTop = top
+		viewport.dispatchEvent(new Event('scroll'))
+		await waitFrames(2)
+	}
+
+	await scrollTo(0)
+	expect(viewport.hasAttribute('data-overflow-y')).toBe(false)
+
+	height = 300
+	// 2px from either edge still reads as that edge, for the buttons and the mask alike.
+	for (const [top, overflow, canStart, canEnd] of [
+		[0, 'end', false, true],
+		[2, 'end', false, true],
+		[100, 'both', true, true],
+		[198, 'start', true, false],
+		[200, 'start', true, false],
+	] as const) {
+		await scrollTo(top)
+		expect(viewport.getAttribute('data-overflow-y')).toBe(overflow)
+		expect(api.scrollable).toEqual({ end: canEnd, start: canStart })
+		expect(start.dataset.active).toBe(String(canStart))
+		expect(end.dataset.active).toBe(String(canEnd))
+	}
+	expect(root.hasAttribute('data-overflow-y')).toBe(false)
 })

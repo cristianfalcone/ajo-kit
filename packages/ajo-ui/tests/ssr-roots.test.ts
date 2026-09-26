@@ -22,7 +22,7 @@ import { InputGroup, InputGroupInput } from 'ajo-ui/input-group'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from 'ajo-ui/input-otp'
 import { Menu, MenuContent, MenuItem, MenuRadioGroup, MenuRadioItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from 'ajo-ui/menu'
 import { Menubar, MenubarMenu, MenubarTrigger } from 'ajo-ui/menubar'
-import { MessageScroller, MessageScrollerContent, MessageScrollerItem, MessageScrollerProvider, MessageScrollerViewport } from 'ajo-ui/message-scroller'
+import { MessageScroller, MessageScrollerContent, MessageScrollerItem, MessageScrollerViewport } from 'ajo-ui/message-scroller'
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from 'ajo-ui/navigation-menu'
 import { Popover, PopoverContent, PopoverTrigger } from 'ajo-ui/popover'
 import { Progress } from 'ajo-ui/progress'
@@ -173,12 +173,10 @@ const roots: Record<string, () => Children> = {
 			value: 'file',
 		}),
 	}),
-	'message-scroller': () => jsx(MessageScrollerProvider, {
-		children: jsx(MessageScroller, {
-			children: jsx(MessageScrollerViewport, {
-				children: jsx(MessageScrollerContent, {
-					children: jsx(MessageScrollerItem, { children: 'Hello', messageId: 'one' }),
-				}),
+	'message-scroller': () => jsx(MessageScroller, {
+		children: jsx(MessageScrollerViewport, {
+			children: jsx(MessageScrollerContent, {
+				children: jsx(MessageScrollerItem, { children: 'Hello', messageId: 'one' }),
 			}),
 		}),
 	}),

@@ -109,6 +109,12 @@ When Select closes itself while focus is in its list, focus returns to the
 trigger or the field input. A close from a controlled parent leaves focus to
 the browser's native popover handling.
 
+`MessageScroller` is the root of its family and takes `autoScroll`,
+`defaultScrollPosition`, `preserveScrollOnPrepend` and `scrollPreviousItemPeek`.
+Controls that drive it render inside the root and read the controller
+(`scrollToEnd`, `scrollToMessage`, `scrollToStart`, `scrollable`,
+`visibility`) from `MessageScrollerContext()`.
+
 ## Localization and Direction
 
 User-visible and assistive-technology strings have English defaults and

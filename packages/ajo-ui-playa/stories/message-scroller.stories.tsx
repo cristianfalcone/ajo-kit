@@ -17,9 +17,9 @@ import {
 	MessageScrollerContent,
 	MessageScrollerContext,
 	MessageScrollerItem,
-	MessageScrollerProvider,
 	MessageScrollerViewport,
 	type MessageScrollerApi,
+	type MessageScrollerArgs,
 } from 'ajo-ui-playa/message-scroller'
 
 type TranscriptArgs = {
@@ -225,8 +225,9 @@ const Transcript = ({ anchorEvery = 0, count = 18, offset = 0 }: TranscriptArgs)
 	</MessageScrollerContent>
 )
 
-const Shell = ({ children }: { children: unknown }) => (
-	<MessageScroller class="h-[28rem] w-[36rem] rounded-lg glass edge shadow-xs">
+const Shell = ({ children, controls, ...args }: MessageScrollerArgs & { controls?: unknown }) => (
+	<MessageScroller {...args} class="h-[28rem] w-[36rem] rounded-lg glass edge shadow-xs">
+		{controls}
 		<MessageScrollerViewport class="p-4">
 			{children}
 		</MessageScrollerViewport>
@@ -236,8 +237,7 @@ const Shell = ({ children }: { children: unknown }) => (
 )
 
 const JumpControls = () => {
-	const scroller = MessageScrollerContext()
-	if (!scroller) return null
+	const scroller = MessageScrollerContext()!
 
 	return (
 		<div class="absolute end-3 top-3 z-20 flex gap-2">
@@ -267,16 +267,14 @@ const StreamingTranscript: Stateful = function* () {
 
 	while (true) {
 		yield (
-			<MessageScrollerProvider defaultScrollPosition="end" autoScroll>
-				<div class="relative">
-					<div class="absolute end-3 top-3 z-20">
-						<Button type="button" size="sm" set:onclick={append}>Append</Button>
-					</div>
-					<Shell>
-						<Transcript count={count} />
-					</Shell>
+			<div class="relative">
+				<div class="absolute end-3 top-3 z-20">
+					<Button type="button" size="sm" set:onclick={append}>Append</Button>
 				</div>
-			</MessageScrollerProvider>
+				<Shell defaultScrollPosition="end" autoScroll>
+					<Transcript count={count} />
+				</Shell>
+			</div>
 		)
 	}
 }
@@ -311,11 +309,9 @@ export default {
 
 export const Basic: Story<typeof MessageScroller> = {
 	render: () => (
-		<MessageScrollerProvider defaultScrollPosition="end">
-			<Shell>
-				<Transcript />
-			</Shell>
-		</MessageScrollerProvider>
+		<Shell defaultScrollPosition="end">
+			<Transcript />
+		</Shell>
 	),
 	play: async ({ canvas }) => {
 		const root = canvas.querySelector<HTMLElement>('[data-slot="message-scroller"]')
@@ -351,11 +347,9 @@ export const Basic: Story<typeof MessageScroller> = {
 
 export const Fits: Story<typeof MessageScroller> = {
 	render: () => (
-		<MessageScrollerProvider autoScroll={false} defaultScrollPosition="start">
-			<Shell>
-				<OverflowTransitionTranscript />
-			</Shell>
-		</MessageScrollerProvider>
+		<Shell autoScroll={false} defaultScrollPosition="start">
+			<OverflowTransitionTranscript />
+		</Shell>
 	),
 	play: async ({ canvas }) => {
 		const view = viewport(canvas)
@@ -391,11 +385,9 @@ export const Fits: Story<typeof MessageScroller> = {
 
 export const FloatingButtons: Story<typeof MessageScroller> = {
 	render: () => (
-		<MessageScrollerProvider defaultScrollPosition="start">
-			<Shell>
-				<Transcript />
-			</Shell>
-		</MessageScrollerProvider>
+		<Shell defaultScrollPosition="start">
+			<Transcript />
+		</Shell>
 	),
 	play: async ({ canvas }) => {
 		const view = viewport(canvas)
@@ -423,14 +415,9 @@ export const FloatingButtons: Story<typeof MessageScroller> = {
 
 export const JumpToMessage: Story<typeof MessageScroller> = {
 	render: () => (
-		<MessageScrollerProvider defaultScrollPosition="start" scrollPreviousItemPeek={12}>
-			<div class="relative">
-				<JumpControls />
-				<Shell>
-					<Transcript />
-				</Shell>
-			</div>
-		</MessageScrollerProvider>
+		<Shell controls={<JumpControls />} defaultScrollPosition="start" scrollPreviousItemPeek={12}>
+			<Transcript />
+		</Shell>
 	),
 	play: async ({ canvas }) => {
 		const view = viewport(canvas)
@@ -448,11 +435,9 @@ export const JumpToMessage: Story<typeof MessageScroller> = {
 
 export const LastAnchor: Story<typeof MessageScroller> = {
 	render: () => (
-		<MessageScrollerProvider defaultScrollPosition="last-anchor" scrollPreviousItemPeek={16}>
-			<Shell>
-				<Transcript anchorEvery={5} count={21} />
-			</Shell>
-		</MessageScrollerProvider>
+		<Shell defaultScrollPosition="last-anchor" scrollPreviousItemPeek={16}>
+			<Transcript anchorEvery={5} count={21} />
+		</Shell>
 	),
 	play: async ({ canvas }) => {
 		const view = viewport(canvas)
@@ -482,11 +467,9 @@ export const StreamingFollow: Story<typeof MessageScroller> = {
 
 export const StartPosition: Story<typeof MessageScroller> = {
 	render: () => (
-		<MessageScrollerProvider defaultScrollPosition="start">
-			<Shell>
-				<Transcript count={14} />
-			</Shell>
-		</MessageScrollerProvider>
+		<Shell defaultScrollPosition="start">
+			<Transcript count={14} />
+		</Shell>
 	),
 	play: async ({ canvas }) => {
 		const view = viewport(canvas)
@@ -500,17 +483,17 @@ export const StartPosition: Story<typeof MessageScroller> = {
 
 const contractApis = new Map<string, MessageScrollerApi>()
 
+// Captures the controller the way any descendant control reads it.
+const ContractProbe = ({ id }: { id: string }) => {
+	contractApis.set(id, MessageScrollerContext()!)
+	return null
+}
+
 const ContractCase = ({ id, preserve }: { id: string; preserve: boolean }) => (
 	<div data-story-scope={id}>
-		<MessageScrollerProvider
-			defaultScrollPosition="start"
-			preserveScrollOnPrepend={preserve}
-			setApi={api => contractApis.set(id, api)}
-		>
-			<Shell>
-				<Transcript anchorEvery={3} count={14} offset={preserve ? 0 : 20} />
-			</Shell>
-		</MessageScrollerProvider>
+		<Shell controls={<ContractProbe id={id} />} defaultScrollPosition="start" preserveScrollOnPrepend={preserve}>
+			<Transcript anchorEvery={3} count={14} offset={preserve ? 0 : 20} />
+		</Shell>
 	</div>
 )
 
@@ -528,13 +511,11 @@ const PrependCase: Stateful<{ enable?: boolean; id: string; preserve: boolean }>
 		yield (
 		<div data-story-scope={id}>
 			<Button data-story-action="prepend" size="sm" type="button" set:onclick={prepend}>Prepend</Button>
-			<MessageScrollerProvider autoScroll={false} defaultScrollPosition="start" preserveScrollOnPrepend={preserving}>
-				<MessageScroller class="mt-2 h-[28rem] w-[36rem] rounded-lg glass edge shadow-xs">
-					<MessageScrollerViewport class="p-4" style="overflow-anchor:none">
-						<Transcript count={count} offset={offset} />
-					</MessageScrollerViewport>
-				</MessageScroller>
-			</MessageScrollerProvider>
+			<MessageScroller autoScroll={false} class="mt-2 h-[28rem] w-[36rem] rounded-lg glass edge shadow-xs" defaultScrollPosition="start" preserveScrollOnPrepend={preserving}>
+				<MessageScrollerViewport class="p-4" style="overflow-anchor:none">
+					<Transcript count={count} offset={offset} />
+				</MessageScrollerViewport>
+			</MessageScroller>
 		</div>
 	)
 	}
@@ -576,14 +557,9 @@ export const AutoscrollFallback: Story<typeof MessageScroller> = {
 		contractApis.clear()
 		return (
 			<div data-story-scope="autoscroll-fallback">
-				<MessageScrollerProvider
-					defaultScrollPosition="start"
-					setApi={api => contractApis.set('autoscroll-fallback', api)}
-				>
-					<Shell>
-						<Transcript count={14} />
-					</Shell>
-				</MessageScrollerProvider>
+				<Shell controls={<ContractProbe id="autoscroll-fallback" />} defaultScrollPosition="start">
+					<Transcript count={14} />
+				</Shell>
 			</div>
 		)
 	},

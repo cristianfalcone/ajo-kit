@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { browser, callHandler, callRef, frame, overflow, resize, scrolling, timer } from 'ajo-cloves'
+import { browser, callHandler, callRef, frame, resize, scrolling, statefulRootAttrs as rootAttrs, timer } from 'ajo-cloves'
 import { context } from 'ajo/context'
 
 /** Initial edge or anchor used when the message scroller first mounts. */
@@ -44,8 +44,8 @@ export type MessageScrollerApi = {
 	visibility: MessageScrollerVisibility
 }
 
-/** Props for the state provider shared by message-scroller parts. */
-export type MessageScrollerProviderArgs = WithChildren<{
+/** Props for the message-scroller root, which owns scroll behavior and visibility state. */
+export type MessageScrollerArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Follow new content while the reader is already at the end. */
 	autoScroll?: boolean
 	/** Initial scroll target once the viewport and items are mounted. */
@@ -54,12 +54,12 @@ export type MessageScrollerProviderArgs = WithChildren<{
 	preserveScrollOnPrepend?: boolean
 	/** Pixels to keep visible above a target item. */
 	scrollPreviousItemPeek?: number
-	/** Receives the imperative scroller controller. */
-	setApi?: (api: MessageScrollerApi) => void
 }>
 
-/** Props for the message-scroller root element. */
-export type MessageScrollerArgs = WithChildren<IntrinsicElements['div']>
+type MessageScrollerRootArgs = Required<Pick<
+	MessageScrollerArgs,
+	'autoScroll' | 'defaultScrollPosition' | 'preserveScrollOnPrepend' | 'scrollPreviousItemPeek'
+>> & WithChildren
 
 /** Props for the scrollable message viewport. */
 export type MessageScrollerViewportArgs = WithChildren<IntrinsicElements['div']>
@@ -82,10 +82,10 @@ export type MessageScrollerButtonArgs = WithChildren<IntrinsicElements['button']
 }>
 
 type MessageScrollerPartsContextValue = {
+	api: MessageScrollerApi
 	setButton: (direction: MessageScrollerDirection, element: HTMLButtonElement | null) => void
 	setContent: (element: HTMLElement | null) => void
-	setItem: (messageId: string | undefined, element: HTMLElement | null) => void
-	setRoot: (element: HTMLElement | null) => void
+	setItem: () => void
 	setViewport: (element: HTMLElement | null) => void
 }
 
@@ -103,21 +103,15 @@ type ItemReading = MessageScrollerVisibility & {
 	preserveAnchor: PreserveAnchor | null
 }
 
-/** Read the public controller inherited from the nearest MessageScrollerProvider. */
+/** Read the controller of the enclosing MessageScroller; controls that drive it render inside the root. */
 export const MessageScrollerContext = context<MessageScrollerApi | null>(null)
 const MessageScrollerPartsContext = context<MessageScrollerPartsContextValue | null>(null)
 
 const edge = 2
 
-const messageScroller = () => {
-	const api = MessageScrollerContext()
-	if (!api) throw new Error('MessageScroller controls must be used within a <MessageScrollerProvider />')
-	return api
-}
-
 const messageScrollerParts = () => {
 	const parts = MessageScrollerPartsContext()
-	if (!parts) throw new Error('MessageScroller parts must be used within a <MessageScrollerProvider />')
+	if (!parts) throw new Error('MessageScroller parts must be used within a <MessageScroller />')
 	return parts
 }
 
@@ -129,18 +123,17 @@ const getItems = (content: HTMLElement | null) =>
 const rectTop = (viewport: HTMLElement, element: HTMLElement) =>
 	element.getBoundingClientRect().top - viewport.getBoundingClientRect().top
 
-const stamp = (element: HTMLElement, name: string, value: string) => {
-	if (element.getAttribute(name) !== value) element.setAttribute(name, value)
+const stamp = (element: HTMLElement, name: string, value: string | null) => {
+	if (value === null) element.removeAttribute(name)
+	else if (element.getAttribute(name) !== value) element.setAttribute(name, value)
 }
 
-/** Unstyled provider for imperative scroll behavior and visibility state. */
-const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function* ({
-	autoScroll = true,
-	defaultScrollPosition = 'end',
-	preserveScrollOnPrepend = true,
-	scrollPreviousItemPeek = 0,
+const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
+	autoScroll,
+	defaultScrollPosition,
+	preserveScrollOnPrepend,
+	scrollPreviousItemPeek,
 }) {
-	let root: HTMLElement | null = null
 	let viewport: HTMLElement | null = null
 	let content: HTMLElement | null = null
 	let mutation: MutationObserver | undefined
@@ -150,11 +143,9 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 	let currentDefaultPosition = defaultScrollPosition
 	let currentPreserve = preserveScrollOnPrepend
 	let currentPeek = scrollPreviousItemPeek
-	let currentSetApi: MessageScrollerProviderArgs['setApi']
 	let pending: PendingScroll | null = null
 	let preserveAnchor: PreserveAnchor | null = null
 	let settles = 0
-	const items = new Map<string, HTMLElement>()
 	const buttons: Record<MessageScrollerDirection, HTMLButtonElement | null> = {
 		end: null,
 		start: null,
@@ -164,9 +155,9 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 	const autoscroll = timer(this)
 
 	const setAutoscrolling = (active: boolean) => {
-		if (!viewport || !root) return
+		if (!viewport) return
 
-		root.toggleAttribute('data-autoscrolling', active)
+		this.toggleAttribute('data-autoscrolling', active)
 		viewport.toggleAttribute('data-autoscrolling', active)
 
 		if (!active) {
@@ -177,7 +168,7 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 		// Fallback for browsers without `scrollend`; long smooth scrolls must
 		// stay flagged so user-scroll detection does not hijack `following`.
 		autoscroll.start(1200, () => {
-			root?.toggleAttribute('data-autoscrolling', false)
+			this.toggleAttribute('data-autoscrolling', false)
 			viewport?.toggleAttribute('data-autoscrolling', false)
 		})
 	}
@@ -187,42 +178,30 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 	const atEnd = () => !viewport ||
 		viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= edge
 
-	const buttonActive = (direction: MessageScrollerDirection) =>
-		direction === 'start' ? scrollable.start : scrollable.end
+	// Reads the viewport edges, then stamps them on the controller, the
+	// viewport's `data-overflow-y` and the edge buttons.
+	const edges = () => {
+		const start = !atStart()
+		const end = !atEnd()
+		scrollable.start = start
+		scrollable.end = end
 
-	const updateButton = (direction: MessageScrollerDirection) => {
-		const button = buttons[direction]
-		if (!button) return
+		if (viewport) stamp(viewport, 'data-overflow-y', start && end ? 'both' : start ? 'start' : end ? 'end' : null)
+		for (const direction of ['start', 'end'] as const) {
+			const button = buttons[direction]
+			if (!button) continue
 
-		const active = buttonActive(direction)
-		const tabIndex = active ? 0 : -1
-		stamp(button, 'data-active', String(active))
-		if (button.tabIndex !== tabIndex) button.tabIndex = tabIndex
-		if (button.hasAttribute('inert') === active) button.toggleAttribute('inert', !active)
+			const active = scrollable[direction]
+			const tabIndex = active ? 0 : -1
+			stamp(button, 'data-active', String(active))
+			if (button.tabIndex !== tabIndex) button.tabIndex = tabIndex
+			if (button.hasAttribute('inert') === active) button.toggleAttribute('inert', !active)
+		}
 	}
 
-	const readEdges = () => {
-		const canStart = !atStart()
-		const canEnd = !atEnd()
-		return { canEnd, canStart }
-	}
-
-	const commitEdges = ({ canEnd, canStart }: ReturnType<typeof readEdges>) => {
-		scrollable.start = canStart
-		scrollable.end = canEnd
-
-		updateButton('start')
-		updateButton('end')
-	}
-
-	const updateData = () => commitEdges(readEdges())
-
-	const findItem = (messageId: string) => {
-		const registered = items.get(messageId)
-		if (registered) return registered
-
-		return getItems(content).find(item => item.dataset.messageId === messageId)
-	}
+	// Message ids can come from users: compare them as data, never as selectors.
+	const findItem = (messageId: string) =>
+		getItems(content).find(item => item.dataset.messageId === messageId)
 
 	const readItems = (): ItemReading => {
 		if (!viewport || !content) {
@@ -273,10 +252,8 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 	}
 
 	const sync = () => {
-		const edges = readEdges()
-		const itemState = readItems()
-		commitItems(itemState)
-		commitEdges(edges)
+		commitItems(readItems())
+		edges()
 	}
 
 	const schedule = frame(sync)
@@ -310,7 +287,6 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 		target: () => viewport,
 		onResize: sync,
 	})
-	const edges = overflow(this, { target: () => viewport })
 
 	const scrollTopFor = (
 		element: HTMLElement,
@@ -397,7 +373,6 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 			restoreAnchor()
 			if (currentAutoScroll && following) scrollToEnd({ behavior: 'auto' })
 			flushPending()
-			edges.sync()
 			schedule()
 		})
 	}
@@ -440,26 +415,14 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 		scheduleInitial()
 	}
 
-	const setRoot = (element: HTMLElement | null) => {
-		root = element
-		updateData()
-	}
-
 	const setViewport = (element: HTMLElement | null) => {
 		if (viewport === element) return
 
 		viewport = element
 		viewportScroll.sync()
 		viewportSize.sync()
-		edges.sync()
-
-		if (!element) {
-			updateData()
-			return
-		}
-
-		updateData()
-		scheduleInitialScroll()
+		edges()
+		if (element) scheduleInitialScroll()
 	}
 
 	const setContent = (element: HTMLElement | null) => {
@@ -468,38 +431,19 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 		mutation?.disconnect()
 		content = element
 		contentSize.sync()
-		edges.sync()
-
-		if (!element) {
-			updateData()
-			return
-		}
+		edges()
+		if (!element) return
 
 		if (typeof MutationObserver !== 'undefined') {
 			mutation = new MutationObserver(handleContentChange)
 			mutation.observe(element, { childList: true, subtree: true })
 		}
 
-		updateData()
 		scheduleInitialScroll()
 	}
 
-	const setItem = (
-		messageId: string | undefined,
-		element: HTMLElement | null,
-	) => {
-		if (element) {
-			for (const [registeredId, registered] of items) {
-				if (registered === element && registeredId !== messageId) items.delete(registeredId)
-			}
-			if (messageId) {
-				items.set(messageId, element)
-				flushPending()
-			}
-		} else if (messageId) {
-			items.delete(messageId)
-		}
-
+	const setItem = () => {
+		flushPending()
 		schedule()
 	}
 
@@ -512,11 +456,10 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 			}
 		}
 		buttons[direction] = element
-		updateButton('start')
-		updateButton('end')
+		edges()
 	}
 
-	const publicApi: MessageScrollerApi = {
+	const api: MessageScrollerApi = {
 		scrollToEnd,
 		scrollToMessage,
 		scrollToStart,
@@ -524,10 +467,10 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 		visibility,
 	}
 	const parts: MessageScrollerPartsContextValue = {
+		api,
 		setButton,
 		setContent,
 		setItem,
-		setRoot,
 		setViewport,
 	}
 
@@ -538,12 +481,11 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 	})
 
 	for (const {
-		autoScroll = true,
+		autoScroll,
 		children,
-		defaultScrollPosition = 'end',
-		preserveScrollOnPrepend = true,
-		scrollPreviousItemPeek = 0,
-		setApi,
+		defaultScrollPosition,
+		preserveScrollOnPrepend,
+		scrollPreviousItemPeek,
 	} of this) {
 		const wasPreserving = currentPreserve
 		currentAutoScroll = autoScroll
@@ -552,17 +494,12 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 		if (!currentPreserve) preserveAnchor = null
 		else if (!wasPreserving && !following) preserveAnchor = readItems().preserveAnchor
 		currentPeek = scrollPreviousItemPeek
-		if (setApi && setApi !== currentSetApi) {
-			currentSetApi = setApi
-			setApi(publicApi)
-		}
 
 		viewportScroll.sync()
 		viewportSize.sync()
-		edges.sync()
 		contentSize.sync()
 
-		MessageScrollerContext(publicApi)
+		MessageScrollerContext(api)
 		MessageScrollerPartsContext(parts)
 		queueMicrotask(scheduleInitialScroll)
 
@@ -570,27 +507,26 @@ const MessageScrollerProvider: Stateful<MessageScrollerProviderArgs> = function*
 	}
 }
 
-MessageScrollerProvider.attrs = {
-	'data-slot': 'message-scroller-provider',
-}
-
-/** Unstyled root container for a scroll-managed message transcript. */
-const MessageScroller: Stateless<MessageScrollerArgs> = ({ children, ref, ...attrs }) => {
-	const parts = messageScrollerParts()
-
-	return (
-		<div
-			{...attrs}
-			data-slot="message-scroller"
-			ref={element => {
-				parts.setRoot(element)
-				callRef(ref, element)
-			}}
-		>
-			{children}
-		</div>
-	)
-}
+/** Unstyled root that owns scroll behavior and visibility state for a message transcript. */
+const MessageScroller: Stateless<MessageScrollerArgs> = ({
+	autoScroll = true,
+	children,
+	defaultScrollPosition = 'end',
+	preserveScrollOnPrepend = true,
+	scrollPreviousItemPeek = 0,
+	...attrs
+}) => (
+	<MessageScrollerRoot
+		{...rootAttrs(attrs as Record<string, unknown>)}
+		autoScroll={autoScroll}
+		defaultScrollPosition={defaultScrollPosition}
+		preserveScrollOnPrepend={preserveScrollOnPrepend}
+		scrollPreviousItemPeek={scrollPreviousItemPeek}
+		attr:data-slot="message-scroller"
+	>
+		{children}
+	</MessageScrollerRoot>
+)
 
 /** Unstyled keyboard-focusable transcript viewport. */
 const MessageScrollerViewport: Stateless<MessageScrollerViewportArgs> = ({
@@ -665,7 +601,7 @@ const MessageScrollerItem: Stateless<MessageScrollerItemArgs> = ({
 			data-scroll-anchor={String(scrollAnchor)}
 			data-slot="message-scroller-item"
 			ref={element => {
-				parts.setItem(messageId, element)
+				parts.setItem()
 				callRef(ref, element)
 			}}
 		>
@@ -685,18 +621,15 @@ const MessageScrollerButton: Stateless<MessageScrollerButtonArgs> = ({
 	'set:onclick': onClick,
 	...attrs
 }) => {
-	const scroller = messageScroller()
-	const parts = messageScrollerParts()
-	const buttonActive = (next: MessageScrollerDirection) =>
-		next === 'start' ? scroller.scrollable.start : scroller.scrollable.end
-	const active = buttonActive(direction)
+	const { api, setButton } = messageScrollerParts()
+	const active = api.scrollable[direction]
 	const title = label ?? (direction === 'end' ? 'Scroll to end' : 'Scroll to start')
 
 	const click = (event: MouseEvent) => {
 		callHandler(onClick, event)
-		if (event.defaultPrevented || disabled || !buttonActive(direction)) return
-		if (direction === 'start') scroller.scrollToStart()
-		else scroller.scrollToEnd()
+		if (event.defaultPrevented || disabled || !api.scrollable[direction]) return
+		if (direction === 'start') api.scrollToStart()
+		else api.scrollToEnd()
 	}
 
 	return (
@@ -708,7 +641,7 @@ const MessageScrollerButton: Stateless<MessageScrollerButtonArgs> = ({
 			data-slot="message-scroller-button"
 			disabled={disabled}
 			ref={element => {
-				parts.setButton(direction, element)
+				setButton(direction, element)
 				callRef(ref, element)
 			}}
 			set:onclick={click}
@@ -725,6 +658,5 @@ export {
 	MessageScrollerButton,
 	MessageScrollerContent,
 	MessageScrollerItem,
-	MessageScrollerProvider,
 	MessageScrollerViewport,
 }

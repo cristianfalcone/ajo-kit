@@ -66,6 +66,8 @@ export const leakedCarouselPartsContext = carousel.CarouselPartsContext
 export const leakedChartContext = chart.ChartContext
 // @ts-expect-error MessageScrollerPartsContext is module-private.
 export const leakedMessageScrollerPartsContext = messageScroller.MessageScrollerPartsContext
+// @ts-expect-error The MessageScroller root owns the controller; there is no separate provider.
+export const leakedMessageScrollerProvider = messageScroller.MessageScrollerProvider
 // @ts-expect-error CheckboxGroupContext is module-private.
 export const leakedSubpathCheckboxContext = checkbox.CheckboxGroupContext
 // @ts-expect-error RadioGroupContext is module-private.
