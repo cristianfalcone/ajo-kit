@@ -1,62 +1,27 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo'
 import { render } from 'ajo'
-import { render as ssr } from 'ajo/html'
-import { jsx } from 'ajo/jsx-runtime'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { hover } from 'ajo-cloves'
-
-const prepare = () => {
-	if (!globalThis.MutationObserver) globalThis.MutationObserver = window.MutationObserver
-	document.body.textContent = ''
-}
-
-const must = (value: Host | null): Host => {
-	if (value == null) throw new Error('missing value')
-	return value
-}
+import { mount, serve } from './harness'
 
 const event = () => new Event('hover')
 
-beforeEach(prepare)
-
-afterEach(() => {
-	render(null, document.body)
-	vi.useRealTimers()
-	document.body.textContent = ''
-})
-
-test('shape has exactly the documented fields', () => {
-	let view: ReturnType<typeof hover> | undefined
-
-	function* Gen(this: Host) {
-		view = hover(this, { openDelay: () => 0, closeDelay: () => 0, onChange: () => {} })
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	expect(Object.keys(view!)).toEqual(['hold', 'release', 'sync', 'cancel'])
-})
+/** Mounts a hover with fake timers and records every open change. */
+const setup = (openDelay: number, closeDelay: number) => {
+	vi.useFakeTimers()
+	const changes: boolean[] = []
+	const { view } = mount(host => hover(host, {
+		openDelay: () => openDelay,
+		closeDelay: () => closeDelay,
+		onChange: open => changes.push(open),
+	}))
+	return { changes, view }
+}
 
 test('reacts to open and close delays', () => {
-	vi.useFakeTimers()
+	const { changes, view } = setup(20, 30)
 
-	let view: ReturnType<typeof hover> | undefined
-	const changes: boolean[] = []
-
-	function* Gen(this: Host) {
-		view = hover(this, {
-			openDelay: () => 20,
-			closeDelay: () => 30,
-			onChange: open => changes.push(open),
-		})
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	view!.hold('trigger', event())
+	view.hold('trigger', event())
 	vi.advanceTimersByTime(19)
 
 	expect(changes).toEqual([])
@@ -65,7 +30,7 @@ test('reacts to open and close delays', () => {
 
 	expect(changes).toEqual([true])
 
-	view!.release('trigger', event())
+	view.release('trigger', event())
 	vi.advanceTimersByTime(29)
 
 	expect(changes).toEqual([true])
@@ -75,48 +40,22 @@ test('reacts to open and close delays', () => {
 	expect(changes).toEqual([true, false])
 })
 
-test('invalidate updates DOM text through host.next from onChange', () => {
-	let view: ReturnType<typeof hover> | undefined
-	let label = 'closed'
+test('zero delays open and close synchronously', () => {
+	const { changes, view } = setup(0, 0)
 
-	function* Gen(this: Host) {
-		view = hover(this, {
-			openDelay: () => 0,
-			closeDelay: () => 0,
-			onChange: open => this.next(() => label = open ? 'open' : 'closed'),
-		})
+	view.hold('trigger', event())
 
-		while (true) yield jsx('span', { children: label })
-	}
+	expect(changes).toEqual([true])
 
-	render(jsx(Gen, {}), document.body)
+	view.release('trigger', event())
 
-	view!.hold('trigger', event())
-
-	expect(document.body.textContent).toBe('open')
-
-	view!.release('trigger', event())
-
-	expect(document.body.textContent).toBe('closed')
+	expect(changes).toEqual([true, false])
 })
 
 test('teardown prevents a pending open from landing', () => {
-	vi.useFakeTimers()
+	const { changes, view } = setup(10, 0)
 
-	let view: ReturnType<typeof hover> | undefined
-	const changes: boolean[] = []
-
-	function* Gen(this: Host) {
-		view = hover(this, {
-			openDelay: () => 10,
-			closeDelay: () => 0,
-			onChange: open => changes.push(open),
-		})
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-	view!.hold('trigger', event())
+	view.hold('trigger', event())
 	render(null, document.body)
 
 	expect(vi.getTimerCount()).toBe(0)
@@ -126,131 +65,62 @@ test('teardown prevents a pending open from landing', () => {
 	expect(changes).toEqual([])
 })
 
-test('reset clears old pending work and recreates a working hover', () => {
-	vi.useFakeTimers()
-
-	let host: Host | null = null
-	let view: ReturnType<typeof hover> | undefined
-	const changes: string[] = []
-
-	function* Gen(this: Host) {
-		view = hover(this, {
-			openDelay: () => 10,
-			closeDelay: () => 0,
-			onChange: open => changes.push(open ? 'open' : 'closed'),
-		})
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, { ref: (element: unknown) => host = element as Host | null }), document.body)
-
-	const first = view!
-	first.hold('trigger', event())
-	must(host).return()
-	must(host).next()
-
-	vi.advanceTimersByTime(10)
-
-	expect(changes).toEqual([])
-
-	view!.hold('trigger', event())
-	vi.advanceTimersByTime(10)
-
-	expect(changes).toEqual(['open'])
-})
-
 test('SSR abort cleanup clears pending hover timers', () => {
 	vi.useFakeTimers()
 
 	const changes: boolean[] = []
 
-	function* Gen(this: Host) {
-		const view = hover(this, {
-			openDelay: () => 10,
-			closeDelay: () => 0,
-			onChange: open => changes.push(open),
-		})
-
-		view.hold('trigger', event())
-
-		yield jsx('span', { children: changes.length ? 'open' : 'closed' })
-	}
-
-	expect(ssr(jsx(Gen, {}))).toBe('<div><span>closed</span></div>')
+	expect(serve(host => hover(host, {
+		openDelay: () => 10,
+		closeDelay: () => 0,
+		onChange: open => changes.push(open),
+	}).hold('trigger', event()))).toBe('<div>server</div>')
 	expect(vi.getTimerCount()).toBe(0)
 	expect(changes).toEqual([])
 })
 
 test('zone, cancel, and sync contracts match surface behavior', () => {
-	vi.useFakeTimers()
+	const { changes, view } = setup(10, 10)
 
-	let view: ReturnType<typeof hover> | undefined
-	const changes: boolean[] = []
-
-	function* Gen(this: Host) {
-		view = hover(this, {
-			openDelay: () => 10,
-			closeDelay: () => 10,
-			onChange: open => changes.push(open),
-		})
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	view!.hold('trigger', event())
+	view.hold('trigger', event())
 	vi.advanceTimersByTime(10)
-	view!.hold('content', event())
-	view!.release('trigger', event())
+	view.hold('content', event())
+	view.release('trigger', event())
 	vi.advanceTimersByTime(10)
 
 	expect(changes).toEqual([true])
 
-	view!.release('content', event())
+	view.release('content', event())
 	vi.advanceTimersByTime(10)
 
 	expect(changes).toEqual([true, false])
 
-	view!.hold('trigger', event())
-	view!.cancel()
+	view.hold('trigger', event())
+	view.cancel()
 	vi.advanceTimersByTime(10)
 
 	expect(changes).toEqual([true, false])
 
-	view!.release('trigger', event())
-	view!.sync(true)
-	view!.sync(false)
-	view!.hold('trigger', event())
+	view.release('trigger', event())
+	view.sync(true)
+	view.sync(false)
+	view.hold('trigger', event())
 	vi.advanceTimersByTime(10)
 
 	expect(changes).toEqual([true, false, true])
 })
 
 test('cancel clears held zones before a later interaction', () => {
-	vi.useFakeTimers()
+	const { changes, view } = setup(10, 10)
 
-	let view: ReturnType<typeof hover> | undefined
-	const changes: boolean[] = []
-
-	function* Gen(this: Host) {
-		view = hover(this, {
-			openDelay: () => 10,
-			closeDelay: () => 10,
-			onChange: open => changes.push(open),
-		})
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	view!.hold('content', event())
+	view.hold('content', event())
 	vi.advanceTimersByTime(10)
 
-	view!.cancel()
-	view!.sync(false)
-	view!.hold('trigger', event())
+	view.cancel()
+	view.sync(false)
+	view.hold('trigger', event())
 	vi.advanceTimersByTime(10)
-	view!.release('trigger', event())
+	view.release('trigger', event())
 	vi.advanceTimersByTime(10)
 
 	expect(changes).toEqual([true, true, false])

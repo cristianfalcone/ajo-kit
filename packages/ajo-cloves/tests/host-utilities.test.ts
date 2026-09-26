@@ -1,33 +1,14 @@
 // @vitest-environment happy-dom
 import type { Host } from 'ajo'
-import { render } from 'ajo'
-import { jsx } from 'ajo/jsx-runtime'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { callHandler, callRef, dom, listen, statefulRootAttrs } from '../src'
+import { mount } from './harness'
 
-const must = (value: Host | null): Host => {
-	if (value == null) throw new Error('missing host')
-	return value
+const clicks = (signal?: AbortSignal) => {
+	const handler = vi.fn()
+	const { host } = mount(host => listen(host, 'click', handler, signal ? { signal } : undefined))
+	return { handler, host }
 }
-
-const mount = (handler: () => void, signal?: AbortSignal) => {
-	let host: Host | null = null
-
-	function* Gen(this: Host) {
-		listen(this, 'click', handler, signal ? { signal } : undefined)
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, { ref: (element: unknown) => host = element as Host | null }), document.body)
-	return () => must(host)
-}
-
-beforeEach(() => document.body.textContent = '')
-
-afterEach(() => {
-	render(null, document.body)
-	document.body.textContent = ''
-})
 
 test('statefulRootAttrs keeps host protocol args and prefixes DOM attrs', () => {
 	const ref = () => undefined
@@ -68,8 +49,7 @@ test('callHandler and callRef compose optional callbacks without assuming their 
 })
 
 test('dom distinguishes DOM elements from SSR-like protocol hosts', () => {
-	const element = document.createElement('div')
-	expect(dom(element)).toBe(true)
+	expect(dom(document.createElement('div'))).toBe(true)
 	expect(dom(document.createElementNS('http://www.w3.org/2000/svg', 'svg'))).toBe(true)
 	expect(dom(document.createDocumentFragment())).toBe(false)
 	expect(dom({ signal: new AbortController().signal })).toBe(false)
@@ -88,8 +68,7 @@ test('listen is inert for an SSR-like protocol host', () => {
 
 test('listen releases the listener when the caller signal aborts', () => {
 	const caller = new AbortController()
-	const handler = vi.fn()
-	const host = mount(handler, caller.signal)()
+	const { handler, host } = clicks(caller.signal)
 
 	host.click()
 	caller.abort()
@@ -100,8 +79,7 @@ test('listen releases the listener when the caller signal aborts', () => {
 
 test('listen releases the listener when the host lifecycle aborts', () => {
 	const caller = new AbortController()
-	const handler = vi.fn()
-	const host = mount(handler, caller.signal)()
+	const { handler, host } = clicks(caller.signal)
 
 	host.click()
 	host.return()
@@ -112,8 +90,7 @@ test('listen releases the listener when the host lifecycle aborts', () => {
 })
 
 test('listen defaults cleanup to the host lifecycle without a caller signal', () => {
-	const handler = vi.fn()
-	const host = mount(handler)()
+	const { handler, host } = clicks()
 
 	host.click()
 	host.return()

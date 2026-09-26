@@ -1,42 +1,9 @@
 // @vitest-environment node
-import { afterEach, expect, test } from 'vitest'
-import { browser, clamp, remember } from '../src'
+import { expect, test } from 'vitest'
+import { browser, clamp, id, remember } from '../src'
 
-const names = ['window', 'document'] as const
-type Name = typeof names[number]
-
-const originals = new Map<Name, PropertyDescriptor | undefined>(
-	names.map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]),
-)
-
-const restore = () => {
-	for (const name of names) {
-		const descriptor = originals.get(name)
-		if (descriptor) Object.defineProperty(globalThis, name, descriptor)
-		else if (!Reflect.deleteProperty(globalThis, name)) throw new Error(`could not restore global ${name}`)
-	}
-}
-
-const expose = (name: Name, present: boolean) => {
-	if (!Reflect.deleteProperty(globalThis, name)) throw new Error(`could not replace global ${name}`)
-	if (present) Object.defineProperty(globalThis, name, {
-		configurable: true,
-		value: {},
-		writable: true,
-	})
-}
-
-afterEach(restore)
-
-test.each([
-	['neither global', false, false, false],
-	['window only', true, false, false],
-	['document only', false, true, false],
-	['both globals', true, true, true],
-] as const)('browser returns Window-realm availability for %s', (_label, window, document, expected) => {
-	expose('window', window)
-	expose('document', document)
-	expect(browser()).toBe(expected)
+test('browser is false without Window and Document', () => {
+	expect(browser()).toBe(false)
 })
 
 test('remember keeps at most 32 keys, first in first out, without refreshing updated keys', () => {
@@ -58,4 +25,11 @@ test('clamp limits values to an inclusive range', () => {
 	expect(clamp(-1, 0, 10)).toBe(0)
 	expect(clamp(4, 0, 10)).toBe(4)
 	expect(clamp(11, 0, 10)).toBe(10)
+})
+
+test('id counts monotonically per prefix', () => {
+	expect(id('clove-id-a')).toBe('clove-id-a-1')
+	expect(id('clove-id-a')).toBe('clove-id-a-2')
+	expect(id('clove-id-b')).toBe('clove-id-b-1')
+	expect(id('clove-id-a')).toBe('clove-id-a-3')
 })

@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import type { Host } from 'ajo'
+import { expect, test } from 'vitest'
 import { live } from '../src/core'
+import { frames, must } from './harness'
 
 type View = ReturnType<typeof live<HTMLElement>>
 
@@ -13,53 +14,7 @@ type Binding = {
 	signal: AbortSignal
 }
 
-type RafStub = {
-	flush(): number
-	restore(): void
-}
-
-const installRaf = (): RafStub => {
-	const callbacks = new Map<number, FrameRequestCallback>()
-	const originalRaf = globalThis.requestAnimationFrame
-	const originalCancel = globalThis.cancelAnimationFrame
-	let next = 1
-
-	Object.defineProperty(globalThis, 'requestAnimationFrame', {
-		configurable: true,
-		value: (callback: FrameRequestCallback) => {
-			const id = next++
-			callbacks.set(id, callback)
-			return id
-		},
-	})
-
-	Object.defineProperty(globalThis, 'cancelAnimationFrame', {
-		configurable: true,
-		value: (id: number) => callbacks.delete(id),
-	})
-
-	return {
-		flush() {
-			const pending = [...callbacks]
-			callbacks.clear()
-			for (const [id, callback] of pending) callback(id)
-			return pending.length
-		},
-		restore() {
-			Object.defineProperty(globalThis, 'requestAnimationFrame', { configurable: true, value: originalRaf })
-			Object.defineProperty(globalThis, 'cancelAnimationFrame', { configurable: true, value: originalCancel })
-		},
-	}
-}
-
-const missing = () => new Error('missing value')
-
-const need = <T,>(value: T | null | undefined): T => {
-	if (value == null) throw missing()
-	return value
-}
-
-const mount = (onBind?: (binding: Binding) => void) => {
+const mount = () => {
 	let host: Host | null = null
 	let target: HTMLElement | null = null
 	let a: HTMLDivElement | null = null
@@ -80,7 +35,6 @@ const mount = (onBind?: (binding: Binding) => void) => {
 				const binding = { element, notify, signal }
 				bindings.push(binding)
 				element.addEventListener('unit-live', notify, { signal })
-				onBind?.(binding)
 			},
 		})
 
@@ -99,19 +53,19 @@ const mount = (onBind?: (binding: Binding) => void) => {
 		changes,
 		views,
 		get a() {
-			return need(a)
+			return must(a)
 		},
 		get b() {
-			return need(b)
+			return must(b)
 		},
 		get host() {
-			return need(host)
+			return must(host)
 		},
 		get resolved() {
 			return resolved
 		},
 		get view() {
-			return need(views.at(-1))
+			return must(views.at(-1))
 		},
 		set target(element: HTMLElement | null) {
 			target = element
@@ -119,165 +73,138 @@ const mount = (onBind?: (binding: Binding) => void) => {
 	}
 }
 
-beforeEach(() => {
-	if (!globalThis.MutationObserver) globalThis.MutationObserver = window.MutationObserver
-	document.body.textContent = ''
-})
-
-afterEach(() => {
-	render(null, document.body)
-	vi.restoreAllMocks()
-	document.body.textContent = ''
-})
-
 test('same target does not rebind and initial plus repeated notifications share one frame', () => {
-	const raf = installRaf()
+	const raf = frames()
 	const ctx = mount()
 
-	try {
-		ctx.target = ctx.a
-		ctx.view.sync()
+	ctx.target = ctx.a
+	ctx.view.sync()
 
-		const binding = need(ctx.bindings[0])
-		binding.notify()
-		binding.notify()
-		ctx.a.dispatchEvent(new Event('unit-live'))
-		ctx.view.sync()
+	const binding = must(ctx.bindings[0])
+	binding.notify()
+	binding.notify()
+	ctx.a.dispatchEvent(new Event('unit-live'))
+	ctx.view.sync()
 
-		expect(ctx.bindings.map(item => item.element.dataset.name)).toEqual(['a'])
-		expect(ctx.changes).toEqual([])
-		expect(raf.flush()).toBe(1)
-		expect(ctx.changes).toEqual(['a'])
+	expect(ctx.bindings.map(item => item.element.dataset.name)).toEqual(['a'])
+	expect(ctx.changes).toEqual([])
+	expect(raf.flush()).toBe(1)
+	expect(ctx.changes).toEqual(['a'])
 
-		binding.notify()
-		binding.notify()
-		expect(raf.flush()).toBe(1)
-		expect(ctx.changes).toEqual(['a', 'a'])
-	} finally {
-		raf.restore()
-	}
+	binding.notify()
+	binding.notify()
+	expect(raf.flush()).toBe(1)
+	expect(ctx.changes).toEqual(['a', 'a'])
 })
 
 test('retargeting and null cancel pending work, old listeners, and captured notifications', () => {
-	const raf = installRaf()
+	const raf = frames()
 	const ctx = mount()
 
-	try {
-		ctx.target = ctx.a
-		ctx.view.sync()
-		const old = need(ctx.bindings[0])
+	ctx.target = ctx.a
+	ctx.view.sync()
+	const old = must(ctx.bindings[0])
 
-		ctx.target = ctx.b
-		ctx.view.sync()
-		const current = need(ctx.bindings[1])
+	ctx.target = ctx.b
+	ctx.view.sync()
+	const current = must(ctx.bindings[1])
 
-		expect(old.signal.aborted).toBe(true)
-		expect(raf.flush()).toBe(1)
-		expect(ctx.changes).toEqual(['b'])
+	expect(old.signal.aborted).toBe(true)
+	expect(raf.flush()).toBe(1)
+	expect(ctx.changes).toEqual(['b'])
 
-		ctx.a.dispatchEvent(new Event('unit-live'))
-		old.notify()
-		expect(raf.flush()).toBe(0)
-		expect(ctx.changes).toEqual(['b'])
+	ctx.a.dispatchEvent(new Event('unit-live'))
+	old.notify()
+	expect(raf.flush()).toBe(0)
+	expect(ctx.changes).toEqual(['b'])
 
-		ctx.b.dispatchEvent(new Event('unit-live'))
-		ctx.target = null
-		ctx.view.sync()
-		expect(current.signal.aborted).toBe(true)
-		current.notify()
-		expect(raf.flush()).toBe(0)
-		expect(ctx.changes).toEqual(['b'])
+	ctx.b.dispatchEvent(new Event('unit-live'))
+	ctx.target = null
+	ctx.view.sync()
+	expect(current.signal.aborted).toBe(true)
+	current.notify()
+	expect(raf.flush()).toBe(0)
+	expect(ctx.changes).toEqual(['b'])
 
-		ctx.view.sync()
-		expect(ctx.bindings).toHaveLength(2)
+	ctx.view.sync()
+	expect(ctx.bindings).toHaveLength(2)
 
-		ctx.target = ctx.b
-		ctx.view.sync()
-		expect(ctx.bindings).toHaveLength(3)
-		expect(raf.flush()).toBe(1)
-		expect(ctx.changes).toEqual(['b', 'b'])
+	ctx.target = ctx.b
+	ctx.view.sync()
+	expect(ctx.bindings).toHaveLength(3)
+	expect(raf.flush()).toBe(1)
+	expect(ctx.changes).toEqual(['b', 'b'])
 
-		ctx.target = ctx.a
-		ctx.view.sync()
-		expect(ctx.bindings).toHaveLength(4)
-		expect(raf.flush()).toBe(1)
-		expect(ctx.changes).toEqual(['b', 'b', 'a'])
+	ctx.target = ctx.a
+	ctx.view.sync()
+	expect(ctx.bindings).toHaveLength(4)
+	expect(raf.flush()).toBe(1)
+	expect(ctx.changes).toEqual(['b', 'b', 'a'])
 
-		old.notify()
-		expect(raf.flush()).toBe(0)
-		expect(ctx.changes).toEqual(['b', 'b', 'a'])
-	} finally {
-		raf.restore()
-	}
+	old.notify()
+	expect(raf.flush()).toBe(0)
+	expect(ctx.changes).toEqual(['b', 'b', 'a'])
 })
 
 test('host reset cancels pending work and leaves the old view inert while a fresh helper works', () => {
-	const raf = installRaf()
+	const raf = frames()
 	const ctx = mount()
 
-	try {
-		ctx.target = ctx.a
-		ctx.view.sync()
-		const oldView = ctx.view
-		const oldBinding = need(ctx.bindings[0])
-		const resolvedBeforeReset = ctx.resolved
+	ctx.target = ctx.a
+	ctx.view.sync()
+	const oldView = ctx.view
+	const oldBinding = must(ctx.bindings[0])
+	const resolvedBeforeReset = ctx.resolved
 
-		ctx.host.return()
-		ctx.host.next()
+	ctx.host.return()
+	ctx.host.next()
 
-		expect(oldBinding.signal.aborted).toBe(true)
-		expect(ctx.views).toHaveLength(2)
-		expect(raf.flush()).toBe(0)
+	expect(oldBinding.signal.aborted).toBe(true)
+	expect(ctx.views).toHaveLength(2)
+	expect(raf.flush()).toBe(0)
 
-		const bindingsAfterReset = ctx.bindings.length
-		oldView.sync()
-		expect(ctx.resolved).toBe(resolvedBeforeReset)
-		expect(ctx.bindings).toHaveLength(bindingsAfterReset)
-		expect(raf.flush()).toBe(0)
+	const bindingsAfterReset = ctx.bindings.length
+	oldView.sync()
+	expect(ctx.resolved).toBe(resolvedBeforeReset)
+	expect(ctx.bindings).toHaveLength(bindingsAfterReset)
+	expect(raf.flush()).toBe(0)
 
-		ctx.target = ctx.b
-		ctx.view.sync()
-		expect(ctx.resolved).toBe(resolvedBeforeReset + 1)
-		expect(raf.flush()).toBe(1)
-		expect(ctx.changes).toEqual(['b'])
-	} finally {
-		raf.restore()
-	}
+	ctx.target = ctx.b
+	ctx.view.sync()
+	expect(ctx.resolved).toBe(resolvedBeforeReset + 1)
+	expect(raf.flush()).toBe(1)
+	expect(ctx.changes).toEqual(['b'])
 })
 
 test('refresh schedules the current target once per frame and is inert without one', () => {
-	const raf = installRaf()
+	const raf = frames()
 	const ctx = mount()
 
-	try {
-		ctx.view.refresh()
-		expect(raf.flush()).toBe(0)
+	ctx.view.refresh()
+	expect(raf.flush()).toBe(0)
 
-		ctx.target = ctx.a
-		ctx.view.sync()
-		ctx.view.refresh()
-		expect(raf.flush()).toBe(1)
-		expect(ctx.changes).toEqual(['a'])
+	ctx.target = ctx.a
+	ctx.view.sync()
+	ctx.view.refresh()
+	expect(raf.flush()).toBe(1)
+	expect(ctx.changes).toEqual(['a'])
 
-		ctx.view.sync()
-		ctx.view.refresh()
-		need(ctx.bindings[0]).notify()
-		ctx.view.refresh()
-		expect(raf.flush()).toBe(1)
-		expect(ctx.changes).toEqual(['a', 'a'])
+	ctx.view.sync()
+	ctx.view.refresh()
+	must(ctx.bindings[0]).notify()
+	ctx.view.refresh()
+	expect(raf.flush()).toBe(1)
+	expect(ctx.changes).toEqual(['a', 'a'])
 
-		ctx.target = null
-		ctx.view.sync()
-		ctx.view.refresh()
-		expect(raf.flush()).toBe(0)
+	ctx.target = null
+	ctx.view.sync()
+	ctx.view.refresh()
+	expect(raf.flush()).toBe(0)
 
-		ctx.target = ctx.b
-		ctx.view.sync()
-		ctx.host.return()
-		ctx.view.refresh()
-		expect(raf.flush()).toBe(0)
-		expect(ctx.changes).toEqual(['a', 'a'])
-	} finally {
-		raf.restore()
-	}
+	ctx.target = ctx.b
+	ctx.view.sync()
+	ctx.host.return()
+	ctx.view.refresh()
+	expect(raf.flush()).toBe(0)
+	expect(ctx.changes).toEqual(['a', 'a'])
 })

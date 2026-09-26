@@ -1,220 +1,100 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
-import { afterEach, expect, test, vi } from 'vitest'
+import { expect, test } from 'vitest'
 import { indicator } from 'ajo-cloves'
+import { frames, mount, must, observers, serve } from './harness'
 
-type View = ReturnType<typeof indicator>
+type Box = { left: number; top: number; width: number; height: number }
 
-const needDiv = (value: HTMLDivElement | null): HTMLDivElement => {
-	if (value == null) throw new Error('missing value')
-	return value
-}
-
-const needEl = (value: HTMLElement | null): HTMLElement => {
-	if (value == null) throw new Error('missing value')
-	return value
-}
-
-const needView = (value: View | null): View => {
-	if (value == null) throw new Error('missing value')
-	return value
-}
-
-const installRaf = () => {
-	const callbacks = new Map<number, FrameRequestCallback>()
-	const originalRaf = globalThis.requestAnimationFrame
-	const originalCancel = globalThis.cancelAnimationFrame
-	let next = 1
-
-	Object.defineProperty(globalThis, 'requestAnimationFrame', {
-		configurable: true,
-		value: (callback: FrameRequestCallback) => {
-			const handle = next++
-			callbacks.set(handle, callback)
-			return handle
-		},
-	})
-	Object.defineProperty(globalThis, 'cancelAnimationFrame', {
-		configurable: true,
-		value: (handle: number) => callbacks.delete(handle),
-	})
-
-	return {
-		flush() {
-			const pending = [...callbacks]
-			callbacks.clear()
-			for (const [handle, callback] of pending) callback(handle)
-		},
-		restore() {
-			Object.defineProperty(globalThis, 'requestAnimationFrame', { configurable: true, value: originalRaf })
-			Object.defineProperty(globalThis, 'cancelAnimationFrame', { configurable: true, value: originalCancel })
-		},
-	}
-}
-
-const installObserver = () => {
-	const Original = globalThis.ResizeObserver
-	let notify: ResizeObserverCallback | undefined
-
-	Object.defineProperty(globalThis, 'ResizeObserver', {
-		configurable: true,
-		value: class {
-			constructor(callback: ResizeObserverCallback) {
-				notify = callback
-			}
-			observe() {}
-			unobserve() {}
-			disconnect() {}
-		},
-	})
-
-	return {
-		trigger(target: Element) {
-			notify?.([{ target } as ResizeObserverEntry], {} as ResizeObserver)
-		},
-		restore() {
-			Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, value: Original })
-		},
-	}
-}
-
-const rect = (element: HTMLElement, box: { left: number; top: number; width: number; height: number }) => {
+const rect = (element: Element, box: Box) => {
 	Object.defineProperty(element, 'getBoundingClientRect', {
 		configurable: true,
 		value: () => ({ ...box, right: box.left + box.width, bottom: box.top + box.height, x: box.left, y: box.top }),
 	})
 }
 
-afterEach(() => {
-	render(null, document.body)
-	vi.restoreAllMocks()
-	document.body.textContent = ''
-})
+/** Mounts a container with a marked button and returns them with the view. */
+const setup = (of: (container: HTMLElement) => HTMLElement | null, children: unknown) => {
+	const { view } = mount(
+		host => indicator(host, { target: () => document.getElementById('list'), of }),
+		() => jsx('div', { id: 'list', children }),
+	)
+	const list = must(document.getElementById('list'))
+	return { list, view }
+}
 
 test('stamps the marked child box as variables and reveals the marker a frame later', () => {
-	const raf = installRaf()
-	let container: HTMLDivElement | null = null
-	let view: View | null = null
+	const raf = frames()
+	const { list, view } = setup(root => root.querySelector<HTMLElement>('[data-state="active"]'), [
+		jsx('button', { key: 'a', 'data-state': 'active' }),
+		jsx('button', { key: 'b' }),
+	])
+	rect(list, { left: 10, top: 20, width: 300, height: 40 })
+	rect(must(list.querySelector('[data-state="active"]')), { left: 60, top: 24, width: 80, height: 32 })
 
-	function* Gen(this: Host) {
-		view = indicator(this, {
-			target: () => container,
-			of: root => root.querySelector<HTMLElement>('[data-state="active"]'),
-		})
-		yield jsx('div', {
-			ref: (element: unknown) => container = element as HTMLDivElement | null,
-			children: [
-				jsx('button', { key: 'a', 'data-state': 'active' }),
-				jsx('button', { key: 'b' }),
-			],
-		})
-	}
+	view.sync()
+	raf.flush()
 
-	try {
-		render(jsx(Gen, {}), document.body)
-		const list = needDiv(container)
-		const mark = needEl(list.querySelector<HTMLElement>('[data-state="active"]'))
-		rect(list, { left: 10, top: 20, width: 300, height: 40 })
-		rect(mark, { left: 60, top: 24, width: 80, height: 32 })
-
-		needView(view).sync()
-		raf.flush()
-
-		expect(list.style.getPropertyValue('--indicator-x')).toBe('50px')
-		expect(list.style.getPropertyValue('--indicator-y')).toBe('4px')
-		expect(list.style.getPropertyValue('--indicator-w')).toBe('80px')
-		expect(list.style.getPropertyValue('--indicator-h')).toBe('32px')
-		// Variables land first; the marker attribute waits one frame so themed
-		// pseudo-elements first paint already in position.
-		expect(list.hasAttribute('data-indicator')).toBe(false)
-		raf.flush()
-		expect(list.getAttribute('data-indicator')).toBe('true')
-	} finally {
-		raf.restore()
-	}
+	expect(list.style.getPropertyValue('--indicator-x')).toBe('50px')
+	expect(list.style.getPropertyValue('--indicator-y')).toBe('4px')
+	expect(list.style.getPropertyValue('--indicator-w')).toBe('80px')
+	expect(list.style.getPropertyValue('--indicator-h')).toBe('32px')
+	// Variables land first; the marker attribute waits one frame so themed
+	// pseudo-elements first paint already in position.
+	expect(list.hasAttribute('data-indicator')).toBe(false)
+	raf.flush()
+	expect(list.getAttribute('data-indicator')).toBe('true')
 })
 
 test('drops the marker when no child matches and cleans up on abort', () => {
-	const raf = installRaf()
-	let container: HTMLDivElement | null = null
+	const raf = frames()
 	let active = true
-	let view: View | null = null
+	const { list, view } = setup(root => active ? root.querySelector<HTMLElement>('button') : null, jsx('button', {}))
+	rect(list, { left: 0, top: 0, width: 100, height: 20 })
+	rect(must(list.querySelector('button')), { left: 5, top: 2, width: 40, height: 16 })
 
-	function* Gen(this: Host) {
-		view = indicator(this, {
-			target: () => container,
-			of: root => active ? root.querySelector<HTMLElement>('button') : null,
-		})
-		yield jsx('div', {
-			ref: (element: unknown) => container = element as HTMLDivElement | null,
-			children: jsx('button', {}),
-		})
-	}
+	view.sync()
+	raf.flush()
+	raf.flush()
+	expect(list.getAttribute('data-indicator')).toBe('true')
 
-	try {
-		render(jsx(Gen, {}), document.body)
-		const list = needDiv(container)
-		rect(list, { left: 0, top: 0, width: 100, height: 20 })
-		rect(needEl(list.querySelector<HTMLElement>('button')), { left: 5, top: 2, width: 40, height: 16 })
+	active = false
+	view.sync()
+	raf.flush()
+	expect(list.hasAttribute('data-indicator')).toBe(false)
+	// Variables stay for a seamless return, only the marker drops.
+	expect(list.style.getPropertyValue('--indicator-w')).toBe('40px')
 
-		needView(view).sync()
-		raf.flush()
-		raf.flush()
-		expect(list.getAttribute('data-indicator')).toBe('true')
-
-		active = false
-		needView(view).sync()
-		raf.flush()
-		expect(list.hasAttribute('data-indicator')).toBe(false)
-		// Variables stay for a seamless return, only the marker drops.
-		expect(list.style.getPropertyValue('--indicator-w')).toBe('40px')
-
-		active = true
-		render(null, document.body)
-		expect(list.style.getPropertyValue('--indicator-w')).toBe('')
-	} finally {
-		raf.restore()
-	}
+	active = true
+	render(null, document.body)
+	expect(list.style.getPropertyValue('--indicator-w')).toBe('')
 })
 
 test('a container resize re-measures on the next frame', () => {
-	const raf = installRaf()
-	const observer = installObserver()
-	let container: HTMLDivElement | null = null
-	let view: View | null = null
+	const raf = frames()
+	const observer = observers()
+	const { list, view } = setup(root => root.querySelector<HTMLElement>('button'), jsx('button', {}))
+	const mark = must(list.querySelector('button'))
+	rect(list, { left: 0, top: 0, width: 100, height: 20 })
+	rect(mark, { left: 5, top: 2, width: 40, height: 16 })
 
-	function* Gen(this: Host) {
-		view = indicator(this, {
-			target: () => container,
-			of: root => root.querySelector<HTMLElement>('button'),
-		})
-		yield jsx('div', {
-			ref: (element: unknown) => container = element as HTMLDivElement | null,
-			children: jsx('button', {}),
-		})
-	}
+	view.sync()
+	raf.flush()
+	raf.flush()
+	expect(list.style.getPropertyValue('--indicator-w')).toBe('40px')
 
-	try {
-		render(jsx(Gen, {}), document.body)
-		const list = needDiv(container)
-		const mark = needEl(list.querySelector<HTMLElement>('button'))
-		rect(list, { left: 0, top: 0, width: 100, height: 20 })
-		rect(mark, { left: 5, top: 2, width: 40, height: 16 })
+	rect(mark, { left: 5, top: 2, width: 60, height: 16 })
+	must(observer.at(-1)).trigger(list)
+	raf.flush()
+	expect(list.style.getPropertyValue('--indicator-w')).toBe('60px')
+})
 
-		needView(view).sync()
-		raf.flush()
-		raf.flush()
-		expect(list.style.getPropertyValue('--indicator-w')).toBe('40px')
-
-		rect(mark, { left: 5, top: 2, width: 60, height: 16 })
-		observer.trigger(list)
-		raf.flush()
-		expect(list.style.getPropertyValue('--indicator-w')).toBe('60px')
-	} finally {
-		render(null, document.body)
-		observer.restore()
-		raf.restore()
-	}
+test('SSR sync is inert and does not resolve the target', () => {
+	expect(serve(host => indicator(host, {
+		target: () => {
+			throw new Error('target should not run on the server')
+		},
+		of: () => null,
+	}).sync())).toBe('<div>server</div>')
 })

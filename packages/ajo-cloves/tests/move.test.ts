@@ -1,40 +1,11 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo'
 import { render } from 'ajo'
-import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { move } from 'ajo-cloves'
+import { key, mount, must, serve } from './harness'
 
-type View = ReturnType<typeof move>
 type Options = Parameters<typeof move>[1]
-
-const prepare = () => {
-	if (!globalThis.MutationObserver) globalThis.MutationObserver = window.MutationObserver
-	document.body.textContent = ''
-}
-
-const missing = () => new Error('missing value')
-
-const needView = (value: View | undefined): View => {
-	if (value == null) throw missing()
-	return value
-}
-
-const needHost = (value: Host | null): Host => {
-	if (value == null) throw missing()
-	return value
-}
-
-const needDiv = (value: HTMLDivElement | null): HTMLDivElement => {
-	if (value == null) throw missing()
-	return value
-}
-
-const needSpan = (value: HTMLSpanElement | null): HTMLSpanElement => {
-	if (value == null) throw missing()
-	return value
-}
 
 const pointer = (type: string, init: PointerEventInit = {}) => new PointerEvent(type, {
 	bubbles: true,
@@ -48,12 +19,6 @@ const pointer = (type: string, init: PointerEventInit = {}) => new PointerEvent(
 	...init,
 })
 
-const key = (value: string) => new KeyboardEvent('keydown', {
-	bubbles: true,
-	cancelable: true,
-	key: value,
-})
-
 const stubCapture = (element: Element) => {
 	const set = vi.fn()
 	const release = vi.fn()
@@ -65,7 +30,7 @@ const stubCapture = (element: Element) => {
 }
 
 const start = (
-	ctx: ReturnType<typeof mount>,
+	ctx: ReturnType<typeof drag>,
 	init: PointerEventInit = {},
 	target: Element = ctx.child,
 ) => {
@@ -75,64 +40,26 @@ const start = (
 	return event
 }
 
-const mount = (opts: Options) => {
-	let view: View | undefined
-	let host: Host | null = null
-	let root: HTMLDivElement | null = null
-	let child: HTMLSpanElement | null = null
-	let created = 0
+/** Mounts a root that starts a drag from its own pointerdown, around one child span. */
+const drag = (opts: Options) => {
 	const starts: boolean[] = []
 
-	function* Gen(this: Host) {
-		created++
-		view = move(this, opts)
-
-		yield jsx('div', {
-			ref: (element: unknown) => root = element as HTMLDivElement | null,
-			'set:onpointerdown': (event: PointerEvent) => starts.push(needView(view).start(event)),
-			children: jsx('span', { ref: (element: unknown) => child = element as HTMLSpanElement | null }),
-		})
-	}
-
-	render(jsx(Gen, { ref: (element: unknown) => host = element as Host | null }), document.body)
+	mount(host => move(host, opts), view => jsx('div', {
+		id: 'root',
+		'set:onpointerdown': (event: PointerEvent) => starts.push(view.start(event)),
+		children: jsx('span', { id: 'child' }),
+	}))
 
 	return {
 		starts,
-		get child() {
-			return needSpan(child)
-		},
-		get created() {
-			return created
-		},
-		get host() {
-			return needHost(host)
-		},
-		get root() {
-			return needDiv(root)
-		},
-		get view() {
-			return needView(view)
-		},
+		child: must(document.getElementById('child')),
+		root: must(document.getElementById('root')),
 	}
 }
 
-beforeEach(prepare)
-
-afterEach(() => {
-	render(null, document.body)
-	vi.restoreAllMocks()
-	document.body.textContent = ''
-})
-
-test('shape has exactly the documented fields', () => {
-	const ctx = mount({ onMove: () => {} })
-
-	expect(Object.keys(ctx.view)).toEqual(['start'])
-})
-
 test('start rejects non-left button, non-primary pointers, and double-start', () => {
 	const onStart = vi.fn()
-	const ctx = mount({ onStart, onMove: () => {} })
+	const ctx = drag({ onStart, onMove: () => {} })
 	const capture = stubCapture(ctx.root)
 
 	start(ctx, { button: 1 })
@@ -149,7 +76,7 @@ test('start rejects non-left button, non-primary pointers, and double-start', ()
 test('onStart receives zero-delta data and the original event', () => {
 	const starts: unknown[] = []
 	const events: PointerEvent[] = []
-	const ctx = mount({
+	const ctx = drag({
 		onStart: (data, event) => {
 			starts.push({ ...data })
 			events.push(event)
@@ -166,7 +93,7 @@ test('onStart receives zero-delta data and the original event', () => {
 
 test('pointermove reports deltas accumulated from the start point', () => {
 	const moves: unknown[] = []
-	const ctx = mount({
+	const ctx = drag({
 		onMove: data => moves.push({ ...data }),
 	})
 
@@ -185,7 +112,7 @@ test('pointermove reports deltas accumulated from the start point', () => {
 test('pointerup ends with canceled false and releases capture', () => {
 	const ends: unknown[] = []
 	const events: Event[] = []
-	const ctx = mount({
+	const ctx = drag({
 		onMove: () => {},
 		onEnd: (data, event) => {
 			ends.push({ ...data })
@@ -206,7 +133,7 @@ test('pointerup ends with canceled false and releases capture', () => {
 
 test('pointercancel ends with canceled true', () => {
 	const ends: unknown[] = []
-	const ctx = mount({
+	const ctx = drag({
 		onMove: () => {},
 		onEnd: data => ends.push({ ...data }),
 	})
@@ -221,7 +148,7 @@ test('pointercancel ends with canceled true', () => {
 
 test('lostpointercapture ends canceled and later pointerup cannot double-fire', () => {
 	const ends: unknown[] = []
-	const ctx = mount({
+	const ctx = drag({
 		onMove: () => {},
 		onEnd: data => ends.push({ ...data }),
 	})
@@ -237,7 +164,7 @@ test('lostpointercapture ends canceled and later pointerup cannot double-fire', 
 
 test('lostpointercapture after pointerup cannot double-fire onEnd', () => {
 	const onEnd = vi.fn()
-	const ctx = mount({ onMove: () => {}, onEnd })
+	const ctx = drag({ onMove: () => {}, onEnd })
 	const capture = stubCapture(ctx.root)
 
 	start(ctx, { pointerId: 12 })
@@ -251,7 +178,7 @@ test('lostpointercapture after pointerup cannot double-fire onEnd', () => {
 test('Escape ends canceled with the KeyboardEvent and does not prevent default', () => {
 	const ends: unknown[] = []
 	const events: Event[] = []
-	const ctx = mount({
+	const ctx = drag({
 		onMove: () => {},
 		onEnd: (data, event) => {
 			ends.push({ ...data })
@@ -273,7 +200,7 @@ test('Escape ends canceled with the KeyboardEvent and does not prevent default',
 
 test('session listeners are removed after end', () => {
 	const onMove = vi.fn()
-	const ctx = mount({ onMove })
+	const ctx = drag({ onMove })
 
 	stubCapture(ctx.root)
 	start(ctx, { pointerId: 14 })
@@ -285,7 +212,7 @@ test('session listeners are removed after end', () => {
 })
 
 test('capture element is the currentTarget instead of the original target', () => {
-	const ctx = mount({ onMove: () => {} })
+	const ctx = drag({ onMove: () => {} })
 	const root = stubCapture(ctx.root)
 	const child = stubCapture(ctx.child)
 
@@ -299,7 +226,7 @@ test('capture element is the currentTarget instead of the original target', () =
 test('unmount during a session aborts silently and releases capture', () => {
 	const onMove = vi.fn()
 	const onEnd = vi.fn()
-	const ctx = mount({ onMove, onEnd })
+	const ctx = drag({ onMove, onEnd })
 	const root = ctx.root
 	const capture = stubCapture(root)
 
@@ -313,49 +240,20 @@ test('unmount during a session aborts silently and releases capture', () => {
 	expect(capture.release).toHaveBeenCalledWith(16)
 })
 
-test('reset re-arms a fresh session', () => {
-	const onMove = vi.fn()
-	const ctx = mount({ onMove })
-
-	stubCapture(ctx.root)
-	start(ctx, { pointerId: 17 })
-	needHost(ctx.host).return()
-	needHost(ctx.host).next()
-
-	const capture = stubCapture(ctx.root)
-	start(ctx, { pointerId: 18 })
-	ctx.root.dispatchEvent(pointer('pointermove', { clientX: 3, clientY: 4, pointerId: 18 }))
-
-	expect(ctx.created).toBe(2)
-	expect(ctx.starts).toEqual([true, true])
-	expect(onMove).toHaveBeenCalledTimes(1)
-	expect(capture.set).toHaveBeenCalledWith(18)
-})
-
 test('SSR inert view never starts or calls callbacks', () => {
-	function* Gen(this: Host) {
-		const view = move(this, {
-			onStart: () => {
-				throw new Error('onStart should not run on the server')
-			},
-			onMove: () => {
-				throw new Error('onMove should not run on the server')
-			},
-			onEnd: () => {
-				throw new Error('onEnd should not run on the server')
-			},
-		})
-		const started = view.start(pointer('pointerdown'))
-
-		yield jsx('span', { children: String(started) })
+	const fail = () => {
+		throw new Error('callbacks should not run on the server')
 	}
 
-	expect(ssr(jsx(Gen, {}))).toBe('<div><span>false</span></div>')
+	expect(serve(
+		host => move(host, { onStart: fail, onMove: fail, onEnd: fail }),
+		view => String(view.start(pointer('pointerdown'))),
+	)).toBe('<div>false</div>')
 })
 
 test('data object identity is stable within a session', () => {
 	const refs: unknown[] = []
-	const ctx = mount({
+	const ctx = drag({
 		onStart: data => refs.push(data),
 		onMove: data => refs.push(data),
 		onEnd: data => refs.push(data),

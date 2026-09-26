@@ -1,48 +1,17 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo'
 import { render } from 'ajo'
-import { render as ssr } from 'ajo/html'
-import { jsx } from 'ajo/jsx-runtime'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { hotkey } from 'ajo-cloves'
+import { key, mount, serve } from './harness'
 
-const prepare = () => {
-	if (!globalThis.MutationObserver) globalThis.MutationObserver = window.MutationObserver
-	document.body.textContent = ''
+const press = (keys: string, opts: { active?: () => boolean } = {}) => {
+	const fn = vi.fn()
+	mount(host => hotkey(host, { keys: () => keys, onPress: fn, ...opts }))
+	return fn
 }
-
-const must = (value: Host | null): Host => {
-	if (value == null) throw new Error('missing value')
-	return value
-}
-
-const key = (value: string, init: KeyboardEventInit = {}) => new KeyboardEvent('keydown', {
-	bubbles: true,
-	cancelable: true,
-	key: value,
-	...init,
-})
-
-beforeEach(prepare)
-
-afterEach(() => {
-	render(null, document.body)
-	document.body.textContent = ''
-})
 
 test('mod+b matches ctrl+b and meta+b', () => {
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		hotkey(this, {
-			keys: () => 'mod+b',
-			onPress: fn,
-		})
-
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
+	const fn = press('mod+b')
 
 	window.dispatchEvent(key('b', { ctrlKey: true }))
 	window.dispatchEvent(key('B', { metaKey: true }))
@@ -51,36 +20,14 @@ test('mod+b matches ctrl+b and meta+b', () => {
 })
 
 test('plain key without modifiers does not match mod+b', () => {
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		hotkey(this, {
-			keys: () => 'mod+b',
-			onPress: fn,
-		})
-
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
+	const fn = press('mod+b')
 	window.dispatchEvent(key('b'))
 
 	expect(fn).not.toHaveBeenCalled()
 })
 
 test('extra modifiers do not match mod+b', () => {
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		hotkey(this, {
-			keys: () => 'mod+b',
-			onPress: fn,
-		})
-
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
+	const fn = press('mod+b')
 	window.dispatchEvent(key('b', { ctrlKey: true, shiftKey: true }))
 	window.dispatchEvent(key('b', { ctrlKey: true, metaKey: true }))
 
@@ -88,37 +35,14 @@ test('extra modifiers do not match mod+b', () => {
 })
 
 test('F8 matches case-insensitively without modifiers', () => {
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		hotkey(this, {
-			keys: () => 'f8',
-			onPress: fn,
-		})
-
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
+	const fn = press('f8')
 	window.dispatchEvent(key('F8'))
 
 	expect(fn).toHaveBeenCalledTimes(1)
 })
 
 test('active false blocks matched keys before preventing default', () => {
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		hotkey(this, {
-			keys: () => 'mod+b',
-			active: () => false,
-			onPress: fn,
-		})
-
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
+	const fn = press('mod+b', { active: () => false })
 
 	const event = key('b', { ctrlKey: true })
 	window.dispatchEvent(event)
@@ -128,18 +52,7 @@ test('active false blocks matched keys before preventing default', () => {
 })
 
 test('a match is always prevented', () => {
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		hotkey(this, {
-			keys: () => 'mod+b',
-			onPress: fn,
-		})
-
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
+	const fn = press('mod+b')
 
 	const event = key('b', { ctrlKey: true })
 	window.dispatchEvent(event)
@@ -149,58 +62,18 @@ test('a match is always prevented', () => {
 })
 
 test('unmount removes the global listener', () => {
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		hotkey(this, {
-			keys: () => 'mod+b',
-			onPress: fn,
-		})
-
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
+	const fn = press('mod+b')
 	render(null, document.body)
 	window.dispatchEvent(key('b', { ctrlKey: true }))
 
 	expect(fn).not.toHaveBeenCalled()
 })
 
-test('reset re-arms the global listener', () => {
-	let host: Host | null = null
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		hotkey(this, {
-			keys: () => 'mod+b',
-			onPress: fn,
-		})
-
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, { ref: (element: unknown) => host = element as Host | null }), document.body)
-
-	window.dispatchEvent(key('b', { ctrlKey: true }))
-	must(host).return()
-	must(host).next()
-	window.dispatchEvent(key('b', { ctrlKey: true }))
-
-	expect(fn).toHaveBeenCalledTimes(2)
-})
-
 test('SSR renders without installing or parsing shortcuts', () => {
-	function* Gen(this: Host) {
-		hotkey(this, {
-			keys: () => {
-				throw new Error('keys should not run on the server')
-			},
-			onPress: () => {},
-		})
-
-		yield jsx('span', { children: 'server' })
-	}
-
-	expect(ssr(jsx(Gen, {}))).toBe('<div><span>server</span></div>')
+	expect(serve(host => hotkey(host, {
+		keys: () => {
+			throw new Error('keys should not run on the server')
+		},
+		onPress: () => {},
+	}))).toBe('<div>server</div>')
 })

@@ -1,47 +1,16 @@
 // @vitest-environment happy-dom
 import type { Host } from 'ajo'
 import { render } from 'ajo'
-import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { announce } from 'ajo-cloves'
-
-type View = ReturnType<typeof announce>
-
-const prepare = () => {
-	if (!globalThis.MutationObserver) globalThis.MutationObserver = window.MutationObserver
-	document.body.textContent = ''
-}
-
-const tick = () => new Promise<void>(resolve => queueMicrotask(resolve))
-
-const mount = () => {
-	let view: View | undefined
-
-	function* Gen(this: Host) {
-		view = announce(this)
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	if (!view) throw new Error('missing view')
-	return view
-}
+import { mount, serve, tick } from './harness'
 
 const regions = () =>
 	[...document.body.querySelectorAll<HTMLDivElement>('[aria-live]')]
 
-beforeEach(prepare)
-
-afterEach(() => {
-	render(null, document.body)
-	document.body.textContent = ''
-	vi.restoreAllMocks()
-})
-
 test('first polite call creates one status region with the right attributes', () => {
-	const view = mount()
+	const { view } = mount(announce)
 
 	view.polite('Saved')
 
@@ -62,7 +31,7 @@ test('first polite call creates one status region with the right attributes', ()
 })
 
 test('second polite call reuses the region and message lands after a microtask', async () => {
-	const view = mount()
+	const { view } = mount(announce)
 
 	view.polite('One')
 	const first = regions()[0]
@@ -84,7 +53,7 @@ test('second polite call reuses the region and message lands after a microtask',
 })
 
 test('repeated identical messages clear before being set again', async () => {
-	const view = mount()
+	const { view } = mount(announce)
 
 	view.polite('Same')
 	await tick()
@@ -103,29 +72,17 @@ test('repeated identical messages clear before being set again', async () => {
 })
 
 test('two hosts share the same region', () => {
-	let a: View | undefined
-	let b: View | undefined
+	const views: ReturnType<typeof announce>[] = []
 
-	function* Child(this: Host, args: { name: string }) {
-		const view = announce(this)
-
-		if (args.name === 'a') a = view
-		else b = view
-
-		yield jsx('span', { children: args.name })
+	function* Child(this: Host) {
+		views.push(announce(this))
+		yield null
 	}
 
-	function* Gen(this: Host) {
-		yield [
-			jsx(Child, { key: 'a', name: 'a' }),
-			jsx(Child, { key: 'b', name: 'b' }),
-		]
-	}
+	render([jsx(Child, { key: 'a' }), jsx(Child, { key: 'b' })], document.body)
 
-	render(jsx(Gen, {}), document.body)
-
-	a!.polite('A')
-	b!.polite('B')
+	views[0].polite('A')
+	views[1].polite('B')
 
 	expect(regions()).toHaveLength(1)
 })
@@ -133,15 +90,7 @@ test('two hosts share the same region', () => {
 test('SSR methods are inert and do not create regions', () => {
 	const create = vi.spyOn(document, 'createElement')
 
-	function* Gen(this: Host) {
-		const view = announce(this)
-
-		view.polite('Polite')
-
-		yield jsx('span', { children: 'server' })
-	}
-
-	expect(ssr(jsx(Gen, {}))).toBe('<div><span>server</span></div>')
+	expect(serve(host => announce(host).polite('Polite'))).toBe('<div>server</div>')
 	expect(create).not.toHaveBeenCalled()
 	expect(regions()).toHaveLength(0)
 })

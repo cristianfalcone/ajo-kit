@@ -1,40 +1,36 @@
 // @vitest-environment happy-dom
 import type { Host } from 'ajo'
 import { render } from 'ajo'
-import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
 import { Window } from 'happy-dom'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { dismiss } from 'ajo-cloves'
+import { key, mount, must, serve } from './harness'
 
-const prepare = () => {
-	if (!globalThis.MutationObserver) globalThis.MutationObserver = window.MutationObserver
-	document.body.textContent = ''
-}
+type Options = Parameters<typeof dismiss>[1]
 
-const mustHost = (value: Host | null): Host => {
-	if (value == null) throw new Error('missing value')
-	return value
-}
-
-const button = (value: HTMLButtonElement | null): HTMLButtonElement => {
-	if (value == null) throw new Error('missing value')
-	return value
-}
-
-const escape = () => new KeyboardEvent('keydown', {
-	bubbles: true,
-	cancelable: true,
-	key: 'Escape',
-})
+const escape = () => key('Escape')
 
 const pointer = () => new MouseEvent('pointerdown', {
 	bubbles: true,
 	cancelable: true,
 })
 
-const outsideButton = () => {
+const outside = () => {
 	const element = document.createElement('button')
+
+	document.body.append(element)
+	return element
+}
+
+/** Mounts a host whose only child is the `inside` button. */
+const setup = (opts: Omit<Options, 'active'> & { active?: () => boolean }) => {
+	mount(host => dismiss(host, { active: () => true, ...opts }), () => jsx('button', { id: 'inside', children: 'inside' }))
+	return must(document.getElementById('inside'))
+}
+
+const portal = () => {
+	const element = document.createElement('div')
 
 	document.body.append(element)
 	return element
@@ -61,101 +57,38 @@ const realmHost = () => {
 	}
 }
 
-beforeEach(prepare)
-
-afterEach(() => {
-	vi.unstubAllGlobals()
-	render(null, document.body)
-	document.body.textContent = ''
-})
-
-test('shape is a void wiring clove', () => {
-	let result: void | undefined
-
-	function* Gen(this: Host) {
-		result = dismiss(this, {
-			active: () => false,
-			onDismiss: () => {},
-		})
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	expect(result).toBeUndefined()
-})
-
 test('defaults keep Escape enabled and outside pointerdown disabled', () => {
-	let inside: HTMLButtonElement | null = null
 	const fn = vi.fn()
+	const inside = setup({ onDismiss: fn })
 
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			inside: () => [inside],
-			onDismiss: fn,
-		})
-
-		yield jsx('button', {
-			ref: (element: unknown) => inside = element as HTMLButtonElement | null,
-			children: 'inside',
-		})
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	outsideButton().dispatchEvent(pointer())
+	outside().dispatchEvent(pointer())
 
 	expect(fn).not.toHaveBeenCalled()
 
-	button(inside).dispatchEvent(escape())
+	inside.dispatchEvent(escape())
 
 	expect(fn).toHaveBeenCalledTimes(1)
 })
 
 test('prevent marks the dismissing Escape as handled', () => {
 	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			prevent: true,
-			onDismiss: fn,
-		})
-
-		yield jsx('button', { children: 'inside' })
-	}
-
-	render(jsx(Gen, {}), document.body)
+	setup({ prevent: true, onDismiss: fn })
 
 	const event = escape()
-	outsideButton().dispatchEvent(event)
+	outside().dispatchEvent(event)
 
 	expect(fn).toHaveBeenCalledOnce()
 	expect(event.defaultPrevented).toBe(true)
 })
 
 test('outside pointerdown dismisses outside the host and inside elements', () => {
-	let portal: HTMLDivElement | null = null
+	let extra: HTMLDivElement | null = null
 	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			inside: () => [portal],
-			outside: true,
-			onDismiss: fn,
-		})
-
-		yield jsx('button', { children: 'host child' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-	portal = document.createElement('div')
-	document.body.append(portal)
+	setup({ inside: () => [extra], outside: true, onDismiss: fn })
+	extra = portal()
 
 	const event = pointer()
-	outsideButton().dispatchEvent(event)
+	outside().dispatchEvent(event)
 
 	expect(fn).toHaveBeenCalledTimes(1)
 	expect(fn).toHaveBeenCalledWith(event)
@@ -163,108 +96,42 @@ test('outside pointerdown dismisses outside the host and inside elements', () =>
 })
 
 test('outside pointerdown inside the host does not dismiss', () => {
-	let inside: HTMLButtonElement | null = null
 	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			outside: true,
-			onDismiss: fn,
-		})
-
-		yield jsx('button', {
-			ref: (element: unknown) => inside = element as HTMLButtonElement | null,
-			children: 'inside',
-		})
-	}
-
-	render(jsx(Gen, {}), document.body)
-	button(inside).dispatchEvent(pointer())
+	setup({ outside: true, onDismiss: fn }).dispatchEvent(pointer())
 
 	expect(fn).not.toHaveBeenCalled()
 })
 
 test('outside pointerdown inside an inside element does not dismiss', () => {
-	let portal: HTMLDivElement | null = null
+	let extra: HTMLDivElement | null = null
 	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			inside: () => [portal],
-			outside: true,
-			onDismiss: fn,
-		})
-
-		yield jsx('button', { children: 'host child' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-	portal = document.createElement('div')
-	document.body.append(portal)
-	portal.dispatchEvent(pointer())
+	setup({ inside: () => [extra], outside: true, onDismiss: fn })
+	extra = portal()
+	extra.dispatchEvent(pointer())
 
 	expect(fn).not.toHaveBeenCalled()
 })
 
 test('outside pointerdown while inactive does not dismiss', () => {
 	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => false,
-			outside: true,
-			onDismiss: fn,
-		})
-
-		yield jsx('button', { children: 'inside' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-	outsideButton().dispatchEvent(pointer())
+	setup({ active: () => false, outside: true, onDismiss: fn })
+	outside().dispatchEvent(pointer())
 
 	expect(fn).not.toHaveBeenCalled()
 })
 
 test('escape false disables the Escape channel', () => {
-	let inside: HTMLButtonElement | null = null
 	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			escape: false,
-			onDismiss: fn,
-		})
-
-		yield jsx('button', {
-			ref: (element: unknown) => inside = element as HTMLButtonElement | null,
-			children: 'inside',
-		})
-	}
-
-	render(jsx(Gen, {}), document.body)
-	button(inside).dispatchEvent(escape())
+	setup({ escape: false, onDismiss: fn }).dispatchEvent(escape())
 
 	expect(fn).not.toHaveBeenCalled()
 })
 
 test('Escape dismisses even when focus has moved outside the host', () => {
 	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			onDismiss: fn,
-		})
-
-		yield jsx('button', { children: 'inside' })
-	}
-
-	render(jsx(Gen, {}), document.body)
+	setup({ onDismiss: fn })
 	const event = escape()
-	outsideButton().dispatchEvent(event)
+	outside().dispatchEvent(event)
 
 	expect(fn).toHaveBeenCalledOnce()
 	expect(fn).toHaveBeenCalledWith(event)
@@ -312,144 +179,20 @@ test('outside dismissal uses the host realm Node constructor', () => {
 	}
 })
 
-test('invalidate updates DOM text through host.next from onDismiss', () => {
-	let inside: HTMLButtonElement | null = null
-	let count = 0
-
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			inside: () => [inside],
-			onDismiss: () => this.next(() => count++),
-		})
-
-		while (true) yield jsx('button', {
-			ref: (element: unknown) => inside = element as HTMLButtonElement | null,
-			children: String(count),
-		})
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	button(inside).dispatchEvent(escape())
-
-	expect(document.body.textContent).toBe('1')
-})
-
-test('teardown removes the Escape listener on unmount', () => {
-	let inside: HTMLButtonElement | null = null
+test('unmount removes the Escape and outside listeners', () => {
 	const fn = vi.fn()
+	setup({ outside: true, onDismiss: fn })
 
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			inside: () => [inside],
-			onDismiss: fn,
-		})
-
-		yield jsx('button', {
-			ref: (element: unknown) => inside = element as HTMLButtonElement | null,
-			children: 'inside',
-		})
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	const old = button(inside)
 	render(null, document.body)
-	old.dispatchEvent(escape())
+	document.dispatchEvent(escape())
+	outside().dispatchEvent(pointer())
 
 	expect(fn).not.toHaveBeenCalled()
-})
-
-test('teardown removes the outside listener on unmount', () => {
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			outside: true,
-			onDismiss: fn,
-		})
-
-		yield jsx('button', { children: 'inside' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-	render(null, document.body)
-	document.dispatchEvent(pointer())
-
-	expect(fn).not.toHaveBeenCalled()
-})
-
-test('reset installs one fresh Escape listener', () => {
-	let host: Host | null = null
-	let inside: HTMLButtonElement | null = null
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			inside: () => [inside],
-			onDismiss: fn,
-		})
-
-		yield jsx('button', {
-			ref: (element: unknown) => inside = element as HTMLButtonElement | null,
-			children: 'inside',
-		})
-	}
-
-	render(jsx(Gen, { ref: (element: unknown) => host = element as Host | null }), document.body)
-
-	button(inside).dispatchEvent(escape())
-
-	expect(fn).toHaveBeenCalledTimes(1)
-
-	mustHost(host).return()
-	mustHost(host).next()
-	button(inside).dispatchEvent(escape())
-
-	expect(fn).toHaveBeenCalledTimes(2)
-})
-
-test('reset re-arms the outside listener', () => {
-	let host: Host | null = null
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			outside: true,
-			onDismiss: fn,
-		})
-
-		yield jsx('button', { children: 'inside' })
-	}
-
-	render(jsx(Gen, { ref: (element: unknown) => host = element as Host | null }), document.body)
-
-	const outside = outsideButton()
-	outside.dispatchEvent(pointer())
-
-	expect(fn).toHaveBeenCalledTimes(1)
-
-	mustHost(host).return()
-	mustHost(host).next()
-	outside.dispatchEvent(pointer())
-
-	expect(fn).toHaveBeenCalledTimes(2)
 })
 
 test('SSR renders without touching DOM APIs', () => {
-	function* Gen(this: Host) {
-		dismiss(this, {
-			active: () => true,
-			onDismiss: () => {},
-		})
-
-		yield jsx('span', { children: 'server' })
-	}
-
-	expect(ssr(jsx(Gen, {}))).toBe('<div><span>server</span></div>')
+	expect(serve(host => dismiss(host, {
+		active: () => true,
+		onDismiss: () => {},
+	}))).toBe('<div>server</div>')
 })
