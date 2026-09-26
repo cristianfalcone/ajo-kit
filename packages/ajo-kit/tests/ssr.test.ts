@@ -58,7 +58,7 @@ let gate: Promise<unknown> = Promise.resolve()
 let client: typeof import('../src/client') | undefined
 let rename: Action<unknown> | undefined
 const titles = new Map<string, string>()
-const sources: { open: boolean }[] = []
+const sources: { url: string; open: boolean; closed: boolean; drop: () => void; connect: () => void }[] = []
 
 const later = (module: object) => async () => {
 	await gate
@@ -154,10 +154,15 @@ const start = async (path: string) => {
 		onmessage?: (event: { data: string }) => void
 		onerror?: () => void
 		open = false
+		closed = false
 		private end?: () => void
-		constructor(target: string) {
+		constructor(readonly url: string) {
 			sources.push(this)
-			void call(target, { headers: { accept: 'text/event-stream' } }).then(reply => {
+			this.connect()
+		}
+		// Like a browser after a dropped connection, a reconnect sends a fresh request on the same source.
+		connect() {
+			void call(this.url, { headers: { accept: 'text/event-stream' } }).then(reply => {
 				if (!reply.stream) return
 				http.attach(reply, {
 					send: chunk => {
@@ -171,8 +176,16 @@ const start = async (path: string) => {
 				this.onopen?.()
 			})
 		}
+		drop() {
+			this.end?.()
+			this.open = false
+			this.onerror?.()
+		}
 		addEventListener() {}
-		close() { this.end?.() }
+		close() {
+			this.closed = true
+			this.end?.()
+		}
 	})
 
 	history.replaceState(null, '', path)
@@ -286,5 +299,122 @@ describe('ajo-kit client boot over SSR', () => {
 
 		navigate('/notes/new')
 		await vi.waitFor(() => expect(root.querySelector('article')!.textContent).toBe('new {}'))
+	})
+})
+
+describe('ajo-kit client navigation', () => {
+	test('the live stream opens only on routes that track topics', async () => {
+		const { navigate, root } = await start('/notes/new')
+
+		client = await import('../src/client')
+		await vi.waitFor(() => expect(ready()).toBe('true'))
+		await new Promise(resolve => setTimeout(resolve, 20))
+		expect(sources).toEqual([])
+
+		navigate('/notes/7')
+		await vi.waitFor(() => expect(sources.map(({ url, open }) => ({ url, open }))).toEqual([{ url: '/notes/7', open: true }]))
+
+		navigate('/notes/new')
+		await vi.waitFor(() => expect(root.querySelector('article')!.textContent).toBe('new {}'))
+		await vi.waitFor(() => expect(sources[0].closed).toBe(true))
+		expect(sources).toHaveLength(1)
+	})
+
+	test('an unknown same-origin link loads from the server on every click', async () => {
+		const { root } = await start('/notes/7')
+		const article = root.querySelector('article')!
+		const reload = vi.spyOn(location, 'reload').mockImplementation(() => {})
+
+		client = await import('../src/client')
+		await vi.waitFor(() => expect(ready()).toBe('true'))
+
+		const link = document.createElement('a')
+		link.href = '/api/notes/7'
+		document.body.append(link)
+		link.click()
+
+		expect(location.pathname).toBe('/api/notes/7')
+		expect(reload).toHaveBeenCalledOnce()
+
+		// A download leaves the document in place, so a second click, or a
+		// sibling at the same path, still goes to the server.
+		link.click()
+		expect(reload).toHaveBeenCalledTimes(2)
+		link.href = '/api/notes/7?format=json'
+		link.click()
+		expect(reload).toHaveBeenCalledTimes(3)
+
+		await new Promise(resolve => setTimeout(resolve, 20))
+		expect(article.isConnected).toBe(true)
+		expect(root.querySelector('output')).toBeNull()
+	})
+
+	test('back leaves the scroll position the browser restored', async () => {
+		const { navigate, root } = await start('/notes/7')
+
+		client = await import('../src/client')
+		await vi.waitFor(() => expect(ready()).toBe('true'))
+
+		navigate('/notes/8')
+		await vi.waitFor(() => expect(root.querySelector('article')!.textContent).toBe('note 8: 8'))
+		await new Promise(resolve => setTimeout(resolve, 50))
+
+		// The browser restores the previous entry's position as it traverses.
+		addEventListener('popstate', () => scrollTo(0, 400), { once: true })
+		history.back()
+
+		await vi.waitFor(() => expect(root.querySelector('article')!.textContent).toBe('note 7: 7'))
+		await new Promise(resolve => setTimeout(resolve, 50))
+		expect(scrollY).toBe(400)
+	})
+
+	test('an emit while the stream was down shows after it reconnects', async () => {
+		const { server, root } = await start('/notes/7')
+		const article = root.querySelector('article')!
+
+		client = await import('../src/client')
+		await vi.waitFor(() => expect(sources.map(source => source.open)).toEqual([true]))
+
+		sources[0].drop()
+		titles.set('7', 'Offline')
+		server.emit('notes')
+		await new Promise(resolve => setTimeout(resolve, 20))
+		expect(article.textContent).toBe('note 7: 7')
+
+		sources[0].connect()
+		await vi.waitFor(() => expect(article.textContent).toBe('note 7: Offline'))
+	})
+})
+
+describe('ajo-kit client at an unknown path', () => {
+	test('a fragment on the SSR 404 page stays on the client', async () => {
+		const { root } = await start('/nope')
+		const reload = vi.spyOn(location, 'reload').mockImplementation(() => {})
+
+		expect(root.querySelector('output')!.textContent).toBe('Not found')
+
+		client = await import('../src/client')
+		await vi.waitFor(() => expect(ready()).toBe('true'))
+
+		// A fragment link or back between fragments fires popstate at the same path.
+		history.pushState(null, '', '#main')
+		dispatchEvent(new PopStateEvent('popstate'))
+
+		await new Promise(resolve => setTimeout(resolve, 20))
+		expect(reload).not.toHaveBeenCalled()
+		await vi.waitFor(() => expect(root.querySelector('output')?.textContent).toBe('Not found'))
+	})
+
+	test('a client booted without SSR state renders the error page instead of reloading', async () => {
+		const { root } = await start('/nope')
+		const reload = vi.spyOn(location, 'reload').mockImplementation(() => {})
+
+		document.getElementById('__SSR__')!.remove()
+		client = await import('../src/client')
+		await vi.waitFor(() => expect(ready()).toBe('true'))
+
+		await new Promise(resolve => setTimeout(resolve, 20))
+		expect(reload).not.toHaveBeenCalled()
+		await vi.waitFor(() => expect(root.querySelector('output')?.textContent).toBe('Not found'))
 	})
 })

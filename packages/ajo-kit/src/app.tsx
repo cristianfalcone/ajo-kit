@@ -320,26 +320,38 @@ type Detail = {
 	topics?: string[]
 }
 
-function stream(update: (message: Message) => void, notify?: (status: Status) => void, expire?: () => void) {
+function stream(update: (message: Message) => void, notify?: (status: Status) => void, stale?: () => void) {
 
 	let source: EventSource | null = null
 
 	const status = (value: Status) => notify?.(value)
 
-	const connect = (path: string) => {
-
+	const close = () => {
 		source?.close()
+		source = null
+		status('closed')
+	}
 
-		if ((globalThis as { __AJO_DISABLE_SSE__?: boolean }).__AJO_DISABLE_SSE__) {
-			status('closed')
-			return
-		}
+	// Only a route that tracks topics has a stream; any other route closes the previous one.
+	const connect = ({ url, topics }: State) => {
+
+		close()
+
+		if (!topics?.length || (globalThis as { __AJO_DISABLE_SSE__?: boolean }).__AJO_DISABLE_SSE__) return
 
 		status('connecting')
 
-		source = new EventSource(path)
+		let opened = false
 
-		source.onopen = () => status('open')
+		source = new EventSource(url)
+
+		// The server keeps the fresh hash of a reopened stream without sending it,
+		// so what changed while the stream was down arrives through the owner.
+		source.onopen = () => {
+			status('open')
+			if (opened) stale?.()
+			opened = true
+		}
 
 		source.onmessage = event => {
 			const message = JSON.parse(event.data) as Message
@@ -351,28 +363,20 @@ function stream(update: (message: Message) => void, notify?: (status: Status) =>
 		// loaders walks an expired session to the login screen) instead of
 		// idling on stale data.
 		source.addEventListener('expired', () => {
-			source?.close()
-			source = null
-			status('closed')
-			expire?.()
+			close()
+			stale?.()
 		})
 
 		source.onerror = () => status('connecting')
 	}
 
-	const close = () => {
-		source?.close()
-		source = null
-		status('closed')
-	}
-
 	return { connect, close }
 }
 
-/** Builds the client router over the registered pages; `visit` receives the matched page with decoded params, or the error page. */
-const routes = (visit: (page: Page) => void) => {
+/** Builds the client router over the registered pages; `visit` receives the matched page with decoded params, or nothing for an unknown path. */
+const routes = (visit: (page?: Page) => void) => {
 
-	const router = navaid('/', () => visit(error()))
+	const router = navaid('/', () => visit())
 
 	// navaid names the splat `wild` and passes raw segments; the server names it `*` and decodes.
 	for (const page of pages) router.on(page.pattern!, (matched = {}) => {
@@ -398,7 +402,7 @@ export async function boot(url: string) {
 
 	let target = error()
 
-	if (!initial?.error) routes(page => target = page).run(url)
+	if (!initial?.error) routes(page => target = page ?? error()).run(url)
 
 	const { value } = await resolve(url, layouts, target).next()
 
@@ -438,7 +442,7 @@ const App: Stateful<{ page: Component; state?: State }> = function* ({ page, sta
 			const gen = generation
 			sse.close()
 			void refresh().then(() => {
-				if (gen === generation && active) sse.connect(active.url)
+				if (gen === generation && active) sse.connect(active)
 			})
 			return
 		}
@@ -451,9 +455,10 @@ const App: Stateful<{ page: Component; state?: State }> = function* ({ page, sta
 		apply(head)
 
 		this.next()
-	// On expiry the loaders re-run for the current URL: the server answers a
-	// dead session with its redirect envelope and refresh() follows it, so
-	// the screen walks itself to login instead of waiting for a click.
+	// On expiry or reconnect the loaders re-run for the current URL: the
+	// server answers a dead session with its redirect envelope and refresh()
+	// follows it, so the screen walks itself to login instead of waiting for a
+	// click, and a reopened stream catches up (a 304 when nothing changed).
 	}, status => phase = status, () => void refresh())
 
 	const go = async (target: Page, options: { scroll?: boolean } = {}) => {
@@ -499,7 +504,7 @@ const App: Stateful<{ page: Component; state?: State }> = function* ({ page, sta
 		if (gen !== generation) return
 
 		if (!hmr) {
-			sse.connect(url)
+			sse.connect(active!)
 			if (scroll) requestAnimationFrame(() => {
 				if (gen !== generation) return
 
@@ -569,17 +574,33 @@ const App: Stateful<{ page: Component; state?: State }> = function* ({ page, sta
 		}, delay)
 	}
 
+	// Back and forward leave scroll restoration to the browser. Registered
+	// before navaid's own popstate listener, which runs the route.
+	let traversed = false
+
+	addEventListener('popstate', () => traversed = true, { signal: this.signal })
+
 	// navaid's listen() runs the current URL once; the booted route is already painted, so that run is skipped.
 	let booted = Boolean(state)
 
+	// An unknown path other than the one this document shows (an API route, a
+	// static file) reloads so the server decides, on every visit, since a
+	// download leaves the document in place. At the path the client rendered
+	// (the first run, a fragment, replaceState, HMR) the error page renders.
+	let routed = location.pathname
+
 	const router = routes(target => {
+		const scroll = !traversed
+		traversed = false
+		if (!target && location.pathname !== routed) return location.reload()
+		routed = location.pathname
 		if (booted) booted = false
-		else void go(target)
+		else void go(target ?? error(), { scroll })
 	})
 
 	router.listen()
 
-	if (state) sse.connect(state.url)
+	if (state) sse.connect(state)
 
 	if (import.meta.env.DEV) addEventListener(
 		'hmr',
