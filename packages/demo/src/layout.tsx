@@ -103,9 +103,9 @@ const RouteLoading = ({ label = 'Loading' }: { label?: string }) => (
 	</div>
 )
 
-export const Failure = ({ error }: { error: Error }) => {
+export const Failure = ({ error }: { error: { message: string; status?: number; stack?: string } }) => {
 
-	const isNotFound = 'status' in error && error.status === 404
+	const isNotFound = error.status === 404
 
 	return (
 		<div class="flex-1 flex items-center justify-center px-4 py-16">

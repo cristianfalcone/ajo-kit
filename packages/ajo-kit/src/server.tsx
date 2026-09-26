@@ -549,14 +549,13 @@ export async function create(template: Template, registries: Registries = {
 
 		let resolved: { page: Component; state?: State } | undefined
 
-		for await (const r of resolve(req.originalUrl, layouts, page, entries, error)) resolved = r
+		for await (const r of resolve(req.originalUrl, layouts, page, entries, error?.toJSON())) resolved = r
 
 		const hash = error ? undefined : digest(head, entries)
 		const meta = metadata(req.topics ?? new Set<string>())
-		const status = resolved?.state?.error?.status ?? error?.status ?? 200
+		const status = error?.status ?? 200
 		const state = {
 			...resolved!.state,
-			error: resolved!.state?.error?.toJSON?.() ?? resolved!.state?.error,
 			head,
 			hash,
 			...meta,
@@ -584,8 +583,11 @@ export async function create(template: Template, registries: Registries = {
 		let handler: Action | undefined
 
 		for (const path of ancestors(segments).filter(path => handlers.has(path)).reverse()) {
-			handler = handlers.get(path)?.actions?.[name]
-			if (handler) break
+			const actions = handlers.get(path)?.actions
+			if (actions && Object.hasOwn(actions, name)) {
+				handler = actions[name]
+				break
+			}
 		}
 
 		if (!handler) throw new Failure(400, `Action '${name}' not found`)

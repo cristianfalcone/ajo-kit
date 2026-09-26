@@ -1,8 +1,9 @@
 import { createServer, type Server } from 'node:http'
 import { once } from 'node:events'
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
+import { jsx } from 'ajo/jsx-runtime'
 import { Failure, Missing, links } from '../src/constants'
-import type { Parent, Request } from '../src/constants'
+import type { LayoutArgs, Parent, Request } from '../src/constants'
 import { handler } from '../src/node'
 
 vi.mock('virtual:ajo/routes', () => ({ routes: {} }))
@@ -16,7 +17,9 @@ beforeAll(async () => {
 	const { create } = await import('../src/server')
 	const app = await create(({ head, root, data }) => `<html><head>${head}</head><body>${data}${root}</body></html>`, {
 		routes: {
-			'/src/layout.tsx': async () => ({ default: () => null }),
+			'/src/layout.tsx': async () => ({
+				default: ({ error, children }: Partial<LayoutArgs>) => error ? jsx('output', { children: error.message }) : children,
+			}),
 			'/src/[stage]/page.tsx': async () => ({ default: () => null }),
 		},
 		handlers: {
@@ -64,7 +67,7 @@ describe('ajo-kit loader failure over HTTP', () => {
 				expect(await failed.json()).toEqual({ error: { status: failed.status, message } })
 			} else {
 				const html = await failed.text()
-				expect(html).toContain(message)
+				expect(html).toContain(`<output>${message}</output>`)
 				expect(html).not.toContain('Private failure')
 			}
 

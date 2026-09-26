@@ -2,6 +2,7 @@ import navaid from 'navaid'
 import type { Component, Stateful } from 'ajo'
 import { Failure, navigate, ancestors } from './constants'
 import type {
+	Issue,
 	PageArgs,
 	LayoutArgs,
 	Data,
@@ -242,7 +243,7 @@ export async function* resolve(
 	layouts: Map<string, Loader>,
 	page: Page,
 	data?: Data,
-	error?: Failure
+	error?: Issue
 ): AsyncGenerator<{ page: Component; state?: State }> {
 
 	const { loader, segments, params = {} } = page

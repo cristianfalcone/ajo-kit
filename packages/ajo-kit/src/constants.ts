@@ -152,7 +152,7 @@ export interface State {
 	params: Params
 	data: Data
 	loading: boolean
-	error?: Failure
+	error?: Issue
 	head?: Head
 	hash?: string
 	topics?: string[]
@@ -179,7 +179,7 @@ export type PageArgs<T = Entry> = {
 	params: Params
 	data?: T
 	loading: boolean
-	error?: Failure
+	error?: Issue
 }
 
 /** Route layout component args, including children. */
@@ -209,6 +209,10 @@ const proxy = () => enabled(env('TRUST_PROXY'))
 const first = (value: string | string[] | undefined) =>
 	Array.isArray(value) ? value[0] : value
 
+// The one trusted proxy appends its entry, so only the last forwarded hop is its own.
+const hop = (value: string | string[] | undefined) =>
+	(Array.isArray(value) ? value.at(-1) : value)?.split(',').at(-1)?.trim()
+
 const address = (value: string) => {
 	const raw = value.trim().replace(/^\[/, '').replace(/\]$/, '').replace(/^::ffff:/, '')
 	return raw === '::1' || raw === '127.0.0.1' ? 'localhost' : raw
@@ -235,14 +239,14 @@ const local = (host: string) => {
 }
 
 const forwarded = (header: string | string[] | undefined) => {
-	const value = first(header)
+	const value = hop(header)
 	if (!value) return
 
-	const addr = address(value.split(',')[0])
+	const addr = address(value)
 	if (addr === 'localhost' || ipv4(addr) || ipv6(addr)) return addr
 }
 
-/** Resolves the client IP, honoring TRUST_PROXY for forwarded headers. */
+/** Resolves the client IP, honoring TRUST_PROXY with the last forwarded IP. */
 export const ip = (req: Request) => {
 	const remote = req.remoteAddress ?? (req as Request & { socket?: { remoteAddress?: string } }).socket?.remoteAddress
 	const raw = proxy()
@@ -342,7 +346,7 @@ export const origin = (req: Request) => {
 		throw config('APP_URL is required in production')
 	}
 
-	const forwarded = first(req.headers['x-forwarded-proto'])?.split(',')[0]?.trim()
+	const forwarded = hop(req.headers['x-forwarded-proto'])
 	const protocol = proxy() && (forwarded === 'http' || forwarded === 'https') ? forwarded : 'http'
 
 	try {

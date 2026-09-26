@@ -1,5 +1,11 @@
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { createServer, type Server } from 'node:http'
+import { once } from 'node:events'
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { ip, origin, requestOrigin, setOriginReader } from '../src/constants'
+import { handler } from '../src/node'
+
+vi.mock('virtual:ajo/routes', () => ({ routes: {} }))
+vi.mock('virtual:ajo/handlers', () => ({ handlers: {}, wares: {} }))
 
 const app = process.env.APP_URL
 const environment = process.env.NODE_ENV
@@ -31,11 +37,27 @@ describe('ajo-kit request security helpers', () => {
 		expect(ip(req)).toBe('10.0.0.5')
 
 		process.env.TRUST_PROXY = '1'
-		expect(ip(req)).toBe('203.0.113.8')
+		expect(ip(req)).toBe('10.0.0.1')
 		expect(ip({
-			headers: { 'x-forwarded-for': 'bad, ::ffff:127.0.0.1' },
+			headers: { 'x-forwarded-for': '::ffff:127.0.0.1, bad' },
 			socket: { remoteAddress: '10.0.0.5' },
 		} as any)).toBe('10.0.0.5')
+	})
+
+	test('trusts only the last forwarded hop of a repeated header', () => {
+		process.env.TRUST_PROXY = '1'
+		expect(ip({
+			headers: { 'x-forwarded-for': ['203.0.113.8', '198.51.100.7, 10.0.0.1'] },
+			socket: { remoteAddress: '10.0.0.5' },
+		} as any)).toBe('10.0.0.1')
+
+		delete process.env.APP_URL
+		process.env.NODE_ENV = 'development'
+		const scheme = (value: string | string[]) =>
+			origin({ headers: { host: 'local.test', 'x-forwarded-proto': value } } as any)
+		expect(scheme('http, https')).toBe('https://local.test')
+		expect(scheme(['http', 'https'])).toBe('https://local.test')
+		expect(scheme('https, http')).toBe('http://local.test')
 	})
 
 	test('uses APP_URL as the trusted origin and requires it in production', () => {
@@ -141,4 +163,56 @@ describe('ajo-kit request security helpers', () => {
 		expect(requestOrigin({ headers: { host: 'localhost:5173' } } as any)).toBe('http://localhost:5173')
 	})
 
+})
+
+describe('ajo-kit action lookup', () => {
+	let server: Server
+	let base: string
+	const cookie = 'session=cookie-secret-value'
+
+	beforeAll(async () => {
+		const { create } = await import('../src/server')
+		const app = await create(({ data, root }) => `${data}${root}`, {
+			routes: {
+				'/src/page.tsx': async () => ({ default: () => null }),
+				'/src/child/page.tsx': async () => ({ default: () => null }),
+			},
+			handlers: {
+				'/src/handler.ts': async () => ({ actions: { parent: async () => ({ ran: 'parent' }) } }),
+				'/src/child/handler.ts': async () => ({ actions: { own: async () => ({ ran: 'own' }) } }),
+			},
+			wares: {},
+		})
+		server = createServer(handler(app)).listen(0, '127.0.0.1')
+		await once(server, 'listening')
+		const address = server.address()
+		if (!address || typeof address === 'string') throw new Error('Expected a TCP port')
+		base = `http://127.0.0.1:${address.port}`
+	})
+
+	afterAll(async () => {
+		if (!server) return
+		server.closeAllConnections()
+		await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+	})
+
+	const invoke = (name: string) => fetch(`${base}/child?/${name}`, {
+		method: 'POST',
+		headers: { accept: 'application/json', 'content-type': 'application/json', cookie },
+		body: '{}',
+	})
+
+	test.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])('rejects the inherited name %s without echoing the request', async name => {
+		const response = await invoke(name)
+		expect(response.status).toBe(400)
+		expect(await response.text()).not.toContain('cookie-secret-value')
+	})
+
+	test('runs declared and ancestor actions', async () => {
+		for (const name of ['own', 'parent']) {
+			const response = await invoke(name)
+			expect(response.status).toBe(200)
+			expect(await response.json()).toEqual({ ran: name })
+		}
+	})
 })
