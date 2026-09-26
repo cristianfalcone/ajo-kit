@@ -12,7 +12,7 @@ import type {
 	State,
 	Payload,
 } from './constants'
-import { apply, type Head } from './head'
+import { apply } from './head'
 import { drop, evict, get, set } from './cache'
 import { routes as discovered } from 'virtual:ajo/routes'
 
@@ -30,6 +30,18 @@ export const match = (segments: string[]) =>
 
 /** Extracts route segments from a generated page or layout module path under `/src`. */
 export const parts = (path: string) => path.slice(4).split('/').slice(0, -1)
+
+const rank = (segment: string) => segment === '*' ? 2 : segment.startsWith(':') ? 1 : 0
+
+/** Orders compiled patterns most specific first: static over param over splat, segment by segment, then shorter. */
+export const specific = (a: string, b: string) => {
+	const x = a.split('/'), y = b.split('/')
+	for (let i = 0; i < Math.min(x.length, y.length); i++) {
+		const order = rank(x[i]) - rank(y[i])
+		if (order) return order
+	}
+	return x.length - y.length
+}
 
 let initial: State | undefined
 
@@ -95,6 +107,8 @@ export function register(routes: Record<string, Loader>): void {
 		if (kind === 'layout') layouts.set(segments.join('/'), loader)
 		if (kind === 'page') pages.push({ pattern: match(segments), segments, loader })
 	}
+
+	pages.sort((a, b) => specific(a.pattern!, b.pattern!))
 }
 
 register(discovered as Record<string, Loader>)
@@ -164,17 +178,21 @@ function compose(
 	)
 }
 
-type Load = {
-	data: Data
-	head?: Head
-	hash?: string
-	topics?: string[]
-	versions?: Record<string, number>
-	scope?: string
+type Load = Pick<State, 'data' | 'head' | 'hash' | 'topics' | 'versions' | 'scope' | 'error'> & {
 	/** The era this request was issued under; a later era ignores its scope. */
 	since: number
 	redirect?: string
-	error?: Failure
+}
+
+// Adopt before writing: a load carrying a new scope means the identity changed
+// since the last paint, and the write must land in the new partition, never
+// beside the previous identity's entries. The era guard makes a reply from an
+// abandoned navigation inert, and only material computed for the partition
+// the client is on may enter it: a refused reply is rendered but not cached.
+const commit = (state: State, { data, head, hash, topics, versions, scope: declared, since }: Load) => {
+	Object.assign(state, { data, head, hash, topics, versions, scope: declared, error: undefined })
+	adopt(declared, since)
+	if (hash && declared === scope) set(state.url, state, { scope })
 }
 
 async function load(url: string): Promise<Load> {
@@ -197,21 +215,9 @@ async function load(url: string): Promise<Load> {
 		}
 	})
 
-	if (response.status === 304 && cached) {
-		return {
-			data: cached.data,
-			head: cached.head,
-			hash: cached.hash,
-			topics: cached.topics,
-			versions: cached.versions,
-			scope: cached.scope ?? scope,
-			since
-		}
-	}
+	if (response.status === 304 && cached) return { ...cached, since }
 
-	const json = await response.json().catch(() => null) as
-		| { data?: Data; head?: Head; hash?: string; topics?: string[]; versions?: Record<string, number>; scope?: string; redirect?: string; error?: { status?: number; message?: string } }
-		| null
+	const json = await response.json().catch(() => null) as Partial<Omit<Load, 'since'>> | null
 
 	if (!json || !response.ok) {
 		return {
@@ -226,15 +232,7 @@ async function load(url: string): Promise<Load> {
 
 	if (json.redirect) return { data: [], since, redirect: json.redirect }
 
-	return {
-		data: json.data ?? [],
-		head: json.head,
-		hash: json.hash,
-		topics: json.topics,
-		versions: json.versions,
-		scope: json.scope,
-		since
-	}
+	return { ...json, data: json.data ?? [], since }
 }
 
 /** Composes a route and yields its pending state before its settled client data. */
@@ -295,31 +293,12 @@ export async function* resolve(
 		return
 	}
 
-	// Adopt before writing: a response carrying a new scope means the identity
-	// changed since the last paint, and the write must land in the new
-	// partition — never beside the previous identity's entries. The era guard
-	// makes a reply from an abandoned navigation inert: this generator runs to
-	// completion after go() has stopped reading it, so nothing else here can
-	// stop a late response from cementing a dead identity.
-	adopt(server.scope, server.since)
+	// This generator runs to completion after go() has stopped reading it, so
+	// commit()'s era guard is what stops a late response from cementing a dead
+	// identity.
+	const state: State = { url, params, data: [], loading: false }
 
-	const state: State = {
-		url,
-		params,
-		data: server.data,
-		loading: false,
-		head: server.head,
-		hash: server.hash,
-		topics: server.topics,
-		versions: server.versions,
-		scope: server.scope,
-	}
-
-	// Only material computed for the partition the client is on may enter it.
-	// When the era guard above refused a late response, its scope no longer
-	// matches and the payload is rendered but not cached — one identity's
-	// answer never lands in another's partition.
-	if (state.hash && state.scope === scope) set(url, state, { scope })
+	commit(state, server)
 
 	yield {
 		page: compose(target, tree, paths, state),
@@ -390,14 +369,51 @@ function stream(update: (message: Message) => void, notify?: (status: Status) =>
 	return { connect, close }
 }
 
-const App: Stateful<{ page?: Component }> = function* ({ page }) {
+/** Builds the client router over the registered pages; `visit` receives the matched page with decoded params, or the error page. */
+const routes = (visit: (page: Page) => void) => {
 
-	let Page: Component = page ?? (() => null)
+	const router = navaid('/', () => visit(error()))
 
-	if (page) return <Page />
+	// navaid names the splat `wild` and passes raw segments; the server names it `*` and decodes.
+	for (const page of pages) router.on(page.pattern!, (matched = {}) => {
+		const params: Record<string, string> = {}
+		for (const [key, value] of Object.entries(matched)) {
+			let decoded = value ?? ''
+			try { decoded = decodeURIComponent(decoded) } catch { /* A literal percent stays as sent. */ }
+			params[key === 'wild' ? '*' : key] = decoded
+		}
+		visit({ ...page, params })
+	})
+
+	return router
+}
+
+/**
+ * Resolves the route for `url` before the first client render: its first yield
+ * is the embedded SSR state, so rendering it adopts the server DOM instead of
+ * clearing it while the route modules load. An SSR error page boots as the
+ * error page the server rendered.
+ */
+export async function boot(url: string) {
+
+	let target = error()
+
+	if (!initial?.error) routes(page => target = page).run(url)
+
+	const { value } = await resolve(url, layouts, target).next()
+
+	return value as { page: Component; state?: State }
+}
+
+const App: Stateful<{ page: Component; state?: State }> = function* ({ page, state }) {
+
+	let Page = page
+
+	// ajo/html runs stateful components on a host without DOM: the server paints the resolved page only.
+	if (this.nodeType !== 1) return <Page />
 
 	let hmr = false
-	let active: State | null = null
+	let active: State | null = state ?? null
 	let timer: ReturnType<typeof setTimeout> | null = null
 	let generation = 0
 	let live = 0
@@ -429,18 +445,10 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 
 		live++
 
-		const [head, ...entries] = message.data
+		const [head, ...data] = message.data
 
-		active.data = entries
-		active.hash = message.hash ?? active.hash
-		active.topics = message.topics ?? active.topics
-		active.versions = message.versions ?? active.versions
-		active.scope = message.scope ?? active.scope
-
-		if (head) apply(active.head = head)
-
-		adopt(message.scope)
-		if (active.hash && active.scope === scope) set(active.url, active, { scope })
+		commit(active, { ...message, data, head, since: era })
+		apply(head)
 
 		this.next()
 	// On expiry the loaders re-run for the current URL: the server answers a
@@ -534,17 +542,8 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 			state.loading = false
 			state.hash = undefined
 		} else {
-			state.data = server.data
-			state.error = undefined
-			state.head = server.head
-			state.hash = server.hash
-			state.topics = server.topics
-			state.versions = server.versions
-			state.scope = server.scope
-
+			commit(state, server)
 			if (server.head) apply(server.head)
-			adopt(server.scope, server.since)
-			if (state.hash && state.scope === scope) set(state.url, state, { scope })
 		}
 
 		this.next()
@@ -570,11 +569,17 @@ const App: Stateful<{ page?: Component }> = function* ({ page }) {
 		}, delay)
 	}
 
-	const router = navaid('/', () => go(error()))
+	// navaid's listen() runs the current URL once; the booted route is already painted, so that run is skipped.
+	let booted = Boolean(state)
 
-	for (const config of pages) router.on(config.pattern!, params => go({ ...config, params }))
+	const router = routes(target => {
+		if (booted) booted = false
+		else void go(target)
+	})
 
 	router.listen()
+
+	if (state) sse.connect(state.url)
 
 	if (import.meta.env.DEV) addEventListener(
 		'hmr',

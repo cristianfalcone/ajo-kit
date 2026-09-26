@@ -148,6 +148,11 @@ flowchart LR
   group["src/(app)/dashboard/page.tsx"] --> dashboard["/dashboard"]
 ```
 
+When patterns overlap, a static segment wins over `[param]` and `[param]` over
+`[...]`, for pages and API handlers alike. Pages and layouts receive decoded
+`params`, with the catch-all as `*`, on the server, on the first client render
+and after navigation.
+
 Per-route files:
 
 - `page.tsx`: page component

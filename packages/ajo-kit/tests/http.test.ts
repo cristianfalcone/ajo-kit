@@ -28,6 +28,17 @@ describe('ajo-kit HTTP kernel', () => {
 		expect(text(missing)).toBe('Not found')
 	})
 
+	test('dispatches only the first matching route and keeps its params alone', async () => {
+		const app = new Router()
+		const seen: string[] = []
+		app.get('/notes/new', (request, _, next) => { seen.push(`new ${JSON.stringify(request.params)}`); next() })
+		app.get('/notes/:id', (request, reply) => { seen.push(`id ${request.params.id}`); reply.end() })
+
+		await app.handler(req('/notes/new'))
+
+		expect(seen).toEqual(['new {}'])
+	})
+
 	test('normalizes targets, repeated query values, and header names', () => {
 		const value = req('/search?q=one&q=two', 'post', { Accept: 'application/json' })
 

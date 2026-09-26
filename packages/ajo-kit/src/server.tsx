@@ -3,7 +3,7 @@ import type { Component } from 'ajo'
 import { sha256Hex, utf8ByteLength } from 'ajo-kit/platform'
 import { Reply, Router, send } from './http'
 export { send } from './http'
-import App, { resolve, layouts, pages, error, match, parts, parents, register } from './app'
+import App, { resolve, layouts, pages, error, match, parts, parents, register, specific } from './app'
 import { Failure, links, ancestors, normalize, ajax, api, ip } from './constants'
 import type { State, Data, Entry, Page, Parent, Payload, Request, Middleware, ActionContext, Loader } from './constants'
 import { merge, render as view, type Head } from './head'
@@ -549,7 +549,7 @@ export async function create(template: Template, registries: Registries = {
 
 		let resolved: { page: Component; state?: State } | undefined
 
-		for await (const r of resolve(req.originalUrl, layouts, page, entries, error?.toJSON())) resolved = r
+		for await (const r of resolve(req.originalUrl, layouts, { ...page, params: { ...req.params } }, entries, error?.toJSON())) resolved = r
 
 		const hash = error ? undefined : digest(head, entries)
 		const meta = metadata(req.topics ?? new Set<string>())
@@ -655,10 +655,14 @@ export async function create(template: Template, registries: Registries = {
 
 	const handlers = new Map<string, Handler>()
 
-	for (const [file, loader] of Object.entries(registries.handlers)) {
+	// Sorted like pages, so the most specific API route is the one the router dispatches.
+	const sources = Object.entries(registries.handlers)
+		.map(([file, loader]) => ({ segments: parts(file), loader }))
+		.sort((a, b) => specific(match(a.segments), match(b.segments)))
+
+	for (const { segments, loader } of sources) {
 
 		const exports = await loader()
-		const segments = parts(file)
 		const key = segments.join('/')
 		const pattern = match(segments)
 

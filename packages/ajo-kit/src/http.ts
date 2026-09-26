@@ -236,7 +236,7 @@ const compile = (pattern: string): Match => {
 	}
 }
 
-/** Small ordered router for literal, parameter, and wildcard paths. */
+/** Small ordered router for literal, parameter, and wildcard paths; the first matching route handles a request. */
 export class Router {
 	readonly handler: Handler
 	private wares: Middleware[] = []
@@ -254,7 +254,8 @@ export class Router {
 				if (!params) continue
 				found = true
 				Object.assign(request.params, params)
-					handlers.push(...route.handlers)
+				handlers.push(...route.handlers)
+				break
 			}
 			if (!found) handlers.push(async (request, reply) => {
 				if (this.config.missing) await this.config.missing(request, reply)

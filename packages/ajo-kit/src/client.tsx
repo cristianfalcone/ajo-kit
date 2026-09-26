@@ -1,6 +1,6 @@
 import { render } from 'ajo'
 import { current } from 'ajo/context'
-import App, { init } from './app'
+import App, { boot, init } from './app'
 import type { State, Action } from './constants'
 import { navigate } from './constants'
 import { fields, body as make } from './form'
@@ -159,7 +159,8 @@ if (import.meta.hot) {
 
 const root = globalThis?.document?.getElementById('root')
 
-if (root) {
-	render(<App />, root)
+// Ready means a mounted route. A failed route import leaves the server DOM in place and the app not ready.
+if (root) boot(location.pathname + location.search).then(({ page, state }) => {
+	render(<App page={page} state={state} />, root)
 	document.documentElement.dataset.ajoReady = 'true'
-}
+}, console.error)
