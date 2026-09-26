@@ -1,6 +1,5 @@
 import type { Stateless } from 'ajo'
 import clsx from 'clsx'
-import { FieldContext } from 'ajo-ui/field'
 import {
 	InputDate as BaseInputDate,
 	InputDateCalendar as BaseInputDateCalendar,
@@ -61,9 +60,8 @@ const classNames: Record<InputDateClassName, string> = {
 	trigger_icon: 'i-lucide-calendar pointer-events-none size-4',
 }
 
-// The one Playa root wrapper: InputGroup chrome, the theme map and Field invalid state.
-const theme = ({ class: classes, disabled, 'aria-invalid': invalid }: { class?: string; disabled?: boolean; 'aria-invalid'?: unknown }) => ({
-	'aria-invalid': invalid ?? FieldContext()?.controlAttrs['aria-invalid'],
+// The one Playa root wrapper: InputGroup chrome and the theme map.
+const theme = ({ class: classes, disabled }: { class?: string; disabled?: boolean }) => ({
 	class: inputGroupVariants({
 		class: clsx('data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50', classes),
 		width: 'full',

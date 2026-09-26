@@ -1003,6 +1003,16 @@ const calendarDefaults = (
 	))
 	: defaults(range, clearable, classNames)
 
+// Inside a Field the root carries the invalid state and, in range mode, is the
+// labelled group while the sides label themselves; caller attributes win.
+const fieldRootAttrs = (range: boolean | undefined) => {
+	const field = FieldContext()
+	return {
+		'attr:aria-invalid': field?.controlAttrs['aria-invalid'],
+		...(range ? { 'attr:role': 'group', 'attr:aria-describedby': field?.groupAttrs['aria-describedby'], 'attr:aria-labelledby': field?.groupAttrs['aria-labelledby'] } : {}),
+	}
+}
+
 /** Segment-based date field; the calendar popover is an optional part. */
 const InputDate = <Range extends boolean = false>({
 	allowNonContiguous,
@@ -1033,13 +1043,10 @@ const InputDate = <Range extends boolean = false>({
 	value,
 	...attrs
 }: InputDateArgs<Range>) => {
-	// In range mode the root is the labelled outer group; the sides label themselves.
-	const fieldCtx = FieldContext()
-
 	return (
 		<InputDateRoot
+			{...fieldRootAttrs(range)}
 			{...rootAttrs(attrs as Record<string, unknown>)}
-			{...(range ? { 'attr:role': 'group', 'attr:aria-describedby': fieldCtx?.groupAttrs['aria-describedby'], 'attr:aria-labelledby': fieldCtx?.groupAttrs['aria-labelledby'] } : {})}
 			allowNonContiguous={allowNonContiguous}
 			classNames={classNames}
 			defaultOpen={defaultOpen}
@@ -1099,12 +1106,10 @@ const InputTime = <Range extends boolean = false>({
 	value,
 	...attrs
 }: InputTimeArgs<Range>) => {
-	const fieldCtx = FieldContext()
-
 	return (
 		<InputDateRoot
+			{...fieldRootAttrs(range)}
 			{...rootAttrs(attrs as Record<string, unknown>)}
-			{...(range ? { 'attr:role': 'group', 'attr:aria-describedby': fieldCtx?.groupAttrs['aria-describedby'], 'attr:aria-labelledby': fieldCtx?.groupAttrs['aria-labelledby'] } : {})}
 			allowNonContiguous={allowNonContiguous}
 			classNames={classNames}
 			defaultValue={defaultValue as string | InputDateRangeValue | undefined}
@@ -1167,12 +1172,10 @@ const InputDateTime = <Range extends boolean = false>({
 	value,
 	...attrs
 }: InputDateTimeArgs<Range>) => {
-	const fieldCtx = FieldContext()
-
 	return (
 		<InputDateRoot
+			{...fieldRootAttrs(range)}
 			{...rootAttrs(attrs as Record<string, unknown>)}
-			{...(range ? { 'attr:role': 'group', 'attr:aria-describedby': fieldCtx?.groupAttrs['aria-describedby'], 'attr:aria-labelledby': fieldCtx?.groupAttrs['aria-labelledby'] } : {})}
 			allowNonContiguous={allowNonContiguous}
 			classNames={classNames}
 			defaultOpen={defaultOpen}

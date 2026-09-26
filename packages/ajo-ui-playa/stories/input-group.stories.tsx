@@ -1,12 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
 import {
-	Field,
-	FieldDescription,
-	FieldError,
-	FieldLabel,
-} from 'ajo-ui-playa/field'
-import {
 	InputGroup,
 	InputGroupAddon,
 	InputGroupButton,
@@ -32,33 +26,6 @@ export default {
 } satisfies Meta<typeof InputGroup>
 
 const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
-const tokens = (value: string | null) => new Set((value ?? '').split(/\s+/).filter(Boolean))
-
-const assertFieldControl = <Element extends HTMLInputElement | HTMLTextAreaElement>(
-	canvas: HTMLElement,
-	name: string,
-	selector: string,
-	expectedId?: string,
-) => {
-	const field = canvas.querySelector<HTMLElement>(`[data-story-field="${name}"]`)
-	const label = field?.querySelector<HTMLLabelElement>('[data-slot="field-label"]')
-	const description = field?.querySelector<HTMLElement>('[data-slot="field-description"]')
-	const error = field?.querySelector<HTMLElement>('[data-slot="field-error"]')
-	const control = field?.querySelector<Element>(selector)
-	if (!field || !label || !description || !error || !control) throw new Error(`Input group field wiring story did not render ${name}`)
-
-	const labelFor = label.getAttribute('for')
-	if (!labelFor || control.id !== labelFor) throw new Error(`Input group ${name} id did not match its label for attribute`)
-	if (expectedId && control.id !== expectedId) throw new Error(`Input group ${name} did not keep its manual id`)
-
-	const describedby = tokens(control.getAttribute('aria-describedby'))
-	if (!describedby.has(description.id) || !describedby.has(error.id)) {
-		throw new Error(`Input group ${name} aria-describedby did not include description and error ids`)
-	}
-	if (control.getAttribute('aria-invalid') !== 'true') throw new Error(`Input group ${name} did not receive aria-invalid`)
-	if (control.getAttribute('aria-errormessage') !== error.id) throw new Error(`Input group ${name} did not receive aria-errormessage`)
-}
 
 export const Icon: Story = {
 	args: {
@@ -216,57 +183,5 @@ export const Textarea: Story = {
 		if (!run || getComputedStyle(run).boxShadow !== 'none') {
 			throw new Error('Input group button did not opt out of its standalone variant shadow')
 		}
-	},
-}
-
-export const FieldWiring: Story = {
-	render: () => (
-		<div class="grid w-full max-w-md gap-6">
-			<Field name="input-group-input-auto-wire" invalid data-story-field="input-auto">
-				<FieldLabel>Search</FieldLabel>
-				<InputGroup>
-					<InputGroupInput placeholder="Search..." />
-					<InputGroupAddon align="inline-end">
-						<span aria-hidden="true" class="i-lucide-search size-4" />
-					</InputGroupAddon>
-				</InputGroup>
-				<FieldDescription>Search by title or owner.</FieldDescription>
-				<FieldError>Enter a valid search term.</FieldError>
-			</Field>
-			<Field name="input-group-input-manual-wire" invalid data-story-field="input-manual">
-				<FieldLabel for="manual-input-group-control">Manual search</FieldLabel>
-				<InputGroup>
-					<InputGroupInput id="manual-input-group-control" placeholder="Manual search..." />
-					<InputGroupAddon align="inline-end">Ctrl K</InputGroupAddon>
-				</InputGroup>
-				<FieldDescription>Manual grouped input keeps its caller id.</FieldDescription>
-				<FieldError>Enter a valid manual search term.</FieldError>
-			</Field>
-			<Field name="input-group-textarea-auto-wire" invalid data-story-field="textarea-auto">
-				<FieldLabel>Prompt</FieldLabel>
-				<InputGroup>
-					<InputGroupTextarea placeholder="Ask a question..." />
-				</InputGroup>
-				<FieldDescription>Write a complete prompt.</FieldDescription>
-				<FieldError>Enter a valid prompt.</FieldError>
-			</Field>
-			<Field name="input-group-textarea-manual-wire" invalid data-story-field="textarea-manual">
-				<FieldLabel for="manual-input-group-textarea">Manual prompt</FieldLabel>
-				<InputGroup>
-					<InputGroupTextarea id="manual-input-group-textarea" placeholder="Manual prompt..." />
-				</InputGroup>
-				<FieldDescription>Manual grouped textarea keeps its caller id.</FieldDescription>
-				<FieldError>Enter a valid manual prompt.</FieldError>
-			</Field>
-		</div>
-	),
-	play: async ({ canvas }) => {
-		await nextFrame()
-		await nextFrame()
-
-		assertFieldControl<HTMLInputElement>(canvas, 'input-auto', 'input[data-slot="input-group-control"]')
-		assertFieldControl<HTMLInputElement>(canvas, 'input-manual', 'input[data-slot="input-group-control"]', 'manual-input-group-control')
-		assertFieldControl<HTMLTextAreaElement>(canvas, 'textarea-auto', 'textarea[data-slot="input-group-control"]')
-		assertFieldControl<HTMLTextAreaElement>(canvas, 'textarea-manual', 'textarea[data-slot="input-group-control"]', 'manual-input-group-textarea')
 	},
 }

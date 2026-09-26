@@ -1,6 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { selection, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { FieldContext } from './field'
 import { flag } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Checkbox, type CheckboxArgs } from './checkbox'
@@ -67,13 +68,15 @@ const CheckboxGroupRoot: Stateful<CheckboxGroupRootArgs> = function* ({ defaultV
 		sel.sync(args.value)
 
 		CheckboxGroupContext({ checked, disabled, name, toggle: change })
+		// The field labels the group, so its items are not the field's control.
+		FieldContext(null)
 
 		yield <>{args.children}</>
 	}
 }
 
 
-/** Unstyled checkbox group cascading checked values, name, and disabled state to its items. */
+/** Unstyled checkbox group cascading checked values, name, and disabled state to its items; inside a Field it is the labelled group. */
 const CheckboxGroup: Stateless<CheckboxGroupArgs> = ({
 	children,
 	defaultValue,
@@ -88,7 +91,7 @@ const CheckboxGroup: Stateless<CheckboxGroupArgs> = ({
 
 	return (
 		<CheckboxGroupRoot
-			{...rootAttrs(attrs)}
+			{...rootAttrs({ ...FieldContext()?.groupAttrs, ...attrs })}
 			defaultValue={defaultValue}
 			disabled={disabledFlag}
 			name={name}

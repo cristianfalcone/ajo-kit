@@ -1,6 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, clamp, controlled, dom } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { FieldContext } from './field'
 import { flag } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 
@@ -223,7 +224,7 @@ const InputOTPRoot: Stateful<InputOTPRootArgs> = function* ({
 }
 
 
-/** Unstyled one-time password input with visible slot context. */
+/** Unstyled one-time password input with visible slot context; inside a Field its native input is the field's control. */
 const InputOTP: Stateless<InputOTPArgs> = ({
 	children,
 	class: classes,
@@ -236,6 +237,7 @@ const InputOTP: Stateless<InputOTPArgs> = ({
 
 	return (
 		<InputOTPRoot
+			{...FieldContext()?.controlAttrs}
 			{...attrs}
 			disabled={disabled}
 			inputRef={ref}

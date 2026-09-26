@@ -16,11 +16,14 @@ export const emptyChildren = (children: unknown) =>
 // Engines without ::details-content keep the instant toggle.
 export const disclosureContent = '[&::details-content]:overflow-hidden [&::details-content]:[block-size:0] [&[open]::details-content]:[block-size:auto] [&::details-content]:transition-[block-size,content-visibility] [&::details-content]:duration-200 [&::details-content]:ease-out [&::details-content]:[transition-behavior:allow-discrete] motion-reduce:[&::details-content]:transition-none'
 
+/** Label text shared by Label and FieldLabel. */
+export const labelBase = 'flex items-center gap-2 text-sm font-medium leading-none select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50'
+
 /** Visual box shared by Checkbox and CheckboxGroup items. */
 export const checkboxBox = 'playa-checkbox-box'
 
-export const checkboxState = 'has-[:checked]:inset-ring-transparent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:indeterminate]:inset-ring-transparent has-[:indeterminate]:bg-primary has-[:indeterminate]:text-primary-foreground'
-export const checkboxInvalidState = 'has-[:checked]:inset-ring-transparent has-[:checked]:bg-danger has-[:checked]:text-danger-foreground has-[:indeterminate]:inset-ring-transparent has-[:indeterminate]:bg-danger has-[:indeterminate]:text-danger-foreground'
+/** Checked and indeterminate fill; an invalid input fills with the danger color. */
+export const checkboxState = 'has-[:checked]:inset-ring-transparent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:indeterminate]:inset-ring-transparent has-[:indeterminate]:bg-primary has-[:indeterminate]:text-primary-foreground has-[[aria-invalid=true]:checked]:bg-danger has-[[aria-invalid=true]:checked]:text-danger-foreground has-[[aria-invalid=true]:indeterminate]:bg-danger has-[[aria-invalid=true]:indeterminate]:text-danger-foreground'
 
 // The box fill lands first, then the glyph (a check, or a minus when
 // indeterminate) pops with a springy overshoot. Unchecking collapses

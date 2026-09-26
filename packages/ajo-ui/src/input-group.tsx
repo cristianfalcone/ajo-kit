@@ -1,5 +1,6 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
 import { callHandler } from 'ajo-cloves'
+import { FieldContext } from './field'
 
 /** Logical edge occupied by an InputGroup addon. */
 export type InputGroupAddonAlign =
@@ -105,26 +106,28 @@ const InputGroupText: Stateless<InputGroupTextArgs> = ({ children, ...attrs }) =
 	<span {...attrs} data-slot="input-group-text">{children}</span>
 )
 
-/** Unstyled native input carrying the InputGroup control slot. */
+/** Unstyled native input carrying the InputGroup control slot; inside a Field it is the field's control. */
 const InputGroupInput: Stateless<InputGroupInputArgs> = ({
 	'data-slot': slot = 'input-group-control',
 	type = 'text',
 	...attrs
 }) => (
 	<input
+		{...FieldContext()?.controlAttrs}
 		{...attrs}
 		data-slot={slot}
 		type={type}
 	/>
 )
 
-/** Unstyled native textarea carrying the InputGroup control slot. */
+/** Unstyled native textarea carrying the InputGroup control slot; inside a Field it is the field's control. */
 const InputGroupTextarea: Stateless<InputGroupTextareaArgs> = ({
 	children,
 	'data-slot': slot = 'input-group-control',
 	...attrs
 }) => (
 	<textarea
+		{...FieldContext()?.controlAttrs}
 		{...attrs}
 		data-slot={slot}
 	>

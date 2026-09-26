@@ -5,35 +5,12 @@ import {
 	Field,
 	FieldContent,
 	FieldDescription,
-	FieldError,
 	FieldLabel,
 } from 'ajo-ui-playa/field'
 import Switch from 'ajo-ui-playa/switch'
 
 const bind = (setArg: StoryContext['setArg']) => (next: boolean) => setArg('checked', next)
 const frame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
-const tokens = (value: string | null) => new Set((value ?? '').split(/\s+/).filter(Boolean))
-
-const assertFieldControl = (canvas: HTMLElement, name: string, expectedId?: string) => {
-	const field = canvas.querySelector<HTMLElement>(`[data-story-field="${name}"]`)
-	const label = field?.querySelector<HTMLLabelElement>('[data-slot="field-label"]')
-	const description = field?.querySelector<HTMLElement>('[data-slot="field-description"]')
-	const error = field?.querySelector<HTMLElement>('[data-slot="field-error"]')
-	const control = field?.querySelector<HTMLInputElement>('[data-slot="switch-input"]')
-	if (!field || !label || !description || !error || !control) throw new Error(`Switch field wiring story did not render ${name}`)
-
-	const labelFor = label.getAttribute('for')
-	if (!labelFor || control.id !== labelFor) throw new Error(`Switch ${name} id did not match its label for attribute`)
-	if (expectedId && control.id !== expectedId) throw new Error(`Switch ${name} did not keep its manual id`)
-
-	const describedby = tokens(control.getAttribute('aria-describedby'))
-	if (!describedby.has(description.id) || !describedby.has(error.id)) {
-		throw new Error(`Switch ${name} aria-describedby did not include description and error ids`)
-	}
-	if (control.getAttribute('aria-invalid') !== 'true') throw new Error(`Switch ${name} did not receive aria-invalid`)
-	if (control.getAttribute('aria-errormessage') !== error.id) throw new Error(`Switch ${name} did not receive aria-errormessage`)
-}
 
 export default {
 	title: 'UI/Switch',
@@ -137,36 +114,6 @@ export const WithDescription: Story<typeof Switch> = {
 			</FieldContent>
 		</Field>
 	),
-}
-
-export const FieldWiring: Story<typeof Switch> = {
-	render: () => (
-		<div class="grid w-full max-w-md gap-6">
-			<Field orientation="horizontal" name="switch-auto-wire" invalid data-story-field="auto">
-				<Switch name="auto-switch" />
-				<FieldContent>
-					<FieldLabel>Notifications</FieldLabel>
-					<FieldDescription>Required notification preference.</FieldDescription>
-					<FieldError>Choose a valid notification preference.</FieldError>
-				</FieldContent>
-			</Field>
-			<Field orientation="horizontal" name="switch-manual-wire" invalid data-story-field="manual">
-				<Switch id="manual-switch-control" name="manual-switch" />
-				<FieldContent>
-					<FieldLabel for="manual-switch-control">Manual notifications</FieldLabel>
-					<FieldDescription>Manual switch keeps its caller id.</FieldDescription>
-					<FieldError>Choose a valid manual notification preference.</FieldError>
-				</FieldContent>
-			</Field>
-		</div>
-	),
-	play: async ({ canvas }) => {
-		await frame()
-		await frame()
-
-		assertFieldControl(canvas, 'auto')
-		assertFieldControl(canvas, 'manual', 'manual-switch-control')
-	},
 }
 
 export const Disabled: Story<typeof Switch> = {

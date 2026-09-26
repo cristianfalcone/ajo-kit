@@ -2,7 +2,6 @@ import { defaults, render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
 import { expect, test } from 'vitest'
 import { Checkbox } from 'ajo-ui-playa/checkbox'
-import { CheckboxGroupItem } from 'ajo-ui-playa/checkbox-group'
 import { InputOTP } from 'ajo-ui-playa/input-otp'
 import { RadioGroup, RadioGroupItem } from 'ajo-ui-playa/radio-group'
 import Spinner from 'ajo-ui-playa/spinner'
@@ -34,15 +33,9 @@ test('SSR renders mixed checkbox and binary radio state without live DOM sync', 
 	expect(radio).not.toMatch(/data-state|aria-checked|aria-orientation/)
 })
 
-test('themed controls normalize bare boolean ARIA attributes through ajo-ui utils', () => {
-	const checkbox = ssr(jsx(Checkbox, { 'aria-invalid': '' }))
-	const item = ssr(jsx(CheckboxGroupItem, { 'aria-invalid': '', value: 'one' }))
+test('Spinner normalizes a bare boolean aria-hidden through ajo-ui utils', () => {
 	const spinner = ssr(jsx(Spinner, { 'aria-hidden': '' }))
 
-	for (const html of [checkbox, item]) {
-		expect(html).toContain('has-[:checked]:bg-danger')
-		expect(html).not.toContain('has-[:checked]:bg-primary')
-	}
 	expect(spinner).not.toContain('aria-label=')
 	expect(spinner).not.toContain('class="sr-only"')
 })

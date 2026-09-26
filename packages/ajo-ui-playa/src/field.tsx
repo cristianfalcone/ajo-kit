@@ -1,11 +1,21 @@
-import type { Children, IntrinsicElements, Stateless, WithChildren } from 'ajo'
+import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
 import clsx from 'clsx'
-import { Field as BaseField, FieldContext, type FieldArgs as BaseFieldArgs } from 'ajo-ui/field'
-import Label, { type LabelArgs } from './label'
+import {
+	Field as BaseField,
+	FieldDescription as BaseFieldDescription,
+	FieldError as BaseFieldError,
+	FieldLabel as BaseFieldLabel,
+	type FieldArgs as BaseFieldArgs,
+	type FieldDescriptionArgs as BaseFieldDescriptionArgs,
+	type FieldErrorArgs as BaseFieldErrorArgs,
+	type FieldLabelArgs as BaseFieldLabelArgs,
+} from 'ajo-ui/field'
+import { labelBase } from './internal/recipes'
+
+export type { FieldErrorItem } from 'ajo-ui/field'
 
 export type FieldOrientation = 'horizontal' | 'responsive' | 'vertical'
 export type FieldLegendVariant = 'label' | 'legend'
-export type FieldErrorItem = { message?: string } | undefined
 
 export type FieldSetArgs = WithChildren<IntrinsicElements['fieldset'] & {
 	/** Additional UnoCSS classes. */
@@ -38,50 +48,36 @@ export type FieldContentArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
-export type FieldLabelArgs = LabelArgs
+export type FieldLabelArgs = BaseFieldLabelArgs & {
+	/** Additional UnoCSS classes. */
+	class?: string
+}
 
 export type FieldTitleArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
-export type FieldDescriptionArgs = WithChildren<IntrinsicElements['p'] & {
+export type FieldDescriptionArgs = BaseFieldDescriptionArgs & {
 	/** Additional UnoCSS classes. */
 	class?: string
-}>
+}
 
 export type FieldSeparatorArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
 }>
 
-export type FieldErrorArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Validation errors from form libraries or server validation. */
-	errors?: FieldErrorItem[]
+export type FieldErrorArgs = BaseFieldErrorArgs & {
 	/** Additional UnoCSS classes. */
 	class?: string
-}>
+}
 
 const fieldBase = 'group/field flex w-full gap-3 data-[invalid=true]:text-danger'
 const fieldOrientation: Record<FieldOrientation, string> = {
 	vertical: 'flex-col [&>*]:w-full [&>.sr-only]:w-auto',
 	horizontal: 'flex-row items-center [&>[data-slot=field-label]]:flex-auto has-[>[data-slot=field-content]]:items-start has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mt-px',
 	responsive: 'flex-col @md/field-group:flex-row @md/field-group:items-center [&>*]:w-full @md/field-group:[&>*]:w-auto [&>.sr-only]:w-auto @md/field-group:[&>[data-slot=field-label]]:flex-auto @md/field-group:has-[>[data-slot=field-content]]:items-start @md/field-group:has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mt-px',
-}
-
-const contentFromErrors = (errors?: FieldErrorItem[]): Children => {
-	const messages = Array.from(new Set((errors ?? [])
-		.map(error => error?.message)
-		.filter((message): message is string => Boolean(message))))
-
-	if (!messages.length) return null
-	if (messages.length === 1) return messages[0]
-
-	return (
-		<ul class="ml-4 flex list-disc flex-col gap-1">
-			{messages.map(message => <li key={message}>{message}</li>)}
-		</ul>
-	)
 }
 
 /** Semantic group for related form fields. */
@@ -185,23 +181,18 @@ const FieldLabel: Stateless<FieldLabelArgs> = ({
 	class: classes,
 	children,
 	...attrs
-}) => {
-	const field = FieldContext()
-
-	return (
-		<Label
-			{...(field?.labelAttrs ?? {})}
-			{...attrs}
-			class={clsx(
-				'group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:edge [&>*]:data-[slot=field]:p-4 has-[:checked]:inset-ring-primary has-[:checked]:bg-primary/5',
-				classes,
-			)}
-			data-slot="field-label"
-		>
-			{children}
-		</Label>
-	)
-}
+}) => (
+	<BaseFieldLabel
+		{...attrs}
+		class={clsx(
+			labelBase,
+			'group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:edge [&>*]:data-[slot=field]:p-4 has-[:checked]:inset-ring-primary has-[:checked]:bg-primary/5',
+			classes,
+		)}
+	>
+		{children}
+	</BaseFieldLabel>
+)
 
 /** Non-label title for grouped controls that need separate labelable elements. */
 const FieldTitle: Stateless<FieldTitleArgs> = ({
@@ -223,24 +214,17 @@ const FieldDescription: Stateless<FieldDescriptionArgs> = ({
 	class: classes,
 	children,
 	...attrs
-}) => {
-	const field = FieldContext()
-	field?.describe(true)
-
-	return (
-		<p
-			{...(field?.descriptionAttrs ?? {})}
-			{...attrs}
-			class={clsx(
-				'text-sm font-normal leading-normal text-muted-foreground group-has-[[data-orientation=horizontal]]/field:text-balance last:mt-0 nth-last-2:-mt-1 [[data-variant=legend]+&]:-mt-1.5 [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary',
-				classes,
-			)}
-			data-slot="field-description"
-		>
-			{children}
-		</p>
-	)
-}
+}) => (
+	<BaseFieldDescription
+		{...attrs}
+		class={clsx(
+			'text-sm font-normal leading-normal text-muted-foreground group-has-[[data-orientation=horizontal]]/field:text-balance last:mt-0 nth-last-2:-mt-1 [[data-variant=legend]+&]:-mt-1.5 [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary',
+			classes,
+		)}
+	>
+		{children}
+	</BaseFieldDescription>
+)
 
 /** Horizontal separator for sections within a `FieldGroup`. */
 const FieldSeparator: Stateless<FieldSeparatorArgs> = ({
@@ -270,25 +254,15 @@ const FieldSeparator: Stateless<FieldSeparatorArgs> = ({
 const FieldError: Stateless<FieldErrorArgs> = ({
 	class: classes,
 	children,
-	errors,
-	role = 'alert',
 	...attrs
-}) => {
-	const content = children ?? contentFromErrors(errors)
-	if (!content) return null
-
-	return (
-		<div
-			{...(FieldContext()?.errorAttrs ?? {})}
-			{...attrs}
-			class={clsx('text-sm font-normal text-danger', classes)}
-			data-slot="field-error"
-			role={role}
-		>
-			{content}
-		</div>
-	)
-}
+}) => (
+	<BaseFieldError
+		{...attrs}
+		class={clsx('text-sm font-normal text-danger [&>[data-slot=field-error-list]]:ml-4 [&>[data-slot=field-error-list]]:flex [&>[data-slot=field-error-list]]:list-disc [&>[data-slot=field-error-list]]:flex-col [&>[data-slot=field-error-list]]:gap-1', classes)}
+	>
+		{children}
+	</BaseFieldError>
+)
 
 export {
 	Field,

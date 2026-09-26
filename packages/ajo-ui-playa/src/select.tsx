@@ -1,6 +1,5 @@
 import type { Stateless } from 'ajo'
 import clsx from 'clsx'
-import { FieldContext } from 'ajo-ui/field'
 import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 import {
 	Select as BaseSelect,
@@ -81,36 +80,26 @@ const Select = <Multiple extends boolean = false>({ class: classes, ...attrs }: 
 )
 
 /** Button field for a Select. */
-const SelectTrigger: Stateless<SelectTriggerArgs> = ({ class: classes, size = 'default', ...attrs }) => {
-	const field = FieldContext()
-
-	return (
-		<BaseSelectTrigger
-			{...(field?.buttonAttrs ?? {})}
-			{...attrs}
-			class={clsx(triggerBase, classes)}
-			data-size={size}
-			iconClass="playa-select-trigger-icon"
-		/>
-	)
-}
+const SelectTrigger: Stateless<SelectTriggerArgs> = ({ class: classes, size = 'default', ...attrs }) => (
+	<BaseSelectTrigger
+		{...attrs}
+		class={clsx(triggerBase, classes)}
+		data-size={size}
+		iconClass="playa-select-trigger-icon"
+	/>
+)
 
 /** Input field or in-popup search box for a Select. */
-const SelectInput: Stateless<SelectInputArgs> = ({ class: classes, ...attrs }) => {
-	const field = FieldContext()
-
-	return (
-		<BaseSelectInput
-			{...(field?.controlAttrs ?? {})}
-			{...attrs}
-			addonClass={clsx(inputGroupAddon, inputGroupAddonAlign['inline-end'])}
-			buttonClass={inputTriggerBase}
-			buttonIconClass="i-lucide-chevron-down pointer-events-none size-4 text-muted-foreground"
-			class={inputGroupVariants({ class: classes, width: 'auto' })}
-			inputClass={inputGroupInput}
-		/>
-	)
-}
+const SelectInput: Stateless<SelectInputArgs> = ({ class: classes, ...attrs }) => (
+	<BaseSelectInput
+		{...attrs}
+		addonClass={clsx(inputGroupAddon, inputGroupAddonAlign['inline-end'])}
+		buttonClass={inputTriggerBase}
+		buttonIconClass="i-lucide-chevron-down pointer-events-none size-4 text-muted-foreground"
+		class={inputGroupVariants({ class: classes, width: 'auto' })}
+		inputClass={inputGroupInput}
+	/>
+)
 
 /** Button that clears the current selection and search; compose it in SelectInput. */
 const SelectClear: Stateless<SelectClearArgs> = ({ class: classes, ...attrs }) => (

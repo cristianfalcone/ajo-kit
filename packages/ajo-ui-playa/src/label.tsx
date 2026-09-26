@@ -1,12 +1,11 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
 import clsx from 'clsx'
+import { labelBase } from './internal/recipes'
 
 export type LabelArgs = WithChildren<IntrinsicElements['label'] & {
 	/** Slot marker for composed label variants. */
 	'data-slot'?: string
 }>
-
-const base = 'flex items-center gap-2 text-sm font-medium leading-none select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50'
 
 /** Accessible label associated with a form control. */
 const Label: Stateless<LabelArgs> = ({
@@ -17,7 +16,7 @@ const Label: Stateless<LabelArgs> = ({
 }) => (
 	<label
 		{...attrs}
-		class={clsx(base, classes)}
+		class={clsx(labelBase, classes)}
 		data-slot={slot}
 	>
 		{children}

@@ -93,10 +93,8 @@ keyed reconciliation reuses an element.
 | `typeahead` | Printable-key buffer matched against `data-label` or text content; resets after 600 ms. | `items`, `onMatch`; method `handle`. |
 | `selection` | Single or multi selection over string values. | `multiple`, `required`, `fallback`, `onChange`; methods `has`, `toggle`, `sync`. |
 | `move` | Pointer-drag session lifecycle with deltas and cancellation. | `onStart`, `onMove`, `onEnd` receive `dx`, `dy`, `canceled`; method `start`. |
-| `label` | Field label/control/description/error id wiring. | `prefix`; returns `LabelView` attr bags. |
 | `hotkey` | Global single-chord keyboard shortcut; a match is always prevented. | `keys`, `active`, `onPress`. |
 | `announce` | Polite screen-reader announcements. | No options; method `polite`; one document-lifetime `role=status` region. |
-| `LabelView` | Type for the live field-labelling view. | Ids and label/control/button/group/description/error attr bags. |
 
 ### Positioning
 

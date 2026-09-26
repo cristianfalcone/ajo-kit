@@ -14,7 +14,6 @@ import {
 	type InputGroupTextArgs as BaseInputGroupTextArgs,
 	type InputGroupTextareaArgs as BaseInputGroupTextareaArgs,
 } from 'ajo-ui/input-group'
-import { FieldContext } from 'ajo-ui/field'
 import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 import { buttonVariants } from './button'
 import type { ButtonVariant } from './button'
@@ -146,38 +145,28 @@ const InputGroupInput: Stateless<InputGroupInputArgs> = ({
 	'data-slot': slot = 'input-group-control',
 	type = 'text',
 	...attrs
-}) => {
-	const field = FieldContext()
-
-	return (
-		<BaseInputGroupInput
-			{...(field?.controlAttrs ?? {})}
-			{...attrs}
-			class={clsx(inputGroupInput, classes)}
-			data-slot={slot}
-			type={type}
-		/>
-	)
-}
+}) => (
+	<BaseInputGroupInput
+		{...attrs}
+		class={clsx(inputGroupInput, classes)}
+		data-slot={slot}
+		type={type}
+	/>
+)
 
 /** Textarea control styled for InputGroup. */
 const InputGroupTextarea: Stateless<InputGroupTextareaArgs> = ({
 	children,
 	class: classes,
 	...attrs
-}) => {
-	const field = FieldContext()
-
-	return (
-		<BaseInputGroupTextarea
-			{...(field?.controlAttrs ?? {})}
-			{...attrs}
-			class={clsx(textareaBase, classes)}
-		>
-			{children}
-		</BaseInputGroupTextarea>
-	)
-}
+}) => (
+	<BaseInputGroupTextarea
+		{...attrs}
+		class={clsx(textareaBase, classes)}
+	>
+		{children}
+	</BaseInputGroupTextarea>
+)
 
 export {
 	InputGroup,

@@ -71,6 +71,17 @@ import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 Popup families export `PopupPlacement` and `PopupPosition` next to the
 components that take `placement` and `gap`.
 
+## Fields
+
+`Field` connects one label, description, and error message to the control
+composed inside it. `FieldLabel`, `FieldDescription`, and `FieldError` render
+those parts. Checkbox, Switch, InputOTP, SelectTrigger, SelectInput,
+InputGroupInput, InputGroupTextarea, Slider, and the InputDate family take the
+field's id and ARIA wiring themselves; CheckboxGroup, RadioGroup, a
+multi-thumb Slider, and InputDate ranges become the labelled group. Arguments
+passed to a control win over the field's. Custom controls spread
+`controlAttrs`, `buttonAttrs`, or `groupAttrs` from `FieldContext()`.
+
 ## Styling
 
 Components render semantic elements, ARIA attributes, `data-slot` markers, and

@@ -1,17 +1,15 @@
 import type { Stateless } from 'ajo'
 import clsx from 'clsx'
-import { bool, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
+import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 import {
 	CheckboxGroup as BaseCheckboxGroup,
 	CheckboxGroupItem as BaseCheckboxGroupItem,
 	type CheckboxGroupArgs as BaseCheckboxGroupArgs,
 	type CheckboxGroupItemArgs as BaseCheckboxGroupItemArgs,
 } from 'ajo-ui/checkbox-group'
-import { FieldContext } from 'ajo-ui/field'
 import {
 	checkboxBox,
 	checkboxIndicator,
-	checkboxInvalidState,
 	checkboxState,
 	choiceGroupOrientation,
 	choiceInput,
@@ -36,35 +34,26 @@ const CheckboxGroup: Stateless<CheckboxGroupArgs> = ({
 	class: classes,
 	orientation = 'vertical',
 	...attrs
-}) => {
-	const field = FieldContext()
-
-	return (
-		<BaseCheckboxGroup
-			{...(field?.groupAttrs ?? {})}
-			{...attrs}
-			class={clsx(choiceGroupOrientation[orientation], classes)}
-			data-orientation={orientation}
-		/>
-	)
-}
+}) => (
+	<BaseCheckboxGroup
+		{...attrs}
+		class={clsx(choiceGroupOrientation[orientation], classes)}
+		data-orientation={orientation}
+	/>
+)
 
 /** Native checkbox item styled as a custom control. */
 const CheckboxGroupItem: Stateless<CheckboxGroupItemArgs> = ({
 	class: classes,
 	type: _type,
 	...attrs
-}) => {
-	const invalid = bool(attrs['aria-invalid'])
-
-	return (
-		<BaseCheckboxGroupItem
-			{...attrs}
-			class={clsx(checkboxBox, invalid ? checkboxInvalidState : checkboxState, classes)}
-			indicatorClass={checkboxIndicator}
-			inputClass={choiceInput}
-		/>
-	)
-}
+}) => (
+	<BaseCheckboxGroupItem
+		{...attrs}
+		class={clsx(checkboxBox, checkboxState, classes)}
+		indicatorClass={checkboxIndicator}
+		inputClass={choiceInput}
+	/>
+)
 
 export { CheckboxGroup, CheckboxGroupItem }

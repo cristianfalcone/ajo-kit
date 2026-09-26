@@ -10,7 +10,6 @@ import {
 	type InputOTPSeparatorArgs as BaseInputOTPSeparatorArgs,
 	type InputOTPSlotArgs as BaseInputOTPSlotArgs,
 } from 'ajo-ui/input-otp'
-import { FieldContext } from 'ajo-ui/field'
 import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 
 export { REGEXP_ONLY_DIGITS, REGEXP_ONLY_DIGITS_AND_CHARS } from 'ajo-ui/input-otp'
@@ -45,21 +44,16 @@ const InputOTP: Stateless<InputOTPArgs> = ({
 	disabled,
 	inputClass,
 	...attrs
-}) => {
-	const field = FieldContext()
-
-	return (
-		<BaseInputOTP
-			{...(field?.controlAttrs ?? {})}
-			{...attrs}
-			class={clsx(containerBase, classes)}
-			disabled={disabled}
-			inputClass={clsx(hiddenInputBase, inputClass)}
-		>
-			{children}
-		</BaseInputOTP>
-	)
-}
+}) => (
+	<BaseInputOTP
+		{...attrs}
+		class={clsx(containerBase, classes)}
+		disabled={disabled}
+		inputClass={clsx(hiddenInputBase, inputClass)}
+	>
+		{children}
+	</BaseInputOTP>
+)
 
 /** Visual group for adjacent OTP slots. */
 const InputOTPGroup: Stateless<InputOTPGroupArgs> = ({ children, class: classes, ...attrs }) => (

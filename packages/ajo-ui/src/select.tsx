@@ -1,7 +1,8 @@
 import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { announce, callHandler, callRef, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs, typeahead } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from './input-group'
+import { FieldContext } from './field'
+import { InputGroup, InputGroupAddon, InputGroupButton } from './input-group'
 import { collection, matchesTokens, resolveFilter, resultCount } from './collection'
 import { contentAttrs, popup, type PopupPosition, type PopupView, triggerAttrs } from './popup'
 import { activate, flag, text } from './shared'
@@ -778,7 +779,7 @@ const Select = <Multiple extends boolean = false>({
 	</SelectRoot>
 )
 
-/** Button field for a Select; the closed-state combobox. */
+/** Button field for a Select; the closed-state combobox. Inside a Field it is the field's control. */
 const SelectTrigger: Stateless<SelectTriggerArgs> = ({
 	children,
 	class: classes,
@@ -791,18 +792,21 @@ const SelectTrigger: Stateless<SelectTriggerArgs> = ({
 	...attrs
 }) => {
 	const select = SelectContext()
+	const field = FieldContext()
 	const disabledFlag = Boolean(disabled ?? select?.disabled)
 	const empty = !select?.selectedKeys.size
-	const adoptedId = select?.adoptTriggerId(idArg)
+	const triggerId = idArg ?? field?.ids.control
+	const adoptedId = select?.adoptTriggerId(triggerId)
 
 	return (
 		<button
+			{...field?.buttonAttrs}
 			{...attrs}
 			{...triggerAttrs({
 				controls: select?.listId,
 				expanded: Boolean(select?.open),
 				haspopup: 'listbox',
-				id: adoptedId ?? idArg,
+				id: adoptedId ?? triggerId,
 				open: Boolean(select?.open),
 				ref,
 				setTrigger: select?.setTrigger,
@@ -886,7 +890,7 @@ const inputAttrs = (select: SelectContextValue | null, { disabled, onInput, ref 
 	} as const
 }
 
-/** Input field or in-popup search box for a Select; children sit in its inline-end addon before the trigger. */
+/** Input field or in-popup search box for a Select; children sit in its inline-end addon before the trigger. Inside a Field its input is the field's control. */
 const SelectInput: Stateless<SelectInputArgs> = ({
 	children,
 	addonClass,
@@ -903,6 +907,7 @@ const SelectInput: Stateless<SelectInputArgs> = ({
 	...attrs
 }) => {
 	const select = SelectContext()
+	const field = FieldContext()
 	const disabledFlag = Boolean(disabled ?? select?.disabled)
 	const shown = select?.open || select?.search
 		? select.search
@@ -923,12 +928,13 @@ const SelectInput: Stateless<SelectInputArgs> = ({
 				}
 			}}
 		>
-			<InputGroupInput
+			<input
+				{...field?.controlAttrs}
 				{...attrs}
 				{...inputAttrs(select, { disabled, onInput, ref })}
 				class={inputClass}
 				data-slot="select-input"
-				id={idArg ?? select?.inputId}
+				id={idArg ?? field?.ids.control ?? select?.inputId}
 				set:value={shown}
 			/>
 			<InputGroupAddon align="inline-end" class={addonClass}>

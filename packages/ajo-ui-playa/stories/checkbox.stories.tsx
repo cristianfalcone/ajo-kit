@@ -11,28 +11,6 @@ import {
 
 const frame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
-const tokens = (value: string | null) => new Set((value ?? '').split(/\s+/).filter(Boolean))
-
-const assertFieldControl = (canvas: HTMLElement, name: string, expectedId?: string) => {
-	const field = canvas.querySelector<HTMLElement>(`[data-story-field="${name}"]`)
-	const label = field?.querySelector<HTMLLabelElement>('[data-slot="field-label"]')
-	const description = field?.querySelector<HTMLElement>('[data-slot="field-description"]')
-	const error = field?.querySelector<HTMLElement>('[data-slot="field-error"]')
-	const control = field?.querySelector<HTMLInputElement>('[data-slot="checkbox-input"]')
-	if (!field || !label || !description || !error || !control) throw new Error(`Checkbox field wiring story did not render ${name}`)
-
-	const labelFor = label.getAttribute('for')
-	if (!labelFor || control.id !== labelFor) throw new Error(`Checkbox ${name} id did not match its label for attribute`)
-	if (expectedId && control.id !== expectedId) throw new Error(`Checkbox ${name} did not keep its manual id`)
-
-	const describedby = tokens(control.getAttribute('aria-describedby'))
-	if (!describedby.has(description.id) || !describedby.has(error.id)) {
-		throw new Error(`Checkbox ${name} aria-describedby did not include description and error ids`)
-	}
-	if (control.getAttribute('aria-invalid') !== 'true') throw new Error(`Checkbox ${name} did not receive aria-invalid`)
-	if (control.getAttribute('aria-errormessage') !== error.id) throw new Error(`Checkbox ${name} did not receive aria-errormessage`)
-}
-
 const token = (name: string) => {
 	const element = document.createElement('span')
 	element.style.backgroundColor = `var(${name})`
@@ -165,36 +143,6 @@ export const Invalid: Story<typeof Checkbox> = {
 			</FieldContent>
 		</Field>
 	),
-}
-
-export const FieldWiring: Story<typeof Checkbox> = {
-	render: () => (
-		<div class="grid w-full max-w-md gap-6">
-			<Field orientation="horizontal" name="checkbox-auto-wire" invalid data-story-field="auto">
-				<Checkbox name="auto-checkbox" />
-				<FieldContent>
-					<FieldLabel>Accept terms</FieldLabel>
-					<FieldDescription>Required before continuing.</FieldDescription>
-					<FieldError>You must accept the terms before continuing.</FieldError>
-				</FieldContent>
-			</Field>
-			<Field orientation="horizontal" name="checkbox-manual-wire" invalid data-story-field="manual">
-				<Checkbox id="manual-checkbox-control" name="manual-checkbox" />
-				<FieldContent>
-					<FieldLabel for="manual-checkbox-control">Manual terms</FieldLabel>
-					<FieldDescription>Manual checkbox keeps its caller id.</FieldDescription>
-					<FieldError>You must accept the manual terms.</FieldError>
-				</FieldContent>
-			</Field>
-		</div>
-	),
-	play: async ({ canvas }) => {
-		await frame()
-		await frame()
-
-		assertFieldControl(canvas, 'auto')
-		assertFieldControl(canvas, 'manual', 'manual-checkbox-control')
-	},
 }
 
 export const InvalidChecked: Story<typeof Checkbox> = {

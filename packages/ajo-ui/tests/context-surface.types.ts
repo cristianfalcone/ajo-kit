@@ -46,8 +46,14 @@ export const publicCheckboxGroupItem = checkbox.CheckboxGroupItem
 export const publicRadioGroup = radio.RadioGroup
 export const publicRadioGroupItem = radio.RadioGroupItem
 
+declare const fieldValue: NonNullable<ReturnType<typeof field.FieldContext>>
 declare const carouselValue: NonNullable<ReturnType<typeof carousel.CarouselContext>>
 declare const messageScrollerValue: NonNullable<ReturnType<typeof messageScroller.MessageScrollerContext>>
+
+// @ts-expect-error Render-pass bookkeeping is private to Field.
+export const leakedFieldReset = fieldValue.reset
+// @ts-expect-error The invalid state comes from Field args only.
+export const leakedFieldSync = fieldValue.sync
 
 // @ts-expect-error Viewport registration is private to Carousel parts.
 export const leakedCarouselRegistrar = carouselValue.setViewport

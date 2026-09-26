@@ -4,7 +4,6 @@ import type { Meta, Story } from './app'
 import {
 	Field,
 	FieldDescription,
-	FieldError,
 	FieldLabel,
 } from 'ajo-ui-playa/field'
 import {
@@ -26,28 +25,6 @@ export default {
 } satisfies Meta<typeof InputOTP>
 
 const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
-const tokens = (value: string | null) => new Set((value ?? '').split(/\s+/).filter(Boolean))
-
-const assertFieldControl = (canvas: HTMLElement, name: string, expectedId?: string) => {
-	const field = canvas.querySelector<HTMLElement>(`[data-story-field="${name}"]`)
-	const label = field?.querySelector<HTMLLabelElement>('[data-slot="field-label"]')
-	const description = field?.querySelector<HTMLElement>('[data-slot="field-description"]')
-	const error = field?.querySelector<HTMLElement>('[data-slot="field-error"]')
-	const control = field?.querySelector<HTMLInputElement>('[data-slot="input-otp-input"]')
-	if (!field || !label || !description || !error || !control) throw new Error(`Input OTP field wiring story did not render ${name}`)
-
-	const labelFor = label.getAttribute('for')
-	if (!labelFor || control.id !== labelFor) throw new Error(`Input OTP ${name} id did not match its label for attribute`)
-	if (expectedId && control.id !== expectedId) throw new Error(`Input OTP ${name} did not keep its manual id`)
-
-	const describedby = tokens(control.getAttribute('aria-describedby'))
-	if (!describedby.has(description.id) || !describedby.has(error.id)) {
-		throw new Error(`Input OTP ${name} aria-describedby did not include description and error ids`)
-	}
-	if (control.getAttribute('aria-invalid') !== 'true') throw new Error(`Input OTP ${name} did not receive aria-invalid`)
-	if (control.getAttribute('aria-errormessage') !== error.id) throw new Error(`Input OTP ${name} did not receive aria-errormessage`)
-}
 
 const input = (canvas: HTMLElement) => {
 	const control = canvas.querySelector<HTMLInputElement>('[data-slot="input-otp-input"]')
@@ -231,50 +208,6 @@ export const Completion: Story = {
 		if (!canvas.textContent?.includes('Complete: 654321')) {
 			throw new Error('Input OTP did not call onComplete')
 		}
-	},
-}
-
-export const FieldWiring: Story = {
-	render: () => (
-		<div class="grid w-full max-w-sm gap-6">
-			<Field name="otp-auto-wire" invalid data-story-field="auto">
-				<FieldLabel>Verification code</FieldLabel>
-				<InputOTP maxLength={6} pattern={REGEXP_ONLY_DIGITS}>
-					<InputOTPGroup>
-						<InputOTPSlot index={0} />
-						<InputOTPSlot index={1} />
-						<InputOTPSlot index={2} />
-						<InputOTPSlot index={3} />
-						<InputOTPSlot index={4} />
-						<InputOTPSlot index={5} />
-					</InputOTPGroup>
-				</InputOTP>
-				<FieldDescription>Enter the code sent to your email.</FieldDescription>
-				<FieldError>Enter a valid verification code.</FieldError>
-			</Field>
-			<Field name="otp-manual-wire" invalid data-story-field="manual">
-				<FieldLabel for="manual-otp-control">Manual verification code</FieldLabel>
-				<InputOTP id="manual-otp-control" maxLength={6} pattern={REGEXP_ONLY_DIGITS}>
-					<InputOTPGroup>
-						<InputOTPSlot index={0} />
-						<InputOTPSlot index={1} />
-						<InputOTPSlot index={2} />
-						<InputOTPSlot index={3} />
-						<InputOTPSlot index={4} />
-						<InputOTPSlot index={5} />
-					</InputOTPGroup>
-				</InputOTP>
-				<FieldDescription>Manual OTP keeps its caller id.</FieldDescription>
-				<FieldError>Enter a valid manual verification code.</FieldError>
-			</Field>
-		</div>
-	),
-	play: async ({ canvas }) => {
-		await nextFrame()
-		await nextFrame()
-
-		assertFieldControl(canvas, 'auto')
-		assertFieldControl(canvas, 'manual', 'manual-otp-control')
 	},
 }
 

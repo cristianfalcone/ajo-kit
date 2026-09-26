@@ -1,7 +1,6 @@
 import type { Stateless } from 'ajo'
 import clsx from 'clsx'
 import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
-import { FieldContext } from 'ajo-ui/field'
 import {
 	RadioGroup as BaseRadioGroup,
 	RadioGroupItem as BaseRadioGroupItem,
@@ -30,18 +29,13 @@ const RadioGroup: Stateless<RadioGroupArgs> = ({
 	class: classes,
 	orientation = 'vertical',
 	...attrs
-}) => {
-	const field = FieldContext()
-
-	return (
-		<BaseRadioGroup
-			{...(field?.groupAttrs ?? {})}
-			{...attrs}
-			class={clsx(choiceGroupOrientation[orientation], classes)}
-			orientation={orientation}
-		/>
-	)
-}
+}) => (
+	<BaseRadioGroup
+		{...attrs}
+		class={clsx(choiceGroupOrientation[orientation], classes)}
+		orientation={orientation}
+	/>
+)
 
 /** Native radio item styled as a custom control. */
 const RadioGroupItem: Stateless<RadioGroupItemArgs> = ({

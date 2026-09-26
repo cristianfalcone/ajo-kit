@@ -1,6 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { FieldContext } from './field'
 import { flag } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 
@@ -53,7 +54,7 @@ const RadioGroupRoot: Stateful<RadioGroupRootArgs, 'fieldset'> = function* () {
 
 RadioGroupRoot.is = 'fieldset'
 
-/** Unstyled radio group with native fieldset semantics. */
+/** Unstyled radio group with native fieldset semantics; inside a Field it is the labelled group. */
 const RadioGroup: Stateless<RadioGroupArgs> = ({
 	children,
 	defaultValue,
@@ -70,7 +71,7 @@ const RadioGroup: Stateless<RadioGroupArgs> = ({
 
 	return (
 		<RadioGroupRoot
-			{...rootAttrs(attrs)}
+			{...rootAttrs({ ...FieldContext()?.groupAttrs, ...attrs })}
 			defaultValue={defaultValue}
 			disabled={disabledFlag}
 			name={name}

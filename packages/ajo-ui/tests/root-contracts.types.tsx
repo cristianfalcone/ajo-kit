@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import { DataTable, type DataTableColumn } from 'ajo-ui/data-table'
-import { Field } from 'ajo-ui/field'
+import { Field, FieldDescription, FieldError, FieldLabel } from 'ajo-ui/field'
 
 type Person = { id: number, name: string }
 
@@ -29,6 +29,17 @@ export const baseFieldForwardsRootAttrs = (
 		Content
 	</Field>
 )
+
+export const baseFieldPartsTakeElementAttrs = (
+	<Field invalid name="email">
+		<FieldLabel class="label" for="email-input">Email</FieldLabel>
+		<FieldDescription class="description">We never share it.</FieldDescription>
+		<FieldError class="error" errors={[{ message: 'Required' }, undefined]} />
+	</Field>
+)
+
+// @ts-expect-error FieldError errors are objects with an optional message.
+export const baseFieldErrorRejectsStrings = <FieldError errors={['Required']} />
 
 export const baseDataTableForwardsRootAttrs = (
 	<DataTable
