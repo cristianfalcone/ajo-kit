@@ -1,7 +1,8 @@
 import type { Children, IntrinsicElements, Stateful, Stateless } from 'ajo'
 import { controlled, dom, remember, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
-import { calendarDate, compile, resolveLocale, type Availability, type AvailabilityMatcher, type CalendarMatcher } from './availability'
+import { calendarDate, compile, compiler, dayValue, exactUtcDate, partsOf, resolveLocale, weekday, type Availability, type AvailabilityMatcher, type CalendarMatcher } from './availability'
 import { DirectionContext } from './direction'
+import { daysInMonth } from './segments'
 import type { FixedArgs, OmitArg } from './utils'
 
 export type { AvailabilityMatcher, CalendarMatcher, TimeWindow } from './availability'
@@ -159,6 +160,16 @@ type PlainDate = {
 	year: number
 }
 
+type PlainRange = {
+	from?: PlainDate
+	to?: PlainDate
+}
+
+/** One selection store: a day (single), days (multiple) or a range, by mode. */
+type Selection = PlainDate | PlainDate[] | PlainRange | null
+
+type PeriodView = Exclude<CalendarView, 'day'>
+
 type MonthData = {
 	month: PlainDate
 	weeks: PlainDate[][]
@@ -184,15 +195,8 @@ const parseMonthIso = (value: string): PlainDate | undefined => {
 	return { day: 1, month: month!, year: year! }
 }
 
-const utcDate = (year: number, month: number, day: number) => {
-	const date = new Date(0)
-	date.setUTCFullYear(year, month - 1, day)
-	date.setUTCHours(0, 0, 0, 0)
-	return date
-}
-
 const normalize = (year: number, month: number, day: number): PlainDate => {
-	const date = utcDate(year, month, day)
+	const date = exactUtcDate({ day, month, year })
 	return {
 		day: date.getUTCDate(),
 		month: date.getUTCMonth() + 1,
@@ -203,17 +207,16 @@ const normalize = (year: number, month: number, day: number): PlainDate => {
 const addDays = (date: PlainDate, days: number) =>
 	normalize(date.year, date.month, date.day + days)
 
-const addMonths = (date: PlainDate, monthCount: number) =>
-	normalize(date.year, date.month + monthCount, Math.min(date.day, daysInMonth(normalize(date.year, date.month + monthCount, 1))))
+const addMonths = (date: PlainDate, monthCount: number) => {
+	const month = normalize(date.year, date.month + monthCount, 1)
+	return { ...month, day: Math.min(date.day, daysInMonth(month.year, month.month)) }
+}
 
 const monthStart = (date: PlainDate) =>
 	({ year: date.year, month: date.month, day: 1 })
 
-const daysInMonth = (date: PlainDate) =>
-	utcDate(date.year, date.month + 1, 0).getUTCDate()
-
 const comparePlain = (first: PlainDate, second: PlainDate) =>
-	iso(first).localeCompare(iso(second))
+	dayValue(first) - dayValue(second)
 
 const samePlain = (first: PlainDate, second: PlainDate) =>
 	first.year === second.year && first.month === second.month && first.day === second.day
@@ -253,8 +256,7 @@ const periodStart = (date: PlainDate, view: CalendarView): PlainDate => {
 const periodEnd = (date: PlainDate, view: CalendarView): PlainDate => {
 	if (view === 'year') return { day: 31, month: 12, year: date.year }
 	if (view === 'month') {
-		const start = monthStart(date)
-		return { ...start, day: daysInMonth(start) }
+		return { ...monthStart(date), day: daysInMonth(date.year, date.month) }
 	}
 	return date
 }
@@ -273,36 +275,12 @@ const periodIntersects = (
 	&& comparePlain(range.from, periodEnd(date, view)) <= 0
 	&& comparePlain(periodStart(date, view), range.to) <= 0)
 
-const weekday = (date: PlainDate) =>
-	utcDate(date.year, date.month, date.day).getUTCDay()
-
 const plainToDate = (date: PlainDate, timeZone?: string) =>
 	calendarDate({ ...date, hour: 12, minute: 0, second: 0 }, timeZone)
 
-const zonedDateFormatters = new Map<string, Intl.DateTimeFormat>()
-
-const zonedDateFormatter = (timeZone: string) => {
-	let format = zonedDateFormatters.get(timeZone)
-	if (!format) {
-		format = new Intl.DateTimeFormat('en-CA', {
-			day: '2-digit',
-			month: '2-digit',
-			timeZone,
-			year: 'numeric',
-		})
-		remember(zonedDateFormatters, timeZone, format)
-	}
-	return format
-}
-
 const dateToPlain = (date: Date, timeZone?: string): PlainDate => {
-	if (timeZone) {
-		const parts = zonedDateFormatter(timeZone).formatToParts(date)
-		const value = (type: string) => Number(parts.find(part => part.type === type)?.value)
-		return normalize(value('year'), value('month'), value('day'))
-	}
-
-	return normalize(date.getFullYear(), date.getMonth() + 1, date.getDate())
+	const { day, month, year } = partsOf(date, timeZone)
+	return { day, month, year }
 }
 
 const today = (timeZone?: string) =>
@@ -313,7 +291,7 @@ const startOfWeek = (date: PlainDate, weekStartsOn: number) =>
 
 const weeksForMonth = (month: PlainDate, weekStartsOn: number) => {
 	const start = startOfWeek(month, weekStartsOn)
-	const length = Math.ceil(((weekday(month) - weekStartsOn + 7) % 7 + daysInMonth(month)) / 7) * 7
+	const length = Math.ceil(((weekday(month) - weekStartsOn + 7) % 7 + daysInMonth(month.year, month.month)) / 7) * 7
 	const weeks: PlainDate[][] = []
 
 	for (let index = 0; index < length; index += 7) {
@@ -361,28 +339,22 @@ const defaultFormatters: CalendarFormatters = {
 	weekday: (date, locale, timeZone) => formatter(locale, 'weekday', timeZone).format(date),
 }
 
-const toPlainArray = (dates: Date[] | undefined, timeZone?: string) =>
-	(dates ?? []).map(date => dateToPlain(date, timeZone))
-
-const toRangePlain = (range: CalendarDateRange | undefined, timeZone?: string) => ({
-	from: range?.from ? dateToPlain(range.from, timeZone) : undefined,
-	to: range?.to ? dateToPlain(range.to, timeZone) : undefined,
-})
-
-const plainIn = (date: PlainDate, dates: PlainDate[]) =>
-	dates.some(item => samePlain(item, date))
-
-const rangeContains = (range: { from?: PlainDate; to?: PlainDate }, date: PlainDate) =>
-	Boolean(range.from && range.to && comparePlain(range.from, date) <= 0 && comparePlain(date, range.to) <= 0)
-
-const rangeMiddle = (range: { from?: PlainDate; to?: PlainDate }, date: PlainDate) =>
-	Boolean(range.from && range.to && comparePlain(range.from, date) < 0 && comparePlain(date, range.to) < 0)
+/** The mode's selection in plain dates; empty when `value` is undefined. */
+const plainSelection = (value: CalendarArgs['selected'], mode: CalendarMode | undefined, timeZone?: string): Selection => {
+	const plain = (date: Date) => dateToPlain(date, timeZone)
+	if (mode === 'multiple') return ((value ?? []) as Date[]).map(plain)
+	if (mode === 'range') {
+		const { from, to } = (value ?? {}) as CalendarDateRange
+		return { from: from && plain(from), to: to && plain(to) }
+	}
+	return value ? plain(value as Date) : null
+}
 
 const weekNumber = (date: PlainDate) => {
-	const target = utcDate(date.year, date.month, date.day)
+	const target = exactUtcDate(date)
 	const day = target.getUTCDay() || 7
 	target.setUTCDate(target.getUTCDate() + 4 - day)
-	const yearStart = utcDate(target.getUTCFullYear(), 1, 1)
+	const yearStart = exactUtcDate({ day: 1, month: 1, year: target.getUTCFullYear() })
 	return Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
 }
 
@@ -425,9 +397,6 @@ const modifierNames = (
 const modifierAttributes = (names: string[]) =>
 	Object.fromEntries(names.map(name => [`data-modifier-${name}`, 'true']))
 
-const defaultSelectedRange = (value: CalendarArgs['defaultSelected']) =>
-	value && !Array.isArray(value) && !(value instanceof Date) ? value : undefined
-
 const initialMonthDate = (
 	month: Date | undefined,
 	defaultMonth: Date | undefined,
@@ -437,7 +406,7 @@ const initialMonthDate = (
 	if (defaultMonth) return defaultMonth
 	if (defaultSelected instanceof Date) return defaultSelected
 	if (Array.isArray(defaultSelected)) return defaultSelected[0] ?? new Date()
-	return defaultSelectedRange(defaultSelected)?.from ?? new Date()
+	return defaultSelected?.from ?? new Date()
 }
 
 const CalendarRoot: Stateful<CalendarArgs> = function* ({
@@ -445,6 +414,7 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 	defaultSelected,
 	defaultView,
 	minView,
+	mode,
 	month,
 	timeZone,
 	view,
@@ -457,49 +427,20 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 
 	const initialMonth = monthStart(dateToPlain(initial, timeZone))
 	const initialView = clampView(view ?? defaultView ?? minimumView(minView), minView)
-	const initialSingle = defaultSelected instanceof Date ? dateToPlain(defaultSelected, timeZone) : null
-	const initialMultiple = Array.isArray(defaultSelected) ? toPlainArray(defaultSelected, timeZone) : []
-	const initialRange = !Array.isArray(defaultSelected) && !(defaultSelected instanceof Date)
-		? toRangePlain(defaultSelected as CalendarDateRange | undefined, timeZone)
-		: {}
 	let currentArgs = {} as CalendarArgs
 	let currentView = initialView
 	let renderedView = initialView
+	let selectionMode = mode
 	// A view change the calendar made itself relocates focus even when the
 	// clicked button never took it (Safari does not focus clicked buttons).
 	let relocate = false
 	let visible = initialMonth
 	const domReady = dom(this)
-	let disabledSource: CalendarCommonArgs['disabled']
-	let disabledTimeZone: string | undefined
-	let disabledAvailability: Availability | undefined
+	const disabledOf = compiler()
+	const unavailableOf = compiler()
 	let modifiersSource: CalendarCommonArgs['modifiers']
 	let modifiersTimeZone: string | undefined
 	let modifierAvailability = new Map<string, Availability>()
-	let unavailableSource: CalendarCommonArgs['unavailable']
-	let unavailableTimeZone: string | undefined
-	let unavailableAvailability: Availability | undefined
-
-	const syncAvailability = (args: CalendarArgs) => {
-		if (args.disabled !== disabledSource || args.timeZone !== disabledTimeZone) {
-			disabledSource = args.disabled
-			disabledTimeZone = args.timeZone
-			disabledAvailability = compile(args.disabled, { timeZone: args.timeZone })
-		}
-		if (args.modifiers !== modifiersSource || args.timeZone !== modifiersTimeZone) {
-			modifiersSource = args.modifiers
-			modifiersTimeZone = args.timeZone
-			modifierAvailability = new Map(Object.entries(args.modifiers ?? {}).flatMap(([name, matcher]) => {
-				const availability = compile(matcher, { timeZone: args.timeZone })
-				return availability ? [[name, availability]] : []
-			}))
-		}
-		if (args.unavailable !== unavailableSource || args.timeZone !== unavailableTimeZone) {
-			unavailableSource = args.unavailable
-			unavailableTimeZone = args.timeZone
-			unavailableAvailability = compile(args.unavailable, { timeZone: args.timeZone })
-		}
-	}
 
 	const monthState = controlled<PlainDate>(this, {
 		fallback: initialMonth,
@@ -510,70 +451,39 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 		onChange: (next, event) => currentArgs.onViewChange?.(next, event),
 	})
 	// Empty emissions: single and range emit null, multiple emits [] (never null).
-	const singleState = controlled<PlainDate | null>(this, {
-		fallback: initialSingle,
+	const selection = controlled<Selection>(this, {
+		fallback: plainSelection(defaultSelected as CalendarArgs['selected'], mode, timeZone),
 		onChange: (next, event) => {
-			if (currentArgs.mode === 'multiple' || currentArgs.mode === 'range' || !event) return
-			currentArgs.onSelect?.(next && plainToDate(next, currentArgs.timeZone), event)
-		},
-	})
-	const multipleState = controlled<PlainDate[]>(this, {
-		fallback: initialMultiple,
-		onChange: (next, event) => {
-			if (currentArgs.mode !== 'multiple' || !event) return
-			currentArgs.onSelect?.(next.map(item => plainToDate(item, currentArgs.timeZone)), event)
-		},
-	})
-	const rangeState = controlled<{ from?: PlainDate; to?: PlainDate }>(this, {
-		fallback: initialRange,
-		onChange: (next, event) => {
-			if (currentArgs.mode !== 'range' || !event) return
-			currentArgs.onSelect?.(next.from || next.to
-				? {
-					from: next.from ? plainToDate(next.from, currentArgs.timeZone) : undefined,
-					to: next.to ? plainToDate(next.to, currentArgs.timeZone) : undefined,
-				}
-				: null, event)
+			const args = currentArgs
+			const date = (day: PlainDate) => plainToDate(day, args.timeZone)
+			if (args.mode === 'multiple') args.onSelect?.((next as PlainDate[]).map(date), event!)
+			else if (args.mode === 'range') {
+				const { from, to } = next as PlainRange
+				args.onSelect?.(from || to ? { from: from && date(from), to: to && date(to) } : null, event!)
+			} else args.onSelect?.(next && date(next as PlainDate), event!)
 		},
 	})
 
-	const focusDay = (date: PlainDate, args: CalendarArgs) => {
+	/** Focuses the enabled cell `selector`, paging to `month()` first when it is not shown. */
+	const focusCell = (selector: string, month: () => PlainDate | undefined, args: CalendarArgs, event?: Event) => {
 		queueMicrotask(() => {
-			const find = () =>
-				this.querySelector<HTMLButtonElement>(`button[data-day="${iso(date)}"]:not(:disabled)`)
-			const target = find()
-
-			if (target) {
-				target.focus()
-				return
-			}
-
-			const visible = args.month ? monthStart(dateToPlain(args.month, args.timeZone)) : monthState.value
-			const count = Math.max(1, args.numberOfMonths ?? 1)
-			const start = monthStart(date)
-
-			if (comparePlain(start, visible) < 0) moveMonth(addMonths(visible, -1), args)
-			else if (comparePlain(start, addMonths(visible, count - 1)) > 0) moveMonth(addMonths(visible, 1), args)
-			else return
-
-			queueMicrotask(() => find()?.focus())
-		})
-	}
-
-	const focusMonthCell = (month: PlainDate, args: CalendarArgs, event?: Event) => {
-		const target = monthStart(month)
-		queueMicrotask(() => {
-			const find = () => this.querySelector<HTMLButtonElement>(`button[data-month="${monthIso(target)}"]:not(:disabled)`)
+			const find = () => this.querySelector<HTMLButtonElement>(`${selector}:not(:disabled)`)
 			const found = find()
-			if (found) {
-				found.focus()
-				return
-			}
-			if (!canNavigateTo(target, args)) return
+			if (found) return found.focus()
+			const target = month()
+			if (!target) return
 			moveMonth(target, args, event)
 			queueMicrotask(() => find()?.focus())
 		})
 	}
+
+	const focusDay = (date: PlainDate, args: CalendarArgs) => focusCell(`button[data-day="${iso(date)}"]`, () => {
+		const visible = args.month ? monthStart(dateToPlain(args.month, args.timeZone)) : monthState.value
+		const start = monthStart(date)
+		if (comparePlain(start, visible) < 0) return addMonths(visible, -1)
+		if (comparePlain(start, addMonths(visible, Math.max(1, args.numberOfMonths ?? 1) - 1)) > 0) return addMonths(visible, 1)
+		return undefined
+	}, args)
 
 	const navigableMonth = (year: number, args: CalendarArgs) => {
 		const options = monthOptions(year)
@@ -590,21 +500,9 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 			? canCommitYear(year, args)
 			: Boolean(navigableMonth(year, args))
 
-	const focusYearCell = (year: number, args: CalendarArgs, event?: Event) => {
-		queueMicrotask(() => {
-			const find = () => this.querySelector<HTMLButtonElement>(`button[data-year="${year}"]:not(:disabled)`)
-			const found = find()
-			if (found) {
-				found.focus()
-				return
-			}
-			if (!canUseYearCell(year, args)) return
-			const month = navigableMonth(year, args)
-			if (!month) return
-			moveMonth(month, args, event)
-			queueMicrotask(() => find()?.focus())
-		})
-	}
+	const focusPeriod = (view: PeriodView, date: PlainDate, args: CalendarArgs, event?: Event) => view === 'month'
+		? focusCell(`button[data-month="${monthIso(date)}"]`, () => monthStart(date), args, event)
+		: focusCell(`button[data-year="${date.year}"]`, () => canUseYearCell(date.year, args) ? navigableMonth(date.year, args) : undefined, args, event)
 
 	const moveMonth = (next: PlainDate, args: CalendarArgs, event?: Event) => {
 		const target = monthStart(next)
@@ -614,36 +512,34 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 
 	const selectPeriod = (date: PlainDate, view: CalendarView, args: CalendarArgs, event: Event) => {
 		const start = periodStart(date, view)
-		const end = periodEnd(date, view)
 		if (args.mode === 'multiple') {
-			const current = multipleState.value
+			const current = selection.value as PlainDate[]
 			const exists = current.some(item => samePeriod(item, start, view))
 			const next = exists ? current.filter(item => !samePeriod(item, start, view)) : [...current, start]
 			if (args.required && !next.length) return
-			multipleState.set(next, event)
+			selection.set(next, event)
 			return
 		}
 
 		if (args.mode === 'range') {
-			const current = rangeState.value
-			let next: { from?: PlainDate; to?: PlainDate }
+			const { from, to } = selection.value as PlainRange
+			let next: PlainRange
 
-			if (!current.from || current.to) next = { from: start }
-			else if (comparePlain(start, periodStart(current.from, view)) < 0) next = { from: start, to: periodEnd(current.from, view) }
-			else if (samePeriod(start, current.from, view) && !args.required) next = {}
-			else next = { from: periodStart(current.from, view), to: end }
+			if (!from || to) next = { from: start }
+			else if (comparePlain(start, periodStart(from, view)) < 0) next = { from: start, to: periodEnd(from, view) }
+			else if (samePeriod(start, from, view) && !args.required) next = {}
+			else next = { from: periodStart(from, view), to: periodEnd(date, view) }
 
-			rangeState.set(next, event)
+			selection.set(next, event)
 			return
 		}
 
-		const current = singleState.value
-		const next = current && samePeriod(current, start, view) && !args.required ? null : start
-		singleState.set(next, event)
+		const current = selection.value as PlainDate | null
+		selection.set(current && samePeriod(current, start, view) && !args.required ? null : start, event)
 	}
 
 	const selectDay = (date: PlainDate, args: CalendarArgs, event: Event) => {
-		if (disabledAvailability?.day(plainToDate(date, args.timeZone))) return
+		if (disabledOf(args.disabled, args.timeZone)?.day(plainToDate(date, args.timeZone))) return
 		selectPeriod(date, 'day', args, event)
 	}
 
@@ -681,60 +577,48 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 	}
 
 	const onMove = (move: GridMove, event: KeyboardEvent) => {
-		const button = event.target instanceof Element
-			? event.target.closest<HTMLButtonElement>('button[data-day],button[data-month],button[data-year]')
-			: null
+		const { day, month, year } = (event.currentTarget as HTMLButtonElement).dataset
 		const args = currentArgs
-		const month = button?.dataset.month ? parseMonthIso(button.dataset.month) : undefined
-		const year = button?.dataset.year ? Number(button.dataset.year) : undefined
 
-		if (month) {
-			if ('cols' in move) focusMonthCell(addMonths(month, move.cols), args, event)
-			else if ('rows' in move) focusMonthCell(addMonths(month, move.rows * 3), args, event)
-			else if ('page' in move) focusMonthCell(addMonths(month, move.page * 12), args, event)
-			else {
-				const rowStart = Math.floor((month.month - 1) / 3) * 3 + 1
-				const candidates = monthOptions(month.year).filter(candidate =>
-					canNavigateTo(candidate, args)
-					&& (move.extent === 'all' || (rowStart <= candidate.month && candidate.month <= rowStart + 2)))
-				const target = move.edge === 'start' ? candidates[0] : candidates[candidates.length - 1]
-				if (target) focusMonthCell(target, args, event)
+		if (!day) {
+			// One period step: month and year grids are three columns of a twelve-cell page.
+			const view: PeriodView = month ? 'month' : 'year'
+			const anchor = month ? parseMonthIso(month)! : { day: 1, month: 1, year: Number(year) }
+			const first = view === 'month' ? anchor.year : yearPage(visible.year, args)[0]!
+			const index = view === 'month' ? anchor.month - 1 : anchor.year - first
+			const cell = (offset: number): PlainDate => view === 'month'
+				? addMonths({ day: 1, month: 1, year: first }, offset)
+				: { day: 1, month: 1, year: first + offset }
+			let target: PlainDate | undefined
+			if ('edge' in move) {
+				const row = Math.floor(index / 3) * 3
+				const cells = Array.from({ length: 12 }, (_, offset) => offset)
+					.filter(offset => move.extent === 'all' || (row <= offset && offset < row + 3))
+					.map(cell)
+					.filter(date => view === 'month' ? canNavigateTo(date, args) : canUseYearCell(date.year, args))
+				target = move.edge === 'start' ? cells[0] : cells[cells.length - 1]
+			} else {
+				target = cell(index + ('cols' in move ? move.cols : 'rows' in move ? move.rows * 3 : move.page * 12))
 			}
+			if (target) focusPeriod(view, target, args, event)
 			return
 		}
 
-		if (year != null && Number.isFinite(year)) {
-			if ('cols' in move) focusYearCell(year + move.cols, args, event)
-			else if ('rows' in move) focusYearCell(year + move.rows * 3, args, event)
-			else if ('page' in move) focusYearCell(year + move.page * 12, args, event)
-			else {
-				const page = yearPage(visible.year, args)
-				const rowStart = page[0]! + Math.floor((year - page[0]!) / 3) * 3
-				const candidates = page.filter(candidate =>
-					canUseYearCell(candidate, args)
-					&& (move.extent === 'all' || (rowStart <= candidate && candidate <= rowStart + 2)))
-				const target = move.edge === 'start' ? candidates[0] : candidates[candidates.length - 1]
-				if (target != null) focusYearCell(target, args, event)
-			}
-			return
-		}
-
-		const day = button?.dataset.day ? parseIso(button.dataset.day) : undefined
-		if (!day) return
+		const date = parseIso(day)!
 
 		if ('cols' in move) {
-			focusDay(addDays(day, move.cols), args)
+			focusDay(addDays(date, move.cols), args)
 			return
 		}
 
 		if ('rows' in move) {
-			focusDay(addDays(day, move.rows * 7), args)
+			focusDay(addDays(date, move.rows * 7), args)
 			return
 		}
 
 		if ('page' in move) {
 			const count = move.page * (move.large ? 12 : 1)
-			const target = addMonths(day, count)
+			const target = addMonths(date, count)
 			if (!canNavigateTo(monthStart(target), args)) return
 
 			moveMonth(addMonths(visible, count), args, event)
@@ -743,13 +627,12 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 		}
 
 		if (move.extent === 'row') {
-			const start = startOfWeek(day, args.weekStartsOn ?? 0)
+			const start = startOfWeek(date, args.weekStartsOn ?? 0)
 			focusDay(move.edge === 'start' ? start : addDays(start, 6), args)
 			return
 		}
 
-		const start = monthStart(day)
-		focusDay(move.edge === 'start' ? start : { ...start, day: daysInMonth(start) }, args)
+		focusDay(move.edge === 'start' ? monthStart(date) : periodEnd(date, 'month'), args)
 	}
 
 	const onCellKeydown = (event: KeyboardEvent) => {
@@ -766,29 +649,36 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 
 	for (const args of this) {
 		currentArgs = args
-		syncAvailability(args)
+		if (args.modifiers !== modifiersSource || args.timeZone !== modifiersTimeZone) {
+			modifiersSource = args.modifiers
+			modifiersTimeZone = args.timeZone
+			modifierAvailability = new Map(Object.entries(args.modifiers ?? {}).flatMap(([name, matcher]) => {
+				const availability = compile(matcher, { timeZone: args.timeZone })
+				return availability ? [[name, availability]] : []
+			}))
+		}
+		const disabledAvailability = disabledOf(args.disabled, args.timeZone)
+		const unavailableAvailability = unavailableOf(args.unavailable, args.timeZone)
 		monthState.sync(args.month ? monthStart(dateToPlain(args.month, args.timeZone)) : undefined)
 		viewState.sync(args.view === undefined ? undefined : clampView(args.view, args.minView))
 		const clampedView = clampView(viewState.value, args.minView)
 		if (clampedView !== viewState.value) viewState.init(clampedView)
+		// A mode change resets the uncontrolled selection to the new mode's empty value;
+		// unbinding first lets init reach it after a controlled render.
+		if (args.mode !== selectionMode) {
+			selectionMode = args.mode
+			selection.sync(undefined)
+			selection.init(plainSelection(undefined, args.mode))
+		}
 		// selected !== undefined binds; null (single, range) and [] (multiple) are controlled-empty.
-		singleState.sync(args.mode === 'multiple' || args.mode === 'range' || args.selected === undefined
-			? undefined
-			: args.selected && dateToPlain(args.selected, args.timeZone))
-		multipleState.sync(args.mode === 'multiple' && args.selected !== undefined
-			? toPlainArray(args.selected, args.timeZone)
-			: undefined)
-		rangeState.sync(args.mode === 'range' && args.selected !== undefined
-			? toRangePlain(args.selected ?? undefined, args.timeZone)
-			: undefined)
+		const selected = selection.sync(args.selected === undefined ? undefined : plainSelection(args.selected, args.mode, args.timeZone))
 
 		const now = today(args.timeZone)
 		visible = monthState.value
 		currentView = clampedView
 		if (renderedView !== currentView && domReady && (relocate || this.contains(document.activeElement))) {
 			if (currentView === 'day') focusDay(visible, args)
-			else if (currentView === 'month') focusMonthCell(visible, args)
-			else focusYearCell(visible.year, args)
+			else focusPeriod(currentView, visible, args)
 		}
 		relocate = false
 		renderedView = currentView
@@ -797,23 +687,49 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 		const locale = resolveLocale(args.locale)
 		const formats = { ...defaultFormatters, ...(args.formatters ?? {}) }
 		const shown = months(visible, count, weekStartsOn)
-		const single = singleState.value
-		const multiple = multipleState.value
-		const range = rangeState.value
-		const band = args.mode === 'range' && Boolean(range.from && range.to)
+		const range = (args.mode === 'range' ? selected : {}) as PlainRange
+		const band = Boolean(range.from && range.to)
 		const dayColumns = gridTemplate(Boolean(args.showWeekNumber))
 		const page = yearPage(visible.year, args)
 		const pageLabel = `${page[0]}–${page[11]}`
 		const periodFlags = (date: PlainDate, view: CalendarView) => {
-			const range_start = args.mode === 'range' && Boolean(range.from && samePeriod(range.from, date, view))
-			const range_end = args.mode === 'range' && Boolean(range.to && samePeriod(range.to, date, view))
-			const range_middle = args.mode === 'range' && periodIntersects(range, date, view) && !range_start && !range_end
-			const selected = args.mode === 'multiple'
-				? multiple.some(item => samePeriod(item, date, view))
+			const range_start = Boolean(range.from && samePeriod(range.from, date, view))
+			const range_end = Boolean(range.to && samePeriod(range.to, date, view))
+			const range_middle = periodIntersects(range, date, view) && !range_start && !range_end
+			const picked = args.mode === 'multiple'
+				? (selected as PlainDate[]).some(item => samePeriod(item, date, view))
 				: args.mode === 'range'
 					? range_start || range_end || range_middle
-					: Boolean(single && samePeriod(single, date, view))
-			return { range_end, range_middle, range_start, selected }
+					: Boolean(selected && samePeriod(selected as PlainDate, date, view))
+			return { range_end, range_middle, range_start, selected: picked }
+		}
+		const periodCell = (view: PeriodView, date: PlainDate, disabled: boolean, label: string | undefined, text: Children, select: (event: Event) => void) => {
+			const flags = periodFlags(date, view)
+			const value = view === 'month' ? monthIso(date) : String(date.year)
+			return (
+				<div key={value} role="gridcell">
+					<button
+						aria-disabled={disabled ? 'true' : undefined}
+						aria-label={label}
+						class={args.classNames?.[`${view}_cell`]}
+						data-disabled={disabled ? 'true' : undefined}
+						data-month={view === 'month' ? value : undefined}
+						data-range-end={flags.range_end ? 'true' : undefined}
+						data-range-middle={flags.range_middle ? 'true' : undefined}
+						data-range-start={flags.range_start ? 'true' : undefined}
+						data-selected={flags.selected ? 'true' : undefined}
+						data-slot={`calendar-${view}-cell`}
+						data-today={samePeriod(date, now, view) ? 'true' : undefined}
+						data-year={view === 'year' ? value : undefined}
+						disabled={disabled}
+						type="button"
+						set:onclick={select}
+						set:onkeydown={onCellKeydown}
+					>
+						{text}
+					</button>
+				</div>
+			)
 		}
 		// Month and year pages are navigable while the neighbouring year holds a navigable month.
 		const canPreviousView = currentView === 'day'
@@ -901,16 +817,13 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 												const date = plainToDate(day, args.timeZone)
 												const disabled = Boolean(disabledAvailability?.day(date))
 												const unavailable = Boolean(unavailableAvailability?.day(date))
-												const range_start = !outside && args.mode === 'range' && Boolean(range.from && samePlain(range.from, day))
-												const range_end = !outside && args.mode === 'range' && Boolean(range.to && samePlain(range.to, day))
-												const rawRangeMiddle = !outside && args.mode === 'range' && rangeMiddle(range, day)
-												const rangeGap = rawRangeMiddle && unavailable && Boolean(args.allowNonContiguous)
-												const selected = !rangeGap && !outside && (args.mode === 'multiple'
-													? plainIn(day, multiple)
-													: args.mode === 'range'
-														? Boolean((range.from && samePlain(range.from, day)) || (range.to && samePlain(range.to, day)) || rangeContains(range, day))
-														: Boolean(single && samePlain(single, day)))
-												const range_middle = rawRangeMiddle && !rangeGap
+												const flags = periodFlags(day, 'day')
+												// Outside days carry no selection; unavailable interior days of a non-contiguous range are gaps.
+												const gap = outside || (flags.range_middle && unavailable && Boolean(args.allowNonContiguous))
+												const range_start = !outside && flags.range_start
+												const range_end = !outside && flags.range_end
+												const range_middle = !gap && flags.range_middle
+												const selected = !gap && flags.selected
 												const modifiers: CalendarModifiers = {
 													disabled,
 													outside,
@@ -974,80 +887,31 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 								</button>
 								{navButton(1)}
 							</div>
-							{currentView === 'month' ? (
-								<div
-									aria-label={String(visible.year)}
-									class={args.classNames?.month_view}
-									data-slot="calendar-month-view"
-									role="grid"
-									style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr))"
-								>
-									{monthOptions(visible.year).map(month => {
-										const disabled = !canNavigateTo(month, args)
-										const flags = periodFlags(month, 'month')
-										const current = samePeriod(month, now, 'month')
-										const value = monthIso(month)
-										return (
-											<div key={value} role="gridcell">
-												<button
-													aria-disabled={disabled ? 'true' : undefined}
-													aria-label={formats.monthCaption(plainToDate(month, args.timeZone), locale, args.timeZone)}
-													class={args.classNames?.month_cell}
-													data-disabled={disabled ? 'true' : undefined}
-													data-month={value}
-													data-range-end={flags.range_end ? 'true' : undefined}
-													data-range-middle={flags.range_middle ? 'true' : undefined}
-													data-range-start={flags.range_start ? 'true' : undefined}
-													data-selected={flags.selected ? 'true' : undefined}
-													data-slot="calendar-month-cell"
-													data-today={current ? 'true' : undefined}
-													disabled={disabled}
-													type="button"
-													set:onclick={(event: Event) => selectMonthCell(month, args, event)}
-													set:onkeydown={onCellKeydown}
-												>
-													{formatter(locale, 'monthLabel', args.timeZone).format(plainToDate(month, args.timeZone))}
-												</button>
-											</div>
-										)
-									})}
-								</div>
-							) : (
-								<div
-									aria-label={pageLabel}
-									class={args.classNames?.year_view}
-									data-slot="calendar-year-view"
-									role="grid"
-									style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr))"
-								>
-									{page.map(year => {
-										const disabled = !canUseYearCell(year, args)
-										const flags = periodFlags({ day: 1, month: 1, year }, 'year')
-										return (
-											<div key={year} role="gridcell">
-												<button
-													aria-disabled={disabled ? 'true' : undefined}
-													class={args.classNames?.year_cell}
-													data-disabled={disabled ? 'true' : undefined}
-													data-range-end={flags.range_end ? 'true' : undefined}
-													data-range-middle={flags.range_middle ? 'true' : undefined}
-													data-range-start={flags.range_start ? 'true' : undefined}
-													data-selected={flags.selected ? 'true' : undefined}
-													data-slot="calendar-year-cell"
-													data-today={year === now.year ? 'true' : undefined}
-													data-year={String(year)}
-													disabled={disabled}
-													type="button"
-													set:onclick={(event: Event) => selectYearCell(year, args, event)}
-													set:onkeydown={onCellKeydown}
-												>
-													{year}
-												</button>
-											</div>
-										)
-									})}
-								</div>
-							)}
+							<div
+								aria-label={currentView === 'month' ? String(visible.year) : pageLabel}
+								class={args.classNames?.[`${currentView}_view`]}
+								data-slot={`calendar-${currentView}-view`}
+								role="grid"
+								style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr))"
+							>
+								{currentView === 'month'
+									? monthOptions(visible.year).map(month => periodCell(
+										'month',
+										month,
+										!canNavigateTo(month, args),
+										formats.monthCaption(plainToDate(month, args.timeZone), locale, args.timeZone),
+										formatter(locale, 'monthLabel', args.timeZone).format(plainToDate(month, args.timeZone)),
+										event => selectMonthCell(month, args, event),
+									))
+									: page.map(year => periodCell(
+										'year',
+										{ day: 1, month: 1, year },
+										!canUseYearCell(year, args),
+										undefined,
+										year,
+										event => selectYearCell(year, args, event),
+									))}
+							</div>
 						</div>
 					)}
 				</div>

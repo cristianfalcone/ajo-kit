@@ -53,13 +53,8 @@ export type AvailabilityCompileOptions = {
 
 const clock = (value: string | undefined, fallback: number) => {
 	if (value == null) return fallback
-	const match = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value)
-	if (!match) return Number.NaN
-	const hour = Number(match[1])
-	const minute = Number(match[2])
-	const second = Number(match[3] ?? 0)
-	if (hour > 23 || minute > 59 || second > 59) return Number.NaN
-	return hour * 3600 + minute * 60 + second
+	const units = fromISO('time', value)
+	return units ? units.hour! * 3600 + units.minute! * 60 + (units.second ?? 0) : Number.NaN
 }
 
 const timePredicate = (window: TimeWindow) => {
@@ -92,7 +87,8 @@ const partFormatter = (timeZone: string) => {
 	return formatter
 }
 
-const partsOf = (date: Date, timeZone?: string): DateParts => {
+/** Wall-clock parts of an instant, in the host zone or in `timeZone`. */
+export const partsOf = (date: Date, timeZone?: string): DateParts => {
 	if (!Number.isFinite(date.getTime())) return {
 		day: Number.NaN,
 		hour: Number.NaN,
@@ -121,10 +117,12 @@ const partsOf = (date: Date, timeZone?: string): DateParts => {
 	}
 }
 
-const dayValue = (parts: Pick<DateParts, 'day' | 'month' | 'year'>) =>
+/** Orders civil days numerically: year*10000 + month*100 + day. */
+export const dayValue = (parts: Pick<DateParts, 'day' | 'month' | 'year'>) =>
 	parts.year * 10000 + parts.month * 100 + parts.day
 
-const exactUtcDate = (parts: Pick<DateParts, 'day' | 'month' | 'year'> & Partial<Pick<DateParts, 'hour' | 'minute' | 'second'>>) => {
+/** UTC instant of civil parts; years 0 to 99 stay literal. */
+export const exactUtcDate = (parts: Pick<DateParts, 'day' | 'month' | 'year'> & Partial<Pick<DateParts, 'hour' | 'minute' | 'second'>>) => {
 	const date = new Date(0)
 	date.setUTCFullYear(parts.year, parts.month - 1, parts.day)
 	date.setUTCHours(parts.hour ?? 0, parts.minute ?? 0, parts.second ?? 0, 0)
@@ -138,7 +136,8 @@ const exactLocalDate = (parts: DateParts) => {
 	return date
 }
 
-const weekday = (parts: Pick<DateParts, 'day' | 'month' | 'year'>) =>
+/** Day of the week of civil parts, 0 is Sunday. */
+export const weekday = (parts: Pick<DateParts, 'day' | 'month' | 'year'>) =>
 	exactUtcDate(parts).getUTCDay()
 
 /**
@@ -264,5 +263,20 @@ export const compile = (
 			}
 			return false
 		},
+	}
+}
+
+/** Memoized `compile`: recompiles only when the matcher identity or the time zone changes. */
+export const compiler = () => {
+	let source: AvailabilityMatcher | AvailabilityMatcher[] | undefined
+	let zone: string | undefined
+	let compiled: Availability | undefined
+	return (matcher: AvailabilityMatcher | AvailabilityMatcher[] | undefined, timeZone?: string) => {
+		if (matcher !== source || timeZone !== zone) {
+			source = matcher
+			zone = timeZone
+			compiled = compile(matcher, { timeZone })
+		}
+		return compiled
 	}
 }

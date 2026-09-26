@@ -1,7 +1,7 @@
 import type { Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { compile, resolveLocale, type Availability, type AvailabilityMatcher } from './availability'
+import { compile, compiler, resolveLocale, type Availability, type AvailabilityMatcher } from './availability'
 import { flag } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Calendar, type CalendarArgs, type CalendarCommonArgs, type CalendarDateRange, type CalendarMatcher } from './calendar'
@@ -310,11 +310,11 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	let closeOnSelect: boolean | undefined
 	let composing: { side: InputDateSide; unit: SegmentUnit; element: HTMLElement; text: string } | null = null
 	let controlId = `${rootId}-control`
-	let availabilitySource = initial.unavailable
-	let availability = compile(initial.unavailable)
+	const unavailableOf = compiler()
+	const calendarUserOf = compiler()
+	let availability = unavailableOf(initial.unavailable)
 	let boundsSource: string | undefined
 	let boundsAvailability: Availability | undefined
-	let calendarUserSource: CalendarMatcher | CalendarMatcher[] | undefined
 	let calendarUserAvailability: Availability | undefined
 	let allowNonContiguous = Boolean(initial.allowNonContiguous)
 	let disabled = Boolean(initial.disabled)
@@ -534,10 +534,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	}
 
 	const syncAvailability = (args: InputDateRootArgs) => {
-		if (args.unavailable !== availabilitySource) {
-			availabilitySource = args.unavailable
-			availability = compile(args.unavailable)
-		}
+		availability = unavailableOf(args.unavailable)
 		const bounds = `${args.min ?? ''}\0${args.max ?? ''}`
 		if (bounds !== boundsSource) {
 			boundsSource = bounds
@@ -555,10 +552,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	const hardDisabledMatcher: CalendarMatcher[] = [hardDisabled]
 
 	const calendarDisabled = (user?: CalendarMatcher | CalendarMatcher[]): CalendarMatcher[] | undefined => {
-		if (user !== calendarUserSource) {
-			calendarUserSource = user
-			calendarUserAvailability = compile(user)
-		}
+		calendarUserAvailability = calendarUserOf(user)
 		return calendarUserAvailability || boundsAvailability ? hardDisabledMatcher : undefined
 	}
 
@@ -1007,7 +1001,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 			allowNonContiguous,
 			applyPreset,
 			calendarDisabled,
-			calendarUnavailable: availabilitySource,
+			calendarUnavailable: args.unavailable,
 			clear: clearValue,
 			contentId: pop.contentId,
 			contentStyle: pop.contentStyle,

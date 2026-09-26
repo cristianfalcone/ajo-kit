@@ -467,6 +467,65 @@ test('startMonth and endMonth bound previous, next and the year grid in every vi
 	expect(previous().disabled).toBe(true)
 })
 
+test('a mode change resets the uncontrolled selection to the new mode', () => {
+	const onSelect = vi.fn()
+	render(jsx(Calendar, { defaultMonth: date(2026, 7), defaultSelected: date(2026, 7, 10) }), document.body)
+	expect(button('[data-day="2026-07-10"]').dataset.state).toBe('selected')
+
+	render(jsx(Calendar, { defaultMonth: date(2026, 7), mode: 'multiple', onSelect }), document.body)
+	expect(button('[data-day="2026-07-10"]').dataset.state).toBe('unselected')
+	button('[data-day="2026-07-11"]').click()
+	expect(onSelect.mock.calls[0]?.[0]).toEqual([date(2026, 7, 11)])
+})
+
+test('a mode change after a controlled selection starts the uncontrolled selection empty', () => {
+	const onSelect = vi.fn()
+	render(jsx(Calendar, { defaultMonth: date(2026, 7), selected: date(2026, 7, 10) }), document.body)
+	expect(button('[data-day="2026-07-10"]').dataset.state).toBe('selected')
+
+	render(jsx(Calendar, { defaultMonth: date(2026, 7), mode: 'multiple', onSelect }), document.body)
+	expect(button('[data-day="2026-07-10"]').dataset.state).toBe('unselected')
+	button('[data-day="2026-07-11"]').click()
+	expect(onSelect.mock.calls[0]?.[0]).toEqual([date(2026, 7, 11)])
+})
+
+// The Date constructor maps years 0 to 99 to 1900 to 1999; setFullYear does not.
+const early = (year: number, month: number, day = 1) => {
+	const value = new Date(2000, 0, 1, 12)
+	value.setFullYear(year, month - 1, day)
+	return value
+}
+
+test('a range across years 99 and 100 selects every day between its ends', () => {
+	render(jsx(Calendar, {
+		defaultMonth: early(99, 12),
+		mode: 'range',
+		numberOfMonths: 2,
+		selected: { from: early(99, 12, 31), to: early(100, 1, 2) },
+	}), document.body)
+	const day = (value: string) => button(`[data-day="${value}"]:not([data-outside])`)
+
+	for (const value of ['99-12-31', '100-01-01', '100-01-02']) expect(day(value).dataset.state).toBe('selected')
+	expect(day('99-12-31').dataset.rangeStart).toBe('true')
+	expect(day('100-01-01').dataset.rangeMiddle).toBe('true')
+	expect(day('100-01-02').dataset.rangeEnd).toBe('true')
+	expect(day('100-01-03').dataset.state).toBe('unselected')
+})
+
+test('startMonth and endMonth across years 99 and 100 bound paging', () => {
+	const bounds = { endMonth: early(100, 1), startMonth: early(99, 12) }
+	const previous = () => button('[data-slot="calendar-previous"]')
+	const next = () => button('[data-slot="calendar-next"]')
+
+	render(jsx(Calendar, { ...bounds, defaultMonth: early(99, 12) }), document.body)
+	expect(previous().disabled).toBe(true)
+	expect(next().disabled).toBe(false)
+	render(null, document.body)
+	render(jsx(Calendar, { ...bounds, defaultMonth: early(100, 1) }), document.body)
+	expect(previous().disabled).toBe(false)
+	expect(next().disabled).toBe(true)
+})
+
 test('unbounded month and year views page into the future from twelve-year pages', () => {
 	const year = new Date().getFullYear()
 	const start = Math.floor(year / 12) * 12
