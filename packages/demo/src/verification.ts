@@ -10,11 +10,9 @@ export type VerificationResult = { sent: true }
 export async function resend(req: Request): Promise<VerificationResult> {
 	const key = `verify:${req.user!.id}`
 
-	if (!auth.limit.check(key)) {
+	if (!auth.limit.hit(key)) {
 		throw new Failure(429, 'Too many verification requests. Try again later.')
 	}
-
-	auth.limit.hit(key)
 
 	const user = await db()
 		.selectFrom('users')

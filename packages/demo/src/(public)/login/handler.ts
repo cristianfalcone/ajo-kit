@@ -32,11 +32,9 @@ export const actions = {
 		const addr = ip(req)
 		const key = `login:${input.email}:${addr}`
 
-		if (!auth.limit.check(key)) {
+		if (!auth.limit.hit(key)) {
 			throw new Failure(429, 'Too many login attempts. Try again later.')
 		}
-
-		auth.limit.hit(key)
 
 		const user = await db()
 			.selectFrom('users')
@@ -74,11 +72,9 @@ export default {
 		const addr = ip(req)
 		const key = `login:${input.email}:${addr}`
 
-		if (!auth.limit.check(key)) {
+		if (!auth.limit.hit(key)) {
 			throw new Failure(429, 'Too many attempts')
 		}
-
-		auth.limit.hit(key)
 
 		const user = await db()
 			.selectFrom('users')

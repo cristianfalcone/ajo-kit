@@ -50,11 +50,9 @@ export default {
 
 		const key = `token:${req.user!.id}`
 
-		if (!auth.limit.check(key)) {
+		if (!auth.limit.hit(key)) {
 			throw new Failure(429, 'Too many token creation attempts. Try again later.')
 		}
-
-		auth.limit.hit(key)
 
 		const input = parse(Create, req.body)
 		const grants = grantable(req.user!.abilities)

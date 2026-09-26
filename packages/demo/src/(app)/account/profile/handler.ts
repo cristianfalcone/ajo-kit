@@ -69,11 +69,9 @@ export const actions = {
 		const id = req.user!.id
 		const limit = `password:${id}`
 
-		if (!auth.limit.check(limit)) {
+		if (!auth.limit.hit(limit)) {
 			throw new Failure(429, 'Too many password attempts. Try again later.')
 		}
-
-		auth.limit.hit(limit)
 
 		const account = await db()
 			.selectFrom('users')

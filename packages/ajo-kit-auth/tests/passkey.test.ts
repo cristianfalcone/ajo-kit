@@ -10,7 +10,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { close, connect, db } from 'ajo-kit/database'
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import * as passkey from '../src/passkey'
 import { configure } from '../src/store'
 import { up } from '../migrations/0002_passkeys'
@@ -191,6 +191,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+	vi.useRealTimers()
 	await close()
 	rmSync(directory, { recursive: true, force: true })
 })
@@ -267,6 +268,46 @@ describe('the registration ceremony', () => {
 
 		await expect(passkey.register(1, attestation(signer, challenge, { flags: flags.attested })))
 			.rejects.toThrow(/not present/)
+	})
+
+	// A touch proves possession; only verification (PIN, biometric) proves the
+	// person. A stolen key must not be enough.
+	test('registration refuses a ceremony that proves presence without verification', async () => {
+		const signer = p256()
+		const challenge = await registrationChallenge(1)
+
+		await expect(passkey.register(1, attestation(signer, challenge, {
+			flags: flags.present | flags.attested | flags.eligible | flags.backed,
+		}))).rejects.toThrow(/not verified/)
+		expect(await passkey.list(1)).toHaveLength(0)
+	})
+
+	// Two ceremonies started before the account had a credential carry two
+	// fresh handles. Only the first to finish may store its own; the account
+	// then keeps one handle, and later enrollments reuse it.
+	test('two first-credential ceremonies for one account store one credential', async () => {
+		const first = p256()
+		const second = p256()
+		const a = await passkey.registration({ id: 1, name: 'owner@example.test' })
+		const b = await passkey.registration({ id: 1, name: 'owner@example.test' })
+
+		expect(a.user.id).not.toBe(b.user.id)
+
+		const results = await Promise.allSettled([
+			passkey.register(1, attestation(first, a.challenge)),
+			passkey.register(1, attestation(second, b.challenge)),
+		])
+
+		expect(results.map(result => result.status).sort()).toEqual(['fulfilled', 'rejected'])
+		expect(results.find(result => result.status === 'rejected')).toMatchObject({
+			reason: expect.objectContaining({ message: expect.stringMatching(/another passkey/) }),
+		})
+		expect(await passkey.list(1)).toHaveLength(1)
+
+		await enroll(p256())
+		const stored = await db<any>().selectFrom('credentials').select('handle').where('user', '=', 1).execute()
+		expect(stored).toHaveLength(2)
+		expect(new Set(stored.map(row => row.handle)).size).toBe(1)
 	})
 
 	// Letting a second account claim a credential id would let one account
@@ -439,6 +480,15 @@ describe('challenges', () => {
 		await expect(passkey.authenticate(response)).rejects.toThrow(/already used/)
 	})
 
+	test('a registration answers exactly once', async () => {
+		const signer = p256()
+		const options = await passkey.registration({ id: 1, name: 'owner@example.test' })
+		const response = attestation(signer, options.challenge)
+
+		await expect(passkey.register(1, response)).resolves.toBe(url(signer.id))
+		await expect(passkey.register(1, response)).rejects.toThrow(/already used/)
+	})
+
 	test('a challenge issued for one ceremony cannot answer the other', async () => {
 		const signer = p256()
 		const challenge = await registrationChallenge(1)
@@ -455,10 +505,9 @@ describe('challenges', () => {
 			.rejects.toThrow(/unknown, expired or already used/)
 	})
 
-	// The window has to be enforced where the challenge is redeemed. Left to
-	// whoever remembers to call prune, a captured ceremony stays answerable
-	// for as long as nobody sweeps — which is to say, indefinitely.
-	test('an expired challenge is refused even when nothing has pruned it', async () => {
+	// The window has to be enforced where the challenge is redeemed, not left
+	// to whenever the next sweep happens to run.
+	test('an expired challenge is refused even before it is swept', async () => {
 		const signer = p256()
 		await enroll(signer)
 
@@ -472,21 +521,27 @@ describe('challenges', () => {
 		await expect(passkey.authenticate(response)).rejects.toThrow(/expired/)
 	})
 
-	test('prune removes what has expired and leaves what is live', async () => {
-		const signer = p256()
-		await enroll(signer)
+	// Anyone can ask for an authentication challenge, so unanswered ones must
+	// not accumulate: issuing either kind removes the expired rows.
+	test('issuing a challenge removes the expired ones and keeps the live ones', async () => {
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date('2026-06-19T00:00:00Z'))
 
-		const stale = await authenticationChallenge()
-		await db<any>().updateTable('challenges')
-			.set({ expiry: new Date(Date.now() - 60_000).toISOString() })
-			.execute()
+		const rows = () => db<any>().selectFrom('challenges').select('kind').execute()
 
-		const live = await authenticationChallenge()
-		await passkey.prune()
+		await authenticationChallenge()
+		await registrationChallenge(1)
+		vi.advanceTimersByTime(passkey.window + 1)
 
-		expect(await db<any>().selectFrom('challenges').selectAll().execute()).toHaveLength(1)
-		await expect(passkey.authenticate(assertion(signer, stale))).rejects.toThrow()
-		await expect(passkey.authenticate(assertion(signer, live))).resolves.toBe(1)
+		await registrationChallenge(1)
+		expect(await rows()).toEqual([{ kind: 'register' }])
+
+		await authenticationChallenge()
+		expect(await rows()).toHaveLength(2)
+
+		vi.advanceTimersByTime(passkey.window + 1)
+		await authenticationChallenge()
+		expect(await rows()).toEqual([{ kind: 'authenticate' }])
 	})
 })
 
@@ -572,14 +627,14 @@ describe('what a credential may not become', () => {
 		}))).rejects.toThrow(/backup eligibility/)
 	})
 
-	test('a credential registered with the person verified cannot fall back to presence alone', async () => {
+	test('an assertion that proves presence without verification is refused', async () => {
 		const signer = p256()
 		await enroll(signer)
 
 		const challenge = await authenticationChallenge()
 		await expect(passkey.authenticate(assertion(signer, challenge, {
 			flags: flags.present | flags.eligible | flags.backed,
-		}))).rejects.toThrow(/user verification/)
+		}))).rejects.toThrow(/not verified/)
 	})
 
 	test('deeply nested input is refused as malformed, never as a crash', async () => {
@@ -643,7 +698,7 @@ describe('the relying party', () => {
 
 		expect(options.rp.id).toBe(rpId)
 		expect(options.attestation).toBe('none')
-		expect(options.authenticatorSelection.residentKey).toBe('required')
+		expect(options.authenticatorSelection).toEqual({ residentKey: 'required', userVerification: 'required' })
 		expect(options.pubKeyCredParams.map(p => p.alg)).toEqual([-8, -7, -257])
 		// The handle is opaque: an email here would publish one to every
 		// authenticator that stores it.
@@ -655,6 +710,7 @@ describe('the relying party', () => {
 
 		expect(options.rpId).toBe(rpId)
 		expect(options.allowCredentials).toEqual([])
+		expect(options.userVerification).toBe('required')
 	})
 
 	test('registration options exclude what the account already registered', async () => {

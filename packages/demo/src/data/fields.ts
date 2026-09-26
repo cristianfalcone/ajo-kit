@@ -5,12 +5,14 @@ import {
 	toLowerCase,
 	email as vemail,
 	minLength,
+	maxLength,
 } from '@kit/validate'
 
 export const email = pipe(
 	string(),
 	trim(),
 	toLowerCase(),
+	maxLength(254, 'Invalid email'),
 	vemail('Invalid email')
 )
 

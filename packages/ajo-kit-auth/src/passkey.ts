@@ -77,7 +77,8 @@ const storedKey = (value: string): Key => {
 /**
  * Issues a challenge for either ceremony and records it. Challenges are
  * single-use and expire; `answer` consumes one whether or not the ceremony
- * that follows succeeds.
+ * that follows succeeds. Every issue first sweeps the expired rows, so
+ * unanswered ceremonies cannot accumulate.
  */
 const challenge = async (
 	kind: 'register' | 'authenticate',
@@ -86,13 +87,16 @@ const challenge = async (
 ) => {
 
 	const plain = randomBase64Url(32)
+	const now = Date.now()
+
+	await db().deleteFrom('challenges').where('expiry', '<', stamp(now)).execute()
 
 	await db().insertInto('challenges').values({
 		id: digest(plain),
 		kind,
 		user: user ?? null,
 		handle: handle ?? null,
-		expiry: stamp(Date.now() + window),
+		expiry: stamp(now + window),
 	}).execute()
 
 	return plain
@@ -102,41 +106,23 @@ const challenge = async (
  * Consumes a challenge and returns what it was issued for. The delete is the
  * claim: a second caller presenting the same challenge deletes nothing and is
  * told the challenge is unknown, so a replayed ceremony cannot be answered
- * twice even under concurrent requests.
- *
- * Expiry is enforced here, on the redemption path, rather than left to
- * whoever remembers to call `prune`. A window nobody applies is not a window.
+ * twice even under concurrent requests. Expiry is enforced here, on the
+ * redemption path.
  */
 const answer = async (plain: string, kind: 'register' | 'authenticate') => {
 
-	const now = stamp(Date.now())
-	const id = digest(plain)
-
 	const issued = await db()
-		.selectFrom('challenges')
-		.select(['user', 'handle'])
-		.where('id', '=', id)
-		.where('kind', '=', kind)
-		.where('expiry', '>', now)
-		.executeTakeFirst()
-
-	const claimed = await db()
 		.deleteFrom('challenges')
-		.where('id', '=', id)
+		.where('id', '=', digest(plain))
 		.where('kind', '=', kind)
-		.where('expiry', '>', now)
+		.where('expiry', '>', stamp(Date.now()))
+		.returning(['user', 'handle'])
 		.executeTakeFirst()
 
-	// The delete decides, not the read: two callers racing the same challenge
-	// both see the row, and only one of them removes it.
-	if (!issued || claimed.numDeletedRows !== 1n) throw new Malformed('challenge is unknown, expired or already used')
+	if (!issued) throw new Malformed('challenge is unknown, expired or already used')
 
 	return issued
 }
-
-/** Deletes expired challenges. */
-export const prune = () =>
-	db().deleteFrom('challenges').where('expiry', '<', stamp(Date.now())).execute()
 
 /** What the browser must be handed to start a registration ceremony. */
 export const registration = async (user: { id: number; name: string; label?: string }) => {
@@ -156,7 +142,7 @@ export const registration = async (user: { id: number; name: string; label?: str
 		rp: { id: rpId, name: name ?? rpId },
 		user: { id: handle, name: user.name, displayName: user.label ?? user.name },
 		pubKeyCredParams: algorithms.map(alg => ({ type: 'public-key', alg })),
-		authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },
+		authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
 		attestation: 'none',
 		timeout: window,
 		excludeCredentials: await credentials(user.id),
@@ -175,7 +161,7 @@ export const authentication = async () => {
 		// account, so the server never has to be told who is logging in
 		// before it knows.
 		allowCredentials: [],
-		userVerification: 'preferred',
+		userVerification: 'required',
 		timeout: window,
 	}
 }
@@ -280,6 +266,9 @@ export const register = async (user: number, response: Attestation) => {
 
 	if (!same(parsed.rpIdHash, identifier(rpId))) throw new Malformed('credential is for another relying party')
 	if (!parsed.present) throw new Malformed('the person was not present')
+	// Presence is a touch; verification is a PIN or biometric. A passkey that
+	// only proves possession would let a stolen key sign in with one touch.
+	if (!parsed.verified) throw new Malformed('the person was not verified')
 	if (!parsed.credential) throw new Malformed('registration produced no credential')
 
 	// Proves the key parses and the algorithm was one we offered, before a row
@@ -290,26 +279,37 @@ export const register = async (user: number, response: Attestation) => {
 
 	if (id !== response.id) throw new Malformed('credential id does not match its attestation')
 
-	// A credential id already claimed belongs to whoever claimed it. Letting a
-	// second account register it would let one account answer for another.
-	const taken = await db().selectFrom('credentials').select('id').where('id', '=', id).executeTakeFirst()
-	if (taken) throw new Malformed('credential is already registered')
+	// The handle the authenticator was given, not a new one: it is what the
+	// credential will present when it names its own account.
+	const handle = issued.handle!
 
-	await db().insertInto('credentials').values({
-		id,
-		user,
-		// The handle the authenticator was given, not a new one: it is what
-		// the credential will present when it names its own account.
-		handle: issued.handle ?? await identity(user),
-		key: base64UrlEncode(JSON.stringify(key.key)),
-		alg: key.alg,
-		counter: parsed.counter,
-		transports: response.transports ? JSON.stringify(response.transports) : null,
-		verified: parsed.verified ? stamp(Date.now()) : null,
-		eligible: parsed.eligible ? 1 : 0,
-		backed: parsed.backed ? 1 : 0,
-		last: null,
-	}).execute()
+	// Reading the account's handle and inserting are one write transaction:
+	// two ceremonies started before the first credential existed carry two
+	// fresh handles, and only the first to commit may store its own.
+	await db().transaction().execute(async trx => {
+
+		const current = await trx.selectFrom('credentials').select('handle').where('user', '=', user).executeTakeFirst()
+		if (current && current.handle !== handle) throw new Malformed('account registered another passkey during this ceremony')
+
+		// A credential id already claimed belongs to whoever claimed it. Letting
+		// a second account register it would let one account answer for another.
+		const taken = await trx.selectFrom('credentials').select('id').where('id', '=', id).executeTakeFirst()
+		if (taken) throw new Malformed('credential is already registered')
+
+		await trx.insertInto('credentials').values({
+			id,
+			user,
+			handle,
+			key: base64UrlEncode(JSON.stringify(key.key)),
+			alg: key.alg,
+			counter: parsed.counter,
+			transports: response.transports ? JSON.stringify(response.transports) : null,
+			verified: stamp(Date.now()),
+			eligible: parsed.eligible ? 1 : 0,
+			backed: parsed.backed ? 1 : 0,
+			last: null,
+		}).execute()
+	})
 
 	return id
 }
@@ -332,7 +332,7 @@ export const authenticate = async (response: Assertion): Promise<number> => {
 
 	const stored = await db()
 		.selectFrom('credentials')
-		.select(['id', 'user', 'handle', 'key', 'alg', 'counter', 'eligible', 'verified'])
+		.select(['id', 'user', 'handle', 'key', 'alg', 'eligible'])
 		.where('id', '=', response.id)
 		.executeTakeFirst()
 
@@ -351,6 +351,7 @@ export const authenticate = async (response: Assertion): Promise<number> => {
 
 	if (!same(parsed.rpIdHash, identifier(rpId))) throw new Malformed('assertion is for another relying party')
 	if (!parsed.present) throw new Malformed('the person was not present')
+	if (!parsed.verified) throw new Malformed('the person was not verified')
 
 	// Backup eligibility is fixed for a credential's life, so a change in
 	// either direction means this is not the credential that was registered.
@@ -359,12 +360,6 @@ export const authenticate = async (response: Assertion): Promise<number> => {
 	// left the device it was supposed to stay on.
 	if ((stored.eligible === 1) !== parsed.eligible) {
 		throw new Malformed('credential changed its backup eligibility')
-	}
-
-	// A credential enrolled with the person verified may not later be used on
-	// presence alone: that is a stolen unlocked phone being enough.
-	if (stored.verified && !parsed.verified) {
-		throw new Malformed('credential was registered with user verification')
 	}
 
 	const key = { alg: stored.alg, key: storedKey(stored.key) }
@@ -379,7 +374,7 @@ export const authenticate = async (response: Assertion): Promise<number> => {
 	await db().updateTable('credentials').set({
 		counter: parsed.counter,
 		backed: parsed.backed ? 1 : 0,
-		verified: parsed.verified ? stamp(Date.now()) : stored.verified,
+		verified: stamp(Date.now()),
 		last: stamp(Date.now()),
 	}).where('id', '=', stored.id).execute()
 

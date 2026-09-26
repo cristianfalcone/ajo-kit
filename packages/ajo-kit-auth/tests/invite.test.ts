@@ -232,6 +232,19 @@ describe('invite acceptance', () => {
 		])
 	})
 
+	// Acceptance happens before the passkey ceremony, so an owner revoking an
+	// invitation mid-enrollment must still close it.
+	test('revoking an accepted invitation with unfinished enrollment closes it', async () => {
+		const token = await invite.create({ role: 'member', email: 'enrolling@example.test' })
+
+		expect(await invite.accept(token, {})).toBe(2)
+
+		await invite.revoke(hash(token))
+
+		expect(await invite.get(token)).toBeNull()
+		expect(await invite.accept(token, {})).toBeNull()
+	})
+
 	test('an unbound invitation requires an input email and normalizes it', async () => {
 		const token = await invite.create({ role: 'member', name: 'Open Invite' })
 

@@ -1,5 +1,9 @@
 import type { Request } from 'ajo-kit'
 
+// A confirmation lasts three minutes and belongs to one session or token id;
+// revocation clears it at once and stamp() sweeps expired stamps.
+const window = 180_000
+
 const stamps = new Map<string, number>()
 
 const key = (user: number, kind: 'session' | 'token', id: string) => `${kind}:${user}:${id}`
@@ -13,21 +17,25 @@ export function credential(req: Request): string | null {
 	return null
 }
 
-/** Stamps the current credential as recently password-confirmed. */
+/** Stamps the current credential as password-confirmed for three minutes. */
 export function stamp(req: Request): boolean {
 	const id = credential(req)
 	if (!id) return false
-	stamps.set(id, Date.now())
+	const now = Date.now()
+	for (const [key, at] of stamps) if (now - at >= window) stamps.delete(key)
+	stamps.set(id, now)
 	return true
 }
 
-/** Returns true when the current credential was confirmed recently. */
-export function check(req: Request, window = 180_000): boolean {
+/** Returns true when the current credential was confirmed in the last three minutes. */
+export function check(req: Request): boolean {
 	const id = credential(req)
 	if (!id) return false
 	const at = stamps.get(id)
-	if (!at) return false
-	return Date.now() - at < window
+	if (at === undefined) return false
+	if (Date.now() - at < window) return true
+	stamps.delete(id)
+	return false
 }
 
 /** Clears the confirmation stamp for the current credential. */

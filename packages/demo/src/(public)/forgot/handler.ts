@@ -17,11 +17,9 @@ export const actions = {
 		const key = `forgot:${input.email}:${addr}`
 		const base = origin(req)
 
-		if (!auth.limit.check(key)) {
+		if (!auth.limit.hit(key)) {
 			throw new Failure(429, 'Too many reset attempts. Try again later.')
 		}
-
-		auth.limit.hit(key)
 
 		const user = await db()
 			.selectFrom('users')

@@ -18,11 +18,9 @@ export const actions = {
 
 		const limit = `confirm:${req.user!.id}:${current}:${ip(req)}`
 
-		if (!auth.limit.check(limit)) {
+		if (!auth.limit.hit(limit)) {
 			throw new Failure(429, 'Too many confirmation attempts. Try again later.')
 		}
-
-		auth.limit.hit(limit)
 
 		const user = await db()
 			.selectFrom('users')

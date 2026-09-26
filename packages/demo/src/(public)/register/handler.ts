@@ -42,11 +42,9 @@ export const actions = {
 		const key = `register:${addr}`
 		const base = origin(req)
 
-		if (!auth.limit.check(key)) {
+		if (!auth.limit.hit(key)) {
 			throw new Failure(429, 'Too many registration attempts. Try again later.')
 		}
-
-		auth.limit.hit(key)
 
 		const input = parse(Signup, req.body)
 

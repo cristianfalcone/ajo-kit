@@ -206,13 +206,15 @@ export async function accept(token: string, input: {
 	})
 }
 
-/** Marks a pending invitation revoked while keeping its audit row. */
+/**
+ * Revokes an invitation, including an accepted one whose enrollment is
+ * unfinished, while keeping its audit row.
+ */
 export async function revoke(id: string): Promise<void> {
 	await db()
 		.updateTable('invites')
 		.set({ revoked: stamp() })
 		.where('id', '=', id)
-		.where('accepted', 'is', null)
 		.where('revoked', 'is', null)
 		.execute()
 }

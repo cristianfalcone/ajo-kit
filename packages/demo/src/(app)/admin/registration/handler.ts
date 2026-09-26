@@ -61,12 +61,9 @@ export const actions = {
 		const inviter = `invite:admin:${user.id}`
 		const invited = `invite:email:${input.email}`
 
-		if (!auth.limit.check(inviter, 10) || !auth.limit.check(invited, 3)) {
+		if (!(auth.limit.hit(inviter, 10) && auth.limit.hit(invited, 3, 60 * 60 * 1000))) {
 			throw new Failure(429, 'Too many invitation attempts. Try again later.')
 		}
-
-		auth.limit.hit(inviter)
-		auth.limit.hit(invited, 60 * 60 * 1000)
 
 		const token = await auth.invite.create({
 			role: 'user',

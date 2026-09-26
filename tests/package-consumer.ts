@@ -1051,7 +1051,8 @@ const ajoUiBundleProbe = async (consumer: string, registry: string) => {
 	} as const
 	const budgets: Record<keyof typeof families, ArtifactSize> = {
 		accordion: { raw: 5 * 1024, gzip: 2 * 1024, brotli: 2 * 1024 },
-		chart: { raw: 5_000, gzip: 2_200, brotli: 2_000 },
+		// Includes the scoped --color-<key> style that ChartContainer emits for unstyled charts.
+		chart: { raw: 5_300, gzip: 2_350, brotli: 2_150 },
 		'chart-tooltip': { raw: 45 * 1024, gzip: 14 * 1024, brotli: 13 * 1024 },
 		'data-table': { raw: 115 * 1024, gzip: 33 * 1024, brotli: 29 * 1024 },
 		'input-date': { raw: 126 * 1024, gzip: 36 * 1024, brotli: 32 * 1024 },

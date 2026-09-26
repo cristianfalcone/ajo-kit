@@ -87,12 +87,12 @@ export async function admit(req: Request, subject: string, ...required: string[]
 	if (missing) throw new Forbidden(`Missing ability: ${missing}`)
 }
 
-/** Requires recent password confirmation for the current credential. */
-export const confirmed = (window?: number): Middleware => (req, res, next) => {
+/** Requires password confirmation in the last three minutes for the current credential. */
+export const confirmed = (): Middleware => (req, res, next) => {
 
 	if (!req.user || !credential(req)) throw new Denied()
 
-	if (!confirm(req, window)) {
+	if (!confirm(req)) {
 		const back = encodeURIComponent(req.originalUrl)
 		return redirect(`/confirm?redirect=${back}`)(req, res, next)
 	}

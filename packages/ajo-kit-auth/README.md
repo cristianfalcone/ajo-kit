@@ -180,7 +180,7 @@ import {
 - `ability(...abilities)` is the middleware form of `authorize()`.
 - `protect('/login')` redirects guests.
 - `guest('/dashboard')` redirects authenticated users.
-- `confirmed(window?)` requires recent password confirmation.
+- `confirmed()` requires password confirmation in the last three minutes.
 - `verified()` requires a `users.verified` timestamp.
 - `when(condition, middleware, otherwise?)` selects middleware by request.
 - `redirect(target)` returns an AJAX-aware redirect middleware.
@@ -333,22 +333,30 @@ and credential-less accounts remain unverified.
 
 A credential-less account can revisit the invitation while completing a
 passkey ceremony. The window closes as soon as the account gains either a
-password or a WebAuthn credential. `list()` returns only unexpired invitations
-that have not been accepted or revoked, using stored ids suitable for
-`revoke()`.
+password or a WebAuthn credential. `revoke()` also closes an accepted
+invitation whose enrollment is unfinished. `list()` returns only unexpired
+invitations that have not been accepted or revoked, using stored ids suitable
+for `revoke()`.
 
 ### `limit`
 
 ```ts
 import { limit } from '@kit/auth'
 
-if (!limit.check(ip)) throw new Error('Too many attempts')
-limit.hit(ip, 60_000)
-limit.remaining(ip)
-limit.clear(ip)
+if (!limit.hit(key, 5, 60_000)) throw new Error('Too many attempts')
+limit.clear(key)
 ```
 
-The limiter stores counters in process memory. Multi-process deployments
+`hit(key, max = 5, window = 60_000)` records one attempt and returns true while
+the key has made at most `max` attempts in its window; refused attempts count
+too. Combine keys with `hit(a) && hit(b)`. `clear(key)` resets a key, for
+example after a successful login.
+
+The limiter stores counters in process memory and holds at most 10,000 keys,
+each stored as its SHA-256 digest so a long key costs no more than a short one.
+When every stored key is still inside its window, a new key is refused until
+entries expire; existing keys keep their counts. A full store is swept for
+expired keys at most once per second. Multi-process deployments
 require a shared limiter.
 
 ### `confirm`
@@ -357,15 +365,17 @@ require a shared limiter.
 import { confirm } from '@kit/auth'
 
 confirm.stamp(req)
-confirm.check(req, 180_000)
+confirm.check(req)
 confirm.clear(req)
 confirm.clearSession(user, sessionId)
 confirm.clearToken(user, tokenId)
 confirm.clearUser(user)
 ```
 
-Tracks recent password confirmation in memory, scoped to the current session or
-bearer token credential.
+Tracks password confirmation in memory for three minutes, scoped to the exact
+current session or bearer token id. Clear the stamps when credentials are
+revoked, the password changes or the account is deleted, so a confirmation
+ends with its credential; `token.revoke()` and `reset.consume()` clear theirs.
 
 ### `reset`
 
@@ -423,12 +433,19 @@ const user = await passkey.authenticate(response)
 
 await passkey.list(user)
 await passkey.remove(user, id)
-await passkey.prune()
 ```
 
-Challenges are rows, single-use, and expire on the redemption path — a window
-enforced only by a sweeper nobody schedules is not a window. `prune()` reclaims
-the rows; expiry does not depend on it.
+Challenges are rows, single-use, and expire on the redemption path. Issuing a
+challenge deletes the expired rows, so unanswered ceremonies do not accumulate.
+
+Both ceremonies require user verification (a PIN, biometric or device unlock),
+and registrations or assertions that prove only presence are refused. A
+credential enrolled without user verification keeps working only if its
+authenticator now verifies the user; a presence-only key stops working, and
+its owner must enroll a passkey that verifies the user. An
+account's first credential is stored atomically: when two registrations for a
+credential-less account race, the first to finish wins and the other is
+refused.
 
 **The relying party id is permanent.** Credentials are bound to `rpId` for
 life and there is no migration: passkeys registered against `localhost` (an
@@ -442,8 +459,7 @@ reverse.
 The counter is recorded and not enforced: passkeys synced through iCloud or
 Google report zero from every device by design, so a regression is a note for
 whoever reads the row, never a reason to refuse. What *is* enforced: backup
-eligibility cannot change in either direction, and a credential registered
-with the person verified cannot later be used on presence alone.
+eligibility cannot change in either direction.
 
 ## Types
 
