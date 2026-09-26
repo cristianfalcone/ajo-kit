@@ -74,8 +74,9 @@ components that take `placement` and `gap`.
 ## Styling
 
 Components render semantic elements, ARIA attributes, `data-slot` markers, and
-state attributes. Apply visual styles through `class`, family class maps, or
-state-aware class callbacks such as `dayClassName`.
+state attributes. Apply visual styles through `class`, family class maps such
+as Calendar's `classNames`, and state attributes (Calendar stamps day state on
+its day button).
 
 Boolean state attributes use `data-x="true"` when active. Common
 `data-state` values include `open`, `closed`, `checked`, `unchecked`,
@@ -101,6 +102,10 @@ the browser's native popover handling.
 
 User-visible and assistive-technology strings have English defaults and
 component args for replacement.
+
+Calendar and the InputDate family take a BCP 47 `locale`. Without one they use
+`<html lang>`, then `en-US`, never the machine locale, so server and browser
+render the same text.
 
 `DirectionProvider` supplies the default text direction. Components with
 horizontal keyboard navigation also accept a `dir` override.

@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story, StoryContext } from './app'
-import { Calendar, type CalendarCaptionLayout, type CalendarDateRange, type CalendarModifiers } from 'ajo-ui-playa/calendar'
+import { Calendar, type CalendarDateRange, type CalendarModifiers } from 'ajo-ui-playa/calendar'
 
 export default {
 	title: 'UI/Calendar',
@@ -53,13 +53,12 @@ const key = async (button: HTMLButtonElement, value: string, init: KeyboardEvent
 const focusedDay = () => (document.activeElement as HTMLElement | null)?.dataset.day
 
 type SingleArgs = {
-	captionLayout?: CalendarCaptionLayout
 	month?: string
 	selected?: string
 	setArg: StoryContext['setArg']
 }
 
-const SingleExample: Stateful<SingleArgs> = function* ({ captionLayout, month, selected: initial, setArg }) {
+const SingleExample: Stateful<SingleArgs> = function* ({ month, selected: initial, setArg }) {
 	let selected = parse(initial)
 
 	// Update local state first so the mounted story reflects the selection, then
@@ -76,7 +75,6 @@ const SingleExample: Stateful<SingleArgs> = function* ({ captionLayout, month, s
 				selected={selected}
 				onSelect={select}
 				defaultMonth={parse(month)}
-				captionLayout={captionLayout}
 				class="rounded-lg edge shadow-xs"
 			/>
 			<p class="text-center text-sm text-muted-foreground">Selected: {label(selected)}</p>
@@ -256,16 +254,13 @@ export const Basic: Story = {
 	args: {
 		selected: '2026-07-01',
 		month: '2026-07-01',
-		captionLayout: 'dropdown',
 	},
 	argTypes: {
-		captionLayout: { control: 'select', options: ['button', 'label', 'dropdown', 'dropdown-months', 'dropdown-years'] },
 		month: { description: 'Initial visible month (ISO date)' },
 		selected: { description: 'Selected day (ISO date)' },
 	},
 	render: (args, { setArg }) => (
 		<SingleExample
-			captionLayout={args.captionLayout}
 			month={args.month}
 			selected={args.selected}
 			setArg={setArg}
@@ -284,11 +279,8 @@ export const Basic: Story = {
 		if (first.dataset.state !== 'selected' || second.dataset.state !== 'unselected') {
 			throw new Error('Calendar day buttons lost their whole-selection state')
 		}
-		if (firstCell.dataset.selected !== 'true' || secondCell.hasAttribute('data-selected')) {
-			throw new Error('Calendar day cells did not expose their boolean selection flag')
-		}
-		if (firstCell.hasAttribute('data-state') || secondCell.hasAttribute('data-state')) {
-			throw new Error('Calendar day cells duplicated selection through data-state')
+		if (['data-selected', 'data-state', 'data-today'].some(name => firstCell.hasAttribute(name) || secondCell.hasAttribute(name))) {
+			throw new Error('Calendar day cells duplicated day state that belongs to the day button')
 		}
 		if (transitions.includes('all') || !['background-color', 'box-shadow', 'color'].every(value => transitions.includes(value))) {
 			throw new Error('Calendar day button lost its narrow transition ownership')
@@ -311,7 +303,7 @@ export const DrillUpNavigation: Story = {
 	parameters: {
 		docs: { description: 'The default caption is a drill trigger: day → month → year, while Escape walks back down and relocates focus at each scale.' },
 	},
-	render: () => <Calendar defaultMonth={parse('2026-07-01')} fromYear={2000} toYear={2030} class="rounded-lg edge shadow-xs" />,
+	render: () => <Calendar defaultMonth={parse('2026-07-01')} startMonth={parse('2000-01-01')} endMonth={parse('2030-12-01')} class="rounded-lg edge shadow-xs" />,
 	play: async ({ canvas }) => {
 		const trigger = () => canvas.querySelector<HTMLButtonElement>('[data-slot="calendar-view-trigger"]')
 		if (!trigger()) throw new Error('Default caption did not render as a view trigger')
@@ -376,7 +368,7 @@ export const DOBViaDrill: Story = {
 	parameters: {
 		docs: { description: 'Distant dates use the default drill chain instead of requiring dropdown caption chrome.' },
 	},
-	render: () => <Calendar defaultMonth={parse('2026-07-01')} fromYear={1900} toYear={2026} class="rounded-lg edge shadow-xs" />,
+	render: () => <Calendar defaultMonth={parse('2026-07-01')} startMonth={parse('1900-01-01')} endMonth={parse('2026-12-01')} class="rounded-lg edge shadow-xs" />,
 	play: async ({ canvas }) => {
 		canvas.querySelector<HTMLButtonElement>('[data-slot="calendar-view-trigger"]')!.click()
 		await nextFrame()
@@ -472,6 +464,13 @@ export const KeyboardNavigation: Story = {
 		const page = await key(day(canvas, '2026-07-15'), 'PageDown')
 		if (!page.defaultPrevented || focusedDay() !== '2026-07-15' || canvas.querySelector('[data-month="2026-08-01"]')) {
 			throw new Error('Calendar PageDown moved focus past the last allowed month')
+		}
+
+		previous.focus()
+		previous.click()
+		await nextFrame()
+		if (!canvas.querySelector('[data-month="2026-05-01"]') || document.activeElement !== previous) {
+			throw new Error('Paging the month must keep focus on the chevron')
 		}
 	},
 }
@@ -639,7 +638,7 @@ export const DisabledAndModifiers: Story = {
 			defaultMonth={parse(args.month)}
 			disabled={args.weekends ? { dayOfWeek: [0, 6] } : undefined}
 			modifiers={{ booked: dates(args.booked) }}
-			modifiersClassNames={{ booked: 'after:absolute after:bottom-1 after:size-1 after:rounded-full after:bg-danger' }}
+			classNames={{ day_button: 'relative data-[modifier-booked=true]:after:absolute data-[modifier-booked=true]:after:bottom-1 data-[modifier-booked=true]:after:size-1 data-[modifier-booked=true]:after:rounded-full data-[modifier-booked=true]:after:bg-danger' }}
 			renderDay={(date: Date, modifiers: CalendarModifiers) => (
 				<>
 					{date.getDate()}
@@ -653,8 +652,10 @@ export const DisabledAndModifiers: Story = {
 		if (!day(canvas, '2026-07-04').disabled) {
 			throw new Error('Calendar disabled matcher did not disable weekend')
 		}
-		const booked = canvas.querySelector('[data-slot="calendar-day"][data-modifier-booked="true"]')
-		if (!booked) throw new Error('Calendar custom modifier was not rendered')
+		const booked = day(canvas, '2026-07-14')
+		if (booked.dataset.modifierBooked !== 'true' || getComputedStyle(booked, '::after').position !== 'absolute') {
+			throw new Error('Calendar custom modifier was not rendered')
+		}
 	},
 }
 

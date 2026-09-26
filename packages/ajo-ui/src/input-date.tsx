@@ -1,7 +1,7 @@
 import type { Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { compile, type Availability, type AvailabilityMatcher } from './availability'
+import { compile, resolveLocale, type Availability, type AvailabilityMatcher } from './availability'
 import { flag } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Calendar, type CalendarArgs, type CalendarCommonArgs, type CalendarDateRange, type CalendarMatcher } from './calendar'
@@ -69,8 +69,8 @@ type CommonArgs<Range extends boolean> = WithChildren<OmitArg<IntrinsicElements[
 	defaultValue?: InputDateValue<Range>
 	/** Called on every commit; null when the field empties. */
 	onValueChange?: (value: InputDateValue<Range> | null, event?: Event) => void
-	/** BCP 47 tag or `{ code }`; falls back to `<html lang>`, then 'en-US'. Never navigator. */
-	locale?: string | { code?: string }
+	/** BCP 47 tag; falls back to `<html lang>`, then 'en-US'. Never navigator. */
+	locale?: string
 	/** Lower bound in the family's format; stamps invalid, never blocks commits. */
 	min?: string
 	/** Upper bound in the family's format; stamps invalid, never blocks commits. */
@@ -199,7 +199,7 @@ type InputDateRootArgs = WithChildren<{
 	granularity?: Granularity
 	hourCycle?: 12 | 24
 	kind: SegmentsKind
-	locale?: string | { code?: string }
+	locale?: string
 	max?: string
 	min?: string
 	name?: string
@@ -234,7 +234,7 @@ type InputDateContextValue = {
 	locale: string
 	message: string | null
 	monthOf: () => Date | undefined
-	onMonthChange: (month: Date, event?: Event) => void
+	onMonthChange: (month: Date) => void
 	open: boolean
 	pickDay: (next: Date | null, event: Event) => void
 	pickRange: (next: CalendarDateRange | null, event: Event) => void
@@ -255,15 +255,6 @@ type InputDateContextValue = {
 }
 
 const InputDateContext = context<InputDateContextValue | null>(null)
-
-// Locale resolution is gated on document, NEVER navigator: Node ships a global
-// navigator and the ambient machine locale is banned on both passes.
-const resolveLocale = (locale: string | { code?: string } | undefined): string => {
-	const code = typeof locale === 'string' ? locale : locale?.code
-	if (code) return code
-	if (typeof document !== 'undefined' && document.documentElement.lang) return document.documentElement.lang
-	return 'en-US'
-}
 
 type InputDatePopup = PopupView<HTMLButtonElement, HTMLDivElement>
 type InputDatePopupFactory = (host: Host, options: PopupOptions<InputDatePopup>) => InputDatePopup
@@ -532,16 +523,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 
 	const monthOf = () => visibleMonth ?? dateOfValue('from')
 
-	const onMonthChange = (month: Date, event?: Event) => {
-		const slot = event?.target instanceof Element ? event.target.closest<HTMLElement>('[data-slot]')?.dataset.slot : undefined
-		this.next(() => visibleMonth = month)
-		// The Calendar re-creates its keyed month subtree (nav buttons included):
-		// when paging drops focus with it, land on the equivalent control.
-		if (!domReady || !slot) return
-		const active = document.activeElement
-		if (active && active !== document.body) return
-		pop.content?.querySelector<HTMLElement>(`[data-slot="${slot}"]`)?.focus()
-	}
+	const onMonthChange = (month: Date) => this.next(() => visibleMonth = month)
 
 	const dayOfBound = (value: string | undefined): Date | undefined => {
 		if (!value) return undefined
@@ -1467,9 +1449,9 @@ const InputDateCalendar: Stateless<InputDateCalendarArgs> = ({ component, ...att
 		disabled: ctx.calendarDisabled(attrs.disabled),
 		locale: attrs.locale ?? ctx.locale,
 		month: attrs.month ?? ctx.monthOf(),
-			onMonthChange: (month: Date, event?: Event) => {
+		onMonthChange: (month: Date, event?: Event) => {
 			attrs.onMonthChange?.(month, event)
-			ctx.onMonthChange(month, event)
+			ctx.onMonthChange(month)
 		},
 		unavailable: ctx.calendarUnavailable,
 	}

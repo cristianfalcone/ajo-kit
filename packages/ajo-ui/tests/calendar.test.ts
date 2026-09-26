@@ -3,7 +3,7 @@ import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, expect, test, vi } from 'vitest'
-import { Calendar } from '../src/calendar'
+import { Calendar, type CalendarView } from '../src/calendar'
 
 const dayButton = (html: string, day: string) =>
 	html.match(new RegExp(`<button(?=[^>]*data-day="${day}")[^>]*>`))?.[0] ?? ''
@@ -112,11 +112,11 @@ test('default caption drills through one focused month and year grid, then Escap
 	const onViewChange = vi.fn()
 	render(jsx(Calendar, {
 		defaultMonth: date(2026, 7),
-		fromYear: 2020,
+		endMonth: date(2030, 12),
 		locale: 'en-US',
 		numberOfMonths: 2,
 		onViewChange,
-		toYear: 2030,
+		startMonth: date(2020, 1),
 	}), document.body)
 
 	const dayTrigger = button('[data-slot="calendar-view-trigger"]')
@@ -148,17 +148,16 @@ test('default caption drills through one focused month and year grid, then Escap
 	expect(onViewChange.mock.calls.map(call => call[0])).toEqual(['month', 'year', 'month', 'day'])
 })
 
-test('minView clamps controlled and default views while label and dropdown captions opt out of drill-up', async () => {
+test('minView clamps controlled and default views', async () => {
 	const onViewChange = vi.fn()
 	render(jsx(Calendar, {
-		captionLayout: 'label',
 		defaultMonth: date(2026, 7),
 		defaultView: 'day',
 		minView: 'month',
+		onViewChange,
 	}), document.body)
 
 	expect(document.querySelector('[data-slot="calendar-month-view"]')).not.toBeNull()
-	expect(document.querySelector('[data-slot="calendar-view-trigger"]')).toBeNull()
 	expect(onViewChange).not.toHaveBeenCalled()
 
 	render(null, document.body)
@@ -173,17 +172,6 @@ test('minView clamps controlled and default views while label and dropdown capti
 	await flush()
 	expect(onViewChange).toHaveBeenLastCalledWith('year', expect.any(Event))
 	expect(document.querySelector('[data-slot="calendar-month-view"]')).not.toBeNull()
-
-	render(null, document.body)
-	render(jsx(Calendar, {
-		captionLayout: 'dropdown',
-		defaultMonth: date(2026, 7),
-	}), document.body)
-
-	expect(document.querySelector('[data-slot="calendar-dropdowns"]')).not.toBeNull()
-	expect(document.querySelector('[data-slot="calendar-view-trigger"]')).toBeNull()
-	const escape = await key(button('[data-day="2026-07-01"]'), 'Escape')
-	expect(escape.defaultPrevented).toBe(false)
 })
 
 test('month view commits canonical single, multiple, and inclusive range values', async () => {
@@ -266,9 +254,9 @@ test('month grid reuses semantic grid navigation, RTL, paging, and minView Escap
 	render(jsx(Calendar, {
 		defaultMonth: date(2026, 7),
 		dir: 'rtl',
-		fromYear: 2025,
+		endMonth: date(2028, 12),
 		minView: 'month',
-		toYear: 2028,
+		startMonth: date(2025, 1),
 	}), document.body)
 
 	const july = button('[data-month="2026-07"]')
@@ -304,10 +292,10 @@ test('year view pages by twelve, stamps bounds, and commits full-year values', a
 	const onSelect = vi.fn()
 	render(jsx(Calendar, {
 		defaultMonth: date(2024, 7),
-		fromYear: 2020,
+		endMonth: date(2025, 12),
 		minView: 'year',
 		onSelect,
-		toYear: 2025,
+		startMonth: date(2020, 1),
 	}), document.body)
 
 	expect(document.querySelectorAll('[data-slot="calendar-year-cell"]')).toHaveLength(12)
@@ -328,9 +316,9 @@ test('year view pages by twelve, stamps bounds, and commits full-year values', a
 	render(null, document.body)
 	render(jsx(Calendar, {
 		defaultMonth: date(2012, 7),
-		fromYear: 2000,
+		endMonth: date(2040, 12),
 		minView: 'year',
-		toYear: 2040,
+		startMonth: date(2000, 1),
 	}), document.body)
 	const start = button('[data-year="2012"]')
 	start.focus()
@@ -342,11 +330,11 @@ test('year ranges emit January through December and drill to the anchored day ab
 	const onSelect = vi.fn()
 	render(jsx(Calendar, {
 		defaultMonth: date(2024, 7),
-		fromYear: 2000,
+		endMonth: date(2040, 12),
 		minView: 'year',
 		mode: 'range',
 		onSelect,
-		toYear: 2040,
+		startMonth: date(2000, 1),
 	}), document.body)
 	button('[data-year="2026"]').click()
 	button('[data-year="2024"]').click()
@@ -355,8 +343,8 @@ test('year ranges emit January through December and drill to the anchored day ab
 	render(jsx(Calendar, {
 		defaultMonth: date(2024, 7),
 		defaultView: 'year',
-		fromYear: 2000,
-		toYear: 2040,
+		endMonth: date(2040, 12),
+		startMonth: date(2000, 1),
 	}), document.body)
 	button('[data-year="2026"]').click()
 	await flush()
@@ -367,7 +355,7 @@ test('year ranges emit January through December and drill to the anchored day ab
 })
 
 test('external view changes relocate owned focus and dynamic minView clamps uncontrolled state persistently', async () => {
-	const args = { defaultMonth: date(2026, 7), fromYear: 2020, toYear: 2030 }
+	const args = { defaultMonth: date(2026, 7), endMonth: date(2030, 12), startMonth: date(2020, 1) }
 	render(jsx(Calendar, { ...args, view: 'day' }), document.body)
 	button('[data-day="2026-07-15"]').focus()
 	render(jsx(Calendar, { ...args, view: 'month' }), document.body)
@@ -414,9 +402,9 @@ test('whole-year commits reject partial month bounds and bounded grid edges focu
 	render(null, document.body)
 	render(jsx(Calendar, {
 		defaultMonth: date(2024, 7),
-		fromYear: 2020,
+		endMonth: date(2025, 12),
 		minView: 'year',
-		toYear: 2025,
+		startMonth: date(2020, 1),
 	}), document.body)
 	const year = button('[data-year="2024"]')
 	year.focus()
@@ -431,13 +419,129 @@ test('month and year views preserve their public structure during SSR', () => {
 	}))
 	const year = ssr(jsx(Calendar, {
 		defaultMonth: date(2026, 7),
-		fromYear: 2020,
+		endMonth: date(2030, 12),
 		minView: 'year',
-		toYear: 2030,
+		startMonth: date(2020, 1),
 	}))
 
 	expect(month).toContain('data-slot="calendar-month-view"')
 	expect(month.match(/data-slot="calendar-month-cell"/g)).toHaveLength(12)
 	expect(year).toContain('data-slot="calendar-year-view"')
 	expect(year.match(/data-slot="calendar-year-cell"/g)).toHaveLength(12)
+})
+
+test('startMonth and endMonth bound previous, next and the year grid in every view', async () => {
+	const bounds = { endMonth: date(2030, 12), startMonth: date(2000, 1) }
+	const previous = () => button('[data-slot="calendar-previous"]')
+	const next = () => button('[data-slot="calendar-next"]')
+
+	render(jsx(Calendar, { ...bounds, defaultMonth: date(2000, 1) }), document.body)
+	expect(previous().disabled).toBe(true)
+	expect(next().disabled).toBe(false)
+	render(null, document.body)
+	render(jsx(Calendar, { ...bounds, defaultMonth: date(2030, 12) }), document.body)
+	expect(previous().disabled).toBe(false)
+	expect(next().disabled).toBe(true)
+
+	render(null, document.body)
+	render(jsx(Calendar, { ...bounds, defaultMonth: date(2000, 6), defaultView: 'month' }), document.body)
+	expect(previous().disabled).toBe(true)
+	render(null, document.body)
+	render(jsx(Calendar, { ...bounds, defaultMonth: date(2030, 6), defaultView: 'month' }), document.body)
+	expect(next().disabled).toBe(true)
+
+	render(null, document.body)
+	render(jsx(Calendar, { ...bounds, defaultMonth: date(2020, 7), defaultView: 'year' }), document.body)
+	expect(button('[data-year="2012"]').disabled).toBe(false)
+	next().click()
+	await flush()
+	expect(button('[data-year="2024"]').disabled).toBe(false)
+	expect(button('[data-year="2030"]').disabled).toBe(false)
+	expect(button('[data-year="2031"]').disabled).toBe(true)
+	expect(next().disabled).toBe(true)
+	previous().click()
+	await flush()
+	previous().click()
+	await flush()
+	expect(button('[data-year="2000"]').disabled).toBe(false)
+	expect(previous().disabled).toBe(true)
+})
+
+test('unbounded month and year views page into the future from twelve-year pages', () => {
+	const year = new Date().getFullYear()
+	const start = Math.floor(year / 12) * 12
+	render(jsx(Calendar, { defaultMonth: date(year, 7), defaultView: 'month' }), document.body)
+	expect(button('[data-slot="calendar-next"]').disabled).toBe(false)
+
+	render(null, document.body)
+	render(jsx(Calendar, { defaultMonth: date(year, 7), defaultView: 'year' }), document.body)
+	expect(button('[data-slot="calendar-view-trigger"]').textContent).toBe(`${start}–${start + 11}`)
+	expect(button(`[data-year="${start + 11}"]`).disabled).toBe(false)
+	expect(button('[data-slot="calendar-next"]').disabled).toBe(false)
+})
+
+test('paging keeps focus on the navigation button in the day and month views', async () => {
+	render(jsx(Calendar, { defaultMonth: date(2026, 7), locale: 'en-US', numberOfMonths: 2 }), document.body)
+	const next = button('[data-slot="calendar-next"]')
+	next.focus()
+	next.click()
+	await flush()
+	expect(button('[data-slot="calendar-view-trigger"]').textContent).toBe('September 2026')
+	expect(document.activeElement).toBe(next)
+
+	render(null, document.body)
+	render(jsx(Calendar, { defaultMonth: date(2026, 7), defaultView: 'month' }), document.body)
+	const previous = button('[data-slot="calendar-previous"]')
+	previous.focus()
+	previous.click()
+	await flush()
+	expect(button('[data-slot="calendar-view-trigger"]').textContent).toBe('2025')
+	expect(document.activeElement).toBe(previous)
+})
+
+test('navigation labels follow the view', async () => {
+	render(jsx(Calendar, {
+		defaultMonth: date(2026, 7),
+		nextMonthLabel: 'Next',
+		previousMonthLabel: (view: CalendarView) => `Back one ${view}`,
+	}), document.body)
+	expect(button('[data-slot="calendar-previous"]').getAttribute('aria-label')).toBe('Back one day')
+	expect(button('[data-slot="calendar-next"]').getAttribute('aria-label')).toBe('Next')
+	button('[data-slot="calendar-view-trigger"]').click()
+	await flush()
+	expect(button('[data-slot="calendar-previous"]').getAttribute('aria-label')).toBe('Back one month')
+
+	render(null, document.body)
+	render(jsx(Calendar, { defaultMonth: date(2026, 7), defaultView: 'year' }), document.body)
+	expect(button('[data-slot="calendar-previous"]').getAttribute('aria-label')).toBe('Previous 12 years')
+})
+
+test('day state, custom modifiers and the range band live on the day button', () => {
+	const html = ssr(jsx(Calendar, {
+		defaultMonth: date(2026, 7),
+		mode: 'range',
+		modifiers: { booked: date(2026, 7, 11) },
+		selected: { from: date(2026, 7, 10), to: date(2026, 7, 12) },
+	}))
+	const cell = html.match(/<div[^>]*data-slot="calendar-day"[^>]*>/)?.[0] ?? ''
+
+	expect(cell).toBe('<div data-slot="calendar-day" role="gridcell">')
+	expect(dayButton(html, '2026-07-10')).toContain('data-range-band="true"')
+	expect(dayButton(html, '2026-07-11')).toContain('data-modifier-booked="true"')
+	expect(dayButton(html, '2026-07-11')).toContain('data-range-band="true"')
+	expect(dayButton(html, '2026-07-13')).not.toContain('data-range-band')
+
+	const open = ssr(jsx(Calendar, { defaultMonth: date(2026, 7), mode: 'range', selected: { from: date(2026, 7, 10) } }))
+	expect(dayButton(open, '2026-07-10')).toContain('data-range-start="true"')
+	expect(dayButton(open, '2026-07-10')).not.toContain('data-range-band')
+})
+
+test('a missing locale falls back to <html lang>, never the machine locale', () => {
+	document.documentElement.lang = 'de-DE'
+	try {
+		render(jsx(Calendar, { defaultMonth: date(2026, 7) }), document.body)
+		expect(button('[data-slot="calendar-view-trigger"]').textContent).toBe('Juli 2026')
+	} finally {
+		document.documentElement.lang = ''
+	}
 })

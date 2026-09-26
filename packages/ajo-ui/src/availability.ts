@@ -141,6 +141,13 @@ const exactLocalDate = (parts: DateParts) => {
 const weekday = (parts: Pick<DateParts, 'day' | 'month' | 'year'>) =>
 	exactUtcDate(parts).getUTCDay()
 
+/**
+ * Resolves the locale of Calendar and date fields: the arg, then `<html lang>`, then 'en-US'.
+ * Never navigator: Node ships one, and the machine locale would split SSR from hydration.
+ */
+export const resolveLocale = (locale: string | undefined): string =>
+	locale || (typeof document !== 'undefined' && document.documentElement.lang) || 'en-US'
+
 /** Constructs a stable instant for one wall-clock value in a calendar time zone. */
 export const calendarDate = (parts: DateParts, timeZone?: string) => {
 	if (!timeZone) return exactLocalDate(parts)

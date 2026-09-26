@@ -23,8 +23,7 @@ test('Calendar reuses each date formatter across a zoned month render', () => {
 	const render = () => ssr(jsx('div', {
 		children: [
 			jsx(Calendar, calendar),
-			jsx(Calendar, { ...calendar, captionLayout: 'dropdown' }),
-			jsx(Calendar, { ...calendar, captionLayout: 'dropdown-years' }),
+			jsx(Calendar, { ...calendar, minView: 'month' }),
 		],
 	}))
 
@@ -37,8 +36,20 @@ test('Calendar reuses each date formatter across a zoned month render', () => {
 	expect(formatters).toHaveBeenCalledTimes(keys.length)
 	const customDay = ssr(jsx(Calendar, {
 		...calendar,
-		formatters: { day: () => 'D' },
+		renderDay: () => 'D',
 	}))
 	expect(customDay).toContain('>D</button>')
 	expect(formatters).toHaveBeenCalledTimes(keys.length)
+})
+
+test('Calendar formats with en-US when neither the arg nor <html lang> names a locale', () => {
+	const DateTimeFormat = Intl.DateTimeFormat
+	const formatters = vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function DateTimeFormatMock(locale, options) {
+		return new DateTimeFormat(locale, options)
+	})
+	ssr(jsx(Calendar, { defaultMonth: new Date(2031, 4, 1, 12) }))
+	const locales = new Set(formatters.mock.calls.map(([locale]) => locale))
+	formatters.mockRestore()
+
+	expect([...locales]).toEqual(['en-US'])
 })

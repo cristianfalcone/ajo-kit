@@ -1,6 +1,6 @@
 import type { Children, IntrinsicElements, Stateful, Stateless } from 'ajo'
 import { controlled, dom, remember, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
-import { calendarDate, compile, type Availability, type AvailabilityMatcher, type CalendarMatcher } from './availability'
+import { calendarDate, compile, resolveLocale, type Availability, type AvailabilityMatcher, type CalendarMatcher } from './availability'
 import { DirectionContext } from './direction'
 import type { FixedArgs, OmitArg } from './utils'
 
@@ -17,14 +17,6 @@ export type CalendarView =
 	| 'day'
 	| 'month'
 	| 'year'
-
-/** Available navigation controls for a Calendar caption. */
-export type CalendarCaptionLayout =
-	| 'button'
-	| 'dropdown'
-	| 'dropdown-months'
-	| 'dropdown-years'
-	| 'label'
 
 /** Inclusive date range selected by a range Calendar. */
 export type CalendarDateRange = {
@@ -44,24 +36,21 @@ export type CalendarModifiers = {
 	unavailable: boolean
 }
 
-/** Structural Calendar part names accepted by `classNames`. */
+/** Structural Calendar part names accepted by `classNames`. Day state is styled through `data-*` on the day button. */
 export type CalendarClassName =
 	| 'caption'
+	| 'caption_label'
 	| 'day'
 	| 'day_button'
-	| 'dropdowns'
 	| 'grid'
 	| 'head'
 	| 'month'
 	| 'month_cell'
 	| 'month_view'
 	| 'months'
-	| 'outside'
-	| 'range_end'
-	| 'range_middle'
-	| 'range_start'
-	| 'selected'
-	| 'today'
+	| 'nav_button'
+	| 'nav_icon'
+	| 'nav_spacer'
 	| 'week'
 	| 'week_number'
 	| 'weekday'
@@ -70,114 +59,57 @@ export type CalendarClassName =
 
 /** Locale-aware formatting hooks used by Calendar views. */
 export type CalendarFormatters = {
-	day: (date: Date, locale: string | undefined, timeZone?: string) => Children
-	fullDate: (date: Date, locale: string | undefined, timeZone?: string) => string
-	monthCaption: (date: Date, locale: string | undefined, timeZone?: string) => string
-	monthDropdown: (date: Date, locale: string | undefined, timeZone?: string) => string
-	weekNumber: (week: number, locale: string | undefined) => Children
-	weekday: (date: Date, locale: string | undefined, timeZone?: string) => Children
-}
-
-/** One value and label rendered by a Calendar caption dropdown. */
-export type CalendarDropdownOption = {
-	label: Children
-	value: string
-}
-
-/** Arguments supplied to a custom Calendar caption dropdown. */
-export type CalendarDropdownArgs = {
-	label: string
-	onValueChange: (value: string, event?: Event) => void
-	options: CalendarDropdownOption[]
-	value: string
-}
-
-/** Date and resolved state supplied to day styling callbacks. */
-export type CalendarDayState = {
-	date: Date
-	hidden: boolean
-	modifierNames: string[]
-	modifiers: CalendarModifiers
-	range: boolean
+	fullDate: (date: Date, locale: string, timeZone?: string) => string
+	monthCaption: (date: Date, locale: string, timeZone?: string) => string
+	weekNumber: (week: number, locale: string) => Children
+	weekday: (date: Date, locale: string, timeZone?: string) => Children
 }
 
 /** Arguments shared by every Calendar selection mode. */
 export type CalendarCommonArgs = OmitArg<IntrinsicElements['div'], 'children' | 'defaultValue' | 'onSelect'> & {
 	/** Allow range selection to span unavailable days without selecting or painting them. */
 	allowNonContiguous?: boolean
-	/** Caption layout. `dropdown` shows month and year selectors. */
-	captionLayout?: CalendarCaptionLayout
 	/** Class names for structural calendar parts. */
 	classNames?: Partial<Record<CalendarClassName, string>>
-	/** Class for the visible caption label. */
-	captionLabelClass?: string
 	/** Initial visible month for uncontrolled usage. */
 	defaultMonth?: Date
 	/** Initial uncontrolled view. Defaults to `minView`. */
 	defaultView?: CalendarView
 	/** Disable dates by date, range, weekday, list, or predicate. */
 	disabled?: CalendarMatcher | CalendarMatcher[]
-	/** Last navigable month. */
+	/** Last navigable month; bounds paging in every view. */
 	endMonth?: Date
 	/** Custom formatters for labels and visible date text. */
 	formatters?: Partial<CalendarFormatters>
-	/** Always render six weeks per month. */
-	fixedWeeks?: boolean
-	/** First navigable year. */
-	fromYear?: number
-	/** Class for hidden outside-day placeholders. */
-	hiddenDayClass?: string
-	/** Locale code or DayPicker-like locale object with `code`. */
-	locale?: string | { code?: string }
+	/** BCP 47 tag; falls back to `<html lang>`, then 'en-US'. Never navigator. */
+	locale?: string
 	/** Controlled visible month. */
 	month?: Date
 	/** Lowest view that commits a value instead of drilling down. */
 	minView?: CalendarView
-	/** Month dropdown component. */
-	monthDropdown?: Stateless<CalendarDropdownArgs>
-	/** Class for the month label when month dropdown is hidden. */
-	monthLabelClass?: string
-	/** Extra date matchers exposed as `data-modifier-*` on day cells. */
+	/** Extra date matchers exposed as `data-modifier-*` on day buttons. */
 	modifiers?: Record<string, CalendarMatcher | CalendarMatcher[]>
-	/** Class for previous and next buttons. */
-	navButtonClass?: string
-	/** Class for caption spacers standing in for the nav buttons on middle months. */
-	navSpacerClass?: string
 	/** Number of visible months. */
 	numberOfMonths?: number
 	/** Called when the visible month changes. */
 	onMonthChange?: (month: Date, event?: Event) => void
 	/** Called when the calendar view changes. */
 	onViewChange?: (view: CalendarView, event?: Event) => void
-	/** Icon rendered in the next-month button. */
+	/** Icon rendered in the next button. */
 	nextIcon?: Children
-	/** Icon class for the next-month button icon span. */
-	nextIconClass?: string
-	/** Accessible label for the next-month button. */
-	nextMonthLabel?: string
-	/** Accessible label for the previous-month button. */
-	previousMonthLabel?: string
-	/** Accessible label for the month dropdown. */
-	monthSelectLabel?: string
-	/** Accessible label for the year dropdown. */
-	yearSelectLabel?: string
-	/** Icon rendered in the previous-month button. */
+	/** Accessible label for the next button; defaults to next month, year or 12 years by view. */
+	nextMonthLabel?: string | ((view: CalendarView) => string)
+	/** Accessible label for the previous button; defaults to previous month, year or 12 years by view. */
+	previousMonthLabel?: string | ((view: CalendarView) => string)
+	/** Icon rendered in the previous button. */
 	previousIcon?: Children
-	/** Icon class for the previous-month button icon span. */
-	previousIconClass?: string
 	/** Render custom day content. */
 	renderDay?: (date: Date, modifiers: CalendarModifiers) => Children
 	/** Keep at least one selection. */
 	required?: boolean
-	/** Returns the class for a day grid cell from its state. */
-	dayClassName?: (state: CalendarDayState) => string | undefined
-	/** Class for each day button. */
-	dayButtonClass?: string
-	/** Show days from adjacent months. */
-	showOutsideDays?: boolean
 	/** Show ISO week numbers. */
 	showWeekNumber?: boolean
-	/** First navigable month. */
+	/** First navigable month; bounds paging in every view. */
 	startMonth?: Date
 	/** IANA time zone used to derive, format, and emit calendar dates. */
 	timeZone?: string
@@ -185,14 +117,8 @@ export type CalendarCommonArgs = OmitArg<IntrinsicElements['div'], 'children' | 
 	unavailable?: AvailabilityMatcher | AvailabilityMatcher[]
 	/** Controlled calendar view. Values below `minView` clamp to it. */
 	view?: CalendarView
-	/** Last navigable year. */
-	toYear?: number
 	/** First day of week. 0 is Sunday. */
 	weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6
-	/** Year dropdown component. */
-	yearDropdown?: Stateless<CalendarDropdownArgs>
-	/** Class for the year label when year dropdown is hidden. */
-	yearLabelClass?: string
 	/** Additional classes for the calendar root. */
 	class?: string
 } & FixedArgs<'children' | 'defaultValue'>
@@ -227,17 +153,6 @@ export type CalendarArgs =
 	| CalendarRangeArgs
 	| CalendarSingleArgs
 
-/** Arguments supplied to the Calendar day-button renderer. */
-export type CalendarDayButtonArgs = OmitArg<IntrinsicElements['button'], 'children'> & {
-	date: Date
-	day: Children
-	modifiers: CalendarModifiers
-	/** IANA time zone used to derive the button's `data-day`. */
-	timeZone?: string
-	/** Additional classes. */
-	class?: string
-} & FixedArgs<'children'>
-
 type PlainDate = {
 	day: number
 	month: number
@@ -248,9 +163,6 @@ type MonthData = {
 	month: PlainDate
 	weeks: PlainDate[][]
 }
-
-const localeCode = (locale: CalendarCommonArgs['locale']) =>
-	typeof locale === 'string' ? locale : locale?.code
 
 const pad = (value: number) => String(value).padStart(2, '0')
 
@@ -399,17 +311,9 @@ const today = (timeZone?: string) =>
 const startOfWeek = (date: PlainDate, weekStartsOn: number) =>
 	addDays(date, -((weekday(date) - weekStartsOn + 7) % 7))
 
-const startOfGrid = (month: PlainDate, weekStartsOn: number) => {
-	return startOfWeek(month, weekStartsOn)
-}
-
-const weeksForMonth = (
-	month: PlainDate,
-	fixedWeeks: boolean,
-	weekStartsOn: number,
-) => {
-	const start = startOfGrid(month, weekStartsOn)
-	const length = fixedWeeks ? 42 : Math.ceil(((weekday(month) - weekStartsOn + 7) % 7 + daysInMonth(month)) / 7) * 7
+const weeksForMonth = (month: PlainDate, weekStartsOn: number) => {
+	const start = startOfWeek(month, weekStartsOn)
+	const length = Math.ceil(((weekday(month) - weekStartsOn + 7) % 7 + daysInMonth(month)) / 7) * 7
 	const weeks: PlainDate[][] = []
 
 	for (let index = 0; index < length; index += 7) {
@@ -419,17 +323,16 @@ const weeksForMonth = (
 	return weeks
 }
 
-const months = (start: PlainDate, count: number, fixedWeeks: boolean, weekStartsOn: number): MonthData[] =>
+const months = (start: PlainDate, count: number, weekStartsOn: number): MonthData[] =>
 	Array.from({ length: Math.max(1, count) }, (_, index) => {
 		const month = monthStart(addMonths(start, index))
-		return { month, weeks: weeksForMonth(month, fixedWeeks, weekStartsOn) }
+		return { month, weeks: weeksForMonth(month, weekStartsOn) }
 	})
 
 const DATE_FORMAT_OPTIONS = {
 	day: { day: 'numeric' },
 	fullDate: { dateStyle: 'full' },
 	monthCaption: { month: 'long', year: 'numeric' },
-	monthDropdown: { month: 'short' },
 	monthLabel: { month: 'long' },
 	weekday: { weekday: 'short' },
 } satisfies Record<string, Intl.DateTimeFormatOptions>
@@ -438,11 +341,11 @@ type DateFormat = keyof typeof DATE_FORMAT_OPTIONS
 const dateFormatters = new Map<string, Partial<Record<DateFormat, Intl.DateTimeFormat>>>()
 
 const formatter = (
-	locale: string | undefined,
+	locale: string,
 	name: DateFormat,
 	timeZone?: string,
 ) => {
-	const key = `${locale ?? ''}\0${timeZone ?? ''}`
+	const key = `${locale}\0${timeZone ?? ''}`
 	let formats = dateFormatters.get(key)
 	if (!formats) {
 		formats = {}
@@ -452,10 +355,8 @@ const formatter = (
 }
 
 const defaultFormatters: CalendarFormatters = {
-	day: (date, locale, timeZone) => formatter(locale, 'day', timeZone).format(date),
 	fullDate: (date, locale, timeZone) => formatter(locale, 'fullDate', timeZone).format(date),
 	monthCaption: (date, locale, timeZone) => formatter(locale, 'monthCaption', timeZone).format(date),
-	monthDropdown: (date, locale, timeZone) => formatter(locale, 'monthDropdown', timeZone).format(date),
 	weekNumber: week => pad(week),
 	weekday: (date, locale, timeZone) => formatter(locale, 'weekday', timeZone).format(date),
 }
@@ -495,41 +396,23 @@ const gridTemplate = (showWeekNumber: boolean) =>
 const monthOptions = (year: number) =>
 	Array.from({ length: 12 }, (_, month) => ({ day: 1, month: month + 1, year }))
 
-const yearBounds = (current: PlainDate, args: CalendarArgs, now: PlainDate) => {
-	const first = args.startMonth ? dateToPlain(args.startMonth, args.timeZone).year : args.fromYear ?? now.year - 100
-	const last = args.endMonth ? dateToPlain(args.endMonth, args.timeZone).year : args.toYear ?? Math.max(now.year, current.year)
-	return { first, last: Math.max(first, last) }
-}
+const bound = (month: Date | undefined, timeZone?: string) =>
+	month && monthStart(dateToPlain(month, timeZone))
 
-const yearRange = (current: PlainDate, args: CalendarArgs, now: PlainDate) => {
-	const { first, last } = yearBounds(current, args, now)
-	return Array.from({ length: last - first + 1 }, (_, index) => first + index)
-}
-
-const yearPage = (current: PlainDate, args: CalendarArgs, now: PlainDate) => {
-	const allowed = yearRange(current, args, now)
-	const first = allowed[0]!
-	const last = allowed[allowed.length - 1]!
-	const anchor = Math.min(last, Math.max(first, current.year))
-	const start = first + Math.floor((anchor - first) / 12) * 12
-	return {
-		allowed,
-		start,
-		years: Array.from({ length: 12 }, (_, index) => start + index),
-	}
-}
-
-const canNavigateYear = (year: number, current: PlainDate, args: CalendarArgs, now: PlainDate) => {
-	const { first, last } = yearBounds(current, args, now)
-	return first <= year && year <= last
-}
-
+/** `startMonth` and `endMonth` are the one navigation bound of every view. */
 const canNavigateTo = (month: PlainDate, args: CalendarArgs) => {
-	const start = args.startMonth ? monthStart(dateToPlain(args.startMonth, args.timeZone)) : args.fromYear ? { day: 1, month: 1, year: args.fromYear } : undefined
-	const end = args.endMonth ? monthStart(dateToPlain(args.endMonth, args.timeZone)) : args.toYear ? { day: 1, month: 12, year: args.toYear } : undefined
+	const start = bound(args.startMonth, args.timeZone)
+	const end = bound(args.endMonth, args.timeZone)
 	if (start && comparePlain(monthStart(month), start) < 0) return false
 	if (end && comparePlain(monthStart(month), end) > 0) return false
 	return true
+}
+
+/** Twelve years around `year`: aligned to the first bound, or to multiples of 12 when unbounded. */
+const yearPage = (year: number, args: CalendarArgs) => {
+	const first = bound(args.startMonth, args.timeZone)?.year ?? 0
+	const start = first + Math.floor((year - first) / 12) * 12
+	return Array.from({ length: 12 }, (_, index) => start + index)
 }
 
 const modifierNames = (
@@ -557,23 +440,6 @@ const initialMonthDate = (
 	return defaultSelectedRange(defaultSelected)?.from ?? new Date()
 }
 
-/** Unstyled native month or year picker used when no custom dropdown is supplied. */
-const CalendarDropdown: Stateless<CalendarDropdownArgs> = ({
-	label,
-	onValueChange,
-	options,
-	value,
-}) => (
-	<select
-		aria-label={label}
-		data-slot="calendar-dropdown"
-		set:onchange={(event: Event) => onValueChange((event.currentTarget as HTMLSelectElement).value, event)}
-		set:value={value}
-	>
-		{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-	</select>
-)
-
 const CalendarRoot: Stateful<CalendarArgs> = function* ({
 	defaultMonth,
 	defaultSelected,
@@ -599,6 +465,9 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 	let currentArgs = {} as CalendarArgs
 	let currentView = initialView
 	let renderedView = initialView
+	// A view change the calendar made itself relocates focus even when the
+	// clicked button never took it (Safari does not focus clicked buttons).
+	let relocate = false
 	let visible = initialMonth
 	const domReady = dom(this)
 	let disabledSource: CalendarCommonArgs['disabled']
@@ -719,7 +588,7 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 	const canUseYearCell = (year: number, args: CalendarArgs) =>
 		minimumView(args.minView) === 'year'
 			? canCommitYear(year, args)
-			: canNavigateYear(year, visible, args, today(args.timeZone))
+			: Boolean(navigableMonth(year, args))
 
 	const focusYearCell = (year: number, args: CalendarArgs, event?: Event) => {
 		queueMicrotask(() => {
@@ -781,20 +650,13 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 	const changeView = (next: CalendarView, args: CalendarArgs, event?: Event) => {
 		const target = clampView(next, args.minView)
 		if (target === currentView) return
+		relocate = true
 		viewState.set(target, event)
 	}
 
 	const drillUp = (anchor: PlainDate, args: CalendarArgs, event: Event) => {
-		if (currentView === 'day') {
-			if (!samePeriod(anchor, visible, 'month')) moveMonth(anchor, args, event)
-			changeView('month', args, event)
-			focusMonthCell(anchor, args)
-			return
-		}
-		if (currentView === 'month') {
-			changeView('year', args, event)
-			focusYearCell(anchor.year, args)
-		}
+		if (currentView === 'day' && !samePeriod(anchor, visible, 'month')) moveMonth(anchor, args, event)
+		changeView(currentView === 'day' ? 'month' : 'year', args, event)
 	}
 
 	const selectMonthCell = (month: PlainDate, args: CalendarArgs, event: Event) => {
@@ -804,7 +666,6 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 		}
 		moveMonth(month, args, event)
 		changeView('day', args, event)
-		focusDay(monthStart(month), args)
 	}
 
 	const selectYearCell = (year: number, args: CalendarArgs, event: Event) => {
@@ -817,7 +678,6 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 		}
 		moveMonth(month, args, event)
 		changeView('month', args, event)
-		focusMonthCell(month, args)
 	}
 
 	const onMove = (move: GridMove, event: KeyboardEvent) => {
@@ -848,9 +708,9 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 			else if ('rows' in move) focusYearCell(year + move.rows * 3, args, event)
 			else if ('page' in move) focusYearCell(year + move.page * 12, args, event)
 			else {
-				const page = yearPage(visible, args, today(args.timeZone))
-				const rowStart = page.start + Math.floor((year - page.start) / 3) * 3
-				const candidates = page.years.filter(candidate =>
+				const page = yearPage(visible.year, args)
+				const rowStart = page[0]! + Math.floor((year - page[0]!) / 3) * 3
+				const candidates = page.filter(candidate =>
 					canUseYearCell(candidate, args)
 					&& (move.extent === 'all' || (rowStart <= candidate && candidate <= rowStart + 2)))
 				const target = move.edge === 'start' ? candidates[0] : candidates[candidates.length - 1]
@@ -901,13 +761,7 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 			return
 		}
 		event.preventDefault()
-		if (currentView === 'year') {
-			changeView('month', currentArgs, event)
-			focusMonthCell(visible, currentArgs)
-			return
-		}
-		changeView('day', currentArgs, event)
-		focusDay(visible, currentArgs)
+		changeView(currentView === 'year' ? 'month' : 'day', currentArgs, event)
 	}
 
 	for (const args of this) {
@@ -931,29 +785,25 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 		const now = today(args.timeZone)
 		visible = monthState.value
 		currentView = clampedView
-		if (renderedView !== currentView && domReady) {
-			const active = document.activeElement
-			if (active instanceof HTMLElement && this.contains(active)) {
-				if (currentView === 'day') focusDay(visible, args)
-				else if (currentView === 'month') focusMonthCell(visible, args)
-				else focusYearCell(visible.year, args)
-			}
+		if (renderedView !== currentView && domReady && (relocate || this.contains(document.activeElement))) {
+			if (currentView === 'day') focusDay(visible, args)
+			else if (currentView === 'month') focusMonthCell(visible, args)
+			else focusYearCell(visible.year, args)
 		}
+		relocate = false
 		renderedView = currentView
 		const weekStartsOn = args.weekStartsOn ?? 0
 		const count = Math.max(1, args.numberOfMonths ?? 1)
-		const locale = localeCode(args.locale)
+		const locale = resolveLocale(args.locale)
 		const formats = { ...defaultFormatters, ...(args.formatters ?? {}) }
-		const shown = months(visible, count, Boolean(args.fixedWeeks), weekStartsOn)
+		const shown = months(visible, count, weekStartsOn)
 		const single = singleState.value
 		const multiple = multipleState.value
 		const range = rangeState.value
-		const years = yearRange(visible, args, now)
+		const band = args.mode === 'range' && Boolean(range.from && range.to)
 		const dayColumns = gridTemplate(Boolean(args.showWeekNumber))
-		const captionLayout = args.captionLayout ?? 'button'
-		const MonthDropdown = args.monthDropdown ?? CalendarDropdown
-		const YearDropdown = args.yearDropdown ?? CalendarDropdown
-		const page = yearPage(visible, args, now)
+		const page = yearPage(visible.year, args)
+		const pageLabel = `${page[0]}–${page[11]}`
 		const periodFlags = (date: PlainDate, view: CalendarView) => {
 			const range_start = args.mode === 'range' && Boolean(range.from && samePeriod(range.from, date, view))
 			const range_end = args.mode === 'range' && Boolean(range.to && samePeriod(range.to, date, view))
@@ -965,120 +815,76 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 					: Boolean(single && samePeriod(single, date, view))
 			return { range_end, range_middle, range_start, selected }
 		}
+		// Month and year pages are navigable while the neighbouring year holds a navigable month.
 		const canPreviousView = currentView === 'day'
 			? canNavigateTo(addMonths(visible, -1), args)
-			: currentView === 'month'
-				? canNavigateYear(visible.year - 1, visible, args, now)
-				: page.start > page.allowed[0]!
+			: canNavigateTo({ day: 1, month: 12, year: (currentView === 'month' ? visible.year : page[0]!) - 1 }, args)
 		const canNextView = currentView === 'day'
 			? canNavigateTo(addMonths(visible, count), args)
-			: currentView === 'month'
-				? canNavigateYear(visible.year + 1, visible, args, now)
-				: page.start + 12 <= page.allowed[page.allowed.length - 1]!
+			: canNavigateTo({ day: 1, month: 1, year: (currentView === 'month' ? visible.year : page[11]!) + 1 }, args)
 		const navigateView = (direction: -1 | 1, event: Event) => {
 			if (currentView === 'day') {
 				moveMonth(addMonths(visible, direction < 0 ? -1 : count), args, event)
 				return
 			}
-			const year = visible.year + direction * (currentView === 'month' ? 1 : 12)
+			// A partial edge page pages to its nearest navigable year.
+			const target = visible.year + direction * (currentView === 'month' ? 1 : 12)
+			const year = Math.min(bound(args.endMonth, args.timeZone)?.year ?? target, Math.max(bound(args.startMonth, args.timeZone)?.year ?? target, target))
 			const month = navigableMonth(year, args)
 			if (month) moveMonth(month, args, event)
 		}
-		const previousLabel = args.previousMonthLabel ?? (currentView === 'day'
-			? 'Previous month'
-			: currentView === 'month' ? 'Previous year' : 'Previous 12 years')
-		const nextLabel = args.nextMonthLabel ?? (currentView === 'day'
-			? 'Next month'
-			: currentView === 'month' ? 'Next year' : 'Next 12 years')
 		const navButton = (direction: -1 | 1) => {
 			const previous = direction < 0
 			const enabled = previous ? canPreviousView : canNextView
 			const slot = previous ? 'previous' : 'next'
+			const label = previous ? args.previousMonthLabel : args.nextMonthLabel
 			return (
 				<button
 					aria-disabled={enabled ? undefined : 'true'}
-					aria-label={previous ? previousLabel : nextLabel}
-					class={args.navButtonClass}
+					aria-label={typeof label === 'function'
+						? label(currentView)
+						: label ?? `${previous ? 'Previous' : 'Next'} ${currentView === 'day' ? 'month' : currentView === 'month' ? 'year' : '12 years'}`}
+					class={args.classNames?.nav_button}
 					data-slot={`calendar-${slot}`}
 					disabled={!enabled}
 					type="button"
 					set:onclick={(event: Event) => navigateView(direction, event)}
 				>
 					{(previous ? args.previousIcon : args.nextIcon) ?? (
-						<span aria-hidden="true" class={previous ? args.previousIconClass : args.nextIconClass} data-slot={`calendar-${slot}-icon`} />
+						<span aria-hidden="true" class={args.classNames?.nav_icon} data-slot={`calendar-${slot}-icon`} />
 					)}
 				</button>
 			)
 		}
+		const spacer = () => <span aria-hidden="true" class={args.classNames?.nav_spacer} data-slot="calendar-nav-spacer" />
 
 		yield (
 			<>
 				<div class={args.classNames?.months} data-slot="calendar-months">
 					{currentView === 'day' ? shown.map(({ month: item, weeks }, monthIndex) => {
-						const monthDate = plainToDate(item, args.timeZone)
-						const showMonthDropdown = captionLayout === 'dropdown' || captionLayout === 'dropdown-months'
-						const showYearDropdown = captionLayout === 'dropdown' || captionLayout === 'dropdown-years'
-						const firstMonth = monthIndex === 0
-						const lastMonth = monthIndex === shown.length - 1
+						const caption = formats.monthCaption(plainToDate(item, args.timeZone), locale, args.timeZone)
 
+						// Keyed by position so paging keeps the caption and its focused buttons.
 						return (
-							<div key={iso(item)} class={args.classNames?.month} data-month={iso(item)} data-slot="calendar-month">
-								{/* Nav buttons are caption-row siblings, so a wide month or year
-								    select grows the calendar instead of colliding with them. */}
+							<div key={monthIndex} class={args.classNames?.month} data-month={iso(item)} data-slot="calendar-month">
 								<div class={args.classNames?.caption} data-slot="calendar-caption">
-									{firstMonth ? navButton(-1) : (
-										<span aria-hidden="true" class={args.navSpacerClass} data-slot="calendar-nav-spacer" />
-									)}
-									{captionLayout === 'button' ? (
-										<button
-											class={args.captionLabelClass}
-											data-slot="calendar-view-trigger"
-											type="button"
-											set:onclick={(event: Event) => drillUp(item, args, event)}
-										>
-											{formats.monthCaption(monthDate, locale, args.timeZone)}
-										</button>
-									) : captionLayout === 'label' ? (
-										<div class={args.captionLabelClass} data-slot="calendar-caption-label">
-											{formats.monthCaption(monthDate, locale, args.timeZone)}
-										</div>
-									) : (
-										<div class={args.classNames?.dropdowns} data-slot="calendar-dropdowns">
-										{showMonthDropdown ? (
-											<MonthDropdown
-												label={args.monthSelectLabel ?? 'Month'}
-												options={monthOptions(item.year).map(option => ({
-													label: formats.monthDropdown(plainToDate(option, args.timeZone), locale, args.timeZone),
-													value: String(option.month),
-												}))}
-												onValueChange={(value, event) => moveMonth({ ...item, month: Number(value) }, args, event)}
-												value={String(item.month)}
-											/>
-										) : (
-											<div class={args.monthLabelClass} data-slot="calendar-month-label">{formatter(locale, 'monthLabel', args.timeZone).format(monthDate)}</div>
-										)}
-										{showYearDropdown ? (
-											<YearDropdown
-												label={args.yearSelectLabel ?? 'Year'}
-												onValueChange={(value, event) => moveMonth({ ...item, year: Number(value) }, args, event)}
-												options={years.map(year => ({ label: year, value: String(year) }))}
-												value={String(item.year)}
-											/>
-											) : (
-												<div class={args.yearLabelClass} data-slot="calendar-year-label">{item.year}</div>
-											)}
-										</div>
-									)}
-									{lastMonth ? navButton(1) : (
-										<span aria-hidden="true" class={args.navSpacerClass} data-slot="calendar-nav-spacer" />
-									)}
+									{monthIndex === 0 ? navButton(-1) : spacer()}
+									<button
+										class={args.classNames?.caption_label}
+										data-slot="calendar-view-trigger"
+										type="button"
+										set:onclick={(event: Event) => drillUp(item, args, event)}
+									>
+										{caption}
+									</button>
+									{monthIndex === shown.length - 1 ? navButton(1) : spacer()}
 								</div>
-								<div class={args.classNames?.grid} data-slot="calendar-grid" role="grid" aria-label={formats.monthCaption(monthDate, locale, args.timeZone)}>
+								<div class={args.classNames?.grid} data-slot="calendar-grid" role="grid" aria-label={caption}>
 									<div class={args.classNames?.head} data-slot="calendar-weekdays" role="row" style={dayColumns}>
 										{args.showWeekNumber && <div aria-hidden="true" class={args.classNames?.week_number} data-slot="calendar-week-number-header" />}
 										{Array.from({ length: 7 }, (_, index) => addDays({ year: 2026, month: 7, day: 5 }, weekStartsOn + index)).map((day, index) => (
 											<div key={index} class={args.classNames?.weekday} data-slot="calendar-weekday" role="columnheader">
-											{formats.weekday(plainToDate(day, args.timeZone), locale, args.timeZone)}
+												{formats.weekday(plainToDate(day, args.timeZone), locale, args.timeZone)}
 											</div>
 										))}
 									</div>
@@ -1090,11 +896,10 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 												</div>
 											)}
 											{week.map(day => {
+												const value = iso(day)
 												const outside = day.month !== item.month || day.year !== item.year
 												const date = plainToDate(day, args.timeZone)
-												const disabled = outside && args.showOutsideDays === false
-													? true
-													: Boolean(disabledAvailability?.day(date))
+												const disabled = Boolean(disabledAvailability?.day(date))
 												const unavailable = Boolean(unavailableAvailability?.day(date))
 												const range_start = !outside && args.mode === 'range' && Boolean(range.from && samePlain(range.from, day))
 												const range_end = !outside && args.mode === 'range' && Boolean(range.to && samePlain(range.to, day))
@@ -1106,8 +911,6 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 														? Boolean((range.from && samePlain(range.from, day)) || (range.to && samePlain(range.to, day)) || rangeContains(range, day))
 														: Boolean(single && samePlain(single, day)))
 												const range_middle = rawRangeMiddle && !rangeGap
-												const current = samePlain(day, now)
-												const modifierList = modifierNames(modifierAvailability, date)
 												const modifiers: CalendarModifiers = {
 													disabled,
 													outside,
@@ -1115,47 +918,37 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 													range_middle,
 													range_start,
 													selected,
-													today: current,
+													today: samePlain(day, now),
 													unavailable,
 												}
-												const hidden = outside && args.showOutsideDays === false
-												const band = args.mode === 'range' && Boolean(range.from && range.to)
-												const state: CalendarDayState = {
-													date,
-													hidden,
-													modifierNames: modifierList,
-													modifiers,
-													range: band,
-												}
+												const ranged = range_start || range_middle || range_end
 
 												return (
-													<div
-														key={iso(day)}
-												class={args.dayClassName?.(state) ?? args.classNames?.day}
-												data-disabled={disabled ? 'true' : undefined}
-												data-outside={outside ? 'true' : undefined}
-												data-selected={selected ? 'true' : undefined}
-												data-slot="calendar-day"
-												data-today={current ? 'true' : undefined}
-												data-unavailable={unavailable ? 'true' : undefined}
-														role="gridcell"
-														{...modifierAttributes(modifierList)}
-													>
-														{hidden ? (
-															<span aria-hidden="true" class={args.hiddenDayClass}>{day.day}</span>
-														) : (
-															<CalendarDayButton
-														aria-label={formats.fullDate(date, locale, args.timeZone)}
-																class={args.dayButtonClass}
-																date={date}
-														day={args.renderDay?.(date, modifiers) ?? formats.day(date, locale, args.timeZone)}
-														timeZone={args.timeZone}
-																disabled={disabled || outside}
-														modifiers={modifiers}
-														set:onclick={(event: Event) => selectDay(day, args, event)}
-														set:onkeydown={onCellKeydown}
-															/>
-														)}
+													<div key={value} class={args.classNames?.day} data-slot="calendar-day" role="gridcell">
+														<button
+															{...modifierAttributes(modifierNames(modifierAvailability, date))}
+															aria-disabled={unavailable ? 'true' : undefined}
+															aria-label={formats.fullDate(date, locale, args.timeZone)}
+															class={args.classNames?.day_button}
+															data-day={value}
+															data-disabled={disabled ? 'true' : undefined}
+															data-outside={outside ? 'true' : undefined}
+															data-range-band={band && ranged ? 'true' : undefined}
+															data-range-end={range_end ? 'true' : undefined}
+															data-range-middle={range_middle ? 'true' : undefined}
+															data-range-start={range_start ? 'true' : undefined}
+															data-selected-single={selected && !ranged ? 'true' : undefined}
+															data-slot="calendar-day-button"
+															data-state={selected ? 'selected' : 'unselected'}
+															data-today={modifiers.today ? 'true' : undefined}
+															data-unavailable={unavailable ? 'true' : undefined}
+															disabled={disabled || outside}
+															type="button"
+															set:onclick={(event: Event) => selectDay(day, args, event)}
+															set:onkeydown={onCellKeydown}
+														>
+															{args.renderDay?.(date, modifiers) ?? formatter(locale, 'day', args.timeZone).format(date)}
+														</button>
 													</div>
 												)
 											})}
@@ -1165,25 +958,20 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 							</div>
 						)
 					}) : (
-						<div key={`${currentView}-${currentView === 'year' ? page.start : visible.year}`} class={args.classNames?.month}>
+						// Keyed by view so paging keeps the caption and its focused buttons.
+						<div key={currentView} class={args.classNames?.month}>
 							<div class={args.classNames?.caption} data-slot="calendar-caption">
 								{navButton(-1)}
-								{captionLayout === 'button' ? (
-									<button
-										aria-disabled={currentView === 'year' ? 'true' : undefined}
-										class={args.captionLabelClass}
-										data-slot="calendar-view-trigger"
-										disabled={currentView === 'year'}
-										type="button"
-										set:onclick={(event: Event) => drillUp(visible, args, event)}
-									>
-										{currentView === 'month' ? visible.year : `${page.start}–${page.start + 11}`}
-									</button>
-								) : (
-									<div class={args.captionLabelClass} data-slot="calendar-caption-label">
-										{currentView === 'month' ? visible.year : `${page.start}–${page.start + 11}`}
-									</div>
-								)}
+								<button
+									aria-disabled={currentView === 'year' ? 'true' : undefined}
+									class={args.classNames?.caption_label}
+									data-slot="calendar-view-trigger"
+									disabled={currentView === 'year'}
+									type="button"
+									set:onclick={(event: Event) => drillUp(visible, args, event)}
+								>
+									{currentView === 'month' ? visible.year : pageLabel}
+								</button>
 								{navButton(1)}
 							</div>
 							{currentView === 'month' ? (
@@ -1226,17 +1014,15 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 								</div>
 							) : (
 								<div
-									aria-label={`${page.start}–${page.start + 11}`}
+									aria-label={pageLabel}
 									class={args.classNames?.year_view}
 									data-slot="calendar-year-view"
 									role="grid"
 									style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr))"
 								>
-									{page.years.map(year => {
+									{page.map(year => {
 										const disabled = !canUseYearCell(year, args)
-										const target = { day: 1, month: 1, year }
-										const flags = periodFlags(target, 'year')
-										const current = year === now.year
+										const flags = periodFlags({ day: 1, month: 1, year }, 'year')
 										return (
 											<div key={year} role="gridcell">
 												<button
@@ -1248,7 +1034,7 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 													data-range-start={flags.range_start ? 'true' : undefined}
 													data-selected={flags.selected ? 'true' : undefined}
 													data-slot="calendar-year-cell"
-													data-today={current ? 'true' : undefined}
+													data-today={year === now.year ? 'true' : undefined}
 													data-year={String(year)}
 													disabled={disabled}
 													type="button"
@@ -1270,56 +1056,36 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 	}
 }
 
-
 /** Unstyled calendar with single, multiple, and range selection. */
 const Calendar: Stateless<CalendarArgs> = ({
 	allowNonContiguous,
-	captionLabelClass,
-	captionLayout,
 	class: classes,
 	classNames,
-	dayButtonClass,
-	dayClassName,
 	defaultMonth,
 	defaultSelected,
 	defaultView,
 	disabled,
 	endMonth,
-	fixedWeeks,
 	formatters,
-	fromYear,
-	hiddenDayClass,
 	locale,
 	minView,
 	month,
-	monthDropdown,
-	monthLabelClass,
-	monthSelectLabel,
 	nextMonthLabel,
 	previousMonthLabel,
-	yearSelectLabel,
 	modifiers,
-	navButtonClass,
-	navSpacerClass,
 	nextIcon,
-	nextIconClass,
 	numberOfMonths,
 	onMonthChange,
 	onViewChange,
 	previousIcon,
-	previousIconClass,
 	renderDay,
 	required,
-	showOutsideDays = true,
 	showWeekNumber,
 	startMonth,
 	timeZone,
-	toYear,
 	unavailable,
 	view,
 	weekStartsOn,
-	yearDropdown,
-	yearLabelClass,
 	...attrs
 }) => {
 	const {
@@ -1332,55 +1098,36 @@ const Calendar: Stateless<CalendarArgs> = ({
 	const resolvedDir = (dir as 'ltr' | 'rtl' | undefined) ?? DirectionContext()
 	const rootArgs = {
 		allowNonContiguous,
-		captionLabelClass,
-		captionLayout,
 		classNames,
-		dayButtonClass,
-		dayClassName,
 		defaultMonth,
 		defaultSelected,
 		defaultView,
 		disabled,
 		dir: resolvedDir,
 		endMonth,
-		fixedWeeks,
 		formatters,
-		fromYear,
-		hiddenDayClass,
 		locale,
 		minView,
 		mode,
 		month,
-		monthDropdown,
-		monthLabelClass,
-		monthSelectLabel,
 		nextMonthLabel,
 		previousMonthLabel,
-		yearSelectLabel,
 		modifiers,
-		navButtonClass,
-		navSpacerClass,
 		nextIcon,
-		nextIconClass,
 		numberOfMonths,
 		onMonthChange,
 		onSelect,
 		onViewChange,
 		previousIcon,
-		previousIconClass,
 		renderDay,
 		required,
 		selected,
-		showOutsideDays,
 		showWeekNumber,
 		startMonth,
 		timeZone,
-		toYear,
 		unavailable,
 		view,
 		weekStartsOn,
-		yearDropdown,
-		yearLabelClass,
 	} as CalendarArgs
 
 	return (
@@ -1394,40 +1141,4 @@ const Calendar: Stateless<CalendarArgs> = ({
 	)
 }
 
-/** Unstyled day button used by Calendar. */
-const CalendarDayButton: Stateless<CalendarDayButtonArgs> = ({
-	class: classes,
-	date,
-	day,
-	modifiers,
-	timeZone,
-	type = 'button',
-	...attrs
-}) => {
-	const value = dateToPlain(date, timeZone)
-	const single = modifiers.selected && !modifiers.range_start && !modifiers.range_end && !modifiers.range_middle
-
-	return (
-		<button
-			{...attrs}
-			aria-disabled={modifiers.unavailable ? 'true' : attrs['aria-disabled']}
-			class={classes}
-			data-day={iso(value)}
-			data-disabled={modifiers.disabled ? 'true' : undefined}
-			data-outside={modifiers.outside ? 'true' : undefined}
-			data-range-end={modifiers.range_end ? 'true' : undefined}
-			data-range-middle={modifiers.range_middle ? 'true' : undefined}
-			data-range-start={modifiers.range_start ? 'true' : undefined}
-			data-selected-single={single ? 'true' : undefined}
-			data-slot="calendar-day-button"
-			data-state={modifiers.selected ? 'selected' : 'unselected'}
-			data-today={modifiers.today ? 'true' : undefined}
-			data-unavailable={modifiers.unavailable ? 'true' : undefined}
-			type={type}
-		>
-			{day}
-		</button>
-	)
-}
-
-export { Calendar, CalendarDayButton }
+export { Calendar }

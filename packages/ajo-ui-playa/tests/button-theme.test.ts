@@ -1,7 +1,9 @@
 import type { VNode } from 'ajo'
+import { render as ssr } from 'ajo/html'
+import { jsx } from 'ajo/jsx-runtime'
 import { describe, expect, it } from 'vitest'
 import { buttonVariants } from 'ajo-ui-playa/button'
-import { CalendarDayButton } from 'ajo-ui-playa/calendar'
+import { Calendar } from 'ajo-ui-playa/calendar'
 import { InputDateTrigger } from 'ajo-ui-playa/input-date'
 import { InputGroupButton } from 'ajo-ui-playa/input-group'
 import { SelectInput } from 'ajo-ui-playa/select'
@@ -62,22 +64,10 @@ describe('button theme composition', () => {
 
 	it('uses those opt-outs at the input-group and calendar seams', () => {
 		const inputGroup = InputGroupButton({ variant: 'default' }) as VNode & { class?: string }
-		const calendarDay = CalendarDayButton({
-			date: new Date(2026, 6, 1),
-			day: 1,
-			modifiers: {
-				disabled: false,
-				outside: false,
-				range_end: false,
-				range_middle: false,
-				range_start: false,
-				selected: false,
-				today: false,
-				unavailable: false,
-			},
-		}) as VNode & { class?: string }
+		const calendar = ssr(jsx(Calendar, { defaultMonth: new Date(2026, 6, 1, 12) }))
+		const calendarDay = /<button[^>]*class="([^"]*)"[^>]*data-slot="calendar-day-button"/.exec(calendar)?.[1]
 		const inputGroupClasses = tokens(inputGroup.class)
-		const calendarClasses = tokens(calendarDay.class)
+		const calendarClasses = tokens(calendarDay)
 
 		expect(inputGroupClasses).not.toContain('shadow-xs')
 		expect(inputGroupClasses).not.toContain('shadow-none')

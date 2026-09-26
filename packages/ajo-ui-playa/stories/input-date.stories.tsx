@@ -226,8 +226,8 @@ export const WithCalendar: Story<typeof InputDate> = {
 		await press(month, 'ArrowDown', { altKey: true })
 		ensure(opened(panel), 'Alt+ArrowDown must open the popover from a segment')
 		const selectedDay = panel.querySelector<HTMLButtonElement>(`[data-slot="calendar-day-button"][data-day="${iso}"]`)
-		ensure(selectedDay?.dataset.state === 'selected', 'Selected CalendarDayButton state must remain available to InputDate')
-		ensure(document.activeElement === selectedDay, 'Reopening must autofocus the selected CalendarDayButton')
+		ensure(selectedDay?.dataset.state === 'selected', 'Selected calendar day button state must remain available to InputDate')
+		ensure(document.activeElement === selectedDay, 'Reopening must autofocus the selected calendar day button')
 		await escapeClose()
 		ensure(!opened(panel), 'Escape must close the popover')
 		ensure(document.activeElement === month, 'Closing a keyboard open must restore focus to the opening segment')
@@ -365,37 +365,6 @@ export const Range: Story<typeof InputDate> = {
 		lastFrom.focus()
 		await press(lastFrom, 'ArrowRight')
 		ensure(document.activeElement === segments(stay, 'to')[0], 'ArrowRight must cross from the last from-segment to the first to-segment')
-	},
-}
-
-export const DateOfBirth: Story<typeof InputDate> = {
-	parameters: {
-		docs: { description: 'Distant dates: dropdown caption layout with a bounded year range.' },
-	},
-	render: () => (
-		<div data-story-field="birth">
-			<Field class="max-w-sm">
-				<FieldLabel>Date of birth</FieldLabel>
-				<InputDate name="birth" calendar={{ captionLayout: 'dropdown', fromYear: 1900, toYear: 2026 }} />
-			</Field>
-		</div>
-	),
-	play: async ({ canvas }) => {
-		const birth = scope(canvas, 'birth')
-		const panel = content(birth)
-		trigger(birth).click()
-		await frame()
-		ensure(opened(panel), 'Trigger click must open the calendar popover')
-
-		const dropdowns = panel.querySelector<HTMLElement>('[data-slot="calendar-dropdowns"]')
-		if (!dropdowns) throw new Error('Dropdown caption layout must render the dropdowns container')
-		ensure(dropdowns.querySelectorAll('[data-slot="select-trigger"]').length === 2, 'Expected month and year dropdowns')
-		ensure(dropdowns.querySelector('[data-slot="select-item"][data-value="1900"]'), 'Year dropdown must reach back to fromYear 1900')
-		ensure(dropdowns.querySelector('[data-slot="select-item"][data-value="2026"]'), 'Year dropdown must reach toYear 2026')
-		ensure(!dropdowns.querySelector('[data-slot="select-item"][data-value="1899"]'), 'Year dropdown must not go below fromYear')
-
-		await escapeClose()
-		ensure(!opened(panel), 'Escape must close the popover')
 	},
 }
 

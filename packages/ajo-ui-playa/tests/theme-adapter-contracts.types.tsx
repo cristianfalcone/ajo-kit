@@ -3,7 +3,7 @@ import { InputOTP, type InputOTPArgs } from 'ajo-ui-playa/input-otp'
 import { Marker } from 'ajo-ui-playa/marker'
 import { VirtualList, type VirtualListApi } from 'ajo-ui-playa/virtual-list'
 import type { AvatarArgs, AvatarImageArgs } from 'ajo-ui-playa/avatar'
-import type { CalendarSingleArgs } from 'ajo-ui-playa/calendar'
+import type { CalendarSingleArgs, CalendarView } from 'ajo-ui-playa/calendar'
 import type { CarouselButtonArgs } from 'ajo-ui-playa/carousel'
 import type { CheckboxArgs } from 'ajo-ui-playa/checkbox'
 import type {
@@ -79,10 +79,8 @@ export type CheckboxChangeContract = Expect<Equal<
 	((checked: boolean, event: Event) => void) | undefined
 >>
 
-export type CalendarNextLabelContract = Expect<Equal<CalendarSingleArgs['nextMonthLabel'], string | undefined>>
-export type CalendarPreviousLabelContract = Expect<Equal<CalendarSingleArgs['previousMonthLabel'], string | undefined>>
-export type CalendarMonthSelectLabelContract = Expect<Equal<CalendarSingleArgs['monthSelectLabel'], string | undefined>>
-export type CalendarYearSelectLabelContract = Expect<Equal<CalendarSingleArgs['yearSelectLabel'], string | undefined>>
+export type CalendarNextLabelContract = Expect<Equal<CalendarSingleArgs['nextMonthLabel'], string | ((view: CalendarView) => string) | undefined>>
+export type CalendarPreviousLabelContract = Expect<Equal<CalendarSingleArgs['previousMonthLabel'], string | ((view: CalendarView) => string) | undefined>>
 
 export type AvatarRootDerivesBase = Expect<AvatarArgs extends BaseAvatarArgs ? true : false>
 export type AvatarImageDerivesBase = Expect<AvatarImageArgs extends BaseAvatarImageArgs ? true : false>
@@ -95,11 +93,6 @@ export const carouselThemeOwnsButtonChildren: CarouselButtonArgs = {
 export const checkboxThemeOwnsInputRecipe: CheckboxArgs = {
 	// @ts-expect-error Checkbox owns its invisible native-input recipe.
 	inputClass: 'consumer-input',
-}
-
-export const calendarThemeOwnsNavigationRecipe: CalendarSingleArgs = {
-	// @ts-expect-error Calendar owns its navigation-button recipe.
-	navButtonClass: 'consumer-nav',
 }
 
 type VirtualPerson = { id: string; name: string }
