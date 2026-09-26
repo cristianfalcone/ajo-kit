@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom, frame } from './core'
 import { resize } from './resize'
 
@@ -31,8 +31,6 @@ export const indicator = (host: Host, opts: {
 	target: () => HTMLElement | null | undefined
 	/** Resolves the marked child inside the container. */
 	of: (container: HTMLElement) => HTMLElement | null
-	/** Container events that can move the mark without a re-render (e.g. focusin). */
-	on?: string[]
 }) => {
 	if (!dom(host)) {
 		return {
@@ -41,7 +39,6 @@ export const indicator = (host: Host, opts: {
 	}
 
 	let container: HTMLElement | undefined
-	let control: AbortController | undefined
 	let placed = false
 
 	const clear = (el: HTMLElement) => {
@@ -88,25 +85,13 @@ export const indicator = (host: Host, opts: {
 
 	const retarget = (next: HTMLElement | undefined) => {
 		if (next === container) return
-
-		control?.abort()
-		control = undefined
 		if (container) clear(container)
 		container = next
-
-		if (!container || !opts.on?.length) return
-
-		control = new AbortController()
-		host.signal.addEventListener('abort', () => control?.abort(), { signal: control.signal })
-		for (const type of opts.on) {
-			container.addEventListener(type, () => schedule(), { passive: true, signal: control.signal })
-		}
 	}
 
 	host.signal.addEventListener('abort', () => {
 		schedule.cancel()
 		reveal.cancel()
-		control?.abort()
 		if (container) clear(container)
 		container = undefined
 	}, { once: true })

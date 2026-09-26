@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { controlled } from './controlled'
 
 /** Single/multi selection semantics over a controlled list of values. */
@@ -18,9 +18,6 @@ export const selection = (host: Host, opts: {
 	})
 
 	return {
-		get values() {
-			return state.value
-		},
 		has(value: string) {
 			return state.value.includes(value)
 		},
@@ -34,7 +31,7 @@ export const selection = (host: Host, opts: {
 					if ((opts.required?.() ?? false) && base.length <= 1) return
 					next = base.filter(item => item !== value)
 				} else {
-					next = Array.from(new Set([...base, value]))
+					next = [...base, value]
 				}
 			} else if (exists) {
 				if (opts.required?.() ?? false) return
@@ -44,9 +41,6 @@ export const selection = (host: Host, opts: {
 			}
 
 			state.set(next, event)
-		},
-		set(values: string[], event?: Event) {
-			state.set([...values], event)
 		},
 		sync(values: string[] | null | undefined) {
 			return state.sync(values == null ? undefined : [...values])

@@ -1,13 +1,10 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom, on } from './core'
 
 type CaptureElement = HTMLElement | SVGElement
 
 type MoveData = {
-	/** Client coordinates of the current event. */
-	x: number
-	y: number
-	/** Deltas from the session start. */
+	/** Client-coordinate deltas from the session start. */
 	dx: number
 	dy: number
 	/** True when the session ended via pointercancel, Escape, or capture loss. */
@@ -26,8 +23,6 @@ type MoveSession = {
 type MoveView = {
 	/** Begins a drag session from the consumer's own pointerdown. Ignores non-primary buttons. */
 	start(event: PointerEvent): boolean
-	/** True while a session is running. */
-	readonly active: boolean
 }
 
 const isCaptureElement = (value: EventTarget | null): value is CaptureElement =>
@@ -41,8 +36,6 @@ const capture = (event: PointerEvent) =>
 const update = (session: MoveSession, event: PointerEvent, canceled: boolean) => {
 	const { data } = session
 
-	data.x = event.clientX
-	data.y = event.clientY
 	data.dx = event.clientX - session.startX
 	data.dy = event.clientY - session.startY
 	data.canceled = canceled
@@ -85,9 +78,6 @@ export const move = (host: Host, opts: {
 			start(_event: PointerEvent) {
 				return false
 			},
-			get active() {
-				return false
-			},
 		}
 	}
 
@@ -128,8 +118,6 @@ export const move = (host: Host, opts: {
 			const current: MoveSession = {
 				controller: new AbortController(),
 				data: {
-					x: event.clientX,
-					y: event.clientY,
 					dx: 0,
 					dy: 0,
 					canceled: false,
@@ -177,9 +165,6 @@ export const move = (host: Host, opts: {
 
 			opts.onStart?.(current.data, event)
 			return true
-		},
-		get active() {
-			return !!session
 		},
 	}
 }

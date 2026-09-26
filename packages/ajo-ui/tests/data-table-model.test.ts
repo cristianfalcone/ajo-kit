@@ -1,4 +1,4 @@
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { expect, test, vi } from 'vitest'
 import type { DataTableArgs, DataTableColumn } from '../src/data-table-contract'
 import { createDataTableModel } from '../src/data-table-model'

@@ -63,12 +63,7 @@ type DrawerContextValue = {
 }
 
 const DrawerContext = context<DrawerContextValue>({
-	drag: {
-		start: () => false,
-		get active() {
-			return false
-		},
-	},
+	drag: { start: () => false },
 	side: 'right',
 	setPanel: () => {},
 })

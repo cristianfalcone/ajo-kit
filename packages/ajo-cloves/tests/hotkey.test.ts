@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
@@ -127,7 +127,7 @@ test('active false blocks matched keys before preventing default', () => {
 	expect(event.defaultPrevented).toBe(false)
 })
 
-test('prevent defaults to true on match', () => {
+test('a match is always prevented', () => {
 	const fn = vi.fn()
 
 	function* Gen(this: Host) {
@@ -145,28 +145,6 @@ test('prevent defaults to true on match', () => {
 	window.dispatchEvent(event)
 
 	expect(event.defaultPrevented).toBe(true)
-	expect(fn).toHaveBeenCalledTimes(1)
-})
-
-test('prevent false leaves a matched event alone', () => {
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		hotkey(this, {
-			keys: () => 'mod+b',
-			prevent: false,
-			onPress: fn,
-		})
-
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	const event = key('b', { ctrlKey: true })
-	window.dispatchEvent(event)
-
-	expect(event.defaultPrevented).toBe(false)
 	expect(fn).toHaveBeenCalledTimes(1)
 })
 

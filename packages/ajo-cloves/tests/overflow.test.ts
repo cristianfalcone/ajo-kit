@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, expect, test, vi } from 'vitest'

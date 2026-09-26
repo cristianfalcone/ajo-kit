@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
@@ -127,8 +127,7 @@ afterEach(() => {
 test('shape has exactly the documented fields', () => {
 	const ctx = mount({ onMove: () => {} })
 
-	expect(Object.keys(ctx.view)).toEqual(['start', 'active'])
-	expect(ctx.view.active).toBe(false)
+	expect(Object.keys(ctx.view)).toEqual(['start'])
 })
 
 test('start rejects non-left button, non-primary pointers, and double-start', () => {
@@ -142,7 +141,6 @@ test('start rejects non-left button, non-primary pointers, and double-start', ()
 	start(ctx, { pointerId: 8 })
 
 	expect(ctx.starts).toEqual([false, false, true, false])
-	expect(ctx.view.active).toBe(true)
 	expect(capture.set).toHaveBeenCalledTimes(1)
 	expect(capture.set).toHaveBeenCalledWith(7)
 	expect(onStart).toHaveBeenCalledTimes(1)
@@ -162,9 +160,8 @@ test('onStart receives zero-delta data and the original event', () => {
 	stubCapture(ctx.root)
 	const event = start(ctx, { clientX: 10, clientY: 20, pointerId: 3 })
 
-	expect(starts).toEqual([{ x: 10, y: 20, dx: 0, dy: 0, canceled: false }])
+	expect(starts).toEqual([{ dx: 0, dy: 0, canceled: false }])
 	expect(events).toEqual([event])
-	expect(ctx.view.active).toBe(true)
 })
 
 test('pointermove reports deltas accumulated from the start point', () => {
@@ -180,8 +177,8 @@ test('pointermove reports deltas accumulated from the start point', () => {
 	ctx.root.dispatchEvent(pointer('pointermove', { clientX: 9, clientY: 15, pointerId: 4 }))
 
 	expect(moves).toEqual([
-		{ x: 12, y: 25, dx: 2, dy: 5, canceled: false },
-		{ x: 9, y: 15, dx: -1, dy: -5, canceled: false },
+		{ dx: 2, dy: 5, canceled: false },
+		{ dx: -1, dy: -5, canceled: false },
 	])
 })
 
@@ -201,8 +198,7 @@ test('pointerup ends with canceled false and releases capture', () => {
 	const up = pointer('pointerup', { clientX: 13, clientY: 14, pointerId: 6 })
 	ctx.root.dispatchEvent(up)
 
-	expect(ctx.view.active).toBe(false)
-	expect(ends).toEqual([{ x: 13, y: 14, dx: 8, dy: 7, canceled: false }])
+	expect(ends).toEqual([{ dx: 8, dy: 7, canceled: false }])
 	expect(events).toEqual([up])
 	expect(capture.release).toHaveBeenCalledTimes(1)
 	expect(capture.release).toHaveBeenCalledWith(6)
@@ -219,8 +215,7 @@ test('pointercancel ends with canceled true', () => {
 	start(ctx, { clientX: 1, clientY: 2, pointerId: 9 })
 	ctx.root.dispatchEvent(pointer('pointercancel', { clientX: 6, clientY: 10, pointerId: 9 }))
 
-	expect(ctx.view.active).toBe(false)
-	expect(ends).toEqual([{ x: 6, y: 10, dx: 5, dy: 8, canceled: true }])
+	expect(ends).toEqual([{ dx: 5, dy: 8, canceled: true }])
 	expect(capture.release).toHaveBeenCalledWith(9)
 })
 
@@ -236,8 +231,7 @@ test('lostpointercapture ends canceled and later pointerup cannot double-fire', 
 	ctx.root.dispatchEvent(pointer('lostpointercapture', { clientX: 20, clientY: 15, pointerId: 11 }))
 	ctx.root.dispatchEvent(pointer('pointerup', { clientX: 20, clientY: 15, pointerId: 11 }))
 
-	expect(ctx.view.active).toBe(false)
-	expect(ends).toEqual([{ x: 20, y: 15, dx: 10, dy: 5, canceled: true }])
+	expect(ends).toEqual([{ dx: 10, dy: 5, canceled: true }])
 	expect(capture.release).not.toHaveBeenCalled()
 })
 
@@ -271,8 +265,7 @@ test('Escape ends canceled with the KeyboardEvent and does not prevent default',
 	const event = key('Escape')
 	document.dispatchEvent(event)
 
-	expect(ctx.view.active).toBe(false)
-	expect(ends).toEqual([{ x: 4, y: 8, dx: 3, dy: 6, canceled: true }])
+	expect(ends).toEqual([{ dx: 3, dy: 6, canceled: true }])
 	expect(events).toEqual([event])
 	expect(event.defaultPrevented).toBe(false)
 	expect(capture.release).toHaveBeenCalledWith(13)
@@ -315,7 +308,6 @@ test('unmount during a session aborts silently and releases capture', () => {
 	root.dispatchEvent(pointer('pointermove', { clientX: 1, clientY: 1, pointerId: 16 }))
 	root.dispatchEvent(pointer('pointerup', { pointerId: 16 }))
 
-	expect(ctx.view.active).toBe(false)
 	expect(onMove).not.toHaveBeenCalled()
 	expect(onEnd).not.toHaveBeenCalled()
 	expect(capture.release).toHaveBeenCalledWith(16)
@@ -336,12 +328,11 @@ test('reset re-arms a fresh session', () => {
 
 	expect(ctx.created).toBe(2)
 	expect(ctx.starts).toEqual([true, true])
-	expect(ctx.view.active).toBe(true)
 	expect(onMove).toHaveBeenCalledTimes(1)
 	expect(capture.set).toHaveBeenCalledWith(18)
 })
 
-test('SSR inert view stays inactive and never calls callbacks', () => {
+test('SSR inert view never starts or calls callbacks', () => {
 	function* Gen(this: Host) {
 		const view = move(this, {
 			onStart: () => {
@@ -356,10 +347,10 @@ test('SSR inert view stays inactive and never calls callbacks', () => {
 		})
 		const started = view.start(pointer('pointerdown'))
 
-		yield jsx('span', { children: `${view.active}/${started}` })
+		yield jsx('span', { children: String(started) })
 	}
 
-	expect(ssr(jsx(Gen, {}))).toBe('<div><span>false/false</span></div>')
+	expect(ssr(jsx(Gen, {}))).toBe('<div><span>false</span></div>')
 })
 
 test('data object identity is stable within a session', () => {

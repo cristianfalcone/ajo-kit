@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
@@ -49,7 +49,7 @@ test('shape has exactly the documented fields', () => {
 
 	render(jsx(Gen, {}), document.body)
 
-	expect(Object.keys(view!)).toEqual(['handle', 'reset'])
+	expect(Object.keys(view!)).toEqual(['handle'])
 })
 
 test('buffers printable keys, matches prefixes, and resets after 600 ms without preventing default', () => {
@@ -89,7 +89,9 @@ test('buffers printable keys, matches prefixes, and resets after 600 ms without 
 	expect(matches).toEqual(['alpha', 'apricot', 'rose'])
 })
 
-test('reacts to live item sources and custom text readers', () => {
+test('reacts to live item sources', () => {
+	vi.useFakeTimers()
+
 	let view: ReturnType<typeof typeahead> | undefined
 	let alpha: HTMLDivElement | null = null
 	let beta: HTMLDivElement | null = null
@@ -99,38 +101,6 @@ test('reacts to live item sources and custom text readers', () => {
 	function* Gen(this: Host) {
 		view = typeahead(this, {
 			items: () => betaEnabled ? [item(beta)] : [item(alpha)],
-			text: target => target.getAttribute('aria-label') ?? '',
-			onMatch: target => matches.push(target.id),
-		})
-
-		yield [
-			jsx('div', { 'aria-label': 'alpha', id: 'alpha', key: 'alpha', ref: (element: unknown) => alpha = element as HTMLDivElement | null }),
-			jsx('div', { 'aria-label': 'beta', id: 'beta', key: 'beta', ref: (element: unknown) => beta = element as HTMLDivElement | null }),
-		]
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	expect(view!.handle(key('a'))).toBe(true)
-	betaEnabled = true
-	view!.reset()
-	expect(view!.handle(key('b'))).toBe(true)
-
-	expect(matches).toEqual(['alpha', 'beta'])
-})
-
-test('honors custom delay values', () => {
-	vi.useFakeTimers()
-
-	let view: ReturnType<typeof typeahead> | undefined
-	let alpha: HTMLDivElement | null = null
-	let beta: HTMLDivElement | null = null
-	const matches: string[] = []
-
-	function* Gen(this: Host) {
-		view = typeahead(this, {
-			items: () => [item(alpha), item(beta)],
-			delay: () => 50,
 			onMatch: target => matches.push(target.id),
 		})
 
@@ -142,9 +112,10 @@ test('honors custom delay values', () => {
 
 	render(jsx(Gen, {}), document.body)
 
-	view!.handle(key('a'))
-	vi.advanceTimersByTime(50)
-	view!.handle(key('b'))
+	expect(view!.handle(key('a'))).toBe(true)
+	betaEnabled = true
+	vi.advanceTimersByTime(600)
+	expect(view!.handle(key('b'))).toBe(true)
 
 	expect(matches).toEqual(['alpha', 'beta'])
 })
@@ -194,7 +165,9 @@ test('ignores space and modifier combos without reading items', () => {
 	expect(onMatch).not.toHaveBeenCalled()
 })
 
-test('no-match keeps the buffer, returns true, and reset clears it', () => {
+test('no-match keeps the buffer, returns true, and the buffer clears after 600 ms', () => {
+	vi.useFakeTimers()
+
 	let view: ReturnType<typeof typeahead> | undefined
 	let alpha: HTMLDivElement | null = null
 	const matches: string[] = []
@@ -214,7 +187,7 @@ test('no-match keeps the buffer, returns true, and reset clears it', () => {
 	expect(view!.handle(key('a'))).toBe(true)
 	expect(matches).toEqual([])
 
-	view!.reset()
+	vi.advanceTimersByTime(600)
 	expect(view!.handle(key('a'))).toBe(true)
 	expect(matches).toEqual(['alpha'])
 })
@@ -297,7 +270,7 @@ test('reset clears old pending work and recreates a searchable view', () => {
 	expect(matches).toEqual(['alpha', 'alpha'])
 })
 
-test('SSR inert view returns false and reset no-ops', () => {
+test('SSR inert view returns false', () => {
 	function* Gen(this: Host) {
 		const view = typeahead(this, {
 			items: () => {
@@ -307,7 +280,6 @@ test('SSR inert view returns false and reset no-ops', () => {
 		})
 
 		const consumed = view.handle(key('a'))
-		view.reset()
 		yield jsx('span', { children: consumed ? 'client' : 'server' })
 	}
 

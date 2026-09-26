@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
@@ -200,10 +200,9 @@ test('reset recreates a fresh subscription', () => {
 	expect(document.body.textContent).toBe('portrait')
 })
 
-test('SSR uses fallback and does not evaluate the query', () => {
+test('SSR does not match and does not evaluate the query', () => {
 	function* Gen(this: Host) {
 		const view = media(this, {
-			fallback: () => true,
 			query: () => {
 				throw new Error('query should not run on the server')
 			},
@@ -213,5 +212,5 @@ test('SSR uses fallback and does not evaluate the query', () => {
 		yield jsx('span', { children: view.matches ? 'yes' : 'no' })
 	}
 
-	expect(ssr(jsx(Gen, {}))).toBe('<div><span>yes</span></div>')
+	expect(ssr(jsx(Gen, {}))).toBe('<div><span>no</span></div>')
 })

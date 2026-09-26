@@ -14,7 +14,8 @@ import {
 	type Placement,
 	type ReferenceElement,
 } from '@floating-ui/dom'
-import { dom, type Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
+import { dom } from 'ajo-cloves'
 import type { PopupPlacement } from './utils'
 
 export type PositionProfile =

@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom, on } from './core'
 
 const modifier = (token: string) =>
@@ -33,7 +33,7 @@ const matches = (chord: string, event: KeyboardEvent) => {
 	return event.key.toLowerCase() === key
 }
 
-/** Global keyboard shortcut for a single chord like 'mod+b' or 'F8'. */
+/** Global keyboard shortcut for a single chord like 'mod+b' or 'F8'; a match is always preventDefault'ed. */
 export const hotkey = (host: Host, opts: {
 	/** Chord: '+'-separated modifiers (mod|ctrl|meta|alt|shift) plus one key token, e.g. 'mod+b', 'F8'. */
 	keys: () => string
@@ -41,8 +41,6 @@ export const hotkey = (host: Host, opts: {
 	onPress: (event: KeyboardEvent) => void
 	/** Gate. Default: () => true. */
 	active?: () => boolean
-	/** preventDefault on match. Default: true. */
-	prevent?: boolean
 }): void => {
 	if (!dom(host)) return
 
@@ -50,7 +48,7 @@ export const hotkey = (host: Host, opts: {
 		if (!matches(opts.keys(), event)) return
 		if (!(opts.active?.() ?? true)) return
 
-		if (opts.prevent ?? true) event.preventDefault()
+		event.preventDefault()
 		opts.onPress(event)
 	}, host)
 }

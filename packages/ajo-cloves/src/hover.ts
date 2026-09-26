@@ -1,12 +1,12 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { timer } from './timer'
 
 /** Hover intent: zones hold the surface open; delays gate open/close transitions. */
 export const hover = (host: Host, opts: {
-	/** Delay before the first held zone opens the surface, in ms. Default: 0. */
-	openDelay?: () => number
-	/** Delay before the last released zone closes the surface, in ms. Default: 0. */
-	closeDelay?: () => number
+	/** Delay before the first held zone opens the surface, in ms. */
+	openDelay: () => number
+	/** Delay before the last released zone closes the surface, in ms. */
+	closeDelay: () => number
 	/** Called when the held-zone state opens or closes the surface. */
 	onChange: (open: boolean, event: Event) => void
 }) => {
@@ -22,15 +22,12 @@ export const hover = (host: Host, opts: {
 	}
 
 	return {
-		get open() {
-			return opened
-		},
 		hold(zone: string, event: Event) {
 			zones.add(zone)
 			closing.stop()
 			if (opened || opening.running) return
 
-			const delay = opts.openDelay?.() ?? 0
+			const delay = opts.openDelay()
 			if (delay <= 0) flip(true, event)
 			else opening.start(delay, () => flip(true, event))
 		},
@@ -41,7 +38,7 @@ export const hover = (host: Host, opts: {
 			opening.stop()
 			if (!opened) return
 
-			const delay = opts.closeDelay?.() ?? 0
+			const delay = opts.closeDelay()
 			if (delay <= 0) flip(false, event)
 			else closing.start(delay, () => flip(false, event))
 		},

@@ -1,4 +1,4 @@
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import type {
 	DataTableArgs,
 	DataTableColumn,

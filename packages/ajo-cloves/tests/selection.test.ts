@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
@@ -18,6 +18,10 @@ const must = (value: Host | null): Host => {
 
 const event = () => new Event('select')
 
+type View = ReturnType<typeof selection>
+
+const shown = (view: View) => ['a', 'b', 'c', 'd', 'leak'].filter(value => view.has(value)).join(',')
+
 beforeEach(prepare)
 
 afterEach(() => {
@@ -35,7 +39,7 @@ test('shape has exactly the documented fields', () => {
 
 	render(jsx(Gen, {}), document.body)
 
-	expect(Object.keys(view!)).toEqual(['values', 'has', 'toggle', 'set', 'sync'])
+	expect(Object.keys(view!)).toEqual(['has', 'toggle', 'sync'])
 })
 
 test('single toggle selects and clears a value', () => {
@@ -47,17 +51,15 @@ test('single toggle selects and clears a value', () => {
 			onChange: values => changes.push(values),
 		})
 
-		while (true) yield jsx('span', { children: view.values.join(',') })
+		while (true) yield jsx('span', { children: shown(view) })
 	}
 
 	render(jsx(Gen, {}), document.body)
 
 	view!.toggle('a', event())
-	expect(view!.values).toEqual(['a'])
 	expect(view!.has('a')).toBe(true)
 
 	view!.toggle('a', event())
-	expect(view!.values).toEqual([])
 	expect(view!.has('a')).toBe(false)
 	expect(changes).toEqual([['a'], []])
 })
@@ -76,7 +78,7 @@ test('single required mode keeps the last value without change notification or i
 
 		while (true) {
 			renders++
-			yield jsx('span', { children: `${renders}:${view.values.join(',')}` })
+			yield jsx('span', { children: `${renders}:${shown(view)}` })
 		}
 	}
 
@@ -84,33 +86,33 @@ test('single required mode keeps the last value without change notification or i
 
 	view!.toggle('a', event())
 
-	expect(view!.values).toEqual(['a'])
+	expect(view!.has('a')).toBe(true)
 	expect(onChange).not.toHaveBeenCalled()
 	expect(document.body.textContent).toBe('1:a')
 })
 
-test('multiple mode preserves order, removes values, and dedupes on append', () => {
+test('multiple mode preserves order, appends and removes values', () => {
 	let view: ReturnType<typeof selection> | undefined
+	const changes: string[][] = []
 
 	function* Gen(this: Host) {
 		view = selection(this, {
-			fallback: ['a', 'a'],
+			fallback: ['a'],
 			multiple: () => true,
+			onChange: values => changes.push(values),
 		})
 
-		while (true) yield jsx('span', { children: view.values.join(',') })
+		while (true) yield jsx('span', { children: shown(view) })
 	}
 
 	render(jsx(Gen, {}), document.body)
 
 	view!.toggle('b')
-	expect(view!.values).toEqual(['a', 'b'])
-
 	view!.toggle('a')
-	expect(view!.values).toEqual(['b'])
-
 	view!.toggle('c')
-	expect(view!.values).toEqual(['b', 'c'])
+
+	expect(changes).toEqual([['a', 'b'], ['b'], ['b', 'c']])
+	expect(document.body.textContent).toBe('b,c')
 })
 
 test('multiple required mode keeps the last selected value', () => {
@@ -131,7 +133,7 @@ test('multiple required mode keeps the last selected value', () => {
 
 	view!.toggle('a')
 
-	expect(view!.values).toEqual(['a'])
+	expect(view!.has('a')).toBe(true)
 	expect(onChange).not.toHaveBeenCalled()
 })
 
@@ -143,7 +145,7 @@ test('controlled and uncontrolled sync follow controlled clove semantics', () =>
 
 		for (const args of this) {
 			view.sync(args.values as string[] | undefined)
-			yield jsx('span', { children: view.values.join(',') })
+			yield jsx('span', { children: shown(view) })
 		}
 	}
 
@@ -151,46 +153,43 @@ test('controlled and uncontrolled sync follow controlled clove semantics', () =>
 
 	expect(document.body.textContent).toBe('a')
 
-	view!.set(['b'])
+	view!.toggle('b')
 	expect(document.body.textContent).toBe('b')
 
 	render(jsx(Gen, { values: ['c'] }), document.body)
-	expect(view!.values).toEqual(['c'])
 	expect(document.body.textContent).toBe('c')
 
-	view!.set(['d'])
-	expect(view!.values).toEqual(['c'])
+	view!.toggle('d')
+	expect(view!.has('d')).toBe(false)
 
 	render(jsx(Gen, { values: ['c'] }), document.body)
-	expect(view!.values).toEqual(['c'])
+	expect(document.body.textContent).toBe('c')
 })
 
-test('set delegates to controlled ordering by notifying before the live value updates', () => {
+test('toggle delegates to controlled ordering by notifying before the live value updates', () => {
 	let view: ReturnType<typeof selection> | undefined
 	const order: string[] = []
 
 	function* Gen(this: Host) {
 		view = selection(this, {
 			fallback: ['a'],
-			onChange: next => order.push(`${next.join(',')}:${view!.values.join(',')}`),
+			onChange: next => order.push(`${next.join(',')}:${shown(view!)}`),
 		})
 
-		while (true) yield jsx('span', { children: view.values.join(',') })
+		while (true) yield jsx('span', { children: shown(view) })
 	}
 
 	render(jsx(Gen, {}), document.body)
 
-	view!.set(['b'])
+	view!.toggle('b')
 
 	expect(order).toEqual(['b:a'])
-	expect(view!.values).toEqual(['b'])
 	expect(document.body.textContent).toBe('b')
 })
 
-test('copy-on-write protects synced and set arrays from later mutation', () => {
+test('copy-on-write protects synced arrays from later mutation', () => {
 	let view: ReturnType<typeof selection> | undefined
 	const synced = ['a']
-	const replacement = ['b']
 
 	function* Gen(this: Host) {
 		view = selection(this, {})
@@ -201,12 +200,7 @@ test('copy-on-write protects synced and set arrays from later mutation', () => {
 
 	view!.sync(synced)
 	synced.push('leak')
-	expect(view!.values).toEqual(['a'])
-
-	view!.sync(undefined)
-	view!.set(replacement)
-	replacement.push('leak')
-	expect(view!.values).toEqual(['b'])
+	expect(shown(view!)).toBe('a')
 })
 
 test('invalidate updates DOM text through host.next from toggle', () => {
@@ -215,7 +209,7 @@ test('invalidate updates DOM text through host.next from toggle', () => {
 	function* Gen(this: Host) {
 		view = selection(this, {})
 
-		while (true) yield jsx('span', { children: view.values.join(',') || 'empty' })
+		while (true) yield jsx('span', { children: shown(view) || 'empty' })
 	}
 
 	render(jsx(Gen, {}), document.body)
@@ -225,19 +219,19 @@ test('invalidate updates DOM text through host.next from toggle', () => {
 	expect(document.body.textContent).toBe('a')
 })
 
-test('teardown makes later set calls unable to render', () => {
+test('teardown makes later toggle calls unable to render', () => {
 	let view: ReturnType<typeof selection> | undefined
 
 	function* Gen(this: Host) {
 		view = selection(this, {})
 
-		while (true) yield jsx('span', { children: view.values.join(',') || 'empty' })
+		while (true) yield jsx('span', { children: shown(view) || 'empty' })
 	}
 
 	render(jsx(Gen, {}), document.body)
 	render(null, document.body)
 
-	view!.set(['a'])
+	view!.toggle('a')
 
 	expect(document.body.textContent).toBe('')
 })
@@ -251,28 +245,27 @@ test('reset recreates local state with a fresh view', () => {
 		created++
 		view = selection(this, { fallback: ['a'] })
 
-		while (true) yield jsx('span', { children: view.values.join(',') })
+		while (true) yield jsx('span', { children: shown(view) })
 	}
 
 	render(jsx(Gen, { ref: (element: unknown) => host = element as Host | null }), document.body)
-	view!.set(['b'])
+	view!.toggle('b')
 	expect(document.body.textContent).toBe('b')
 
 	must(host).return()
 	must(host).next()
 
 	expect(created).toBe(2)
-	expect(view!.values).toEqual(['a'])
 	expect(document.body.textContent).toBe('a')
 })
 
 test('SSR works as a state-only clove', () => {
 	function* Gen(this: Host) {
-		const view = selection(this, { fallback: ['server'] })
+		const view = selection(this, { fallback: ['a'] })
 		view.sync(undefined)
 
-		yield jsx('span', { children: view.values.join(',') })
+		yield jsx('span', { children: shown(view) })
 	}
 
-	expect(ssr(jsx(Gen, {}))).toBe('<div><span>server</span></div>')
+	expect(ssr(jsx(Gen, {}))).toBe('<div><span>a</span></div>')
 })

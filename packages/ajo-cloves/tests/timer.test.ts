@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
@@ -34,7 +34,7 @@ test('shape has exactly the documented fields', () => {
 
 	render(jsx(Gen, {}), document.body)
 
-	expect(Object.keys(view!)).toEqual(['start', 'stop', 'pause', 'resume', 'running', 'remaining'])
+	expect(Object.keys(view!)).toEqual(['start', 'stop', 'running'])
 })
 
 test('reacts by firing once after the requested delay', () => {
@@ -53,18 +53,15 @@ test('reacts by firing once after the requested delay', () => {
 	view!.start(100, fn)
 
 	expect(view!.running).toBe(true)
-	expect(view!.remaining).toBe(100)
 
 	vi.advanceTimersByTime(99)
 
 	expect(fn).not.toHaveBeenCalled()
-	expect(view!.remaining).toBe(1)
 
 	vi.advanceTimersByTime(1)
 
 	expect(fn).toHaveBeenCalledTimes(1)
 	expect(view!.running).toBe(false)
-	expect(view!.remaining).toBe(0)
 })
 
 test('starting again replaces the pending task and restarts the delay', () => {
@@ -88,7 +85,6 @@ test('starting again replaces the pending task and restarts the delay', () => {
 
 	expect(first).not.toHaveBeenCalled()
 	expect(second).not.toHaveBeenCalled()
-	expect(view!.remaining).toBe(1)
 
 	vi.advanceTimersByTime(1)
 
@@ -97,7 +93,7 @@ test('starting again replaces the pending task and restarts the delay', () => {
 	expect(view!.running).toBe(false)
 })
 
-test('stop cancels a pending task and resets its public state', () => {
+test('stop cancels a pending task', () => {
 	vi.useFakeTimers()
 
 	let view: ReturnType<typeof timer> | undefined
@@ -115,71 +111,10 @@ test('stop cancels a pending task and resets its public state', () => {
 	view!.stop()
 
 	expect(view!.running).toBe(false)
-	expect(view!.remaining).toBe(0)
 
 	vi.advanceTimersByTime(100)
 
 	expect(fn).not.toHaveBeenCalled()
-})
-
-test('pause freezes remaining time and resume continues it', () => {
-	vi.useFakeTimers()
-
-	let view: ReturnType<typeof timer> | undefined
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		view = timer(this)
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-
-	view!.start(100, fn)
-	vi.advanceTimersByTime(40)
-	view!.pause()
-
-	expect(view!.running).toBe(false)
-	expect(view!.remaining).toBe(60)
-
-	vi.advanceTimersByTime(100)
-
-	expect(fn).not.toHaveBeenCalled()
-	expect(view!.remaining).toBe(60)
-
-	view!.resume()
-	vi.advanceTimersByTime(59)
-
-	expect(fn).not.toHaveBeenCalled()
-
-	vi.advanceTimersByTime(1)
-
-	expect(fn).toHaveBeenCalledTimes(1)
-})
-
-test('resume runs a paused task whose deadline has elapsed', () => {
-	vi.useFakeTimers()
-
-	let view: ReturnType<typeof timer> | undefined
-	const fn = vi.fn()
-
-	function* Gen(this: Host) {
-		view = timer(this)
-		yield jsx('span', { children: 'ready' })
-	}
-
-	render(jsx(Gen, {}), document.body)
-	const due = Date.now() + 100
-	view!.start(100, fn)
-	vi.setSystemTime(due)
-	view!.pause()
-
-	expect(view!.remaining).toBe(0)
-	view!.resume()
-	vi.runOnlyPendingTimers()
-
-	expect(fn).toHaveBeenCalledTimes(1)
-	expect(view!.running).toBe(false)
 })
 
 test('invalidate updates DOM text through host.next from the timer callback', () => {
@@ -243,7 +178,6 @@ test('a stale timer view cannot start work after host teardown', () => {
 	stale.start(10, fn)
 
 	expect(stale.running).toBe(false)
-	expect(stale.remaining).toBe(0)
 	expect(vi.getTimerCount()).toBe(0)
 
 	vi.advanceTimersByTime(10)
@@ -270,7 +204,6 @@ test('an old timer view cannot start work after its host resets', () => {
 	stale.start(10, fn)
 
 	expect(stale.running).toBe(false)
-	expect(stale.remaining).toBe(0)
 	expect(vi.getTimerCount()).toBe(0)
 
 	vi.advanceTimersByTime(10)

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
@@ -29,8 +29,8 @@ const mount = () => {
 	return view
 }
 
-const regions = (live: 'polite' | 'assertive') =>
-	[...document.body.querySelectorAll<HTMLDivElement>(`[aria-live="${live}"]`)]
+const regions = () =>
+	[...document.body.querySelectorAll<HTMLDivElement>('[aria-live]')]
 
 beforeEach(prepare)
 
@@ -45,7 +45,7 @@ test('first polite call creates one status region with the right attributes', ()
 
 	view.polite('Saved')
 
-	const found = regions('polite')
+	const found = regions()
 
 	expect(found).toHaveLength(1)
 	expect(found[0].getAttribute('role')).toBe('status')
@@ -65,7 +65,7 @@ test('second polite call reuses the region and message lands after a microtask',
 	const view = mount()
 
 	view.polite('One')
-	const first = regions('polite')[0]
+	const first = regions()[0]
 
 	expect(first.textContent).toBe('')
 
@@ -75,7 +75,7 @@ test('second polite call reuses the region and message lands after a microtask',
 
 	view.polite('Two')
 
-	expect(regions('polite')).toEqual([first])
+	expect(regions()).toEqual([first])
 	expect(first.textContent).toBe('')
 
 	await tick()
@@ -89,7 +89,7 @@ test('repeated identical messages clear before being set again', async () => {
 	view.polite('Same')
 	await tick()
 
-	const region = regions('polite')[0]
+	const region = regions()[0]
 
 	expect(region.textContent).toBe('Same')
 
@@ -102,23 +102,7 @@ test('repeated identical messages clear before being set again', async () => {
 	expect(region.textContent).toBe('Same')
 })
 
-test('assertive creates a separate alert region', () => {
-	const view = mount()
-
-	view.polite('Polite')
-	view.assertive('Alert')
-
-	const polite = regions('polite')
-	const assertive = regions('assertive')
-
-	expect(polite).toHaveLength(1)
-	expect(assertive).toHaveLength(1)
-	expect(assertive[0]).not.toBe(polite[0])
-	expect(assertive[0].getAttribute('role')).toBe('alert')
-	expect(assertive[0].getAttribute('aria-atomic')).toBe('true')
-})
-
-test('two hosts share the same regions', () => {
+test('two hosts share the same region', () => {
 	let a: View | undefined
 	let b: View | undefined
 
@@ -142,11 +126,8 @@ test('two hosts share the same regions', () => {
 
 	a!.polite('A')
 	b!.polite('B')
-	a!.assertive('A')
-	b!.assertive('B')
 
-	expect(regions('polite')).toHaveLength(1)
-	expect(regions('assertive')).toHaveLength(1)
+	expect(regions()).toHaveLength(1)
 })
 
 test('SSR methods are inert and do not create regions', () => {
@@ -156,13 +137,11 @@ test('SSR methods are inert and do not create regions', () => {
 		const view = announce(this)
 
 		view.polite('Polite')
-		view.assertive('Assertive')
 
 		yield jsx('span', { children: 'server' })
 	}
 
 	expect(ssr(jsx(Gen, {}))).toBe('<div><span>server</span></div>')
 	expect(create).not.toHaveBeenCalled()
-	expect(regions('polite')).toHaveLength(0)
-	expect(regions('assertive')).toHaveLength(0)
+	expect(regions()).toHaveLength(0)
 })

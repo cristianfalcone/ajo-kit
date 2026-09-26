@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
@@ -50,12 +50,12 @@ test('shape has exactly the documented fields', () => {
 	expect(Object.keys(view!)).toEqual(['handle', 'move'])
 })
 
-test('reacts to orientation, direction, both-axis mode, and Home/End', () => {
+test('reacts to orientation, direction, cross-axis keys, and Home/End', () => {
 	let view: ReturnType<typeof roving> | undefined
 	let a: HTMLButtonElement | null = null
 	let b: HTMLButtonElement | null = null
 	let c: HTMLButtonElement | null = null
-	let orientation: 'horizontal' | 'vertical' | 'both' = 'vertical'
+	let orientation: 'horizontal' | 'vertical' = 'vertical'
 	let dir: 'ltr' | 'rtl' = 'ltr'
 	const moved: string[] = []
 
@@ -97,17 +97,16 @@ test('reacts to orientation, direction, both-axis mode, and Home/End', () => {
 	expect(view!.handle(key('ArrowLeft'))).toBe(true)
 	expect(document.activeElement).toBe(button(b))
 
-	orientation = 'both'
 	dir = 'ltr'
-	expect(view!.handle(key('ArrowDown'))).toBe(true)
-	expect(document.activeElement).toBe(button(c))
-	expect(view!.handle(key('ArrowLeft'))).toBe(true)
+	expect(view!.handle(key('ArrowDown'))).toBe(false)
+	orientation = 'vertical'
+	expect(view!.handle(key('ArrowLeft'))).toBe(false)
 	expect(document.activeElement).toBe(button(b))
 	expect(view!.handle(key('Home'))).toBe(true)
 	expect(document.activeElement).toBe(button(a))
 	expect(view!.handle(key('End'))).toBe(true)
 	expect(document.activeElement).toBe(button(c))
-	expect(moved).toEqual(['a', 'b', 'c', 'b', 'a', 'b', 'c', 'b', 'a', 'c'])
+	expect(moved).toEqual(['a', 'b', 'c', 'b', 'a', 'b', 'a', 'c'])
 })
 
 test('wraps by default and still consumes the key without moving when loop is disabled at an edge', () => {

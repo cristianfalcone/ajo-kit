@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 
 /** Semantic spinbutton movement resolved from stepping keys. */
 export type SpinMove =

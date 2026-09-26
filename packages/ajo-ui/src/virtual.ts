@@ -8,7 +8,8 @@ import {
 	type Range,
 	type VirtualItem,
 } from '@tanstack/virtual-core'
-import { dom, frame, type Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
+import { dom, frame } from 'ajo-cloves'
 
 export type VirtualKey = number | string
 

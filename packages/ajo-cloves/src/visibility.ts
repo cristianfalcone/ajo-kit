@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom, shared } from './core'
 
 const start = (notify: () => void) => {

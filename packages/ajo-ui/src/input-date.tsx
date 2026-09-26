@@ -1,5 +1,4 @@
-import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import type { Host } from 'ajo-cloves'
+import type { Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, controlled, dom, id, listen, restore, roving, spin, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { compile, type Availability, type AvailabilityMatcher } from './availability'

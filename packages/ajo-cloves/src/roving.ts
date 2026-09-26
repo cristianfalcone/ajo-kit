@@ -1,23 +1,21 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom } from './core'
 
 type RovingStep = number | 'first' | 'last'
-type RovingOrientation = 'horizontal' | 'vertical' | 'both'
+type RovingOrientation = 'horizontal' | 'vertical'
 
 const keyStep = (event: KeyboardEvent, orientation: RovingOrientation, dir: 'ltr' | 'rtl'): RovingStep | undefined => {
 	if (event.key === 'Home') return 'first'
 	if (event.key === 'End') return 'last'
 
-	if (orientation === 'vertical' || orientation === 'both') {
+	if (orientation === 'vertical') {
 		if (event.key === 'ArrowUp') return -1
 		if (event.key === 'ArrowDown') return 1
+		return undefined
 	}
 
-	if (orientation === 'horizontal' || orientation === 'both') {
-		if (event.key === 'ArrowLeft') return dir === 'rtl' ? 1 : -1
-		if (event.key === 'ArrowRight') return dir === 'rtl' ? -1 : 1
-	}
-
+	if (event.key === 'ArrowLeft') return dir === 'rtl' ? 1 : -1
+	if (event.key === 'ArrowRight') return dir === 'rtl' ? -1 : 1
 	return undefined
 }
 

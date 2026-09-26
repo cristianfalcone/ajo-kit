@@ -1,17 +1,13 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom, shared } from './core'
 
 /** Reactive inputs used to configure a shared media-query view. */
 export type MediaOptions = {
-	/** Server and unsupported-browser match value. Default: false. */
-	fallback?: () => boolean
 	/** Current media-query string, read by `sync()`. */
 	query: () => string
 }
 
 const lists = new Map<string, MediaQueryList>()
-
-const fallback = (opts: MediaOptions) => opts.fallback?.() ?? false
 
 const start = (query: string) => (notify: () => void) => {
 	const list = window.matchMedia(query)
@@ -25,11 +21,10 @@ const start = (query: string) => (notify: () => void) => {
 	}
 }
 
-const read = (query: string | undefined, opts: MediaOptions) =>
-	query ? lists.get(query)?.matches ?? fallback(opts) : fallback(opts)
+const read = (query: string | undefined) => query ? lists.get(query)?.matches ?? false : false
 
 /**
- * Reactive media-query match, shared per query string.
+ * Reactive media-query match, shared per query string; false on the server.
  *
  * @example
  * ```ts
@@ -43,7 +38,7 @@ const read = (query: string | undefined, opts: MediaOptions) =>
 export const media = (host: Host, options: MediaOptions) => {
 	const { query } = options
 	let active: string | undefined
-	let current = fallback(options)
+	let current = false
 	let scope: AbortController | undefined
 
 	const stop = () => {
@@ -53,7 +48,7 @@ export const media = (host: Host, options: MediaOptions) => {
 	}
 
 	const update = () => {
-		const next = read(active, options)
+		const next = read(active)
 		if (next === current) return
 
 		host.next(() => {
@@ -64,7 +59,7 @@ export const media = (host: Host, options: MediaOptions) => {
 	if (!dom(host) || typeof window.matchMedia != 'function') {
 		return {
 			get matches() {
-				return fallback(options)
+				return false
 			},
 			sync() {},
 		}
@@ -74,14 +69,14 @@ export const media = (host: Host, options: MediaOptions) => {
 
 	return {
 		get matches() {
-			return read(active, options)
+			return read(active)
 		},
 		sync() {
 			if (host.signal.aborted) return
 
 			const next = query()
 			if (next === active) {
-				current = read(active, options)
+				current = read(active)
 				return
 			}
 
@@ -89,7 +84,7 @@ export const media = (host: Host, options: MediaOptions) => {
 			scope = new AbortController()
 			active = next
 			shared(`media:${next}`, start(next), update, scope.signal)
-			current = read(active, options)
+			current = read(active)
 		},
 	}
 }

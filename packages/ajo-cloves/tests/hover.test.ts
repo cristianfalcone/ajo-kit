@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
@@ -30,13 +30,13 @@ test('shape has exactly the documented fields', () => {
 	let view: ReturnType<typeof hover> | undefined
 
 	function* Gen(this: Host) {
-		view = hover(this, { onChange: () => {} })
+		view = hover(this, { openDelay: () => 0, closeDelay: () => 0, onChange: () => {} })
 		yield jsx('span', { children: 'ready' })
 	}
 
 	render(jsx(Gen, {}), document.body)
 
-	expect(Object.keys(view!)).toEqual(['open', 'hold', 'release', 'sync', 'cancel'])
+	expect(Object.keys(view!)).toEqual(['hold', 'release', 'sync', 'cancel'])
 })
 
 test('reacts to open and close delays', () => {
@@ -57,23 +57,21 @@ test('reacts to open and close delays', () => {
 	render(jsx(Gen, {}), document.body)
 
 	view!.hold('trigger', event())
+	vi.advanceTimersByTime(19)
 
-	expect(view!.open).toBe(false)
 	expect(changes).toEqual([])
 
-	vi.advanceTimersByTime(20)
+	vi.advanceTimersByTime(1)
 
-	expect(view!.open).toBe(true)
 	expect(changes).toEqual([true])
 
 	view!.release('trigger', event())
 	vi.advanceTimersByTime(29)
 
-	expect(view!.open).toBe(true)
+	expect(changes).toEqual([true])
 
 	vi.advanceTimersByTime(1)
 
-	expect(view!.open).toBe(false)
 	expect(changes).toEqual([true, false])
 })
 
@@ -83,6 +81,8 @@ test('invalidate updates DOM text through host.next from onChange', () => {
 
 	function* Gen(this: Host) {
 		view = hover(this, {
+			openDelay: () => 0,
+			closeDelay: () => 0,
 			onChange: open => this.next(() => label = open ? 'open' : 'closed'),
 		})
 
@@ -109,6 +109,7 @@ test('teardown prevents a pending open from landing', () => {
 	function* Gen(this: Host) {
 		view = hover(this, {
 			openDelay: () => 10,
+			closeDelay: () => 0,
 			onChange: open => changes.push(open),
 		})
 		yield jsx('span', { children: 'ready' })
@@ -135,6 +136,7 @@ test('reset clears old pending work and recreates a working hover', () => {
 	function* Gen(this: Host) {
 		view = hover(this, {
 			openDelay: () => 10,
+			closeDelay: () => 0,
 			onChange: open => changes.push(open ? 'open' : 'closed'),
 		})
 		yield jsx('span', { children: 'ready' })
@@ -165,12 +167,13 @@ test('SSR abort cleanup clears pending hover timers', () => {
 	function* Gen(this: Host) {
 		const view = hover(this, {
 			openDelay: () => 10,
+			closeDelay: () => 0,
 			onChange: open => changes.push(open),
 		})
 
 		view.hold('trigger', event())
 
-		yield jsx('span', { children: view.open ? 'open' : 'closed' })
+		yield jsx('span', { children: changes.length ? 'open' : 'closed' })
 	}
 
 	expect(ssr(jsx(Gen, {}))).toBe('<div><span>closed</span></div>')
@@ -201,13 +204,11 @@ test('zone, cancel, and sync contracts match surface behavior', () => {
 	view!.release('trigger', event())
 	vi.advanceTimersByTime(10)
 
-	expect(view!.open).toBe(true)
 	expect(changes).toEqual([true])
 
 	view!.release('content', event())
 	vi.advanceTimersByTime(10)
 
-	expect(view!.open).toBe(false)
 	expect(changes).toEqual([true, false])
 
 	view!.hold('trigger', event())
@@ -222,7 +223,6 @@ test('zone, cancel, and sync contracts match surface behavior', () => {
 	view!.hold('trigger', event())
 	vi.advanceTimersByTime(10)
 
-	expect(view!.open).toBe(true)
 	expect(changes).toEqual([true, false, true])
 })
 
@@ -245,7 +245,6 @@ test('cancel clears held zones before a later interaction', () => {
 
 	view!.hold('content', event())
 	vi.advanceTimersByTime(10)
-	expect(view!.open).toBe(true)
 
 	view!.cancel()
 	view!.sync(false)
@@ -254,6 +253,5 @@ test('cancel clears held zones before a later interaction', () => {
 	view!.release('trigger', event())
 	vi.advanceTimersByTime(10)
 
-	expect(view!.open).toBe(false)
 	expect(changes).toEqual([true, true, false])
 })

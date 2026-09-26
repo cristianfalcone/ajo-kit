@@ -1,4 +1,4 @@
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { controlled, dom, roving, typeahead } from 'ajo-cloves'
 
 export type BarView = {

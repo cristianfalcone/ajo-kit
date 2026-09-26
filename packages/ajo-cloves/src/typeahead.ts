@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom } from './core'
 import { timer } from './timer'
 
@@ -9,42 +9,26 @@ const printable = (event: KeyboardEvent) =>
 
 /** Typeahead: buffers printable keys and matches by label prefix without preventing default. */
 export const typeahead = (host: Host, opts: {
-	/** Live list of searchable elements. */
+	/** Live list of searchable elements, matched by `data-label` or text content. */
 	items: () => HTMLElement[]
-	/** Label text for an item. */
-	text?: (item: HTMLElement) => string
-	/** Buffer reset delay in ms. */
-	delay?: () => number
 	/** Applies a matching item. */
 	onMatch: (item: HTMLElement, event: KeyboardEvent) => void
 }) => {
-	const inert = {
-		handle: (_event: KeyboardEvent) => false,
-		reset() {},
-	}
+	if (!dom(host)) return { handle: (_event: KeyboardEvent) => false }
 
-	if (!dom(host)) return inert
-
-	const resetter = timer(host)
+	const reset = timer(host)
 	let query = ''
-
-	const reset = () => {
-		query = ''
-		resetter.stop()
-	}
 
 	return {
 		handle(event: KeyboardEvent) {
 			if (!printable(event)) return false
 
 			query = `${query}${event.key}`.toLowerCase()
-			resetter.start(opts.delay?.() ?? 600, () => query = '')
+			reset.start(600, () => query = '')
 
-			const text = opts.text ?? label
-			const match = opts.items().find(item => text(item).toLowerCase().startsWith(query))
+			const match = opts.items().find(item => label(item).toLowerCase().startsWith(query))
 			if (match) opts.onMatch(match, event)
 			return true
 		},
-		reset,
 	}
 }

@@ -2,7 +2,8 @@
 import { render } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { live, type Host } from '../src/core'
+import type { Host } from 'ajo'
+import { live } from '../src/core'
 
 type View = ReturnType<typeof live<HTMLElement>>
 

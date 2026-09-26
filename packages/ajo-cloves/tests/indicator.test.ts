@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, expect, test, vi } from 'vitest'
@@ -148,49 +148,6 @@ test('drops the marker when no child matches and cleans up on abort', () => {
 		active = true
 		render(null, document.body)
 		expect(list.style.getPropertyValue('--indicator-w')).toBe('')
-	} finally {
-		raf.restore()
-	}
-})
-
-test('re-measures on configured container events without a re-render', () => {
-	const raf = installRaf()
-	let container: HTMLDivElement | null = null
-	let view: View | null = null
-
-	function* Gen(this: Host) {
-		view = indicator(this, {
-			target: () => container,
-			of: root => root.querySelector<HTMLElement>('[data-highlighted="true"]'),
-			on: ['focusin'],
-		})
-		yield jsx('div', {
-			ref: (element: unknown) => container = element as HTMLDivElement | null,
-			children: [
-				jsx('button', { key: 'a', 'data-highlighted': 'true' }),
-				jsx('button', { key: 'b' }),
-			],
-		})
-	}
-
-	try {
-		render(jsx(Gen, {}), document.body)
-		const list = needDiv(container)
-		const [first, second] = Array.from(list.querySelectorAll('button'))
-		rect(list, { left: 0, top: 0, width: 200, height: 60 })
-		rect(first, { left: 0, top: 0, width: 200, height: 30 })
-		rect(second, { left: 0, top: 30, width: 200, height: 30 })
-
-		needView(view).sync()
-		raf.flush()
-		expect(list.style.getPropertyValue('--indicator-y')).toBe('0px')
-
-		// The mark moves through direct DOM mutation plus focus, no re-render.
-		first.removeAttribute('data-highlighted')
-		second.setAttribute('data-highlighted', 'true')
-		list.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
-		raf.flush()
-		expect(list.style.getPropertyValue('--indicator-y')).toBe('30px')
 	} finally {
 		raf.restore()
 	}

@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 
 /** Semantic 2D keyboard movement resolved from grid navigation keys. */
 export type GridMove =

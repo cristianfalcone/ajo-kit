@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom, live } from './core'
 
 type Callback = (el: Element) => void

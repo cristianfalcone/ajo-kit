@@ -1,4 +1,4 @@
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { expect, test } from 'vitest'
 import { position } from '../src/position'
 

@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom } from './core'
 
 /** Captures the focused element and returns focus to it later. */

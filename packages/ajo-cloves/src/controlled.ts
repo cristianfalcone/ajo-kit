@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 
 /** Controlled/uncontrolled value unification for open/value-style component args. */
 export const controlled = <T>(host: Host, opts: {

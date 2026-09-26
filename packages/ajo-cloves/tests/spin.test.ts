@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
-import type { Host, SpinMove } from 'ajo-cloves'
+import type { Host } from 'ajo'
+import type { SpinMove } from 'ajo-cloves'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'

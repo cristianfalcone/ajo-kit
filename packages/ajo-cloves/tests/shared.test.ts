@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { shared } from 'ajo-cloves'
+import { shared } from '../src/core'
 
 const prepare = () => {
 	if (!globalThis.MutationObserver) globalThis.MutationObserver = window.MutationObserver

@@ -1,14 +1,14 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom, on } from './core'
 
-/** Closes a surface on Escape within the given elements and/or pointerdown outside them. */
+/** Closes a surface on Escape anywhere in its document and/or on pointerdown outside it. */
 export const dismiss = (host: Host, opts: {
 	/** Gate that enables dismissal channels only while true. */
 	active: () => boolean
-	/** Additional elements treated as inside the surface, such as portaled content. */
+	/** Additional elements treated as inside the surface for outside pointerdown, such as portaled content. */
 	inside?: () => (Element | null | undefined)[]
-	/** Escape scope. Defaults to host; document also catches focus that moved away. */
-	escape?: false | 'host' | 'document'
+	/** Dismiss on Escape anywhere in the host's document while active. Default: true. */
+	escape?: boolean
 	/** Also dismiss on pointerdown outside the host and the inside() elements. Default: false. */
 	outside?: boolean
 	/** preventDefault the Escape keydown (never applied to outside pointerdown). Default: false. */
@@ -21,18 +21,9 @@ export const dismiss = (host: Host, opts: {
 	const view = document.defaultView
 	const node = (value: unknown): value is Node => Boolean(view && value instanceof view.Node)
 
-	const escape = opts.escape ?? 'host'
-	if (escape) {
-		on(escape === 'document' ? document : host, 'keydown', event => {
+	if (opts.escape ?? true) {
+		on(document, 'keydown', event => {
 			if (event.key !== 'Escape' || !opts.active()) return
-
-			if (escape === 'host' && opts.inside) {
-				const target = event.target
-				const elements = opts.inside().filter((element): element is Element => !!element)
-
-				if (elements.length && !(node(target) && elements.some(element => element.contains(target)))) return
-			}
-
 			if (opts.prevent) event.preventDefault()
 			opts.onDismiss(event)
 		}, host)

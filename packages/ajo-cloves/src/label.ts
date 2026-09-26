@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom, id } from './core'
 
 /** Stable ids generated for one labelled field. */

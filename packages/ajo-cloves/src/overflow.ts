@@ -1,4 +1,4 @@
-import type { Host } from './core'
+import type { Host } from 'ajo'
 import { dom, frame } from './core'
 import { resize } from './resize'
 import { scrolling } from './scrolling'

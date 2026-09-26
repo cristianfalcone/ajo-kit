@@ -1,4 +1,4 @@
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { callRef, controlled, dismiss, dom, hover, id, resize } from 'ajo-cloves'
 import { closePopover, openPopover, popoverOpen } from './native'
 import { position, type PositionProfile, type PositionReference } from './position'
@@ -88,7 +88,7 @@ export type PopupOptions<View> = {
 	onPosition?: (view: View) => void
 	dismiss?: {
 		prevent?: boolean
-		escape?: false | 'host' | 'document'
+		escape?: boolean
 		outside?: boolean
 		inside?: (view: View) => (Element | null | undefined)[]
 		onDismiss?: (event: Event, view: View) => void
@@ -547,7 +547,7 @@ export const popup = <
 		active: () => opened && Boolean(content && popoverOpen(content)) && top(view, content),
 		inside: () => options.dismiss?.inside?.(view) ?? [trigger, content],
 		prevent: options.dismiss.prevent,
-		escape: options.dismiss.escape ?? 'document',
+		escape: options.dismiss.escape,
 		outside: options.dismiss.outside,
 		onDismiss(event) {
 			if (handled.has(event)) return

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { beforeEach, expect, test, vi } from 'vitest'
 
 const floating = vi.hoisted(() => ({

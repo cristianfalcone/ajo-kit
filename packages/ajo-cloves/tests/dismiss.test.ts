@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
@@ -113,35 +113,25 @@ test('defaults keep Escape enabled and outside pointerdown disabled', () => {
 	expect(fn).toHaveBeenCalledTimes(1)
 })
 
-test('reacts to Escape inside the resolved elements', () => {
-	let inside: HTMLButtonElement | null = null
-	let outside: HTMLButtonElement | null = null
+test('prevent marks the dismissing Escape as handled', () => {
 	const fn = vi.fn()
 
 	function* Gen(this: Host) {
 		dismiss(this, {
 			active: () => true,
-			inside: () => [inside],
 			prevent: true,
 			onDismiss: fn,
 		})
 
-		yield [
-			jsx('button', { key: 'inside', ref: (element: unknown) => inside = element as HTMLButtonElement | null, children: 'inside' }),
-			jsx('button', { key: 'outside', ref: (element: unknown) => outside = element as HTMLButtonElement | null, children: 'outside' }),
-		]
+		yield jsx('button', { children: 'inside' })
 	}
 
 	render(jsx(Gen, {}), document.body)
 
-	button(outside).dispatchEvent(escape())
-
-	expect(fn).not.toHaveBeenCalled()
-
 	const event = escape()
-	button(inside).dispatchEvent(event)
+	outsideButton().dispatchEvent(event)
 
-	expect(fn).toHaveBeenCalledTimes(1)
+	expect(fn).toHaveBeenCalledOnce()
 	expect(event.defaultPrevented).toBe(true)
 })
 
@@ -260,13 +250,12 @@ test('escape false disables the Escape channel', () => {
 	expect(fn).not.toHaveBeenCalled()
 })
 
-test('document Escape dismisses even when focus has moved outside the host', () => {
+test('Escape dismisses even when focus has moved outside the host', () => {
 	const fn = vi.fn()
 
 	function* Gen(this: Host) {
 		dismiss(this, {
 			active: () => true,
-			escape: 'document',
 			onDismiss: fn,
 		})
 
@@ -281,13 +270,12 @@ test('document Escape dismisses even when focus has moved outside the host', () 
 	expect(fn).toHaveBeenCalledWith(event)
 })
 
-test('document Escape belongs to the host owner document', () => {
+test('Escape belongs to the host owner document', () => {
 	const { close, host, realm } = realmHost()
 	const fn = vi.fn()
 	try {
 		dismiss(host, {
 			active: () => true,
-			escape: 'document',
 			onDismiss: fn,
 		})
 

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
-import type { GridMove, Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
+import type { GridMove } from 'ajo-cloves'
 import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'

@@ -1,6 +1,6 @@
 import { performance } from 'node:perf_hooks'
 import { arch, cpus, platform } from 'node:os'
-import type { Host } from 'ajo-cloves'
+import type { Host } from 'ajo'
 import type { DataTableArgs, DataTableColumn } from '../src/data-table-contract'
 import { createDataTableModel } from '../src/data-table-model'
 

@@ -1,7 +1,4 @@
-import type { Host as AjoHost } from 'ajo'
-
-/** Ajo host protocol that cloves bind lifecycle and invalidation to. */
-export type Host<TElement extends object = HTMLElement, TArgs = Record<string, unknown>> = AjoHost<TElement, TArgs>
+import type { Host } from 'ajo'
 
 /** True when a value is structurally a DOM element in a document-bearing runtime. */
 export const dom = (value: unknown): value is Element =>
@@ -35,40 +32,25 @@ export const callRef = <ElementType>(ref: unknown, element: ElementType | null) 
 const hostSignal = (host: Host, signal?: AbortSignal) =>
 	signal && signal !== host.signal ? AbortSignal.any([signal, host.signal]) : host.signal
 
-/** Adds a listener to a DOM host for at most the caller and host lifetimes. */
-export const listen = <EventType extends keyof GlobalEventHandlersEventMap>(
-	host: Host,
-	type: EventType,
-	handler: (event: GlobalEventHandlersEventMap[EventType]) => void,
-	opts?: AddEventListenerOptions,
-) => {
-	if (!dom(host)) return
-	host.addEventListener(type, handler, { ...opts, signal: hostSignal(host, opts?.signal) })
-}
-
-/** Adds a listener bound to the host lifecycle. */
-export function on<K extends keyof GlobalEventHandlersEventMap>(
+/** Adds a listener bound to the host lifecycle and, when given, the caller signal. */
+export const on = <K extends keyof GlobalEventHandlersEventMap>(
 	target: EventTarget,
 	type: K,
 	fn: (event: GlobalEventHandlersEventMap[K]) => void,
 	host: Host,
 	opts?: AddEventListenerOptions,
-): void
-export function on(
-	target: EventTarget,
-	type: string,
-	fn: EventListener,
+) => {
+	target.addEventListener(type, fn as EventListener, { ...opts, signal: hostSignal(host, opts?.signal) })
+}
+
+/** Adds a listener to a DOM host for at most the caller and host lifetimes. */
+export const listen = <K extends keyof GlobalEventHandlersEventMap>(
 	host: Host,
+	type: K,
+	handler: (event: GlobalEventHandlersEventMap[K]) => void,
 	opts?: AddEventListenerOptions,
-): void
-export function on(
-	target: EventTarget,
-	type: string,
-	fn: EventListener,
-	host: Host,
-	opts?: AddEventListenerOptions,
-) {
-	target.addEventListener(type, fn, { ...opts, signal: hostSignal(host, opts?.signal) })
+) => {
+	if (dom(host)) on(host, type, handler, host, opts)
 }
 
 type SharedStop = () => void
