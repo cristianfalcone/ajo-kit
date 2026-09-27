@@ -24,15 +24,7 @@ describe('ajo-kit-auth session middleware integration', () => {
 			})
 			.returning('id')
 			.executeTakeFirstOrThrow()
-		const find = async (id: number) => ({
-			id,
-			name: 'Credential User',
-			email: 'credential@example.com',
-			verified: null,
-			roles: [],
-			abilities: [],
-		})
-		const middleware = session(find)
+		const middleware = session()
 		const res = { setHeader: vi.fn() }
 
 		const plain = await sessionCreate(user.id)
@@ -154,15 +146,7 @@ describe('ajo-kit-auth session middleware integration', () => {
 			.executeTakeFirstOrThrow()
 		const plain = 'idle-session'
 		const id = sessionHash(plain)
-		const find = async () => ({
-			id: user.id,
-			name: 'Idle User',
-			email: 'idle@example.com',
-			verified: null,
-			roles: [],
-			abilities: [],
-		})
-		const middleware = session(find)
+		const middleware = session()
 		const res = { setHeader: vi.fn() }
 		const req = {
 			path: '/dashboard',

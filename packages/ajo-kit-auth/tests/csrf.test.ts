@@ -1,32 +1,12 @@
+import { createHmac } from 'node:crypto'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { set, verify } from '../src/csrf'
+import { csrf } from '../src/wares'
 import { setOriginReader } from '../../ajo-kit/src/utils'
-
-const { credential } = vi.hoisted(() => ({
-	credential: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8',
-}))
-
-vi.mock('ajo-kit/platform', async importOriginal => ({
-	...await importOriginal<typeof import('ajo-kit/platform')>(),
-	randomBase64Url: () => credential,
-}))
 
 const app = process.env.APP_URL
 const environment = process.env.NODE_ENV
 const secret = process.env.APP_SECRET
 const origins = process.env.AJO_ORIGINS_FILE
-
-const response = () => {
-	const headers = new Map<string, string>()
-	return {
-		headers,
-		res: {
-			setHeader(name: string, value: string) {
-				headers.set(name, value)
-			},
-		},
-	}
-}
 
 const restore = (key: string, value: string | undefined) => {
 	if (value === undefined) delete process.env[key]
@@ -35,109 +15,74 @@ const restore = (key: string, value: string | undefined) => {
 
 afterEach(() => {
 	restore('APP_URL', app)
-	restore('APP_SECRET', secret)
 	restore('NODE_ENV', environment)
+	restore('APP_SECRET', secret)
 	restore('AJO_ORIGINS_FILE', origins)
 	setOriginReader(undefined)
 })
 
+/** Runs the middleware on a cookie-authenticated request; true when it reaches next(). */
+const passes = (headers: Record<string, string>, extra: Record<string, unknown> = {}) => {
+	const next = vi.fn()
+	const req = { method: 'POST', path: '/account', user: { id: 1 }, session: { id: 'a' }, headers, ...extra }
+	try {
+		csrf(req as any, {} as any, next)
+	} catch (error) {
+		if ((error as Error).message !== 'Invalid CSRF token') throw error
+		return false
+	}
+	return next.mock.calls.length === 1
+}
+
 describe('ajo-kit-auth csrf', () => {
-	test('sets Secure on csrf cookies when the app is served over https', () => {
-		process.env.APP_URL = 'https://app.example.com'
-		process.env.APP_SECRET = 'test-production-secret-0000000000'
-		const { headers, res } = response()
-
-		set({ session: { id: 'session-a' } } as any, res as any)
-
-		expect(headers.get('Set-Cookie')).toContain('; Secure')
-	})
-
-	test('accepts signed session-bound csrf and same-origin requests only', () => {
-		const session = { session: { id: 'session-a' } }
-		const other = { session: { id: 'session-b' } }
-		const csrf = response()
-
+	test('accepts only an exact same-origin Origin, or Referer when Origin is absent', () => {
 		delete process.env.APP_URL
 		process.env.NODE_ENV = 'development'
-		process.env.APP_SECRET = 'slice-nine-vector-secret'
 
-		const token = set(session as any, csrf.res as any)
-		expect(token).toBe(
-			credential + '.369875d77d4457a88c955f8cfea9cc41c240c48faf5d07455df9364e200af3ae'
-		)
+		expect(passes({ host: 'app.test', origin: 'http://app.test' })).toBe(true)
+		expect(passes({ host: 'app.test', referer: 'http://app.test/account/profile' })).toBe(true)
 
-		expect(verify({
-			...session,
-			headers: {
-				cookie: 'XSRF-TOKEN=' + token,
-				'x-xsrf-token': token,
-			},
-		} as any)).toBe(true)
+		expect(passes({ host: 'app.test' })).toBe(false)
+		expect(passes({ host: 'app.test', origin: 'https://evil.test' })).toBe(false)
+		expect(passes({ host: 'app.test', origin: 'null' })).toBe(false)
+		expect(passes({ host: 'app.test', origin: 'http://app.test.evil.test' })).toBe(false)
+		expect(passes({ host: 'app.test', referer: 'https://evil.test/http://app.test' })).toBe(false)
+	})
 
-		expect(verify({
-			...other,
-			headers: {
-				cookie: 'XSRF-TOKEN=' + token,
-				'x-xsrf-token': token,
-			},
-		} as any)).toBe(false)
+	test('a present Origin decides alone, so a same-origin Referer cannot rescue it', () => {
+		delete process.env.APP_URL
+		process.env.NODE_ENV = 'development'
 
-		expect(verify({
-			...session,
-			headers: {
-				cookie: 'XSRF-TOKEN=abc',
-				'x-xsrf-token': 'abc',
-			},
-		} as any)).toBe(false)
+		expect(passes({ host: 'app.test', origin: 'https://evil.test', referer: 'http://app.test/account' })).toBe(false)
+		expect(passes({ host: 'app.test', origin: 'null', referer: 'http://app.test/account' })).toBe(false)
+	})
 
-		expect(verify({
-			headers: {
-				host: 'app.test',
-				cookie: 'not_XSRF-TOKEN=abc',
-				'x-xsrf-token': 'abc',
-			},
-		} as any)).toBe(false)
+	test('a session-signed double-submit token is no proof', () => {
+		delete process.env.APP_URL
+		process.env.NODE_ENV = 'development'
+		process.env.APP_SECRET = 'csrf-test-secret'
+		const signed = 'plain.' + createHmac('sha256', 'csrf-test-secret').update('a:plain').digest('hex')
 
-		expect(verify({
-			headers: {
-				host: 'app.test',
-				origin: 'http://app.test',
-			},
-		} as any)).toBe(true)
+		expect(passes({ host: 'app.test', cookie: 'XSRF-TOKEN=' + signed, 'x-xsrf-token': signed })).toBe(false)
+	})
 
-		expect(verify({
-			headers: {
-				host: 'app.test',
-				referer: 'http://app.test/account/profile',
-			},
-		} as any)).toBe(true)
+	test('skips bearer tokens, safe methods and unauthenticated API requests only', () => {
+		const hostile = { host: 'app.test', origin: 'https://evil.test' }
 
-		expect(verify({
-			headers: {
-				host: 'app.test',
-				origin: 'https://evil.test',
-			},
-		} as any)).toBe(false)
+		expect(passes(hostile, { token: { id: 't', abilities: [], subject: null } })).toBe(true)
+		for (const method of ['GET', 'HEAD', 'OPTIONS']) expect(passes(hostile, { method })).toBe(true)
+		expect(passes(hostile, { path: '/api/tokens', user: undefined, session: undefined })).toBe(true)
 
+		expect(passes(hostile, { path: '/api/tokens' })).toBe(false)
+		expect(passes(hostile, { method: 'DELETE' })).toBe(false)
+	})
+
+	test('compares against the admitted request origin', () => {
 		process.env.APP_URL = 'https://app.test'
-		expect(verify({
-			headers: {
-				host: 'app.test',
-				origin: 'https://app.test',
-			},
-		} as any)).toBe(true)
-		expect(() => verify({
-			headers: {
-				host: 'evil.test',
-				origin: 'https://app.test',
-			},
-		} as any)).toThrow('Misdirected Request')
-		expect(verify({
-			headers: {
-				host: 'app.test',
-				origin: 'https://evil.test',
-			},
-		} as any)).toBe(false)
+
+		expect(passes({ host: 'app.test', origin: 'https://app.test' })).toBe(true)
+		expect(passes({ host: 'app.test', origin: 'http://app.test' })).toBe(false)
+		expect(() => passes({ host: 'evil.test', origin: 'https://app.test' })).toThrow('Misdirected Request')
 	})
 
 	test('checks Origin against the admitted request Host for every alias', () => {
@@ -149,9 +94,8 @@ describe('ajo-kit-auth csrf', () => {
 			origins: ['https://app.test', 'https://alias.test'],
 		}))
 
-		expect(verify({ headers: { host: 'alias.test', origin: 'https://alias.test' } } as any)).toBe(true)
-		expect(verify({ headers: { host: 'alias.test', origin: 'https://app.test' } } as any)).toBe(false)
-		expect(verify({ headers: { host: 'app.test', origin: 'https://alias.test' } } as any)).toBe(false)
+		expect(passes({ host: 'alias.test', origin: 'https://alias.test' })).toBe(true)
+		expect(passes({ host: 'alias.test', origin: 'https://app.test' })).toBe(false)
+		expect(passes({ host: 'app.test', origin: 'https://alias.test' })).toBe(false)
 	})
-
 })

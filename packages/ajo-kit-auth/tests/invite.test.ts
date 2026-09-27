@@ -14,7 +14,6 @@ import { up as invites } from '../migrations/0004_invites'
 import { up as integrity } from '../migrations/0005_integrity'
 import * as invite from '../src/invite'
 import { hash } from '../src/session'
-import { configure } from '../src/store'
 import * as team from '../src/team'
 
 const now = '2026-06-26T00:00:00.000Z'
@@ -25,7 +24,6 @@ beforeEach(async () => {
 	vi.setSystemTime(new Date(now))
 	directory = mkdtempSync(join(tmpdir(), 'ajo-kit-auth-invite-'))
 	connect(join(directory, 'test.sqlite'))
-	configure(() => db())
 
 	await initial(db<any>())
 	await passkeys(db<any>())

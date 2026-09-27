@@ -1,6 +1,6 @@
-import { sql } from 'ajo-kit/database'
+import { db, sql } from 'ajo-kit/database'
 import { randomBase64Url, sha256Hex } from 'ajo-kit/platform'
-import { db } from './store'
+import type { Auth } from './types'
 
 const minute = 60 * 1000
 const day = 24 * 60 * 60 * 1000
@@ -42,14 +42,14 @@ function cutoff(now = Date.now()): string {
 }
 
 function drop(id: string) {
-	return db()
+	return db<Auth>()
 		.deleteFrom('sessions')
 		.where('id', '=', id)
 		.execute()
 }
 
 function mark(id: string, last = stamp()) {
-	return db()
+	return db<Auth>()
 		.updateTable('sessions')
 		.set({ last })
 		.where('id', '=', id)
@@ -85,7 +85,7 @@ export const create = async (
 	const expiry = stamp(now + lifetime * day)
 	const last = stamp(now)
 
-	await db().insertInto('sessions').values({
+	await db<Auth>().insertInto('sessions').values({
 		id,
 		user,
 		expiry,
@@ -106,7 +106,7 @@ export const validate = async (plain: string, activity = true) => {
 
 	const id = hash(plain)
 
-	const session = await db()
+	const session = await db<Auth>()
 		.selectFrom('sessions')
 		.select(['id', 'user', 'expiry', 'last', 'created'])
 		.where('id', '=', id)
@@ -136,15 +136,11 @@ export const validate = async (plain: string, activity = true) => {
 export const remove = (plain: string) =>
 	drop(hash(plain))
 
-/** Updates the last-seen timestamp for a session credential. */
-export const touch = (plain: string) =>
-	mark(hash(plain))
-
 /** Deletes sessions past their absolute or idle timeout. */
 export const prune = () => {
 	const now = Date.now()
 
-	return db()
+	return db<Auth>()
 		.deleteFrom('sessions')
 		.where(eb => eb.or([
 			eb('expiry', '<=', stamp(now)),

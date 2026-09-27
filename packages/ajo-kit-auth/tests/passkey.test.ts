@@ -12,7 +12,6 @@ import { join } from 'node:path'
 import { close, connect, db } from 'ajo-kit/database'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import * as passkey from '../src/passkey'
-import { configure } from '../src/store'
 import { up } from '../migrations/0002_passkeys'
 import { up as initial } from '../migrations/0001_initial'
 import { up as teams } from '../migrations/0003_teams'
@@ -177,7 +176,6 @@ let directory: string
 beforeEach(async () => {
 	directory = mkdtempSync(join(tmpdir(), 'ajo-kit-auth-passkey-'))
 	connect(join(directory, 'test.sqlite'))
-	configure(() => db())
 
 	await initial(db<any>())
 	await up(db<any>())
@@ -524,6 +522,7 @@ describe('challenges', () => {
 	// Anyone can ask for an authentication challenge, so unanswered ones must
 	// not accumulate: issuing either kind removes the expired rows.
 	test('issuing a challenge removes the expired ones and keeps the live ones', async () => {
+		const lifetime = 5 * 60 * 1000
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2026-06-19T00:00:00Z'))
 
@@ -531,7 +530,7 @@ describe('challenges', () => {
 
 		await authenticationChallenge()
 		await registrationChallenge(1)
-		vi.advanceTimersByTime(passkey.window + 1)
+		vi.advanceTimersByTime(lifetime + 1)
 
 		await registrationChallenge(1)
 		expect(await rows()).toEqual([{ kind: 'register' }])
@@ -539,7 +538,7 @@ describe('challenges', () => {
 		await authenticationChallenge()
 		expect(await rows()).toHaveLength(2)
 
-		vi.advanceTimersByTime(passkey.window + 1)
+		vi.advanceTimersByTime(lifetime + 1)
 		await authenticationChallenge()
 		expect(await rows()).toEqual([{ kind: 'authenticate' }])
 	})

@@ -24,11 +24,9 @@ afterEach(async () => {
 
 test('forgot answers known and unknown emails alike while delivery fails or hangs', async () => {
 	const { db } = await import('/src/data')
-	const auth = await import('ajo-kit-auth')
 	const mail = await import('ajo-kit-mail')
 	const { actions } = await import('../../src/(public)/forgot/handler')
 
-	auth.configure(() => db())
 	await db().insertInto('users').values({ name: 'Known', email: 'known@example.com', password: null }).execute()
 
 	const error = vi.spyOn(console, 'error').mockImplementation(() => {})

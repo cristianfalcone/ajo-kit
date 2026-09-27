@@ -25,18 +25,10 @@ pnpm add ajo-kit-auth
 
 ## Setup
 
-### 1. Configure DB accessor
+Auth queries run on the app's shared database, `db()` from `ajo-kit/database`,
+so there is nothing to wire.
 
-Call `configure()` once during app boot so auth modules can access your Kysely instance.
-
-```ts
-import { configure } from 'ajo-kit-auth'
-import { db } from '/src/data'
-
-configure(() => db())
-```
-
-### 2. Run migrations
+### 1. Run migrations
 
 `ajo-kit-auth` exposes `kit.migrations`, so with the package installed:
 
@@ -46,7 +38,7 @@ kit migrate up
 
 This creates the auth, passkey, team, and invitation tables.
 
-### 3. Register auth middlewares
+### 2. Register auth middlewares
 
 ```ts
 // src/wares.ts
@@ -59,13 +51,15 @@ export default [wares.session(), wares.csrf]
 `/api/*` routes, where an explicit Bearer token takes precedence over a session
 cookie.
 
-`csrf` validates unsafe cookie-auth requests, including `/api/*`. It skips safe
-methods, bearer-token requests, and unauthenticated API requests. On a managed
-App with multiple origins, the browser Origin or Referer must match the current
-request origin. A form on one alias does not authorize a request to another
-alias, even when both belong to the same App.
+`csrf` refuses unsafe cookie-auth requests, including `/api/*`, unless the
+browser proves they come from the same origin: `Origin` must be exactly the
+current request origin, and `Referer` is consulted only when `Origin` is absent.
+A request with neither header is refused, and `Origin: null` never matches. It
+skips safe methods, bearer-token requests, and unauthenticated API requests. On
+a managed App with multiple origins, a form on one alias does not authorize a
+request to another alias, even when both belong to the same App.
 
-### 4. Set secret for verification links
+### 3. Set secret for verification links
 
 ```env
 APP_SECRET=<32+ random characters from your secret manager>
@@ -112,7 +106,6 @@ import { session } from 'ajo-kit-auth'
 
 const id = await session.create(user, remember, ip, agent)
 const active = await session.validate(id)
-await session.touch(id)
 await session.remove(id)
 await session.prune()
 ```
@@ -144,28 +137,15 @@ subdomains from shadowing the host-only session. Local HTTP development uses
 the unprefixed `session` name because browsers require `Secure` on `__Host-`
 cookies.
 
-### `csrf`
-
-```ts
-import { csrf } from 'ajo-kit-auth'
-
-const token = csrf.set(req, res)
-const ok = csrf.verify(req)
-```
-
-Verification accepts:
-
-- signed double-submit bound to the current session
-  (`XSRF-TOKEN` cookie + `X-XSRF-TOKEN` header)
-- same-origin check (`Origin`/`Referer` host matches request host)
-
 ### `wares`
 
 ```ts
 import { wares } from 'ajo-kit-auth'
 ```
 
-`session(lookup?)` accepts an optional custom user resolver. Bearer token auth is scoped to `/api/*`; route actions use cookie sessions and CSRF.
+`session()` loads `req.user` fresh from the database on every request, with its
+roles, merged abilities and `verified` stamp. Bearer token auth is scoped to
+`/api/*`; route actions use cookie sessions and CSRF.
 
 ### Guards
 
@@ -173,19 +153,15 @@ import { wares } from 'ajo-kit-auth'
 import {
   ability,
   admit,
-  auth,
   authorize,
   confirmed,
   guest,
-  guard,
   protect,
   redirect,
-  verified,
   when,
 } from 'ajo-kit-auth'
 ```
 
-- `auth()` requires an authenticated user.
 - `authorize(req, ...abilities)` is global-only: it checks global account and
   bearer-token abilities and rejects subject-scoped tokens whenever abilities
   are required. With no abilities it checks authentication only.
@@ -194,14 +170,12 @@ import {
   tokens must carry the required abilities, and a scoped token must match the
   subject exactly, even if its owner has global `*` authority.
 - `ability(...abilities)` is the middleware form of `authorize()`.
-- `protect('/login')` redirects guests.
+- `protect('/login')` requires a user: guests get 401 on `/api/*` and a
+  redirect to the target elsewhere.
 - `guest('/dashboard')` redirects authenticated users.
 - `confirmed()` requires password confirmation in the last three minutes.
-- `verified()` requires a `users.verified` timestamp.
 - `when(condition, middleware, otherwise?)` selects middleware by request.
 - `redirect(target)` returns an AJAX-aware redirect middleware.
-
-The same guard functions are available through the `guard` namespace.
 
 ### `token`
 
@@ -220,7 +194,6 @@ const tokens = await token.list(user)
 const selected = tokens.find(item => item.name === 'Blog CI')
 if (selected) await token.revoke(user, selected.id)
 await token.purge(user)
-await token.prune()
 ```
 
 `create(user, name, abilities, options?)` returns the plaintext credential
@@ -305,15 +278,15 @@ always apply everywhere; on top, for one subject, a user gains the abilities
 of every role they hold in every team claiming it. A bearer token can narrow
 that authority further through its abilities and subject.
 
-- `create(name)` / `rename(team, name)` / `remove(team)` / `get(team)` /
-  `list()`: lifecycle; `list()` carries member and claim counts.
+- `create(name)` / `remove(team)` / `get(team)` / `list()`: lifecycle;
+  `list()` carries member and claim counts.
 - `join(team, user, role)`: one membership per team and user; joining again
   changes the role. `leave(team, user)` removes it.
 - `members(team)`: users with their role names.
 - `claim(team, subject)` (idempotent) / `release(team, subject)` /
-  `claims(team)` / `holders(subject)`.
-- `of(user)`: the user's teams with role names. `subjects(user)`: every
-  subject reachable through any membership, for scoping list views.
+  `claims(team)`.
+- `subjects(user)`: every subject reachable through any membership, for
+  scoping list views.
 
 ### `invite`
 
@@ -401,7 +374,6 @@ import { reset } from 'ajo-kit-auth'
 const plain = await reset.create(user)
 const preview = await reset.validate(plain)
 const user = await reset.consume(plain, passwordHash)
-await reset.prune()
 ```
 
 Reset tokens are SHA-256 hashed in DB and expire in 1 hour. `validate()` is a
@@ -480,5 +452,5 @@ eligibility cannot change in either direction.
 ## Types
 
 ```ts
-import type { Ability, Auth, Invite, New, Session, Team, Token, User } from 'ajo-kit-auth'
+import type { Ability, Auth, User } from 'ajo-kit-auth'
 ```

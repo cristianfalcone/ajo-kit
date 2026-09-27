@@ -14,7 +14,8 @@ import {
 	sha256Hex,
 	type PublicKey as Key,
 } from 'ajo-kit/platform'
-import { db } from './store'
+import { db } from 'ajo-kit/database'
+import type { Auth } from './types'
 import {
 	algorithms,
 	authenticator,
@@ -28,7 +29,7 @@ import {
 } from './webauthn'
 
 /** How long a challenge stays answerable. */
-export const window = 5 * 60 * 1000
+const window = 5 * 60 * 1000
 
 /**
  * Where the relying party lives. Both are explicit configuration and neither
@@ -90,9 +91,9 @@ const challenge = async (
 	const plain = randomBase64Url(32)
 	const now = Date.now()
 
-	await db().deleteFrom('challenges').where('expiry', '<', stamp(now)).execute()
+	await db<Auth>().deleteFrom('challenges').where('expiry', '<', stamp(now)).execute()
 
-	await db().insertInto('challenges').values({
+	await db<Auth>().insertInto('challenges').values({
 		id: digest(plain),
 		kind,
 		user: user ?? null,
@@ -112,7 +113,7 @@ const challenge = async (
  */
 const answer = async (plain: string, kind: 'register' | 'authenticate') => {
 
-	const issued = await db()
+	const issued = await db<Auth>()
 		.deleteFrom('challenges')
 		.where('id', '=', digest(plain))
 		.where('kind', '=', kind)
@@ -169,7 +170,7 @@ export const authentication = async () => {
 
 /** The stable opaque handle an authenticator stores for a user. */
 const identity = async (user: number) => {
-	const row = await db()
+	const row = await db<Auth>()
 		.selectFrom('credentials')
 		.select('handle')
 		.where('user', '=', user)
@@ -179,7 +180,7 @@ const identity = async (user: number) => {
 }
 
 const credentials = async (user: number) => {
-	const rows = await db()
+	const rows = await db<Auth>()
 		.selectFrom('credentials')
 		.select(['id', 'transports'])
 		.where('user', '=', user)
@@ -287,7 +288,7 @@ export const register = async (user: number, response: Attestation) => {
 	// Reading the account's handle and inserting are one write transaction:
 	// two ceremonies started before the first credential existed carry two
 	// fresh handles, and only the first to commit may store its own.
-	await db().transaction().execute(async trx => {
+	await db<Auth>().transaction().execute(async trx => {
 
 		const current = await trx.selectFrom('credentials').select('handle').where('user', '=', user).executeTakeFirst()
 		if (current && current.handle !== handle) throw new Malformed('account registered another passkey during this ceremony')
@@ -331,7 +332,7 @@ export const authenticate = async (response: Assertion): Promise<number> => {
 
 	if (typeof response.id !== 'string') throw new Malformed('assertion names no credential')
 
-	const stored = await db()
+	const stored = await db<Auth>()
 		.selectFrom('credentials')
 		.select(['id', 'user', 'handle', 'key', 'alg', 'eligible'])
 		.where('id', '=', response.id)
@@ -372,7 +373,7 @@ export const authenticate = async (response: Assertion): Promise<number> => {
 	// The counter is recorded, not enforced: synced passkeys report zero from
 	// every device by design, so a regression is a signal for whoever reads
 	// the row, never a reason to refuse the person in front of us.
-	await db().updateTable('credentials').set({
+	await db<Auth>().updateTable('credentials').set({
 		counter: parsed.counter,
 		backed: parsed.backed ? 1 : 0,
 		verified: stamp(Date.now()),
@@ -384,13 +385,13 @@ export const authenticate = async (response: Assertion): Promise<number> => {
 
 /** Lists a user's credentials for a management screen. */
 export const list = (user: number) =>
-	db().selectFrom('credentials')
+	db<Auth>().selectFrom('credentials')
 		.select(['id', 'transports', 'created', 'last', 'backed'])
 		.where('user', '=', user)
 		.execute()
 
 /** Removes one credential from one user. */
 export const remove = (user: number, id: string) =>
-	db().deleteFrom('credentials').where('user', '=', user).where('id', '=', id).execute()
+	db<Auth>().deleteFrom('credentials').where('user', '=', user).where('id', '=', id).execute()
 
 export { Malformed }

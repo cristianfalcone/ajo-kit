@@ -1,7 +1,26 @@
-import { describe, expect, test } from 'vitest'
-import { authorize } from '../src/guard'
+import { describe, expect, test, vi } from 'vitest'
+import { authorize, protect } from '../src/guard'
+
+const response = () => ({ writeHead: vi.fn(), end: vi.fn() })
 
 describe('ajo-kit-auth guard', () => {
+	test('protect admits users, answers 401 to API guests and redirects page guests', () => {
+		const next = vi.fn()
+		const user = { user: { id: 1 }, path: '/api/tokens', headers: {} } as any
+
+		protect()(user, response() as any, next)
+		expect(next).toHaveBeenCalledOnce()
+
+		const api = { path: '/api/tokens', headers: {} } as any
+		expect(() => protect()(api, response() as any, next)).toThrow(expect.objectContaining({ status: 401 }))
+
+		const page = { path: '/dashboard', headers: {} } as any
+		const res = response()
+		protect('/signin')(page, res as any, next)
+		expect(res.writeHead).toHaveBeenCalledWith(302, { Location: '/signin' })
+		expect(next).toHaveBeenCalledOnce()
+	})
+
 	test('authorization requires account abilities for cookie requests', () => {
 		const allowed = { user: { id: 123, abilities: ['tokens:*'] } } as any
 		const denied = { user: { id: 123, abilities: ['tokens:read'] } } as any

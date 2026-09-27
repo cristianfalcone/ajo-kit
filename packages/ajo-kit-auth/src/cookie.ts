@@ -12,12 +12,12 @@ const name = () => https() ? host : plain
 
 /** Secure follows the app's canonical scheme: an https deployment locks its
  * cookies to TLS; an http origin must not set a flag its own scheme rejects. */
-export const secure = () => env('APP_URL')?.startsWith('https:') ? '; Secure' : ''
+const secure = () => env('APP_URL')?.startsWith('https:') ? '; Secure' : ''
 
 const base = () => `HttpOnly; SameSite=Lax; Path=/${secure()}`
 
 /** Reads one cookie by exact name and rejects duplicates. */
-export const parse = (header: string | undefined, key: string) => {
+const parse = (header: string | undefined, key: string) => {
 	let value: string | undefined
 
 	for (const part of header?.split(';') ?? []) {

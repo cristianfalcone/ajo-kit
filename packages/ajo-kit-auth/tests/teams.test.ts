@@ -27,15 +27,12 @@ const seed = async () => {
 }
 
 describe('team lifecycle', () => {
-	test('create, rename, get, list with counts, and remove cascades', async () => {
+	test('create, get, list with counts, and remove cascades', async () => {
 		await seed()
 		const alpha = await team.create('alpha')
-		const beta = await team.create('beta')
+		const bravo = await team.create('bravo')
 
-		await team.rename(beta, 'bravo')
-		const renamed = await team.get(beta)
-		expect(renamed?.name).toBe('bravo')
-		expect(renamed?.updated).not.toBeNull()
+		expect(await team.get(bravo)).toMatchObject({ id: bravo, name: 'bravo', updated: null })
 
 		await team.join(alpha, 1, 1)
 		await team.join(alpha, 2, 2)
@@ -74,7 +71,7 @@ describe('team lifecycle', () => {
 		expect(await team.members(alpha)).toHaveLength(0)
 	})
 
-	test('claims are idempotent, ordered, releasable, and traceable both ways', async () => {
+	test('claims are idempotent, ordered, releasable, and reach teammates', async () => {
 		await seed()
 		const alpha = await team.create('alpha')
 		const bravo = await team.create('bravo')
@@ -85,17 +82,12 @@ describe('team lifecycle', () => {
 		await team.claim(bravo, 'app:blog')
 
 		expect(await team.claims(alpha)).toEqual(['app:blog', 'app:shop'])
-		expect((await team.holders('app:blog')).map(holder => holder.name)).toEqual(['alpha', 'bravo'])
 
 		await team.release(alpha, 'app:shop')
 		expect(await team.claims(alpha)).toEqual(['app:blog'])
 
 		await team.join(alpha, 1, 1)
 		await team.join(bravo, 1, 2)
-		expect(await team.of(1)).toEqual([
-			{ team: alpha, name: 'alpha', role: 'operator' },
-			{ team: bravo, name: 'bravo', role: 'viewer' },
-		])
 		expect(await team.subjects(1)).toEqual(['app:blog'])
 	})
 

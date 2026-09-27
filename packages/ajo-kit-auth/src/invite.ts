@@ -1,6 +1,5 @@
-import type { Kysely } from 'ajo-kit/database'
+import { db, type Kysely } from 'ajo-kit/database'
 import { generate, hash } from './session'
-import { db } from './store'
 import type { Auth } from './types'
 
 const day = 24 * 60 * 60 * 1000
@@ -76,7 +75,7 @@ export async function create(input: {
 	const token = `ajoinv_${generate()}`
 	const now = stamp()
 
-	await db().transaction().execute(async trx => {
+	await db<Auth>().transaction().execute(async trx => {
 		if (input.team !== undefined) {
 			const team = await trx
 				.selectFrom('teams')
@@ -120,7 +119,7 @@ export async function create(input: {
 
 /** Resolves a presentable invitation without exposing its stored token hash. */
 export async function get(token: string): Promise<Presentation | null> {
-	return presentable(db(), identity(token))
+	return presentable(db<Auth>(), identity(token))
 }
 
 /**
@@ -135,7 +134,7 @@ export async function accept(token: string, input: {
 	const id = identity(token)
 	const now = stamp()
 
-	return db().transaction().execute(async trx => {
+	return db<Auth>().transaction().execute(async trx => {
 		const view = await presentable(trx, id, now)
 
 		if (!view) return null
@@ -211,7 +210,7 @@ export async function accept(token: string, input: {
  * unfinished, while keeping its audit row.
  */
 export async function revoke(id: string): Promise<void> {
-	await db()
+	await db<Auth>()
 		.updateTable('invites')
 		.set({ revoked: stamp() })
 		.where('id', '=', id)
@@ -229,7 +228,7 @@ export async function list(): Promise<{
 	inviter: number | null
 	expiry: string
 }[]> {
-	return db()
+	return db<Auth>()
 		.selectFrom('invites')
 		.select(['id', 'email', 'name', 'role', 'team', 'inviter', 'expiry'])
 		.where('accepted', 'is', null)

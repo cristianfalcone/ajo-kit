@@ -1,4 +1,4 @@
-import type { Generated, Selectable, Insertable } from 'ajo-kit/database'
+import type { Generated, Selectable } from 'ajo-kit/database'
 
 /** users table shape. */
 export interface Users {
@@ -137,13 +137,3 @@ export interface Auth {
 
 /** Selected auth user row. */
 export type User = Selectable<Users>
-/** Insertable auth user row. */
-export type New = Insertable<Users>
-/** Selected auth session row. */
-export type Session = Selectable<Sessions>
-/** Selected auth token row. */
-export type Token = Selectable<Tokens>
-/** Selected auth team row. */
-export type Team = Selectable<Teams>
-/** Selected auth invitation row. */
-export type Invite = Selectable<Invites>

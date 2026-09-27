@@ -1,5 +1,6 @@
 import { merge, type Ability } from './ability.client'
-import { db } from './store'
+import { db } from 'ajo-kit/database'
+import type { Auth } from './types'
 
 /** Parsed ability bundle assigned through one user role. */
 export type Grant = {
@@ -21,7 +22,7 @@ function parse(value: string): Ability[] {
 
 /** Loads role ability bundles for an auth user. */
 export async function grants(user: number): Promise<Grant[]> {
-	const roles = await db()
+	const roles = await db<Auth>()
 		.selectFrom('members')
 		.innerJoin('roles', 'roles.id', 'members.role')
 		.select(['roles.name', 'roles.abilities'])
@@ -47,7 +48,7 @@ export async function abilities(user: number): Promise<Ability[]> {
  * caller composes them, and the guard's admit() does exactly that.
  */
 export async function scoped(user: number, subject: string): Promise<Ability[]> {
-	const roles = await db()
+	const roles = await db<Auth>()
 		.selectFrom('teammates')
 		.innerJoin('claims', 'claims.team', 'teammates.team')
 		.innerJoin('roles', 'roles.id', 'teammates.role')

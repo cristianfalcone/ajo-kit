@@ -1,9 +1,8 @@
 import type { Middleware, Request, Response } from 'ajo-kit'
-import { Denied, Forbidden, Failure, ajax } from 'ajo-kit'
+import { Denied, Forbidden, ajax, api } from 'ajo-kit'
 import { can, merge } from './ability.client'
 import { scoped } from './account'
 import { check as confirm, credential } from './confirm'
-import { db } from './store'
 
 /** Redirects HTML requests or returns a JSON redirect envelope for AJAX. */
 export const redirect = (to: string | ((req: Request) => string)): Middleware => (req, res) => {
@@ -31,14 +30,13 @@ export const when = (
 	next()
 }
 
-/** Requires an authenticated request user. */
-export const auth = (): Middleware => (req, _, next) => {
-	if (!req.user) throw new Denied()
-	next()
+/** Requires a user: guests get 401 on /api/ routes and a redirect elsewhere. */
+export const protect = (to = '/login'): Middleware => (req, res, next) => {
+	if (req.user) return next()
+	if (api(req)) throw new Denied()
+	redirect(to)(req, res, next)
 }
 
-/** Redirects guests away from protected browser routes. */
-export const protect = (to = '/login') => when(req => !req.user, redirect(to))
 /** Redirects authenticated users away from guest-only routes. */
 export const guest = (to = '/dashboard') => when(req => !!req.user, redirect(to))
 
@@ -95,29 +93,6 @@ export const confirmed = (): Middleware => (req, res, next) => {
 	if (!confirm(req)) {
 		const back = encodeURIComponent(req.originalUrl)
 		return redirect(`/confirm?redirect=${back}`)(req, res, next)
-	}
-
-	next()
-}
-
-/** Requires the authenticated user to have a verified timestamp. */
-export const verified = (): Middleware => async (req, res, next) => {
-
-	if (!req.user) throw new Denied()
-
-	const user = await db()
-		.selectFrom('users')
-		.select(['verified'])
-		.where('id', '=', req.user.id)
-		.executeTakeFirst()
-
-	if (!user?.verified) {
-
-		if (ajax(req)) {
-			throw new Failure(403, 'Email verification required')
-		}
-
-		return redirect('/verify')(req, res, next)
 	}
 
 	next()

@@ -8,14 +8,12 @@ import { up as teams } from '../migrations/0003_teams'
 import { up as invites } from '../migrations/0004_invites'
 import { up as integrity } from '../migrations/0005_integrity'
 import { up as subjects } from '../migrations/0006_subjects'
-import { configure } from '../src/store'
 
 let directory: string
 
 export async function setup() {
 	directory = mkdtempSync(join(tmpdir(), 'ajo-kit-auth-'))
 	connect(join(directory, 'test.sqlite'))
-	configure(() => db())
 
 	await initial(db<any>())
 	await passkeys(db<any>())

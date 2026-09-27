@@ -1,5 +1,6 @@
 import { generate, hash } from './session'
-import { db } from './store'
+import { db } from 'ajo-kit/database'
+import type { Auth } from './types'
 import { clearUser } from './confirm'
 
 const hours = 1
@@ -7,13 +8,13 @@ const hours = 1
 /** Creates a password reset token and returns its plaintext value. */
 export async function create(user: number): Promise<string> {
 
-	await db().deleteFrom('resets').where('user', '=', user).execute()
+	await db<Auth>().deleteFrom('resets').where('user', '=', user).execute()
 
 	const plain = generate()
 	const id = hash(plain)
 	const expiry = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString()
 
-	await db().insertInto('resets').values({ id, user, expiry }).execute()
+	await db<Auth>().insertInto('resets').values({ id, user, expiry }).execute()
 
 	return plain
 }
@@ -22,7 +23,7 @@ export async function create(user: number): Promise<string> {
 export async function validate(plain: string): Promise<number | null> {
 
 	const id = hash(plain)
-	const reset = await db()
+	const reset = await db<Auth>()
 		.selectFrom('resets')
 		.select(['user', 'expiry'])
 		.where('id', '=', id)
@@ -37,7 +38,7 @@ export async function validate(plain: string): Promise<number | null> {
 export async function consume(plain: string, passwordHash: string): Promise<number | null> {
 	const id = hash(plain)
 	const now = new Date().toISOString()
-	const user = await db().transaction().execute(async trx => {
+	const user = await db<Auth>().transaction().execute(async trx => {
 		const reset = await trx
 			.deleteFrom('resets')
 			.where('id', '=', id)
@@ -62,9 +63,4 @@ export async function consume(plain: string, passwordHash: string): Promise<numb
 	if (user !== null) clearUser(user)
 
 	return user
-}
-
-/** Deletes expired password reset tokens. */
-export function prune() {
-	return db().deleteFrom('resets').where('expiry', '<', new Date().toISOString()).execute()
 }

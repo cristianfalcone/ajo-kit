@@ -44,11 +44,6 @@ test('reset action rejects invalid tokens before password hashing', async () => 
 		})
 		const { db } = await import('/src/data')
 
-		// The reset boundary lives in the auth package now; its store needs
-		// the same wiring src/wares.ts gives it in the running app.
-		const auth = await import('ajo-kit-auth')
-		auth.configure(() => db())
-
 		await db().schema
 			.createTable('resets')
 			.addColumn('id', 'text', column => column.primaryKey())

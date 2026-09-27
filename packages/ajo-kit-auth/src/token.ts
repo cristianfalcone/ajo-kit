@@ -1,4 +1,5 @@
-import { db } from './store'
+import { db } from 'ajo-kit/database'
+import type { Auth } from './types'
 import { generate, hash } from './session'
 import { abilities as granted, scoped } from './account'
 import { can, intersect, merge } from './ability.client'
@@ -39,7 +40,7 @@ export async function create(
 	const plain = generate()
 	const id = hash(plain)
 
-	await db().insertInto('tokens').values({
+	await db<Auth>().insertInto('tokens').values({
 		id,
 		user,
 		name,
@@ -57,7 +58,7 @@ export async function validate(plain: string) {
 
 	const id = hash(plain)
 
-	const token = await db()
+	const token = await db<Auth>()
 		.selectFrom('tokens')
 		.select(['id', 'user', 'abilities', 'subject', 'expiry'])
 		.where('id', '=', id)
@@ -68,7 +69,7 @@ export async function validate(plain: string) {
 	if (token.subject !== null && (typeof token.subject !== 'string' || !token.subject.trim() || token.expiry === null)) return null
 
 	if (token.expiry !== null && !(Date.parse(token.expiry) > Date.now())) {
-		await db().deleteFrom('tokens').where('id', '=', id).execute()
+		await db<Auth>().deleteFrom('tokens').where('id', '=', id).execute()
 		return null
 	}
 
@@ -82,7 +83,7 @@ export async function validate(plain: string) {
 
 	if (!Array.isArray(abilities) || !abilities.every(ability => typeof ability === 'string')) return null
 
-	await db().updateTable('tokens')
+	await db<Auth>().updateTable('tokens')
 		.set({ last: new Date().toISOString() })
 		.where('id', '=', id)
 		.execute()
@@ -93,7 +94,7 @@ export async function validate(plain: string) {
 /** Revokes a token by full stored id only when it belongs to the given user. */
 export async function revoke(user: number, id: string): Promise<boolean> {
 
-	const result = await db().deleteFrom('tokens')
+	const result = await db<Auth>().deleteFrom('tokens')
 		.where('user', '=', user)
 		.where('id', '=', id)
 		.executeTakeFirst()
@@ -105,17 +106,11 @@ export async function revoke(user: number, id: string): Promise<boolean> {
 
 /** Deletes every API token owned by a user. */
 export const purge = (user: number) =>
-	db().deleteFrom('tokens').where('user', '=', user).execute()
+	db<Auth>().deleteFrom('tokens').where('user', '=', user).execute()
 
 /** Lists stored API tokens for a user without plaintext secrets. */
 export const list = (user: number) =>
-	db().selectFrom('tokens')
+	db<Auth>().selectFrom('tokens')
 		.select(['id', 'name', 'abilities', 'subject', 'last', 'expiry', 'created'])
 		.where('user', '=', user)
-		.execute()
-
-/** Deletes expired API tokens. */
-export const prune = () =>
-	db().deleteFrom('tokens')
-		.where('expiry', '<', new Date().toISOString())
 		.execute()

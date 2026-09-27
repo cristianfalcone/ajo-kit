@@ -1,16 +1,16 @@
 import type { Middleware, Request } from 'ajo-kit'
-import { Forbidden, api } from 'ajo-kit'
+import { Forbidden, api, requestOrigin } from 'ajo-kit'
+import { db } from 'ajo-kit/database'
 import { read, clear } from './cookie'
 import { validate } from './session'
 import { validate as bearer } from './token'
-import { verify as valid } from './csrf'
-import { db } from './store'
 import { grants } from './account'
 import { merge } from './ability.client'
+import type { Auth } from './types'
 
 async function resolve(id: number) {
 
-	const user = await db()
+	const user = await db<Auth>()
 		.selectFrom('users')
 		.select(['id', 'name', 'email', 'verified'])
 		.where('id', '=', id)
@@ -27,8 +27,6 @@ async function resolve(id: number) {
 	}
 }
 
-type Resolve = typeof resolve
-
 const reset = (req: Request) => {
 	delete req.user
 	delete req.session
@@ -36,9 +34,7 @@ const reset = (req: Request) => {
 }
 
 /** Authenticates requests from bearer API tokens or session cookies. */
-export function session(lookup?: Resolve): Middleware {
-
-	const find = lookup ?? resolve
+export function session(): Middleware {
 
 	return async (req, res, next) => {
 
@@ -53,7 +49,7 @@ export function session(lookup?: Resolve): Middleware {
 			const authz = await bearer(auth.slice(7))
 
 			if (authz) {
-				const user = await find(authz.user)
+				const user = await resolve(authz.user)
 				if (user) {
 					req.user = user
 					req.token = { id: authz.id, abilities: authz.abilities, subject: authz.subject }
@@ -72,7 +68,7 @@ export function session(lookup?: Resolve): Middleware {
 			const valid = await validate(cookie, req.headers.accept !== 'text/event-stream')
 
 			if (valid) {
-				const user = await find(valid.user)
+				const user = await resolve(valid.user)
 				if (user) {
 					req.user = user
 					req.session = { id: valid.id }
@@ -88,14 +84,27 @@ export function session(lookup?: Resolve): Middleware {
 	}
 }
 
-/** Rejects unsafe cookie-auth requests without CSRF proof. */
+const parsed = (value: string) => {
+	try {
+		return new URL(value).origin
+	} catch {
+		return null
+	}
+}
+
+/**
+ * Rejects unsafe cookie-auth requests unless Origin, or Referer when Origin is
+ * absent, names the exact request origin.
+ */
 export const csrf: Middleware = (req, _, next) => {
 
 	if (req.token) return next()
 	if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
 	if (api(req) && !req.user) return next()
 
-	if (!valid(req)) throw new Forbidden('Invalid CSRF token')
+	const source = req.headers.origin ?? req.headers.referer
+
+	if (!source || parsed(source) !== requestOrigin(req)) throw new Forbidden('Invalid CSRF token')
 
 	next()
 }

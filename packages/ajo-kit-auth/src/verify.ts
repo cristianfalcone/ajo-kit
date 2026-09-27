@@ -1,6 +1,7 @@
 import { base64UrlDecode, base64UrlEncode, hmacSha256Hex, timingSafeEqual } from 'ajo-kit/platform'
 import * as secret from './secret'
-import { db } from './store'
+import { db } from 'ajo-kit/database'
+import type { Auth } from './types'
 
 const hours = 24
 const hex = /^[0-9a-f]+$/i
@@ -48,7 +49,7 @@ export async function validate(signature: string): Promise<number | null> {
 
 		const email = normalize(utf8.decode(base64UrlDecode(bound)))
 
-		return db().transaction().execute(async trx => {
+		return db<Auth>().transaction().execute(async trx => {
 			const account = await trx
 				.selectFrom('users')
 				.select(['email', 'verified'])
