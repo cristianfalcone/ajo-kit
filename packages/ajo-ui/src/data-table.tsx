@@ -1,5 +1,5 @@
 import type { Children, IntrinsicElements, Stateful } from 'ajo'
-import { announce, dom, listen, statefulRootAttrs as rootAttrs, timer } from 'ajo-cloves'
+import { announce, dom, listen, timer } from 'ajo-cloves'
 import { Checkbox } from './checkbox'
 import { defaultResultsLabel } from './collection'
 import {
@@ -17,6 +17,7 @@ import {
 } from './menu'
 import { Toolbar } from './toolbar'
 import type { FixedArgs, OmitArg } from './utils'
+import { rootAttrs } from './shared'
 
 export type DataTableKey = number | string
 export type DataTableData = any[] | Record<string, any>
@@ -599,34 +600,9 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 }
 
 /** Native, Ajo-owned client DataTable powered by its private indexed model. */
-const DataTable = <T extends DataTableData, Key extends DataTableKey = DataTableKey>({
-	children: _children,
-	class: classes,
-	classNames,
-	columns,
-	empty,
-	getRowKey,
-	label,
-	labels,
-	pagination,
-	rows,
-	search,
-	selection,
-	...attrs
-}: DataTableArgs<T, Key>) => (
+const DataTable = <T extends DataTableData, Key extends DataTableKey = DataTableKey>(args: DataTableArgs<T, Key>) => (
 	<DataTableRoot
-		{...rootAttrs(attrs as Record<string, unknown>) as IntrinsicElements['div']}
-		classNames={classNames}
-		columns={columns}
-		empty={empty}
-		getRowKey={getRowKey}
-		label={label}
-		labels={labels}
-		pagination={pagination}
-		rows={rows}
-		search={search}
-		selection={selection as DataTableRootArgs<any, DataTableKey>['selection']}
-		attr:class={classes}
+		{...rootAttrs(args as DataTableArgs<T, DataTableKey>, ['classNames', 'columns', 'empty', 'getRowKey', 'label', 'labels', 'pagination', 'rows', 'search', 'selection'])}
 		attr:data-slot="data-table"
 	/>
 )

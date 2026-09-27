@@ -9,16 +9,6 @@ export const dom = (value: unknown): value is Element =>
 export const browser = () =>
 	typeof window != 'undefined' && typeof document != 'undefined'
 
-const statefulArg = (key: string) =>
-	key === 'key' || key === 'memo' || key === 'ref' || key === 'skip' || key.startsWith('set:')
-
-/** Maps rest attrs onto an Ajo stateful host, prefixing DOM attributes with `attr:`. */
-export const statefulRootAttrs = (attrs: Record<string, unknown>) => {
-	const result: Record<string, unknown> = {}
-	for (const [key, value] of Object.entries(attrs)) result[statefulArg(key) ? key : `attr:${key}`] = value
-	return result
-}
-
 /** Calls an externally supplied DOM event handler when it is a function. */
 export const callHandler = <EventType extends Event>(handler: unknown, event: EventType) => {
 	if (typeof handler === 'function') (handler as (event: EventType) => void)(event)

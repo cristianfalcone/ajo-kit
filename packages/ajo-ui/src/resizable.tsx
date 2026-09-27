@@ -1,7 +1,8 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { clamp, listen, move, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { clamp, listen, move } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { stlx } from './utils'
+import { rootAttrs } from './shared'
 
 /** Axis along which adjacent panels are resized. */
 export type ResizableOrientation = 'horizontal' | 'vertical'
@@ -222,20 +223,14 @@ const ResizablePanelGroupRoot: Stateful<ResizablePanelGroupArgs> = function* () 
 }
 
 /** Unstyled resizable panel group for split layouts. */
-const ResizablePanelGroup: Stateless<ResizablePanelGroupArgs> = ({
-	children,
-	orientation = 'horizontal',
-	...attrs
-}) => (
+const ResizablePanelGroup: Stateless<ResizablePanelGroupArgs> = ({ orientation = 'horizontal', ...args }) => (
 	<ResizablePanelGroupRoot
-		{...rootAttrs(attrs)}
+		{...rootAttrs(args)}
 		orientation={orientation}
 		attr:aria-orientation={orientation}
 		attr:data-orientation={orientation}
 		attr:data-slot="resizable-panel-group"
-	>
-		{children}
-	</ResizablePanelGroupRoot>
+	/>
 )
 
 /** Unstyled resizable flex panel. */

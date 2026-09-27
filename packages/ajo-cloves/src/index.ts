@@ -9,7 +9,6 @@ export {
 	id,
 	listen,
 	remember,
-	statefulRootAttrs,
 } from './core'
 export { controlled } from './controlled'
 export { dismiss } from './dismiss'

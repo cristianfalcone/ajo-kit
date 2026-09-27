@@ -1,7 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { flag } from './shared'
+import { flag, rootAttrs } from './shared'
 import type { OmitArg } from './utils'
-import { callHandler, controlled, dom, id, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, controlled, dom, id } from 'ajo-cloves'
 import { context } from 'ajo/context'
 
 /** Arguments for the controlled or uncontrolled disclosure root. */
@@ -27,13 +27,6 @@ export type CollapsibleTriggerArgs = WithChildren<IntrinsicElements['summary'] &
 /** Arguments for the content revealed by a Collapsible. */
 export type CollapsibleContentArgs = WithChildren<IntrinsicElements['div']>
 
-type CollapsibleRootArgs = WithChildren<{
-	defaultOpen?: boolean
-	disabled?: boolean
-	onOpenChange?: (open: boolean, event?: Event) => void
-	open?: boolean
-}>
-
 /** Live disclosure state shared with composed Collapsible parts. */
 export type CollapsibleContextValue = {
 	contentId: string
@@ -46,10 +39,10 @@ export type CollapsibleContextValue = {
 /** Composition context shared by Collapsible parts and derivative families such as Accordion. */
 export const CollapsibleContext = context<CollapsibleContextValue | null>(null)
 
-const CollapsibleRoot: Stateful<CollapsibleRootArgs, 'details'> = function* ({ defaultOpen, open }) {
+const CollapsibleRoot: Stateful<CollapsibleArgs, 'details'> = function* ({ defaultOpen, open }) {
 	const rootId = id('collapsible')
 	let disabled = false
-	let onOpenChange: CollapsibleRootArgs['onOpenChange']
+	let onOpenChange: CollapsibleArgs['onOpenChange']
 	const state = controlled<boolean>(this, {
 		fallback: Boolean(open ?? defaultOpen),
 		onChange: (next, event) => onOpenChange?.(next, event),
@@ -98,33 +91,20 @@ const CollapsibleRoot: Stateful<CollapsibleRootArgs, 'details'> = function* ({ d
 CollapsibleRoot.is = 'details'
 
 /** Unstyled collapsible disclosure rendered as a native details element. */
-const Collapsible: Stateless<CollapsibleArgs> = ({
-	children,
-	defaultOpen,
-	disabled,
-	onOpenChange,
-	open,
-	...attrs
-}) => {
-	const opened = Boolean(open ?? defaultOpen)
-	const disabledFlag = Boolean(disabled)
+const Collapsible: Stateless<CollapsibleArgs> = args => {
+	const opened = Boolean(args.open ?? args.defaultOpen)
+	const disabled = Boolean(args.disabled)
 
 	return (
 		<CollapsibleRoot
 			attr:data-slot="collapsible"
-			{...rootAttrs(attrs)}
-			defaultOpen={defaultOpen}
-			disabled={disabledFlag}
-			onOpenChange={onOpenChange}
-			open={open}
-			attr:aria-disabled={flag(disabledFlag)}
-			attr:data-disabled={flag(disabledFlag)}
+			{...rootAttrs(args, ['defaultOpen', 'disabled', 'onOpenChange', 'open'])}
+			attr:aria-disabled={flag(disabled)}
+			attr:data-disabled={flag(disabled)}
 			attr:data-state={opened ? 'open' : 'closed'}
 			attr:open={opened || undefined}
 			set:open={opened}
-		>
-			{children}
-		</CollapsibleRoot>
+		/>
 	)
 }
 

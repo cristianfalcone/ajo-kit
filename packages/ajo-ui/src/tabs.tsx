@@ -1,8 +1,9 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, controlled, dom, id, indicator, listen, overflow, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, callRef, controlled, dom, id, indicator, listen, overflow, roving } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { DirectionContext } from './direction'
 import type { FixedArgs, OmitArg } from './utils'
+import { rootAttrs } from './shared'
 
 /** Layout and keyboard-navigation axis of a tab list. */
 export type TabsOrientation = 'horizontal' | 'vertical'
@@ -44,15 +45,7 @@ export type TabsContentArgs = WithChildren<IntrinsicElements['div'] & {
 	forceMount?: boolean
 }>
 
-type TabsRootArgs = WithChildren<{
-	activationMode: TabsActivationMode
-	defaultValue?: string
-	dir: 'ltr' | 'rtl'
-	loop: boolean
-	onValueChange?: (value: string, event?: Event) => void
-	orientation: TabsOrientation
-	value?: string
-}>
+type TabsRootArgs = TabsArgs & Required<Pick<TabsArgs, 'activationMode' | 'dir' | 'loop' | 'orientation'>>
 
 type TabsContextValue = {
 	activationMode: TabsActivationMode
@@ -160,33 +153,24 @@ const TabsRoot: Stateful<TabsRootArgs> = function* ({ defaultValue, value }) {
 /** Unstyled root provider for tab state. */
 const Tabs: Stateless<TabsArgs> = ({
 	activationMode = 'automatic',
-	children,
-	defaultValue,
 	dir,
 	loop = true,
-	onValueChange,
 	orientation = 'horizontal',
-	value,
-	...attrs
+	...args
 }) => {
 	const resolvedDir = dir ?? DirectionContext()
 
 	return (
 		<TabsRoot
-			{...rootAttrs(attrs)}
+			{...rootAttrs(args, ['defaultValue', 'onValueChange', 'value'])}
 			activationMode={activationMode}
-			defaultValue={defaultValue}
 			dir={resolvedDir}
 			loop={loop}
-			onValueChange={onValueChange}
 			orientation={orientation}
-			value={value}
 			attr:data-orientation={orientation}
 			attr:data-slot="tabs"
 			attr:dir={resolvedDir}
-		>
-			{children}
-		</TabsRoot>
+		/>
 	)
 }
 

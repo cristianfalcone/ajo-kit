@@ -1,8 +1,9 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, clamp, listen, resize, scrolling, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, clamp, listen, resize, scrolling } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { type Direction, DirectionContext } from './direction'
 import type { OmitArg } from './utils'
+import { rootAttrs } from './shared'
 
 /** Layout axis used by a Carousel. */
 export type CarouselOrientation =
@@ -44,11 +45,7 @@ type CarouselPartsContextValue = {
 	setViewport: (element: HTMLElement | null) => void
 }
 
-type CarouselRootArgs = WithChildren<{
-	dir: Direction
-	loop: boolean
-	orientation: CarouselOrientation
-}>
+type CarouselRootArgs = CarouselArgs & Required<Pick<CarouselArgs, 'dir' | 'loop' | 'orientation'>>
 
 /** Read the observable state and controls inherited from the nearest Carousel. */
 export const CarouselContext = context<CarouselContextValue | null>(null)
@@ -197,18 +194,17 @@ const CarouselRoot: Stateful<CarouselRootArgs> = function* () {
 
 /** Unstyled native scroll-snap carousel root. */
 const Carousel: Stateless<CarouselArgs> = ({
-	children,
 	dir,
 	loop = false,
 	orientation = 'horizontal',
 	role = 'region',
-	...attrs
+	...args
 }) => {
 	const resolvedDir = dir ?? DirectionContext()
 
 	return (
 		<CarouselRoot
-			{...rootAttrs(attrs)}
+			{...rootAttrs(args)}
 			dir={resolvedDir}
 			loop={loop}
 			orientation={orientation}
@@ -217,9 +213,7 @@ const Carousel: Stateless<CarouselArgs> = ({
 			attr:data-slot="carousel"
 			attr:dir={resolvedDir}
 			attr:role={role}
-		>
-			{children}
-		</CarouselRoot>
+		/>
 	)
 }
 

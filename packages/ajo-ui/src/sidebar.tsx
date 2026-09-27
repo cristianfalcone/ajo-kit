@@ -1,8 +1,9 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, controlled, dom, hotkey, media, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, controlled, dom, hotkey, media } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { Drawer, DrawerContent } from './drawer'
 import { part } from './utils'
+import { rootAttrs } from './shared'
 
 /** Current expanded or collapsed presentation state. */
 export type SidebarState = 'collapsed' | 'expanded'
@@ -241,30 +242,12 @@ const SidebarProviderRoot: Stateful<SidebarProviderArgs> = function* ({ defaultO
 
 
 /** Unstyled state provider for the sidebar component family. */
-const SidebarProvider: Stateless<SidebarProviderArgs> = ({
-	children,
-	class: classes,
-	defaultOpen,
-	mobileQuery,
-	onOpenChange,
-	open,
-	shortcut,
-	style,
-	...attrs
-}) => (
+const SidebarProvider: Stateless<SidebarProviderArgs> = ({ style, ...args }) => (
 	<SidebarProviderRoot
-		{...rootAttrs(attrs)}
-		defaultOpen={defaultOpen}
-		mobileQuery={mobileQuery}
-		onOpenChange={onOpenChange}
-		open={open}
-		shortcut={shortcut}
-		attr:class={classes}
+		{...rootAttrs(args, ['defaultOpen', 'mobileQuery', 'onOpenChange', 'open', 'shortcut'])}
 		attr:data-slot="sidebar-wrapper"
 		attr:style={vars(style)}
-	>
-		{children}
-	</SidebarProviderRoot>
+	/>
 )
 
 /** Unstyled main sidebar panel. */

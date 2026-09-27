@@ -1,7 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { announce, callHandler, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { announce, callHandler, controlled, dom, id, listen, roving } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { activate, flag, text } from './shared'
+import { activate, flag, rootAttrs, text } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
 import { collection, matchesTokens, resolveFilter, resultCount } from './collection'
 
@@ -218,38 +218,11 @@ const CommandRoot: Stateful<CommandArgs> = function* ({ defaultSearch, defaultVa
 
 
 /** Searchable command menu. */
-const Command: Stateless<CommandArgs> = ({
-	children,
-	class: classes,
-	defaultSearch,
-	defaultValue,
-	disabled,
-	filter,
-	loop,
-	onSearchChange,
-	onValueChange,
-	resultsLabel,
-	search,
-	value,
-	...attrs
-}) => (
+const Command: Stateless<CommandArgs> = args => (
 	<CommandRoot
-		{...rootAttrs(attrs)}
-		defaultSearch={defaultSearch}
-		defaultValue={defaultValue}
-		disabled={disabled}
-		filter={filter}
-		loop={loop}
-		onSearchChange={onSearchChange}
-		onValueChange={onValueChange}
-		resultsLabel={resultsLabel}
-		search={search}
-		value={value}
-		attr:class={classes}
+		{...rootAttrs(args, ['defaultSearch', 'defaultValue', 'disabled', 'filter', 'loop', 'onSearchChange', 'onValueChange', 'resultsLabel', 'search', 'value'])}
 		attr:data-slot="command"
-	>
-		{children}
-	</CommandRoot>
+	/>
 )
 
 /** Search input for a Command menu. */

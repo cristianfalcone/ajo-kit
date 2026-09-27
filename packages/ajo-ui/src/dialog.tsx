@@ -1,8 +1,9 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, controlled, id, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, callRef, controlled, id } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { triggerAttrs } from './popup'
 import { part, type FixedArgs, type OmitArg } from './utils'
+import { rootAttrs } from './shared'
 
 /** Arguments for the Dialog state provider and its wrapper host. */
 export type DialogArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchange'> & {
@@ -168,27 +169,8 @@ const DialogRoot: Stateful<DialogArgs> = function* ({ defaultOpen, open }) {
 
 
 /** Unstyled root provider for a native dialog. */
-const Dialog: Stateless<DialogArgs> = ({
-	children,
-	class: classes,
-	'data-slot': slot = 'dialog',
-	defaultOpen,
-	modal,
-	onOpenChange,
-	open,
-	...attrs
-}) => (
-	<DialogRoot
-		{...rootAttrs(attrs)}
-		defaultOpen={defaultOpen}
-		modal={modal}
-		onOpenChange={onOpenChange}
-		open={open}
-		attr:class={classes}
-		attr:data-slot={slot}
-	>
-		{children}
-	</DialogRoot>
+const Dialog: Stateless<DialogArgs> = ({ 'data-slot': slot = 'dialog', ...args }) => (
+	<DialogRoot {...rootAttrs(args, ['defaultOpen', 'modal', 'onOpenChange', 'open'])} attr:data-slot={slot} />
 )
 
 /** Unstyled button that opens the nearest Dialog. */

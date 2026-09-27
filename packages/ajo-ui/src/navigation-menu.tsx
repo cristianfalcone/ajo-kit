@@ -1,10 +1,10 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, id, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, id, listen } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { bar } from './bar'
 import { type Direction, DirectionContext } from './direction'
 import { contentAttrs, popup, type PopupPosition, type PopupView, triggerAttrs } from './popup'
-import { text } from './shared'
+import { rootAttrs, text } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
@@ -206,35 +206,13 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 NavigationMenuRoot.is = 'nav'
 
 /** Unstyled root landmark and state provider for a navigation menu. */
-const NavigationMenu: Stateless<NavigationMenuArgs> = ({
-	children,
-	class: classes,
-	closeDelay,
-	defaultValue,
-	dir,
-	gap,
-	onValueChange,
-	openDelay,
-	placement,
-	value,
-	...attrs
-}) => (
+const NavigationMenu: Stateless<NavigationMenuArgs> = ({ dir, ...args }) => (
 	<NavigationMenuRoot
-		{...rootAttrs(attrs)}
-		closeDelay={closeDelay}
-		defaultValue={defaultValue}
+		{...rootAttrs(args, ['closeDelay', 'defaultValue', 'gap', 'onValueChange', 'openDelay', 'placement', 'value'])}
 		dir={dir ?? DirectionContext()}
-		gap={gap}
-		onValueChange={onValueChange}
-		openDelay={openDelay}
-		placement={placement}
-		value={value}
-		attr:class={classes}
 		attr:data-slot="navigation-menu"
 		attr:dir={dir}
-	>
-		{children}
-	</NavigationMenuRoot>
+	/>
 )
 
 /** Unstyled horizontal list of navigation menu items. */
@@ -355,23 +333,12 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 NavigationMenuItemRoot.is = 'li'
 
 /** Unstyled top-level item inside a NavigationMenuList. */
-const NavigationMenuItem: Stateless<NavigationMenuItemArgs> = ({
-	children,
-	class: classes,
-	disabled,
-	value,
-	...attrs
-}) => (
+const NavigationMenuItem: Stateless<NavigationMenuItemArgs> = args => (
 	<NavigationMenuItemRoot
-		{...rootAttrs(attrs)}
-		disabled={disabled}
-		value={value}
-		attr:class={classes}
-		attr:data-disabled={disabled ? 'true' : undefined}
+		{...rootAttrs(args, ['disabled', 'value'])}
+		attr:data-disabled={args.disabled ? 'true' : undefined}
 		attr:data-slot="navigation-menu-item"
-	>
-		{children}
-	</NavigationMenuItemRoot>
+	/>
 )
 
 /** Unstyled button that opens an item content panel. */

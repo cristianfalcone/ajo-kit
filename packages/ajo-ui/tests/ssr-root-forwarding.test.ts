@@ -1,8 +1,15 @@
 import { defaults, render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
 import { expect, test } from 'vitest'
+import { Accordion } from '../src/accordion'
+import { Calendar } from '../src/calendar'
+import { Command } from '../src/command'
 import { DataTable } from '../src/data-table'
 import { Field } from '../src/field'
+import { InputDate, InputDateTime, InputTime } from '../src/input-date'
+import { Popover } from '../src/popover'
+import { Select } from '../src/select'
+import { Tabs } from '../src/tabs'
 import { VirtualList } from '../src/virtual-list'
 
 const openingTag = (html: string) => html.match(/^<[^>]+>/)?.[0] ?? ''
@@ -112,3 +119,27 @@ test('VirtualList forwards DOM attrs to its single semantic host without leaking
 	expect(root).not.toMatch(/\s(?:estimatesize|getitemkey|items|overscan|prerender|renderitem)(?=\s|=|>)/i)
 	expect(html.match(/data-slot="virtual-list"/g)).toHaveLength(1)
 })
+
+const hostAttrs = { class: 'root', 'data-contract': 'root', id: 'root' }
+const forwarded: Array<[string, () => unknown, string[]]> = [
+	['Accordion', () => jsx(Accordion, { ...hostAttrs, collapsible: true, defaultValue: 'a', disabled: true, type: 'single' }), ['collapsible', 'defaultvalue', 'disabled', 'type']],
+	['Calendar', () => jsx(Calendar, { ...hostAttrs, locale: 'en-US', mode: 'multiple', numberOfMonths: 2, selected: [], showWeekNumber: true }), ['locale', 'mode', 'numberofmonths', 'selected', 'showweeknumber']],
+	['Command', () => jsx(Command, { ...hostAttrs, defaultSearch: 'a', loop: true, resultsLabel: () => '' }), ['defaultsearch', 'loop', 'resultslabel']],
+	['InputDate', () => jsx(InputDate, { ...hostAttrs, calendar: true, classNames: { field: 'f' }, clearable: true, defaultOpen: false, name: 'day', range: true }), ['calendar', 'classnames', 'clearable', 'defaultopen', 'name', 'range']],
+	['InputTime', () => jsx(InputTime, { ...hostAttrs, clearable: true, granularity: 'second', hourCycle: 12, step: 5 }), ['clearable', 'granularity', 'hourcycle', 'step']],
+	['InputDateTime', () => jsx(InputDateTime, { ...hostAttrs, calendar: {}, locale: 'en-US', readOnly: true }), ['calendar', 'locale', 'readonly']],
+	['Popover', () => jsx(Popover, { ...hostAttrs, description: 'More', label: 'Details', openOn: 'hover' }), ['description', 'label', 'openon']],
+	['Select', () => jsx(Select, { ...hostAttrs, autoHighlight: true, multiple: true, name: 'tags', required: true }), ['autohighlight', 'multiple', 'name', 'required']],
+	['Tabs', () => jsx(Tabs, { ...hostAttrs, activationMode: 'manual', defaultValue: 'one', loop: true }), ['activationmode', 'defaultvalue', 'loop']],
+]
+
+for (const [name, render, args] of forwarded) {
+	test(`${name} forwards DOM attrs to its Stateful host and keeps its behavior args off it`, () => {
+		const root = openingTag(ssr(render()))
+
+		expect(root).toContain('class="root"')
+		expect(root).toContain('data-contract="root"')
+		expect(root).toContain('id="root"')
+		for (const arg of args) expect(root).not.toMatch(new RegExp(`\\s${arg}(?=\\s|=|>)`, 'i'))
+	})
+}

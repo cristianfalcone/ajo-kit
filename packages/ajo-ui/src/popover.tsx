@@ -1,9 +1,10 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, callRef } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { contentAttrs, hoverTrigger, popup, type PopupPosition, popupStyle, type PopupView, triggerAttrs } from './popup'
 import { PopupSurface } from './popup-surface'
 import type { FixedArgs, OmitArg } from './utils'
+import { rootAttrs } from './shared'
 export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Interaction that opens a popover. */
@@ -126,41 +127,11 @@ const PopoverRoot: Stateful<PopoverArgs> = function* ({ defaultOpen, open, openO
 }
 
 /** Unstyled root provider for a popover. */
-const Popover: Stateless<PopoverArgs> = ({
-	children,
-	class: classes,
-	'data-slot': slot = 'popover',
-	closeDelay,
-	defaultOpen,
-	description,
-	disabled,
-	gap,
-	label,
-	onOpenChange,
-	open,
-	openDelay,
-	openOn,
-	placement,
-	...attrs
-}) => (
+const Popover: Stateless<PopoverArgs> = ({ 'data-slot': slot = 'popover', ...args }) => (
 	<PopoverRoot
-		{...rootAttrs(attrs)}
-		closeDelay={closeDelay}
-		defaultOpen={defaultOpen}
-		description={description}
-		disabled={disabled}
-		gap={gap}
-		label={label}
-		onOpenChange={onOpenChange}
-		open={open}
-		openDelay={openDelay}
-		openOn={openOn}
-		placement={placement}
-		attr:class={classes}
+		{...rootAttrs(args, ['closeDelay', 'defaultOpen', 'description', 'disabled', 'gap', 'label', 'onOpenChange', 'open', 'openDelay', 'openOn', 'placement'])}
 		attr:data-slot={slot}
-	>
-		{children}
-	</PopoverRoot>
+	/>
 )
 
 /** Unstyled button, anchor or span that opens a Popover on click, or on hover and focus in hover mode. */

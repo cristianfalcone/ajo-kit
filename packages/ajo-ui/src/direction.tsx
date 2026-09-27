@@ -1,7 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import type { OmitArg } from './utils'
-import { statefulRootAttrs as rootAttrs } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { rootAttrs } from './shared'
 
 /** Logical text direction inherited by direction-aware components. */
 export type Direction = 'ltr' | 'rtl'
@@ -15,9 +15,7 @@ export type DirectionProviderArgs = WithChildren<OmitArg<IntrinsicElements['div'
 /** Direction inherited by direction-aware components. */
 export const DirectionContext = context<Direction>('ltr')
 
-type DirectionRootArgs = WithChildren<{
-	dir: Direction
-}>
+type DirectionRootArgs = DirectionProviderArgs & Required<Pick<DirectionProviderArgs, 'dir'>>
 
 const DirectionRoot: Stateful<DirectionRootArgs> = function* () {
 	for (const { children, dir } of this) {
@@ -27,19 +25,13 @@ const DirectionRoot: Stateful<DirectionRootArgs> = function* () {
 }
 
 /** Unstyled provider that sets direction context and an inherited HTML `dir` attribute. */
-const DirectionProvider: Stateless<DirectionProviderArgs> = ({
-	children,
-	dir = 'ltr',
-	...attrs
-}) => (
+const DirectionProvider: Stateless<DirectionProviderArgs> = ({ dir = 'ltr', ...args }) => (
 	<DirectionRoot
-		{...rootAttrs(attrs)}
+		{...rootAttrs(args)}
 		dir={dir}
 		attr:data-slot="direction-provider"
 		attr:dir={dir}
-	>
-		{children}
-	</DirectionRoot>
+	/>
 )
 
 export { DirectionProvider }

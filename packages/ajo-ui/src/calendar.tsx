@@ -1,9 +1,10 @@
 import type { Children, IntrinsicElements, Stateful, Stateless } from 'ajo'
-import { controlled, dom, remember, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { controlled, dom, remember } from 'ajo-cloves'
 import { calendarDate, compile, compiler, dayValue, exactUtcDate, partsOf, resolveLocale, weekday, type Availability, type AvailabilityMatcher, type CalendarMatcher } from './availability'
 import { DirectionContext } from './direction'
 import { daysInMonth } from './segments'
 import type { FixedArgs, OmitArg } from './utils'
+import { rootAttrs } from './shared'
 
 export type { AvailabilityMatcher, CalendarMatcher, TimeWindow } from './availability'
 
@@ -921,84 +922,18 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 }
 
 /** Unstyled calendar with single, multiple, and range selection. */
-const Calendar: Stateless<CalendarArgs> = ({
-	allowNonContiguous,
-	class: classes,
-	classNames,
-	defaultMonth,
-	defaultSelected,
-	defaultView,
-	disabled,
-	endMonth,
-	formatters,
-	locale,
-	minView,
-	month,
-	nextMonthLabel,
-	previousMonthLabel,
-	modifiers,
-	nextIcon,
-	numberOfMonths,
-	onMonthChange,
-	onViewChange,
-	previousIcon,
-	renderDay,
-	required,
-	showWeekNumber,
-	startMonth,
-	timeZone,
-	unavailable,
-	view,
-	weekStartsOn,
-	...attrs
-}) => {
-	const {
-		dir,
-		mode,
-		onSelect,
-		selected,
-		...rest
-	} = attrs as CalendarArgs & Record<string, unknown>
+const Calendar: Stateless<CalendarArgs> = ({ dir, ...args }) => {
 	const resolvedDir = (dir as 'ltr' | 'rtl' | undefined) ?? DirectionContext()
-	const rootArgs = {
-		allowNonContiguous,
-		classNames,
-		defaultMonth,
-		defaultSelected,
-		defaultView,
-		disabled,
-		dir: resolvedDir,
-		endMonth,
-		formatters,
-		locale,
-		minView,
-		mode,
-		month,
-		nextMonthLabel,
-		previousMonthLabel,
-		modifiers,
-		nextIcon,
-		numberOfMonths,
-		onMonthChange,
-		onSelect,
-		onViewChange,
-		previousIcon,
-		renderDay,
-		required,
-		selected,
-		showWeekNumber,
-		startMonth,
-		timeZone,
-		unavailable,
-		view,
-		weekStartsOn,
-	} as CalendarArgs
 
 	return (
 		<CalendarRoot
-			{...rootArgs}
-			{...rootAttrs(rest)}
-			attr:class={classes}
+			{...rootAttrs(args, [
+				'allowNonContiguous', 'classNames', 'defaultMonth', 'defaultSelected', 'defaultView', 'disabled', 'endMonth', 'formatters',
+				'locale', 'minView', 'mode', 'modifiers', 'month', 'nextIcon', 'nextMonthLabel', 'numberOfMonths', 'onMonthChange', 'onSelect',
+				'onViewChange', 'previousIcon', 'previousMonthLabel', 'renderDay', 'required', 'selected', 'showWeekNumber', 'startMonth',
+				'timeZone', 'unavailable', 'view', 'weekStartsOn',
+			])}
+			dir={resolvedDir}
 			attr:data-slot="calendar"
 			attr:dir={resolvedDir}
 		/>

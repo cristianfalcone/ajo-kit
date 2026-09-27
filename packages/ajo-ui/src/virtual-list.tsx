@@ -8,8 +8,9 @@ import {
 	type Range,
 } from '@tanstack/virtual-core'
 import type { Children, IntrinsicElements, Stateful } from 'ajo'
-import { dom, frame, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { dom, frame } from 'ajo-cloves'
 import { type FixedArgs, type OmitArg, stlx } from './utils'
+import { rootAttrs } from './shared'
 
 /** Identity accepted by a VirtualList item. */
 export type VirtualListKey = number | string
@@ -379,26 +380,12 @@ VirtualListRoot.is = 'ul'
 
 /** Virtualized native list with stable identity and bounded DOM work. */
 const VirtualList = <T, Key extends VirtualListKey = VirtualListKey>({
-	estimateSize,
-	getItemKey,
-	items,
-	overscan,
-	prerender,
-	renderItem,
-	setApi,
 	style,
 	tabindex = 0,
-	...attrs
+	...args
 }: VirtualListArgs<T, Key>) => (
 	<VirtualListRoot
-		{...rootAttrs(attrs as Record<string, unknown>)}
-		estimateSize={estimateSize}
-		getItemKey={getItemKey}
-		items={items}
-		overscan={overscan}
-		prerender={prerender}
-		renderItem={renderItem}
-		setApi={setApi}
+		{...rootAttrs(args, ['estimateSize', 'getItemKey', 'items', 'overscan', 'prerender', 'renderItem', 'setApi'])}
 		attr:data-slot="virtual-list"
 		attr:style={stlx(style, ROOT_STYLE)}
 		attr:tabindex={tabindex}

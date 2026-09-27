@@ -1,11 +1,11 @@
 import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { announce, callHandler, callRef, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs, typeahead } from 'ajo-cloves'
+import { announce, callHandler, callRef, controlled, dom, id, listen, roving, typeahead } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { FieldContext } from './field'
 import { InputGroup, InputGroupAddon, InputGroupButton } from './input-group'
 import { collection, matchesTokens, resolveFilter, resultCount } from './collection'
 import { contentAttrs, popup, type PopupPosition, type PopupView, triggerAttrs } from './popup'
-import { activate, flag, text } from './shared'
+import { activate, flag, rootAttrs, text } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
@@ -727,56 +727,14 @@ const SelectRoot: Stateful<SelectArgs<boolean>> = function* ({
 
 
 /** Unified select: single, multiple, searchable, editable, chips, and tagging by composition. */
-const Select = <Multiple extends boolean = false>({
-	autoHighlight,
-	children,
-	class: classes,
-	defaultInputValue,
-	defaultOpen,
-	defaultValue,
-	disabled,
-	filter,
-	gap,
-	inputValue,
-	multiple,
-	name,
-	onCreate,
-	onInputValueChange,
-	onOpenChange,
-	onValueChange,
-	open,
-	placement,
-	required,
-	resultsLabel,
-	value,
-	...attrs
-}: SelectArgs<Multiple>) => (
+const Select = <Multiple extends boolean = false>(args: SelectArgs<Multiple>) => (
 	<SelectRoot
-		{...rootAttrs(attrs as Record<string, unknown>)}
-		autoHighlight={autoHighlight}
-		defaultInputValue={defaultInputValue}
-		defaultOpen={defaultOpen}
-		defaultValue={defaultValue}
-		disabled={disabled}
-		filter={filter}
-		gap={gap}
-		inputValue={inputValue}
-		multiple={multiple}
-		name={name}
-		onCreate={onCreate}
-		onInputValueChange={onInputValueChange}
-		onOpenChange={onOpenChange}
-		onValueChange={onValueChange as SelectArgs<boolean>['onValueChange']}
-		open={open}
-		placement={placement}
-		required={required}
-		resultsLabel={resultsLabel}
-		value={value}
-		attr:class={classes}
+		{...rootAttrs(args as SelectArgs<boolean>, [
+			'autoHighlight', 'defaultInputValue', 'defaultOpen', 'defaultValue', 'disabled', 'filter', 'gap', 'inputValue', 'multiple', 'name',
+			'onCreate', 'onInputValueChange', 'onOpenChange', 'onValueChange', 'open', 'placement', 'required', 'resultsLabel', 'value',
+		])}
 		attr:data-slot="select"
-	>
-		{children}
-	</SelectRoot>
+	/>
 )
 
 /** Button field for a Select; the closed-state combobox. Inside a Field it is the field's control. */

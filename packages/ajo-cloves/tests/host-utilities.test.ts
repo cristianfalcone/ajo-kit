@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import type { Host } from 'ajo'
 import { expect, test, vi } from 'vitest'
-import { callHandler, callRef, dom, listen, statefulRootAttrs } from '../src'
+import { callHandler, callRef, dom, listen } from '../src'
 import { mount } from './harness'
 
 const clicks = (signal?: AbortSignal) => {
@@ -9,27 +9,6 @@ const clicks = (signal?: AbortSignal) => {
 	const { host } = mount(host => listen(host, 'click', handler, signal ? { signal } : undefined))
 	return { handler, host }
 }
-
-test('statefulRootAttrs keeps host protocol args and prefixes DOM attrs', () => {
-	const ref = () => undefined
-	expect(statefulRootAttrs({
-		class: 'root',
-		id: 'example',
-		key: 'key',
-		memo: 1,
-		ref,
-		skip: true,
-		'set:onclick': ref,
-	})).toEqual({
-		'attr:class': 'root',
-		'attr:id': 'example',
-		key: 'key',
-		memo: 1,
-		ref,
-		skip: true,
-		'set:onclick': ref,
-	})
-})
 
 test('callHandler and callRef compose optional callbacks without assuming their presence', () => {
 	const handler = vi.fn()

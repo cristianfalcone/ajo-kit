@@ -1,19 +1,16 @@
 import type { Children, Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import type { OmitArg } from './utils'
-import { dom, id, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { dom, id } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { rootAttrs } from './shared'
 
-type FieldBehaviorArgs = {
+/** Arguments for a field host that coordinates labels, descriptions, and errors. */
+export type FieldArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & {
 	/** Marks composed field parts as invalid for ARIA wiring. */
 	invalid?: boolean
 	/** Stable id prefix for the field wiring. */
 	name?: string
-}
-
-type FieldRootArgs = WithChildren<FieldBehaviorArgs>
-
-/** Arguments for a field host that coordinates labels, descriptions, and errors. */
-export type FieldArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'children'> & FieldBehaviorArgs>
+}>
 
 /** Arguments for the label of the field's control. */
 export type FieldLabelArgs = WithChildren<IntrinsicElements['label']>
@@ -130,7 +127,7 @@ export type FieldContextValue = Omit<ReturnType<typeof label>, 'reset' | 'sync'>
 export const FieldContext = context<FieldContextValue | null>(null)
 
 /** Unstyled behavior root for one field's label, description, and error wiring. */
-const FieldRoot: Stateful<FieldRootArgs> = function* (args) {
+const FieldRoot: Stateful<FieldArgs> = function* (args) {
 	const view = label(this, { prefix: args.name })
 
 	for (const next of this) {
@@ -143,20 +140,8 @@ const FieldRoot: Stateful<FieldRootArgs> = function* (args) {
 }
 
 /** Unstyled field host with label, description, and error wiring. */
-export const Field: Stateless<FieldArgs> = ({
-	children,
-	invalid,
-	name,
-	...attrs
-}) => (
-	<FieldRoot
-		{...rootAttrs(attrs)}
-		invalid={invalid}
-		name={name}
-		attr:data-slot="field"
-	>
-		{children}
-	</FieldRoot>
+export const Field: Stateless<FieldArgs> = args => (
+	<FieldRoot {...rootAttrs(args, ['invalid', 'name'])} attr:data-slot="field" />
 )
 
 /** Unstyled label for the field's control. */

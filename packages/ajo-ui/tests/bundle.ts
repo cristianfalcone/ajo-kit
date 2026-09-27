@@ -78,8 +78,8 @@ const direct = await bundle('other-subpath', `
 `)
 const framework = await bundle('framework-shell', `
 	import { Fragment, jsx, jsxs } from 'ajo/jsx-runtime'
-	import { dom, frame, statefulRootAttrs } from 'ajo-cloves'
-	globalThis.__ajoFixture = [Fragment, jsx, jsxs, dom, frame, statefulRootAttrs]
+	import { dom, frame } from 'ajo-cloves'
+	globalThis.__ajoFixture = [Fragment, jsx, jsxs, dom, frame]
 `)
 const dialogDirect = await bundle('dialog-subpath', `
 	import { Dialog } from 'ajo-ui/dialog'

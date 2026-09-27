@@ -1,8 +1,8 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { FieldContext } from './field'
-import { flag } from './shared'
+import { flag, rootAttrs } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 
 /** Layout and keyboard-navigation axis of a radio group. */
@@ -56,35 +56,23 @@ RadioGroupRoot.is = 'fieldset'
 
 /** Unstyled radio group with native fieldset semantics; inside a Field it is the labelled group. */
 const RadioGroup: Stateless<RadioGroupArgs> = ({
-	children,
-	defaultValue,
 	disabled,
-	name,
-	onValueChange,
 	orientation = 'vertical',
 	required,
-	value,
-	...attrs
+	...args
 }) => {
 	const disabledFlag = disabled ? true : undefined
-	const requiredFlag = required ? true : undefined
 
 	return (
 		<RadioGroupRoot
-			{...rootAttrs({ ...FieldContext()?.groupAttrs, ...attrs })}
-			defaultValue={defaultValue}
+			{...rootAttrs({ ...FieldContext()?.groupAttrs, ...args }, ['defaultValue', 'name', 'onValueChange', 'value'])}
 			disabled={disabledFlag}
-			name={name}
-			onValueChange={onValueChange}
-			required={requiredFlag}
-			value={value}
+			required={required ? true : undefined}
 			attr:data-disabled={flag(disabled)}
 			attr:data-orientation={orientation}
 			attr:data-slot="radio-group"
 			attr:disabled={disabledFlag}
-		>
-			{children}
-		</RadioGroupRoot>
+		/>
 	)
 }
 

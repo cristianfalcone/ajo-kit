@@ -1,7 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { listen, roving, selection, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { listen, roving, selection } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { strings } from './shared'
+import { rootAttrs, strings } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Collapsible, CollapsibleContent, CollapsibleContext, CollapsibleTrigger } from './collapsible'
 
@@ -56,15 +56,6 @@ export type AccordionTriggerArgs = WithChildren<IntrinsicElements['summary']>
 /** Arguments for an Accordion item's collapsible panel. */
 export type AccordionContentArgs = WithChildren<IntrinsicElements['div']>
 
-type AccordionRootArgs = WithChildren<{
-	collapsible?: boolean
-	defaultValue?: string | string[]
-	disabled?: boolean
-	onValueChange?: ((value: string, event?: Event) => void) | ((value: string[], event?: Event) => void)
-	type: AccordionType
-	value?: string | string[]
-}>
-
 type AccordionContextValue = {
 	collapsible: boolean
 	disabled: boolean
@@ -80,7 +71,7 @@ const selected = (type: AccordionType, value: unknown) =>
 		? strings(value)
 		: value == null || value === '' ? [] : [String(value)]
 
-const AccordionRoot: Stateful<AccordionRootArgs> = function* ({ defaultValue, type }) {
+const AccordionRoot: Stateful<AccordionArgs> = function* ({ defaultValue, type = 'single' }) {
 	let collapsible = false
 	let disabled = false
 	let onValueChange: AccordionArgs['onValueChange']
@@ -128,28 +119,8 @@ const AccordionRoot: Stateful<AccordionRootArgs> = function* ({ defaultValue, ty
 }
 
 /** Unstyled root provider for accordion state. */
-const Accordion: Stateless<AccordionArgs> = ({
-	children,
-	collapsible,
-	defaultValue,
-	disabled,
-	onValueChange,
-	type = 'single',
-	value,
-	...attrs
-}) => (
-	<AccordionRoot
-		{...rootAttrs(attrs)}
-		collapsible={collapsible === true}
-		defaultValue={defaultValue}
-		disabled={Boolean(disabled)}
-		onValueChange={onValueChange}
-		type={type}
-		value={value}
-		attr:data-slot="accordion"
-	>
-		{children}
-	</AccordionRoot>
+const Accordion: Stateless<AccordionArgs> = args => (
+	<AccordionRoot {...rootAttrs(args, ['collapsible', 'defaultValue', 'disabled', 'onValueChange', 'type', 'value'])} attr:data-slot="accordion" />
 )
 
 /** Unstyled accordion section: a group-controlled collapsible details element. */

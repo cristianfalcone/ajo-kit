@@ -120,7 +120,6 @@ keyed reconciliation reuses an element.
 | `browser` | Tests whether both Window and Document globals are available. | No options; false in Node, workers, and asymmetric shims. |
 | `dom` | Distinguishes a real element from an ajo/html protocol-only host. | Structural cross-realm element guard. |
 | `listen` | Adds a listener to a DOM host, inert under SSR. | Stops when either the host or optional caller signal aborts. |
-| `statefulRootAttrs` | Maps plain component attrs onto an Ajo Stateful host. | Preserves host protocol args and prefixes DOM attrs with `attr:`. |
 | `callHandler` | Composes an optional consumer event handler. | Invokes function values with the original event. |
 | `callRef` | Composes an optional callback ref. | Forwards both element and `null`. |
 | `clamp` | Clamps a number to an inclusive range. | `value`, `min`, `max`. |

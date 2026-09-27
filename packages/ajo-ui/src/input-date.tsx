@@ -1,8 +1,8 @@
 import type { Children, Host, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, controlled, dom, id, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, controlled, dom, id, listen, roving } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { calendarDate, compile, compiler, resolveLocale, type Availability, type AvailabilityMatcher } from './availability'
-import { flag } from './shared'
+import { flag, rootAttrs } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Calendar, type CalendarArgs, type CalendarCommonArgs, type CalendarDateRange, type CalendarMatcher } from './calendar'
 import { FieldContext } from './field'
@@ -16,7 +16,6 @@ import {
 	unitLabel,
 	type FieldOptions,
 	type FieldView,
-	type Granularity,
 	type InputResult,
 	type Reason,
 	type Segment,
@@ -167,33 +166,13 @@ export type InputDateClearArgs = WithChildren<IntrinsicElements['button'] & {
 
 type PublicValue = string | InputDateRangeValue | null
 
-type InputDateRootArgs = WithChildren<{
-	allowNonContiguous?: boolean
-	classNames?: ClassNames
-	defaultOpen?: boolean
-	defaultValue?: string | InputDateRangeValue
-	disabled?: boolean
-	emptyLabel?: string
-	errorMessage?: (reason: Reason) => string | undefined
-	granularity?: Granularity
-	hourCycle?: 12 | 24
+// Every public family arg; InputDate and InputTime use a subset.
+type FamilyArgs = InputDateTimeArgs<boolean>
+
+type InputDateRootArgs = FamilyArgs & {
 	kind: SegmentsKind
-	locale?: string
-	max?: string
-	min?: string
-	name?: string
-	onOpenChange?: (open: boolean, event?: Event) => void
-	onValueChange?: (value: PublicValue, event?: Event) => void
-	open?: boolean
-	placeholderValue?: string
 	popupFactory?: InputDatePopupFactory
-	range?: boolean
-	readOnly?: boolean
-	required?: boolean
-	step?: number
-	unavailable?: AvailabilityMatcher | AvailabilityMatcher[]
-	value?: string | InputDateRangeValue | null
-}> & PopupPosition
+}
 
 type InputDateContextValue = {
 	allowNonContiguous: boolean
@@ -961,13 +940,7 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 
 // The default composition: the segment control, an addon with the clear
 // button and any calendar trigger, then any calendar popover.
-const defaults = (
-	range: boolean | undefined,
-	clearable: boolean | undefined,
-	classNames: ClassNames | undefined,
-	trigger?: Children,
-	content?: Children,
-) => (
+const defaults = ({ classNames, clearable, range }: FamilyArgs, trigger?: Children, content?: Children) => (
 	<>
 		<div class={classNames?.control} data-slot="input-date-control">
 			{range ? (
@@ -990,18 +963,13 @@ const defaults = (
 
 // Only the date roots reach the calendar parts, so InputTime never bundles
 // Calendar or positioning.
-const calendarDefaults = (
-	range: boolean | undefined,
-	clearable: boolean | undefined,
-	classNames: ClassNames | undefined,
-	calendar: boolean | InputDateCalendarArgs | undefined,
-) => calendar
-	? defaults(range, clearable, classNames, <InputDateTrigger class={classNames?.trigger} />, (
-		<InputDateContent class={classNames?.content}>
-			<InputDateCalendar {...(calendar === true ? {} : calendar)} />
+const calendarDefaults = (args: FamilyArgs) => args.calendar
+	? defaults(args, <InputDateTrigger class={args.classNames?.trigger} />, (
+		<InputDateContent class={args.classNames?.content}>
+			<InputDateCalendar {...(args.calendar === true ? {} : args.calendar)} />
 		</InputDateContent>
 	))
-	: defaults(range, clearable, classNames)
+	: defaults(args)
 
 // Inside a Field the root carries the invalid state and, in range mode, is the
 // labelled group while the sides label themselves; caller attributes win.
@@ -1013,203 +981,41 @@ const fieldRootAttrs = (range: boolean | undefined) => {
 	}
 }
 
+// One family root: forwards the args once, with the kind's default composition
+// and popup surface (InputTime keeps the inert one).
+const family = (
+	kind: SegmentsKind,
+	slot: string,
+	args: FamilyArgs,
+	compose: (args: FamilyArgs) => Children,
+	popupFactory?: InputDatePopupFactory,
+) => (
+	<InputDateRoot
+		{...fieldRootAttrs(args.range)}
+		{...rootAttrs(args, [
+			'allowNonContiguous', 'calendar', 'classNames', 'clearable', 'defaultOpen', 'defaultValue', 'disabled', 'emptyLabel', 'errorMessage',
+			'gap', 'granularity', 'hourCycle', 'locale', 'max', 'min', 'name', 'onOpenChange', 'onValueChange', 'open', 'placement',
+			'placeholderValue', 'range', 'readOnly', 'required', 'step', 'unavailable', 'value',
+		])}
+		kind={kind}
+		popupFactory={popupFactory}
+		attr:data-slot={slot}
+	>
+		{args.children ?? compose(args)}
+	</InputDateRoot>
+)
+
 /** Segment-based date field; the calendar popover is an optional part. */
-const InputDate = <Range extends boolean = false>({
-	allowNonContiguous,
-	calendar,
-	children,
-	class: classes,
-	classNames,
-	clearable,
-	defaultOpen,
-	defaultValue,
-	disabled,
-	emptyLabel,
-	errorMessage,
-	gap,
-	locale,
-	max,
-	min,
-	name,
-	onOpenChange,
-	onValueChange,
-	open,
-	placement,
-	placeholderValue,
-	range,
-	readOnly,
-	required,
-	unavailable,
-	value,
-	...attrs
-}: InputDateArgs<Range>) => {
-	return (
-		<InputDateRoot
-			{...fieldRootAttrs(range)}
-			{...rootAttrs(attrs as Record<string, unknown>)}
-			allowNonContiguous={allowNonContiguous}
-			classNames={classNames}
-			defaultOpen={defaultOpen}
-			defaultValue={defaultValue as string | InputDateRangeValue | undefined}
-			disabled={disabled}
-			emptyLabel={emptyLabel}
-			errorMessage={errorMessage}
-			gap={gap}
-			kind="date"
-			locale={locale}
-			max={max}
-			min={min}
-			name={name}
-			onOpenChange={onOpenChange}
-			onValueChange={onValueChange as ((value: PublicValue, event?: Event) => void) | undefined}
-			open={open}
-			placement={placement}
-			placeholderValue={placeholderValue}
-			popupFactory={positionedInputDatePopup}
-			range={range}
-			readOnly={readOnly}
-			required={required}
-			unavailable={unavailable}
-			value={value as PublicValue | undefined}
-			attr:class={classes}
-			attr:data-slot="input-date"
-		>
-			{children ?? calendarDefaults(range, clearable, classNames, calendar)}
-		</InputDateRoot>
-	)
-}
+const InputDate = <Range extends boolean = false>(args: InputDateArgs<Range>) =>
+	family('date', 'input-date', args as FamilyArgs, calendarDefaults, positionedInputDatePopup)
 
 /** Segment-based time field; canonical 24h values regardless of display cycle. */
-const InputTime = <Range extends boolean = false>({
-	allowNonContiguous,
-	children,
-	class: classes,
-	classNames,
-	clearable,
-	defaultValue,
-	disabled,
-	emptyLabel,
-	errorMessage,
-	granularity,
-	hourCycle,
-	locale,
-	max,
-	min,
-	name,
-	onValueChange,
-	placeholderValue,
-	range,
-	readOnly,
-	required,
-	step,
-	unavailable,
-	value,
-	...attrs
-}: InputTimeArgs<Range>) => {
-	return (
-		<InputDateRoot
-			{...fieldRootAttrs(range)}
-			{...rootAttrs(attrs as Record<string, unknown>)}
-			allowNonContiguous={allowNonContiguous}
-			classNames={classNames}
-			defaultValue={defaultValue as string | InputDateRangeValue | undefined}
-			disabled={disabled}
-			emptyLabel={emptyLabel}
-			errorMessage={errorMessage}
-			granularity={granularity}
-			hourCycle={hourCycle}
-			kind="time"
-			locale={locale}
-			max={max}
-			min={min}
-			name={name}
-			onValueChange={onValueChange as ((value: PublicValue, event?: Event) => void) | undefined}
-			placeholderValue={placeholderValue}
-			range={range}
-			readOnly={readOnly}
-			required={required}
-			step={step}
-			unavailable={unavailable}
-			value={value as PublicValue | undefined}
-			attr:class={classes}
-			attr:data-slot="input-time"
-		>
-			{children ?? defaults(range, clearable, classNames)}
-		</InputDateRoot>
-	)
-}
+const InputTime = <Range extends boolean = false>(args: InputTimeArgs<Range>) =>
+	family('time', 'input-time', args as FamilyArgs, defaults)
 
 /** Segment-based date-time field; a picked day merges with the entered time. */
-const InputDateTime = <Range extends boolean = false>({
-	allowNonContiguous,
-	calendar,
-	children,
-	class: classes,
-	classNames,
-	clearable,
-	defaultOpen,
-	defaultValue,
-	disabled,
-	emptyLabel,
-	errorMessage,
-	gap,
-	granularity,
-	hourCycle,
-	locale,
-	max,
-	min,
-	name,
-	onOpenChange,
-	onValueChange,
-	open,
-	placement,
-	placeholderValue,
-	range,
-	readOnly,
-	required,
-	step,
-	unavailable,
-	value,
-	...attrs
-}: InputDateTimeArgs<Range>) => {
-	return (
-		<InputDateRoot
-			{...fieldRootAttrs(range)}
-			{...rootAttrs(attrs as Record<string, unknown>)}
-			allowNonContiguous={allowNonContiguous}
-			classNames={classNames}
-			defaultOpen={defaultOpen}
-			defaultValue={defaultValue as string | InputDateRangeValue | undefined}
-			disabled={disabled}
-			emptyLabel={emptyLabel}
-			errorMessage={errorMessage}
-			gap={gap}
-			granularity={granularity}
-			hourCycle={hourCycle}
-			kind="datetime"
-			locale={locale}
-			max={max}
-			min={min}
-			name={name}
-			onOpenChange={onOpenChange}
-			onValueChange={onValueChange as ((value: PublicValue, event?: Event) => void) | undefined}
-			open={open}
-			placement={placement}
-			placeholderValue={placeholderValue}
-			popupFactory={positionedInputDatePopup}
-			range={range}
-			readOnly={readOnly}
-			required={required}
-			step={step}
-			unavailable={unavailable}
-			value={value as PublicValue | undefined}
-			attr:class={classes}
-			attr:data-slot="input-datetime"
-		>
-			{children ?? calendarDefaults(range, clearable, classNames, calendar)}
-		</InputDateRoot>
-	)
-}
+const InputDateTime = <Range extends boolean = false>(args: InputDateTimeArgs<Range>) =>
+	family('datetime', 'input-datetime', args as FamilyArgs, calendarDefaults, positionedInputDatePopup)
 
 /** One segment group: the root's derived segments and literals for one side. */
 const InputDateField: Stateless<InputDateFieldArgs> = ({ class: classes, label, ref, side, ...attrs }) => {

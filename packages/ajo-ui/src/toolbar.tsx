@@ -1,8 +1,9 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import type { OmitArg } from './utils'
-import { dom, listen, roving, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { dom, listen, roving } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { DirectionContext } from './direction'
+import { rootAttrs } from './shared'
 
 /** Layout and keyboard-navigation axis of a toolbar. */
 export type ToolbarOrientation = 'horizontal' | 'vertical'
@@ -20,11 +21,7 @@ export type ToolbarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'dir'> 
 /** Props for a separator whose orientation follows the parent toolbar. */
 export type ToolbarSeparatorArgs = IntrinsicElements['div']
 
-type ToolbarRootArgs = WithChildren<{
-	dir: 'ltr' | 'rtl'
-	loop: boolean
-	orientation: ToolbarOrientation
-}>
+type ToolbarRootArgs = ToolbarArgs & Required<Pick<ToolbarArgs, 'dir' | 'loop' | 'orientation'>>
 
 type ToolbarContextValue = {
 	orientation: ToolbarOrientation
@@ -163,19 +160,18 @@ const ToolbarRoot: Stateful<ToolbarRootArgs> = function* () {
 
 /** Unstyled toolbar: arbitrary controls behind a single tab stop with dir-aware arrow-key roving (APG toolbar pattern). Button, ToggleGroup, Select, and Input compose inside; nested ToggleGroup items join the toolbar roving. */
 const Toolbar: Stateless<ToolbarArgs> = ({
-	children,
 	'data-slot': slot = 'toolbar',
 	dir,
 	loop = true,
 	orientation = 'horizontal',
 	role = 'toolbar',
-	...attrs
+	...args
 }) => {
 	const resolvedDir = dir ?? DirectionContext()
 
 	return (
 		<ToolbarRoot
-			{...rootAttrs(attrs)}
+			{...rootAttrs(args)}
 			dir={resolvedDir}
 			loop={loop}
 			orientation={orientation}
@@ -184,9 +180,7 @@ const Toolbar: Stateless<ToolbarArgs> = ({
 			attr:data-slot={slot}
 			attr:dir={resolvedDir}
 			attr:role={role}
-		>
-			{children}
-		</ToolbarRoot>
+		/>
 	)
 }
 

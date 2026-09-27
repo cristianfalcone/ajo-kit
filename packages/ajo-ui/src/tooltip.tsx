@@ -1,9 +1,10 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { contentAttrs, hoverTrigger, popup, type PopupPosition, popupStyle, type PopupView, triggerAttrs } from './popup'
 import { PopupSurface } from './popup-surface'
 import type { FixedArgs, OmitArg } from './utils'
+import { rootAttrs } from './shared'
 export type { PopupPlacement, PopupPosition } from './popup'
 
 /** Props for shared timing and hover defaults inherited by tooltips. */
@@ -82,25 +83,8 @@ const TooltipProviderRoot: Stateful<TooltipProviderArgs> = function* () {
 
 
 /** Unstyled shared defaults provider for descendant tooltips. */
-const TooltipProvider: Stateless<TooltipProviderArgs> = ({
-	children,
-	class: classes,
-	'data-slot': slot = 'tooltip-provider',
-	delayDuration,
-	skipDelayDuration,
-	style,
-	...attrs
-}) => (
-	<TooltipProviderRoot
-		{...rootAttrs(attrs)}
-		delayDuration={delayDuration}
-		skipDelayDuration={skipDelayDuration}
-		attr:class={classes}
-		attr:data-slot={slot}
-		attr:style={style}
-	>
-		{children}
-	</TooltipProviderRoot>
+const TooltipProvider: Stateless<TooltipProviderArgs> = ({ 'data-slot': slot = 'tooltip-provider', ...args }) => (
+	<TooltipProviderRoot {...rootAttrs(args, ['delayDuration', 'skipDelayDuration'])} attr:data-slot={slot} />
 )
 
 const TooltipRoot: Stateful<TooltipArgs> = function* ({ defaultOpen, open }) {
@@ -154,33 +138,11 @@ const TooltipRoot: Stateful<TooltipArgs> = function* ({ defaultOpen, open }) {
 
 
 /** Unstyled root provider for one tooltip. */
-const Tooltip: Stateless<TooltipArgs> = ({
-	children,
-	class: classes,
-	'data-slot': slot = 'tooltip',
-	defaultOpen,
-	delayDuration,
-	disabled,
-	gap,
-	onOpenChange,
-	open,
-	placement,
-	...attrs
-}) => (
+const Tooltip: Stateless<TooltipArgs> = ({ 'data-slot': slot = 'tooltip', ...args }) => (
 	<TooltipRoot
-		{...rootAttrs(attrs)}
-		defaultOpen={defaultOpen}
-		delayDuration={delayDuration}
-		disabled={disabled}
-		gap={gap}
-		onOpenChange={onOpenChange}
-		open={open}
-		placement={placement}
-		attr:class={classes}
+		{...rootAttrs(args, ['defaultOpen', 'delayDuration', 'disabled', 'gap', 'onOpenChange', 'open', 'placement'])}
 		attr:data-slot={slot}
-	>
-		{children}
-	</TooltipRoot>
+	/>
 )
 
 /** Unstyled element that owns the tooltip description. */

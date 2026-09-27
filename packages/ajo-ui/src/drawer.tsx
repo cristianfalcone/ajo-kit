@@ -1,7 +1,7 @@
 import type { Stateful, Stateless } from 'ajo'
-import { callRef, move, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callRef, move } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { clx } from './shared'
+import { clx, rootAttrs } from './shared'
 import { Dialog, DialogClose, DialogContent, type DialogArgs, type DialogContentArgs } from './dialog'
 
 /** Viewport edge from which a Drawer panel enters. */
@@ -96,28 +96,8 @@ const DrawerRoot: Stateful<DrawerArgs> = function* () {
 
 
 /** Unstyled edge panel provider built on native Dialog behavior. */
-const Drawer: Stateless<DrawerArgs> = ({
-	children,
-	class: classes,
-	defaultOpen,
-	modal,
-	onOpenChange,
-	open,
-	side,
-	...attrs
-}) => (
-	<DrawerRoot
-		{...rootAttrs(attrs)}
-		defaultOpen={defaultOpen}
-		modal={modal}
-		onOpenChange={onOpenChange}
-		open={open}
-		side={side}
-		attr:class={classes}
-		attr:data-slot="drawer"
-	>
-		{children}
-	</DrawerRoot>
+const Drawer: Stateless<DrawerArgs> = args => (
+	<DrawerRoot {...rootAttrs(args, ['defaultOpen', 'modal', 'onOpenChange', 'open', 'side'])} attr:data-slot="drawer" />
 )
 
 const transform = (offset: number, side: DrawerSide) => {

@@ -1,8 +1,8 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { selection, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { selection } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { FieldContext } from './field'
-import { flag } from './shared'
+import { flag, rootAttrs } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Checkbox, type CheckboxArgs } from './checkbox'
 
@@ -33,20 +33,12 @@ type CheckboxGroupContextValue = {
 	toggle: (value: string, event: Event) => void
 }
 
-type CheckboxGroupRootArgs = WithChildren<{
-	defaultValue?: string[]
-	disabled?: boolean
-	name?: string
-	onValueChange?: (value: string[], event: Event) => void
-	value?: string[]
-}>
-
 const CheckboxGroupContext = context<CheckboxGroupContextValue | null>(null)
 
-const CheckboxGroupRoot: Stateful<CheckboxGroupRootArgs> = function* ({ defaultValue }) {
+const CheckboxGroupRoot: Stateful<CheckboxGroupArgs> = function* ({ defaultValue }) {
 	let disabled = false
 	let name: string | undefined
-	let onValueChange: CheckboxGroupRootArgs['onValueChange']
+	let onValueChange: CheckboxGroupArgs['onValueChange']
 	const sel = selection(this, {
 		multiple: () => true,
 		fallback: defaultValue,
@@ -77,33 +69,17 @@ const CheckboxGroupRoot: Stateful<CheckboxGroupRootArgs> = function* ({ defaultV
 
 
 /** Unstyled checkbox group cascading checked values, name, and disabled state to its items; inside a Field it is the labelled group. */
-const CheckboxGroup: Stateless<CheckboxGroupArgs> = ({
-	children,
-	defaultValue,
-	disabled,
-	name,
-	onValueChange,
-	role = 'group',
-	value,
-	...attrs
-}) => {
-	const disabledFlag = Boolean(disabled)
+const CheckboxGroup: Stateless<CheckboxGroupArgs> = ({ role = 'group', ...args }) => {
+	const disabled = flag(args.disabled)
 
 	return (
 		<CheckboxGroupRoot
-			{...rootAttrs({ ...FieldContext()?.groupAttrs, ...attrs })}
-			defaultValue={defaultValue}
-			disabled={disabledFlag}
-			name={name}
-			onValueChange={onValueChange}
-			value={value}
-			attr:aria-disabled={flag(disabledFlag)}
-			attr:data-disabled={flag(disabledFlag)}
+			{...rootAttrs({ ...FieldContext()?.groupAttrs, ...args }, ['defaultValue', 'disabled', 'name', 'onValueChange', 'value'])}
+			attr:aria-disabled={disabled}
+			attr:data-disabled={disabled}
 			attr:data-slot="checkbox-group"
 			attr:role={role}
-		>
-			{children}
-		</CheckboxGroupRoot>
+		/>
 	)
 }
 

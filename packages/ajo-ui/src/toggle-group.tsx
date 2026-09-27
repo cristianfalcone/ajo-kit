@@ -1,7 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { listen, roving, selection, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { listen, roving, selection } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { flag } from './shared'
+import { flag, rootAttrs } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Toggle, type ToggleArgs } from './toggle'
 
@@ -72,18 +72,7 @@ export type ToggleGroupContextValue = {
 	variant?: string
 }
 
-type ToggleGroupRootArgs = WithChildren<{
-	defaultValue?: string | string[]
-	disabled?: boolean
-	loop?: boolean
-	onValueChange?: ((value: string, event: Event) => void) | ((value: string[], event: Event) => void)
-	orientation: ToggleGroupOrientation
-	size?: string
-	spacing: number
-	type: ToggleGroupType
-	value?: string | string[]
-	variant?: string
-}>
+type ToggleGroupRootArgs = ToggleGroupArgs & Required<Pick<ToggleGroupSharedArgs, 'orientation' | 'spacing'>>
 
 /** Composition context exposing ToggleGroup state and styling markers to descendant items. */
 export const ToggleGroupContext = context<ToggleGroupContextValue | null>(null)
@@ -98,7 +87,7 @@ const focusableItems = (root: HTMLElement) =>
 	Array.from(root.querySelectorAll<HTMLButtonElement>('button[data-slot="toggle-group-item"]'))
 		.filter(button => !button.disabled)
 
-const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue, type: initialType }) {
+const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue, type: initialType = 'single' }) {
 	let disabled = false
 	let loop = true
 	let onValueChange: ToggleGroupRootArgs['onValueChange']
@@ -144,7 +133,7 @@ const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue
 	})
 
 	for (const args of this) {
-		type = args.type
+		type = args.type ?? 'single'
 		orientation = args.orientation
 		disabled = Boolean(args.disabled)
 		loop = args.loop !== false
@@ -169,46 +158,27 @@ const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue
 
 /** Unstyled toggle group with selection state and roving keyboard focus. */
 const ToggleGroup: Stateless<ToggleGroupArgs> = ({
-	children,
-	defaultValue,
-	disabled,
-	loop = true,
-	onValueChange,
 	orientation = 'horizontal',
 	role = 'group',
-	size,
 	spacing = 2,
-	type = 'single',
-	value,
-	variant,
-	...attrs
+	...args
 }) => {
-	const disabledFlag = Boolean(disabled)
+	const disabled = flag(args.disabled)
 
 	return (
 		<ToggleGroupRoot
-			{...rootAttrs(attrs)}
-			defaultValue={defaultValue}
-			disabled={disabledFlag}
-			loop={loop}
-			onValueChange={onValueChange}
+			{...rootAttrs(args, ['defaultValue', 'disabled', 'loop', 'onValueChange', 'size', 'type', 'value', 'variant'])}
 			orientation={orientation}
-			size={size}
 			spacing={spacing}
-			type={type}
-			value={value}
-			variant={variant}
-			attr:aria-disabled={flag(disabledFlag)}
-			attr:data-disabled={flag(disabledFlag)}
+			attr:aria-disabled={disabled}
+			attr:data-disabled={disabled}
 			attr:data-orientation={orientation}
-			attr:data-size={size}
+			attr:data-size={args.size}
 			attr:data-slot="toggle-group"
 			attr:data-spacing={spacing}
-			attr:data-variant={variant}
+			attr:data-variant={args.variant}
 			attr:role={role}
-		>
-			{children}
-		</ToggleGroupRoot>
+		/>
 	)
 }
 

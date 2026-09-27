@@ -1,6 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import type { OmitArg } from './utils'
-import { callHandler, controlled, dom, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, controlled, dom, listen } from 'ajo-cloves'
+import { rootAttrs } from './shared'
 
 /** Props for a controlled or uncontrolled two-state toggle button. */
 export type ToggleArgs = OmitArg<IntrinsicElements['button'], 'children'> & WithChildren<{
@@ -12,13 +13,7 @@ export type ToggleArgs = OmitArg<IntrinsicElements['button'], 'children'> & With
 	onPressedChange?: (pressed: boolean, event: Event) => void
 }>
 
-type ToggleRootArgs = WithChildren<{
-	defaultPressed?: boolean
-	disabled?: boolean
-	onClick?: unknown
-	onPressedChange?: ToggleArgs['onPressedChange']
-	pressed?: boolean
-}>
+type ToggleRootArgs = ToggleArgs & { onClick?: unknown }
 
 const pressedAttribute = (pressed: boolean) => pressed ? 'true' : 'false'
 const stateAttribute = (pressed: boolean) => pressed ? 'on' : 'off'
@@ -58,34 +53,23 @@ ToggleRoot.is = 'button'
 
 /** Unstyled two-state button using aria-pressed. */
 const Toggle: Stateless<ToggleArgs> = ({
-	children,
-	defaultPressed,
-	disabled,
-	onPressedChange,
-	pressed,
+	'data-slot': slot = 'toggle',
 	type = 'button',
 	'set:onclick': onClick,
-	...attrs
+	...args
 }) => {
-	const state = stateAttribute(Boolean(pressed ?? defaultPressed))
-	const disabledFlag = Boolean(disabled)
+	const pressed = Boolean(args.pressed ?? args.defaultPressed)
 
 	return (
 		<ToggleRoot
-			{...rootAttrs(attrs)}
-			defaultPressed={defaultPressed}
-			disabled={disabledFlag}
+			{...rootAttrs(args, ['defaultPressed', 'disabled', 'onPressedChange', 'pressed'])}
 			onClick={onClick}
-			onPressedChange={onPressedChange}
-			pressed={pressed}
-			attr:aria-pressed={pressedAttribute(state === 'on')}
-			attr:data-state={state}
-			attr:data-slot={attrs['data-slot'] ?? 'toggle'}
-			attr:disabled={disabledFlag || undefined}
+			attr:aria-pressed={pressedAttribute(pressed)}
+			attr:data-state={stateAttribute(pressed)}
+			attr:data-slot={slot}
+			attr:disabled={args.disabled || undefined}
 			attr:type={type}
-		>
-			{children}
-		</ToggleRoot>
+		/>
 	)
 }
 

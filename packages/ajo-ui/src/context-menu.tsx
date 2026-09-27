@@ -1,9 +1,10 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, listen } from 'ajo-cloves'
 import type { MenuArgs } from './menu'
 import { MenuContext, MenuRoot, SURFACE_SELECTOR } from './menu-cluster'
 import { pointReference, type PositionReference } from './position'
 import type { FixedArgs, OmitArg } from './utils'
+import { rootAttrs } from './shared'
 
 /** Arguments for the invocation-driven ContextMenu root. */
 export type ContextMenuArgs = OmitArg<MenuArgs, 'defaultOpen' | 'gap' | 'open' | 'placement'> & FixedArgs<'defaultOpen' | 'gap' | 'open' | 'placement'>
@@ -54,22 +55,8 @@ const ContextMenuRoot: Stateful<ContextMenuArgs> = function* () {
 }
 
 /** Root provider for a context menu; compose the Menu parts inside it. */
-const ContextMenu: Stateless<ContextMenuArgs> = ({
-	children,
-	class: classes,
-	disabled,
-	onOpenChange,
-	...attrs
-}) => (
-	<ContextMenuRoot
-		{...rootAttrs(attrs)}
-		disabled={disabled}
-		onOpenChange={onOpenChange}
-		attr:class={classes}
-		attr:data-slot="context-menu"
-	>
-		{children}
-	</ContextMenuRoot>
+const ContextMenu: Stateless<ContextMenuArgs> = args => (
+	<ContextMenuRoot {...rootAttrs(args, ['disabled', 'onOpenChange'])} attr:data-slot="context-menu" />
 )
 
 /** The single region that invokes its ContextMenu by pointer or keyboard. */

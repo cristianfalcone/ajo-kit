@@ -19,6 +19,23 @@ export const strings = (value: unknown): string[] =>
 export const clx = (...values: Array<string | false | null | undefined>) =>
 	values.filter(Boolean).join(' ') || undefined
 
+const hostArg = (key: string) =>
+	key === 'children' || key === 'key' || key === 'memo' || key === 'ref' || key === 'skip' || key.startsWith('set:')
+
+type Keys<A> = A extends unknown ? keyof A : never
+
+/**
+ * Forwards wrapper args to an Ajo Stateful root: `own` keys, children and host
+ * keys stay args, and every other key becomes an `attr:` host attribute.
+ */
+export const rootAttrs = <A extends object, const K extends Keys<A> = never>(args: A, own: readonly K[] = []) => {
+	const result: Record<string, unknown> = {}
+	for (const [key, value] of Object.entries(args)) {
+		result[hostArg(key) || (own as readonly string[]).includes(key) ? key : `attr:${key}`] = value
+	}
+	return result as (A extends unknown ? Pick<A, (K | 'children') & keyof A> : never) & { [key: `attr:${string}`]: unknown }
+}
+
 /** Item activation guard: skips when disabled, runs the caller's handler, then the action unless prevented. */
 export const activate = (
 	disabled: boolean,

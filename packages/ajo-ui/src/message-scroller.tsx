@@ -1,6 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { browser, callHandler, callRef, frame, resize, scrolling, statefulRootAttrs as rootAttrs, timer } from 'ajo-cloves'
+import { browser, callHandler, callRef, frame, resize, scrolling, timer } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { rootAttrs } from './shared'
 
 /** Initial edge or anchor used when the message scroller first mounts. */
 export type MessageScrollerDefaultPosition =
@@ -510,22 +511,19 @@ const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
 /** Unstyled root that owns scroll behavior and visibility state for a message transcript. */
 const MessageScroller: Stateless<MessageScrollerArgs> = ({
 	autoScroll = true,
-	children,
 	defaultScrollPosition = 'end',
 	preserveScrollOnPrepend = true,
 	scrollPreviousItemPeek = 0,
-	...attrs
+	...args
 }) => (
 	<MessageScrollerRoot
-		{...rootAttrs(attrs as Record<string, unknown>)}
+		{...rootAttrs(args)}
 		autoScroll={autoScroll}
 		defaultScrollPosition={defaultScrollPosition}
 		preserveScrollOnPrepend={preserveScrollOnPrepend}
 		scrollPreviousItemPeek={scrollPreviousItemPeek}
 		attr:data-slot="message-scroller"
-	>
-		{children}
-	</MessageScrollerRoot>
+	/>
 )
 
 /** Unstyled keyboard-focusable transcript viewport. */

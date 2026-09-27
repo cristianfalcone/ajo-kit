@@ -1,7 +1,7 @@
 import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { context } from 'ajo/context'
-import { callRef, clamp, dom, frame, id as uniqueId, resize, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
-import { text } from './shared'
+import { callRef, clamp, dom, frame, id as uniqueId, resize } from 'ajo-cloves'
+import { rootAttrs, text } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 
 type ChartTheme = 'dark' | 'light'
@@ -416,45 +416,12 @@ const ChartContainerRoot: Stateful<ChartContainerArgs> = function* () {
 }
 
 /** Unstyled chart root provider for config, data, tooltip, and legend state. */
-const ChartContainer: Stateless<ChartContainerArgs> = ({
-	children,
-	config,
-	data,
-	description,
-	formatLabel,
-	formatValue,
-	height,
-	id,
-	label,
-	margin,
-	palette,
-	series,
-	type,
-	width,
-	xKey,
-	...attrs
-}) => (
+const ChartContainer: Stateless<ChartContainerArgs> = args => (
 	<ChartContainerRoot
-		{...rootAttrs(attrs)}
-		config={config}
-		data={data}
-		description={description}
-		formatLabel={formatLabel}
-		formatValue={formatValue}
-		height={height}
-		id={id}
-		label={label}
-		margin={margin}
-		palette={palette}
-		series={series}
-		type={type}
-		width={width}
-		xKey={xKey}
+		{...rootAttrs(args, ['config', 'data', 'description', 'formatLabel', 'formatValue', 'height', 'id', 'label', 'margin', 'palette', 'series', 'type', 'width', 'xKey'])}
 		attr:data-slot="chart"
-		attr:id={id}
-	>
-		{children}
-	</ChartContainerRoot>
+		attr:id={args.id}
+	/>
 )
 
 const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> = ({

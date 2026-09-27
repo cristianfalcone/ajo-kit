@@ -1,5 +1,5 @@
 import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, controlled, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, controlled, listen } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { DirectionContext } from './direction'
 import {
@@ -15,7 +15,7 @@ import {
 	type MenuContextValue,
 } from './menu-cluster'
 import { contentAttrs, popup, type PopupPosition, popupStyle, type PopupView, triggerAttrs } from './popup'
-import { activate, flag, text } from './shared'
+import { activate, flag, rootAttrs, text } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
@@ -184,30 +184,8 @@ const pointerHighlight = (
 }
 
 /** Root provider for a menu. */
-const Menu: Stateless<MenuArgs> = ({
-	children,
-	class: classes,
-	defaultOpen,
-	disabled,
-	gap,
-	onOpenChange,
-	open,
-	placement,
-	...attrs
-}) => (
-	<MenuRoot
-		{...rootAttrs(attrs)}
-		defaultOpen={defaultOpen}
-		disabled={disabled}
-		gap={gap}
-		onOpenChange={onOpenChange}
-		open={open}
-		placement={placement}
-		attr:class={classes}
-		attr:data-slot="menu"
-	>
-		{children}
-	</MenuRoot>
+const Menu: Stateless<MenuArgs> = args => (
+	<MenuRoot {...rootAttrs(args, ['defaultOpen', 'disabled', 'gap', 'onOpenChange', 'open', 'placement'])} attr:data-slot="menu" />
 )
 
 /** Button that opens a Menu. */
@@ -450,26 +428,12 @@ const MenuRadioGroupRoot: Stateful<MenuRadioGroupArgs> = function* ({ defaultVal
 
 
 /** Radio group inside a menu. */
-const MenuRadioGroup: Stateless<MenuRadioGroupArgs> = ({
-	children,
-	class: classes,
-	'data-slot': slot = 'menu-radio-group',
-	defaultValue,
-	onValueChange,
-	value,
-	...attrs
-}) => (
+const MenuRadioGroup: Stateless<MenuRadioGroupArgs> = ({ 'data-slot': slot = 'menu-radio-group', ...args }) => (
 	<MenuRadioGroupRoot
-		{...rootAttrs(attrs)}
-		defaultValue={defaultValue}
-		onValueChange={onValueChange}
-		value={value}
-		attr:class={classes}
+		{...rootAttrs(args, ['defaultValue', 'onValueChange', 'value'])}
 		attr:data-slot={slot}
 		attr:role="group"
-	>
-		{children}
-	</MenuRadioGroupRoot>
+	/>
 )
 
 /** Radio item inside a menu radio group. */
@@ -623,23 +587,8 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 
 
 /** Root provider for a nested menu. */
-const MenuSub: Stateless<MenuSubArgs> = ({
-	children,
-	'data-slot': slot = 'menu-sub',
-	defaultOpen,
-	onOpenChange,
-	open,
-	...attrs
-}) => (
-	<MenuSubRoot
-		{...rootAttrs(attrs)}
-		defaultOpen={defaultOpen}
-		onOpenChange={onOpenChange}
-		open={open}
-		attr:data-slot={slot}
-	>
-		{children}
-	</MenuSubRoot>
+const MenuSub: Stateless<MenuSubArgs> = ({ 'data-slot': slot = 'menu-sub', ...args }) => (
+	<MenuSubRoot {...rootAttrs(args, ['defaultOpen', 'onOpenChange', 'open'])} attr:data-slot={slot} />
 )
 
 /** Trigger item that opens a nested menu. */

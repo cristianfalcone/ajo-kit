@@ -1,12 +1,12 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { callHandler, callRef, id, listen, statefulRootAttrs as rootAttrs } from 'ajo-cloves'
+import { callHandler, callRef, id, listen } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { bar } from './bar'
 import { type Direction, DirectionContext } from './direction'
 import { MenuTrigger, type MenuTriggerArgs } from './menu'
 import { MenuRoot } from './menu-cluster'
 import type { PopupPosition } from './popup'
-import { text } from './shared'
+import { rootAttrs, text } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
@@ -171,37 +171,15 @@ const MenubarRoot: Stateful<MenubarArgs> = function* ({ defaultValue, value }) {
 }
 
 /** Persistent horizontal menu bar. */
-const Menubar: Stateless<MenubarArgs> = ({
-	children,
-	class: classes,
-	defaultValue,
-	dir,
-	disabled,
-	gap,
-	loop,
-	onValueChange,
-	placement,
-	value,
-	...attrs
-}) => (
+const Menubar: Stateless<MenubarArgs> = ({ dir, ...args }) => (
 	<MenubarRoot
-		{...rootAttrs(attrs)}
-		defaultValue={defaultValue}
+		{...rootAttrs(args, ['defaultValue', 'disabled', 'gap', 'loop', 'onValueChange', 'placement', 'value'])}
 		dir={dir ?? DirectionContext()}
-		disabled={disabled}
-		gap={gap}
-		loop={loop}
-		onValueChange={onValueChange}
-		placement={placement}
-		value={value}
 		attr:aria-orientation="horizontal"
-		attr:class={classes}
 		attr:data-slot="menubar"
 		attr:dir={dir}
 		attr:role="menubar"
-	>
-		{children}
-	</MenubarRoot>
+	/>
 )
 
 const MenubarMenuRoot: Stateful<MenubarMenuArgs> = function* ({ value }) {
@@ -235,22 +213,8 @@ const MenubarMenuRoot: Stateful<MenubarMenuArgs> = function* ({ value }) {
 
 
 /** Top-level Menubar menu. */
-const MenubarMenu: Stateless<MenubarMenuArgs> = ({
-	children,
-	class: classes,
-	disabled,
-	value,
-	...attrs
-}) => (
-	<MenubarMenuRoot
-		{...rootAttrs(attrs)}
-		disabled={disabled}
-		value={value}
-		attr:class={classes}
-		attr:data-slot="menubar-menu"
-	>
-		{children}
-	</MenubarMenuRoot>
+const MenubarMenu: Stateless<MenubarMenuArgs> = args => (
+	<MenubarMenuRoot {...rootAttrs(args, ['disabled', 'value'])} attr:data-slot="menubar-menu" />
 )
 
 /** Top-level trigger inside a Menubar. */
