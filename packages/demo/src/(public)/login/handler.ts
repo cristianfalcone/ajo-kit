@@ -1,11 +1,10 @@
-import * as auth from '@kit/auth'
-import type { ActionContext, Request, Response } from '@kit'
-import { send, emit } from '@kit/server'
-import { object, string, optional, pipe, unknown, transform } from '@kit/validate'
+import * as auth from 'ajo-kit-auth'
+import type { ActionContext, Request, Response } from 'ajo-kit'
+import { send, emit } from 'ajo-kit/server'
+import { object, string, optional, pipe, unknown, transform, parse } from 'ajo-kit/validate'
 import { db, email } from '/src/data'
 import * as registration from '/src/data/registration'
-import { parse } from '@kit/validate'
-import { Denied, Failure, ip } from '@kit'
+import { Denied, Failure, ip } from 'ajo-kit'
 
 const checkbox = pipe(unknown(), transform(v => v === 'true' || v === true))
 

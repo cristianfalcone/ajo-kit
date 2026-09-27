@@ -12,14 +12,14 @@ const restore = () => {
 }
 
 const close = async () => {
-	const database = await import('@kit/database')
+	const database = await import('ajo-kit/database')
 	await database.close()
 }
 
 afterEach(async () => {
 	await close()
 	restore()
-	vi.doUnmock('@kit/auth')
+	vi.doUnmock('ajo-kit-auth')
 	vi.resetModules()
 })
 
@@ -31,8 +31,8 @@ test('reset action rejects invalid tokens before password hashing', async () => 
 	process.env.DATABASE_PATH = join(dir, 'test.sqlite')
 
 	try {
-		vi.doMock('@kit/auth', async () => {
-			const auth = await vi.importActual<typeof import('@kit/auth')>('@kit/auth')
+		vi.doMock('ajo-kit-auth', async () => {
+			const auth = await vi.importActual<typeof import('ajo-kit-auth')>('ajo-kit-auth')
 
 			return {
 				...auth,
@@ -46,7 +46,7 @@ test('reset action rejects invalid tokens before password hashing', async () => 
 
 		// The reset boundary lives in the auth package now; its store needs
 		// the same wiring src/wares.ts gives it in the running app.
-		const auth = await import('@kit/auth')
+		const auth = await import('ajo-kit-auth')
 		auth.configure(() => db())
 
 		await db().schema

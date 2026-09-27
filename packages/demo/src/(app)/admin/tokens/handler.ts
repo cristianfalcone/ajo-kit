@@ -1,9 +1,8 @@
-import * as auth from '@kit/auth'
-import type { ActionContext, Request, Response } from '@kit'
-import { object, string } from '@kit/validate'
+import * as auth from 'ajo-kit-auth'
+import type { ActionContext, Request, Response } from 'ajo-kit'
+import { object, string, parse } from 'ajo-kit/validate'
 import { db } from '/src/data'
 import { info, rows as trim, paginate } from '/src/data/pagination'
-import { parse } from '@kit/validate'
 
 const Revoke = object({ id: string() })
 

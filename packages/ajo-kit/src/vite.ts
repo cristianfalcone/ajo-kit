@@ -383,7 +383,7 @@ export function engine(options: {
 				result.database = true
 			}
 			if (!/\/ajo-kit\/(?:src|dist)\/engine\.[cm]?[jt]s$/.test(file) && imports.some(record =>
-				record.specifier === 'ajo-kit/database' || record.specifier === '@kit/database')) {
+				record.specifier === 'ajo-kit/database')) {
 				result.database = true
 			}
 			// Graph validation reads the EMITTED chunks in generateBundle — the
@@ -493,19 +493,9 @@ export function kit(options?: Options): Plugin[] {
 				}
 			},
 			config() {
-				const aliases = found
-					.filter(p => p.alias)
-					.map(p => ({ find: new RegExp(`^@kit/${p.alias}(/|$)`), replacement: `${p.name}$1` }))
-
 				return {
 					ssr: { noExternal: [/^ajo-/] },
-					resolve: {
-						alias: [
-							...aliases,
-							{ find: /^@kit(\/|$)/, replacement: 'ajo-kit$1' },
-							{ find: '/src/client', replacement: 'ajo-kit/client' },
-						]
-					}
+					resolve: { alias: [{ find: '/src/client', replacement: 'ajo-kit/client' }] },
 				}
 			}
 		},

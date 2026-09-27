@@ -1,9 +1,8 @@
-import * as auth from '@kit/auth'
-import type { ActionContext, Parent, Request, Response } from '@kit'
-import { object, string, optional, pipe, forward, partialCheck } from '@kit/validate'
+import * as auth from 'ajo-kit-auth'
+import type { ActionContext, Parent, Request, Response } from 'ajo-kit'
+import { object, string, optional, pipe, forward, partialCheck, parse } from 'ajo-kit/validate'
 import { db, password as passwordField, trimmed } from '/src/data'
-import { parse } from '@kit/validate'
-import { Denied, Failure, ip } from '@kit'
+import { Denied, Failure, ip } from 'ajo-kit'
 
 const UpdateName = object({
 	name: optional(trimmed, ''),

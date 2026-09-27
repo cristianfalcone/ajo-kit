@@ -1,4 +1,4 @@
-import { db as base } from '@kit/database'
+import { db as base } from 'ajo-kit/database'
 import type { DB, Signup } from './types'
 
 export type { Signup }

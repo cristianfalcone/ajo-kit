@@ -1,3 +1,3 @@
-import { guest } from '@kit/auth'
+import { guest } from 'ajo-kit-auth'
 
 export default [guest()]

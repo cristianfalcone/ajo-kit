@@ -1,6 +1,6 @@
 import type { Children, Stateful } from 'ajo'
-import { locale, type PageArgs } from '@kit'
-import { action } from '@kit/client'
+import { locale, type PageArgs } from 'ajo-kit'
+import { action } from 'ajo-kit/client'
 import { frame, visibility } from 'ajo-cloves'
 import clsx from 'clsx'
 import { Bubble, BubbleContent } from 'ajo-ui-playa/bubble'

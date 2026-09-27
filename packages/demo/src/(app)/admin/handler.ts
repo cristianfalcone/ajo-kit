@@ -1,5 +1,5 @@
-import * as auth from '@kit/auth'
-import type { Request } from '@kit'
+import * as auth from 'ajo-kit-auth'
+import type { Request } from 'ajo-kit'
 import { db } from '/src/data'
 
 export async function page(req: Request) {

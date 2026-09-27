@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import type { LayoutArgs } from '@kit'
+import type { LayoutArgs } from 'ajo-kit'
 import { Card } from 'ajo-ui-playa/card'
 import Water from '/src/water'
 

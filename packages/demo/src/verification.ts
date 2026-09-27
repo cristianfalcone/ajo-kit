@@ -1,7 +1,7 @@
-import * as auth from '@kit/auth'
-import type { Request } from '@kit'
-import { Failure, origin } from '@kit'
-import { send as mail } from '@kit/mail'
+import * as auth from 'ajo-kit-auth'
+import type { Request } from 'ajo-kit'
+import { Failure, origin } from 'ajo-kit'
+import { send as mail } from 'ajo-kit/mail'
 import { db } from '/src/data'
 
 export type VerificationResult = { sent: true }

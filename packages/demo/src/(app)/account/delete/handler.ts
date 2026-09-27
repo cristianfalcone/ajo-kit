@@ -1,9 +1,8 @@
-import * as auth from '@kit/auth'
-import type { ActionContext, Request, Response } from '@kit'
-import { object, literal } from '@kit/validate'
+import * as auth from 'ajo-kit-auth'
+import type { ActionContext, Request, Response } from 'ajo-kit'
+import { object, literal, parse } from 'ajo-kit/validate'
 import { db } from '/src/data'
-import { parse } from '@kit/validate'
-import { Forbidden } from '@kit'
+import { Forbidden } from 'ajo-kit'
 import { can } from '/src/abilities'
 
 const Confirm = object({

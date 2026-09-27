@@ -14,7 +14,7 @@ beforeEach(() => {
 })
 
 afterEach(async () => {
-	const database = await import('@kit/database')
+	const database = await import('ajo-kit/database')
 	await database.close()
 	rmSync(dir, { recursive: true, force: true })
 	if (path === undefined) delete process.env.DATABASE_PATH
@@ -24,8 +24,8 @@ afterEach(async () => {
 
 test('forgot answers known and unknown emails alike while delivery fails or hangs', async () => {
 	const { db } = await import('/src/data')
-	const auth = await import('@kit/auth')
-	const mail = await import('@kit/mail')
+	const auth = await import('ajo-kit-auth')
+	const mail = await import('ajo-kit/mail')
 	const { actions } = await import('../../src/(public)/forgot/handler')
 
 	auth.configure(() => db())

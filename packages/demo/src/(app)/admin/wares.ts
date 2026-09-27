@@ -1,4 +1,4 @@
-import * as auth from '@kit/auth'
+import * as auth from 'ajo-kit-auth'
 
 export default [
 	auth.ability('admin:read'),

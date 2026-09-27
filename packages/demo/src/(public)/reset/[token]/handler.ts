@@ -1,9 +1,8 @@
-import * as auth from '@kit/auth'
-import type { ActionContext, Request, Response } from '@kit'
-import { object, string, pipe, forward, partialCheck } from '@kit/validate'
+import * as auth from 'ajo-kit-auth'
+import type { ActionContext, Request, Response } from 'ajo-kit'
+import { object, string, pipe, forward, partialCheck, parse } from 'ajo-kit/validate'
 import { password } from '/src/data'
-import { parse } from '@kit/validate'
-import { Failure } from '@kit'
+import { Failure } from 'ajo-kit'
 
 const Reset = pipe(
 	object({

@@ -1,6 +1,6 @@
-import * as auth from '@kit/auth'
-import type { Request, Response } from '@kit'
-import { send } from '@kit/server'
+import * as auth from 'ajo-kit-auth'
+import type { Request, Response } from 'ajo-kit'
+import { send } from 'ajo-kit/server'
 import { db } from '/src/data'
 
 export default {

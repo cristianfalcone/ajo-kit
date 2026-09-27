@@ -8,6 +8,13 @@ describe('ajo-kit vite plugin', () => {
 		expect(plugins.some(plugin => plugin.name === 'ajo-native-external')).toBe(false)
 	})
 
+	test('modules resolve by package name; only /src/client is aliased', () => {
+		const plugin = kit().find(plugin => plugin.name === 'ajo-kit')!
+		const config = (plugin.config as () => { resolve: { alias: unknown } })()
+
+		expect(config.resolve.alias).toEqual([{ find: '/src/client', replacement: 'ajo-kit/client' }])
+	})
+
 	test('custom guard patterns are added to defaults', async () => {
 		const plugin = kit({ guard: [/\/src\/data\//] }).find(plugin => plugin.name === 'ajo-server-only')!
 		const hook = plugin.resolveId as { handler: (source: string, importer?: string) => Promise<void> }

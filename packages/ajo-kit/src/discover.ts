@@ -5,7 +5,6 @@ import { join } from 'node:path'
 export interface Plugin {
 	name: string
 	path: string
-	alias?: string
 	serverOnly?: boolean
 	migrations?: string
 	commands?: string

@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { LayoutArgs } from '@kit'
+import type { LayoutArgs } from 'ajo-kit'
 import {
 	Sidebar,
 	SidebarContent,

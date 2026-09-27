@@ -1,5 +1,5 @@
-import * as auth from '@kit/auth'
-import type { Middleware } from '@kit'
+import * as auth from 'ajo-kit-auth'
+import type { Middleware } from 'ajo-kit'
 import { db } from '/src/data'
 
 auth.configure(() => db())

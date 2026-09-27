@@ -1,9 +1,8 @@
-import * as auth from '@kit/auth'
-import type { ActionContext, Request, Response } from '@kit'
-import { object, string, pipe, transform, number } from '@kit/validate'
+import * as auth from 'ajo-kit-auth'
+import type { ActionContext, Request, Response } from 'ajo-kit'
+import { object, string, pipe, transform, number, parse } from 'ajo-kit/validate'
 import { db } from '/src/data'
 import { info, rows as trim, paginate } from '/src/data/pagination'
-import { parse } from '@kit/validate'
 
 const RevokeSession = object({ id: string() })
 const RevokeUser = object({ user: pipe(string(), transform(v => Number(v)), number()) })

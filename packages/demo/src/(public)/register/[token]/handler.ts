@@ -1,9 +1,8 @@
-import * as auth from '@kit/auth'
-import type { ActionContext, Request, Response } from '@kit'
-import { Failure, ip } from '@kit'
-import { object, optional, string, forward, partialCheck, pipe } from '@kit/validate'
+import * as auth from 'ajo-kit-auth'
+import type { ActionContext, Request, Response } from 'ajo-kit'
+import { Failure, ip } from 'ajo-kit'
+import { object, optional, string, forward, partialCheck, pipe, parse } from 'ajo-kit/validate'
 import { db, password, trimmed } from '/src/data'
-import { parse } from '@kit/validate'
 
 const Accept = pipe(
 	object({

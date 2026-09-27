@@ -1,6 +1,6 @@
-import * as auth from '@kit/auth'
-import type { ActionContext, Request, Response } from '@kit'
-import { Denied } from '@kit'
+import * as auth from 'ajo-kit-auth'
+import type { ActionContext, Request, Response } from 'ajo-kit'
+import { Denied } from 'ajo-kit'
 import { db, unread } from '/src/data'
 
 export async function layout(req: Request) {

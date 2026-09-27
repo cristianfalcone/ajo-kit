@@ -1,8 +1,8 @@
-import * as auth from '@kit/auth'
-import { Failure, type Request, type Response } from '@kit'
-import { configure, type Mail } from '@kit/mail'
-import { env, randomBase64Url, sha256Hex, timingSafeEqual } from '@kit/platform'
-import { send } from '@kit/server'
+import * as auth from 'ajo-kit-auth'
+import { Failure, type Request, type Response } from 'ajo-kit'
+import { configure, type Mail } from 'ajo-kit/mail'
+import { env, randomBase64Url, sha256Hex, timingSafeEqual } from 'ajo-kit/platform'
+import { send } from 'ajo-kit/server'
 import { bundles } from '/src/abilities'
 import { db } from '/src/data'
 import type {

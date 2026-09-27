@@ -1,5 +1,5 @@
-import type { Middleware } from '@kit'
-import { Forbidden } from '@kit'
+import type { Middleware } from 'ajo-kit'
+import { Forbidden } from 'ajo-kit'
 import { db } from '/src/data'
 
 export default [

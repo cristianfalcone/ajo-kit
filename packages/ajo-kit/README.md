@@ -56,9 +56,7 @@ export default defineConfig({
     "jsxImportSource": "ajo",
     "strict": true,
     "paths": {
-      "/src/*": ["./src/*"],
-      "@kit": ["./node_modules/ajo-kit/dist/index.d.ts"],
-      "@kit/*": ["./node_modules/ajo-kit/dist/*"]
+      "/src/*": ["./src/*"]
     }
   }
 }
@@ -169,9 +167,9 @@ first; otherwise the innermost pending layout handles it.
 `handler.ts` supports:
 
 ```ts
-import type { ActionContext, Request, Response } from '@kit'
-import { send } from '@kit/server'
-import type { Head } from '@kit'
+import type { ActionContext, Request, Response } from 'ajo-kit'
+import { send } from 'ajo-kit/server'
+import type { Head } from 'ajo-kit'
 
 export async function layout(req: Request, parent: () => Promise<Record<string, unknown>>) {
   return {}
@@ -212,7 +210,7 @@ Notes:
 ## Actions from Client
 
 ```tsx
-import { action } from '@kit/client'
+import { action } from 'ajo-kit/client'
 
 const Page = function* () {
   const form = action<{ ok: boolean }>('save')
@@ -243,7 +241,7 @@ Successful non-redirect actions dispatch `ajo:action` with returned JSON detail.
 `wares.ts` exports one middleware or an array:
 
 ```ts
-import type { Middleware } from '@kit'
+import type { Middleware } from 'ajo-kit'
 
 const log: Middleware = (req, _res, next) => {
   console.log(req.method, req.url)
@@ -258,7 +256,7 @@ Middlewares are collected from route ancestors and applied to both page and API 
 The root `src/wares.ts` module may also export one production bootstrap hook:
 
 ```ts
-import type { Bootstrap, Middleware } from '@kit'
+import type { Bootstrap, Middleware } from 'ajo-kit'
 import type { DB } from '/src/data/types'
 
 export const bootstrap: Bootstrap<DB> = async ({ db, config }) => {
@@ -383,7 +381,7 @@ export async function seed(db) {
 
 ## Validation
 
-`@kit/validate` re-exports common Valibot helpers and provides `parse(schema, data)`, which throws `Invalid` with field-level details.
+`ajo-kit/validate` re-exports common Valibot helpers and provides `parse(schema, data)`, which throws `Invalid` with field-level details.
 
 ## Plugin Discovery
 
@@ -392,7 +390,6 @@ Installed packages named `ajo-*` (except `ajo-kit`) with a `kit` block in `packa
 ```json
 {
   "kit": {
-    "alias": "auth",
     "serverOnly": true,
     "migrations": "./migrations/",
     "commands": "./src/commands.ts"
@@ -402,7 +399,6 @@ Installed packages named `ajo-*` (except `ajo-kit`) with a `kit` block in `packa
 
 This enables:
 
-- `@kit/<alias>` import aliases
 - server-only import protection in Vite
 - automatic migration loading
 - CLI command extension via `register(cli)`
@@ -427,12 +423,12 @@ artifact directly on the engine, provide the same directory mount.
 
 | Import | API |
 |---|---|
-| `ajo-kit` or `@kit` | Route types, HTTP errors, request helpers, navigation, and formatting |
-| `ajo-kit/server` or `@kit/server` | Server runtime, `send()`, and `emit()` |
-| `ajo-kit/client` or `@kit/client` | Client boot and `action()` |
-| `ajo-kit/validate` or `@kit/validate` | Valibot helpers and `parse()` |
-| `ajo-kit/database` or `@kit/database` | SQLite, Kysely, and database lifecycle |
-| `ajo-kit/mail` or `@kit/mail` | Configurable mail transport |
+| `ajo-kit` | Route types, HTTP errors, request helpers, navigation, and formatting |
+| `ajo-kit/server` | Server runtime, `send()`, and `emit()` |
+| `ajo-kit/client` | Client boot and `action()` |
+| `ajo-kit/validate` | Valibot helpers and `parse()` |
+| `ajo-kit/database` | SQLite, Kysely, and database lifecycle |
+| `ajo-kit/mail` | Configurable mail transport |
 | `ajo-kit/vite` | Vite plugin, JSX config, and defaults |
 | `ajo-kit/node` | Programmatic Node host utilities for development, engine builds, and tests |
 
@@ -557,7 +553,7 @@ export default defineConfig({
 })
 ```
 
-`kit()` configures routes, handlers, aliases, server-only guards, HMR, CSS
+`kit()` configures routes, handlers, the `/src/client` alias, server-only guards, HMR, CSS
 entries, and the engine SSR graph. Custom `guard` patterns extend the default client
 graph protection.
 

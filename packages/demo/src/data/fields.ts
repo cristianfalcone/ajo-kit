@@ -6,7 +6,7 @@ import {
 	email as vemail,
 	minLength,
 	maxLength,
-} from '@kit/validate'
+} from 'ajo-kit/validate'
 
 export const email = pipe(
 	string(),

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { parse } from '@kit/validate'
+import { parse } from 'ajo-kit/validate'
 import { email } from '../../src/data/fields'
 
 test('email accepts at most 254 characters', () => {

@@ -28,7 +28,7 @@ pnpm add ajo-kit-auth
 Call `configure()` once during app boot so auth modules can access your Kysely instance.
 
 ```ts
-import { configure } from '@kit/auth'
+import { configure } from 'ajo-kit-auth'
 import { db } from '/src/data'
 
 configure(() => db())
@@ -48,7 +48,7 @@ This creates the auth, passkey, team, and invitation tables.
 
 ```ts
 // src/wares.ts
-import { wares } from '@kit/auth'
+import { wares } from 'ajo-kit-auth'
 
 export default [wares.session(), wares.csrf]
 ```
@@ -84,7 +84,7 @@ The package root exports the APIs below.
 ### `password`
 
 ```ts
-import { password } from '@kit/auth'
+import { password } from 'ajo-kit-auth'
 ```
 
 Argon2id hash/verify helpers.
@@ -92,7 +92,7 @@ Argon2id hash/verify helpers.
 ### `session`
 
 ```ts
-import { session } from '@kit/auth'
+import { session } from 'ajo-kit-auth'
 
 const id = await session.create(user, remember, ip, agent)
 const active = await session.validate(id)
@@ -115,7 +115,7 @@ removes expired rows.
 ### `cookie`
 
 ```ts
-import { cookie } from '@kit/auth'
+import { cookie } from 'ajo-kit-auth'
 
 const id = cookie.read(req)
 cookie.write(res, id, remember)
@@ -131,7 +131,7 @@ cookies.
 ### `csrf`
 
 ```ts
-import { csrf } from '@kit/auth'
+import { csrf } from 'ajo-kit-auth'
 
 const token = csrf.set(req, res)
 const ok = csrf.verify(req)
@@ -146,7 +146,7 @@ Verification accepts:
 ### `wares`
 
 ```ts
-import { wares } from '@kit/auth'
+import { wares } from 'ajo-kit-auth'
 ```
 
 `session(lookup?)` accepts an optional custom user resolver. Bearer token auth is scoped to `/api/*`; route actions use cookie sessions and CSRF.
@@ -166,7 +166,7 @@ import {
   redirect,
   verified,
   when,
-} from '@kit/auth'
+} from 'ajo-kit-auth'
 ```
 
 - `auth()` requires an authenticated user.
@@ -190,7 +190,7 @@ The same guard functions are available through the `guard` namespace.
 ### `token`
 
 ```ts
-import { admit, token } from '@kit/auth'
+import { admit, token } from 'ajo-kit-auth'
 
 const plain = await token.create(user, 'Blog CI', ['apps:deploy'], {
   subject: 'app:blog',
@@ -249,13 +249,13 @@ column, so rollback cannot turn them into global credentials.
 Browser code imports ability helpers from the client-safe subpath:
 
 ```ts
-import { all, can, compact, intersect, merge } from '@kit/auth/ability'
+import { all, can, compact, intersect, merge } from 'ajo-kit-auth/ability'
 ```
 
 ### `account`
 
 ```ts
-import { account } from '@kit/auth'
+import { account } from 'ajo-kit-auth'
 
 const grants = await account.grants(user)
 const abilities = await account.abilities(user)
@@ -270,7 +270,7 @@ global grants stay out on purpose — `admit()` composes both.
 ### `team`
 
 ```ts
-import { admit, team } from '@kit/auth'
+import { admit, team } from 'ajo-kit-auth'
 
 const id = await team.create('platform')
 await team.join(id, user, role)
@@ -302,7 +302,7 @@ that authority further through its abilities and subject.
 ### `invite`
 
 ```ts
-import { invite } from '@kit/auth'
+import { invite } from 'ajo-kit-auth'
 
 const token = await invite.create({
   role: 'member',
@@ -341,7 +341,7 @@ for `revoke()`.
 ### `limit`
 
 ```ts
-import { limit } from '@kit/auth'
+import { limit } from 'ajo-kit-auth'
 
 if (!limit.hit(key, 5, 60_000)) throw new Error('Too many attempts')
 limit.clear(key)
@@ -362,7 +362,7 @@ require a shared limiter.
 ### `confirm`
 
 ```ts
-import { confirm } from '@kit/auth'
+import { confirm } from 'ajo-kit-auth'
 
 confirm.stamp(req)
 confirm.check(req)
@@ -380,7 +380,7 @@ ends with its credential; `token.revoke()` and `reset.consume()` clear theirs.
 ### `reset`
 
 ```ts
-import { reset } from '@kit/auth'
+import { reset } from 'ajo-kit-auth'
 
 const plain = await reset.create(user)
 const preview = await reset.validate(plain)
@@ -395,7 +395,7 @@ boundary and revokes the user's sessions, API tokens, and other reset tokens.
 ### `verify`
 
 ```ts
-import { verify } from '@kit/auth'
+import { verify } from 'ajo-kit-auth'
 
 const link = verify.url(user, email, 'https://example.com')
 const verifiedUser = await verify.validate(signature)
@@ -416,7 +416,7 @@ verifies natively. Accepts ES256, EdDSA and RS256; dropping RS256 would lock
 out Windows Hello over a TPM.
 
 ```ts
-import { passkey } from '@kit/auth'
+import { passkey } from 'ajo-kit-auth'
 
 // Once, at startup. Never derived from a request header: the browser puts the
 // real address bar origin into client data, and deriving what it is compared
@@ -464,5 +464,5 @@ eligibility cannot change in either direction.
 ## Types
 
 ```ts
-import type { Ability, Auth, Invite, New, Session, Team, Token, User } from '@kit/auth'
+import type { Ability, Auth, Invite, New, Session, Team, Token, User } from 'ajo-kit-auth'
 ```

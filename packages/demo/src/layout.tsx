@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { Children, Stateful } from 'ajo'
-import type { LayoutArgs } from '@kit'
+import type { LayoutArgs } from 'ajo-kit'
 import { media, storage } from 'ajo-cloves'
 import { Button } from 'ajo-ui-playa/button'
 import { Spinner } from 'ajo-ui-playa/spinner'

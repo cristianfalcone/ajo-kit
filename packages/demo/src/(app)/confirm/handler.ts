@@ -1,9 +1,8 @@
-import * as auth from '@kit/auth'
-import type { Request } from '@kit'
-import { object, string } from '@kit/validate'
+import * as auth from 'ajo-kit-auth'
+import type { Request } from 'ajo-kit'
+import { object, string, parse } from 'ajo-kit/validate'
 import { db } from '/src/data'
-import { parse } from '@kit/validate'
-import { Failure, Denied, ip } from '@kit'
+import { Failure, Denied, ip } from 'ajo-kit'
 
 const Confirm = object({ password: string() })
 

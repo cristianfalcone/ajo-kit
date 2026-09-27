@@ -1,9 +1,8 @@
-import * as auth from '@kit/auth'
-import type { ActionContext, Request, Response } from '@kit'
-import { object, string, array, optional, pipe, minLength } from '@kit/validate'
+import * as auth from 'ajo-kit-auth'
+import type { ActionContext, Request, Response } from 'ajo-kit'
+import { object, string, array, optional, pipe, minLength, parse } from 'ajo-kit/validate'
 import { trimmed } from '/src/data'
-import { parse } from '@kit/validate'
-import { Failure, Forbidden } from '@kit'
+import { Failure, Forbidden } from 'ajo-kit'
 import { delegate, grantable, normalize, unknown as invalid } from '/src/abilities'
 
 const Create = object({

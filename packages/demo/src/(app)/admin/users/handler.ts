@@ -1,4 +1,4 @@
-import type { Request } from '@kit'
+import type { Request } from 'ajo-kit'
 import { db } from '/src/data'
 import { info, rows, paginate } from '/src/data/pagination'
 

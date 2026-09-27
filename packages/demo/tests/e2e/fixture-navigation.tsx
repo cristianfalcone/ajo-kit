@@ -1,4 +1,4 @@
-import type { PageArgs } from '@kit'
+import type { PageArgs } from 'ajo-kit'
 
 /** Long route fixtures keep fragment navigation inside the real client router. */
 export default ({ params }: PageArgs) => {

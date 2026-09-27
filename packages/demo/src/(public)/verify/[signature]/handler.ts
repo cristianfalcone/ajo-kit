@@ -1,6 +1,6 @@
-import * as auth from '@kit/auth'
-import type { Request } from '@kit'
-import { emit } from '@kit/server'
+import * as auth from 'ajo-kit-auth'
+import type { Request } from 'ajo-kit'
+import { emit } from 'ajo-kit/server'
 
 export async function page(req: Request) {
 

@@ -1,4 +1,4 @@
-import type { Request } from '@kit'
+import type { Request } from 'ajo-kit'
 
 export type Pagination = {
 	page: number

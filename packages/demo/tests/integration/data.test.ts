@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, test } from 'vitest'
-import { close } from '@kit/database'
+import { close } from 'ajo-kit/database'
 
 const dbpath = process.env.DATABASE_PATH
 

@@ -1,4 +1,4 @@
-import { type PageArgs, date } from '@kit'
+import { type PageArgs, date } from 'ajo-kit'
 import { Card } from 'ajo-ui-playa/card'
 import { Chip } from 'ajo-ui-playa/chip'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'ajo-ui-playa/table'

@@ -1,10 +1,9 @@
-import * as auth from '@kit/auth'
-import type { Request } from '@kit'
-import { object } from '@kit/validate'
-import { send } from '@kit/mail'
+import * as auth from 'ajo-kit-auth'
+import type { Request } from 'ajo-kit'
+import { object, parse } from 'ajo-kit/validate'
+import { send } from 'ajo-kit/mail'
 import { db, email } from '/src/data'
-import { parse } from '@kit/validate'
-import { Failure, ip, origin } from '@kit'
+import { Failure, ip, origin } from 'ajo-kit'
 
 const Forgot = object({ email })
 

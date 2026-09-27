@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
-import { type PageArgs, date } from '@kit'
-import { action } from '@kit/client'
+import { type PageArgs, date } from 'ajo-kit'
+import { action } from 'ajo-kit/client'
 import { buttonVariants } from 'ajo-ui-playa/button'
 import { Chip } from 'ajo-ui-playa/chip'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from 'ajo-ui-playa/item'

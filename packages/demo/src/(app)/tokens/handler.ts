@@ -1,9 +1,8 @@
-import * as auth from '@kit/auth'
-import type { Request, Response } from '@kit'
-import { send, emit } from '@kit/server'
-import { object, string, array, optional } from '@kit/validate'
-import { parse } from '@kit/validate'
-import { Missing, Failure, Forbidden } from '@kit'
+import * as auth from 'ajo-kit-auth'
+import type { Request, Response } from 'ajo-kit'
+import { send, emit } from 'ajo-kit/server'
+import { object, string, array, optional, parse } from 'ajo-kit/validate'
+import { Missing, Failure, Forbidden } from 'ajo-kit'
 import { delegate, grantable, normalize, unknown as invalid } from '/src/abilities'
 
 const Create = object({

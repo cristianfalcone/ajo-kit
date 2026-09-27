@@ -1,6 +1,6 @@
-import { compact, intersect } from '@kit/auth/ability'
+import { compact, intersect } from 'ajo-kit-auth/ability'
 
-export { can } from '@kit/auth/ability'
+export { can } from 'ajo-kit-auth/ability'
 
 const catalog = {
 	tokens: ['read', 'create', 'delete'],

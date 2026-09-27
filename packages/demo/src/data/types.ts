@@ -1,5 +1,5 @@
-import type { Auth } from '@kit/auth'
-import type { Generated } from '@kit/database'
+import type { Auth } from 'ajo-kit-auth'
+import type { Generated } from 'ajo-kit/database'
 
 export type Signup = 'open' | 'invite'
 

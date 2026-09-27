@@ -1,4 +1,4 @@
-import type { PageArgs } from '@kit'
+import type { PageArgs } from 'ajo-kit'
 import { Card, CardContent } from 'ajo-ui-playa/card'
 
 type Data = {

@@ -1,11 +1,10 @@
-import * as auth from '@kit/auth'
-import type { ActionContext, Request, Response } from '@kit'
-import { Failure, Forbidden, ip, origin } from '@kit'
-import { object, optional, string, forward, partialCheck, pipe } from '@kit/validate'
-import { send } from '@kit/mail'
+import * as auth from 'ajo-kit-auth'
+import type { ActionContext, Request, Response } from 'ajo-kit'
+import { Failure, Forbidden, ip, origin } from 'ajo-kit'
+import { object, optional, string, forward, partialCheck, pipe, parse } from 'ajo-kit/validate'
+import { send } from 'ajo-kit/mail'
 import { db, email, password, trimmed } from '/src/data'
 import * as registration from '/src/data/registration'
-import { parse } from '@kit/validate'
 
 const Signup = pipe(
 	object({

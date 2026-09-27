@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import { locale } from '@kit'
+import { locale } from 'ajo-kit'
 import clsx from 'clsx'
 import { Chip } from 'ajo-ui-playa/chip'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from 'ajo-ui-playa/empty'

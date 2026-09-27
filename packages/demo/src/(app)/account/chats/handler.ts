@@ -1,7 +1,7 @@
-import type { ActionContext, Request, Response } from '@kit'
-import { Invalid } from '@kit'
-import { sql } from '@kit/database'
-import { array, integer, maxLength, minValue, number, object, optional, parse, pipe, string, transform } from '@kit/validate'
+import type { ActionContext, Request, Response } from 'ajo-kit'
+import { Invalid } from 'ajo-kit'
+import { sql } from 'ajo-kit/database'
+import { array, integer, maxLength, minValue, number, object, optional, parse, pipe, string, transform } from 'ajo-kit/validate'
 import { db, trimmed } from '/src/data'
 
 const json = (value: string): unknown => {

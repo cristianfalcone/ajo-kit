@@ -1,5 +1,5 @@
 import type { Stateful } from 'ajo'
-import type { PageArgs } from '@kit'
+import type { PageArgs } from 'ajo-kit'
 import { Alert, AlertDescription } from 'ajo-ui-playa/alert'
 import { CardContent, CardFooter, CardHeader } from 'ajo-ui-playa/card'
 

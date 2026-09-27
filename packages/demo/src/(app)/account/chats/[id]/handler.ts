@@ -1,8 +1,8 @@
-import type { ActionContext, Request, Response } from '@kit'
+import type { ActionContext, Request, Response } from 'ajo-kit'
 import { db, trimmed } from '/src/data'
-import { sql } from '@kit/database'
-import { Missing } from '@kit'
-import { integer, maxLength, minLength, minValue, number, object, parse, picklist, pipe } from '@kit/validate'
+import { sql } from 'ajo-kit/database'
+import { Missing } from 'ajo-kit'
+import { integer, maxLength, minLength, minValue, number, object, parse, picklist, pipe } from 'ajo-kit/validate'
 
 const Send = object({ text: pipe(trimmed, minLength(1, 'Message cannot be empty'), maxLength(4000)) })
 const Load = object({ cursor: pipe(number(), integer(), minValue(1)), direction: picklist(['older', 'newer']) })

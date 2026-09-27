@@ -1,5 +1,5 @@
-import { connect, db as base } from '@kit/database'
-import { env } from '@kit/platform'
+import { connect, db as base } from 'ajo-kit/database'
+import { env } from 'ajo-kit/platform'
 import type { DB } from './types'
 
 connect(env('DATABASE_PATH') ?? './database.sqlite')
