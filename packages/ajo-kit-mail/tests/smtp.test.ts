@@ -2,8 +2,9 @@ import { Buffer } from 'node:buffer'
 import { createServer, type Server, type Socket } from 'node:net'
 import { inspect } from 'node:util'
 import { createTransport } from 'nodemailer'
+import MailMessage from 'nodemailer/lib/mailer/mail-message'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { Undelivered } from '../src/errors'
+import { Refused, Undelivered } from '../src/errors'
 import { seal, type Sealed } from '../src/seal'
 import { smtp } from '../src/smtp'
 
@@ -127,7 +128,6 @@ describe('smtp option and message mapping', () => {
 		vi.mocked(createTransport).mockReturnValueOnce({
 			sendMail,
 			close,
-			verify: vi.fn().mockResolvedValue(true),
 		} as unknown as ReturnType<typeof createTransport>)
 		const transport = smtp({
 			host: 'smtp.example.com',
@@ -148,9 +148,7 @@ describe('smtp option and message mapping', () => {
 			host: 'smtp.example.com',
 			port: 587,
 			secure: false,
-			pool: false,
 			requireTLS: true,
-			ignoreTLS: false,
 			opportunisticTLS: false,
 			name: 'example.com',
 			auth: {
@@ -163,9 +161,6 @@ describe('smtp option and message mapping', () => {
 			},
 			disableFileAccess: true,
 			disableUrlAccess: true,
-			logger: false,
-			debug: false,
-			transactionLog: false,
 		})
 		expect(options).not.toHaveProperty('url')
 		expect(options.connectionTimeout).toBeGreaterThan(0)
@@ -192,11 +187,32 @@ describe('smtp option and message mapping', () => {
 				from: 'sender@example.com',
 				to: ['recipient@example.net'],
 			},
+		})
+		expect(close).toHaveBeenCalledOnce()
+	})
+
+	test('Nodemailer forces the transport file and URL prohibitions onto every message', async () => {
+		const sendMail = vi.fn().mockResolvedValue({ messageId: 'smtp-message-id' })
+		vi.mocked(createTransport).mockReturnValueOnce({
+			sendMail,
+			close: vi.fn(),
+		} as unknown as ReturnType<typeof createTransport>)
+
+		await smtp({ host: 'smtp.example.com' })(mail())
+
+		// The spy passes through to the real createTransport once the mocked value is used.
+		const mailer = createTransport(vi.mocked(createTransport).mock.calls[0]![0])
+		const message = new MailMessage(mailer, sendMail.mock.calls[0]![0])
+
+		expect(message.data).toMatchObject({
 			disableFileAccess: true,
 			disableUrlAccess: true,
 		})
-		expect(close).toHaveBeenCalledOnce()
-		expect(transport.label).toBe('smtp')
+	})
+
+	test('refuses a user without a password', () => {
+		vi.spyOn(console, 'error').mockImplementation(() => {})
+		expect(() => smtp({ host: 'smtp.example.com', user: 'smtp-user' })).toThrow(Refused)
 	})
 
 	test('uses implicit TLS only when explicitly requested', async () => {
@@ -204,7 +220,6 @@ describe('smtp option and message mapping', () => {
 		vi.mocked(createTransport).mockReturnValueOnce({
 			sendMail: vi.fn().mockResolvedValue({ messageId: 'implicit-id' }),
 			close,
-			verify: vi.fn().mockResolvedValue(true),
 		} as unknown as ReturnType<typeof createTransport>)
 
 		await smtp({
@@ -217,41 +232,8 @@ describe('smtp option and message mapping', () => {
 			port: 465,
 			secure: true,
 			requireTLS: false,
-			ignoreTLS: false,
 			opportunisticTLS: false,
 		})
-		expect(close).toHaveBeenCalledOnce()
-	})
-
-	test('verifies credentials with the same TLS policy and closes in finally', async () => {
-		const verify = vi.fn().mockResolvedValue(true)
-		const close = vi.fn()
-		vi.mocked(createTransport).mockReturnValueOnce({
-			sendMail: vi.fn(),
-			close,
-			verify,
-		} as unknown as ReturnType<typeof createTransport>)
-		const transport = smtp({
-			host: 'smtp.example.com',
-			name: 'mail.example.com',
-			user: 'smtp-user',
-			pass: PASSWORD,
-		})
-
-		await expect(transport.verify!(new AbortController().signal)).resolves.toBeUndefined()
-
-		expect(vi.mocked(createTransport).mock.calls[0]![0]).toMatchObject({
-			secure: false,
-			requireTLS: true,
-			ignoreTLS: false,
-			opportunisticTLS: false,
-			name: 'mail.example.com',
-			tls: {
-				rejectUnauthorized: true,
-				minVersion: 'TLSv1.2',
-			},
-		})
-		expect(verify).toHaveBeenCalledOnce()
 		expect(close).toHaveBeenCalledOnce()
 	})
 })
@@ -412,7 +394,6 @@ describe('smtp failure mapping and cleanup', () => {
 		vi.mocked(createTransport).mockReturnValueOnce({
 			sendMail: vi.fn().mockRejectedValue(provider),
 			close,
-			verify: vi.fn().mockResolvedValue(true),
 		} as unknown as ReturnType<typeof createTransport>)
 
 		const error = await thrown(() => smtp({
@@ -445,12 +426,14 @@ describe('smtp failure mapping and cleanup', () => {
 		}
 	})
 
-	test('closes in finally when the envelope signal aborts pending work', async () => {
-		const close = vi.fn()
+	test('closes on abort and reports the pending send as a timeout', async () => {
+		let fail!: (error: unknown) => void
+		const close = vi.fn(() => fail(Object.assign(new Error('Connection closed'), { code: 'ECONNECTION' })))
 		vi.mocked(createTransport).mockReturnValueOnce({
-			sendMail: vi.fn().mockReturnValue(new Promise(() => {})),
+			sendMail: vi.fn().mockReturnValue(new Promise((_, reject) => {
+				fail = reject
+			})),
 			close,
-			verify: vi.fn().mockResolvedValue(true),
 		} as unknown as ReturnType<typeof createTransport>)
 
 		const error = await thrown(() => smtp({
@@ -479,7 +462,6 @@ describe('smtp failure mapping and cleanup', () => {
 		vi.mocked(createTransport).mockReturnValueOnce({
 			sendMail: vi.fn().mockRejectedValue(provider),
 			close,
-			verify: vi.fn().mockResolvedValue(true),
 		} as unknown as ReturnType<typeof createTransport>)
 		const logs = [
 			vi.spyOn(console, 'debug').mockImplementation(() => {}),

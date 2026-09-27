@@ -11,7 +11,6 @@ import {
 
 const deliveries = [
 	{ signal: { name: 'AbortError' }, code: 'timeout', retryable: true },
-	{ signal: { name: 'Undelivered', code: 'busy' }, code: 'busy', retryable: true },
 	{ signal: { code: 'ECONNRESET' }, code: 'connection', retryable: true },
 	{ signal: { code: 'ERR_TLS_CERT_ALTNAME_INVALID' }, code: 'tls', retryable: false },
 	{ signal: { status: 401 }, code: 'auth', retryable: false, hint: 'status 401' },
@@ -100,6 +99,26 @@ describe('ajo-kit-mail errors', () => {
 		expect(result.message).toBe(`Mail refused: ${code}`)
 		expect(result.message).not.toContain('token abc123')
 		expect(log).not.toHaveBeenCalled()
+	})
+
+	test('returns an existing Undelivered unchanged, hint included', () => {
+		const failure = new Undelivered('throttled', 'smtp 451')
+
+		expect(classify(failure)).toBe(failure)
+		expect(failure).toMatchObject({ code: 'throttled', retryable: true, hint: 'smtp 451' })
+	})
+
+	test.each([
+		['timeout', true],
+		['connection', true],
+		['throttled', true],
+		['unavailable', true],
+		['tls', false],
+		['auth', false],
+		['rejected', false],
+		['unknown', false],
+	] satisfies [DeliveryCode, boolean][])('derives retryable %s as %s', (code, retryable) => {
+		expect(new Undelivered(code).retryable).toBe(retryable)
 	})
 
 	test('parenthesises connection timeout classification around the missing status', () => {

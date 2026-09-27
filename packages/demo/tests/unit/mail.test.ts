@@ -17,7 +17,7 @@ test('development delivers through a capture that logs no address or body', asyn
 	await import('/src/mail')
 	const { deliver } = await import('ajo-kit-mail')
 
-	expect(await deliver(message)).toMatchObject({ ok: true, transport: 'capture' })
+	expect(await deliver(message)).toMatchObject({ ok: true })
 	expect(log).toHaveBeenCalledTimes(1)
 	expect(String(log.mock.calls[0])).not.toMatch(/person@|single-use-token/)
 })

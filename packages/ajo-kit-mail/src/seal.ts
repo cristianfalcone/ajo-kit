@@ -1,4 +1,4 @@
-import { base64UrlEncode, randomUUID, utf8ByteLength } from 'ajo-kit/platform'
+import { randomUUID, utf8ByteLength } from 'ajo-kit/platform'
 import { Refused, type RefusalCode } from './errors'
 
 /** One mailbox: a bare address, optionally with a display name. */
@@ -20,7 +20,7 @@ export interface Message {
 	/** Overrides the configured sender for this message only. */
 	from?: Recipient
 	replyTo?: Recipient
-	/** Short label for logs and events: 'reset', 'verify', 'invite'. Default 'mail'. */
+	/** Short label for logs: 'reset', 'verify', 'invite'. Default 'mail'. */
 	kind?: string
 	/** Idempotency key forwarded to providers that accept one. Never deduplicated locally. */
 	key?: string
@@ -34,7 +34,7 @@ declare const sealed: unique symbol
  * Validated, frozen message. Only seal() constructs one, so a Transport is
  * structurally incapable of receiving unvalidated input.
  */
-export interface Envelope {
+export interface Sealed {
 	readonly id: string
 	readonly kind: string
 	readonly from: Address
@@ -48,70 +48,42 @@ export interface Envelope {
 	readonly deadline: number
 	/** Aborts at deadline. Transports must honour it. */
 	readonly signal: AbortSignal
+	readonly [sealed]: 'ajo-kit-mail'
 }
 
-/** An envelope that crossed the package's sole validation boundary. */
-export type Sealed = Readonly<Envelope> & { readonly [sealed]: 'ajo-kit-mail' }
-
-/** Validation limits and sender identity. Pure data; a test builds one inline. */
+/** Sender identity and attempt timeout. Pure data; a test builds one inline. */
 export interface Policy {
 	from: Recipient
 	replyTo?: Recipient
 	/** Milliseconds for one attempt. Default 10_000. */
 	timeout?: number
-	/** Maximum text + html bytes. Default and hard maximum 262_144. */
-	limit?: number
 }
 
 // C0 + DEL, written with escapes on purpose: a literal control byte is invisible
-// in a diff and this is the regex that stops header injection.
+// in a diff and this is the regex that stops header injection in the subject.
+// The other header grammars below exclude control characters on their own.
 const CONTROL = /[\u0000-\u001f\u007f]/
 const ADDRESS = /^(?=.{3,254}$)[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i
 const NAME = /^[^"<>,;:\\\u0000-\u001f\u007f]{1,128}$/
 const KEY = /^[A-Za-z0-9._:-]{1,128}$/
 const KIND = /^[a-z][a-z0-9-]{0,31}$/
-const ADDRESS_BYTES = 254
 const SUBJECT_BYTES = 255
 const NAME_BYTES = 128
-const KEY_BYTES = 128
-const KIND_BYTES = 32
 const BODY_BYTES = 262_144
 const TIMEOUT = 10_000
-const WORD_BYTES = 45
 
-const encoder = new TextEncoder()
 const bytes = utf8ByteLength
-const base64 = (value: string) => {
-	const encoded = base64UrlEncode(encoder.encode(value))
-	return encoded.replaceAll('-', '+').replaceAll('_', '/') + '='.repeat((4 - encoded.length % 4) % 4)
-}
 const refusal = (code: RefusalCode): never => {
 	throw new Refused(code)
 }
 
 const mailbox = (recipient: Recipient, code: 'invalid-sender' | 'invalid-recipient'): Address => {
-	const address = typeof recipient === 'string' ? recipient : recipient?.address
-	const name = typeof recipient === 'string' ? undefined : recipient?.name
+	const { address, name }: Partial<Address> = typeof recipient === 'string' ? { address: recipient } : recipient ?? {}
 
-	if (typeof address !== 'string') refusal(code)
-	if (CONTROL.test(address) || !ADDRESS.test(address) || bytes(address) > ADDRESS_BYTES) {
-		refusal(code)
-	}
-	if (name !== undefined) {
-		if (
-			typeof name !== 'string'
-			|| CONTROL.test(name)
-			|| !NAME.test(name)
-			|| bytes(name) > NAME_BYTES
-		) {
-			refusal('invalid-name')
-		}
-	}
+	if (typeof address !== 'string' || !ADDRESS.test(address)) refusal(code)
+	if (name !== undefined && (!NAME.test(name) || bytes(name) > NAME_BYTES)) refusal('invalid-name')
 
-	return Object.freeze({
-		address,
-		...(name !== undefined && { name }),
-	})
+	return name === undefined ? { address } : { address, name }
 }
 
 const duration = (value: number | undefined) => {
@@ -122,12 +94,6 @@ const duration = (value: number | undefined) => {
 	return timeout
 }
 
-const bodyLimit = (value: number | undefined) => {
-	const limit = value ?? BODY_BYTES
-	if (!Number.isSafeInteger(limit) || limit <= 0 || limit > BODY_BYTES) refusal('invalid-config')
-	return limit
-}
-
 const expiry = (value: Date | number | undefined) => {
 	if (value === undefined) return Infinity
 	const time = value instanceof Date ? value.getTime() : value
@@ -136,33 +102,22 @@ const expiry = (value: Date | number | undefined) => {
 
 /** Validates once, on the way in. Every later stage consumes only the result. */
 export function seal(message: Message, policy: Policy): Sealed {
-	if (!message || typeof message !== 'object' || !policy || typeof policy !== 'object') {
-		refusal('invalid-config')
-	}
-
-	const toRecipient = message.to
-	const subject = message.subject
-	const text = message.text
-	const html = message.html
-	const fromRecipient = message.from
-	const messageReply = message.replyTo
-	const rawKind = message.kind
-	const key = message.key
-	const expires = message.expires
-	const policyFrom = policy.from
-	const policyReply = policy.replyTo
-	const policyTimeout = policy.timeout
-	const policyLimit = policy.limit
-	const now = Date.now()
-	const deadline = Math.min(now + duration(policyTimeout), expiry(expires))
-	const limit = bodyLimit(policyLimit)
-	const from = mailbox(fromRecipient ?? policyFrom, 'invalid-sender')
-	const to = mailbox(toRecipient, 'invalid-recipient')
-	const replyRecipient = messageReply ?? policyReply
-	const replyTo = replyRecipient === undefined
-		? undefined
-		: mailbox(replyRecipient, 'invalid-recipient')
-	const kind = rawKind ?? 'mail'
+	// One read per field: the envelope holds exactly the values that were validated.
+	const {
+		to,
+		subject,
+		text,
+		html,
+		from = policy.from,
+		replyTo = policy.replyTo,
+		kind = 'mail',
+		key,
+		expires,
+	} = message
+	const deadline = Math.min(Date.now() + duration(policy.timeout), expiry(expires))
+	const sender = mailbox(from, 'invalid-sender')
+	const recipient = mailbox(to, 'invalid-recipient')
+	const reply = replyTo === undefined ? undefined : mailbox(replyTo, 'invalid-recipient')
 
 	if (
 		typeof subject !== 'string'
@@ -172,25 +127,8 @@ export function seal(message: Message, policy: Policy): Sealed {
 	) {
 		refusal('invalid-subject')
 	}
-	if (
-		typeof kind !== 'string'
-		|| CONTROL.test(kind)
-		|| !KIND.test(kind)
-		|| bytes(kind) > KIND_BYTES
-	) {
-		refusal('invalid-kind')
-	}
-	if (
-		key !== undefined
-		&& (
-			typeof key !== 'string'
-			|| CONTROL.test(key)
-			|| !KEY.test(key)
-			|| bytes(key) > KEY_BYTES
-		)
-	) {
-		refusal('invalid-key')
-	}
+	if (!KIND.test(kind)) refusal('invalid-kind')
+	if (key !== undefined && !KEY.test(key)) refusal('invalid-key')
 	if (
 		typeof text !== 'string'
 		|| (html !== undefined && typeof html !== 'string')
@@ -198,16 +136,16 @@ export function seal(message: Message, policy: Policy): Sealed {
 	) {
 		refusal('empty-body')
 	}
-	if (bytes(text) + bytes(html ?? '') > limit) refusal('too-large')
+	if (bytes(text) + bytes(html ?? '') > BODY_BYTES) refusal('too-large')
 	if (deadline <= Date.now()) refusal('expired')
 
 	const signal = AbortSignal.timeout(Math.max(0, Math.ceil(deadline - Date.now())))
 	return Object.freeze({
 		id: randomUUID(),
 		kind,
-		from,
-		to,
-		...(replyTo && { replyTo }),
+		from: sender,
+		to: recipient,
+		...(reply && { replyTo: reply }),
 		subject,
 		text,
 		...(html !== undefined && { html }),
@@ -220,27 +158,4 @@ export function seal(message: Message, policy: Policy): Sealed {
 /** Returns the recipient domain, the only address part safe for logs. */
 export function domain(address: string): string {
 	return address.slice(address.lastIndexOf('@') + 1).toLowerCase()
-}
-
-/** Encodes and folds a value into RFC 2047 encoded-words of at most 75 characters. */
-export function encode(value: string): string {
-	const chunks: string[] = []
-	let chunk = ''
-	let size = 0
-
-	for (const character of value) {
-		const width = bytes(character)
-		if (size + width > WORD_BYTES && chunk) {
-			chunks.push(chunk)
-			chunk = ''
-			size = 0
-		}
-		chunk += character
-		size += width
-	}
-	chunks.push(chunk)
-
-	return chunks
-		.map(part => `=?UTF-8?B?${base64(part)}?=`)
-		.join('\r\n ')
 }

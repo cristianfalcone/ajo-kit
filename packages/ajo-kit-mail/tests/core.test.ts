@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type {
-	Delivery,
-	Message,
-	Transport,
-} from '../src/index'
+import type { Message, Transport } from '../src/index'
 
 const now = new Date('2026-07-25T12:00:00.000Z')
 const environment = process.env.NODE_ENV
@@ -44,7 +40,7 @@ afterEach(() => {
 	vi.resetModules()
 })
 
-describe('ajo-kit-mail runtime deadlines and admission', () => {
+describe('ajo-kit-mail runtime deadline', () => {
 	test('settles a transport that never resolves with a retryable timeout', async () => {
 		const core = await fresh()
 		const stalled: Transport = () => new Promise(() => {})
@@ -75,88 +71,9 @@ describe('ajo-kit-mail runtime deadlines and admission', () => {
 			retryable: true,
 		})
 	})
-
-	test('keeps a third send waiting and reports busy when its deadline passes', async () => {
-		const core = await fresh()
-		const releases: (() => void)[] = []
-		const transport: Transport = () => new Promise<void>(resolve => {
-			releases.push(resolve)
-		})
-
-		core.configure({
-			from: 'sender@example.com',
-			transport,
-			timeout: 200,
-			concurrency: 2,
-		})
-
-		const first = core.deliver(message({ key: 'first' }))
-		const second = core.deliver(message({ key: 'second' }))
-
-		await vi.advanceTimersByTimeAsync(0)
-		expect(releases).toHaveLength(2)
-
-		const third = core.deliver(message({
-			key: 'third',
-			expires: Date.now() + 50,
-		}))
-
-		await vi.advanceTimersByTimeAsync(49)
-		expect(releases).toHaveLength(2)
-
-		await vi.advanceTimersByTimeAsync(1)
-		await expect(third).resolves.toMatchObject({
-			ok: false,
-			kind: 'undelivered',
-			code: 'busy',
-			retryable: true,
-		})
-		expect(releases).toHaveLength(2)
-
-		for (const release of releases) release()
-
-		await expect(first).resolves.toMatchObject({ ok: true })
-		await expect(second).resolves.toMatchObject({ ok: true })
-	})
 })
 
 describe('ajo-kit-mail runtime outcomes', () => {
-	test('isolates an observer that throws from a successful send', async () => {
-		const core = await fresh()
-		const { capture } = await import('../src/capture')
-		const mailbox = capture()
-		const observe = vi.fn((_delivery: Delivery) => {
-			throw new Error('observer failed')
-		})
-
-		core.configure({
-			from: 'sender@example.com',
-			transport: mailbox,
-			observe,
-		})
-
-		const outcome = await core.deliver(message())
-
-		expect(outcome).toMatchObject({
-			ok: true,
-			transport: 'capture',
-		})
-		expect(observe).toHaveBeenCalledOnce()
-		expect(mailbox.messages).toHaveLength(1)
-
-		const event = observe.mock.calls[0][0]
-		expect(event).toMatchObject({
-			kind: 'reset',
-			transport: 'capture',
-			outcome: 'sent',
-			domain: 'example.com',
-			ms: 0,
-		})
-		expect(event).not.toHaveProperty('to')
-		expect(event).not.toHaveProperty('subject')
-		expect(event).not.toHaveProperty('text')
-	})
-
 	test('refuses a development-only transport when production is true', async () => {
 		vi.stubEnv('NODE_ENV', 'production')
 		const log = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -168,6 +85,11 @@ describe('ajo-kit-mail runtime outcomes', () => {
 			transport: capture(),
 		})).toThrow(core.Refused)
 		expect(log).toHaveBeenCalledWith('[mail] refused: invalid-config')
+
+		expect(() => core.configure({
+			from: 'sender@example.com',
+			transport: async () => {},
+		})).not.toThrow()
 	})
 
 	test('deliver never throws for absent configuration, refusal, failure, or success', async () => {
@@ -182,12 +104,9 @@ describe('ajo-kit-mail runtime outcomes', () => {
 		})
 
 		const { capture } = await import('../src/capture')
-		const mailbox = capture()
-		const events: Delivery[] = []
 		core.configure({
 			from: 'sender@example.com',
-			transport: mailbox,
-			observe: delivery => events.push(delivery),
+			transport: capture(),
 		})
 
 		await expect(core.deliver(message({
@@ -198,35 +117,7 @@ describe('ajo-kit-mail runtime outcomes', () => {
 			code: 'invalid-recipient',
 		})
 
-		mailbox.fail('connection')
-		await expect(core.deliver(message())).resolves.toMatchObject({
-			ok: false,
-			kind: 'undelivered',
-			code: 'connection',
-			retryable: true,
-		})
-
-		await expect(core.deliver(message())).resolves.toMatchObject({
-			ok: true,
-			transport: 'capture',
-		})
-		expect(events).toMatchObject([
-			{
-				outcome: 'refused',
-				code: 'invalid-recipient',
-				domain: undefined,
-			},
-			{
-				outcome: 'undelivered',
-				code: 'connection',
-				retryable: true,
-				domain: 'example.com',
-			},
-			{
-				outcome: 'sent',
-				domain: 'example.com',
-			},
-		])
+		await expect(core.deliver(message())).resolves.toMatchObject({ ok: true })
 
 		const provider: Transport = async () => {
 			throw {
@@ -246,10 +137,24 @@ describe('ajo-kit-mail runtime outcomes', () => {
 			code: 'throttled',
 			retryable: true,
 		})
+
+		core.configure({
+			from: 'sender@example.com',
+			transport: () => {
+				throw new Error('synchronous failure')
+			},
+		})
+
+		await expect(core.deliver(message())).resolves.toMatchObject({
+			ok: false,
+			kind: 'undelivered',
+			code: 'unknown',
+			retryable: false,
+		})
 		expect(log).toHaveBeenCalledWith('[mail] refused: no-transport')
 	})
 
-	test('deliver resolves the message id or carries the typed failure', async () => {
+	test('resolves the transport id, else the envelope id', async () => {
 		const core = await fresh()
 		const { capture } = await import('../src/capture')
 		const mailbox = capture()
@@ -259,61 +164,49 @@ describe('ajo-kit-mail runtime outcomes', () => {
 			transport: mailbox,
 		})
 
-		const sent = await core.deliver(message())
-		expect(sent).toEqual({ ok: true, id: mailbox.last()?.id, transport: 'capture' })
+		await expect(core.deliver(message())).resolves.toEqual({ ok: true, id: mailbox.last()?.id })
 
-		mailbox.fail('rejected')
-		const outcome = await core.deliver(message())
-		expect(outcome.ok || outcome.error).toMatchObject({
-			name: 'Undelivered',
-			code: 'rejected',
-			retryable: false,
+		core.configure({
+			from: 'sender@example.com',
+			transport: async () => ({ id: 'provider-42' }),
 		})
+
+		await expect(core.deliver(message())).resolves.toEqual({ ok: true, id: 'provider-42' })
+
+		let envelope = ''
+		core.configure({
+			from: 'sender@example.com',
+			transport: async mail => {
+				envelope = mail.id
+			},
+		})
+
+		const outcome = await core.deliver(message())
+		expect(outcome).toEqual({ ok: true, id: envelope })
+		expect(envelope).not.toBe('')
 	})
 
-	test('probe verifies only when supported and bounds a stalled check', async () => {
-		const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+	test('carries the transport failure, hint included, to the caller', async () => {
 		const core = await fresh()
-
-		await expect(core.probe()).resolves.toMatchObject({
-			ok: false,
-			error: {
-				name: 'Refused',
-				code: 'no-transport',
-			},
-		})
-
-		const verify = vi.fn(() => new Promise<void>(() => {}))
-		const transport = Object.assign(
-			(async () => {}) satisfies Transport,
-			{ verify },
-		)
+		const failure = new core.Undelivered('throttled', 'smtp 451')
 
 		core.configure({
 			from: 'sender@example.com',
-			transport,
-			timeout: 75,
-		})
-
-		const pending = core.probe()
-		await vi.advanceTimersByTimeAsync(75)
-		await expect(pending).resolves.toMatchObject({
-			ok: false,
-			error: {
-				name: 'Undelivered',
-				code: 'timeout',
-				retryable: true,
+			transport: async () => {
+				throw failure
 			},
 		})
-		expect(verify).toHaveBeenCalledOnce()
 
-		const { capture } = await import('../src/capture')
-		core.configure({
-			from: 'sender@example.com',
-			transport: capture(),
+		const outcome = await core.deliver(message())
+
+		expect(outcome).toMatchObject({
+			ok: false,
+			kind: 'undelivered',
+			code: 'throttled',
+			retryable: true,
 		})
-		await expect(core.probe()).resolves.toEqual({ ok: true })
-		expect(log).toHaveBeenCalledWith('[mail] refused: no-transport')
+		expect(outcome.ok || outcome.error).toBe(failure)
+		expect(outcome.ok || outcome.error).toMatchObject({ hint: 'smtp 451' })
 	})
 })
 
@@ -347,32 +240,25 @@ describe('ajo-kit-mail capture transport', () => {
 		])
 		expect(mailbox.link()).toBe('https://example.com/docs')
 		expect(mailbox.link(/\/reset\//)).toBe('https://example.com/reset/final-token')
+		expect(mailbox.link(/\/reset\//g)).toBe('https://example.com/reset/final-token')
+
+		mailbox.clear()
+		expect(mailbox.messages).toHaveLength(0)
+		expect(mailbox.last()).toBeUndefined()
 	})
 
-	test('injects a bounded number of failures and clear resets all capture state', async () => {
+	test('logs id, kind and recipient domain only', async () => {
 		const core = await fresh()
 		const { capture } = await import('../src/capture')
-		const mailbox = capture()
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {})
 
 		core.configure({
 			from: 'sender@example.com',
-			transport: mailbox,
+			transport: capture({ log: true }),
 		})
-		mailbox.fail('unavailable', 2)
 
-		await expect(core.deliver(message())).resolves.toMatchObject({
-			ok: false,
-			code: 'unavailable',
-		})
-		await expect(core.deliver(message())).resolves.toMatchObject({
-			ok: false,
-			code: 'unavailable',
-		})
-		await expect(core.deliver(message())).resolves.toMatchObject({ ok: true })
+		const outcome = await core.deliver(message())
 
-		mailbox.fail('connection')
-		mailbox.clear()
-		await expect(core.deliver(message())).resolves.toMatchObject({ ok: true })
-		expect(mailbox.messages).toHaveLength(1)
+		expect(log).toHaveBeenCalledWith(`[mail] ${outcome.ok ? outcome.id : ''} reset @example.com sent`)
 	})
 })

@@ -101,7 +101,6 @@ describe('ajo-kit-mail HTTP transport', () => {
 
 			await expect(transport(message())).resolves.toEqual({ id: 'provider-42' })
 			await request
-			expect(transport.label).toBe('http')
 		})
 
 		expect(received).toEqual({
@@ -127,7 +126,6 @@ describe('ajo-kit-mail HTTP transport', () => {
 		}, async url => {
 			const transport = http({
 				url,
-				headers: { 'Idempotency-Key': 'static-config-must-not-leak' },
 				body: mail => ({ id: mail.id }),
 			})
 
@@ -228,32 +226,12 @@ describe('ajo-kit-mail HTTP transport', () => {
 		})
 	})
 
-	test('cancels and classifies a chunked success response over 64 KiB', async () => {
-		await withServer((request, response) => {
-			request.resume()
-			response.writeHead(200, { 'Content-Type': 'application/json' })
-			response.write(' '.repeat(RESPONSE_BYTES))
-			response.end('x')
-		}, async url => {
-			const transport = http({
-				url,
-				body: mail => ({ id: mail.id }),
-			})
-
-			await expect(transport(message())).rejects.toMatchObject({
-				code: 'connection',
-				retryable: true,
-			})
-		})
-	})
-
-	test('passes the engine response bound and reads its body through arrayBuffer', async () => {
-		const encoded = new TextEncoder().encode('{"id":"engine-42"}')
+	test('passes the engine response bound and reads the id from the text body', async () => {
 		const fetcher = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
 			ok: true,
 			status: 200,
 			headers: new Headers(),
-			arrayBuffer: async () => encoded.buffer,
+			text: async () => '{"id":"engine-42"}',
 		}) as Response)
 		vi.stubGlobal('fetch', fetcher)
 		const transport = http({
@@ -270,23 +248,60 @@ describe('ajo-kit-mail HTTP transport', () => {
 		})
 	})
 
-	test('rejects an oversized buffered response if a host violates maxBody', async () => {
-		const encoded = new Uint8Array(RESPONSE_BYTES + 1)
+	test('treats an empty 200 as success without an id', async () => {
 		vi.stubGlobal('fetch', vi.fn(async () => ({
 			ok: true,
 			status: 200,
 			headers: new Headers(),
-			arrayBuffer: async () => encoded.buffer,
+			text: async () => '',
 		}) as Response))
+		const transport = http({
+			url: 'https://mail.example.test/send',
+			body: mail => ({ id: mail.id }),
+			id: result => (result as { id?: string }).id,
+		})
+
+		await expect(transport(message())).resolves.toBeUndefined()
+	})
+
+	test('leaves a success body unread when no id is mapped', async () => {
+		const text = vi.fn(async () => '{"id":"unused"}')
+		const cancel = vi.fn(async () => {})
+		vi.stubGlobal('fetch', vi.fn(async () => ({
+			ok: true,
+			status: 200,
+			headers: new Headers(),
+			body: { cancel },
+			text,
+		}) as unknown as Response))
 		const transport = http({
 			url: 'https://mail.example.test/send',
 			body: mail => ({ id: mail.id }),
 		})
 
-		await expect(transport(message())).rejects.toMatchObject({
-			code: 'connection',
-			retryable: true,
+		await expect(transport(message())).resolves.toBeUndefined()
+		expect(text).not.toHaveBeenCalled()
+		expect(cancel).toHaveBeenCalledOnce()
+	})
+
+	test('classifies an unparsable success body without echoing it', async () => {
+		vi.stubGlobal('fetch', vi.fn(async () => ({
+			ok: true,
+			status: 200,
+			headers: new Headers(),
+			text: async () => 'recipient@example.com token-secret',
+		}) as Response))
+		const transport = http({
+			url: 'https://mail.example.test/send',
+			body: mail => ({ id: mail.id }),
+			id: result => (result as { id?: string }).id,
 		})
+
+		const error = await transport(message()).catch(value => value)
+
+		expect(error).toMatchObject({ name: 'Undelivered', code: 'unknown', retryable: false })
+		expect(JSON.stringify(error)).not.toContain('token-secret')
+		expect(String(error.message)).not.toContain('token-secret')
 	})
 
 	test.each([

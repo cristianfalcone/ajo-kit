@@ -3,9 +3,10 @@
 import { isIP, Socket } from 'node:net'
 import { connect as connectTls } from 'node:tls'
 import { createTransport } from 'nodemailer'
-import { Refused, Undelivered } from './errors'
+import type SMTPTransport from 'nodemailer/lib/smtp-transport'
+import { Refused, Undelivered, classify } from './errors'
 import type { Receipt, Transport } from './index'
-import type { Sealed } from './seal'
+import { domain, type Sealed } from './seal'
 
 /**
  * Discrete credential fields on purpose. There is no `url` option: a
@@ -28,18 +29,6 @@ export interface SmtpOptions {
 	name?: string
 }
 
-interface Configuration {
-	readonly host: string
-	readonly port: number
-	readonly implicit: boolean
-	readonly user?: string
-	readonly pass?: string
-	readonly name?: string
-}
-
-const CONTROL = /[\u0000-\u001f\u007f]/
-const VERIFY_TIMEOUT = 10_000
-
 type SocketOptions = {
 	readonly connection: Socket
 	readonly secured?: boolean
@@ -47,56 +36,10 @@ type SocketOptions = {
 
 type SocketCallback = (error: Error | null, options?: SocketOptions) => void
 
-const configuration = (options: SmtpOptions): Configuration => {
-	if (!options || typeof options !== 'object') throw new Refused('invalid-config')
-
-	const host = options.host
-	const port = options.port ?? 587
-	const implicit = options.implicit ?? false
-	const user = options.user
-	const pass = options.pass
-	const name = options.name
-
-	if (
-		typeof host !== 'string'
-		|| !host
-		|| host !== host.trim()
-		|| host.length > 253
-		|| CONTROL.test(host)
-		|| /\s/.test(host)
-		|| !Number.isInteger(port)
-		|| port < 1
-		|| port > 65_535
-		|| typeof implicit !== 'boolean'
-		|| (user !== undefined && (typeof user !== 'string' || !user))
-		|| (pass !== undefined && (typeof pass !== 'string' || !pass))
-		|| (user === undefined) !== (pass === undefined)
-		|| (
-			name !== undefined
-			&& (
-				typeof name !== 'string'
-				|| !name
-				|| name !== name.trim()
-				|| name.length > 253
-				|| CONTROL.test(name)
-				|| /\s/.test(name)
-			)
-		)
-	) {
-		throw new Refused('invalid-config')
-	}
-
-	return Object.freeze({
-		host,
-		port,
-		implicit,
-		...(user !== undefined && { user, pass }),
-		...(name !== undefined && { name }),
-	})
-}
-
 const connector = (
-	config: Configuration,
+	host: string,
+	port: number,
+	implicit: boolean,
 	own: (socket: Socket) => void,
 ) =>
 	(_options: unknown, callback: SocketCallback) => {
@@ -107,12 +50,17 @@ const connector = (
 			settled = true
 			callback(error, options)
 		}
+		// A socket closed before it connected (an error, or close() on abort)
+		// fails the send instead of leaving nodemailer waiting for this callback.
+		const fail = () => finish(Object.assign(new Error('SMTP connection failed'), {
+			code: implicit ? 'ETLS' : 'ESOCKET',
+		}))
 
-		if (config.implicit) {
+		if (implicit) {
 			socket = connectTls({
-				host: config.host,
-				port: config.port,
-				...(isIP(config.host) === 0 && { servername: config.host }),
+				host,
+				port,
+				...(isIP(host) === 0 && { servername: host }),
 				rejectUnauthorized: true,
 				minVersion: 'TLSv1.2',
 			}, () => finish(null, {
@@ -121,111 +69,18 @@ const connector = (
 			}))
 		} else {
 			socket = new Socket()
-			socket.connect(config.port, config.host, () => finish(null, {
+			socket.connect(port, host, () => finish(null, {
 				connection: socket,
 			}))
 		}
 
 		own(socket)
-		socket.on('error', () => {
-			if (!settled) {
-				finish(Object.assign(new Error('SMTP connection failed'), {
-					code: config.implicit ? 'ETLS' : 'ESOCKET',
-				}))
-			}
-		})
+		socket.on('error', fail).once('close', fail)
 	}
-
-const settings = (
-	config: Configuration,
-	name: string,
-	timeout: number,
-	own: (socket: Socket) => void,
-) => ({
-	host: config.host,
-	port: config.port,
-	secure: config.implicit,
-	pool: false,
-	requireTLS: !config.implicit,
-	ignoreTLS: false,
-	opportunisticTLS: false,
-	name,
-	...(config.user !== undefined && {
-		auth: {
-			user: config.user,
-			pass: config.pass!,
-		},
-	}),
-	connectionTimeout: timeout,
-	greetingTimeout: timeout,
-	socketTimeout: timeout,
-	dnsTimeout: timeout,
-	tls: {
-		rejectUnauthorized: true,
-		minVersion: 'TLSv1.2' as const,
-	},
-	disableFileAccess: true,
-	disableUrlAccess: true,
-	logger: false,
-	debug: false,
-	transactionLog: false,
-	getSocket: connector(config, own),
-})
 
 const remaining = (deadline: number) => {
 	const value = Math.ceil(deadline - Date.now())
 	return value > 0 ? Math.min(value, 2_147_483_647) : 0
-}
-
-const bounded = <T>(work: Promise<T>, signal: AbortSignal, close: () => void) =>
-	new Promise<T>((resolve, reject) => {
-		const stop = () => {
-			close()
-			reject(new Undelivered('timeout', true))
-		}
-
-		if (signal.aborted) return stop()
-
-		signal.addEventListener('abort', stop, { once: true })
-		work.then(
-			value => {
-				signal.removeEventListener('abort', stop)
-				resolve(value)
-			},
-			error => {
-				signal.removeEventListener('abort', stop)
-				reject(error)
-			},
-		)
-	})
-
-/** SMTP reply-code mapping. Note the parentheses: this is where a precedence bug hides. */
-const reply = (error: unknown): Undelivered => {
-	const value = (error ?? {}) as {
-		code?: unknown
-		command?: unknown
-		responseCode?: unknown
-	}
-	const code = typeof value.code === 'string' ? value.code : ''
-	const command = typeof value.command === 'string' ? value.command : ''
-	const status = typeof value.responseCode === 'number' ? value.responseCode : undefined
-	const hint = status === undefined ? undefined : `smtp ${status}`
-
-	if (code === 'EAUTH' || status === 530 || status === 535) return new Undelivered('auth', false, hint)
-	if (code === 'ETLS' || code.startsWith('ERR_TLS') || code.includes('CERT')) {
-		return new Undelivered('tls', false)
-	}
-	if (code === 'ESOCKET' && command === 'CONN') return new Undelivered('tls', false)
-	if (code === 'ETIMEDOUT' || (code === 'ECONNECTION' && status === undefined)) {
-		return new Undelivered('timeout', true)
-	}
-	if (status !== undefined && status >= 400 && status < 500) {
-		return new Undelivered('throttled', true, hint)
-	}
-	if (status !== undefined && status >= 500) return new Undelivered('rejected', false, hint)
-	if (code) return new Undelivered('connection', true)
-
-	return new Undelivered('unknown', false)
 }
 
 /**
@@ -233,11 +88,15 @@ const reply = (error: unknown): Undelivered => {
  * TLS, deadline-derived socket timeouts and sanitized failure classifications.
  */
 export function smtp(options: SmtpOptions): Transport {
-	const config = configuration(options)
+	const { host, port = 587, implicit = false, user, pass } = options
 
-	const send = async (mail: Sealed): Promise<Receipt | void> => {
+	if (!Number.isInteger(port) || port < 1 || port > 65_535 || (user === undefined) !== (pass === undefined)) {
+		throw new Refused('invalid-config')
+	}
+
+	return async (mail: Sealed): Promise<Receipt | void> => {
 		const timeout = remaining(mail.deadline)
-		if (!timeout) throw new Undelivered('timeout', true)
+		if (!timeout) throw new Undelivered('timeout')
 
 		let mailer: ReturnType<typeof createTransport> | undefined
 		let socket: Socket | undefined
@@ -253,10 +112,33 @@ export function smtp(options: SmtpOptions): Transport {
 			mailer?.close()
 		}
 
+		mail.signal.addEventListener('abort', close, { once: true })
+
+		const settings: SMTPTransport.Options = {
+			host,
+			port,
+			secure: implicit,
+			requireTLS: !implicit,
+			opportunisticTLS: false,
+			name: options.name ?? domain(mail.from.address),
+			...(user !== undefined && { auth: { user, pass: pass! } }),
+			connectionTimeout: timeout,
+			greetingTimeout: timeout,
+			socketTimeout: timeout,
+			dnsTimeout: timeout,
+			tls: {
+				rejectUnauthorized: true,
+				minVersion: 'TLSv1.2',
+			},
+			// Nodemailer copies both onto every message it builds.
+			disableFileAccess: true,
+			disableUrlAccess: true,
+			getSocket: connector(host, port, implicit, own),
+		}
+
 		try {
-			const name = config.name ?? mail.from.address.slice(mail.from.address.lastIndexOf('@') + 1)
-			mailer = createTransport(settings(config, name, timeout, own))
-			const result = await bounded<{ messageId?: unknown }>(mailer.sendMail({
+			mailer = createTransport(settings)
+			const result = await mailer.sendMail({
 				from: mail.from,
 				to: mail.to,
 				...(mail.replyTo && { replyTo: mail.replyTo }),
@@ -267,51 +149,19 @@ export function smtp(options: SmtpOptions): Transport {
 					from: mail.from.address,
 					to: [mail.to.address],
 				},
-				disableFileAccess: true,
-				disableUrlAccess: true,
-			}) as Promise<{ messageId?: unknown }>, mail.signal, close)
+			}) as { messageId?: unknown }
 
 			return typeof result.messageId === 'string' && result.messageId
 				? { id: result.messageId }
 				: undefined
 		} catch (error) {
-			if (error instanceof Undelivered) throw error
-			throw reply(error)
+			if (mail.signal.aborted) throw new Undelivered('timeout')
+			// Nodemailer reports a socket lost during the STARTTLS handshake as ESOCKET at CONN.
+			const { code, command } = (error ?? {}) as { code?: unknown, command?: unknown }
+			throw classify(code === 'ESOCKET' && command === 'CONN' ? { code: 'ETLS' } : error)
 		} finally {
+			mail.signal.removeEventListener('abort', close)
 			close()
 		}
 	}
-
-	const verify = async (signal: AbortSignal): Promise<void> => {
-		if (signal.aborted) throw new Undelivered('timeout', true)
-
-		let mailer: ReturnType<typeof createTransport> | undefined
-		let socket: Socket | undefined
-		let closed = false
-		const own = (value: Socket) => {
-			socket = value
-			if (closed) value.destroy()
-		}
-		const close = () => {
-			if (closed) return
-			closed = true
-			socket?.destroy()
-			mailer?.close()
-		}
-
-		try {
-			mailer = createTransport(settings(config, config.name ?? config.host, VERIFY_TIMEOUT, own))
-			await bounded(mailer.verify(), signal, close)
-		} catch (error) {
-			if (error instanceof Undelivered) throw error
-			throw reply(error)
-		} finally {
-			close()
-		}
-	}
-
-	return Object.assign(send, {
-		label: 'smtp',
-		verify,
-	})
 }

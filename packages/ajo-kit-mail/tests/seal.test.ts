@@ -3,9 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { Refused, type RefusalCode } from '../src/errors'
 import {
 	domain,
-	encode,
 	seal,
-	type Envelope,
 	type Message,
 	type Policy,
 	type Sealed,
@@ -210,13 +208,6 @@ describe('seal UTF-8 byte limits', () => {
 		expect(Buffer.byteLength(result.subject, 'utf8')).toBe(255)
 		expect(Buffer.byteLength(result.text, 'utf8') + Buffer.byteLength(result.html!, 'utf8')).toBe(262_144)
 	})
-
-	test('refuses a policy body limit above the hard maximum', () => {
-		refused('invalid-config', () => seal(message(), {
-			...policy,
-			limit: 262_145,
-		}))
-	})
 })
 
 describe('seal message validation', () => {
@@ -242,6 +233,13 @@ describe('seal message validation', () => {
 
 	test('refuses an empty text and html body', () => {
 		refused('empty-body', () => seal(message({ text: '', html: '' }), policy))
+	})
+
+	test('accepts line breaks in the bodies', () => {
+		const result = seal(message({ text: 'Line one\r\nLine two', html: '<p>One</p>\n<p>Two</p>' }), policy)
+
+		expect(result.text).toBe('Line one\r\nLine two')
+		expect(result.html).toBe('<p>One</p>\n<p>Two</p>')
 	})
 
 	test.each([
@@ -285,7 +283,7 @@ describe('seal deadline and boundary', () => {
 		expect(expiryWins.deadline).toBe(now + 2_000)
 	})
 
-	test('returns a frozen envelope with frozen mailbox values', () => {
+	test('returns one frozen envelope', () => {
 		const result = seal(message({
 			replyTo: {
 				address: 'reply@example.com',
@@ -294,20 +292,25 @@ describe('seal deadline and boundary', () => {
 		}), policy)
 
 		expect(Object.isFrozen(result)).toBe(true)
-		expect(Object.isFrozen(result.from)).toBe(true)
-		expect(Object.isFrozen(result.to)).toBe(true)
-		expect(Object.isFrozen(result.replyTo)).toBe(true)
+		expect(result.replyTo).toEqual({ address: 'reply@example.com', name: 'Reply Desk' })
 		expect(result.id).toBe('00000000-0000-4000-8000-000000000000')
 		expect(result.signal).toBeInstanceOf(AbortSignal)
 	})
 
-	test('does not allow an Envelope to construct Sealed outside seal', () => {
-		const envelope: Envelope = seal(message(), policy)
-
+	test('does not allow a plain object to stand in for Sealed', () => {
 		// @ts-expect-error The unexported unique-symbol brand is absent.
-		const forged: Sealed = { ...envelope }
+		const forged: Sealed = {
+			id: 'forged',
+			kind: 'mail',
+			from: { address: 'sender@example.com' },
+			to: { address: 'recipient@example.com' },
+			subject: 'Welcome',
+			text: 'Hello from Ajo',
+			deadline: 0,
+			signal: new AbortController().signal,
+		}
 
-		expect(forged).toEqual(envelope)
+		expect(forged.id).toBe('forged')
 	})
 
 	test('constructs the envelope from the exact values that were validated', () => {
@@ -327,23 +330,5 @@ describe('seal deadline and boundary', () => {
 describe('seal helpers', () => {
 	test('returns only the lowercase domain from an address', () => {
 		expect(domain('private@EXAMPLE.COM')).toBe('example.com')
-	})
-
-	test('folds a long unicode value into bounded RFC 2047 encoded-words', () => {
-		const value = '界'.repeat(128)
-		const words = encode(value).split('\r\n ')
-		const decoded = words
-			.map(word => word.slice('=?UTF-8?B?'.length, -2))
-			.map(part => Buffer.from(part, 'base64').toString('utf8'))
-			.join('')
-
-		expect(words.length).toBeGreaterThan(1)
-		expect(words.every(word => Buffer.byteLength(word, 'ascii') <= 75)).toBe(true)
-		expect(words.every(word => !word.includes('\uFFFD'))).toBe(true)
-		expect(decoded).toBe(value)
-	})
-
-	test('preserves the exact RFC 2047 base64 encoding', () => {
-		expect(encode('Ajo 🌶️')).toBe('=?UTF-8?B?QWpvIPCfjLbvuI8=?=')
 	})
 })
