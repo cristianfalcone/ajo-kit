@@ -6,7 +6,7 @@ import {
 	type CheckboxGroupArgs as BaseCheckboxGroupArgs,
 	type CheckboxGroupItemArgs as BaseCheckboxGroupItemArgs,
 } from 'ajo-ui/checkbox-group'
-import { checkboxIndicator, checkboxState, choiceGroupOrientation, choiceInput } from './internal/recipes'
+import { checkboxIndicator, checkboxState, choiceGroupOrientation, choiceInput } from './internal/choice'
 
 export type CheckboxGroupOrientation = 'horizontal' | 'vertical'
 

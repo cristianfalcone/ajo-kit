@@ -102,7 +102,7 @@ const contentBase = [
 ].join(' ')
 
 // Solid popover fill: reaction pills repeat per message, so they skip the
-// glass-overlay backdrop-filter for the same reason outline bubbles do.
+// frosted overlay's backdrop-filter for the same reason outline bubbles do.
 const reactionsBase = 'absolute z-10 flex w-fit shrink-0 items-center justify-center gap-1 rounded-full bg-popover text-popover-foreground edge px-1.5 py-0.5 text-sm has-[button]:p-0'
 
 const reactionSides: Record<BubbleReactionSide, string> = {

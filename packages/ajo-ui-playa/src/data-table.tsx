@@ -5,13 +5,8 @@ import {
 	type DataTableKey,
 } from 'ajo-ui/data-table'
 import { clx } from 'ajo-ui/utils'
-import {
-	checkboxIndicator,
-	checkboxState,
-	choiceInput,
-	menuCheckIndicator,
-	menuContent,
-} from './internal/recipes'
+import { checkboxIndicator, checkboxState, choiceInput } from './internal/choice'
+import { menuCheckIndicator, menuContent } from './internal/menu'
 export type { DataTableArgs, DataTableColumn } from 'ajo-ui/data-table'
 
 /**

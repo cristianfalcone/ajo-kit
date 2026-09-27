@@ -9,7 +9,7 @@ import {
 	type ToggleGroupSingleArgs as BaseToggleGroupSingleArgs,
 } from 'ajo-ui/toggle-group'
 import { clx, stlx } from 'ajo-ui/utils'
-import { toggleVariants } from './internal/recipes'
+import { toggleVariants } from './internal/toggle'
 import { segmentSeams } from './internal/seams'
 import type { ToggleSize, ToggleVariant } from './toggle'
 export type { ToggleGroupOrientation, ToggleGroupType } from 'ajo-ui/toggle-group'

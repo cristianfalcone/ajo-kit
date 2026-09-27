@@ -8,7 +8,7 @@ import {
 	type CollapsibleContentArgs as BaseCollapsibleContentArgs,
 	type CollapsibleTriggerArgs as BaseCollapsibleTriggerArgs,
 } from 'ajo-ui/collapsible'
-import { disclosureContent } from './internal/recipes'
+import { disclosureContent } from './internal/disclosure'
 
 export type CollapsibleArgs = BaseCollapsibleArgs & { class?: string }
 export type CollapsibleTriggerArgs = BaseCollapsibleTriggerArgs & { class?: string }

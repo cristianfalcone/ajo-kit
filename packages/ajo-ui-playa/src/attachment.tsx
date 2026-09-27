@@ -13,7 +13,7 @@ export type AttachmentMediaVariant =
 	| 'image'
 
 export type AttachmentArgs = WithChildren<IntrinsicElements['div'] & {
-	/** Upload lifecycle state. Drives border, text, and shimmer styling. */
+	/** Upload lifecycle state. Drives border, text, and shimmering title styling. */
 	state?: AttachmentState
 	/** Visual size. */
 	size?: AttachmentSize
@@ -112,7 +112,7 @@ const mediaVariants: Record<AttachmentMediaVariant, string> = {
 }
 
 const contentBase = 'max-w-full min-w-0 flex-1 leading-tight group-data-[orientation=vertical]/attachment:px-1'
-// Uploading and processing titles shimmer; the preset holds the motion back under reduced motion.
+// Uploading and processing titles get a shimmering sweep; the preset holds the motion back under reduced motion.
 const titleBase = 'block max-w-full min-w-0 truncate font-medium group-data-[state=uploading]/attachment:shimmer group-data-[state=processing]/attachment:shimmer'
 const descriptionBase = 'mt-0.5 block max-w-full min-w-0 truncate text-xs text-muted-foreground group-data-[state=error]/attachment:text-danger/80'
 const actionsBase = 'relative z-20 flex shrink-0 items-center group-data-[orientation=vertical]/attachment:absolute group-data-[orientation=vertical]/attachment:right-3 group-data-[orientation=vertical]/attachment:top-3 group-data-[orientation=vertical]/attachment:gap-1'

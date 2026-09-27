@@ -10,7 +10,7 @@ import {
 	type AccordionSingleArgs as BaseAccordionSingleArgs,
 	type AccordionTriggerArgs as BaseAccordionTriggerArgs,
 } from 'ajo-ui/accordion'
-import { disclosureContent } from './internal/recipes'
+import { disclosureContent } from './internal/disclosure'
 export { Accordion } from 'ajo-ui/accordion'
 export type { AccordionType } from 'ajo-ui/accordion'
 

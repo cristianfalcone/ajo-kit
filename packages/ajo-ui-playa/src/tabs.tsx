@@ -46,7 +46,7 @@ const listBase = clx(
 	// marker only shows once the base stamps data-indicator.
 	'relative isolate before:content-empty before:pointer-events-none before:absolute before:left-0 before:top-0 before:-z-1 before:opacity-0 data-[indicator]:before:opacity-100 before:transition-[translate,width,height,opacity] before:duration-200 before:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:before:transition-none',
 )
-// The track is a tint, not glass: tab lists usually rest on glass cards, and
+// The track is a tint, not frost: tab lists usually rest on frosted cards, and
 // stacking a second backdrop-filter there hurts both legibility and paint.
 // Geometry single-owner rule: each variant owns the marker's translate/size
 // completely (the line variant hugs the trigger's inner edge so the bar stays

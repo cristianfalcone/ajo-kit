@@ -16,10 +16,10 @@ import {
 	type DrawerArgs,
 	type DrawerContentArgs,
 } from 'ajo-ui/drawer'
-import { modalClosed, modalSurface } from './internal/recipes'
+import { modalClosed, modalSurface } from './internal/modal'
 export type { DrawerArgs, DrawerContentArgs, DrawerSide } from 'ajo-ui/drawer'
 
-const base = clx(modalSurface, 'group/drawer-content m-0 flex flex-col gap-4')
+const base = clx(modalSurface, 'playa-drawer group/drawer-content')
 // Edge geometry keys off the base's `data-side`; top and bottom drawers with
 // a handle become rounded sheets capped below the viewport height.
 const horizontal = [

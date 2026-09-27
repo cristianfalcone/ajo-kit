@@ -29,13 +29,8 @@ import {
 } from 'ajo-ui/dialog'
 import { clx, type OmitArg } from 'ajo-ui/utils'
 import { DialogClose } from './dialog'
-import {
-	modalCentered,
-	modalClosed,
-	modalEnter,
-	modalSurface,
-	scrollAreaVariants,
-} from './internal/recipes'
+import { modalCentered, modalClosed, modalEnter, modalSurface } from './internal/modal'
+import { scrollAreaVariants } from './internal/recipes'
 
 export type { CommandArgs, CommandEmptyArgs, CommandFilter, CommandGroupArgs, CommandInputArgs, CommandItemArgs, CommandListArgs, CommandSeparatorArgs, CommandShortcutArgs }
 /** Arguments for a native dialog that owns a Command palette. */

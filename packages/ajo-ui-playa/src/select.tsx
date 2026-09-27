@@ -39,7 +39,7 @@ import type {
 } from 'ajo-ui/select'
 import { buttonVariants } from './button'
 import { chipVariants } from './chip'
-import { inputGroupVariants } from './internal/recipes'
+import { inputGroupVariants } from './internal/input-group'
 export { SelectGroup, SelectValue } from 'ajo-ui/select'
 export type { PopupPlacement, PopupPosition } from 'ajo-ui/select'
 

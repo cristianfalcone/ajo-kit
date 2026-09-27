@@ -7,7 +7,7 @@ import {
 	type RadioGroupItemArgs as BaseRadioGroupItemArgs,
 	type RadioGroupOrientation as BaseRadioGroupOrientation,
 } from 'ajo-ui/radio-group'
-import { choiceGroupOrientation, choiceInput } from './internal/recipes'
+import { choiceGroupOrientation, choiceInput } from './internal/choice'
 
 export type RadioGroupOrientation = BaseRadioGroupOrientation
 

@@ -3,7 +3,7 @@ import {
 	Toggle as BaseToggle,
 	type ToggleArgs as BaseToggleArgs,
 } from 'ajo-ui/toggle'
-import { toggleVariants } from './internal/recipes'
+import { toggleVariants } from './internal/toggle'
 
 export type ToggleVariant = 'default' | 'outline'
 export type ToggleSize = 'default' | 'lg' | 'sm'

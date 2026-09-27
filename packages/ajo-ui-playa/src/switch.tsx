@@ -1,7 +1,7 @@
 import type { Stateless } from 'ajo'
 import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import { Switch as BaseSwitch, type SwitchArgs as BaseSwitchArgs } from 'ajo-ui/switch'
-import { choiceInput } from './internal/recipes'
+import { choiceInput } from './internal/choice'
 
 export type SwitchSize = 'default' | 'sm'
 

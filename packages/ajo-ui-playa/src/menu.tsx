@@ -29,7 +29,7 @@ import type {
 	MenuTriggerArgs,
 	MenuVariant,
 } from 'ajo-ui/menu'
-import { menuCheckIndicator, menuContent } from './internal/recipes'
+import { menuCheckIndicator, menuContent } from './internal/menu'
 
 export { MenuGroup, MenuRadioGroup, MenuSub, MenuTrigger } from 'ajo-ui/menu'
 

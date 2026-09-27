@@ -1,4 +1,5 @@
-import { createGenerator } from 'unocss'
+import { readdirSync, readFileSync } from 'node:fs'
+import { createGenerator, type Preset } from 'unocss'
 import { describe, expect, it } from 'vitest'
 import { playa } from 'ajo-ui-playa'
 
@@ -27,7 +28,6 @@ describe('playa preset', () => {
 		expect(css).toContain('[aria-invalid="true"]')
 		expect(css).toContain('.scroll-fade-x')
 		expect(css).toContain('.i-lucide-check')
-		expect(css).toContain('[data-slot=button-group]')
 		expect(css).toContain('::selection{background-color:color-mix(in oklab,var(--gold-4) 35%,transparent)}')
 		expect(css).toContain(':where(:focus-visible){outline:var(--focus-width) solid var(--ring);outline-offset:0}')
 		expect(css).toContain('[data-slot=chart] [data-slot=chart-tooltip][data-positioned=true]{transition:transform 200ms ease-out}')
@@ -90,6 +90,56 @@ describe('playa preset', () => {
 		expect(css).toContain('[data-rich-colors]>[data-slot=toast][data-variant=info]{background-color:')
 	})
 
+	it('emits family part rules and keyframes only with their class, the rules before every utility', async () => {
+		const parts = [
+			'[data-slot=chart]',
+			'[data-slot=toast]',
+			'[data-slot=drawer-content]',
+			'[data-slot=popup-surface]',
+			'.playa-button-group',
+			'@keyframes progress-slide',
+		]
+		const bare = (await (await createGenerator({ presets: [playa()] })).generate('h-9')).css
+		for (const part of [...parts, '@keyframes shimmer']) expect(bare).not.toContain(part)
+
+		const { css } = await (await createGenerator({ presets: [playa()] }))
+			.generate('playa-chart playa-toaster playa-drawer playa-popup-content playa-button-group playa-progress shimmer h-9')
+		const first = (text: string) => css.indexOf(text)
+		expect(css).toContain('@keyframes chart-grow{from{transform:scaleY(0)}}')
+		expect(css).toContain('[data-slot=toast]{position:absolute;left:1rem;right:1rem;')
+		expect(css).toContain('[data-slot=drawer-content][data-side=bottom]:not([open]){transform:translateY(100%)}')
+		expect(css).toContain('.playa-button-group.playa-button-group>:active{scale:none}')
+		expect(css).toContain('.playa-progress[data-state=indeterminate]>[data-slot=progress-indicator]{animation:progress-slide 1.4s ease-in-out infinite}@keyframes progress-slide{')
+		expect(css).toContain('@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}')
+		expect(first('[data-slot=chart]')).toBeLessThan(first('.playa-chart'))
+		expect(first('[data-slot=toast]{')).toBeLessThan(first('.playa-toaster'))
+		expect(first('[data-slot=popup-surface]')).toBeLessThan(first('.playa-popup-content{'))
+		for (const part of parts) expect(first(part)).toBeLessThan(first('.h-9'))
+	})
+
+	it('never emits one of its own rules or shortcuts from family prose', async () => {
+		const preset = playa() as Preset
+		const own = [preset, ...(preset.presets ?? []) as Preset[]].filter(part => part.name.startsWith('ajo-ui-playa'))
+		const names = new Set(own.flatMap(part => [
+			...Object.keys(part.shortcuts ?? {}),
+			...(part.rules ?? []).flatMap(([matcher]) => typeof matcher === 'string' ? [matcher] : []),
+		]))
+		const comment = /\/\*[\s\S]*?\*\/|(?<![:'"\w])\/\/[^\n]*/g
+		const src = new URL('../src/', import.meta.url)
+		const files = readdirSync(src, { recursive: true, encoding: 'utf8' }).filter(file => file.endsWith('.tsx'))
+		const uno = await createGenerator({ presets: [playa()] })
+		const leaks: string[] = []
+		for (const file of files) {
+			const source = readFileSync(new URL(file, src), 'utf8')
+			const prose = (await uno.generate(source.match(comment)?.join('\n') ?? '', { preflights: false })).matched
+			const code = (await uno.generate(source.replace(comment, ' '), { preflights: false })).matched
+			leaks.push(...[...prose].filter(name => names.has(name) && !code.has(name)).map(name => `${file}: ${name}`))
+		}
+
+		expect(names.has('panel')).toBe(true)
+		expect(leaks).toEqual([])
+	})
+
 	it('does not eagerly emit application-only shortcuts or icons', async () => {
 		const uno = await createGenerator({ presets: [playa()] })
 		const { css } = await uno.generate('site-container h-9')
@@ -100,7 +150,7 @@ describe('playa preset', () => {
 
 	it('paints popup bodies and arrows as one progressively enhanced surface', async () => {
 		const uno = await createGenerator({ presets: [playa()] })
-		const { css } = await uno.generate('h-9')
+		const { css } = await uno.generate('playa-popup-content')
 		const surface = '.playa-popup-content>[data-slot=popup-surface]'
 		const nearRadius = 'min(var(--popup-radius),max(0px,calc(var(--popup-arrow-center) - 7px)))'
 		const farRadius = 'min(var(--popup-radius),max(0px,calc(100% - var(--popup-arrow-center) - 7px)))'
@@ -114,5 +164,8 @@ describe('playa preset', () => {
 		expect(css).toContain(farRadius)
 		expect(css).toContain('.playa-popover-content>[data-slot=popup-surface]{background-color:var(--glass-overlay);-webkit-backdrop-filter:var(--glass-filter)')
 		expect(css).toContain('.playa-tooltip-content>[data-slot=popup-surface]{background-color:var(--navy)')
+		// Without backdrop-filter the solid popover fill must follow, and so outrank, the frost.
+		const fallback = css.indexOf('{.playa-popover-content>[data-slot=popup-surface]{background-color:var(--popover)}}')
+		expect(fallback).toBeGreaterThan(css.indexOf('.playa-popover-content>[data-slot=popup-surface]{background-color:var(--glass-overlay)'))
 	})
 })

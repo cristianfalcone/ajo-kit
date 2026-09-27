@@ -1,6 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { definePreset, presetIcons, presetWind4 } from 'unocss'
 import { icons as lucide } from '@iconify-json/lucide'
+import { actions } from './preset/actions'
+import { choices } from './preset/choices'
+import { data } from './preset/data'
+import { fields } from './preset/fields'
+import { floating } from './preset/floating'
+import { modal } from './preset/modal'
+import { navigation } from './preset/navigation'
+import { pickers } from './preset/pickers'
+import { surfaces } from './preset/surfaces'
 
 // The tokens are a plain stylesheet that apps without UnoCSS import too; the
 // preset emits them, without comments or layout whitespace, as its first
@@ -27,18 +36,6 @@ const overflowFades = ([['x', 'right'], ['y', 'bottom']] as const).flatMap(([axi
   (['start', 'end', 'both'] as const).map(edges =>
     `[data-overflow-${axis}=${edges}]{-webkit-mask-image:${fade(side, edges)};mask-image:${fade(side, edges)}}`)).join('')
 
-const popupSurfaceSelector = '.playa-popup-content>[data-slot=popup-surface]'
-const popupShapeProbe = 'shape(from 0 0,line to 100% 0,close)'
-const popupRadius = 'var(--popup-radius)'
-const popupCenter = 'var(--popup-arrow-center)'
-const popupNearRadius = `min(${popupRadius},max(0px,calc(${popupCenter} - 7px)))`
-const popupFarRadius = `min(${popupRadius},max(0px,calc(100% - ${popupCenter} - 7px)))`
-const popupTopShape = `shape(from ${popupRadius} 0,hline to calc(100% - ${popupRadius}),arc to 100% ${popupRadius} of ${popupRadius} cw,vline to calc(100% - 7px - ${popupRadius}),arc to calc(100% - ${popupFarRadius}) calc(100% - 7px) of ${popupFarRadius} ${popupRadius} cw,hline to calc(${popupCenter} + 7px),line to ${popupCenter} 100%,line to calc(${popupCenter} - 7px) calc(100% - 7px),hline to ${popupNearRadius},arc to 0 calc(100% - 7px - ${popupRadius}) of ${popupNearRadius} ${popupRadius} cw,vline to ${popupRadius},arc to ${popupRadius} 0 of ${popupRadius} cw,close)`
-const popupBottomShape = `shape(from ${popupCenter} 0,line to calc(${popupCenter} + 7px) 7px,hline to calc(100% - ${popupFarRadius}),arc to 100% calc(7px + ${popupRadius}) of ${popupFarRadius} ${popupRadius} cw,vline to calc(100% - ${popupRadius}),arc to calc(100% - ${popupRadius}) 100% of ${popupRadius} cw,hline to ${popupRadius},arc to 0 calc(100% - ${popupRadius}) of ${popupRadius} cw,vline to calc(7px + ${popupRadius}),arc to ${popupNearRadius} 7px of ${popupNearRadius} ${popupRadius} cw,hline to calc(${popupCenter} - 7px),close)`
-const popupLeftShape = `shape(from ${popupRadius} 0,hline to calc(100% - 7px - ${popupRadius}),arc to calc(100% - 7px) ${popupNearRadius} of ${popupRadius} ${popupNearRadius} cw,vline to calc(${popupCenter} - 7px),line to 100% ${popupCenter},line to calc(100% - 7px) calc(${popupCenter} + 7px),vline to calc(100% - ${popupFarRadius}),arc to calc(100% - 7px - ${popupRadius}) 100% of ${popupRadius} ${popupFarRadius} cw,hline to ${popupRadius},arc to 0 calc(100% - ${popupRadius}) of ${popupRadius} cw,vline to ${popupRadius},arc to ${popupRadius} 0 of ${popupRadius} cw,close)`
-const popupRightShape = `shape(from calc(7px + ${popupRadius}) 0,hline to calc(100% - ${popupRadius}),arc to 100% ${popupRadius} of ${popupRadius} cw,vline to calc(100% - ${popupRadius}),arc to calc(100% - ${popupRadius}) 100% of ${popupRadius} cw,hline to calc(7px + ${popupRadius}),arc to 7px calc(100% - ${popupFarRadius}) of ${popupRadius} ${popupFarRadius} cw,vline to calc(${popupCenter} + 7px),line to 0 ${popupCenter},line to 7px calc(${popupCenter} - 7px),vline to ${popupNearRadius},arc to calc(7px + ${popupRadius}) 0 of ${popupRadius} ${popupNearRadius} cw,close)`
-const popupSurfaceShape = `@supports (clip-path:${popupShapeProbe}){.playa-popup-content[data-arrow=true][data-side=top]>[data-slot=popup-surface]{bottom:-7px;border-radius:0;clip-path:${popupTopShape}}.playa-popup-content[data-arrow=true][data-side=bottom]>[data-slot=popup-surface]{top:-7px;border-radius:0;clip-path:${popupBottomShape}}.playa-popup-content[data-arrow=true][data-side=left]>[data-slot=popup-surface]{right:-7px;border-radius:0;clip-path:${popupLeftShape}}.playa-popup-content[data-arrow=true][data-side=right]>[data-slot=popup-surface]{left:-7px;border-radius:0;clip-path:${popupRightShape}}}`
-
 /**
  * Returns Playa's complete build-time UnoCSS preset.
  * The host must activate its matching UnoCSS plugin and load `virtual:uno.css`.
@@ -56,6 +53,16 @@ export const playa = definePreset(() => ({
       // outside a flex parent.
       extraProperties: { display: 'inline-block' },
     }),
+    // Family shortcuts and rules, one module per lane; the shared ones stay below.
+    actions,
+    fields,
+    choices,
+    pickers,
+    floating,
+    modal,
+    surfaces,
+    data,
+    navigation,
   ],
   variants: [
     matcher => matcher.startsWith('aria-invalid:')
@@ -112,14 +119,16 @@ export const playa = definePreset(() => ({
     }],
     ['scrollbar-gutter-stable', { 'scrollbar-gutter': 'stable' }],
     ['scrollbar-none', { 'scrollbar-width': 'none' }],
-    ['shimmer', {
+    // Working text that sweeps; it carries its own keyframes, and without
+    // them under reduced motion it stays a still gradient.
+    ['shimmer', [{
       '-webkit-background-clip': 'text',
       animation: 'shimmer 1.8s linear infinite',
       background: 'linear-gradient(90deg,var(--foreground) 0%,var(--muted-foreground) 35%,var(--foreground) 70%)',
       'background-clip': 'text',
       'background-size': '200% 100%',
       color: 'transparent',
-    }],
+    }, '@media (prefers-reduced-motion:no-preference){@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}}']],
     ['animate-in', {
       '--un-enter-opacity': '1',
       '--un-enter-scale': '1',
@@ -166,52 +175,20 @@ export const playa = definePreset(() => ({
         // the whole theme). Only a genuinely missing backdrop-filter gets a
         // solid fallback; doubled selectors outrank the single-class shortcut
         // and utility rules without depending on layer order.
-        '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.glass.glass,.glass-chrome.glass-chrome{background-color:var(--card)}.glass-overlay.glass-overlay,.playa-popover-content>[data-slot=popup-surface]{background-color:var(--popover)}[data-slot=toast][data-slot=toast]{background-color:var(--popover)}[data-slot=toast][data-variant=danger]{background-color:color-mix(in srgb,var(--danger) 12%,var(--popover))}[data-rich-colors]>[data-slot=toast][data-variant=info]{background-color:color-mix(in srgb,var(--info) 12%,var(--popover))}[data-rich-colors]>[data-slot=toast][data-variant=success]{background-color:color-mix(in srgb,var(--success) 12%,var(--popover))}[data-rich-colors]>[data-slot=toast][data-variant=warning]{background-color:color-mix(in srgb,var(--warning) 12%,var(--popover))}}',
-        // Pressed buttons inside connected groups skip the press scale: group
-        // segments touch to share their hairlines, and shrinking one opens a
-        // visible gap on both sides.
-        '[data-slot=button-group][data-slot=button-group]>:active{scale:none}',
-        // Without the keyframes under reduced motion, shimmer text stays a still gradient.
-        '@media (prefers-reduced-motion:no-preference){@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}}',
-        '@keyframes progress-slide{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}',
+        '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.glass.glass,.glass-chrome.glass-chrome{background-color:var(--card)}.glass-overlay.glass-overlay{background-color:var(--popover)}}',
         '@keyframes enter{from{opacity:var(--un-enter-opacity,1);transform:translate3d(var(--un-enter-translate-x,0),var(--un-enter-translate-y,0),0) scale3d(var(--un-enter-scale,1),var(--un-enter-scale,1),var(--un-enter-scale,1))}}',
         '@keyframes exit{to{opacity:var(--un-exit-opacity,1);transform:translate3d(var(--un-exit-translate-x,0),var(--un-exit-translate-y,0),0) scale3d(var(--un-exit-scale,1),var(--un-exit-scale,1),var(--un-exit-scale,1))}}',
         '*,::before,::after{border-color:var(--border)}',
-        `${popupSurfaceSelector}{position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit}`,
-        // Popovers are frost; tooltips sit on the carpet.
-        '.playa-popover-content>[data-slot=popup-surface]{background-color:var(--glass-overlay);-webkit-backdrop-filter:var(--glass-filter);backdrop-filter:var(--glass-filter);box-shadow:var(--shadow-lg);filter:drop-shadow(0 0 1px var(--border))}.playa-tooltip-content>[data-slot=popup-surface]{background-color:var(--navy);box-shadow:var(--shadow-xs);filter:drop-shadow(0 0 1px var(--border))}',
-        popupSurfaceShape,
-        '[data-slot=chart] [data-slot=chart-bar] rect[data-chart-index],[data-slot=chart] [data-slot=chart-pie] path[data-chart-index]{transition:opacity 150ms ease,stroke-width 150ms ease}[data-slot=chart] [data-slot=chart-line] circle[data-chart-index],[data-slot=chart] [data-slot=chart-area] circle[data-chart-index]{transition:opacity 150ms ease,stroke-width 150ms ease,r 150ms ease}[data-slot=chart]:has([data-active]) [data-slot=chart-bar] rect[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-pie] path[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-line] circle[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-area] circle[data-chart-index]:not([data-active]){opacity:.45}[data-slot=chart] [data-active]{opacity:1}[data-slot=chart] circle[data-active]{r:5.6px}',
-        '[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=positive]{clip-path:inset(0 round 4px 4px 0 0) fill-box}[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=negative]{clip-path:inset(0 round 0 0 4px 4px) fill-box}',
-        '@media (prefers-reduced-motion:no-preference){@keyframes chart-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes chart-undash{to{stroke-dasharray:initial}}@keyframes chart-grow{from{transform:scaleY(0)}}@keyframes chart-settle{from{opacity:0;transform:translateY(4px)}}@keyframes chart-pop{from{opacity:0;transform:scale(0)}}[data-slot=chart] [data-slot=chart-bar] rect[data-chart-series]{transform-box:fill-box;transform-origin:bottom center;animation:chart-grow 450ms cubic-bezier(0.22,1,0.36,1) both;animation-delay:calc(var(--chart-index,0) * 30ms);transition:x 300ms ease-out,y 300ms ease-out,width 300ms ease-out,height 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease}[data-slot=chart] [data-slot=chart-line] path[fill=none],[data-slot=chart] [data-slot=chart-area] path[fill=none]{stroke-dasharray:1;animation:chart-draw 600ms ease-out both,chart-undash 1ms 600ms step-end forwards;transition:d 300ms ease-out}[data-slot=chart] [data-slot=chart-area] path[fill-opacity]{transform-box:fill-box;animation:chart-settle 500ms ease-out both;transition:d 300ms ease-out}[data-slot=chart] [data-slot=chart-line] circle[data-chart-index],[data-slot=chart] [data-slot=chart-area] circle[data-chart-index]{transform-box:fill-box;transform-origin:center;animation:chart-pop 300ms ease-out both;animation-delay:calc(200ms + var(--chart-index,0) * 20ms);transition:cx 300ms ease-out,cy 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease,r 150ms ease}[data-slot=chart] [data-slot=chart-pie] path[data-chart-index]{transform-box:view-box;transform-origin:center;animation:chart-pop 400ms ease-out both;animation-delay:calc(var(--chart-index,0) * 60ms);transition:d 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease}}',
-        '@media (prefers-reduced-motion:no-preference){[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=negative]{transform-origin:top center}[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=zero]{transform-origin:center}}',
-        '@media (prefers-reduced-motion:no-preference){[data-slot=chart] [data-slot=chart-tooltip][data-positioned=true]{transition:transform 200ms ease-out}}',
-        '@media (prefers-reduced-motion:no-preference){[data-slot=drawer-content]{opacity:1;transition:transform 350ms cubic-bezier(0.32,0.72,0,1),opacity 350ms ease,display 350ms allow-discrete,overlay 350ms allow-discrete}[data-slot=drawer-content][open]{opacity:1;transform:none}[data-slot=drawer-content][data-side=bottom]:not([open]){transform:translateY(100%)}[data-slot=drawer-content][data-side=top]:not([open]){transform:translateY(-100%)}[data-slot=drawer-content][data-side=right]:not([open]){transform:translateX(100%)}[data-slot=drawer-content][data-side=left]:not([open]){transform:translateX(-100%)}[data-slot=drawer-content]::backdrop{opacity:0;transition:opacity 350ms ease,display 350ms allow-discrete,overlay 350ms allow-discrete}[data-slot=drawer-content][open]::backdrop{opacity:1}@starting-style{[data-slot=drawer-content][open][data-side=bottom]{transform:translateY(100%)}[data-slot=drawer-content][open][data-side=top]{transform:translateY(-100%)}[data-slot=drawer-content][open][data-side=right]{transform:translateX(100%)}[data-slot=drawer-content][open][data-side=left]{transform:translateX(-100%)}[data-slot=drawer-content][open]::backdrop{opacity:0}}}',
-        '[data-slot=toast]{position:absolute;left:1rem;right:1rem;width:auto;transform:translateY(var(--toast-y,0)) scale(var(--toast-scale,1))}',
-        '[data-slot=toast][data-side=bottom]{bottom:1rem}',
-        '[data-slot=toast][data-side=top]{top:1rem}',
-        '[data-slot=toast-title]:has(>[data-slot=toast-icon]){display:flex;align-items:flex-start;gap:.5rem}',
-        '[data-slot=toast-icon]{display:inline-flex;flex-shrink:0;margin-top:.125rem}',
-        // The viewport is pointer-events-none, so hover continuity is carried
-        // entirely by the toasts' own hit areas: each toast grows an invisible
-        // bridge over the gap toward its next-older sibling, and a closing
-        // toast keeps its hit area while the stack is expanded. Without both,
-        // crossing a gap (or the front toast fading under the pointer) drops
-        // the hit test to the page and fires spurious pointerleave/enter pairs
-        // that collapse and re-expand the stack.
-        '[data-slot=toast]::after{content:"";position:absolute;left:0;right:0;height:calc(var(--toast-gap,8px) + 1px)}',
-        '[data-slot=toast][data-side=bottom]::after{bottom:100%}',
-        '[data-slot=toast][data-side=top]::after{top:100%}',
-        '[data-slot=toast][data-expanded=false]:not([data-front=true]){height:var(--front-toast-height,auto)}',
-        '[data-slot=toast][data-expanded=false]:not([data-front=true])>*{opacity:0}',
-        '[data-slot=toast][data-expanded=false]:not([data-front=true]) [data-slot=toast-close]{visibility:hidden}',
-        '[data-slot=toast][data-closing=true]{opacity:0}',
-        '[data-slot=toast][data-closing=true][data-expanded=false]{pointer-events:none}',
-        '@starting-style{[data-slot=toast][data-state=open]{opacity:0;transform:translateY(1rem) scale(.96)}}',
         // Edge fades pair with ajo-cloves overflow stamps. They activate only
         // while content overflows, so a resting edge never stays dimmed.
         overflowFades,
         '.scrollbar-none::-webkit-scrollbar{display:none}',
+        // Discreet themed scrollbar for scrollable lists and viewports. Chromium and
+        // Safari take the fully custom webkit path (buttonless); Firefox gets the
+        // standard thin scrollbar via the `@supports` fallback below. Unframed
+        // scroll owners retain an inset thumb so rounded popup roots stay safe.
+        // ScrollAreaFrame viewports opt into the full-width `scrollbar-framed`
+        // override; their hard clip contains paint without shrinking the handle.
         '.scrollbar-soft::-webkit-scrollbar{height:.625rem;width:.625rem}',
         '.scrollbar-soft::-webkit-scrollbar-button{display:none}',
         '.scrollbar-soft::-webkit-scrollbar-thumb{border:2px solid transparent;border-radius:9999px;background-clip:padding-box;background-color:var(--border)}',
@@ -224,10 +201,6 @@ export const playa = definePreset(() => ({
     }
   ],
   shortcuts: {
-    'playa-popup-content': 'isolate bg-transparent',
-    'playa-popover-content': 'text-popover-foreground',
-    // The carpet is a dark island in both themes: tokens inside it resolve dark.
-    'playa-tooltip-content': 'text-foreground [color-scheme:dark]',
     // Hairline inner border drawn with an inset ring: crisper than `border`
     // over stacked translucent surfaces and composes with ring/shadow slots.
     edge: 'inset-ring inset-ring-border',
@@ -244,162 +217,6 @@ export const playa = definePreset(() => ({
     scrim: 'backdrop:bg-[var(--scrim)] backdrop:[backdrop-filter:var(--scrim-filter)]',
     // Form-field chrome shared by inputs, textareas, select triggers and grouped fields.
     'playa-field': 'rounded-md edge-input bg-transparent transition-[color,box-shadow] outline-none focus-visible:inset-ring-ring focus-visible:ring-3 focus-visible:ring-ring/25 aria-invalid:inset-ring-danger aria-invalid:ring-danger/20',
-    // Discreet themed scrollbar for scrollable lists and viewports. Chromium and
-    // Safari take the fully custom webkit path (buttonless); Firefox gets the
-    // standard thin scrollbar via the preflight `@supports` fallback below.
-    // Unframed scroll owners retain an inset thumb so rounded popup roots stay
-    // safe. ScrollAreaFrame viewports opt into the full-width override above;
-    // their hard clip contains paint without shrinking the handle.
-    'playa-menu-root': 'relative inline-block',
-    'playa-menu-content-open': [{ 'transition-property': 'opacity' }],
-    'playa-menu-content-visible': 'opacity-100',
-    'playa-menu-content-hidden': 'opacity-0',
-    'playa-menu-content-reduced': 'transition-none',
-    'playa-menu-content': [
-      'z-50 m-0 overflow-y-auto overflow-x-hidden overscroll-contain rounded-md glass-overlay edge p-1 shadow-lg outline-none playa-menu-content-hidden transition-discrete duration-150 ease-out motion-reduce:playa-menu-content-reduced data-[state=open]:playa-menu-content-open data-[state=open]:data-[side]:playa-menu-content-visible starting:data-[state=open]:data-[side]:playa-menu-content-hidden',
-      {
-        // The Adapter writes the general available-height limit inline.
-        // Playa refines that same output with its denser menu cap; important
-        // composes the visual policy without creating a second measurement.
-        'max-height': 'max(96px,min(320px,var(--available-height))) !important',
-        'transition-property': 'opacity,display,overlay',
-      },
-    ],
-    'playa-menu-item': 'relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[highlighted=true]:bg-accent data-[highlighted=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[inset]:pl-8 data-[variant=danger]:text-danger data-[variant=danger]:focus:bg-danger/10 data-[variant=danger]:focus:text-danger data-[variant=danger]:data-[highlighted=true]:bg-danger/10 data-[variant=danger]:data-[highlighted=true]:text-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground data-[variant=danger]:[&_svg]:text-danger',
-    'playa-menu-choice-row': 'relative flex cursor-default select-none items-center gap-2 rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[highlighted=true]:bg-accent data-[highlighted=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
-    'playa-menu-indicator': 'pointer-events-none absolute left-2 flex size-3.5 items-center justify-center',
-    'playa-menu-label': 'px-2 py-1.5 text-sm font-medium data-[inset]:pl-8',
-    'playa-menu-separator': '-mx-1 my-1 h-px bg-border',
-    'playa-menu-shortcut': 'ml-auto text-xs tracking-widest text-muted-foreground tabular-nums',
-    'playa-menu-check-icon': 'i-lucide-check size-4',
-    'playa-menu-radio-icon': 'i-lucide-circle size-2 fill-current',
-    'playa-menu-sub-trigger-icon': 'i-lucide-chevron-right ml-auto size-4',
-    'playa-menu-sub-trigger-open': 'data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
-    'playa-select-root': 'relative inline-block',
-    'playa-select-trigger': 'flex w-fit items-center justify-between gap-2 playa-field px-3 py-2 text-sm whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground *:data-[slot=select-icon]:playa-select-trigger-icon',
-    'playa-select-trigger-icon': 'i-lucide-chevron-down size-4 opacity-50',
-    'playa-select-content': 'isolate z-50 m-0 [&:popover-open]:flex max-h-[max(96px,var(--available-height,24rem))] min-w-[var(--reference-width,8rem)] flex-col overflow-hidden rounded-md glass-overlay edge shadow-lg outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
-    'playa-select-list': 'overflow-y-auto overflow-x-hidden overscroll-contain min-h-0 scroll-py-1 p-1 [[data-slot=select-content][data-empty]_&]:p-0',
-    'playa-select-row': 'relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pl-2 text-sm outline-none select-none data-[highlighted=true]:bg-accent data-[highlighted=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground',
-    'playa-select-item': 'playa-select-row pr-9 *:data-[slot=select-item-indicator]:playa-select-indicator **:data-[slot=select-item-indicator-icon]:playa-select-indicator-icon',
-    'playa-select-create': 'playa-select-row pr-2 text-muted-foreground data-[highlighted=true]:text-accent-foreground',
-    'playa-select-indicator': 'pointer-events-none absolute right-2 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground pointer-coarse:size-5 data-[selected=true]:opacity-100 data-[selected=false]:opacity-0',
-    'playa-select-indicator-icon': 'i-lucide-check pointer-events-none size-3 pointer-coarse:size-3.5',
-    'playa-select-label': 'px-2 py-1.5 text-xs text-muted-foreground pointer-coarse:px-3 pointer-coarse:py-2 pointer-coarse:text-sm',
-    'playa-select-separator': 'pointer-events-none -mx-1 my-1 h-px bg-border',
-    'playa-select-empty': 'hidden w-full justify-center py-2 text-center text-sm text-muted-foreground [[data-slot=select-content][data-empty]_&]:flex',
-    'playa-select-status': 'flex w-full items-center justify-center gap-2 py-2 text-center text-sm text-muted-foreground empty:hidden',
-    // SelectInput's control, addon, show-options button and chevron are
-    // base-owned nodes, themed by slot from the input group root. A composed
-    // SelectClear takes the button's place while there is something to clear.
-    'playa-select-input': [
-      '*:data-[slot=select-input]:flex *:data-[slot=select-input]:h-9 *:data-[slot=select-input]:min-w-0 *:data-[slot=select-input]:flex-1 *:data-[slot=select-input]:rounded-none *:data-[slot=select-input]:border-0 *:data-[slot=select-input]:bg-transparent *:data-[slot=select-input]:px-3 *:data-[slot=select-input]:py-1 *:data-[slot=select-input]:text-base *:data-[slot=select-input]:shadow-none *:data-[slot=select-input]:transition-[color,box-shadow] *:data-[slot=select-input]:outline-none',
-      '*:data-[slot=select-input]:selection:bg-primary *:data-[slot=select-input]:selection:text-primary-foreground *:data-[slot=select-input]:placeholder:text-muted-foreground *:data-[slot=select-input]:disabled:pointer-events-none *:data-[slot=select-input]:disabled:cursor-not-allowed *:data-[slot=select-input]:disabled:opacity-50 *:data-[slot=select-input]:md:text-sm *:data-[slot=select-input]:focus-visible:ring-0 *:data-[slot=select-input]:aria-invalid:ring-0',
-      '*:data-[slot=input-group-addon]:order-last *:data-[slot=input-group-addon]:flex *:data-[slot=input-group-addon]:h-auto *:data-[slot=input-group-addon]:cursor-text *:data-[slot=input-group-addon]:select-none *:data-[slot=input-group-addon]:items-center *:data-[slot=input-group-addon]:justify-center *:data-[slot=input-group-addon]:gap-2 *:data-[slot=input-group-addon]:py-1.5 *:data-[slot=input-group-addon]:pr-3 *:data-[slot=input-group-addon]:text-sm *:data-[slot=input-group-addon]:font-medium *:data-[slot=input-group-addon]:text-muted-foreground',
-      '*:data-[slot=input-group-addon]:group-data-[disabled=true]/input-group:opacity-50 *:data-[slot=input-group-addon]:has-[>button]:mr-[-0.45rem] *:data-[slot=input-group-addon]:has-[>kbd]:mr-[-0.35rem] [&>[data-slot=input-group-addon]>kbd]:rounded-[calc(var(--radius)-5px)] [&>[data-slot=input-group-addon]>svg:not([class*=size-])]:size-4',
-      '**:data-[slot=select-input-trigger]:inline-flex **:data-[slot=select-input-trigger]:size-6 **:data-[slot=select-input-trigger]:shrink-0 **:data-[slot=select-input-trigger]:items-center **:data-[slot=select-input-trigger]:justify-center **:data-[slot=select-input-trigger]:rounded-[calc(var(--radius)-5px)] **:data-[slot=select-input-trigger]:text-sm **:data-[slot=select-input-trigger]:font-medium **:data-[slot=select-input-trigger]:whitespace-nowrap **:data-[slot=select-input-trigger]:text-muted-foreground **:data-[slot=select-input-trigger]:outline-none **:data-[slot=select-input-trigger]:transition-all',
-      '**:data-[slot=select-input-trigger]:hover:bg-accent **:data-[slot=select-input-trigger]:hover:text-foreground **:data-[slot=select-input-trigger]:focus-visible:ring-3 **:data-[slot=select-input-trigger]:focus-visible:ring-ring/50 **:data-[slot=select-input-trigger]:active:scale-[0.98] **:data-[slot=select-input-trigger]:motion-reduce:active:scale-100 **:data-[slot=select-input-trigger]:disabled:pointer-events-none **:data-[slot=select-input-trigger]:disabled:opacity-50',
-      '[&:has([data-slot=select-clear])_[data-slot=select-input-trigger]]:hidden',
-      '**:data-[slot=select-input-trigger-icon]:i-lucide-chevron-down **:data-[slot=select-input-trigger-icon]:pointer-events-none **:data-[slot=select-input-trigger-icon]:size-4 **:data-[slot=select-input-trigger-icon]:text-muted-foreground',
-    ].join(' '),
-    'playa-select-chips': 'flex min-h-9 flex-wrap items-center gap-1.5 playa-field px-2.5 py-1.5 text-sm focus-within:inset-ring-ring focus-within:ring-3 focus-within:ring-ring/25 has-aria-invalid:inset-ring-danger has-aria-invalid:ring-danger/20',
-    'playa-select-chips-input': 'min-w-16 flex-1 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
-    'playa-checkbox-box': 'relative inline-flex size-4 shrink-0 items-center justify-center rounded-xs edge-input bg-transparent outline-none transition-[background-color,box-shadow] duration-150 motion-reduce:transition-none has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[[aria-invalid=true]]:inset-ring-danger has-[[aria-invalid=true]]:ring-danger/20',
-    // The frame is an outline, not an inset ring: outlines paint after all
-    // descendants, so opaque row fills (a selected row's bg-muted) cannot
-    // cover the table's edges the way they cover an inset box-shadow. Offset
-    // 0 keeps the line just outside the box, clear of row tints entirely.
-    'playa-table-container': 'relative w-full overflow-x-auto rounded-lg outline outline-solid outline-border',
-    // One slot recipe owns the whole table family. The manual Table wrapper
-    // and the DataTable root both carry `playa-table`, so header/cell
-    // geometry, typography, and row states have a single source and render
-    // identically. Stateful rules are written variant-first
-    // (`hover:[&_...]`) or as one literal selector: expanding a
-    // variant-bearing shortcut under a slot prefix hangs the inner variant on
-    // the recipe root (`.x:hover :where(row)` highlights every row at once).
-    'playa-table': [
-      // Row hairlines are plain --border, same as every other hairline in
-      // the theme: one uniform line weight everywhere, adapting to the
-      // surface. The table is border-separate and the lines live on the
-      // CELLS: collapsed tr borders paint straddling the row boundary (the
-      // pixel lands over the next row's background), which makes tint
-      // compensation land on the wrong line; a cell border always paints
-      // inside its own row, over its own row's fill.
-      '[&_:where([data-slot=table])]:w-full [&_:where([data-slot=table])]:border-separate [&_:where([data-slot=table])]:border-spacing-0 [&_:where([data-slot=table])]:caption-bottom [&_:where([data-slot=table])]:text-sm',
-      // Every row owns its bottom hairline (the footer's top line is the last
-      // body row's border, painted over plain background instead of the muted
-      // footer fill). Only the true visual end drops it: the last row of the
-      // last row group, and only when no caption renders below — a DOM
-      // :last-child check alone lies under caption-side bottom.
-      '[&_:where([data-slot=table]):not(:has([data-slot=table-caption]))_:where([data-slot=table-body],[data-slot=table-footer]):last-child_tr:last-child>*]:border-b-0',
-      '[&_:where([data-slot=table-footer])]:bg-muted/50 [&_:where([data-slot=table-footer])]:font-medium',
-      // Hover only means something on data rows; header and footer stay
-      // quiet. The translucent hairline keeps its weight over the tint.
-      '[&_:where([data-slot=table-row])>*]:border-b [&_:where([data-slot=table-row])>*]:transition-colors [&_:where([data-slot=table-row])]:transition-colors [&_:where([data-slot=table-body])_:where([data-slot=table-row]):hover]:bg-accent has-aria-expanded:[&_:where([data-slot=table-row])]:bg-accent data-[state=selected]:[&_:where([data-slot=table-row])]:bg-muted',
-      '[&_:where([data-slot=table-head])]:h-11 [&_:where([data-slot=table-head])]:px-4 [&_:where([data-slot=table-head])]:text-left [&_:where([data-slot=table-head])]:align-middle [&_:where([data-slot=table-head])]:text-xs [&_:where([data-slot=table-head])]:font-medium [&_:where([data-slot=table-head])]:uppercase [&_:where([data-slot=table-head])]:tracking-wider [&_:where([data-slot=table-head])]:whitespace-nowrap [&_:where([data-slot=table-head])]:text-muted-foreground',
-      '[&_:where([data-slot=table-cell])]:px-4 [&_:where([data-slot=table-cell])]:py-3 [&_:where([data-slot=table-cell])]:align-middle [&_:where([data-slot=table-cell])]:whitespace-nowrap',
-      '[&_:where([data-slot=table-head],[data-slot=table-cell]):has([data-slot=checkbox])]:pr-0 [&_:where([data-slot=table-head],[data-slot=table-cell])>[data-slot=checkbox]]:translate-y-[2px]',
-      '[&_:where([data-slot=table-caption])]:my-4 [&_:where([data-slot=table-caption])]:text-sm [&_:where([data-slot=table-caption])]:text-muted-foreground',
-      '[&_:where([data-align=center])]:text-center [&_:where([data-align=right])]:text-right',
-    ].join(' '),
-    // Chart paints the base parts by data-slot and state attributes: SVG
-    // strokes and fills, the tooltip rows by indicator shape and nesting, and
-    // the legend entries. State rules use `:is` to outrank the `:where` base.
-    'playa-chart': [
-      'relative flex aspect-video min-h-[200px] w-full flex-col justify-center text-xs text-muted-foreground',
-      '[&_:where([data-slot=chart-grid]>line)]:[stroke:var(--border)] [&_:where([data-slot=chart-axis]>line)]:[stroke:var(--muted-foreground)] [&_:where([data-slot=chart-axis]>line)]:[stroke-opacity:0.5]',
-      '[&_:where([data-chart-index])]:outline-none [&_:is(rect[data-chart-index]:focus-visible)]:opacity-80 [&_:where(circle[data-chart-index])]:[fill:var(--background)] [&_:where([data-slot=chart-pie]>path)]:[stroke:var(--background)]',
-      '[&_:where([data-slot=chart-pie-total])]:[fill:var(--foreground)] [&_:where([data-slot=chart-pie-total])]:text-sm [&_:where([data-slot=chart-pie-total])]:font-medium',
-      '[&_:where([data-slot=chart-tooltip-label])]:font-medium [&_:is([data-nested]_[data-slot=chart-tooltip-label])]:text-foreground',
-      '[&_:where([data-slot=chart-tooltip-items],[data-slot=chart-tooltip-names])]:grid [&_:where([data-slot=chart-tooltip-items],[data-slot=chart-tooltip-names])]:gap-1.5',
-      '[&_:where([data-slot=chart-tooltip-item])]:flex [&_:where([data-slot=chart-tooltip-item])]:w-full [&_:where([data-slot=chart-tooltip-item])]:items-stretch [&_:where([data-slot=chart-tooltip-item])]:gap-2 [&_:is([data-slot=chart-tooltip-item][data-indicator=dot])]:items-center',
-      '[&_:where([data-slot=chart-tooltip-indicator])]:shrink-0 [&_:where([data-slot=chart-tooltip-indicator])]:rounded-[2px] [&_:where([data-slot=chart-tooltip-indicator])]:border-[--chart-indicator] [&_:where([data-slot=chart-tooltip-indicator])]:bg-[--chart-indicator]',
-      '[&_:is([data-indicator=dot]>[data-slot=chart-tooltip-indicator])]:size-2.5 [&_:is([data-indicator=line]>[data-slot=chart-tooltip-indicator])]:w-1',
-      '[&_:is([data-indicator=dashed]>[data-slot=chart-tooltip-indicator])]:w-0 [&_:is([data-indicator=dashed]>[data-slot=chart-tooltip-indicator])]:[border-width:1.5px] [&_:is([data-indicator=dashed]>[data-slot=chart-tooltip-indicator])]:border-dashed [&_:is([data-indicator=dashed]>[data-slot=chart-tooltip-indicator])]:bg-transparent [&_:is([data-indicator=dashed][data-nested]>[data-slot=chart-tooltip-indicator])]:my-0.5',
-      '[&_:where([data-slot=chart-tooltip-row])]:flex [&_:where([data-slot=chart-tooltip-row])]:flex-1 [&_:where([data-slot=chart-tooltip-row])]:items-center [&_:where([data-slot=chart-tooltip-row])]:justify-between [&_:where([data-slot=chart-tooltip-row])]:gap-4 [&_:where([data-slot=chart-tooltip-row])]:leading-none [&_:is([data-nested]>[data-slot=chart-tooltip-row])]:items-end',
-      '[&_:where([data-slot=chart-tooltip-name])]:text-muted-foreground [&_:where([data-slot=chart-tooltip-value])]:font-mono [&_:where([data-slot=chart-tooltip-value])]:font-medium [&_:where([data-slot=chart-tooltip-value])]:text-foreground [&_:where([data-slot=chart-tooltip-value])]:tabular-nums',
-      '[&_:where([data-slot=chart-tooltip-icon],[data-slot=chart-legend-icon])]:text-muted-foreground [&_:where([data-slot=chart-tooltip-icon]>svg,[data-slot=chart-legend-icon]>svg)]:size-3',
-      '[&_:where([data-slot=chart-legend-item])]:flex [&_:where([data-slot=chart-legend-item])]:items-center [&_:where([data-slot=chart-legend-item])]:gap-1.5 [&_:where([data-slot=chart-legend-swatch])]:size-2 [&_:where([data-slot=chart-legend-swatch])]:shrink-0 [&_:where([data-slot=chart-legend-swatch])]:rounded-[2px]',
-    ].join(' '),
-    'playa-data-table': [
-      'flex w-full flex-col gap-4',
-      '[&_:where([data-slot=data-table-toolbar])]:flex [&_:where([data-slot=data-table-toolbar])]:flex-col [&_:where([data-slot=data-table-toolbar])]:gap-2 sm:[&_:where([data-slot=data-table-toolbar])]:flex-row sm:[&_:where([data-slot=data-table-toolbar])]:items-center sm:[&_:where([data-slot=data-table-toolbar])]:justify-between',
-      '[&_:where([data-slot=data-table-toolbar-controls])]:flex [&_:where([data-slot=data-table-toolbar-controls])]:flex-1 [&_:where([data-slot=data-table-toolbar-controls])]:flex-wrap [&_:where([data-slot=data-table-toolbar-controls])]:items-center [&_:where([data-slot=data-table-toolbar-controls])]:gap-2',
-      '[&_:where([data-slot=data-table-search])]:h-8 [&_:where([data-slot=data-table-search])]:w-[180px] [&_:where([data-slot=data-table-search])]:rounded-md [&_:where([data-slot=data-table-search])]:edge-input [&_:where([data-slot=data-table-search])]:bg-transparent [&_:where([data-slot=data-table-search])]:px-3 [&_:where([data-slot=data-table-search])]:text-sm [&_:where([data-slot=data-table-search])]:outline-none [&_:where([data-slot=data-table-search])]:placeholder:text-muted-foreground focus-visible:[&_:where([data-slot=data-table-search])]:inset-ring-ring focus-visible:[&_:where([data-slot=data-table-search])]:ring-3 focus-visible:[&_:where([data-slot=data-table-search])]:ring-ring/25 lg:[&_:where([data-slot=data-table-search])]:w-[260px]',
-      '[&_:where([data-slot=data-table-facet])]:inline-flex [&_:where([data-slot=data-table-facet])]:h-8 [&_:where([data-slot=data-table-facet])]:items-center [&_:where([data-slot=data-table-facet])]:gap-2 [&_:where([data-slot=data-table-facet])]:rounded-md [&_:where([data-slot=data-table-facet])]:border [&_:where([data-slot=data-table-facet])]:border-dashed [&_:where([data-slot=data-table-facet])]:px-3 [&_:where([data-slot=data-table-facet])]:text-sm [&_:where([data-slot=data-table-facet])]:font-medium [&_:where([data-slot=data-table-facet])]:outline-none hover:[&_:where([data-slot=data-table-facet])]:bg-accent focus-visible:[&_:where([data-slot=data-table-facet])]:ring-3 focus-visible:[&_:where([data-slot=data-table-facet])]:ring-ring/50',
-      '[&_:where([data-slot=data-table-facet-icon])]:i-lucide-list-filter [&_:where([data-slot=data-table-facet-icon])]:size-4 [&_:where([data-slot=data-table-facet-count])]:rounded-xs [&_:where([data-slot=data-table-facet-count])]:bg-muted [&_:where([data-slot=data-table-facet-count])]:px-1.5 [&_:where([data-slot=data-table-facet-count])]:py-0.5 [&_:where([data-slot=data-table-facet-count])]:text-xs [&_:where([data-slot=data-table-facet-count])]:tabular-nums',
-      '[&_:where([data-slot=data-table-columns])]:inline-flex [&_:where([data-slot=data-table-columns])]:h-8 [&_:where([data-slot=data-table-columns])]:items-center [&_:where([data-slot=data-table-columns])]:gap-2 [&_:where([data-slot=data-table-columns])]:rounded-md [&_:where([data-slot=data-table-columns])]:edge [&_:where([data-slot=data-table-columns])]:px-3 [&_:where([data-slot=data-table-columns])]:text-sm [&_:where([data-slot=data-table-columns])]:font-medium [&_:where([data-slot=data-table-columns])]:outline-none hover:[&_:where([data-slot=data-table-columns])]:bg-accent focus-visible:[&_:where([data-slot=data-table-columns])]:ring-3 focus-visible:[&_:where([data-slot=data-table-columns])]:ring-ring/50 [&_:where([data-slot=data-table-columns-icon])]:i-lucide-chevron-down [&_:where([data-slot=data-table-columns-icon])]:size-4',
-      '[&_:where([data-slot=data-table-reset])]:inline-flex [&_:where([data-slot=data-table-reset])]:h-8 [&_:where([data-slot=data-table-reset])]:items-center [&_:where([data-slot=data-table-reset])]:gap-2 [&_:where([data-slot=data-table-reset])]:rounded-md [&_:where([data-slot=data-table-reset])]:px-3 [&_:where([data-slot=data-table-reset])]:text-sm [&_:where([data-slot=data-table-reset])]:font-medium hover:[&_:where([data-slot=data-table-reset])]:bg-accent [&_:where([data-slot=data-table-reset-icon])]:i-lucide-x [&_:where([data-slot=data-table-reset-icon])]:size-4',
-      '[&_:where([data-slot=data-table-facet-option-icon])]:flex [&_:where([data-slot=data-table-facet-option-icon])]:size-4 [&_:where([data-slot=data-table-facet-option-icon]>*)]:size-4',
-      '[&_:where([data-slot=data-table-container])]:playa-table-container',
-      // The sort trigger is an inline pill: symmetric px-2/-mx-2 keeps its
-      // label and icon exactly where static header text sits (the th's px-4
-      // and text-align own the geometry), while the hover surface gains
-      // breathing room around the text instead of clipping it. The button
-      // inherits the th typography except text-transform, which the preflight
-      // resets on form controls, so uppercase is restated.
-      '[&_:where([data-slot=data-table-sort-trigger])]:-mx-2 [&_:where([data-slot=data-table-sort-trigger])]:inline-flex [&_:where([data-slot=data-table-sort-trigger])]:h-8 [&_:where([data-slot=data-table-sort-trigger])]:items-center [&_:where([data-slot=data-table-sort-trigger])]:gap-2 [&_:where([data-slot=data-table-sort-trigger])]:rounded-md [&_:where([data-slot=data-table-sort-trigger])]:px-2 [&_:where([data-slot=data-table-sort-trigger])]:align-middle [&_:where([data-slot=data-table-sort-trigger])]:uppercase hover:[&_:where([data-slot=data-table-sort-trigger])]:bg-accent focus-visible:[&_:where([data-slot=data-table-sort-trigger])]:ring-3 focus-visible:[&_:where([data-slot=data-table-sort-trigger])]:ring-ring/50 [&_:where([data-slot=data-table-sort-icon])]:size-4 [&_:where([data-slot=data-table-sort-icon][data-sort=none])]:i-lucide-arrow-up-down [&_:where([data-slot=data-table-sort-icon][data-sort=asc])]:i-lucide-arrow-up [&_:where([data-slot=data-table-sort-icon][data-sort=desc])]:i-lucide-arrow-down',
-      '[&_:where([data-slot=data-table-empty])]:h-24 [&_:where([data-slot=data-table-empty])]:text-center [&_:where([data-slot=data-table-empty])]:text-muted-foreground',
-      '[&_:where([data-slot=data-table-footer])]:flex [&_:where([data-slot=data-table-footer])]:flex-col [&_:where([data-slot=data-table-footer])]:gap-2 sm:[&_:where([data-slot=data-table-footer])]:flex-row sm:[&_:where([data-slot=data-table-footer])]:items-center sm:[&_:where([data-slot=data-table-footer])]:justify-between [&_:where([data-slot=data-table-selection-summary])]:text-sm [&_:where([data-slot=data-table-selection-summary])]:text-muted-foreground [&_:where([data-slot=data-table-selection-summary])]:tabular-nums',
-      '[&_:where([data-slot=data-table-pagination])]:flex [&_:where([data-slot=data-table-pagination])]:flex-wrap [&_:where([data-slot=data-table-pagination])]:items-center [&_:where([data-slot=data-table-pagination])]:gap-4 [&_:where([data-slot=data-table-page-size])]:flex [&_:where([data-slot=data-table-page-size])]:items-center [&_:where([data-slot=data-table-page-size])]:gap-2 [&_:where([data-slot=data-table-page-size])]:text-sm [&_:where([data-slot=data-table-page-size])]:font-medium [&_:where([data-slot=data-table-page-indicator])]:w-[100px] [&_:where([data-slot=data-table-page-indicator])]:text-center [&_:where([data-slot=data-table-page-indicator])]:text-sm [&_:where([data-slot=data-table-page-indicator])]:font-medium [&_:where([data-slot=data-table-page-indicator])]:tabular-nums [&_:where([data-slot=data-table-pagination-actions])]:flex [&_:where([data-slot=data-table-pagination-actions])]:items-center [&_:where([data-slot=data-table-pagination-actions])]:gap-2',
-      '[&_:where([data-slot=data-table-pagination-action])]:inline-flex [&_:where([data-slot=data-table-pagination-action])]:size-8 [&_:where([data-slot=data-table-pagination-action])]:items-center [&_:where([data-slot=data-table-pagination-action])]:justify-center [&_:where([data-slot=data-table-pagination-action])]:rounded-md [&_:where([data-slot=data-table-pagination-action])]:edge [&_:where([data-slot=data-table-pagination-action])]:outline-none disabled:[&_:where([data-slot=data-table-pagination-action])]:opacity-50 hover:[&_:where([data-slot=data-table-pagination-action])]:bg-accent focus-visible:[&_:where([data-slot=data-table-pagination-action])]:ring-3 focus-visible:[&_:where([data-slot=data-table-pagination-action])]:ring-ring/50 [&_:where([data-action=first]>span)]:i-lucide-chevrons-left [&_:where([data-action=previous]>span)]:i-lucide-chevron-left [&_:where([data-action=next]>span)]:i-lucide-chevron-right [&_:where([data-action=last]>span)]:i-lucide-chevrons-right [&_:where([data-slot=data-table-pagination-action]>span)]:size-4',
-    ].join(' '),
-    // Toasts and their parts are base-owned nodes, themed by slot from each
-    // viewport. Surfaces key off `data-variant`; info, success and warning
-    // toasts take their tone only under `data-rich-colors`.
-    'playa-toaster': [
-      'pointer-events-none fixed w-full p-4 outline-none sm:max-w-[420px]',
-      '[&>:where([data-slot=toast])]:pointer-events-auto [&>:where([data-slot=toast])]:grid [&>:where([data-slot=toast])]:origin-top [&>:where([data-slot=toast])]:grid-cols-[1fr_auto] [&>:where([data-slot=toast])]:items-start [&>:where([data-slot=toast])]:gap-x-4 [&>:where([data-slot=toast])]:gap-y-1 [&>:where([data-slot=toast])]:rounded-lg [&>:where([data-slot=toast])]:p-4 [&>:where([data-slot=toast])]:pr-10 [&>:where([data-slot=toast])]:shadow-lg [&>:where([data-slot=toast])]:transition-[margin,opacity,transform,box-shadow] [&>:where([data-slot=toast])]:duration-200 [&>:where([data-slot=toast])]:ease-out motion-reduce:[&>:where([data-slot=toast])]:transition-none',
-      '[&:not([data-rich-colors])>:where([data-slot=toast]:not([data-variant=danger]))]:glass-overlay [&:not([data-rich-colors])>:where([data-slot=toast]:not([data-variant=danger]))]:edge [&[data-rich-colors]>:where([data-slot=toast][data-variant=default])]:glass-overlay [&[data-rich-colors]>:where([data-slot=toast][data-variant=default])]:edge',
-      '[&>:where([data-slot=toast][data-variant=danger])]:bg-danger/10 [&>:where([data-slot=toast][data-variant=danger])]:text-danger [&>:where([data-slot=toast][data-variant=danger])]:inset-ring [&>:where([data-slot=toast][data-variant=danger])]:inset-ring-danger/25 [&>:where([data-slot=toast][data-variant=danger])]:backdrop-blur-xl [&>:where([data-slot=toast][data-variant=danger])]:backdrop-saturate-150',
-      '[&[data-rich-colors]>:where([data-slot=toast][data-variant=info])]:bg-info/10 [&[data-rich-colors]>:where([data-slot=toast][data-variant=info])]:text-info [&[data-rich-colors]>:where([data-slot=toast][data-variant=info])]:inset-ring [&[data-rich-colors]>:where([data-slot=toast][data-variant=info])]:inset-ring-info/25 [&[data-rich-colors]>:where([data-slot=toast][data-variant=info])]:backdrop-blur-xl [&[data-rich-colors]>:where([data-slot=toast][data-variant=info])]:backdrop-saturate-150',
-      '[&[data-rich-colors]>:where([data-slot=toast][data-variant=success])]:bg-success/10 [&[data-rich-colors]>:where([data-slot=toast][data-variant=success])]:text-success [&[data-rich-colors]>:where([data-slot=toast][data-variant=success])]:inset-ring [&[data-rich-colors]>:where([data-slot=toast][data-variant=success])]:inset-ring-success/25 [&[data-rich-colors]>:where([data-slot=toast][data-variant=success])]:backdrop-blur-xl [&[data-rich-colors]>:where([data-slot=toast][data-variant=success])]:backdrop-saturate-150',
-      '[&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:bg-warning/10 [&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:text-warning [&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:inset-ring [&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:inset-ring-warning/25 [&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:backdrop-blur-xl [&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:backdrop-saturate-150',
-      '[&_:where([data-slot=toast-content])]:grid [&_:where([data-slot=toast-content])]:gap-1 [&_:where([data-slot=toast-content])]:transition-opacity [&_:where([data-slot=toast-content])]:duration-200 motion-reduce:[&_:where([data-slot=toast-content])]:transition-none [&_:where([data-slot=toast-title])]:text-sm [&_:where([data-slot=toast-title])]:font-semibold [&_:where([data-slot=toast-description])]:text-sm [&_:where([data-slot=toast-description])]:opacity-90',
-      '[&_:where([data-slot=toast-action-wrapper])]:col-start-2 [&_:where([data-slot=toast-action-wrapper])]:row-span-2 [&_:where([data-slot=toast-action-wrapper])]:row-start-1 [&_:where([data-slot=toast-action-wrapper])]:self-center [&_:where([data-slot=toast-action-wrapper])]:transition-opacity [&_:where([data-slot=toast-action-wrapper])]:duration-200 motion-reduce:[&_:where([data-slot=toast-action-wrapper])]:transition-none',
-      '[&_:where([data-slot=toast-action])]:inline-flex [&_:where([data-slot=toast-action])]:h-8 [&_:where([data-slot=toast-action])]:shrink-0 [&_:where([data-slot=toast-action])]:items-center [&_:where([data-slot=toast-action])]:justify-center [&_:where([data-slot=toast-action])]:rounded-md [&_:where([data-slot=toast-action])]:edge [&_:where([data-slot=toast-action])]:bg-transparent [&_:where([data-slot=toast-action])]:px-3 [&_:where([data-slot=toast-action])]:text-sm [&_:where([data-slot=toast-action])]:font-medium [&_:where([data-slot=toast-action])]:transition-colors [&_:where([data-slot=toast-action])]:outline-none hover:[&_:where([data-slot=toast-action])]:bg-accent hover:[&_:where([data-slot=toast-action])]:text-accent-foreground focus-visible:[&_:where([data-slot=toast-action])]:ring-3 focus-visible:[&_:where([data-slot=toast-action])]:ring-ring/50 disabled:[&_:where([data-slot=toast-action])]:pointer-events-none disabled:[&_:where([data-slot=toast-action])]:opacity-50 [&_:is([data-variant=danger]_[data-slot=toast-action])]:inset-ring-danger/40 hover:[&_:is([data-variant=danger]_[data-slot=toast-action])]:bg-danger/10 hover:[&_:is([data-variant=danger]_[data-slot=toast-action])]:inset-ring-danger/33 hover:[&_:is([data-variant=danger]_[data-slot=toast-action])]:text-danger',
-      '[&_:where([data-slot=toast-close])]:absolute [&_:where([data-slot=toast-close])]:right-2 [&_:where([data-slot=toast-close])]:top-2 [&_:where([data-slot=toast-close])]:inline-flex [&_:where([data-slot=toast-close])]:size-8 [&_:where([data-slot=toast-close])]:items-center [&_:where([data-slot=toast-close])]:justify-center [&_:where([data-slot=toast-close])]:rounded-md [&_:where([data-slot=toast-close])]:text-foreground/60 [&_:where([data-slot=toast-close])]:opacity-70 [&_:where([data-slot=toast-close])]:outline-none [&_:where([data-slot=toast-close])]:transition-opacity hover:[&_:where([data-slot=toast-close])]:text-foreground hover:[&_:where([data-slot=toast-close])]:opacity-100 focus-visible:[&_:where([data-slot=toast-close])]:opacity-100 focus-visible:[&_:where([data-slot=toast-close])]:ring-2 focus-visible:[&_:where([data-slot=toast-close])]:ring-ring/50 disabled:[&_:where([data-slot=toast-close])]:pointer-events-none [&_:is([data-variant=danger]_[data-slot=toast-close])]:text-danger/70 hover:[&_:is([data-variant=danger]_[data-slot=toast-close])]:text-danger',
-    ].join(' '),
   },
   // Wind4's theme merges after this preset's own `theme`, so every key Wind4
   // also defines (radius, shadow, font) is set here instead.

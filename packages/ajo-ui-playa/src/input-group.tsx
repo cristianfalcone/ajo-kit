@@ -16,12 +16,7 @@ import {
 import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import { buttonVariants } from './button'
 import type { ButtonVariant } from './button'
-import {
-	inputGroupAddon,
-	inputGroupAddonAlign,
-	inputGroupInput,
-	inputGroupVariants,
-} from './internal/recipes'
+import { inputGroupAddon, inputGroupAddonAlign, inputGroupVariants } from './internal/input-group'
 export type { InputGroupAddonAlign } from 'ajo-ui/input-group'
 
 export type InputGroupButtonSize =
@@ -73,6 +68,7 @@ const buttonSizeClasses: Record<InputGroupButtonSize, string> = {
 	sm: 'h-8 gap-1.5 rounded-md px-2.5 has-[>svg]:px-2.5 [&_svg:not([class*=size-])]:size-4',
 	xs: 'h-6 gap-1 rounded-[calc(var(--radius)-5px)] px-2 text-xs has-[>svg]:px-2 [&>svg:not([class*=size-])]:size-3.5',
 }
+const inputBase = 'flex h-9 min-w-0 flex-1 rounded-none border-0 bg-transparent px-3 py-1 text-base shadow-none transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:ring-0 aria-invalid:ring-0'
 const textBase = 'flex items-center gap-2 text-sm text-muted-foreground [&_svg]:pointer-events-none [&_svg:not([class*=size-])]:size-4'
 const textareaBase = 'flex min-h-16 min-w-0 flex-1 resize-none rounded-none border-0 bg-transparent px-3 py-3 text-base shadow-none transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm aria-invalid:ring-0'
 
@@ -102,7 +98,7 @@ const InputGroupText: Stateless<InputGroupTextArgs> = ({ class: classes, ...attr
 
 /** Input control styled for InputGroup. */
 const InputGroupInput: Stateless<InputGroupInputArgs> = ({ class: classes, ...attrs }) => (
-	<BaseInputGroupInput {...attrs} class={clx(inputGroupInput, classes)} />
+	<BaseInputGroupInput {...attrs} class={clx(inputBase, classes)} />
 )
 
 /** Textarea control styled for InputGroup. */

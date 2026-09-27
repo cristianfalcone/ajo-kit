@@ -1,7 +1,7 @@
 import type { Stateless } from 'ajo'
 import { Checkbox as BaseCheckbox, type CheckboxArgs as BaseCheckboxArgs } from 'ajo-ui/checkbox'
 import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
-import { checkboxIndicator, checkboxState, choiceInput } from './internal/recipes'
+import { checkboxIndicator, checkboxState, choiceInput } from './internal/choice'
 
 export type CheckboxArgs = OmitArg<BaseCheckboxArgs, 'indicatorClass' | 'inputClass'> & FixedArgs<'indicatorClass' | 'inputClass'> & {
 	/** Additional UnoCSS classes for the visual checkbox box. */

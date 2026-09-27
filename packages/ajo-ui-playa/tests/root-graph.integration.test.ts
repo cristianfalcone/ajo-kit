@@ -34,9 +34,10 @@ test('the root preset graph excludes every runtime component family', async () =
 	})
 	const modules = modulesOf(result)
 
-	expect(modules.filter(id => id.includes('/packages/ajo-ui-playa/src/'))).toEqual([
-		expect.stringContaining('/packages/ajo-ui-playa/src/styles.ts'),
-	])
+	// The preset is styles.ts and its lane modules, never a family or recipe.
+	const playaModules = modules.filter(id => id.includes('/packages/ajo-ui-playa/src/'))
+	expect(playaModules).toContainEqual(expect.stringContaining('/packages/ajo-ui-playa/src/styles.ts'))
+	expect(playaModules.filter(id => !/\/src\/(?:styles|preset\/[a-z]+)\.ts$/.test(id))).toEqual([])
 	expect(modules.filter(id => id.endsWith('.tsx'))).toEqual([])
 	expect(modules.filter(id => id.includes('/packages/ajo-ui/src/'))).toEqual([])
 	expect(modules.filter(id => id.includes('/packages/ajo-cloves/src/'))).toEqual([])
@@ -72,10 +73,11 @@ test('a component family graph includes its base without pulling the preset tool
 	expect(playaModules).toHaveLength(2)
 	expect(playaModules).toEqual(expect.arrayContaining([
 		expect.stringContaining('/packages/ajo-ui-playa/src/checkbox.tsx'),
-		expect.stringContaining('/packages/ajo-ui-playa/src/internal/recipes.tsx'),
+		expect.stringContaining('/packages/ajo-ui-playa/src/internal/choice.tsx'),
 	]))
 	expect(modules.filter(id =>
 		id.includes('/packages/ajo-ui-playa/src/styles.ts')
+		|| id.includes('/packages/ajo-ui-playa/src/preset/')
 		|| id.includes('unocss')
 		|| id.includes('@iconify-json/lucide')
 		|| id.includes('@iconify-json+lucide'),

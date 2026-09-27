@@ -16,7 +16,7 @@ import {
 	DialogTitle as BaseDialogTitle,
 	type DialogTitleArgs,
 } from 'ajo-ui/dialog'
-import { modalCentered, modalClose, modalClosed, modalEnter, modalSurface } from './internal/recipes'
+import { modalCentered, modalClosed, modalEnter, modalSurface } from './internal/modal'
 
 export { DialogTrigger } from 'ajo-ui/dialog'
 export type {
@@ -41,6 +41,7 @@ const contentBase = clx(
 	modalEnter,
 	'grid w-full max-w-[calc(100%-2rem)] gap-4 rounded-xl edge p-6 sm:max-w-lg',
 )
+const closeBase = 'absolute right-4 top-4 inline-flex size-8 items-center justify-center rounded-full opacity-70 outline-none transition-[background-color,opacity] hover:bg-accent hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4'
 
 /** Root provider for a dialog. */
 const Dialog: Stateless<DialogArgs> = ({ class: classes, ...attrs }) => (
@@ -54,7 +55,7 @@ const DialogContent: Stateless<DialogContentArgs> = ({ class: classes, unstyled,
 
 /** Button that closes its dialog or drawer; with no children it renders the themed corner X labelled "Close". */
 const DialogClose: Stateless<DialogCloseArgs> = ({ children, class: classes, ...attrs }) => children == null ? (
-	<BaseDialogClose aria-label="Close" {...attrs} class={clx(modalClose, classes)}>
+	<BaseDialogClose aria-label="Close" {...attrs} class={clx(closeBase, classes)}>
 		<span aria-hidden="true" class="i-lucide-x block size-4" />
 	</BaseDialogClose>
 ) : (

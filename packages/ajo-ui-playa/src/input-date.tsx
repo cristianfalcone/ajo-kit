@@ -22,7 +22,8 @@ import type { CalendarArgs as BaseCalendarArgs } from 'ajo-ui/calendar'
 import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import { buttonVariants } from './button'
 import { Calendar } from './calendar'
-import { inputGroupAddon, inputGroupAddonAlign, inputGroupVariants, popupAnimation, popupSlide } from './internal/recipes'
+import { inputGroupAddon, inputGroupAddonAlign, inputGroupVariants } from './internal/input-group'
+import { popupAnimation, popupSlide } from './internal/recipes'
 export type { InputDateClearArgs, InputDateContentArgs, InputDateFieldArgs, InputDateRangeValue, InputDateSide, InputDateTriggerArgs, InputDateValue, PopupPlacement, PopupPosition } from 'ajo-ui/input-date'
 
 export type InputDateCalendarArgs = OmitArg<BaseInputDateCalendarArgs, 'component'> & FixedArgs<'component'>
