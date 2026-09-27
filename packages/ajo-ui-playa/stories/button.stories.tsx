@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Button, { buttonVariants } from 'ajo-ui-playa/button'
+import { Button, buttonVariants } from 'ajo-ui-playa/button'
 
 export default {
 	title: 'UI/Button',

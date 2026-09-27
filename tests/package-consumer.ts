@@ -412,7 +412,7 @@ const consumerFiles = async (directory: string, registry: string) => {
 	].join('\n'))
 	await write(join(directory, 'src/main.tsx'), [
 		"import { render } from 'ajo'",
-		"import Checkbox from 'ajo-ui-playa/checkbox'",
+		"import { Checkbox } from 'ajo-ui-playa/checkbox'",
 		"import 'virtual:uno.css'",
 		'const App = () => (',
 		'  <main class="[--playa-consumer-used:#123456] aria-invalid:ring-danger/25 scroll-fade-x">',
@@ -424,7 +424,7 @@ const consumerFiles = async (directory: string, registry: string) => {
 	].join('\n'))
 	await write(join(directory, 'src/ssr.tsx'), [
 		"import { render } from 'ajo/html'",
-		"import Checkbox from 'ajo-ui-playa/checkbox'",
+		"import { Checkbox } from 'ajo-ui-playa/checkbox'",
 		'export default () => render(<Checkbox aria-label="Published SSR checkbox" />)',
 		'',
 	].join('\n'))
@@ -481,7 +481,7 @@ const consumerFiles = async (directory: string, registry: string) => {
 		'',
 	].join('\n'))
 	await write(join(directory, 'src/graph-root.ts'), "export { playa } from 'ajo-ui-playa'\n")
-	await write(join(directory, 'src/graph-family.ts'), "export { default } from 'ajo-ui-playa/checkbox'\n")
+	await write(join(directory, 'src/graph-family.ts'), "export { Checkbox } from 'ajo-ui-playa/checkbox'\n")
 	await write(join(directory, 'src/graph-popover.ts'), "export * from 'ajo-ui-playa/popover'\n")
 	await write(join(directory, 'src/graph-tooltip.ts'), "export * from 'ajo-ui-playa/tooltip'\n")
 }
@@ -617,7 +617,7 @@ const verifyServerPackages = async (consumer: string) => {
 		"import { configure, send } from 'ajo-kit-mail'",
 		"import { capture } from 'ajo-kit-mail/capture'",
 		"import { http } from 'ajo-kit-mail/http'",
-		"import Checkbox from 'ajo-ui-playa/checkbox'",
+		"import { Checkbox } from 'ajo-ui-playa/checkbox'",
 		"if (!date('2026-01-01T00:00:00.000Z')) throw new Error('ajo-kit root export failed')",
 		"if (!can(['posts:*'], 'posts:read')) throw new Error('ajo-kit-auth ability export failed')",
 		"if (typeof Checkbox !== 'function') throw new Error('ajo-ui package chain failed')",
@@ -1335,7 +1335,7 @@ const hmrProbe = async (directory: string, registry: string) => {
 	].join('\n'))
 	await write(join(directory, 'src/main.tsx'), [
 		"import { render } from 'ajo'",
-		"import Button from 'ajo-ui-playa/button'",
+		"import { Button } from 'ajo-ui-playa/button'",
 		"import 'virtual:uno.css'",
 		"render(<Button id=\"probe\">HMR probe</Button>, document.getElementById('app')!)",
 		'',

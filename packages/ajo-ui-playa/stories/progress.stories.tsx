@@ -3,7 +3,7 @@ import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
 import { Field, FieldLabel } from 'ajo-ui-playa/field'
 import { Progress } from 'ajo-ui-playa/progress'
-import Slider from 'ajo-ui-playa/slider'
+import { Slider } from 'ajo-ui-playa/slider'
 
 export default {
 	title: 'UI/Progress',

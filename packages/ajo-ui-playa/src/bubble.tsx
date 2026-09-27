@@ -1,5 +1,5 @@
-import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
+import type { Args, IntrinsicElements, Stateless, WithChildren } from 'ajo'
+import { clx, part } from 'ajo-ui/utils'
 
 export type BubbleVariant =
 	| 'default'
@@ -116,66 +116,38 @@ const reactionAligns: Record<BubbleAlign, string> = {
 }
 
 /** Groups consecutive bubbles from one speaker. */
-const BubbleGroup: Stateless<BubbleGroupArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx(groupBase, classes)} data-slot="bubble-group">
-		{children}
-	</div>
-)
+const BubbleGroup = part<BubbleGroupArgs>('div', 'bubble-group', { class: groupBase })
 
 /** Presentational chat bubble wrapper. Keep message-level semantics outside this component. */
 const Bubble: Stateless<BubbleArgs> = ({
 	align = 'start',
-	children,
 	class: classes,
 	variant = 'default',
 	...attrs
 }) => (
 	<div
 		{...attrs}
-		class={clsx(rootBase, rootVariants[variant], classes)}
+		class={clx(rootBase, rootVariants[variant], classes)}
 		data-align={align}
 		data-slot="bubble"
 		data-variant={variant}
-	>
-		{children}
-	</div>
+	/>
 )
 
 /** Bubble content surface. Use `as="button"` or `as="a"` for interactive bubbles. */
 const BubbleContent: Stateless<BubbleContentArgs> = ({
-	as = 'div',
-	children,
+	as: Tag = 'div',
 	class: classes,
 	type = 'button',
 	...attrs
-}) => {
-	const styles = clsx(contentBase, classes)
-
-	if (as === 'a') {
-		const anchor = attrs as IntrinsicElements['a']
-		return (
-			<a {...anchor} class={styles} data-slot="bubble-content" href={String(anchor.href)}>
-				{children}
-			</a>
-		)
-	}
-
-	if (as === 'button') {
-		const button = attrs as IntrinsicElements['button']
-		return (
-			<button {...button} class={styles} data-slot="bubble-content" type={type}>
-				{children}
-			</button>
-		)
-	}
-
-	const div = attrs as IntrinsicElements['div']
-	return (
-		<div {...div} class={styles} data-slot="bubble-content">
-			{children}
-		</div>
-	)
-}
+}) => (
+	<Tag
+		{...(attrs as Args)}
+		class={clx(contentBase, classes)}
+		data-slot="bubble-content"
+		type={Tag === 'button' ? type : undefined}
+	/>
+)
 
 /** Reaction row anchored to a bubble edge. */
 const BubbleReactions: Stateless<BubbleReactionsArgs> = ({
@@ -187,7 +159,7 @@ const BubbleReactions: Stateless<BubbleReactionsArgs> = ({
 }) => (
 	<div
 		{...attrs}
-		class={clsx(reactionsBase, reactionSides[side], reactionAligns[align], classes)}
+		class={clx(reactionsBase, reactionSides[side], reactionAligns[align], classes)}
 		data-align={align}
 		data-side={side}
 		data-slot="bubble-reactions"

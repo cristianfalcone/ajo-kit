@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story, StoryContext } from './app'
-import Checkbox from 'ajo-ui-playa/checkbox'
+import { Checkbox } from 'ajo-ui-playa/checkbox'
 import {
 	Field,
 	FieldContent,

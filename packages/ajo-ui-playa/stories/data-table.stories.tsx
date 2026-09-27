@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import Button from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import { DataTable, type DataTableColumn } from 'ajo-ui-playa/data-table'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from 'ajo-ui-playa/menu'
 

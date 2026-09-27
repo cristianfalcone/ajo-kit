@@ -6,7 +6,7 @@ import {
 	FieldError,
 	FieldLabel,
 } from 'ajo-ui-playa/field'
-import Input from 'ajo-ui-playa/input'
+import { Input } from 'ajo-ui-playa/input'
 
 const frame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 

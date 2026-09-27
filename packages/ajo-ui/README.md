@@ -56,7 +56,7 @@ export default () => (
 adapters:
 
 ```tsx
-import { bool, part, stlx } from 'ajo-ui/utils'
+import { bool, clx, part, stlx } from 'ajo-ui/utils'
 import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 ```
 
@@ -65,6 +65,7 @@ import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 | `OmitArg` | Removes named properties while preserving Ajo's open argument index |
 | `FixedArgs` | Marks properties supplied by an adapter as unavailable to callers |
 | `part` | Builds a part from a tag or component: a default `data-slot` the caller may override, fixed attributes, merged `class` |
+| `clx` | Joins string class names, skipping booleans and empty values; `undefined` when none remain |
 | `bool` | Parses boolean-ish attribute input (`true`, `''`, `'true'`) |
 | `stlx` | Joins declaration strings and property objects into an inline style |
 

@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
 import { Marker, MarkerContent, MarkerIcon } from 'ajo-ui-playa/marker'
-import Spinner from 'ajo-ui-playa/spinner'
+import { Spinner } from 'ajo-ui-playa/spinner'
 
 export default {
 	title: 'UI/Marker',

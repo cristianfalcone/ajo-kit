@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 
 export type KbdArgs = WithChildren<IntrinsicElements['kbd']>
 export type KbdGroupArgs = WithChildren<IntrinsicElements['kbd']>
@@ -9,14 +9,14 @@ const groupBase = 'inline-flex items-center gap-1'
 
 /** Semantic keyboard key marker. */
 const Kbd: Stateless<KbdArgs> = ({ children, class: classes, ...attrs }) => (
-	<kbd {...attrs} class={clsx(keyBase, classes)} data-slot="kbd">
+	<kbd {...attrs} class={clx(keyBase, classes)} data-slot="kbd">
 		{children}
 	</kbd>
 )
 
 /** Semantic keyboard shortcut group. */
 const KbdGroup: Stateless<KbdGroupArgs> = ({ children, class: classes, ...attrs }) => (
-	<kbd {...attrs} class={clsx(groupBase, classes)} data-slot="kbd-group">
+	<kbd {...attrs} class={clx(groupBase, classes)} data-slot="kbd-group">
 		{children}
 	</kbd>
 )

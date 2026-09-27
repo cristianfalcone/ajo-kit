@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Spinner from 'ajo-ui-playa/spinner'
+import { Spinner } from 'ajo-ui-playa/spinner'
 
 export default {
 	title: 'UI/Spinner',
@@ -21,7 +21,7 @@ export const Default: Story<typeof Spinner> = {
 	play: async ({ canvas }) => {
 		const spinner = canvas.querySelector<HTMLElement>('[data-slot="spinner"]')
 		const ring = canvas.querySelector<HTMLElement>('[data-slot="spinner-ring"]')
-		if (!spinner || !ring || spinner.getAttribute('role') !== 'status' || spinner.getAttribute('aria-label') !== 'Loading') {
+		if (!spinner || !ring || spinner.getAttribute('role') !== 'status' || spinner.hasAttribute('aria-label') || spinner.querySelector('.sr-only')?.textContent !== 'Loading') {
 			throw new Error('Spinner did not render an accessible status indicator')
 		}
 	},

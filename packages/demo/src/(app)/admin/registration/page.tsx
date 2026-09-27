@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, date } from '@kit'
 import { action } from '@kit/client'
-import Button, { buttonVariants } from 'ajo-ui-playa/button'
+import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'ajo-ui-playa/card'
 import { Chip } from 'ajo-ui-playa/chip'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from 'ajo-ui-playa/empty'

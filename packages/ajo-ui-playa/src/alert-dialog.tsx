@@ -1,6 +1,5 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import { buttonVariants, type ButtonSize, type ButtonVariant } from './button'
 import {
 	Dialog as BaseDialog,
@@ -89,7 +88,7 @@ const AlertDialogContent: Stateless<AlertDialogContentArgs> = ({
 }) => (
 	<DialogContent
 		{...attrs}
-		class={clsx(contentBase, classes)}
+		class={clx(contentBase, classes)}
 		data-size={size}
 		data-slot="alert-dialog-content"
 		onPointerDownOutside={event => event.preventDefault()}
@@ -100,17 +99,17 @@ const AlertDialogContent: Stateless<AlertDialogContentArgs> = ({
 
 /** Header area for alert dialog title, description, and optional media. */
 const AlertDialogHeader: Stateless<AlertDialogHeaderArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogHeader {...attrs} class={clsx(headerBase, classes)} data-slot="alert-dialog-header" />
+	<BaseDialogHeader {...attrs} class={clx(headerBase, classes)} data-slot="alert-dialog-header" />
 )
 
 /** Footer area for alert dialog cancel and action buttons. */
 const AlertDialogFooter: Stateless<AlertDialogFooterArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogFooter {...attrs} class={clsx(footerBase, classes)} data-slot="alert-dialog-footer" />
+	<BaseDialogFooter {...attrs} class={clx(footerBase, classes)} data-slot="alert-dialog-footer" />
 )
 
 /** Accessible title for AlertDialogContent. */
 const AlertDialogTitle: Stateless<AlertDialogTitleArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogTitle {...attrs} class={clsx(titleBase, classes)} data-slot="alert-dialog-title" />
+	<BaseDialogTitle {...attrs} class={clx(titleBase, classes)} data-slot="alert-dialog-title" />
 )
 
 /** Accessible description for AlertDialogContent. */
@@ -120,7 +119,7 @@ const AlertDialogDescription: Stateless<AlertDialogDescriptionArgs> = attrs => (
 
 /** Optional media block for an icon or image in the alert dialog header. */
 const AlertDialogMedia: Stateless<AlertDialogMediaArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx(mediaBase, classes)} data-slot="alert-dialog-media">
+	<div {...attrs} class={clx(mediaBase, classes)} data-slot="alert-dialog-media">
 		{children}
 	</div>
 )

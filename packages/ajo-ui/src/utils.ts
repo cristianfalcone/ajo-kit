@@ -1,6 +1,5 @@
 import type { Args as AjoArgs, Stateless } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
-import { clx } from './shared'
 
 /** Omits named arguments without collapsing Ajo's open Args index signature. */
 export type OmitArg<T, Keys extends PropertyKey> = {
@@ -10,6 +9,18 @@ export type OmitArg<T, Keys extends PropertyKey> = {
 /** Marks component arguments owned by an adapter as unavailable to callers. */
 export type FixedArgs<Keys extends PropertyKey> = {
 	[Key in Keys]?: never
+}
+
+type ClassValue = string | boolean | null | undefined
+
+/**
+ * Joins the non-empty string class names, or returns undefined when none remain.
+ * A recipe whose first argument is its non-empty base gets a string back.
+ */
+export function clx(base: string, ...values: ClassValue[]): string
+export function clx(...values: ClassValue[]): string | undefined
+export function clx(...values: ClassValue[]) {
+	return values.filter(value => typeof value === 'string' && value).join(' ') || undefined
 }
 
 /**

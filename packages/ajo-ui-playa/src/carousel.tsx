@@ -1,6 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import { buttonVariants } from './button'
 import type { ButtonVariant } from './button'
 import {
@@ -50,7 +49,7 @@ const Carousel: Stateless<CarouselArgs> = ({
 }) => (
 	<BaseCarousel
 		{...attrs}
-		class={clsx('relative [&_[data-slot=carousel-content]]:overflow-hidden', classes)}
+		class={clx('relative [&_[data-slot=carousel-content]]:overflow-hidden', classes)}
 	>
 		{children}
 	</BaseCarousel>
@@ -64,7 +63,7 @@ const CarouselContent: Stateless<CarouselContentArgs> = ({
 }) => (
 	<BaseCarouselContent
 		{...attrs}
-		class={clsx(
+		class={clx(
 			'flex scroll-smooth overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
 			horizontal()
 				? '-ms-4 overflow-x-auto snap-x snap-mandatory'
@@ -84,7 +83,7 @@ const CarouselItem: Stateless<CarouselItemArgs> = ({
 }) => (
 	<BaseCarouselItem
 		{...attrs}
-		class={clsx(
+		class={clx(
 			'min-w-0 shrink-0 grow-0 basis-full snap-start',
 			horizontal() ? 'ps-4' : 'pt-4',
 			classes,
@@ -110,7 +109,7 @@ const carouselButton = (step: 'previous' | 'next'): Stateless<CarouselButtonArgs
 			<Base
 				{...attrs}
 				aria-label={label}
-				class={clsx(
+				class={clx(
 					buttonVariants({ size: 'none', variant }),
 					'absolute size-8 rounded-full',
 					inline ? 'top-1/2 -translate-y-1/2' : 'left-1/2 -translate-x-1/2 rotate-90',
@@ -118,8 +117,7 @@ const carouselButton = (step: 'previous' | 'next'): Stateless<CarouselButtonArgs
 					classes,
 				)}
 			>
-				<span aria-hidden="true" class={clsx(next ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left', 'size-4', inline && 'rtl:rotate-180')} />
-				<span class="sr-only">{label}</span>
+				<span aria-hidden="true" class={clx(next ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left', 'size-4', inline && 'rtl:rotate-180')} />
 			</Base>
 		)
 	}

@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Args, Meta, Story } from './app'
-import Button, { buttonVariants } from 'ajo-ui-playa/button'
+import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import { DialogClose, DialogTrigger } from 'ajo-ui-playa/dialog'
 import {
 	Drawer,
@@ -12,8 +12,8 @@ import {
 	DrawerTitle,
 	type DrawerSide,
 } from 'ajo-ui-playa/drawer'
-import Input from 'ajo-ui-playa/input'
-import Label from 'ajo-ui-playa/label'
+import { Input } from 'ajo-ui-playa/input'
+import { Label } from 'ajo-ui-playa/label'
 
 export default {
 	title: 'UI/Drawer',

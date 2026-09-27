@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	Tabs as BaseTabs,
 	TabsContent as BaseTabsContent,
@@ -35,7 +35,7 @@ const rootBase = 'group/tabs flex gap-2 data-[orientation=horizontal]:flex-col'
 // No justify-center: with w-fit/h-fit it is a no-op while the list fits, and
 // once the list overflows it shifts content across the scroll origin, leaving
 // the leading tabs unreachable by scrolling.
-const listBase = clsx(
+const listBase = clx(
 	'group/tabs-list inline-flex w-fit items-center rounded-lg p-[3px] text-muted-foreground data-[variant=line]:rounded-none',
 	'max-w-full min-w-0 scrollbar-none scroll-smooth motion-reduce:scroll-auto',
 	// Scroll padding matches the 1rem edge fade so a snapped or
@@ -55,18 +55,18 @@ const listBase = clsx(
 // completely (the line variant hugs the trigger's inner edge so the bar stays
 // inside the scroll clip).
 const listVariants: Record<TabsListVariant, string> = {
-	default: clsx(
+	default: clx(
 		'bg-muted/60 edge',
 		'before:translate-x-[var(--indicator-x)] before:translate-y-[var(--indicator-y)] before:w-[var(--indicator-w)] before:h-[var(--indicator-h)] before:rounded-md before:bg-card',
 	),
-	line: clsx(
+	line: clx(
 		'gap-1 bg-transparent before:bg-primary before:rounded-full',
 		'group-data-[orientation=horizontal]/tabs:before:translate-x-[var(--indicator-x)] group-data-[orientation=horizontal]/tabs:before:translate-y-[calc(var(--indicator-y)+var(--indicator-h)-2px)] group-data-[orientation=horizontal]/tabs:before:w-[var(--indicator-w)] group-data-[orientation=horizontal]/tabs:before:h-0.5',
 		'group-data-[orientation=vertical]/tabs:before:translate-x-[calc(var(--indicator-x)+var(--indicator-w)-2px)] group-data-[orientation=vertical]/tabs:before:translate-y-[var(--indicator-y)] group-data-[orientation=vertical]/tabs:before:w-0.5 group-data-[orientation=vertical]/tabs:before:h-[var(--indicator-h)]',
 	),
 }
 
-const triggerBase = clsx(
+const triggerBase = clx(
 	'relative inline-flex h-[calc(100%-1px)] flex-1 snap-start items-center justify-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium whitespace-nowrap text-muted-foreground transition-[color]',
 	'group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start hover:text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
 	'disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
@@ -90,7 +90,7 @@ const Tabs: Stateless<TabsArgs> = ({
 	<BaseTabs
 		{...attrs}
 		activationMode={activationMode}
-		class={clsx(rootBase, classes)}
+		class={clx(rootBase, classes)}
 		defaultValue={defaultValue}
 		dir={dir}
 		loop={loop}
@@ -102,15 +102,6 @@ const Tabs: Stateless<TabsArgs> = ({
 	</BaseTabs>
 )
 
-/** Returns the UnoCSS class list for a tabs list. */
-export const tabsListVariants = ({
-	class: classes,
-	variant = 'default',
-}: {
-	class?: TabsListArgs['class']
-	variant?: TabsListVariant
-} = {}) => clsx(listBase, listVariants[variant], classes)
-
 /** Container for tab triggers. */
 const TabsList: Stateless<TabsListArgs> = ({
 	children,
@@ -121,7 +112,7 @@ const TabsList: Stateless<TabsListArgs> = ({
 }) => (
 	<BaseTabsList
 		{...attrs}
-		class={tabsListVariants({ class: classes, variant })}
+		class={clx(listBase, listVariants[variant], classes)}
 		data-variant={variant}
 		role={role}
 	>
@@ -143,7 +134,7 @@ const TabsTrigger: Stateless<TabsTriggerArgs> = ({
 }) => (
 	<BaseTabsTrigger
 		{...attrs}
-		class={clsx(triggerBase, classes)}
+		class={clx(triggerBase, classes)}
 		disabled={disabled}
 		id={id}
 		set:onclick={onClick}
@@ -165,7 +156,7 @@ const TabsContent: Stateless<TabsContentArgs> = ({
 }) => (
 	<BaseTabsContent
 		{...attrs}
-		class={clsx(contentBase, classes)}
+		class={clx(contentBase, classes)}
 		forceMount={forceMount}
 		value={String(value)}
 	>

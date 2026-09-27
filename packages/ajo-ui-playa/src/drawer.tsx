@@ -1,5 +1,5 @@
 ﻿import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	DialogDescription,
 	DialogFooter,
@@ -16,10 +16,10 @@ import {
 	type DrawerArgs,
 	type DrawerContentArgs,
 } from 'ajo-ui/drawer'
-import { modalClosed, modalSurface } from './modal'
+import { modalClosed, modalSurface } from './internal/recipes'
 export type { DrawerArgs, DrawerContentArgs, DrawerSide } from 'ajo-ui/drawer'
 
-const base = clsx(modalSurface, 'group/drawer-content m-0 flex flex-col gap-4')
+const base = clx(modalSurface, 'group/drawer-content m-0 flex flex-col gap-4')
 // Edge geometry keys off the base's `data-side`; top and bottom drawers with
 // a handle become rounded sheets capped below the viewport height.
 const horizontal = [
@@ -42,36 +42,36 @@ const Drawer: Stateless<DrawerArgs> = ({
 	class: classes,
 	...attrs
 }) => (
-	<BaseDrawer {...attrs} class={clsx('contents', classes)} />
+	<BaseDrawer {...attrs} class={clx('contents', classes)} />
 )
 
 /** Native modal drawer panel with an optional drag handle; compose DialogClose inside it for a close control. */
 const DrawerContent: Stateless<DrawerContentArgs> = ({ class: classes, handle, ...attrs }) => (
 	<BaseDrawerContent
 		{...attrs}
-		class={clsx(modalClosed, base, horizontal, handle ? clsx(sheet, handleBase) : vertical, classes)}
+		class={clx(modalClosed, base, horizontal, handle ? clx(sheet, handleBase) : vertical, classes)}
 		handle={handle}
 	/>
 )
 
 /** Header area for drawer title and description, themed for the drawer edge. */
 const DrawerHeader: Stateless<DialogHeaderArgs> = ({ class: classes, ...attrs }) => (
-	<DialogHeader {...attrs} class={clsx(headerBase, classes)} data-slot="drawer-header" />
+	<DialogHeader {...attrs} class={clx(headerBase, classes)} data-slot="drawer-header" />
 )
 
 /** Footer area for drawer actions, pinned to the drawer end. */
 const DrawerFooter: Stateless<DialogFooterArgs> = ({ class: classes, ...attrs }) => (
-	<DialogFooter {...attrs} class={clsx('mt-auto flex flex-col gap-2 p-4 sm:flex-col sm:justify-start', classes)} data-slot="drawer-footer" />
+	<DialogFooter {...attrs} class={clx('mt-auto flex flex-col gap-2 p-4 sm:flex-col sm:justify-start', classes)} data-slot="drawer-footer" />
 )
 
 /** Accessible title for DrawerContent. */
 const DrawerTitle: Stateless<DialogTitleArgs> = ({ class: classes, ...attrs }) => (
-	<DialogTitle {...attrs} class={clsx('font-semibold text-foreground', classes)} data-slot="drawer-title" />
+	<DialogTitle {...attrs} class={clx('font-semibold text-foreground', classes)} data-slot="drawer-title" />
 )
 
 /** Accessible description for DrawerContent. */
 const DrawerDescription: Stateless<DialogDescriptionArgs> = ({ class: classes, ...attrs }) => (
-	<DialogDescription {...attrs} class={clsx('text-sm text-muted-foreground', classes)} data-slot="drawer-description" />
+	<DialogDescription {...attrs} class={clx('text-sm text-muted-foreground', classes)} data-slot="drawer-description" />
 )
 
 export {

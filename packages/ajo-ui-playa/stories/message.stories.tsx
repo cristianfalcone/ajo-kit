@@ -11,7 +11,7 @@ import {
 } from 'ajo-ui-playa/attachment'
 import { Avatar, AvatarFallback } from 'ajo-ui-playa/avatar'
 import { Bubble, BubbleContent } from 'ajo-ui-playa/bubble'
-import Button from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import { Marker, MarkerContent, MarkerIcon } from 'ajo-ui-playa/marker'
 import {
 	Message,
@@ -21,7 +21,7 @@ import {
 	MessageGroup,
 	MessageHeader,
 } from 'ajo-ui-playa/message'
-import Spinner from 'ajo-ui-playa/spinner'
+import { Spinner } from 'ajo-ui-playa/spinner'
 
 export default {
 	title: 'UI/Message',

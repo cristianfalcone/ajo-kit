@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	Toolbar as BaseToolbar,
 	ToolbarSeparator as BaseToolbarSeparator,
@@ -15,12 +15,12 @@ const separatorBase = 'shrink-0 self-stretch bg-border data-[orientation=vertica
 
 /** Toolbar grouping buttons, toggle groups, and inputs behind a single tab stop with arrow-key roving. */
 const Toolbar: Stateless<ToolbarArgs> = ({ class: classes, ...attrs }) => (
-	<BaseToolbar {...attrs} class={clsx(rootBase, classes)} />
+	<BaseToolbar {...attrs} class={clx(rootBase, classes)} />
 )
 
 /** Visual separator between toolbar groups. */
 const ToolbarSeparator: Stateless<ToolbarSeparatorArgs> = ({ class: classes, ...attrs }) => (
-	<BaseToolbarSeparator {...attrs} class={clsx(separatorBase, classes)} />
+	<BaseToolbarSeparator {...attrs} class={clx(separatorBase, classes)} />
 )
 
 export { Toolbar, ToolbarSeparator }

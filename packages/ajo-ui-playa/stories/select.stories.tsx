@@ -26,7 +26,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from 'ajo-ui-playa/select'
-import Spinner from 'ajo-ui-playa/spinner'
+import { Spinner } from 'ajo-ui-playa/spinner'
 
 type Country = {
 	code: string

@@ -1,5 +1,4 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
 import {
 	InputDate as BaseInputDate,
 	InputDateCalendar as BaseInputDateCalendar,
@@ -20,7 +19,7 @@ import {
 	type InputTimeArgs as BaseInputTimeArgs,
 } from 'ajo-ui/input-date'
 import type { CalendarArgs as BaseCalendarArgs } from 'ajo-ui/calendar'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import { buttonVariants } from './button'
 import { Calendar } from './calendar'
 import { inputGroupAddon, inputGroupAddonAlign, inputGroupVariants, popupAnimation, popupSlide } from './internal/recipes'
@@ -41,13 +40,13 @@ export type InputDateTimeArgs<Range extends boolean = false> = OmitArg<BaseInput
 } & FixedArgs<'classNames'>
 
 const fieldBase = 'flex items-center'
-const addonButtonBase = clsx(buttonVariants({ size: 'none', variant: 'muted-ghost' }), 'size-6 rounded-[calc(var(--radius)-5px)]')
-// No w-72/p-4 here: clsx does not resolve conflicting utilities, so the
+const addonButtonBase = clx(buttonVariants({ size: 'none', variant: 'muted-ghost' }), 'size-6 rounded-[calc(var(--radius)-5px)]')
+// No w-72/p-4 here: clx does not resolve conflicting utilities, so the
 // calendar-sized content declares its own w-auto/p-0 without a competitor.
-const contentBase = clsx('z-50 m-0 w-auto rounded-lg glass-overlay edge p-0 shadow-lg outline-none', popupAnimation, popupSlide)
+const contentBase = clx('z-50 m-0 w-auto rounded-lg glass-overlay edge p-0 shadow-lg outline-none', popupAnimation, popupSlide)
 
 const classNames: Record<InputDateClassName, string> = {
-	addon: clsx(inputGroupAddon, inputGroupAddonAlign['inline-end']),
+	addon: clx(inputGroupAddon, inputGroupAddonAlign['inline-end']),
 	clear: addonButtonBase,
 	clear_icon: 'i-lucide-x pointer-events-none size-4',
 	content: contentBase,
@@ -63,7 +62,7 @@ const classNames: Record<InputDateClassName, string> = {
 // The one Playa root wrapper: InputGroup chrome and the theme map.
 const theme = ({ class: classes, disabled }: { class?: string; disabled?: boolean }) => ({
 	class: inputGroupVariants({
-		class: clsx('data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50', classes),
+		class: clx('data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50', classes),
 		width: 'full',
 	}),
 	classNames,
@@ -90,17 +89,17 @@ const InputDateTime = <Range extends boolean = false>({ calendar, ...attrs }: In
 
 /** Segmented field group styled to read like a themed Input. */
 const InputDateField: Stateless<InputDateFieldArgs> = ({ class: classes, ...attrs }) => (
-	<BaseInputDateField {...attrs} class={clsx(fieldBase, classes)} />
+	<BaseInputDateField {...attrs} class={clx(fieldBase, classes)} />
 )
 
 /** Ghost calendar icon button for the trailing addon. */
 const InputDateTrigger: Stateless<InputDateTriggerArgs> = ({ class: classes, ...attrs }) => (
-	<BaseInputDateTrigger {...attrs} class={clsx(addonButtonBase, classes)} />
+	<BaseInputDateTrigger {...attrs} class={clx(addonButtonBase, classes)} />
 )
 
 /** Popover surface sized by the calendar. */
 const InputDateContent: Stateless<InputDateContentArgs> = ({ class: classes, ...attrs }) => (
-	<BaseInputDateContent {...attrs} class={clsx(contentBase, classes)} />
+	<BaseInputDateContent {...attrs} class={clx(contentBase, classes)} />
 )
 
 /** Calendar wired to the field; pins the themed Calendar implementation. */
@@ -110,7 +109,7 @@ const InputDateCalendar: Stateless<InputDateCalendarArgs> = attrs => (
 
 /** Ghost clear button; renders only while a value exists and emits null. */
 const InputDateClear: Stateless<InputDateClearArgs> = ({ class: classes, ...attrs }) => (
-	<BaseInputDateClear {...attrs} class={clsx(addonButtonBase, classes)} />
+	<BaseInputDateClear {...attrs} class={clx(addonButtonBase, classes)} />
 )
 
 export {

@@ -4,7 +4,7 @@ import { move } from 'ajo-cloves'
 import type { Meta, Story } from './app'
 import { buttonVariants } from 'ajo-ui-playa/button'
 import { Field, FieldGroup, FieldLabel } from 'ajo-ui-playa/field'
-import Input from 'ajo-ui-playa/input'
+import { Input } from 'ajo-ui-playa/input'
 import {
 	Popover,
 	PopoverAnchor,

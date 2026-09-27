@@ -1,5 +1,6 @@
-import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
+import type { Args, IntrinsicElements, Stateless, WithChildren } from 'ajo'
+import { clx, part } from 'ajo-ui/utils'
+import { Separator, type SeparatorArgs } from './separator'
 
 export type ItemVariant =
 	| 'default'
@@ -48,10 +49,7 @@ export type ItemGroupArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
-export type ItemSeparatorArgs = IntrinsicElements['div'] & {
-	/** Additional UnoCSS classes. */
-	class?: string
-}
+export type ItemSeparatorArgs = SeparatorArgs
 
 export type ItemMediaArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Media presentation style. */
@@ -70,8 +68,6 @@ type ItemSlotArgs = WithChildren<IntrinsicElements['div'] & {
 export type ItemContentArgs = ItemSlotArgs
 export type ItemTitleArgs = ItemSlotArgs
 export type ItemActionsArgs = ItemSlotArgs
-export type ItemHeaderArgs = ItemSlotArgs
-export type ItemFooterArgs = ItemSlotArgs
 export type ItemDescriptionArgs = WithChildren<IntrinsicElements['p'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
@@ -95,123 +91,54 @@ const mediaVariants: Record<ItemMediaVariant, string> = {
 	image: 'size-10 overflow-hidden rounded-sm [&_img]:size-full [&_img]:object-cover',
 }
 
-/** Returns the UnoCSS class list for an Item root. */
-export const itemVariants = ({
-	class: classes,
-	size = 'default',
-	variant = 'default',
-}: {
-	class?: string
-	size?: ItemSize
-	variant?: ItemVariant
-} = {}) => clsx(itemBase, variantClasses[variant], itemSizes[size], classes)
-
 /** Container for grouping related items. */
-const ItemGroup: Stateless<ItemGroupArgs> = ({ children, class: classes, role = 'list', ...attrs }) => (
-	<div {...attrs} class={clsx('group/item-group flex flex-col', classes)} data-slot="item-group" role={role}>
-		{children}
-	</div>
+const ItemGroup: Stateless<ItemGroupArgs> = ({ class: classes, role = 'list', ...attrs }) => (
+	<div {...attrs} class={clx('group/item-group flex flex-col', classes)} data-slot="item-group" role={role} />
 )
 
 /** Horizontal separator between items in an item group. */
-const ItemSeparator: Stateless<ItemSeparatorArgs> = ({ class: classes, role = 'none', ...attrs }) => (
-	<div {...attrs} class={clsx('my-0 h-px w-full shrink-0 bg-border', classes)} data-slot="item-separator" role={role} />
-)
+const ItemSeparator = part<ItemSeparatorArgs>(Separator, 'item-separator', { class: 'my-0' })
 
 /** Main item surface for content, media, and actions. */
 const Item: Stateless<ItemArgs> = ({
-	as = 'div',
-	children,
+	as: Tag = 'div',
 	class: classes,
 	size = 'default',
 	variant = 'default',
 	...attrs
-}) => {
-	const styles = itemVariants({ class: classes, size, variant })
-
-	if (as === 'a') {
-		const anchor = attrs as IntrinsicElements['a']
-		return (
-			<a {...anchor} class={styles} data-size={size} data-slot="item" data-variant={variant} href={String(anchor.href)}>
-				{children}
-			</a>
-		)
-	}
-
-	if (as === 'button') {
-		const button = attrs as IntrinsicElements['button']
-		return (
-			<button {...button} class={styles} data-size={size} data-slot="item" data-variant={variant}>
-				{children}
-			</button>
-		)
-	}
-
-	const div = attrs as IntrinsicElements['div']
-	return (
-		<div {...div} class={styles} data-size={size} data-slot="item" data-variant={variant}>
-			{children}
-		</div>
-	)
-}
+}) => (
+	<Tag
+		{...(attrs as Args)}
+		class={clx(itemBase, variantClasses[variant], itemSizes[size], classes)}
+		data-size={size}
+		data-slot="item"
+		data-variant={variant}
+	/>
+)
 
 /** Media slot for icons, images, avatars, or custom visual content. */
-const ItemMedia: Stateless<ItemMediaArgs> = ({ children, class: classes, variant = 'default', ...attrs }) => (
-	<div {...attrs} class={clsx(mediaBase, mediaVariants[variant], classes)} data-slot="item-media" data-variant={variant}>
-		{children}
-	</div>
+const ItemMedia: Stateless<ItemMediaArgs> = ({ class: classes, variant = 'default', ...attrs }) => (
+	<div {...attrs} class={clx(mediaBase, mediaVariants[variant], classes)} data-slot="item-media" data-variant={variant} />
 )
 
 /** Primary content column for title and description. */
-const ItemContent: Stateless<ItemContentArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx('flex flex-1 flex-col gap-1 [&+[data-slot=item-content]]:flex-none', classes)} data-slot="item-content">
-		{children}
-	</div>
-)
+const ItemContent = part<ItemContentArgs>('div', 'item-content', { class: 'flex flex-1 flex-col gap-1 [&+[data-slot=item-content]]:flex-none' })
 
 /** Item title text. */
-const ItemTitle: Stateless<ItemTitleArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx('flex w-fit items-center gap-2 text-sm font-medium leading-snug', classes)} data-slot="item-title">
-		{children}
-	</div>
-)
+const ItemTitle = part<ItemTitleArgs>('div', 'item-title', { class: 'flex w-fit items-center gap-2 text-sm font-medium leading-snug' })
 
 /** Item descriptive text. */
-const ItemDescription: Stateless<ItemDescriptionArgs> = ({ children, class: classes, ...attrs }) => (
-	<p {...attrs} class={clsx('line-clamp-2 text-balance text-sm font-normal leading-normal text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary', classes)} data-slot="item-description">
-		{children}
-	</p>
-)
+const ItemDescription = part<ItemDescriptionArgs>('p', 'item-description', { class: 'line-clamp-2 text-balance text-sm font-normal leading-normal text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary' })
 
 /** Action slot for buttons, menus, or status controls. */
-const ItemActions: Stateless<ItemActionsArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx('flex items-center gap-2', classes)} data-slot="item-actions">
-		{children}
-	</div>
-)
-
-/** Full-width item header slot. */
-const ItemHeader: Stateless<ItemHeaderArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx('flex basis-full items-center justify-between gap-2', classes)} data-slot="item-header">
-		{children}
-	</div>
-)
-
-/** Full-width item footer slot. */
-const ItemFooter: Stateless<ItemFooterArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx('flex basis-full items-center justify-between gap-2', classes)} data-slot="item-footer">
-		{children}
-	</div>
-)
+const ItemActions = part<ItemActionsArgs>('div', 'item-actions', { class: 'flex items-center gap-2' })
 
 export {
 	Item,
 	ItemActions,
 	ItemContent,
 	ItemDescription,
-	ItemFooter,
 	ItemGroup,
-	ItemHeader,
 	ItemMedia,
 	ItemSeparator,
 	ItemTitle,

@@ -87,7 +87,6 @@ import type {
 	ToggleGroupMultipleArgs,
 	ToggleGroupSingleArgs,
 } from 'ajo-ui-playa/toggle-group'
-import { emptyMediaVariants } from 'ajo-ui-playa/empty'
 import { navigationMenuTriggerVariants } from 'ajo-ui-playa/navigation-menu'
 import { sidebarMenuActionVariants, sidebarMenuButtonVariants } from 'ajo-ui-playa/sidebar'
 
@@ -149,7 +148,6 @@ export type ThemeClassContracts = [
 
 /** Compile-only contract for the deliberate public variant-helper surface. */
 export const publicVariantSurface = [
-	emptyMediaVariants({ variant: 'icon' }),
 	navigationMenuTriggerVariants({ class: 'group' }),
 	sidebarMenuActionVariants({ showOnHover: true }),
 	sidebarMenuButtonVariants({ size: 'lg', variant: 'outline' }),

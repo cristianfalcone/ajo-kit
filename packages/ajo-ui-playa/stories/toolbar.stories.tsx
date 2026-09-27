@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import Button from 'ajo-ui-playa/button'
-import Input from 'ajo-ui-playa/input'
+import { Button } from 'ajo-ui-playa/button'
+import { Input } from 'ajo-ui-playa/input'
 import { ToggleGroup, ToggleGroupItem } from 'ajo-ui-playa/toggle-group'
 import { Toolbar, ToolbarSeparator } from 'ajo-ui-playa/toolbar'
 

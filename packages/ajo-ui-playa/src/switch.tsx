@@ -1,6 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import { Switch as BaseSwitch, type SwitchArgs as BaseSwitchArgs } from 'ajo-ui/switch'
 import { choiceInput } from './internal/recipes'
 
@@ -28,11 +27,10 @@ const Switch: Stateless<SwitchArgs> = ({
 }) => (
 	<BaseSwitch
 		{...attrs}
-		class={clsx(track, sizes[size].track, classes)}
+		class={clx(track, sizes[size].track, classes)}
 		inputClass={choiceInput}
-		thumbClass={clsx(thumb, sizes[size].thumb)}
+		thumbClass={clx(thumb, sizes[size].thumb)}
 	/>
 )
 
 export { Switch }
-export default Switch

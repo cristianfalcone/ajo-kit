@@ -1,5 +1,4 @@
 ﻿import type { Stateless } from 'ajo'
-import clsx from 'clsx'
 import {
 	InputGroup as BaseInputGroup,
 	InputGroupAddon as BaseInputGroupAddon,
@@ -14,7 +13,7 @@ import {
 	type InputGroupTextArgs as BaseInputGroupTextArgs,
 	type InputGroupTextareaArgs as BaseInputGroupTextareaArgs,
 } from 'ajo-ui/input-group'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import { buttonVariants } from './button'
 import type { ButtonVariant } from './button'
 import {
@@ -66,7 +65,7 @@ export type InputGroupTextareaArgs = BaseInputGroupTextareaArgs & {
 }
 
 // Single owner of h/px/gap/rounded/svg sizing: buttonVariants emits no
-// geometry at size:'none', so each recipe here must stay complete (clsx
+// geometry at size:'none', so each recipe here must stay complete (clx
 // cannot resolve conflicting utilities).
 const buttonSizeClasses: Record<InputGroupButtonSize, string> = {
 	'icon-sm': 'size-8 gap-2 rounded-md p-0 has-[>svg]:p-0 [&_svg:not([class*=size-])]:size-4',
@@ -104,7 +103,7 @@ const InputGroupAddon: Stateless<InputGroupAddonArgs> = ({
 	<BaseInputGroupAddon
 		{...attrs}
 		align={align}
-		class={clsx(inputGroupAddon, inputGroupAddonAlign[align], classes)}
+		class={clx(inputGroupAddon, inputGroupAddonAlign[align], classes)}
 		set:onclick={onclick}
 	>
 		{children}
@@ -123,7 +122,7 @@ const InputGroupButton: Stateless<InputGroupButtonArgs> = ({
 }) => (
 	<BaseInputGroupButton
 		{...attrs}
-		class={clsx(buttonVariants({ size: 'none', variant }), buttonSizeClasses[size], classes)}
+		class={clx(buttonVariants({ size: 'none', variant }), buttonSizeClasses[size], classes)}
 		data-size={size}
 		data-slot={slot}
 		type={type}
@@ -134,7 +133,7 @@ const InputGroupButton: Stateless<InputGroupButtonArgs> = ({
 
 /** Text helper for InputGroup addons. */
 const InputGroupText: Stateless<InputGroupTextArgs> = ({ children, class: classes, ...attrs }) => (
-	<BaseInputGroupText {...attrs} class={clsx(textBase, classes)}>
+	<BaseInputGroupText {...attrs} class={clx(textBase, classes)}>
 		{children}
 	</BaseInputGroupText>
 )
@@ -148,7 +147,7 @@ const InputGroupInput: Stateless<InputGroupInputArgs> = ({
 }) => (
 	<BaseInputGroupInput
 		{...attrs}
-		class={clsx(inputGroupInput, classes)}
+		class={clx(inputGroupInput, classes)}
 		data-slot={slot}
 		type={type}
 	/>
@@ -162,7 +161,7 @@ const InputGroupTextarea: Stateless<InputGroupTextareaArgs> = ({
 }) => (
 	<BaseInputGroupTextarea
 		{...attrs}
-		class={clsx(textareaBase, classes)}
+		class={clx(textareaBase, classes)}
 	>
 		{children}
 	</BaseInputGroupTextarea>

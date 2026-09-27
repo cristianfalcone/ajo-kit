@@ -1,6 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import {
 	Slider as BaseSlider,
 	type SliderArgs as BaseSliderArgs,
@@ -44,15 +43,14 @@ const Slider: Stateless<SliderArgs> = ({
 		<BaseSlider
 			{...attrs}
 			disabled={disabledFlag}
-			inputClass={clsx(inputBase, orientation === 'vertical' && '[writing-mode:vertical-lr]')}
+			inputClass={clx(inputBase, orientation === 'vertical' && '[writing-mode:vertical-lr]')}
 			orientation={orientation}
-			rangeClass={clsx(rangeBase, rangeOrientation[orientation])}
+			rangeClass={clx(rangeBase, rangeOrientation[orientation])}
 			thumbClass={thumbBase}
-			trackClass={clsx(trackBase, trackOrientation[orientation])}
-			class={clsx(rootBase, rootOrientation[orientation], disabledFlag && 'cursor-not-allowed opacity-50', classes)}
+			trackClass={clx(trackBase, trackOrientation[orientation])}
+			class={clx(rootBase, rootOrientation[orientation], disabledFlag && 'cursor-not-allowed opacity-50', classes)}
 		/>
 	)
 }
 
 export { Slider }
-export default Slider

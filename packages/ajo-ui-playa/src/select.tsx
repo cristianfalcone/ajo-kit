@@ -1,6 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
-import type { OmitArg } from 'ajo-ui/utils'
+import { clx, type OmitArg } from 'ajo-ui/utils'
 import {
 	Select as BaseSelect,
 	SelectChip as BaseSelectChip,
@@ -52,19 +51,7 @@ export type SelectTriggerArgs = OmitArg<BaseSelectTriggerArgs, 'size'> & {
 	size?: SelectSize
 }
 
-const rootBase = 'playa-select-root'
-const triggerBase = 'playa-select-trigger'
-// One element owns the height budget: the content is a flex column clamped to
-// the reference's available height; the list shrinks (min-h-0) to make room
-// for siblings (in-popup search, status, create row) instead of clipping them.
-// The flex display MUST stay gated on :popover-open — an unconditional author
-// display beats the UA [popover] display:none and keeps closed popups painted.
-const contentBase = 'playa-select-content'
-const listBase = 'playa-select-list'
-const itemBase = 'playa-select-item'
-const chipsBase = 'playa-select-chips'
-const chipInputBase = 'playa-select-chips-input'
-const clearBase = clsx(
+const clearBase = clx(
 	buttonVariants({ size: 'none', variant: 'muted-ghost' }),
 	'size-6 rounded-[calc(var(--radius)-5px)] [&_svg:not([class*=size-])]:size-4',
 	'*:data-[slot=select-clear-icon]:i-lucide-x *:data-[slot=select-clear-icon]:pointer-events-none *:data-[slot=select-clear-icon]:size-4',
@@ -73,81 +60,81 @@ const chipRemove = '*:data-[slot=select-chip-remove]:-mr-1 *:data-[slot=select-c
 
 /** Unified select: single, multiple, searchable, editable, chips, and tagging by composition. */
 const Select = <Multiple extends boolean = false>({ class: classes, ...attrs }: SelectArgs<Multiple>) => (
-	<BaseSelect<Multiple> {...attrs} class={clsx(rootBase, classes)} />
+	<BaseSelect<Multiple> {...attrs} class={clx('playa-select-root', classes)} />
 )
 
 /** Button field for a Select. */
 const SelectTrigger: Stateless<SelectTriggerArgs> = ({ class: classes, size = 'default', ...attrs }) => (
 	<BaseSelectTrigger
 		{...attrs}
-		class={clsx(triggerBase, classes)}
+		class={clx('playa-select-trigger', classes)}
 		data-size={size}
 	/>
 )
 
 /** Input field or in-popup search box for a Select. */
 const SelectInput: Stateless<SelectInputArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectInput {...attrs} class={inputGroupVariants({ class: clsx('playa-select-input', classes), width: 'auto' })} />
+	<BaseSelectInput {...attrs} class={inputGroupVariants({ class: clx('playa-select-input', classes), width: 'auto' })} />
 )
 
 /** Button that clears the current selection and search; compose it in SelectInput. */
 const SelectClear: Stateless<SelectClearArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectClear {...attrs} class={clsx(clearBase, classes)} />
+	<BaseSelectClear {...attrs} class={clx(clearBase, classes)} />
 )
 
 /** Popup panel for Select options. */
 const SelectContent: Stateless<SelectContentArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectContent {...attrs} class={clsx(contentBase, classes)} />
+	<BaseSelectContent {...attrs} class={clx('playa-select-content', classes)} />
 )
 
 /** Listbox for Select options. */
 const SelectList: Stateless<SelectListArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectList {...attrs} class={clsx(listBase, classes)} />
+	<BaseSelectList {...attrs} class={clx('playa-select-list scrollbar-soft', classes)} />
 )
 
 /** Selectable Select option. */
 const SelectItem: Stateless<SelectItemArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectItem {...attrs} class={clsx(itemBase, classes)} />
+	<BaseSelectItem {...attrs} class={clx('playa-select-item', classes)} />
 )
 
 /** Label for a SelectGroup. */
 const SelectLabel: Stateless<SelectLabelArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectLabel {...attrs} class={clsx('playa-select-label', classes)} />
+	<BaseSelectLabel {...attrs} class={clx('playa-select-label', classes)} />
 )
 
 /** Visual separator between Select groups. */
 const SelectSeparator: Stateless<SelectSeparatorArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectSeparator {...attrs} class={clsx('playa-select-separator', classes)} />
+	<BaseSelectSeparator {...attrs} class={clx('playa-select-separator', classes)} />
 )
 
 /** Empty state shown when filtering hides every option. */
 const SelectEmpty: Stateless<SelectEmptyArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectEmpty {...attrs} class={clsx('playa-select-empty', classes)} />
+	<BaseSelectEmpty {...attrs} class={clx('playa-select-empty', classes)} />
 )
 
 /** Keep-mounted polite live region for async status. */
 const SelectStatus: Stateless<SelectStatusArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectStatus {...attrs} class={clsx('playa-select-status', classes)} />
+	<BaseSelectStatus {...attrs} class={clx('playa-select-status', classes)} />
 )
 
 /** Create-tag row shown while the search matches no option exactly. */
 const SelectCreate: Stateless<SelectCreateArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectCreate {...attrs} class={clsx('playa-select-create', classes)} />
+	<BaseSelectCreate {...attrs} class={clx('playa-select-create', classes)} />
 )
 
 /** Chip input wrapper for multiple Select selections. */
 const SelectChips: Stateless<SelectChipsArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectChips {...attrs} class={clsx(chipsBase, classes)} />
+	<BaseSelectChips {...attrs} class={clx('playa-select-chips', classes)} />
 )
 
 /** Selected chip for multiple Select usage; composes the Chip visual language. */
 const SelectChip: Stateless<SelectChipArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectChip {...attrs} class={clsx(chipVariants({ variant: 'secondary' }), 'has-[button]:pr-1', chipRemove, classes)} />
+	<BaseSelectChip {...attrs} class={clx(chipVariants({ variant: 'secondary' }), 'has-[button]:pr-1', chipRemove, classes)} />
 )
 
 /** Input used inside SelectChips. */
 const SelectChipsInput: Stateless<SelectChipsInputArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectChipsInput {...attrs} class={clsx(chipInputBase, classes)} />
+	<BaseSelectChipsInput {...attrs} class={clx('playa-select-chips-input', classes)} />
 )
 
 export {

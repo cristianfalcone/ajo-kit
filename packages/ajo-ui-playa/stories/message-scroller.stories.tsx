@@ -3,7 +3,7 @@ import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
 import { Avatar, AvatarFallback } from 'ajo-ui-playa/avatar'
 import { Bubble, BubbleContent } from 'ajo-ui-playa/bubble'
-import Button from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import {
 	Message,
 	MessageAvatar,

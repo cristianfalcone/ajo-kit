@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import Button from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import { Field, FieldLabel } from 'ajo-ui-playa/field'
 import {
 	InputDate,

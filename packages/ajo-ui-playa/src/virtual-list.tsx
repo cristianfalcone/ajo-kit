@@ -36,4 +36,3 @@ const VirtualList = <
 )
 
 export { VirtualList }
-export default VirtualList

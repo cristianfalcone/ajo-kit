@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import { buttonVariants } from './button'
 import type { ButtonSize, ButtonVariant } from './button'
 import {
@@ -40,7 +40,7 @@ const buttonBase = 'absolute inset-s-1/2 z-10 -translate-x-1/2 transition-[trans
 const MessageScroller: Stateless<MessageScrollerArgs> = ({ children, class: classes, ...attrs }) => (
 	<BaseMessageScroller
 		{...attrs}
-		class={clsx(rootBase, classes)}
+		class={clx(rootBase, classes)}
 	>
 		{children}
 	</BaseMessageScroller>
@@ -54,7 +54,7 @@ const MessageScrollerViewport: Stateless<MessageScrollerViewportArgs> = ({
 }) => (
 	<BaseMessageScrollerViewport
 		{...attrs}
-		class={clsx(viewportBase, classes)}
+		class={clx(viewportBase, classes)}
 	>
 		{children}
 	</BaseMessageScrollerViewport>
@@ -68,7 +68,7 @@ const MessageScrollerContent: Stateless<MessageScrollerContentArgs> = ({
 }) => (
 	<BaseMessageScrollerContent
 		{...attrs}
-		class={clsx(contentBase, classes)}
+		class={clx(contentBase, classes)}
 	>
 		{children}
 	</BaseMessageScrollerContent>
@@ -82,7 +82,7 @@ const MessageScrollerItem: Stateless<MessageScrollerItemArgs> = ({
 }) => (
 	<BaseMessageScrollerItem
 		{...attrs}
-		class={clsx(itemBase, classes)}
+		class={clx(itemBase, classes)}
 	>
 		{children}
 	</BaseMessageScrollerItem>
@@ -104,17 +104,12 @@ const MessageScrollerButton: Stateless<MessageScrollerButtonArgs> = ({
 		<BaseMessageScrollerButton
 			{...attrs}
 			aria-label={title}
-			class={clsx(buttonVariants({ size, variant }), buttonBase, classes)}
+			class={clx(buttonVariants({ size, variant }), buttonBase, classes)}
 			data-size={size}
 			data-variant={variant}
 			direction={direction}
 		>
-			{children ?? (
-				<>
-					<span aria-hidden="true" class={direction === 'start' ? 'i-lucide-arrow-up size-4' : 'i-lucide-arrow-down size-4'} />
-					<span class="sr-only">{title}</span>
-				</>
-			)}
+			{children ?? <span aria-hidden="true" class={direction === 'start' ? 'i-lucide-arrow-up size-4' : 'i-lucide-arrow-down size-4'} />}
 		</BaseMessageScrollerButton>
 	)
 }

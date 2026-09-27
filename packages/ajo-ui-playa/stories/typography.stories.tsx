@@ -14,19 +14,13 @@ import {
 	TypographyMuted,
 	TypographyP,
 	TypographySmall,
-	TypographyTable,
-	TypographyTBody,
-	TypographyTD,
-	TypographyTH,
-	TypographyTHead,
-	TypographyTRow,
 } from 'ajo-ui-playa/typography'
 
 export default {
 	title: 'UI/Typography',
 	component: TypographyH1,
 	parameters: {
-		docs: { description: 'Semantic Ajo Kit Typography wrappers for headings, body text, lists, code, and tables.' },
+		docs: { description: 'Semantic Ajo Kit Typography wrappers for headings, body text, lists, and code.' },
 		layout: 'padded',
 	},
 } satisfies Meta<typeof TypographyH1>
@@ -106,45 +100,6 @@ export const List: Story = {
 		const items = canvas.querySelectorAll('[data-slot="typography-list-item"]')
 		if (!unordered || !ordered || items.length !== 6) {
 			throw new Error('Typography lists were not rendered with semantic list elements')
-		}
-	},
-}
-
-export const Table: Story = {
-	render: () => (
-		<TypographyTable>
-			<TypographyTHead>
-				<TypographyTRow>
-					<TypographyTH>King's Treasury</TypographyTH>
-					<TypographyTH>People's happiness</TypographyTH>
-				</TypographyTRow>
-			</TypographyTHead>
-			<TypographyTBody>
-				<TypographyTRow>
-					<TypographyTD>Empty</TypographyTD>
-					<TypographyTD>Overflowing</TypographyTD>
-				</TypographyTRow>
-				<TypographyTRow>
-					<TypographyTD>Modest</TypographyTD>
-					<TypographyTD>Satisfied</TypographyTD>
-				</TypographyTRow>
-				<TypographyTRow>
-					<TypographyTD>Full</TypographyTD>
-					<TypographyTD>Ecstatic</TypographyTD>
-				</TypographyTRow>
-			</TypographyTBody>
-		</TypographyTable>
-	),
-	play: async ({ canvas }) => {
-		const table = canvas.querySelector<HTMLElement>('[data-slot="typography-table"]')
-		const heads = canvas.querySelectorAll<HTMLTableCellElement>('[data-slot="typography-th"]')
-		const cells = canvas.querySelectorAll('[data-slot="typography-td"]')
-		if (!table || heads.length !== 2 || cells.length !== 6) {
-			throw new Error('Typography table was not rendered')
-		}
-
-		if (heads[0]?.scope !== 'col') {
-			throw new Error('Typography table header should default to column scope')
 		}
 	},
 }

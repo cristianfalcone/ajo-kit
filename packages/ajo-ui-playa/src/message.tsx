@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
+import { clx, part } from 'ajo-ui/utils'
 
 export type MessageAlign = 'end' | 'start'
 
@@ -38,56 +38,24 @@ const headerBase = 'flex max-w-full min-w-0 items-center gap-2 px-3.5 text-xs fo
 const footerBase = 'flex max-w-full min-w-0 items-center gap-2 px-3.5 text-xs text-muted-foreground [[data-slot=message]:has([data-variant=ghost])_&]:px-0 [[data-slot=message][data-align=end]_&]:justify-end'
 
 /** Groups consecutive messages from the same sender. */
-const MessageGroup: Stateless<MessageGroupArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx(groupBase, classes)} data-slot="message-group">
-		{children}
-	</div>
-)
+const MessageGroup = part<MessageGroupArgs>('div', 'message-group', { class: groupBase })
 
 /** Presentational row wrapper for one conversation message. */
-const Message: Stateless<MessageArgs> = ({
-	align = 'start',
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<div
-		{...attrs}
-		class={clsx(messageBase, classes)}
-		data-align={align}
-		data-slot="message"
-	>
-		{children}
-	</div>
+const Message: Stateless<MessageArgs> = ({ align = 'start', class: classes, ...attrs }) => (
+	<div {...attrs} class={clx(messageBase, classes)} data-align={align} data-slot="message" />
 )
 
 /** Avatar slot aligned to the message surface. */
-const MessageAvatar: Stateless<MessageAvatarArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx(avatarBase, classes)} data-slot="message-avatar">
-		{children}
-	</div>
-)
+const MessageAvatar = part<MessageAvatarArgs>('div', 'message-avatar', { class: avatarBase })
 
 /** Wraps message header, visible surface, and footer. */
-const MessageContent: Stateless<MessageContentArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx(contentBase, classes)} data-slot="message-content">
-		{children}
-	</div>
-)
+const MessageContent = part<MessageContentArgs>('div', 'message-content', { class: contentBase })
 
 /** Sender/name metadata above the message surface. */
-const MessageHeader: Stateless<MessageHeaderArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx(headerBase, classes)} data-slot="message-header">
-		{children}
-	</div>
-)
+const MessageHeader = part<MessageHeaderArgs>('div', 'message-header', { class: headerBase })
 
 /** Delivery status or message actions below the message surface. */
-const MessageFooter: Stateless<MessageFooterArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx(footerBase, classes)} data-slot="message-footer">
-		{children}
-	</div>
-)
+const MessageFooter = part<MessageFooterArgs>('div', 'message-footer', { class: footerBase })
 
 export {
 	Message,

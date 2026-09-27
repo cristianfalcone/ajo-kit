@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	Avatar as BaseAvatar,
 	AvatarBadge as BaseAvatarBadge,
@@ -75,7 +75,7 @@ const Avatar: Stateless<AvatarArgs> = ({
 }) => (
 	<BaseAvatar
 		{...attrs}
-		class={clsx(avatarBase, classes)}
+		class={clx(avatarBase, classes)}
 		size={size}
 	>
 		{children}
@@ -89,34 +89,34 @@ const AvatarImage: Stateless<AvatarImageArgs> = ({
 }) => (
 	<BaseAvatarImage
 		{...attrs}
-		class={clsx(imageBase, classes)}
+		class={clx(imageBase, classes)}
 	/>
 )
 
 /** Avatar fallback content shown behind the image and after image errors. */
 const AvatarFallback: Stateless<AvatarFallbackArgs> = ({ children, class: classes, ...attrs }) => (
-	<BaseAvatarFallback {...attrs} class={clsx(fallbackBase, classes)}>
+	<BaseAvatarFallback {...attrs} class={clx(fallbackBase, classes)}>
 		{children}
 	</BaseAvatarFallback>
 )
 
 /** Small status badge positioned at the bottom-right of an avatar. */
 const AvatarBadge: Stateless<AvatarBadgeArgs> = ({ children, class: classes, ...attrs }) => (
-	<BaseAvatarBadge {...attrs} class={clsx(badgeBase, classes)}>
+	<BaseAvatarBadge {...attrs} class={clx(badgeBase, classes)}>
 		{children}
 	</BaseAvatarBadge>
 )
 
 /** Overlapping avatar group. */
 const AvatarGroup: Stateless<AvatarGroupArgs> = ({ children, class: classes, ...attrs }) => (
-	<BaseAvatarGroup {...attrs} class={clsx(groupBase, classes)}>
+	<BaseAvatarGroup {...attrs} class={clx(groupBase, classes)}>
 		{children}
 	</BaseAvatarGroup>
 )
 
 /** Count avatar for extra members in an avatar group. */
 const AvatarGroupCount: Stateless<AvatarGroupCountArgs> = ({ children, class: classes, ...attrs }) => (
-	<BaseAvatarGroupCount {...attrs} class={clsx(groupCountBase, classes)}>
+	<BaseAvatarGroupCount {...attrs} class={clx(groupCountBase, classes)}>
 		{children}
 	</BaseAvatarGroupCount>
 )

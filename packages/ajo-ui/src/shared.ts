@@ -15,10 +15,6 @@ export const text = (value: unknown): string => {
 export const strings = (value: unknown): string[] =>
 	Array.isArray(value) ? value.map(String) : []
 
-/** Joins conditional class names, returning undefined when empty. */
-export const clx = (...values: Array<string | false | null | undefined>) =>
-	values.filter(Boolean).join(' ') || undefined
-
 const hostArg = (key: string) =>
 	key === 'children' || key === 'key' || key === 'memo' || key === 'ref' || key === 'skip' || key.startsWith('set:')
 

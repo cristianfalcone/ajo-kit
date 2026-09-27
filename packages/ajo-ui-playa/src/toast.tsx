@@ -1,5 +1,5 @@
 import type { Children, Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	Toaster as BaseToaster,
 	type ToasterArgs as BaseToasterArgs,
@@ -39,7 +39,7 @@ export const Toaster: Stateless<ToasterArgs> = ({
 }) => (
 	<BaseToaster
 		{...args}
-		class={clsx(viewportBase, 'toaster group', classes)}
+		class={clx(viewportBase, 'toaster group', classes)}
 		closeChildren={<span aria-hidden="true" class="i-lucide-x block size-4" />}
 		data-rich-colors={richColors ? 'true' : undefined}
 		icons={{ ...icons, ...custom }}

@@ -29,4 +29,3 @@ const ScrollArea: Stateless<ScrollAreaArgs> = ({
 )
 
 export { ScrollArea }
-export default ScrollArea

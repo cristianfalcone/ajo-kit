@@ -80,7 +80,6 @@ test('the package exports exactly its preset root and public component families'
 
 test.each([
 	'ajo-ui-playa/styles',
-	'ajo-ui-playa/modal',
 	'ajo-ui-playa/internal',
 ])('%s remains package-internal', specifier => {
 	let failure: unknown
@@ -97,7 +96,6 @@ test('the manifest keeps build-time peers and runtime ownership explicit', () =>
 	expect(metadata.dependencies).toEqual({
 		'@iconify-json/lucide': '1.2.113',
 		'ajo-ui': 'workspace:^',
-		clsx: '2.1.1',
 	})
 	expect(metadata.peerDependencies).toEqual({
 		ajo: '^0.1.35',

@@ -1,5 +1,5 @@
-import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
+import type { Args, IntrinsicElements, Stateless, WithChildren } from 'ajo'
+import { clx } from 'ajo-ui/utils'
 
 export type ChipVariant =
 	| 'default'
@@ -68,11 +68,11 @@ const variants: Record<ChipVariant, string> = {
 export const chipVariants = ({
 	class: classes,
 	variant = 'default',
-}: ChipVariantOptions = {}) => clsx(base, variants[variant], classes)
+}: ChipVariantOptions = {}) => clx(base, variants[variant], classes)
 
 /** Compact inline token for labels, status, or removable selections. */
 const Chip: Stateless<ChipArgs> = ({
-	as = 'span',
+	as: Tag = 'span',
 	class: classes,
 	children,
 	'data-slot': slot = 'chip',
@@ -82,57 +82,26 @@ const Chip: Stateless<ChipArgs> = ({
 	removeLabel = 'Remove',
 	variant = 'default',
 	...attrs
-}) => {
-	const styles = chipVariants({ class: classes, variant })
-
-	// Anchors never render the remove button: interactive content inside links
-	// is invalid HTML and ambiguous for assistive tech.
-	const remove = onRemove && as !== 'a' ? (
-		<button
-			aria-label={removeLabel}
-			class={clsx(removeBase, removeClass)}
-			data-slot="chip-remove"
-			type="button"
-			set:onclick={(event: Event) => {
-				event.stopPropagation()
-				onRemove(event)
-			}}
-		>
-			<span aria-hidden="true" class={clsx(removeIconBase, removeIconClass)} />
-		</button>
-	) : null
-
-	if (as === 'a') {
-		const anchor = attrs as IntrinsicElements['a']
-
-		return (
-			<a
-				{...anchor}
-				class={styles}
-				data-slot={slot}
-				data-variant={variant}
-				href={String(anchor.href)}
+}) => (
+	<Tag {...(attrs as Args)} class={chipVariants({ class: classes, variant })} data-slot={slot} data-variant={variant}>
+		{children}
+		{/* Anchors never render the remove button: interactive content inside
+		links is invalid HTML and ambiguous for assistive tech. */}
+		{onRemove && Tag !== 'a' ? (
+			<button
+				aria-label={removeLabel}
+				class={clx(removeBase, removeClass)}
+				data-slot="chip-remove"
+				type="button"
+				set:onclick={(event: Event) => {
+					event.stopPropagation()
+					onRemove(event)
+				}}
 			>
-				{children}
-				{remove}
-			</a>
-		)
-	}
-
-	const span = attrs as IntrinsicElements['span']
-
-	return (
-		<span
-			{...span}
-			class={styles}
-			data-slot={slot}
-			data-variant={variant}
-		>
-			{children}
-			{remove}
-		</span>
-	)
-}
+				<span aria-hidden="true" class={clx(removeIconBase, removeIconClass)} />
+			</button>
+		) : null}
+	</Tag>
+)
 
 export { Chip }
-export default Chip

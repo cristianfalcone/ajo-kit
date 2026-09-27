@@ -1,6 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import {
 	ChartArea as BaseChartArea,
 	ChartBar as BaseChartBar,
@@ -51,7 +50,7 @@ const ChartContainer: Stateless<ChartContainerArgs> = ({
 }) => (
 	<BaseChartContainer
 		{...attrs}
-		class={clsx('playa-chart', classes)}
+		class={clx('playa-chart', classes)}
 		palette={palette}
 		type={type}
 	>
@@ -67,37 +66,37 @@ const ChartContainer: Stateless<ChartContainerArgs> = ({
 
 /** Native SVG bar chart primitive for use inside ChartContainer. */
 const ChartBar: Stateless<ChartPlotArgs> = ({ class: classes, ...attrs }) =>
-	<BaseChartBar {...attrs} class={clsx(svgBase, classes)} />
+	<BaseChartBar {...attrs} class={clx(svgBase, classes)} />
 
 /** Native SVG line chart primitive for use inside ChartContainer. */
 const ChartLine: Stateless<ChartPlotArgs> = ({ class: classes, ...attrs }) =>
-	<BaseChartLine {...attrs} class={clsx(svgBase, classes)} />
+	<BaseChartLine {...attrs} class={clx(svgBase, classes)} />
 
 /** Native SVG area chart primitive for use inside ChartContainer. */
 const ChartArea: Stateless<ChartPlotArgs> = ({ class: classes, ...attrs }) =>
-	<BaseChartArea {...attrs} class={clsx(svgBase, classes)} />
+	<BaseChartArea {...attrs} class={clx(svgBase, classes)} />
 
 /** Native SVG pie/donut chart primitive for use inside ChartContainer. */
 const ChartPie: Stateless<ChartPieArgs> = ({ class: classes, ...attrs }) =>
-	<BaseChartPie {...attrs} class={clsx(svgBase, 'mx-auto max-w-[320px]', classes)} />
+	<BaseChartPie {...attrs} class={clx(svgBase, 'mx-auto max-w-[320px]', classes)} />
 
 /** Absolute tooltip layer for native chart primitives. */
 const ChartTooltip: Stateless<ChartTooltipArgs> = ({ children, class: classes, ...attrs }) => (
-	<BaseChartTooltip {...attrs} class={clsx(tooltipBase, classes)}>
+	<BaseChartTooltip {...attrs} class={clx(tooltipBase, classes)}>
 		{children ?? <ChartTooltipContent />}
 	</BaseChartTooltip>
 )
 
 /** Tooltip body for native chart payloads. */
 const ChartTooltipContent: Stateless<ChartTooltipContentArgs> = ({ class: classes, ...attrs }) =>
-	<BaseChartTooltipContent {...attrs} class={clsx('grid gap-1.5', classes)} />
+	<BaseChartTooltipContent {...attrs} class={clx('grid gap-1.5', classes)} />
 
 /** Legend for native chart primitives. */
 const ChartLegend: Stateless<ChartLegendArgs> = ({
 	class: classes,
 	verticalAlign = 'bottom',
 	...attrs
-}) => <BaseChartLegend {...attrs} class={clsx(legendBase, verticalAlign === 'top' ? 'pb-3' : 'pt-3', classes)} />
+}) => <BaseChartLegend {...attrs} class={clx(legendBase, verticalAlign === 'top' ? 'pb-3' : 'pt-3', classes)} />
 
 export {
 	ChartArea,

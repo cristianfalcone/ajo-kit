@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	Accordion as BaseAccordion,
 	AccordionContent as BaseAccordionContent,
@@ -23,7 +23,7 @@ export type AccordionItemArgs = BaseAccordionItemArgs & { class?: string }
 export type AccordionTriggerArgs = BaseAccordionTriggerArgs & { class?: string }
 export type AccordionContentArgs = BaseAccordionContentArgs & { class?: string }
 
-const itemBase = clsx('border-b last:border-b-0', disclosureContent)
+const itemBase = clx('border-b last:border-b-0', disclosureContent)
 const triggerBase = 'flex flex-1 cursor-pointer list-none items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&::-webkit-details-marker]:hidden [&[data-state=open]>[data-accordion-chevron]]:rotate-180'
 
 /** Root provider for accordion state. */
@@ -43,7 +43,7 @@ const AccordionItem: Stateless<AccordionItemArgs> = ({
 }) => (
 	<BaseAccordionItem
 		{...attrs}
-		class={clsx(itemBase, classes)}
+		class={clx(itemBase, classes)}
 		disabled={disabled}
 		value={value}
 	>
@@ -60,7 +60,7 @@ const AccordionTrigger: Stateless<AccordionTriggerArgs> = ({
 }) => (
 	<BaseAccordionTrigger
 		{...attrs}
-		class={clsx(triggerBase, classes)}
+		class={clx(triggerBase, classes)}
 		set:onclick={onClick}
 	>
 		{children}
@@ -78,7 +78,7 @@ const AccordionContent: Stateless<AccordionContentArgs> = ({
 		{...attrs}
 		class="overflow-hidden text-sm"
 	>
-		<div class={clsx('pb-4 pt-0', classes)}>
+		<div class={clx('pb-4 pt-0', classes)}>
 			{children}
 		</div>
 	</BaseAccordionContent>

@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	Calendar as BaseCalendar,
 	type CalendarMultipleArgs as BaseCalendarMultipleArgs,
@@ -39,7 +39,7 @@ const weekNumberBase = 'flex size-[var(--cell-size)] items-center justify-center
 const dayCellBase = 'group/day relative flex h-[var(--cell-size)] w-full min-w-[var(--cell-size)] items-center justify-center p-0 text-center select-none has-[[data-range-band]]:bg-accent has-[[data-range-band][data-range-start]]:rounded-s-md has-[[data-range-band][data-range-end]]:rounded-e-md has-[[data-today]:not([data-range-band]):not([data-outside])]:rounded-md has-[[data-today]:not([data-range-band]):not([data-outside])]:bg-accent'
 const dayButtonBase = 'flex h-[var(--cell-size)] w-full min-w-[var(--cell-size)] flex-col items-center justify-center gap-1 rounded-md leading-none font-normal outline-none transition-[color,box-shadow,background-color] focus-visible:ring-3 focus-visible:ring-ring/50 data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[selected-single=true]:hover:bg-primary data-[selected-single=true]:hover:text-primary-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-start=true]:hover:bg-primary data-[range-start=true]:hover:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-end=true]:hover:bg-primary data-[range-end=true]:hover:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-transparent data-[range-middle=true]:text-accent-foreground data-[outside=true]:text-muted-foreground data-[today=true]:font-medium data-[unavailable=true]:line-through data-[unavailable=true]:decoration-danger/70 data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&>span]:text-xs [&>span]:opacity-70'
 const viewBase = 'grid w-full gap-1 py-1'
-const viewCellBase = clsx(
+const viewCellBase = clx(
 	buttonVariants({ size: 'none', transition: false, variant: 'ghost' }),
 	'h-10 w-full rounded-md px-2 text-sm font-normal outline-none focus-visible:ring-3 focus-visible:ring-ring/50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[today=true]:font-medium data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50',
 )
@@ -53,26 +53,26 @@ const Calendar: Stateless<CalendarArgs> = ({
 }) => (
 	<BaseCalendar
 		{...attrs}
-		class={clsx(rootBase, classes)}
+		class={clx(rootBase, classes)}
 		classNames={{
-			caption: clsx(captionBase, classNames?.caption),
-			caption_label: clsx(captionLabelBase, classNames?.caption_label),
-			day: clsx(dayCellBase, classNames?.day),
-			day_button: clsx(buttonVariants({ size: 'none', transition: false, variant: 'ghost' }), dayButtonBase, classNames?.day_button),
-			grid: clsx(gridBase, classNames?.grid),
-			head: clsx(weekdaysBase, classNames?.head),
-			month: clsx(monthBase, classNames?.month),
-			month_cell: clsx(viewCellBase, classNames?.month_cell),
-			month_view: clsx(viewBase, classNames?.month_view),
-			months: clsx(monthsBase, classNames?.months),
-			nav_button: clsx(buttonVariants({ size: 'none', variant: buttonVariant }), navButtonBase, classNames?.nav_button),
-			nav_icon: clsx(navIconBase, classNames?.nav_icon),
-			nav_spacer: clsx('size-[var(--cell-size)] shrink-0', classNames?.nav_spacer),
-			week: clsx(weekBase, classNames?.week),
-			week_number: clsx(weekNumberBase, classNames?.week_number),
-			weekday: clsx(weekdayBase, classNames?.weekday),
-			year_cell: clsx(viewCellBase, classNames?.year_cell),
-			year_view: clsx(viewBase, classNames?.year_view),
+			caption: clx(captionBase, classNames?.caption),
+			caption_label: clx(captionLabelBase, classNames?.caption_label),
+			day: clx(dayCellBase, classNames?.day),
+			day_button: clx(buttonVariants({ size: 'none', transition: false, variant: 'ghost' }), dayButtonBase, classNames?.day_button),
+			grid: clx(gridBase, classNames?.grid),
+			head: clx(weekdaysBase, classNames?.head),
+			month: clx(monthBase, classNames?.month),
+			month_cell: clx(viewCellBase, classNames?.month_cell),
+			month_view: clx(viewBase, classNames?.month_view),
+			months: clx(monthsBase, classNames?.months),
+			nav_button: clx(buttonVariants({ size: 'none', variant: buttonVariant }), navButtonBase, classNames?.nav_button),
+			nav_icon: clx(navIconBase, classNames?.nav_icon),
+			nav_spacer: clx('size-[var(--cell-size)] shrink-0', classNames?.nav_spacer),
+			week: clx(weekBase, classNames?.week),
+			week_number: clx(weekNumberBase, classNames?.week_number),
+			weekday: clx(weekdayBase, classNames?.weekday),
+			year_cell: clx(viewCellBase, classNames?.year_cell),
+			year_view: clx(viewBase, classNames?.year_view),
 		}}
 	/>
 )

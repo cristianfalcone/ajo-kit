@@ -1,5 +1,4 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
 import {
 	Command as BaseCommand,
 	CommandEmpty as BaseCommandEmpty,
@@ -28,10 +27,15 @@ import {
 	DialogTitle,
 	type DialogContentArgs,
 } from 'ajo-ui/dialog'
-import type { OmitArg } from 'ajo-ui/utils'
+import { clx, type OmitArg } from 'ajo-ui/utils'
 import { DialogClose } from './dialog'
-import { menuItem, menuShortcut, scrollAreaVariants } from './internal/recipes'
-import { modalCentered, modalClosed, modalEnter, modalSurface } from './modal'
+import {
+	modalCentered,
+	modalClosed,
+	modalEnter,
+	modalSurface,
+	scrollAreaVariants,
+} from './internal/recipes'
 
 export type { CommandArgs, CommandEmptyArgs, CommandFilter, CommandGroupArgs, CommandInputArgs, CommandItemArgs, CommandListArgs, CommandSeparatorArgs, CommandShortcutArgs }
 /** Arguments for a native dialog that owns a Command palette. */
@@ -55,7 +59,7 @@ export type CommandDialogArgs = WithChildren<OmitArg<IntrinsicElements['dialog']
 }>
 
 const base = 'flex h-full w-full flex-col overflow-hidden rounded-md text-popover-foreground'
-const dialogBase = clsx(
+const dialogBase = clx(
 	modalClosed,
 	modalSurface,
 	modalCentered,
@@ -71,15 +75,14 @@ const slotBase = [
 	'[&_:where([data-slot=command-input-icon])]:i-lucide-search [&_:where([data-slot=command-input-icon])]:size-4 [&_:where([data-slot=command-input-icon])]:shrink-0 [&_:where([data-slot=command-input-icon])]:opacity-50',
 	'[&_:where([data-slot=command-group-heading])]:px-2 [&_:where([data-slot=command-group-heading])]:py-1.5 [&_:where([data-slot=command-group-heading])]:text-xs [&_:where([data-slot=command-group-heading])]:font-medium [&_:where([data-slot=command-group-heading])]:text-muted-foreground',
 ].join(' ')
-const listBase = clsx(scrollAreaVariants({ axis: 'y' }), 'max-h-[300px] scroll-py-1')
+const listBase = clx(scrollAreaVariants({ axis: 'y' }), 'max-h-[300px] scroll-py-1')
 // Shares the menu row token: command speaks the same data-highlighted/
 // data-disabled vocabulary; the token's focus/inset/danger selectors never
 // match here (items are unfocusable option divs without those attrs).
-const itemBase = menuItem
 
 /** Searchable command menu. */
 const Command: Stateless<CommandArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommand {...attrs} class={clsx(base, slotBase, classes)} />
+	<BaseCommand {...attrs} class={clx(base, slotBase, classes)} />
 )
 
 /** Native dialog wrapper for a Command palette; keep it open on Escape by preventing the Escape keydown. */
@@ -95,7 +98,7 @@ const CommandDialog: Stateless<CommandDialogArgs> = ({
 	...attrs
 }) => (
 	<Dialog class="contents" defaultOpen={defaultOpen} onOpenChange={onOpenChange} open={open}>
-		<DialogContent {...attrs} class={clsx(dialogBase, classes)} data-slot="command-dialog">
+		<DialogContent {...attrs} class={clx(dialogBase, classes)} data-slot="command-dialog">
 			<div class="sr-only">
 				<DialogTitle>{title}</DialogTitle>
 				<DialogDescription>{description}</DialogDescription>
@@ -110,37 +113,37 @@ const CommandDialog: Stateless<CommandDialogArgs> = ({
 
 /** Search input for a Command menu. */
 const CommandInput: Stateless<CommandInputArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommandInput {...attrs} class={clsx(inputBase, classes)} />
+	<BaseCommandInput {...attrs} class={clx(inputBase, classes)} />
 )
 
 /** Scrollable list for command options. */
 const CommandList: Stateless<CommandListArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommandList {...attrs} class={clsx(listBase, classes)} />
+	<BaseCommandList {...attrs} class={clx(listBase, classes)} />
 )
 
 /** Empty state shown when filtering hides every command item. */
 const CommandEmpty: Stateless<CommandEmptyArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommandEmpty {...attrs} class={clsx('py-6 text-center text-sm', classes)} />
+	<BaseCommandEmpty {...attrs} class={clx('py-6 text-center text-sm', classes)} />
 )
 
 /** Group of related command items. */
 const CommandGroup: Stateless<CommandGroupArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommandGroup {...attrs} class={clsx('overflow-hidden p-1 text-foreground', classes)} />
+	<BaseCommandGroup {...attrs} class={clx('overflow-hidden p-1 text-foreground', classes)} />
 )
 
 /** Visual separator between command groups. */
 const CommandSeparator: Stateless<CommandSeparatorArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommandSeparator {...attrs} class={clsx('-mx-1 h-px bg-border', classes)} />
+	<BaseCommandSeparator {...attrs} class={clx('-mx-1 h-px bg-border', classes)} />
 )
 
 /** Selectable command option. */
 const CommandItem: Stateless<CommandItemArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommandItem {...attrs} class={clsx(itemBase, classes)} />
+	<BaseCommandItem {...attrs} class={clx('playa-menu-item', classes)} />
 )
 
 /** Right-aligned shortcut hint inside a CommandItem. */
 const CommandShortcut: Stateless<CommandShortcutArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommandShortcut {...attrs} class={clsx(menuShortcut, classes)} />
+	<BaseCommandShortcut {...attrs} class={clx('playa-menu-shortcut', classes)} />
 )
 
 export {

@@ -273,8 +273,7 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "1.2.113",
-    "ajo-ui": "workspace:^",
-    "clsx": "2.1.1"
+    "ajo-ui": "workspace:^"
   },
   "peerDependencies": {
     "ajo": "^0.1.35",

@@ -1,6 +1,6 @@
-import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
-import { buttonVariants, type ButtonSize, type ButtonVariant } from './button'
+import type { Args, IntrinsicElements, Stateless, WithChildren } from 'ajo'
+import { clx, part } from 'ajo-ui/utils'
+import { Button, type ButtonSize, type ButtonVariant } from './button'
 
 export type AttachmentState = 'done' | 'error' | 'idle' | 'processing' | 'uploading'
 
@@ -112,7 +112,8 @@ const mediaVariants: Record<AttachmentMediaVariant, string> = {
 }
 
 const contentBase = 'max-w-full min-w-0 flex-1 leading-tight group-data-[orientation=vertical]/attachment:px-1'
-const titleBase = 'block max-w-full min-w-0 truncate font-medium'
+// Uploading and processing titles shimmer; the preset holds the motion back under reduced motion.
+const titleBase = 'block max-w-full min-w-0 truncate font-medium group-data-[state=uploading]/attachment:shimmer group-data-[state=processing]/attachment:shimmer'
 const descriptionBase = 'mt-0.5 block max-w-full min-w-0 truncate text-xs text-muted-foreground group-data-[state=error]/attachment:text-danger/80'
 const actionsBase = 'relative z-20 flex shrink-0 items-center group-data-[orientation=vertical]/attachment:absolute group-data-[orientation=vertical]/attachment:right-3 group-data-[orientation=vertical]/attachment:top-3 group-data-[orientation=vertical]/attachment:gap-1'
 const triggerBase = 'absolute inset-0 z-10 outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -123,7 +124,6 @@ const groupBase = 'flex min-w-0 items-start scroll-fade-x snap-x snap-mandatory 
 
 /** Root attachment container for files, images, upload rows, and chat attachments. */
 const Attachment: Stateless<AttachmentArgs> = ({
-	children,
 	class: classes,
 	orientation = 'horizontal',
 	size = 'default',
@@ -132,115 +132,53 @@ const Attachment: Stateless<AttachmentArgs> = ({
 }) => (
 	<div
 		{...attrs}
-		class={clsx(rootBase, rootSizes[size], rootOrientations[orientation], classes)}
+		class={clx(rootBase, rootSizes[size], rootOrientations[orientation], classes)}
 		data-orientation={orientation}
 		data-size={size}
 		data-slot="attachment"
 		data-state={state}
-	>
-		{children}
-	</div>
+	/>
 )
 
 /** Media slot for icons, thumbnails, or image previews. */
-const AttachmentMedia: Stateless<AttachmentMediaArgs> = ({
-	children,
-	class: classes,
-	variant = 'icon',
-	...attrs
-}) => (
-	<div
-		{...attrs}
-		class={clsx(mediaBase, mediaVariants[variant], classes)}
-		data-slot="attachment-media"
-		data-variant={variant}
-	>
-		{children}
-	</div>
+const AttachmentMedia: Stateless<AttachmentMediaArgs> = ({ class: classes, variant = 'icon', ...attrs }) => (
+	<div {...attrs} class={clx(mediaBase, mediaVariants[variant], classes)} data-slot="attachment-media" data-variant={variant} />
 )
 
 /** Content slot wrapping title and description. */
-const AttachmentContent: Stateless<AttachmentSlotArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx(contentBase, classes)} data-slot="attachment-content">
-		{children}
-	</div>
-)
+const AttachmentContent = part<AttachmentSlotArgs>('div', 'attachment-content', { class: contentBase })
 
 /** Attachment display name. */
-const AttachmentTitle: Stateless<AttachmentTextArgs> = ({ children, class: classes, ...attrs }) => (
-	<span {...attrs} class={clsx(titleBase, classes)} data-slot="attachment-title">
-		{children}
-	</span>
-)
+const AttachmentTitle = part<AttachmentTextArgs>('span', 'attachment-title', { class: titleBase })
 
 /** Secondary metadata such as type, size, upload status, or error reason. */
-const AttachmentDescription: Stateless<AttachmentTextArgs> = ({ children, class: classes, ...attrs }) => (
-	<span {...attrs} class={clsx(descriptionBase, classes)} data-slot="attachment-description">
-		{children}
-	</span>
-)
+const AttachmentDescription = part<AttachmentTextArgs>('span', 'attachment-description', { class: descriptionBase })
 
 /** Action container aligned to the edge of the attachment. */
-const AttachmentActions: Stateless<AttachmentSlotArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx(actionsBase, classes)} data-slot="attachment-actions">
-		{children}
-	</div>
-)
+const AttachmentActions = part<AttachmentSlotArgs>('div', 'attachment-actions', { class: actionsBase })
 
 /** Icon-sized action button for attachment operations. */
-const AttachmentAction: Stateless<AttachmentActionArgs> = ({
-	children,
-	class: classes,
-	size = 'icon-xs',
-	type = 'button',
-	variant = 'ghost',
-	...attrs
-}) => (
-	<button
-		{...attrs}
-		class={buttonVariants({ class: classes, size, variant })}
-		data-size={size}
-		data-slot="attachment-action"
-		data-variant={variant}
-		type={type}
-	>
-		{children}
-	</button>
+const AttachmentAction: Stateless<AttachmentActionArgs> = ({ size = 'icon-xs', type = 'button', variant = 'ghost', ...attrs }) => (
+	<Button {...attrs} data-slot="attachment-action" size={size} type={type} variant={variant} />
 )
 
 /** Full-card trigger layered behind actions. */
 const AttachmentTrigger: Stateless<AttachmentTriggerArgs> = ({
-	as = 'button',
-	children,
+	as: Tag = 'button',
 	class: classes,
 	type = 'button',
 	...attrs
-}) => {
-	const styles = clsx(triggerBase, classes)
-
-	if (as === 'a') {
-		const anchor = attrs as IntrinsicElements['a']
-		return (
-			<a {...anchor} class={styles} data-slot="attachment-trigger" href={String(anchor.href)}>
-				{children}
-			</a>
-		)
-	}
-
-	const button = attrs as IntrinsicElements['button']
-	return (
-		<button {...button} class={styles} data-slot="attachment-trigger" type={type}>
-			{children}
-		</button>
-	)
-}
+}) => (
+	<Tag
+		{...(attrs as Args)}
+		class={clx(triggerBase, classes)}
+		data-slot="attachment-trigger"
+		type={Tag === 'button' ? type : undefined}
+	/>
+)
 
 /** Horizontally scrollable attachment row with snap points and edge fade. */
-const AttachmentGroup: Stateless<AttachmentGroupArgs> = ({ children, class: classes, ...attrs }) => (
-	<div {...attrs} class={clsx(groupBase, classes)} data-slot="attachment-group">
-		{children}
-	</div>
-)
+const AttachmentGroup = part<AttachmentGroupArgs>('div', 'attachment-group', { class: groupBase })
 
 export {
 	Attachment,

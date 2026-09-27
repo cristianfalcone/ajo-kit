@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import Button, { buttonVariants } from 'ajo-ui-playa/button'
+import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Dialog,
 	DialogClose,

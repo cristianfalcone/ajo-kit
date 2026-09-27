@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story, StoryContext } from './app'
-import Checkbox from 'ajo-ui-playa/checkbox'
+import { Checkbox } from 'ajo-ui-playa/checkbox'
 import { CheckboxGroup, CheckboxGroupItem } from 'ajo-ui-playa/checkbox-group'
 import {
 	Field,

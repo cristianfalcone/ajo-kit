@@ -1,6 +1,5 @@
 ﻿import type { Stateless } from 'ajo'
-import type { OmitArg } from 'ajo-ui/utils'
-import clsx from 'clsx'
+import { clx, type OmitArg } from 'ajo-ui/utils'
 import {
 	Tooltip as BaseTooltip,
 	TooltipContent as BaseTooltipContent,
@@ -10,7 +9,7 @@ import {
 	type TooltipProviderArgs,
 } from 'ajo-ui/tooltip'
 import { stlx } from 'ajo-ui/utils'
-import { popupAnimation, popupContent, popupSlide } from './internal/recipes'
+import { popupAnimation, popupSlide } from './internal/recipes'
 export { TooltipTrigger } from 'ajo-ui/tooltip'
 export type { PopupPlacement, PopupPosition, TooltipArgs, TooltipProviderArgs, TooltipTriggerArgs } from 'ajo-ui/tooltip'
 
@@ -33,14 +32,14 @@ const TooltipProvider: Stateless<TooltipProviderArgs> = ({ class: classes, style
 
 /** Root provider for one tooltip. */
 const Tooltip: Stateless<TooltipArgs> = ({ class: classes, ...attrs }) => (
-	<BaseTooltip {...attrs} class={clsx(rootBase, classes)} />
+	<BaseTooltip {...attrs} class={clx(rootBase, classes)} />
 )
 
 /** Non-interactive text bubble shown for a TooltipTrigger. */
 const TooltipContent: Stateless<TooltipContentArgs> = ({ class: classes, ...attrs }) => (
 	<BaseTooltipContent
 		{...attrs}
-		class={clsx(popupContent, contentBase, popupAnimation, popupSlide, classes)}
+		class={clx('playa-popup-content', contentBase, popupAnimation, popupSlide, classes)}
 	/>
 )
 

@@ -133,9 +133,6 @@ importers:
       ajo-ui:
         specifier: workspace:^
         version: link:../ajo-ui
-      clsx:
-        specifier: 2.1.1
-        version: 2.1.1
     devDependencies:
       ajo:
         specifier: 0.1.35

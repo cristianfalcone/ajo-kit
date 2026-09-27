@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
+import { clx, part } from 'ajo-ui/utils'
 import { emptyChildren } from './internal/recipes'
 
 export type BreadcrumbArgs = WithChildren<IntrinsicElements['nav'] & {
@@ -52,67 +52,21 @@ const Breadcrumb: Stateless<BreadcrumbArgs> = ({
 )
 
 /** Ordered breadcrumb item list. */
-const BreadcrumbList: Stateless<BreadcrumbListArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<ol
-		{...attrs}
-		class={clsx('flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground sm:gap-2.5', classes)}
-		data-slot="breadcrumb-list"
-	>
-		{children}
-	</ol>
-)
+const BreadcrumbList = part<BreadcrumbListArgs>('ol', 'breadcrumb-list', { class: 'flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground sm:gap-2.5' })
 
 /** Single breadcrumb list item. */
-const BreadcrumbItem: Stateless<BreadcrumbItemArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<li
-		{...attrs}
-		class={clsx('inline-flex items-center gap-1.5', classes)}
-		data-slot="breadcrumb-item"
-	>
-		{children}
-	</li>
-)
+const BreadcrumbItem = part<BreadcrumbItemArgs>('li', 'breadcrumb-item', { class: 'inline-flex items-center gap-1.5' })
 
 /** Clickable breadcrumb link. */
-const BreadcrumbLink: Stateless<BreadcrumbLinkArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<a
-		{...attrs}
-		class={clsx('transition-colors hover:text-foreground', classes)}
-		data-slot="breadcrumb-link"
-	>
-		{children}
-	</a>
-)
+const BreadcrumbLink = part<BreadcrumbLinkArgs>('a', 'breadcrumb-link', { class: 'transition-colors hover:text-foreground' })
 
 /** Current page marker inside a breadcrumb. */
-const BreadcrumbPage: Stateless<BreadcrumbPageArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<span
-		{...attrs}
-		aria-current="page"
-		aria-disabled="true"
-		class={clsx('font-normal text-foreground', classes)}
-		data-slot="breadcrumb-page"
-		role="link"
-	>
-		{children}
-	</span>
-)
+const BreadcrumbPage = part<BreadcrumbPageArgs>('span', 'breadcrumb-page', {
+	'aria-current': 'page',
+	'aria-disabled': 'true',
+	class: 'font-normal text-foreground',
+	role: 'link',
+})
 
 /** Decorative separator between breadcrumb items. */
 const BreadcrumbSeparator: Stateless<BreadcrumbSeparatorArgs> = ({
@@ -123,7 +77,7 @@ const BreadcrumbSeparator: Stateless<BreadcrumbSeparatorArgs> = ({
 	<li
 		{...attrs}
 		aria-hidden="true"
-		class={clsx('inline-flex items-center justify-center [&>svg]:size-3.5', classes)}
+		class={clx('inline-flex items-center justify-center [&>svg]:size-3.5', classes)}
 		data-slot="breadcrumb-separator"
 		role="presentation"
 	>
@@ -131,20 +85,16 @@ const BreadcrumbSeparator: Stateless<BreadcrumbSeparatorArgs> = ({
 	</li>
 )
 
-/** Collapsed breadcrumb range indicator. */
-const BreadcrumbEllipsis: Stateless<BreadcrumbEllipsisArgs> = ({
-	class: classes,
-	...attrs
-}) => (
+/** Collapsed breadcrumb range indicator, hidden from assistive technology. */
+const BreadcrumbEllipsis: Stateless<BreadcrumbEllipsisArgs> = ({ class: classes, ...attrs }) => (
 	<span
 		{...attrs}
 		aria-hidden="true"
-		class={clsx('flex size-9 items-center justify-center', classes)}
+		class={clx('flex size-9 items-center justify-center', classes)}
 		data-slot="breadcrumb-ellipsis"
 		role="presentation"
 	>
-		<span aria-hidden="true" class="i-lucide-ellipsis size-4" />
-		<span class="sr-only">More</span>
+		<span class="i-lucide-ellipsis size-4" />
 	</span>
 )
 

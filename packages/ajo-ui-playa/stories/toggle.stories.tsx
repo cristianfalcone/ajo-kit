@@ -6,7 +6,7 @@ import {
 	FieldDescription,
 	FieldLabel,
 } from 'ajo-ui-playa/field'
-import Toggle from 'ajo-ui-playa/toggle'
+import { Toggle } from 'ajo-ui-playa/toggle'
 
 const bind = (setArg: StoryContext['setArg']) => (next: boolean) => setArg('defaultPressed', next)
 

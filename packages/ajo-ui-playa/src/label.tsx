@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import { labelBase } from './internal/recipes'
 
 export type LabelArgs = WithChildren<IntrinsicElements['label'] & {
@@ -16,7 +16,7 @@ const Label: Stateless<LabelArgs> = ({
 }) => (
 	<label
 		{...attrs}
-		class={clsx(labelBase, classes)}
+		class={clx(labelBase, classes)}
 		data-slot={slot}
 	>
 		{children}
@@ -24,4 +24,3 @@ const Label: Stateless<LabelArgs> = ({
 )
 
 export { Label }
-export default Label

@@ -1,13 +1,16 @@
 import { definePreset, presetIcons, presetWind4 } from 'unocss'
 import { icons as lucide } from '@iconify-json/lucide'
 
-const softScrollbar = [
-  '.scrollbar-soft',
-  '.playa-menu-content',
-  '.playa-select-list',
-]
-const softScrollbarSelector = (pseudo = '') =>
-  softScrollbar.map(selector => `${selector}${pseudo}`).join(',')
+// Edge fades for scroll-fade-x and the [data-overflow-*] stamps: one gradient per faded edge set.
+const fadeStops = {
+  start: 'transparent,black 1rem',
+  end: 'black calc(100% - 1rem),transparent',
+  both: 'transparent,black 1rem,black calc(100% - 1rem),transparent',
+}
+const fade = (side: 'bottom' | 'right', edges: keyof typeof fadeStops) => `linear-gradient(to ${side},${fadeStops[edges]})`
+const overflowFades = ([['x', 'right'], ['y', 'bottom']] as const).flatMap(([axis, side]) =>
+  (['start', 'end', 'both'] as const).map(edges =>
+    `[data-overflow-${axis}=${edges}]{-webkit-mask-image:${fade(side, edges)};mask-image:${fade(side, edges)}}`)).join('')
 
 const popupSurfaceSelector = '.playa-popup-content>[data-slot=popup-surface]'
 const popupShapeProbe = 'shape(from 0 0,line to 100% 0,close)'
@@ -65,8 +68,8 @@ export const playa = definePreset(() => ({
       ? { 'container-name': name, 'container-type': 'inline-size' }
       : { 'container-type': 'inline-size' }],
     ['scroll-fade-x', {
-      '-webkit-mask-image': 'linear-gradient(to right,transparent,black 1rem,black calc(100% - 1rem),transparent)',
-      'mask-image': 'linear-gradient(to right,transparent,black 1rem,black calc(100% - 1rem),transparent)',
+      '-webkit-mask-image': fade('right', 'both'),
+      'mask-image': fade('right', 'both'),
     }],
     ['scrollbar-gutter-stable', { 'scrollbar-gutter': 'stable' }],
     ['scrollbar-none', { 'scrollbar-width': 'none' }],
@@ -83,15 +86,7 @@ export const playa = definePreset(() => ({
       '--un-enter-scale': '1',
       '--un-enter-translate-x': '0',
       '--un-enter-translate-y': '0',
-      'animation-duration': '150ms',
-      'animation-name': 'enter',
-    }],
-    ['animate-dialog-in', {
-      '--un-enter-opacity': '1',
-      '--un-enter-scale': '1',
-      '--un-enter-translate-x': '0',
-      '--un-enter-translate-y': '0',
-      'animation-duration': '200ms',
+      'animation-duration': 'var(--un-animate-duration,150ms)',
       'animation-name': 'enter',
     }],
     ['animate-out', {
@@ -142,7 +137,8 @@ export const playa = definePreset(() => ({
         // segments touch to share their hairlines, and shrinking one opens a
         // visible gap on both sides.
         '[data-slot=button-group][data-slot=button-group]>:active{scale:none}',
-        '@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}',
+        // Without the keyframes under reduced motion, shimmer text stays a still gradient.
+        '@media (prefers-reduced-motion:no-preference){@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}}',
         '@keyframes progress-slide{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}',
         '@keyframes enter{from{opacity:var(--un-enter-opacity,1);transform:translate3d(var(--un-enter-translate-x,0),var(--un-enter-translate-y,0),0) scale3d(var(--un-enter-scale,1),var(--un-enter-scale,1),var(--un-enter-scale,1))}}',
         '@keyframes exit{to{opacity:var(--un-exit-opacity,1);transform:translate3d(var(--un-exit-translate-x,0),var(--un-exit-translate-y,0),0) scale3d(var(--un-exit-scale,1),var(--un-exit-scale,1),var(--un-exit-scale,1))}}',
@@ -177,23 +173,16 @@ export const playa = definePreset(() => ({
         '[data-slot=toast][data-closing=true]{opacity:0}',
         '[data-slot=toast][data-closing=true][data-expanded=false]{pointer-events:none}',
         '@starting-style{[data-slot=toast][data-state=open]{opacity:0;transform:translateY(1rem) scale(.96)}}',
-        '[data-slot=attachment][data-state=uploading] [data-slot=attachment-title],[data-slot=attachment][data-state=processing] [data-slot=attachment-title]{color:transparent;background:linear-gradient(90deg,var(--foreground) 0%,var(--muted-foreground) 35%,var(--foreground) 70%);background-size:200% 100%;background-clip:text;-webkit-background-clip:text;animation:shimmer 1.8s linear infinite}',
         // Edge fades pair with ajo-cloves overflow stamps. They activate only
         // while content overflows, so a resting edge never stays dimmed.
-        '[data-overflow-x=start]{-webkit-mask-image:linear-gradient(to right,transparent,black 1rem);mask-image:linear-gradient(to right,transparent,black 1rem)}',
-        '[data-overflow-x=end]{-webkit-mask-image:linear-gradient(to right,black calc(100% - 1rem),transparent);mask-image:linear-gradient(to right,black calc(100% - 1rem),transparent)}',
-        '[data-overflow-x=both]{-webkit-mask-image:linear-gradient(to right,transparent,black 1rem,black calc(100% - 1rem),transparent);mask-image:linear-gradient(to right,transparent,black 1rem,black calc(100% - 1rem),transparent)}',
-        '[data-overflow-y=start]{-webkit-mask-image:linear-gradient(to bottom,transparent,black 1rem);mask-image:linear-gradient(to bottom,transparent,black 1rem)}',
-        '[data-overflow-y=end]{-webkit-mask-image:linear-gradient(to bottom,black calc(100% - 1rem),transparent);mask-image:linear-gradient(to bottom,black calc(100% - 1rem),transparent)}',
-        '[data-overflow-y=both]{-webkit-mask-image:linear-gradient(to bottom,transparent,black 1rem,black calc(100% - 1rem),transparent);mask-image:linear-gradient(to bottom,transparent,black 1rem,black calc(100% - 1rem),transparent)}',
+        overflowFades,
         '.scrollbar-none::-webkit-scrollbar{display:none}',
-        `${softScrollbarSelector('::-webkit-scrollbar')}{height:.625rem;width:.625rem}`,
-        `${softScrollbarSelector('::-webkit-scrollbar-button')}{display:none}`,
-        `${softScrollbarSelector('::-webkit-scrollbar-thumb')}{border:2px solid transparent;border-radius:9999px;background-clip:padding-box;background-color:var(--border)}`,
+        '.scrollbar-soft::-webkit-scrollbar{height:.625rem;width:.625rem}',
+        '.scrollbar-soft::-webkit-scrollbar-button{display:none}',
+        '.scrollbar-soft::-webkit-scrollbar-thumb{border:2px solid transparent;border-radius:9999px;background-clip:padding-box;background-color:var(--border)}',
         '.scrollbar-framed::-webkit-scrollbar-thumb{border:0;background-clip:border-box}',
-        `${softScrollbarSelector('::-webkit-scrollbar-track')}{background-color:transparent}`,
-        `@supports not selector(::-webkit-scrollbar){${softScrollbarSelector()}{scrollbar-color:var(--border) transparent;scrollbar-width:thin}}`,
-        '@media (prefers-reduced-motion:reduce){.shimmer,[data-slot=attachment][data-state=uploading] [data-slot=attachment-title],[data-slot=attachment][data-state=processing] [data-slot=attachment-title]{animation:none}}',
+        '.scrollbar-soft::-webkit-scrollbar-track{background-color:transparent}',
+        '@supports not selector(::-webkit-scrollbar){.scrollbar-soft{scrollbar-color:var(--border) transparent;scrollbar-width:thin}}',
         'button{cursor:pointer}',
         'input:focus,select:focus,textarea:focus{outline:none}',
       ].join('')
@@ -223,6 +212,8 @@ export const playa = definePreset(() => ({
     // on these surfaces stays solid or tint-only: glass never stacks on glass.
     'glass-chrome': 'bg-card/50 text-card-foreground backdrop-blur-md backdrop-saturate-150',
     glass: 'bg-card/60 text-card-foreground backdrop-blur-md backdrop-saturate-150 inset-shadow-[inset_0_1px_0_var(--glass-highlight)]',
+    // Form-field chrome shared by inputs, textareas, select triggers and grouped fields.
+    'playa-field': 'rounded-md edge-input bg-transparent transition-[color,box-shadow] outline-none focus-visible:inset-ring-ring focus-visible:ring-3 focus-visible:ring-ring/25 aria-invalid:inset-ring-danger aria-invalid:ring-danger/20',
     'glass-overlay': 'bg-popover/55 text-popover-foreground backdrop-blur-xl backdrop-saturate-150 inset-shadow-[inset_0_1px_0_var(--glass-highlight)]',
     // Discreet themed scrollbar for scrollable lists and viewports. Chromium and
     // Safari take the fully custom webkit path (buttonless); Firefox gets the
@@ -256,7 +247,7 @@ export const playa = definePreset(() => ({
     'playa-menu-sub-trigger-icon': 'i-lucide-chevron-right ml-auto size-4',
     'playa-menu-sub-trigger-open': 'data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
     'playa-select-root': 'relative inline-block',
-    'playa-select-trigger': 'flex w-fit items-center justify-between gap-2 rounded-md edge-input bg-transparent px-3 py-2 text-sm whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:inset-ring-ring focus-visible:ring-3 focus-visible:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:inset-ring-danger aria-invalid:ring-danger/20 data-[placeholder]:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground *:data-[slot=select-icon]:playa-select-trigger-icon',
+    'playa-select-trigger': 'flex w-fit items-center justify-between gap-2 playa-field px-3 py-2 text-sm whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground *:data-[slot=select-icon]:playa-select-trigger-icon',
     'playa-select-trigger-icon': 'i-lucide-chevron-down size-4 opacity-50',
     'playa-select-content': 'isolate z-50 m-0 [&:popover-open]:flex max-h-[max(96px,var(--available-height,24rem))] min-w-[var(--reference-width,8rem)] flex-col overflow-hidden rounded-md glass-overlay edge shadow-lg outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
     'playa-select-list': 'overflow-y-auto overflow-x-hidden overscroll-contain min-h-0 scroll-py-1 p-1 [[data-slot=select-content][data-empty]_&]:p-0',
@@ -282,7 +273,7 @@ export const playa = definePreset(() => ({
       '[&:has([data-slot=select-clear])_[data-slot=select-input-trigger]]:hidden',
       '**:data-[slot=select-input-trigger-icon]:i-lucide-chevron-down **:data-[slot=select-input-trigger-icon]:pointer-events-none **:data-[slot=select-input-trigger-icon]:size-4 **:data-[slot=select-input-trigger-icon]:text-muted-foreground',
     ].join(' '),
-    'playa-select-chips': 'flex min-h-9 flex-wrap items-center gap-1.5 rounded-md edge-input bg-transparent px-2.5 py-1.5 text-sm transition-[color,box-shadow] focus-within:inset-ring-ring focus-within:ring-3 focus-within:ring-ring/25 has-aria-invalid:inset-ring-danger has-aria-invalid:ring-danger/20',
+    'playa-select-chips': 'flex min-h-9 flex-wrap items-center gap-1.5 playa-field px-2.5 py-1.5 text-sm focus-within:inset-ring-ring focus-within:ring-3 focus-within:ring-ring/25 has-aria-invalid:inset-ring-danger has-aria-invalid:ring-danger/20',
     'playa-select-chips-input': 'min-w-16 flex-1 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
     'playa-checkbox-box': 'relative inline-flex size-4 shrink-0 items-center justify-center rounded-xs edge-input bg-transparent outline-none transition-[background-color,box-shadow] duration-150 motion-reduce:transition-none has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[[aria-invalid=true]]:inset-ring-danger has-[[aria-invalid=true]]:ring-danger/20',
     // The frame is an outline, not an inset ring: outlines paint after all

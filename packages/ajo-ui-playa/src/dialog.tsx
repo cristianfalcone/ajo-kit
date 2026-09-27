@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	Dialog as BaseDialog,
 	DialogClose as BaseDialogClose,
@@ -16,7 +16,7 @@ import {
 	DialogTitle as BaseDialogTitle,
 	type DialogTitleArgs,
 } from 'ajo-ui/dialog'
-import { modalCentered, modalClose, modalClosed, modalEnter, modalSurface } from './modal'
+import { modalCentered, modalClose, modalClosed, modalEnter, modalSurface } from './internal/recipes'
 
 export { DialogTrigger } from 'ajo-ui/dialog'
 export type {
@@ -35,7 +35,7 @@ export type DialogContentArgs = BaseDialogContentArgs & {
 	unstyled?: boolean
 }
 
-const contentBase = clsx(
+const contentBase = clx(
 	modalSurface,
 	modalCentered,
 	modalEnter,
@@ -44,17 +44,17 @@ const contentBase = clsx(
 
 /** Root provider for a dialog. */
 const Dialog: Stateless<DialogArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialog {...attrs} class={clsx('contents', classes)} />
+	<BaseDialog {...attrs} class={clx('contents', classes)} />
 )
 
 /** Native modal dialog panel; compose DialogClose inside it for a close control. */
 const DialogContent: Stateless<DialogContentArgs> = ({ class: classes, unstyled, ...attrs }) => (
-	<BaseDialogContent {...attrs} class={clsx(modalClosed, !unstyled && contentBase, classes)} />
+	<BaseDialogContent {...attrs} class={clx(modalClosed, !unstyled && contentBase, classes)} />
 )
 
 /** Button that closes its dialog or drawer; with no children it renders the themed corner X labelled "Close". */
 const DialogClose: Stateless<DialogCloseArgs> = ({ children, class: classes, ...attrs }) => children == null ? (
-	<BaseDialogClose aria-label="Close" {...attrs} class={clsx(modalClose, classes)}>
+	<BaseDialogClose aria-label="Close" {...attrs} class={clx(modalClose, classes)}>
 		<span aria-hidden="true" class="i-lucide-x block size-4" />
 	</BaseDialogClose>
 ) : (
@@ -63,22 +63,22 @@ const DialogClose: Stateless<DialogCloseArgs> = ({ children, class: classes, ...
 
 /** Header area for dialog title and description. */
 const DialogHeader: Stateless<DialogHeaderArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogHeader {...attrs} class={clsx('flex flex-col gap-2 text-center sm:text-left', classes)} />
+	<BaseDialogHeader {...attrs} class={clx('flex flex-col gap-2 text-center sm:text-left', classes)} />
 )
 
 /** Footer area for dialog actions. */
 const DialogFooter: Stateless<DialogFooterArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogFooter {...attrs} class={clsx('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', classes)} />
+	<BaseDialogFooter {...attrs} class={clx('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', classes)} />
 )
 
 /** Accessible title for DialogContent. */
 const DialogTitle: Stateless<DialogTitleArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogTitle {...attrs} class={clsx('text-lg font-semibold leading-none', classes)} />
+	<BaseDialogTitle {...attrs} class={clx('text-lg font-semibold leading-none', classes)} />
 )
 
 /** Accessible description for DialogContent. */
 const DialogDescription: Stateless<DialogDescriptionArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogDescription {...attrs} class={clsx('text-sm text-muted-foreground', classes)} />
+	<BaseDialogDescription {...attrs} class={clx('text-sm text-muted-foreground', classes)} />
 )
 
 export {

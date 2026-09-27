@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	Collapsible as BaseCollapsible,
 	CollapsibleContent as BaseCollapsibleContent,
@@ -29,7 +29,7 @@ const Collapsible: Stateless<CollapsibleArgs> = ({
 }) => (
 	<BaseCollapsible
 		{...attrs}
-		class={clsx(disclosureContent, classes)}
+		class={clx(disclosureContent, classes)}
 		defaultOpen={defaultOpen}
 		disabled={Boolean(disabled)}
 		onOpenChange={onOpenChange}
@@ -50,7 +50,7 @@ const CollapsibleTrigger: Stateless<CollapsibleTriggerArgs> = ({
 }) => (
 	<BaseCollapsibleTrigger
 		{...attrs}
-		class={clsx(triggerBase, classes)}
+		class={clx(triggerBase, classes)}
 		disabled={disabled}
 		id={id}
 		set:onclick={onClick}
@@ -67,7 +67,7 @@ const CollapsibleContent: Stateless<CollapsibleContentArgs> = ({
 }) => (
 	<BaseCollapsibleContent
 		{...attrs}
-		class={clsx(contentBase, classes)}
+		class={clx(contentBase, classes)}
 	>
 		{children}
 	</BaseCollapsibleContent>

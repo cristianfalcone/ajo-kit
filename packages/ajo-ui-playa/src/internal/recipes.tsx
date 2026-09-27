@@ -1,5 +1,6 @@
 import type { InputGroupAddonAlign } from 'ajo-ui/input-group'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
+import type { ToggleSize, ToggleVariant } from '../toggle'
 
 // Shared recipes live behind the family entrypoints. They are implementation
 // seams between Playa adapters, not part of any component family's public API.
@@ -18,9 +19,6 @@ export const disclosureContent = '[&::details-content]:overflow-hidden [&::detai
 
 /** Label text shared by Label and FieldLabel. */
 export const labelBase = 'flex items-center gap-2 text-sm font-medium leading-none select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50'
-
-/** Visual box shared by Checkbox and CheckboxGroup items. */
-export const checkboxBox = 'playa-checkbox-box'
 
 /** Checked and indeterminate fill; an invalid input fills with the danger color. */
 export const checkboxState = 'has-[:checked]:inset-ring-transparent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:indeterminate]:inset-ring-transparent has-[:indeterminate]:bg-primary has-[:indeterminate]:text-primary-foreground has-[[aria-invalid=true]:checked]:bg-danger has-[[aria-invalid=true]:checked]:text-danger-foreground has-[[aria-invalid=true]:indeterminate]:bg-danger has-[[aria-invalid=true]:indeterminate]:text-danger-foreground'
@@ -44,32 +42,14 @@ export const popupAnimation = 'data-[state=open]:animate-in data-[state=open]:fa
 /** Placement-aware entrance motion; families that should not slide omit it. */
 export const popupSlide = 'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2'
 
-/** Transparent stacking boundary around the single painted popup surface. */
-export const popupContent = 'playa-popup-content'
+/** Menu surface shared by menu and submenu content and the DataTable menus. */
+export const menuContent = 'playa-menu-content scrollbar-soft min-w-[8rem]'
 
-const menuMinWidth = {
-	'8rem': 'min-w-[8rem]',
-	'12rem': 'min-w-[12rem]',
-}
-
-// Widths stay as literal utilities so UnoCSS extracts both options while each
-// caller emits exactly one min-width class.
-/** Returns the popup surface for menu content and submenu content. */
-export const menuContent = ({ minWidth = '8rem' }: {
-	minWidth?: keyof typeof menuMinWidth
-} = {}) => clsx('playa-menu-content', menuMinWidth[minWidth])
-
-export const menuItem = 'playa-menu-item'
-export const menuChoiceRow = 'playa-menu-choice-row'
-export const menuLabel = 'playa-menu-label'
-export const menuSeparator = 'playa-menu-separator'
-export const menuShortcut = 'playa-menu-shortcut'
 /** Themes a checkbox item's base-owned indicator and check icon by slot. */
 export const menuCheckIndicator = '*:data-[slot=menu-item-indicator]:playa-menu-indicator **:data-[slot=menu-item-indicator-icon]:playa-menu-check-icon'
-export const menuSubTriggerOpen = 'playa-menu-sub-trigger-open'
 
 const inputGroupRoot = [
-	'group/input-group relative flex h-9 min-w-0 items-center rounded-md edge-input bg-transparent transition-[color,box-shadow] outline-none',
+	'group/input-group relative flex h-9 min-w-0 items-center playa-field',
 	'has-[>textarea]:h-auto',
 	'has-[>[data-align=inline-start]]:[&>input]:pl-2',
 	'has-[>[data-align=inline-end]]:[&>input]:pr-2',
@@ -79,8 +59,6 @@ const inputGroupRoot = [
 	// The direct-input focus path never matches contenteditable segment divs.
 	'has-[[data-segment]:focus-visible]:inset-ring-ring has-[[data-segment]:focus-visible]:ring-3 has-[[data-segment]:focus-visible]:ring-ring/25',
 	'has-[[data-slot][aria-invalid=true]]:inset-ring-danger has-[[data-slot][aria-invalid=true]]:ring-danger/20',
-	// Group-level invalid rides aria-invalid on the group itself.
-	'aria-invalid:inset-ring-danger aria-invalid:ring-danger/20',
 ].join(' ')
 
 const inputGroupWidth = {
@@ -95,7 +73,7 @@ export const inputGroupVariants = ({
 }: {
 	class?: string
 	width?: keyof typeof inputGroupWidth
-} = {}) => clsx(inputGroupRoot, inputGroupWidth[width], classes)
+} = {}) => clx(inputGroupRoot, inputGroupWidth[width], classes)
 
 export const inputGroupAddon = 'flex h-auto cursor-text select-none items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*=size-])]:size-4'
 
@@ -124,15 +102,57 @@ type ScrollAreaVariantOptions = {
 export const scrollAreaVariants = ({
 	axis = 'both',
 	class: classes,
-}: ScrollAreaVariantOptions = {}) => clsx(scrollOverflow[axis], 'overscroll-contain scrollbar-soft', classes)
+}: ScrollAreaVariantOptions = {}) => clx(scrollOverflow[axis], 'overscroll-contain scrollbar-soft', classes)
 
 const scrollAreaFrame = 'relative min-h-0 min-w-0 rounded-[inherit] transition-[color,box-shadow] has-[>:focus-visible]:ring-3 has-[>:focus-visible]:ring-ring/50'
 const scrollAreaViewport = 'scrollbar-framed relative h-full w-full min-h-0 min-w-0 rounded-[inherit] outline-none [scrollbar-gutter:stable]'
 
 export const scrollAreaFrameVariants = ({ class: classes }: Pick<ScrollAreaVariantOptions, 'class'> = {}) =>
-	clsx(scrollAreaFrame, classes)
+	clx(scrollAreaFrame, classes)
 
 export const scrollAreaViewportVariants = ({
 	axis = 'both',
 	class: classes,
-}: ScrollAreaVariantOptions = {}) => clsx(scrollAreaVariants({ axis }), scrollAreaViewport, classes)
+}: ScrollAreaVariantOptions = {}) => clx(scrollAreaVariants({ axis }), scrollAreaViewport, classes)
+
+/** Shared top-layer surface without family-specific geometry. */
+// Frost over dim: the backdrop blurs the page while barely darkening it, so
+// its elements stay visible as soft shapes and the glass-overlay panel reads
+// as translucent glass instead of a solid sheet.
+export const modalSurface = 'fixed z-50 glass-overlay shadow-lg outline-none backdrop:bg-black/20 backdrop:backdrop-blur-sm'
+
+/** Native-dialog centering without transform composition. */
+export const modalCentered = 'inset-0 m-auto'
+
+/** Shared dialog-family enter animation, slower than the popup default. */
+export const modalEnter = 'duration-200 [--un-animate-duration:200ms] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95'
+
+/** Closed native dialogs stay out of layout before and after discrete transitions. */
+export const modalClosed = '[&:not([open])]:hidden'
+
+/** Shared icon close-button recipe for modal surfaces. */
+export const modalClose = 'absolute right-4 top-4 inline-flex size-8 items-center justify-center rounded-full opacity-70 outline-none transition-[background-color,opacity] hover:bg-accent hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4'
+
+const toggleBase = 'inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-[color,box-shadow] outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:inset-ring aria-invalid:inset-ring-danger aria-invalid:ring-danger/25 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary/90 data-[state=on]:hover:text-primary-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4'
+
+const toggleTones: Record<ToggleVariant, string> = {
+	default: 'bg-transparent',
+	outline: 'edge bg-transparent hover:edge-on-accent',
+}
+
+const toggleSizes: Record<ToggleSize, string> = {
+	default: 'h-9 min-w-9 px-2',
+	sm: 'h-8 min-w-8 px-1.5',
+	lg: 'h-10 min-w-10 px-2.5',
+}
+
+/** Toggle surface shared by Toggle and ToggleGroup items. */
+export const toggleVariants = ({
+	class: classes,
+	size = 'default',
+	variant = 'default',
+}: {
+	class?: string
+	size?: ToggleSize
+	variant?: ToggleVariant
+} = {}) => clx(toggleBase, toggleTones[variant], toggleSizes[size], classes)

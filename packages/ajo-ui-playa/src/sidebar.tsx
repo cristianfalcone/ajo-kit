@@ -1,10 +1,8 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
-import type { OmitArg } from 'ajo-ui/utils'
+import { clx, type OmitArg } from 'ajo-ui/utils'
 import {
 	Sidebar as BaseSidebar,
 	SidebarContent as BaseSidebarContent,
-	SidebarContext,
 	SidebarFooter as BaseSidebarFooter,
 	SidebarGroup as BaseSidebarGroup,
 	SidebarGroupAction as BaseSidebarGroupAction,
@@ -50,7 +48,7 @@ import {
 	type SidebarVariant,
 } from 'ajo-ui/sidebar'
 import { buttonVariants } from './button'
-import Input, { type InputArgs } from './input'
+import { Input, type InputArgs } from './input'
 import { scrollAreaVariants } from './internal/recipes'
 import { Separator, type SeparatorArgs } from './separator'
 
@@ -108,7 +106,7 @@ const SidebarProvider: Stateless<SidebarProviderArgs> = ({
 }) => (
 	<BaseSidebarProvider
 		{...attrs}
-		class={clsx('group/sidebar-wrapper flex min-h-0 w-full text-foreground', classes)}
+		class={clx('group/sidebar-wrapper flex min-h-0 w-full text-foreground', classes)}
 		mobileQuery={mobileQuery}
 	/>
 )
@@ -124,7 +122,7 @@ const Sidebar: Stateless<SidebarArgs> = ({
 }) => (
 	<BaseSidebar
 		{...attrs}
-		class={clsx(
+		class={clx(
 			// The collapsible aside only exists in the desktop presentation
 			// (the base renders the drawer otherwise), so its widths carry no
 			// breakpoint gate — gating them on lg: desynced from a custom
@@ -144,7 +142,7 @@ const Sidebar: Stateless<SidebarArgs> = ({
 			classes,
 		)}
 		collapsible={collapsible}
-		mobileClass={clsx(
+		mobileClass={clx(
 			'fixed inset-y-0 z-40 m-0 h-dvh max-h-none w-[var(--sidebar-width-mobile)] max-w-[calc(100vw-2rem)] border-0 glass-overlay edge p-0 shadow-lg backdrop:bg-black/20 backdrop:backdrop-blur-sm',
 			side === 'left' ? 'left-0' : 'right-0',
 			'*:data-[slot=sidebar-inner]:flex *:data-[slot=sidebar-inner]:h-full *:data-[slot=sidebar-inner]:w-full *:data-[slot=sidebar-inner]:flex-col',
@@ -163,7 +161,7 @@ const SidebarTrigger: Stateless<SidebarTriggerArgs> = ({
 }) => (
 	<BaseSidebarTrigger
 		{...attrs}
-		class={buttonVariants({ class: clsx('size-7 rounded-md', classes), size: 'none', variant: 'ghost' })}
+		class={buttonVariants({ class: clx('size-7 rounded-md', classes), size: 'none', variant: 'ghost' })}
 	>
 		{children ?? <span aria-hidden="true" class="i-lucide-panel-left size-4" />}
 	</BaseSidebarTrigger>
@@ -171,50 +169,50 @@ const SidebarTrigger: Stateless<SidebarTriggerArgs> = ({
 
 /** Main content wrapper used with inset sidebars. */
 const SidebarInset: Stateless<SidebarInsetArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSidebarInset {...attrs} class={clsx('relative flex min-w-0 flex-1 flex-col bg-background', classes)} />
+	<BaseSidebarInset {...attrs} class={clx('relative flex min-w-0 flex-1 flex-col bg-background', classes)} />
 )
 
 /** Compact themed input for sidebar search or filtering. */
 const SidebarInput: Stateless<SidebarInputArgs> = ({ class: classes, ...attrs }) => (
 	<Input
 		{...attrs}
-		class={clsx('h-8 group-data-[collapsible=icon]/sidebar:hidden', classes)}
+		class={clx('h-8 group-data-[collapsible=icon]/sidebar:hidden', classes)}
 	/>
 )
 
 /** Top region for sidebar identity and primary controls. */
 const SidebarHeader: Stateless<SidebarHeaderArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSidebarHeader {...attrs} class={clsx('flex flex-col gap-2 p-2', classes)} />
+	<BaseSidebarHeader {...attrs} class={clx('flex flex-col gap-2 p-2', classes)} />
 )
 
 /** Bottom region for secondary sidebar controls. */
 const SidebarFooter: Stateless<SidebarFooterArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSidebarFooter {...attrs} class={clsx('flex flex-col gap-2 p-2', classes)} />
+	<BaseSidebarFooter {...attrs} class={clx('flex flex-col gap-2 p-2', classes)} />
 )
 
 /** Themed divider between sidebar regions; Separator supplies its 1px rule. */
 const SidebarSeparator: Stateless<SidebarSeparatorArgs> = ({ class: classes, ...attrs }) => (
-	<Separator {...attrs} class={clsx('mx-2 w-auto', classes)} />
+	<Separator {...attrs} class={clx('mx-2 w-auto', classes)} />
 )
 
 /** Scrollable main region for sidebar groups. */
 const SidebarContent: Stateless<SidebarContentArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSidebarContent
 		{...attrs}
-		class={clsx(scrollAreaVariants({ axis: 'y' }), 'flex min-h-0 flex-1 flex-col gap-2 group-data-[collapsible=icon]/sidebar:overflow-hidden', classes)}
+		class={clx(scrollAreaVariants({ axis: 'y' }), 'flex min-h-0 flex-1 flex-col gap-2 group-data-[collapsible=icon]/sidebar:overflow-hidden', classes)}
 	/>
 )
 
 /** Themed container for one related sidebar section. */
 const SidebarGroup: Stateless<SidebarGroupArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSidebarGroup {...attrs} class={clsx('relative flex w-full min-w-0 flex-col p-2', classes)} />
+	<BaseSidebarGroup {...attrs} class={clx('relative flex w-full min-w-0 flex-col p-2', classes)} />
 )
 
 /** Compact heading for a sidebar group. */
 const SidebarGroupLabel: Stateless<SidebarGroupLabelArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSidebarGroupLabel
 		{...attrs}
-		class={clsx('flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-muted-foreground transition-[margin,opacity] group-data-[collapsible=icon]/sidebar:-mt-8 group-data-[collapsible=icon]/sidebar:opacity-0 [&>svg]:size-4 [&>svg]:shrink-0', classes)}
+		class={clx('flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-muted-foreground transition-[margin,opacity] group-data-[collapsible=icon]/sidebar:-mt-8 group-data-[collapsible=icon]/sidebar:opacity-0 [&>svg]:size-4 [&>svg]:shrink-0', classes)}
 	/>
 )
 
@@ -222,23 +220,23 @@ const SidebarGroupLabel: Stateless<SidebarGroupLabelArgs> = ({ class: classes, .
 const SidebarGroupAction: Stateless<SidebarGroupActionArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSidebarGroupAction
 		{...attrs}
-		class={clsx('absolute right-3 top-3.5 flex size-5 items-center justify-center rounded-sm text-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 group-data-[collapsible=icon]/sidebar:hidden [&>svg]:size-4', classes)}
+		class={clx('absolute right-3 top-3.5 flex size-5 items-center justify-center rounded-sm text-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 group-data-[collapsible=icon]/sidebar:hidden [&>svg]:size-4', classes)}
 	/>
 )
 
 /** Content region within a sidebar group. */
 const SidebarGroupContent: Stateless<SidebarGroupContentArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSidebarGroupContent {...attrs} class={clsx('w-full text-sm', classes)} />
+	<BaseSidebarGroupContent {...attrs} class={clx('w-full text-sm', classes)} />
 )
 
 /** Vertical list of sidebar navigation items. */
 const SidebarMenu: Stateless<SidebarMenuArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSidebarMenu {...attrs} class={clsx('flex w-full min-w-0 flex-col gap-1', classes)} />
+	<BaseSidebarMenu {...attrs} class={clx('flex w-full min-w-0 flex-col gap-1', classes)} />
 )
 
 /** Positioned wrapper for one sidebar menu item. */
 const SidebarMenuItem: Stateless<SidebarMenuItemArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSidebarMenuItem {...attrs} class={clsx('group/menu-item relative', classes)} />
+	<BaseSidebarMenuItem {...attrs} class={clx('group/menu-item relative', classes)} />
 )
 
 const buttonVariant = {
@@ -253,7 +251,7 @@ const buttonSize = {
 }
 
 const menuButtonClass = (variant: SidebarMenuButtonVariant, size: SidebarMenuButtonSize, classes?: string) =>
-	clsx(
+	clx(
 		// !p-2: the icon-collapsed padding must beat the same-specificity
 		// pr-8 reserved for menu actions, or crowded buttons stay 40px wide
 		// inside the 48px rail. Icon mode hides every span but the leading
@@ -278,7 +276,7 @@ export const sidebarMenuButtonVariants = ({
 } = {}) => menuButtonClass(variant, size, classes)
 
 const menuActionClass = (showOnHover?: boolean, classes?: string) =>
-	clsx('absolute right-1 top-1.5 flex size-5 items-center justify-center rounded-sm p-0 text-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 group-data-[collapsible=icon]/sidebar:hidden [&>svg]:size-4', showOnHover && 'opacity-0 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100', classes)
+	clx('absolute right-1 top-1.5 flex size-5 items-center justify-center rounded-sm p-0 text-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 group-data-[collapsible=icon]/sidebar:hidden [&>svg]:size-4', showOnHover && 'opacity-0 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100', classes)
 
 /** Returns the UnoCSS class list for a sidebar menu action, for composing other triggers into the item's action slot. */
 export const sidebarMenuActionVariants = ({
@@ -315,7 +313,7 @@ const SidebarMenuAction: Stateless<SidebarMenuActionArgs> = ({ class: classes, s
 const SidebarMenuBadge: Stateless<SidebarMenuBadgeArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSidebarMenuBadge
 		{...attrs}
-		class={clsx('pointer-events-none absolute right-1 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-sm px-1 text-xs font-medium tabular-nums text-muted-foreground peer-data-[active=true]/menu-button:text-accent-foreground group-data-[collapsible=icon]/sidebar:hidden', classes)}
+		class={clx('pointer-events-none absolute right-1 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-sm px-1 text-xs font-medium tabular-nums text-muted-foreground peer-data-[active=true]/menu-button:text-accent-foreground group-data-[collapsible=icon]/sidebar:hidden', classes)}
 	/>
 )
 
@@ -326,7 +324,7 @@ const SidebarMenuSkeleton: Stateless<SidebarMenuSkeletonArgs> = ({
 }) => (
 	<BaseSidebarMenuSkeleton
 		{...attrs}
-		class={clsx(
+		class={clx(
 			'flex h-8 animate-pulse items-center gap-2 rounded-md px-2 motion-reduce:animate-none',
 			'*:data-[slot=sidebar-menu-skeleton-icon]:size-4 *:data-[slot=sidebar-menu-skeleton-icon]:rounded-xs *:data-[slot=sidebar-menu-skeleton-icon]:bg-muted',
 			'*:data-[slot=sidebar-menu-skeleton-text]:h-4 *:data-[slot=sidebar-menu-skeleton-text]:flex-1 *:data-[slot=sidebar-menu-skeleton-text]:rounded-xs *:data-[slot=sidebar-menu-skeleton-text]:bg-muted',
@@ -339,13 +337,13 @@ const SidebarMenuSkeleton: Stateless<SidebarMenuSkeletonArgs> = ({
 const SidebarMenuSub: Stateless<SidebarMenuSubArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSidebarMenuSub
 		{...attrs}
-		class={clsx('mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5 group-data-[collapsible=icon]/sidebar:hidden', classes)}
+		class={clx('mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5 group-data-[collapsible=icon]/sidebar:hidden', classes)}
 	/>
 )
 
 /** Positioned wrapper for one nested sidebar item. */
 const SidebarMenuSubItem: Stateless<SidebarMenuSubItemArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSidebarMenuSubItem {...attrs} class={clsx('group/menu-sub-item relative', classes)} />
+	<BaseSidebarMenuSubItem {...attrs} class={clx('group/menu-sub-item relative', classes)} />
 )
 
 /** Themed navigation control for a nested sidebar item. */
@@ -356,7 +354,7 @@ const SidebarMenuSubButton: Stateless<SidebarMenuSubButtonArgs> = ({
 }) => (
 	<BaseSidebarMenuSubButton
 		{...attrs}
-		class={clsx('flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0', size === 'sm' ? 'text-xs' : 'text-sm', classes)}
+		class={clx('flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0', size === 'sm' ? 'text-xs' : 'text-sm', classes)}
 		size={size}
 	/>
 )
@@ -364,7 +362,6 @@ const SidebarMenuSubButton: Stateless<SidebarMenuSubButtonArgs> = ({
 export {
 	Sidebar,
 	SidebarContent,
-	SidebarContext,
 	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupAction,

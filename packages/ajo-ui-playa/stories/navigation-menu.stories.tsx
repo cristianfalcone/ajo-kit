@@ -11,7 +11,7 @@ import {
 	navigationMenuTriggerVariants,
 	type PopupPlacement,
 } from 'ajo-ui-playa/navigation-menu'
-import Button from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 
 const components = [
 	{

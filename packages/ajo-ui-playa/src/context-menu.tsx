@@ -1,5 +1,5 @@
 ﻿import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import { ContextMenu as BaseContextMenu, type ContextMenuArgs } from 'ajo-ui/context-menu'
 export { ContextMenuTrigger } from 'ajo-ui/context-menu'
 export type { ContextMenuArgs, ContextMenuTriggerArgs } from 'ajo-ui/context-menu'
@@ -8,7 +8,7 @@ export type { ContextMenuArgs, ContextMenuTriggerArgs } from 'ajo-ui/context-men
 const ContextMenu: Stateless<ContextMenuArgs> = ({ class: classes, ...attrs }) => (
 	<BaseContextMenu
 		{...attrs}
-		class={clsx('contents', classes)}
+		class={clx('contents', classes)}
 	/>
 )
 

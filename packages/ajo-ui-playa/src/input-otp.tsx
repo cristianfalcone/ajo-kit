@@ -1,5 +1,4 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
 import {
 	InputOTP as BaseInputOTP,
 	InputOTPGroup as BaseInputOTPGroup,
@@ -10,7 +9,7 @@ import {
 	type InputOTPSeparatorArgs as BaseInputOTPSeparatorArgs,
 	type InputOTPSlotArgs as BaseInputOTPSlotArgs,
 } from 'ajo-ui/input-otp'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 
 export { REGEXP_ONLY_DIGITS, REGEXP_ONLY_DIGITS_AND_CHARS } from 'ajo-ui/input-otp'
 
@@ -47,9 +46,9 @@ const InputOTP: Stateless<InputOTPArgs> = ({
 }) => (
 	<BaseInputOTP
 		{...attrs}
-		class={clsx(containerBase, classes)}
+		class={clx(containerBase, classes)}
 		disabled={disabled}
-		inputClass={clsx(hiddenInputBase, inputClass)}
+		inputClass={clx(hiddenInputBase, inputClass)}
 	>
 		{children}
 	</BaseInputOTP>
@@ -57,7 +56,7 @@ const InputOTP: Stateless<InputOTPArgs> = ({
 
 /** Visual group for adjacent OTP slots. */
 const InputOTPGroup: Stateless<InputOTPGroupArgs> = ({ children, class: classes, ...attrs }) => (
-	<BaseInputOTPGroup {...attrs} class={clsx(groupBase, classes)}>
+	<BaseInputOTPGroup {...attrs} class={clx(groupBase, classes)}>
 		{children}
 	</BaseInputOTPGroup>
 )
@@ -73,7 +72,7 @@ const InputOTPSlot: Stateless<InputOTPSlotArgs> = ({
 		{...attrs}
 		caretClass={caretBase}
 		caretMarkClass={caretMark}
-		class={clsx(slotBase, classes)}
+		class={clx(slotBase, classes)}
 		index={index}
 	>
 		{children}

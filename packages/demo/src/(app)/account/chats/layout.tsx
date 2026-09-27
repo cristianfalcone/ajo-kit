@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { LayoutArgs } from '@kit'
 import { action } from '@kit/client'
-import Button from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import { Card } from 'ajo-ui-playa/card'
 import { FieldError } from 'ajo-ui-playa/field'
 import { Input } from 'ajo-ui-playa/input'

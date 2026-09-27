@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	DirectionContext,
 	DirectionProvider as BaseDirectionProvider,
@@ -20,7 +20,7 @@ const DirectionProvider: Stateless<DirectionProviderArgs> = ({
 }) => (
 	<BaseDirectionProvider
 		{...attrs}
-		class={clsx('contents', classes)}
+		class={clx('contents', classes)}
 	>
 		{children}
 	</BaseDirectionProvider>

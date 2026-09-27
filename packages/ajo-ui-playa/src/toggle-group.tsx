@@ -1,5 +1,4 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
 import {
 	ToggleGroup as BaseToggleGroup,
 	ToggleGroupContext as BaseToggleGroupContext,
@@ -11,8 +10,9 @@ import {
 	type ToggleGroupSingleArgs as BaseToggleGroupSingleArgs,
 	type ToggleGroupType as BaseToggleGroupType,
 } from 'ajo-ui/toggle-group'
-import { type ToggleSize, type ToggleVariant, toggleVariants } from './toggle'
-import { stlx } from 'ajo-ui/utils'
+import { toggleVariants } from './internal/recipes'
+import type { ToggleSize, ToggleVariant } from './toggle'
+import { clx, stlx } from 'ajo-ui/utils'
 
 export type ToggleGroupType = BaseToggleGroupType
 export type ToggleGroupOrientation = BaseToggleGroupOrientation
@@ -73,7 +73,7 @@ const ToggleGroup: Stateless<ToggleGroupArgs> = ({
 	variant = 'default',
 	...attrs
 }) => {
-	const rootClass = clsx(rootBase, rootOrientation[orientation], classes)
+	const rootClass = clx(rootBase, rootOrientation[orientation], classes)
 	const rootStyle = style(spacing, styles)
 
 	return (
@@ -115,7 +115,7 @@ const ToggleGroupItem: Stateless<ToggleGroupItemArgs> = ({
 			size={groupSize}
 			value={itemValue}
 			variant={groupVariant}
-			class={clsx(
+			class={clx(
 				toggleVariants({ size: groupSize, variant: groupVariant }),
 				itemBase,
 				connected(groupSpacing, groupOrientation),

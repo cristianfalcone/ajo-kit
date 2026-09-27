@@ -26,7 +26,7 @@ import {
 	sidebarMenuActionVariants,
 	sidebarMenuButtonVariants,
 } from 'ajo-ui-playa/sidebar'
-import Button from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import {
 	Collapsible,
 	CollapsibleContent,

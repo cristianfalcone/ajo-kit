@@ -2,7 +2,7 @@ import type { Stateful } from 'ajo'
 import type { PageArgs } from '@kit'
 import { action } from '@kit/client'
 import { Alert, AlertDescription } from 'ajo-ui-playa/alert'
-import Button from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import { Card, CardContent } from 'ajo-ui-playa/card'
 import type { VerificationResult } from '/src/verification'
 

@@ -63,7 +63,7 @@ export default defineConfig({
 Import `playa()` from the package root. Import components from family subpaths:
 
 ```tsx
-import Button, { buttonVariants } from 'ajo-ui-playa/button'
+import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import { Card, CardContent } from 'ajo-ui-playa/card'
 import { DataTable, type DataTableColumn } from 'ajo-ui-playa/data-table'
 ```

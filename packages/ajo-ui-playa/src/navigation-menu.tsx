@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	NavigationMenu as BaseNavigationMenu,
 	NavigationMenuContent as BaseNavigationMenuContent,
@@ -41,21 +41,21 @@ const linkBase = 'flex flex-col gap-1 rounded-sm p-2 text-sm transition-[color,b
 
 /** Returns the UnoCSS class list for a navigation menu trigger. */
 export const navigationMenuTriggerVariants = ({ class: classes }: { class?: string } = {}) =>
-	clsx(triggerBase, classes)
+	clx(triggerBase, classes)
 
 /** Root landmark for a navigation menu. */
 const NavigationMenu: Stateless<NavigationMenuArgs> = ({ class: classes, ...attrs }) => (
-	<BaseNavigationMenu {...attrs} class={clsx(rootBase, classes)} />
+	<BaseNavigationMenu {...attrs} class={clx(rootBase, classes)} />
 )
 
 /** Horizontal list of navigation menu items. */
 const NavigationMenuList: Stateless<NavigationMenuListArgs> = ({ class: classes, ...attrs }) => (
-	<BaseNavigationMenuList {...attrs} class={clsx(listBase, classes)} />
+	<BaseNavigationMenuList {...attrs} class={clx(listBase, classes)} />
 )
 
 /** Top-level item inside a NavigationMenuList. */
 const NavigationMenuItem: Stateless<NavigationMenuItemArgs> = ({ class: classes, ...attrs }) => (
-	<BaseNavigationMenuItem {...attrs} class={clsx('relative', classes)} />
+	<BaseNavigationMenuItem {...attrs} class={clx('relative', classes)} />
 )
 
 /** Button that opens an item content panel. */
@@ -66,7 +66,7 @@ const NavigationMenuTrigger: Stateless<NavigationMenuTriggerArgs> = ({
 }) => (
 	<BaseNavigationMenuTrigger
 		{...attrs}
-		class={navigationMenuTriggerVariants({ class: clsx('group', classes) })}
+		class={navigationMenuTriggerVariants({ class: clx('group', classes) })}
 	>
 		{children}
 		<span aria-hidden="true" class="i-lucide-chevron-down relative top-px ml-1 size-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />
@@ -75,12 +75,12 @@ const NavigationMenuTrigger: Stateless<NavigationMenuTriggerArgs> = ({
 
 /** Popover panel for a NavigationMenuItem. */
 const NavigationMenuContent: Stateless<NavigationMenuContentArgs> = ({ class: classes, ...attrs }) => (
-	<BaseNavigationMenuContent {...attrs} class={clsx(contentBase, popupAnimation, popupSlide, classes)} />
+	<BaseNavigationMenuContent {...attrs} class={clx(contentBase, popupAnimation, popupSlide, classes)} />
 )
 
 /** Link styled for use inside or directly within a navigation menu item. */
 const NavigationMenuLink: Stateless<NavigationMenuLinkArgs> = ({ class: classes, ...attrs }) => (
-	<BaseNavigationMenuLink {...attrs} class={clsx(linkBase, classes)} />
+	<BaseNavigationMenuLink {...attrs} class={clx(linkBase, classes)} />
 )
 
 export {

@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	ResizableHandle as BaseResizableHandle,
 	ResizableContext,
@@ -45,7 +45,7 @@ const ResizablePanelGroup: Stateless<ResizablePanelGroupArgs> = ({
 }) => (
 	<BaseResizablePanelGroup
 		{...attrs}
-		class={clsx(groupBase, orientation === 'vertical' && 'flex-col', classes)}
+		class={clx(groupBase, orientation === 'vertical' && 'flex-col', classes)}
 		orientation={orientation}
 	>
 		{children}
@@ -64,7 +64,7 @@ const ResizablePanel: Stateless<ResizablePanelArgs> = ({
 }) => (
 	<BaseResizablePanel
 		{...attrs}
-		class={clsx(panelBase, classes)}
+		class={clx(panelBase, classes)}
 		defaultSize={defaultSize}
 		maxSize={maxSize}
 		minSize={minSize}
@@ -88,7 +88,7 @@ const ResizableHandle: Stateless<ResizableHandleArgs> = ({
 	return (
 		<BaseResizableHandle
 			{...attrs}
-			class={clsx(
+			class={clx(
 				handleBase,
 				vertical
 					? 'h-px w-full cursor-row-resize after:left-0 after:top-1/2 after:h-6 after:w-full after:-translate-y-1/2'
@@ -99,7 +99,7 @@ const ResizableHandle: Stateless<ResizableHandleArgs> = ({
 			disabled={disabled}
 		>
 			{withHandle && (
-				<div class={clsx('z-10 flex h-4 w-3 items-center justify-center rounded-xs edge bg-border', vertical && 'rotate-90')}>
+				<div class={clx('z-10 flex h-4 w-3 items-center justify-center rounded-xs edge bg-border', vertical && 'rotate-90')}>
 					<span class="i-lucide-grip-vertical size-2.5" />
 				</div>
 			)}

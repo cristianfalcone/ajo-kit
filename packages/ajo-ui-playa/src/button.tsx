@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 
 /** Visual treatment available to Button surfaces. */
 export type ButtonVariant =
@@ -42,8 +42,8 @@ type ButtonAsButton = ButtonBaseArgs & IntrinsicElements['button'] & {
 
 type ButtonAsAnchor = ButtonBaseArgs & IntrinsicElements['a'] & {
 	as: 'a'
+	/** Drops `href`, marks the link `aria-disabled` and takes it out of the tab order. */
 	disabled?: boolean
-	href: string
 }
 
 /** Props accepted by the themed Button surface. */
@@ -72,7 +72,7 @@ const variants: Record<ButtonVariant, string> = {
 
 // Geometry single-owner rule: base emits no geometry, so every size recipe
 // (and every size:'none' composition site) is the single owner of
-// h/px/py/gap/rounded/svg sizing — clsx cannot resolve conflicting
+// h/px/py/gap/rounded/svg sizing; clx cannot resolve conflicting
 // utilities and the alphabetically-last rule wins in the stylesheet.
 const sizes: Record<ButtonSize, string> = {
 	default: 'h-9 gap-2 rounded-md px-4 py-2 has-[>svg]:px-3 [&_svg:not([class*=size-])]:size-4',
@@ -92,7 +92,7 @@ export const buttonVariants = ({
 	size = 'default',
 	transition = true,
 	variant = 'default',
-}: ButtonVariantOptions = {}) => clsx(
+}: ButtonVariantOptions = {}) => clx(
 	base,
 	transition && 'transition-all',
 	variants[variant],
@@ -125,7 +125,7 @@ const Button: Stateless<ButtonArgs> = ({
 				data-size={size}
 				data-slot={slot}
 				data-variant={variant}
-				href={blocked ? undefined : String(anchor.href)}
+				href={blocked ? undefined : anchor.href}
 				tabIndex={blocked ? -1 : anchor.tabIndex}
 			>
 				{children}
@@ -149,4 +149,4 @@ const Button: Stateless<ButtonArgs> = ({
 	)
 }
 
-export default Button
+export { Button }

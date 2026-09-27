@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	Field as BaseField,
 	FieldDescription as BaseFieldDescription,
@@ -88,7 +88,7 @@ const FieldSet: Stateless<FieldSetArgs> = ({
 }) => (
 	<fieldset
 		{...attrs}
-		class={clsx(
+		class={clx(
 			'flex flex-col gap-6 has-[>[data-slot=checkbox-group]]:gap-3 has-[>[data-slot=radio-group]]:gap-3',
 			classes,
 		)}
@@ -107,7 +107,7 @@ const FieldLegend: Stateless<FieldLegendArgs> = ({
 }) => (
 	<legend
 		{...attrs}
-		class={clsx(
+		class={clx(
 			'mb-3 font-medium data-[variant=legend]:text-base data-[variant=label]:text-sm',
 			classes,
 		)}
@@ -126,7 +126,7 @@ const FieldGroup: Stateless<FieldGroupArgs> = ({
 }) => (
 	<div
 		{...attrs}
-		class={clsx(
+		class={clx(
 			'group/field-group @container/field-group flex w-full flex-col gap-7 data-[slot=checkbox-group]:gap-3 [&>[data-slot=field-group]]:gap-4',
 			classes,
 		)}
@@ -149,7 +149,7 @@ const Field: Stateless<FieldArgs> = ({
 }) => (
 	<BaseField
 		{...attrs}
-		class={clsx(fieldBase, fieldOrientation[orientation], classes)}
+		class={clx(fieldBase, fieldOrientation[orientation], classes)}
 		data-disabled={disabled ? 'true' : undefined}
 		data-invalid={invalid ? 'true' : undefined}
 		data-orientation={orientation}
@@ -169,7 +169,7 @@ const FieldContent: Stateless<FieldContentArgs> = ({
 }) => (
 	<div
 		{...attrs}
-		class={clsx('group/field-content flex flex-1 flex-col gap-1.5 leading-snug', classes)}
+		class={clx('group/field-content flex flex-1 flex-col gap-1.5 leading-snug', classes)}
 		data-slot="field-content"
 	>
 		{children}
@@ -184,7 +184,7 @@ const FieldLabel: Stateless<FieldLabelArgs> = ({
 }) => (
 	<BaseFieldLabel
 		{...attrs}
-		class={clsx(
+		class={clx(
 			labelBase,
 			'group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:edge [&>*]:data-[slot=field]:p-4 has-[:checked]:inset-ring-primary has-[:checked]:bg-primary/5',
 			classes,
@@ -202,7 +202,7 @@ const FieldTitle: Stateless<FieldTitleArgs> = ({
 }) => (
 	<div
 		{...attrs}
-		class={clsx('flex w-fit items-center gap-2 text-sm font-medium leading-snug group-data-[disabled=true]/field:opacity-50', classes)}
+		class={clx('flex w-fit items-center gap-2 text-sm font-medium leading-snug group-data-[disabled=true]/field:opacity-50', classes)}
 		data-slot="field-label"
 	>
 		{children}
@@ -217,7 +217,7 @@ const FieldDescription: Stateless<FieldDescriptionArgs> = ({
 }) => (
 	<BaseFieldDescription
 		{...attrs}
-		class={clsx(
+		class={clx(
 			'text-sm font-normal leading-normal text-muted-foreground group-has-[[data-orientation=horizontal]]/field:text-balance last:mt-0 nth-last-2:-mt-1 [[data-variant=legend]+&]:-mt-1.5 [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary',
 			classes,
 		)}
@@ -236,7 +236,7 @@ const FieldSeparator: Stateless<FieldSeparatorArgs> = ({
 	<div
 		{...attrs}
 		aria-orientation="horizontal"
-		class={clsx('relative -my-2 flex h-5 items-center text-sm group-data-[variant=outline]/field-group:-mb-2', classes)}
+		class={clx('relative -my-2 flex h-5 items-center text-sm group-data-[variant=outline]/field-group:-mb-2', classes)}
 		data-content={children ? 'true' : undefined}
 		data-slot="field-separator"
 		role={role}
@@ -258,7 +258,7 @@ const FieldError: Stateless<FieldErrorArgs> = ({
 }) => (
 	<BaseFieldError
 		{...attrs}
-		class={clsx('text-sm font-normal text-danger [&>[data-slot=field-error-list]]:ml-4 [&>[data-slot=field-error-list]]:flex [&>[data-slot=field-error-list]]:list-disc [&>[data-slot=field-error-list]]:flex-col [&>[data-slot=field-error-list]]:gap-1', classes)}
+		class={clx('text-sm font-normal text-danger [&>[data-slot=field-error-list]]:ml-4 [&>[data-slot=field-error-list]]:flex [&>[data-slot=field-error-list]]:list-disc [&>[data-slot=field-error-list]]:flex-col [&>[data-slot=field-error-list]]:gap-1', classes)}
 	>
 		{children}
 	</BaseFieldError>

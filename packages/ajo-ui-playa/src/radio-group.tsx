@@ -1,6 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import {
 	RadioGroup as BaseRadioGroup,
 	RadioGroupItem as BaseRadioGroupItem,
@@ -32,7 +31,7 @@ const RadioGroup: Stateless<RadioGroupArgs> = ({
 }) => (
 	<BaseRadioGroup
 		{...attrs}
-		class={clsx(choiceGroupOrientation[orientation], classes)}
+		class={clx(choiceGroupOrientation[orientation], classes)}
 		orientation={orientation}
 	/>
 )
@@ -45,7 +44,7 @@ const RadioGroupItem: Stateless<RadioGroupItemArgs> = ({
 }) => (
 	<BaseRadioGroupItem
 		{...attrs}
-		class={clsx(itemBase, classes)}
+		class={clx(itemBase, classes)}
 		// Composed check-in: the fill transitions on the item box while the dot
 		// pops in with a springy overshoot; unchecking collapses fast.
 		indicatorClass="pointer-events-none absolute left-1/2 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current scale-0 opacity-0 transition-[opacity,scale] duration-100 ease-in motion-reduce:transition-none peer-checked:scale-100 peer-checked:opacity-100 peer-checked:duration-250 peer-checked:delay-75 peer-checked:ease-[cubic-bezier(0.34,1.56,0.64,1)]"

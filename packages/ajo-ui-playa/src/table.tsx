@@ -1,4 +1,5 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
+import { part } from 'ajo-ui/utils'
 
 export type TableArgs = WithChildren<IntrinsicElements['table'] & { class?: string }>
 export type TableHeaderArgs = WithChildren<IntrinsicElements['thead'] & { class?: string }>
@@ -14,128 +15,34 @@ export type TableCaptionArgs = WithChildren<IntrinsicElements['caption'] & { cla
  * `playa-table` slot recipe, so every part below is styled through its
  * `data-slot` marker — the same rules the Playa DataTable consumes.
  */
-const Table: Stateless<TableArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
+const Table: Stateless<TableArgs> = attrs => (
 	<div class="playa-table-container playa-table" data-slot="table-container">
-		<table
-			{...attrs}
-			class={classes}
-			data-slot="table"
-		>
-			{children}
-		</table>
+		<table {...attrs} data-slot="table" />
 	</div>
 )
 
 /** Native table header group. */
-const TableHeader: Stateless<TableHeaderArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<thead
-		{...attrs}
-		class={classes}
-		data-slot="table-header"
-	>
-		{children}
-	</thead>
-)
+const TableHeader = part<TableHeaderArgs>('thead', 'table-header')
 
 /** Native table body group. */
-const TableBody: Stateless<TableBodyArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<tbody
-		{...attrs}
-		class={classes}
-		data-slot="table-body"
-	>
-		{children}
-	</tbody>
-)
+const TableBody = part<TableBodyArgs>('tbody', 'table-body')
 
 /** Native table footer group. */
-const TableFooter: Stateless<TableFooterArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<tfoot
-		{...attrs}
-		class={classes}
-		data-slot="table-footer"
-	>
-		{children}
-	</tfoot>
-)
+const TableFooter = part<TableFooterArgs>('tfoot', 'table-footer')
 
 /** Native table row. */
-const TableRow: Stateless<TableRowArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<tr
-		{...attrs}
-		class={classes}
-		data-slot="table-row"
-	>
-		{children}
-	</tr>
-)
+const TableRow = part<TableRowArgs>('tr', 'table-row')
 
-/** Native table header cell. */
-const TableHead: Stateless<TableHeadArgs> = ({
-	children,
-	class: classes,
-	scope = 'col',
-	...attrs
-}) => (
-	<th
-		{...attrs}
-		class={classes}
-		data-slot="table-head"
-		scope={scope}
-	>
-		{children}
-	</th>
+/** Native table header cell; scopes its column unless told otherwise. */
+const TableHead: Stateless<TableHeadArgs> = ({ scope = 'col', ...attrs }) => (
+	<th {...attrs} data-slot="table-head" scope={scope} />
 )
 
 /** Native table data cell. */
-const TableCell: Stateless<TableCellArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<td
-		{...attrs}
-		class={classes}
-		data-slot="table-cell"
-	>
-		{children}
-	</td>
-)
+const TableCell = part<TableCellArgs>('td', 'table-cell')
 
 /** Native table caption. Must be the first child of `Table`. */
-const TableCaption: Stateless<TableCaptionArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<caption
-		{...attrs}
-		class={classes}
-		data-slot="table-caption"
-	>
-		{children}
-	</caption>
-)
+const TableCaption = part<TableCaptionArgs>('caption', 'table-caption')
 
 export {
 	Table,

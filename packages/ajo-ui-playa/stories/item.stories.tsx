@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
 import { Avatar, AvatarFallback, AvatarImage } from 'ajo-ui-playa/avatar'
-import Button from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import {
 	Item,
 	ItemActions,

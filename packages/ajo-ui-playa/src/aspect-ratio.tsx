@@ -1,6 +1,5 @@
 import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import clsx from 'clsx'
-import { stlx } from 'ajo-ui/utils'
+import { clx, stlx } from 'ajo-ui/utils'
 
 export type AspectRatioArgs = WithChildren<IntrinsicElements['div'] & {
 	/** Desired width divided by height. */
@@ -25,7 +24,7 @@ const AspectRatio: Stateless<AspectRatioArgs> = ({
 	return (
 		<div
 			{...attrs}
-			class={clsx(base, classes)}
+			class={clx(base, classes)}
 			data-ratio={value}
 			data-slot="aspect-ratio"
 			style={stlx(style, { aspectRatio: value })}
@@ -36,4 +35,3 @@ const AspectRatio: Stateless<AspectRatioArgs> = ({
 }
 
 export { AspectRatio }
-export default AspectRatio

@@ -1,5 +1,5 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
+import { clx } from 'ajo-ui/utils'
 import {
 	Progress as BaseProgress,
 	type ProgressArgs as BaseProgressArgs,
@@ -16,6 +16,6 @@ const rootBase = 'relative h-2 w-full overflow-hidden rounded-full bg-primary/20
 const Progress: Stateless<ProgressArgs> = ({
 	class: classes,
 	...attrs
-}) => <BaseProgress {...attrs} class={clsx(rootBase, classes)} />
+}) => <BaseProgress {...attrs} class={clx(rootBase, classes)} />
 
 export { Progress }

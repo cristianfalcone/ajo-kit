@@ -1,19 +1,12 @@
 import type { Stateless } from 'ajo'
-import clsx from 'clsx'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import {
 	CheckboxGroup as BaseCheckboxGroup,
 	CheckboxGroupItem as BaseCheckboxGroupItem,
 	type CheckboxGroupArgs as BaseCheckboxGroupArgs,
 	type CheckboxGroupItemArgs as BaseCheckboxGroupItemArgs,
 } from 'ajo-ui/checkbox-group'
-import {
-	checkboxBox,
-	checkboxIndicator,
-	checkboxState,
-	choiceGroupOrientation,
-	choiceInput,
-} from './internal/recipes'
+import { checkboxIndicator, checkboxState, choiceGroupOrientation, choiceInput } from './internal/recipes'
 
 export type CheckboxGroupOrientation = 'horizontal' | 'vertical'
 
@@ -37,7 +30,7 @@ const CheckboxGroup: Stateless<CheckboxGroupArgs> = ({
 }) => (
 	<BaseCheckboxGroup
 		{...attrs}
-		class={clsx(choiceGroupOrientation[orientation], classes)}
+		class={clx(choiceGroupOrientation[orientation], classes)}
 		data-orientation={orientation}
 	/>
 )
@@ -50,7 +43,7 @@ const CheckboxGroupItem: Stateless<CheckboxGroupItemArgs> = ({
 }) => (
 	<BaseCheckboxGroupItem
 		{...attrs}
-		class={clsx(checkboxBox, checkboxState, classes)}
+		class={clx('playa-checkbox-box', checkboxState, classes)}
 		indicatorClass={checkboxIndicator}
 		inputClass={choiceInput}
 	/>
