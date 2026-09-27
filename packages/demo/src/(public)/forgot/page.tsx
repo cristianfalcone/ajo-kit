@@ -61,7 +61,7 @@ const Forgot: Stateful<PageArgs> = function* () {
 			</CardContent>
 
 			<CardFooter class="justify-center">
-				<a href="/login" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
+				<a href="/login" class="text-sm font-medium text-link underline-offset-4 hover:underline">
 					Back to login
 				</a>
 			</CardFooter>

@@ -310,8 +310,11 @@ const read = (value: string) => {
 const input = (event: Event) => event.currentTarget as HTMLInputElement
 const textarea = (event: Event) => event.currentTarget as HTMLTextAreaElement
 
+// Playa follows the system scheme on its own; the classes force the resolved one.
 const applyTheme = (mode: ThemeMode, dark: boolean) => {
-	document.documentElement.classList.toggle('dark', mode === 'dark' || (mode === 'system' && dark))
+	const night = mode === 'dark' || (mode === 'system' && dark)
+	document.documentElement.classList.toggle('dark', night)
+	document.documentElement.classList.toggle('light', !night)
 }
 
 const nextTheme = (mode: ThemeMode): ThemeMode => mode === 'system'

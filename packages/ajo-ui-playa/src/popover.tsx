@@ -18,7 +18,7 @@ const Popover: Stateless<PopoverArgs> = ({ class: classes, ...attrs }) => (
 	<BasePopover {...attrs} class={clx(rootBase, classes)} />
 )
 
-/** Floating rich-content panel for a Popover. */
+/** Floating rich-content surface for a Popover. */
 const PopoverContent: Stateless<PopoverContentArgs> = ({ class: classes, ...attrs }) => (
 	<BasePopoverContent {...attrs} class={clx('playa-popup-content', contentBase, popupAnimation, popupSlide, classes)} />
 )

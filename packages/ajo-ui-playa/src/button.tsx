@@ -63,10 +63,10 @@ const variants: Record<ButtonVariant, string> = {
 	default: 'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/50',
 	danger: 'bg-danger text-danger-foreground hover:bg-danger/90 focus-visible:ring-danger/40',
 	'danger-ghost': 'text-danger hover:bg-danger/10 hover:text-danger focus-visible:ring-danger/40',
-	outline: 'edge bg-transparent text-foreground hover:bg-accent hover:edge-on-accent hover:text-accent-foreground focus-visible:ring-ring/50',
+	outline: 'edge bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50',
 	secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring/50',
 	ghost: 'text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50',
-	link: 'text-primary underline-offset-4 hover:underline focus-visible:ring-ring/50',
+	link: 'text-link underline-offset-4 hover:underline focus-visible:ring-ring/50',
 	'muted-ghost': 'text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50',
 }
 

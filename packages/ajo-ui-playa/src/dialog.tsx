@@ -31,7 +31,7 @@ export type {
 } from 'ajo-ui/dialog'
 
 export type DialogContentArgs = BaseDialogContentArgs & {
-	/** Skip the default centered dialog panel classes for composed primitives. */
+	/** Skip the default centered dialog surface classes for composed primitives. */
 	unstyled?: boolean
 }
 
@@ -47,7 +47,7 @@ const Dialog: Stateless<DialogArgs> = ({ class: classes, ...attrs }) => (
 	<BaseDialog {...attrs} class={clx('contents', classes)} />
 )
 
-/** Native modal dialog panel; compose DialogClose inside it for a close control. */
+/** Native modal dialog surface; compose DialogClose inside it for a close control. */
 const DialogContent: Stateless<DialogContentArgs> = ({ class: classes, unstyled, ...attrs }) => (
 	<BaseDialogContent {...attrs} class={clx(modalClosed, !unstyled && contentBase, classes)} />
 )

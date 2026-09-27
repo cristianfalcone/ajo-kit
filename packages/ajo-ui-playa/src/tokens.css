@@ -1,89 +1,117 @@
 /*
- * Playa's design tokens: custom properties only, read by the playa() preset as
- * its first preflight and importable on their own by apps without UnoCSS.
- * `.dark` on an ancestor switches to the dark values.
+ * Playa's materials: an ivory suit and a warm-neutral near-black one, satin
+ * champagne gold as the one metal, frost, and the navy carpet. Custom
+ * properties and the scheme contract only. The system preference is the
+ * default and paints before any script; `.light` or `.dark` on the root only
+ * forces a choice.
  */
 
-/*
- * "Deep ocean" tuning: structural blues sit at OKLCH hue 250-256 and accents
- * at 230-240 so nothing drifts teal, while the warm sand neutrals keep the
- * beach identity. Every body-text pair holds WCAG >= 7:1 and every on-color
- * foreground >= 4.5:1.
- */
+/* Registered so light-dark() resolves once on the root: a navy island sets
+   its own color-scheme to dark and must still paint the page's carpet. */
+@property --navy {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #1b2130;
+}
+
 :root {
+  color-scheme: light dark;
+
+  /* Type. Theme keys map to these, so the names avoid Wind4's --font-sans and --font-mono. */
+  --font-display: 'Fraunces Variable', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'DM Sans Variable', system-ui, sans-serif;
+  --font-data: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Satin gold: bronze shadow (1, 5), champagne body (2, 4), specular highlight (3, 6). */
+  --gold-1: light-dark(#5b4628, #8a7552);
+  --gold-2: light-dark(#8b6d3f, #cdb68d);
+  --gold-3: light-dark(#c3a36a, #f6ecd8);
+  --gold-4: light-dark(#9a7a45, #d9c39c);
+  --gold-5: light-dark(#6c5430, #a88f68);
+  --gold-6: light-dark(#b39159, #ecdcbc);
+  --gilt: linear-gradient(105deg, var(--gold-1) 0%, var(--gold-2) 16%, var(--gold-3) 30%, var(--gold-4) 44%, var(--gold-5) 60%, var(--gold-6) 78%, var(--gold-1) 100%);
+  /* Gold as text: the gold marks are 3.5:1 on ivory, so text uses this. */
+  --gold-text: light-dark(#7b5f31, #e0cba4);
+  /* The plate on the one primary action: a short champagne fall, a specular
+     top and a bronze hairline inside it, and a small tight shadow. */
+  --gilt-plate: linear-gradient(180deg, #ecdcb8, #cdb58a);
+  --gilt-plate-edge: inset 0 1px 0 rgb(255 250 238 / 0.7), inset 0 0 0 1px light-dark(#b59c73, #a48a60);
+  --gilt-plate-shadow: 0 1px 2px light-dark(rgb(64 46 18 / 0.25), rgb(0 0 0 / 0.5));
+  /* Brushed sheen: horizontal fractal noise blended soft-light over the plate. */
+  --brush: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='300'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.03 1.1' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.4 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3C/svg%3E");
+
+  /* Roles: the names Playa's utilities read. Dark is one warm-neutral ladder
+     (OKLCH hue 75, chroma 0.004) stepped by lightness: page, surface, raised. */
+  --background: light-dark(#f5efe6, #11100e);
+  --foreground: light-dark(#1b2335, #ebe7df);
+  --card: light-dark(#fbf7f1, #181715);
+  --card-foreground: var(--foreground);
+  --popover: light-dark(#fdfbf7, #1f1e1c);
+  --popover-foreground: var(--foreground);
+  /* The plate body, for flat uses; the primary action paints --gilt-plate. */
+  --primary: #cdb58a;
+  --primary-foreground: #2a2113;
+  --secondary: light-dark(#fdfbf7, #1f1e1c);
+  --secondary-foreground: var(--foreground);
+  --muted: light-dark(#ece3d7, #262523);
+  --muted-foreground: light-dark(#45506a, #adaaa5);
+  /* Placeholders, timestamps and meta: steps back without leaving AA; never body text. */
+  --faint-foreground: light-dark(#5a6078, #9a9894);
+  /* Highlight and selection: a gold tint. The dark one is a solid colour,
+     champagne's hue at the night's lightness (oklch 0.30 0.045 82), so it
+     reads as gold on the night instead of a grey-brown alpha. */
+  --accent: light-dark(rgb(154 122 69 / 0.14), #392b11);
+  --accent-foreground: var(--foreground);
+  --link: light-dark(#2f4370, #e6d3b0);
+  --danger: light-dark(#a8423d, #ec928b);
+  --danger-foreground: light-dark(#fbf7f1, #11100e);
+  --success: light-dark(#3a6e46, #7fb58f);
+  --success-foreground: light-dark(#fbf7f1, #11100e);
+  --warning: light-dark(#9a4f0f, #e39a5a);
+  --warning-foreground: light-dark(#fbf7f1, #11100e);
+  --info: light-dark(#2f4370, #a9c1dd);
+  --info-foreground: light-dark(#fbf7f1, #11100e);
+  /* Hairlines are translucent, so a line over the accent tint keeps its weight. */
+  --border: light-dark(rgb(27 35 53 / 0.14), rgb(235 231 223 / 0.11));
+  /* Form control boundary at 3:1 against its surface (WCAG 1.4.11). */
+  --input: light-dark(rgb(27 35 53 / 0.5), #6e6b68);
+  /* Focus: bronze on ivory, champagne on the night. */
+  --ring: light-dark(#6c5430, #e4d1b1);
+  --chart-1: light-dark(#2f4370, #a9c1dd);
+  --chart-2: light-dark(#9a7a45, #d9c39c);
+  --chart-3: light-dark(#3a6e46, #7fb58f);
+  --chart-4: light-dark(#9a4f0f, #e39a5a);
+  --chart-5: light-dark(#a8423d, #ec928b);
+
+  /* Elevation: surfaces rest flat; floating layers take a soft layered drop. */
+  --shadow-color: light-dark(rgb(40 46 66 / 0.14), rgb(0 0 0 / 0.5));
+  --shadow-xs: 0 1px 2px var(--shadow-color);
+  --shadow-lg: 0 1px 2px var(--shadow-color), 0 12px 32px -12px var(--shadow-color);
+  --shadow-xl: 0 1px 2px var(--shadow-color), 0 24px 56px -20px var(--shadow-color);
+
+  /* Frost for bars and floating layers; a blurred scrim behind modal ones. */
+  --glass-filter: blur(18px) saturate(1.3);
+  --glass-chrome: color-mix(in oklab, var(--background) 72%, transparent);
+  --glass-overlay: color-mix(in oklab, var(--popover) 82%, transparent);
+  --scrim: light-dark(rgb(27 35 53 / 0.35), rgb(0 0 0 / 0.55));
+  --scrim-filter: blur(4px);
+
+  /* The carpet under code, logs and tooltips: navy on ivory, the deepest neutral at night. */
+  --navy: light-dark(#1b2130, #0b0a08);
+
+  /* Geometry and state: one radius knob, three control heights, one reserved message line. */
   --radius: 0.75rem;
-  --background: #f3f0e9;
-  --foreground: #1e3957;
-  --card: #fafdff;
-  --card-foreground: #1e3957;
-  --popover: #fafdff;
-  --popover-foreground: #1e3957;
-  --primary: #284971;
-  --primary-foreground: #f5fafd;
-  --secondary: #dbe7f0;
-  --secondary-foreground: #1e3957;
-  --muted: #e9e6dc;
-  --muted-foreground: #4f657e;
-  --accent: rgb(40 73 113 / 0.09);
-  --accent-foreground: #1e3957;
-  --danger: #a94b4c;
-  --danger-foreground: #fcf6f3;
-  --success: #45764c;
-  --success-foreground: #f2fbf5;
-  --warning: #96650c;
-  --warning-foreground: #fff9ec;
-  --info: #276b8c;
-  --info-foreground: #f1f9fd;
-  --border: rgb(30 57 87 / 0.14);
-  --input: rgb(30 57 87 / 0.26);
-  --ring: #3e8ec1;
-  --chart-1: #284971;
-  --chart-2: #3e8ec1;
-  --chart-3: #63a06c;
-  --chart-4: #fcb53b;
-  --chart-5: #b45253;
-  --glass-highlight: rgb(255 255 255 / 0.35);
-  --shadow-xs: 0 1px 2px rgb(30 57 87 / 0.06), 0 2px 8px -2px rgb(30 57 87 / 0.04);
-  --shadow-lg: 0 4px 12px -4px rgb(30 57 87 / 0.1), 0 16px 40px -8px rgb(30 57 87 / 0.18);
+  --control-sm: 2rem;
+  --control: 2.25rem;
+  --control-lg: 2.5rem;
+  --focus-width: 2px;
+  --disabled-opacity: 0.5;
+  --field-gap: 0.5rem;
+  --field-message: 1.25rem;
+  --ease: cubic-bezier(0.22, 0.8, 0.24, 1);
+  --duration-state: 150ms;
+  --duration-layer: 200ms;
 }
 
-/*
- * Dark is near-black desaturated charcoal (OKLCH C 0.010-0.020 at hue 252, a
- * whisper of ocean, not navy) so translucent surfaces composite naturally over
- * the page; the warm sand accents carry the beach identity.
- */
-.dark {
-  --background: #101317;
-  --foreground: #eae4da;
-  --card: #1c2127;
-  --card-foreground: #eae4da;
-  --popover: #22282f;
-  --popover-foreground: #eae4da;
-  --primary: #d2c1b6;
-  --primary-foreground: #14191e;
-  --secondary: #29313a;
-  --secondary-foreground: #eae4da;
-  --muted: #181c21;
-  --muted-foreground: #9da6b0;
-  --accent: rgb(210 193 182 / 0.12);
-  --accent-foreground: #f0ebe2;
-  --danger: #d98e85;
-  --danger-foreground: #101317;
-  --success: #76ba89;
-  --success-foreground: #101317;
-  --warning: #fcb53b;
-  --warning-foreground: #101317;
-  --info: #75bfe3;
-  --info-foreground: #101317;
-  --border: rgb(210 193 182 / 0.16);
-  --input: rgb(210 193 182 / 0.26);
-  --ring: #75bfe3;
-  --chart-1: #75bfe3;
-  --chart-2: #d2c1b6;
-  --chart-3: #76ba89;
-  --chart-4: #fcb53b;
-  --chart-5: #d98e85;
-  --glass-highlight: rgb(255 255 255 / 0.07);
-  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.35), 0 2px 8px -2px rgb(0 0 0 / 0.25);
-  --shadow-lg: 0 4px 12px -4px rgb(0 0 0 / 0.4), 0 16px 40px -8px rgb(0 0 0 / 0.55);
-}
+:root.light { color-scheme: light; }
+:root.dark { color-scheme: dark; }

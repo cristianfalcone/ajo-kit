@@ -54,7 +54,7 @@ const Login: Stateful<PageArgs<Data>> = function* () {
 							disabled={form.loading}
 							class="col-span-2"
 						/>
-						<a href="/forgot" class="col-start-2 row-start-1 text-sm font-medium text-primary underline-offset-4 hover:underline">
+						<a href="/forgot" class="col-start-2 row-start-1 text-sm font-medium text-link underline-offset-4 hover:underline">
 							Forgot password?
 						</a>
 					</div>
@@ -83,7 +83,7 @@ const Login: Stateful<PageArgs<Data>> = function* () {
 				<CardFooter class="justify-center">
 					<p class="text-center text-sm text-muted-foreground">
 						Don't have an account?{' '}
-						<a href="/register" class="font-medium text-primary underline-offset-4 hover:underline">
+						<a href="/register" class="font-medium text-link underline-offset-4 hover:underline">
 							Sign up
 						</a>
 					</p>

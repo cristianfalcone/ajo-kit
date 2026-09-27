@@ -27,9 +27,9 @@ describe('playa preset', () => {
 		expect(css).toContain('[aria-invalid="true"]')
 		expect(css).toContain('.scroll-fade-x')
 		expect(css).toContain('.i-lucide-check')
-		expect(css).toContain(':root{--radius:0.75rem')
-		expect(css).toContain('.dark{--background:#101317')
 		expect(css).toContain('[data-slot=button-group]')
+		expect(css).toContain('::selection{background-color:color-mix(in oklab,var(--gold-4) 35%,transparent)}')
+		expect(css).toContain(':where(:focus-visible){outline:var(--focus-width) solid var(--ring);outline-offset:0}')
 		expect(css).toContain('[data-slot=chart] [data-slot=chart-tooltip][data-positioned=true]{transition:transform 200ms ease-out}')
 		expect(css).toContain('rect[data-chart-sign=positive]{clip-path:inset(0 round 4px 4px 0 0) fill-box}')
 		expect(css).toContain('rect[data-chart-sign=negative]{clip-path:inset(0 round 0 0 4px 4px) fill-box}')
@@ -39,6 +39,44 @@ describe('playa preset', () => {
 		expect(css).toContain('.playa-chart :where(circle[data-chart-index]){fill:var(--background);}')
 		expect(css).toContain('.playa-chart :is([data-slot=chart-tooltip-item][data-indicator=dot]){align-items:center;}')
 		expect(css).toMatch(/\.playa-chart :is\(\[data-indicator=dashed\]>\[data-slot=chart-tooltip-indicator\]\)\{[^}]*border-style:dashed;[^}]*border-width:1\.5px;/)
+	})
+
+	it('follows the system colour scheme and lets a root class force one', async () => {
+		const uno = await createGenerator({ presets: [playa()] })
+		const { css } = await uno.generate('')
+
+		expect(css).toContain(':root{color-scheme:light dark;')
+		expect(css).toContain('--background:light-dark(#f5efe6,#11100e);')
+		expect(css).toContain(':root.light{color-scheme:light}')
+		expect(css).toContain(':root.dark{color-scheme:dark}')
+		// Wind4's dark: variant is class-only and would miss the system scheme.
+		expect(css.replaceAll(':root.dark{', '')).not.toMatch(/\.dark\b/)
+	})
+
+	it('gives the theme keys Wind4 also defines to the tokens', async () => {
+		const uno = await createGenerator({ presets: [playa()] })
+		const { css } = await uno.generate('rounded-md shadow-lg shadow-xl font-sans font-mono font-title')
+
+		expect(css).toContain('--radius-md: var(--radius);')
+		expect(css).toContain('.shadow-lg{--un-shadow:var(--shadow-lg);')
+		expect(css).toContain('.shadow-xl{--un-shadow:var(--shadow-xl);')
+		expect(css).toContain('--font-sans: var(--font-body);')
+		expect(css).toContain('--font-mono: var(--font-data);')
+		expect(css).toContain('--font-title: var(--font-display);')
+	})
+
+	it('paints the materials through Wind4 shadow slots so rings still stack', async () => {
+		const uno = await createGenerator({ presets: [playa()] })
+		const { css } = await uno.generate('gilt-plate panel navy scrim glass-chrome glass-overlay ring-3')
+		const slots = 'box-shadow:var(--un-inset-shadow,0 0 #0000),var(--un-inset-ring-shadow,0 0 #0000),var(--un-ring-offset-shadow,0 0 #0000),var(--un-ring-shadow,0 0 #0000),var(--un-shadow,0 0 #0000)'
+
+		expect(css).toContain(`--un-inset-shadow:var(--gilt-plate-edge);--un-shadow:var(--gilt-plate-shadow);${slots}`)
+		expect(css).toMatch(/\.panel\{[^}]*background-color:color-mix\(in srgb, var\(--card\)[^}]*--un-inset-ring-color:color-mix\(in srgb, var\(--border\)/)
+		expect(css).toMatch(/\.navy\{[^}]*background-color:var\(--navy\);color:var\(--foreground\);color-scheme:dark;/)
+		expect(css).toContain('.scrim::backdrop{background-color:color-mix(in oklab, var(--scrim)')
+		expect(css).toContain('.glass-chrome{background-color:var(--glass-chrome);')
+		expect(css).toContain('.glass-overlay{background-color:var(--glass-overlay);')
+		expect(css).toContain('@property --navy{syntax:\'<color>\';inherits:true;')
 	})
 
 	it('themes base-owned inner nodes through their slots and state attributes', async () => {
@@ -74,7 +112,7 @@ describe('playa preset', () => {
 		expect(css).toContain('var(--popup-arrow-center)')
 		expect(css).toContain(nearRadius)
 		expect(css).toContain(farRadius)
-		expect(css).toContain('.playa-popover-content>[data-slot=popup-surface]{background-color:color-mix(in srgb,var(--popover) 55%,transparent)')
-		expect(css).toContain('.playa-tooltip-content>[data-slot=popup-surface]{background-color:var(--primary)')
+		expect(css).toContain('.playa-popover-content>[data-slot=popup-surface]{background-color:var(--glass-overlay);-webkit-backdrop-filter:var(--glass-filter)')
+		expect(css).toContain('.playa-tooltip-content>[data-slot=popup-surface]{background-color:var(--navy)')
 	})
 })

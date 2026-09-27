@@ -82,7 +82,7 @@ const SelectClear: Stateless<SelectClearArgs> = ({ class: classes, ...attrs }) =
 	<BaseSelectClear {...attrs} class={clx(clearBase, classes)} />
 )
 
-/** Popup panel for Select options. */
+/** Popup surface for Select options. */
 const SelectContent: Stateless<SelectContentArgs> = ({ class: classes, ...attrs }) => (
 	<BaseSelectContent {...attrs} class={clx('playa-select-content', classes)} />
 )

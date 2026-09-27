@@ -22,7 +22,10 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 
 		if (!root) return
 
-		root.classList.toggle('dark', mode === 'dark' || (mode === 'system' && dark.matches))
+		// Playa follows the system scheme on its own; the classes force the resolved one.
+		const night = mode === 'dark' || (mode === 'system' && dark.matches)
+		root.classList.toggle('dark', night)
+		root.classList.toggle('light', !night)
 	}
 
 	const set = (next: ThemeMode) => {

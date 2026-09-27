@@ -27,7 +27,7 @@ const CollapsibleTrigger: Stateless<CollapsibleTriggerArgs> = ({ class: classes,
 	<BaseCollapsibleTrigger {...attrs} class={clx(triggerBase, classes)} />
 )
 
-/** Content panel natively shown or hidden by a parent Collapsible. */
+/** Content region natively shown or hidden by a parent Collapsible. */
 const CollapsibleContent: Stateless<CollapsibleContentArgs> = ({ class: classes, ...attrs }) => (
 	<BaseCollapsibleContent {...attrs} class={clx(contentBase, classes)} />
 )

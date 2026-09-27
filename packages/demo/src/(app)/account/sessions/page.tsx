@@ -59,7 +59,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 							<Item key={session.id} variant="outline">
 								<ItemMedia>
 									<div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 inset-ring inset-ring-primary/25">
-										<span class="i-lucide-monitor size-5 text-primary" />
+										<span class="i-lucide-monitor size-5 text-gold-text" />
 									</div>
 								</ItemMedia>
 								<ItemContent class="min-w-0">

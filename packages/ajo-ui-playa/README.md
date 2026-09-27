@@ -69,8 +69,10 @@ a bundler that resolves package exports, such as Vite:
 ```
 
 - `ajo-ui-playa/tokens.css` holds Playa's design tokens as custom properties
-  (`--background`, `--primary`, `--radius`, ...), with `.dark` on an ancestor
-  selecting the dark values. `playa()` emits the same file as its first
+  (`--background`, `--primary`, `--radius`, ...). Every colour follows the
+  system colour scheme through `light-dark()`, so a visitor who prefers dark
+  gets the dark values before any script runs; a `light` or `dark` class on the
+  root element only forces a choice. `playa()` emits the same file as its first
   preflight, so a UnoCSS app does not import it again.
 - `ajo-ui-playa/fonts.css` is opt-in and loads `DM Sans Variable`,
   `JetBrains Mono Variable` and `Fraunces Variable` (weight axis) from

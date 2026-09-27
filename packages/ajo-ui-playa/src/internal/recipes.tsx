@@ -117,7 +117,7 @@ export const scrollAreaViewportVariants = ({
 
 /** Shared top-layer surface without family-specific geometry. */
 // Frost over dim: the backdrop blurs the page while barely darkening it, so
-// its elements stay visible as soft shapes and the glass-overlay panel reads
+// its elements stay visible as soft shapes and the glass-overlay surface reads
 // as translucent glass instead of a solid sheet.
 export const modalSurface = 'fixed z-50 glass-overlay shadow-lg outline-none backdrop:bg-black/20 backdrop:backdrop-blur-sm'
 
@@ -137,7 +137,7 @@ const toggleBase = 'inline-flex items-center justify-center gap-2 rounded-md tex
 
 const toggleTones: Record<ToggleVariant, string> = {
 	default: 'bg-transparent',
-	outline: 'edge bg-transparent hover:edge-on-accent',
+	outline: 'edge bg-transparent',
 }
 
 const toggleSizes: Record<ToggleSize, string> = {

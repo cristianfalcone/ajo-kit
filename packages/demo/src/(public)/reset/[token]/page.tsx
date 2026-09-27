@@ -42,7 +42,7 @@ const Reset: Stateful<PageArgs<Data>> = function* (args) {
 					</CardContent>
 
 					<CardFooter class="justify-center">
-						<a href="/forgot" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
+						<a href="/forgot" class="text-sm font-medium text-link underline-offset-4 hover:underline">
 							Request a new link
 						</a>
 					</CardFooter>

@@ -29,7 +29,7 @@ const Register: Stateful<PageArgs<Data>> = function* () {
 			<CardFooter class="justify-center">
 				<p class="text-center text-sm text-muted-foreground">
 					Already have an account?{' '}
-					<a href="/login" class="font-medium text-primary underline-offset-4 hover:underline">
+					<a href="/login" class="font-medium text-link underline-offset-4 hover:underline">
 						Sign in
 					</a>
 				</p>
@@ -82,7 +82,7 @@ const Register: Stateful<PageArgs<Data>> = function* () {
 			<CardFooter class="justify-center">
 				<p class="text-center text-sm text-muted-foreground">
 					Already have an account?{' '}
-					<a href="/login" class="font-medium text-primary underline-offset-4 hover:underline">
+					<a href="/login" class="font-medium text-link underline-offset-4 hover:underline">
 						Sign in
 					</a>
 				</p>

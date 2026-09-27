@@ -12,6 +12,10 @@ const tokens = readFileSync(new URL(/* @vite-ignore */ './tokens.css', import.me
   .replace(/;}/g, '}')
   .trim()
 
+// Wind4's box-shadow slots, with fallbacks for pages where no shadow utility
+// registered them: a material fills its own slots and rings still stack.
+const shadowSlots = 'var(--un-inset-shadow,0 0 #0000),var(--un-inset-ring-shadow,0 0 #0000),var(--un-ring-offset-shadow,0 0 #0000),var(--un-ring-shadow,0 0 #0000),var(--un-shadow,0 0 #0000)'
+
 // Edge fades for scroll-fade-x and the [data-overflow-*] stamps: one gradient per faded edge set.
 const fadeStops = {
   start: 'transparent,black 1rem',
@@ -82,6 +86,30 @@ export const playa = definePreset(() => ({
       '-webkit-mask-image': fade('right', 'both'),
       'mask-image': fade('right', 'both'),
     }],
+    // The one metal: brushed champagne under a specular top and a bronze
+    // hairline, with a small tight shadow, all in Wind4's shadow slots.
+    ['gilt-plate', {
+      'background-color': 'var(--primary)',
+      'background-image': 'var(--brush),var(--gilt-plate)',
+      'background-blend-mode': 'soft-light,normal',
+      color: 'var(--primary-foreground)',
+      '--un-inset-shadow': 'var(--gilt-plate-edge)',
+      '--un-shadow': 'var(--gilt-plate-shadow)',
+      'box-shadow': shadowSlots,
+    }],
+    // Frost: persistent bars over the page, and floating layers above it.
+    ['glass-chrome', {
+      'background-color': 'var(--glass-chrome)',
+      color: 'var(--card-foreground)',
+      '-webkit-backdrop-filter': 'var(--glass-filter)',
+      'backdrop-filter': 'var(--glass-filter)',
+    }],
+    ['glass-overlay', {
+      'background-color': 'var(--glass-overlay)',
+      color: 'var(--popover-foreground)',
+      '-webkit-backdrop-filter': 'var(--glass-filter)',
+      'backdrop-filter': 'var(--glass-filter)',
+    }],
     ['scrollbar-gutter-stable', { 'scrollbar-gutter': 'stable' }],
     ['scrollbar-none', { 'scrollbar-width': 'none' }],
     ['shimmer', {
@@ -124,6 +152,10 @@ export const playa = definePreset(() => ({
     {
       getCSS: () => [
         tokens,
+        // Selection in gold, readable over both suits.
+        '::selection{background-color:color-mix(in oklab,var(--gold-4) 35%,transparent)}',
+        // The default focus ring, for anything a family does not ring itself.
+        ':where(:focus-visible){outline:var(--focus-width) solid var(--ring);outline-offset:0}',
         // Opt in to animating block-size to `auto`: details-backed disclosures
         // (Collapsible, Accordion) transition ::details-content open/close in
         // engines that support keyword interpolation; others keep the snap.
@@ -146,7 +178,8 @@ export const playa = definePreset(() => ({
         '@keyframes exit{to{opacity:var(--un-exit-opacity,1);transform:translate3d(var(--un-exit-translate-x,0),var(--un-exit-translate-y,0),0) scale3d(var(--un-exit-scale,1),var(--un-exit-scale,1),var(--un-exit-scale,1))}}',
         '*,::before,::after{border-color:var(--border)}',
         `${popupSurfaceSelector}{position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit}`,
-        '.playa-popover-content>[data-slot=popup-surface]{background-color:color-mix(in srgb,var(--popover) 55%,transparent);-webkit-backdrop-filter:blur(24px) saturate(150%);backdrop-filter:blur(24px) saturate(150%);box-shadow:inset 0 1px 0 var(--glass-highlight),var(--shadow-lg);filter:drop-shadow(0 0 1px var(--border))}.playa-tooltip-content>[data-slot=popup-surface]{background-color:var(--primary);box-shadow:var(--shadow-xs);filter:drop-shadow(0 0 1px var(--border))}',
+        // Popovers are frost; tooltips sit on the carpet.
+        '.playa-popover-content>[data-slot=popup-surface]{background-color:var(--glass-overlay);-webkit-backdrop-filter:var(--glass-filter);backdrop-filter:var(--glass-filter);box-shadow:var(--shadow-lg);filter:drop-shadow(0 0 1px var(--border))}.playa-tooltip-content>[data-slot=popup-surface]{background-color:var(--navy);box-shadow:var(--shadow-xs);filter:drop-shadow(0 0 1px var(--border))}',
         popupSurfaceShape,
         '[data-slot=chart] [data-slot=chart-bar] rect[data-chart-index],[data-slot=chart] [data-slot=chart-pie] path[data-chart-index]{transition:opacity 150ms ease,stroke-width 150ms ease}[data-slot=chart] [data-slot=chart-line] circle[data-chart-index],[data-slot=chart] [data-slot=chart-area] circle[data-chart-index]{transition:opacity 150ms ease,stroke-width 150ms ease,r 150ms ease}[data-slot=chart]:has([data-active]) [data-slot=chart-bar] rect[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-pie] path[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-line] circle[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-area] circle[data-chart-index]:not([data-active]){opacity:.45}[data-slot=chart] [data-active]{opacity:1}[data-slot=chart] circle[data-active]{r:5.6px}',
         '[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=positive]{clip-path:inset(0 round 4px 4px 0 0) fill-box}[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=negative]{clip-path:inset(0 round 0 0 4px 4px) fill-box}',
@@ -193,30 +226,24 @@ export const playa = definePreset(() => ({
   shortcuts: {
     'playa-popup-content': 'isolate bg-transparent',
     'playa-popover-content': 'text-popover-foreground',
-    'playa-tooltip-content': 'text-primary-foreground',
+    // The carpet is a dark island in both themes: tokens inside it resolve dark.
+    'playa-tooltip-content': 'text-foreground [color-scheme:dark]',
     // Hairline inner border drawn with an inset ring: crisper than `border`
     // over stacked translucent surfaces and composes with ring/shadow slots.
     edge: 'inset-ring inset-ring-border',
     'edge-input': 'inset-ring inset-ring-input',
-    // Hairlines over the accent hover tint: a translucent line composited on
-    // the translucent tint reads brighter than the same line on the bare
-    // surface, so tinted states dim the line by the tint's coverage —
-    // alpha = 1 - (1 - alpha_border) / (1 - alpha_accent) — and hovered
-    // edges stay identical to resting ones on any surface. One recipe per
-    // line kind: inset rings (edge consumers) and real borders (table rows,
-    // dashed facets).
-    'edge-on-accent': 'inset-ring-border/39 dark:inset-ring-border/28',
-    'line-on-accent': 'border-border/39 dark:border-border/28',
-    // Glass tiers, one per elevation: persistent chrome, resting panels and
-    // floating overlays. Depth reads as more blur plus more opacity, saturate
-    // keeps the blurred backdrop vivid, and the inset hairline draws the
-    // specular top edge (--glass-highlight flips per scheme). Content layered
-    // on these surfaces stays solid or tint-only: glass never stacks on glass.
-    'glass-chrome': 'bg-card/50 text-card-foreground backdrop-blur-md backdrop-saturate-150',
-    glass: 'bg-card/60 text-card-foreground backdrop-blur-md backdrop-saturate-150 inset-shadow-[inset_0_1px_0_var(--glass-highlight)]',
+    // Enamel: a flat surface fill with a hairline, never a bevel.
+    panel: 'bg-card text-card-foreground edge',
+    // Resting translucent panels; frost for bars and floating layers is the
+    // glass-chrome and glass-overlay rules. Content layered on these surfaces
+    // stays solid or tint-only: glass never stacks on glass.
+    glass: 'bg-card/60 text-card-foreground backdrop-blur-md backdrop-saturate-150',
+    // The carpet under code, logs and dense data: tokens inside resolve dark.
+    navy: [{ 'background-color': 'var(--navy)', color: 'var(--foreground)', 'color-scheme': 'dark' }, 'edge'],
+    // Behind modal layers: a tinted, blurred page.
+    scrim: 'backdrop:bg-[var(--scrim)] backdrop:[backdrop-filter:var(--scrim-filter)]',
     // Form-field chrome shared by inputs, textareas, select triggers and grouped fields.
     'playa-field': 'rounded-md edge-input bg-transparent transition-[color,box-shadow] outline-none focus-visible:inset-ring-ring focus-visible:ring-3 focus-visible:ring-ring/25 aria-invalid:inset-ring-danger aria-invalid:ring-danger/20',
-    'glass-overlay': 'bg-popover/55 text-popover-foreground backdrop-blur-xl backdrop-saturate-150 inset-shadow-[inset_0_1px_0_var(--glass-highlight)]',
     // Discreet themed scrollbar for scrollable lists and viewports. Chromium and
     // Safari take the fully custom webkit path (buttonless); Firefox gets the
     // standard thin scrollbar via the preflight `@supports` fallback below.
@@ -307,9 +334,8 @@ export const playa = definePreset(() => ({
       '[&_:where([data-slot=table]):not(:has([data-slot=table-caption]))_:where([data-slot=table-body],[data-slot=table-footer]):last-child_tr:last-child>*]:border-b-0',
       '[&_:where([data-slot=table-footer])]:bg-muted/50 [&_:where([data-slot=table-footer])]:font-medium',
       // Hover only means something on data rows; header and footer stay
-      // quiet. Tinted rows dim their own hairline (line-on-accent) so both
-      // edges of a hovered row keep the resting line weight.
-      '[&_:where([data-slot=table-row])>*]:border-b [&_:where([data-slot=table-row])>*]:transition-colors [&_:where([data-slot=table-row])]:transition-colors [&_:where([data-slot=table-body])_:where([data-slot=table-row]):hover]:bg-accent [&_:where([data-slot=table-body])_:where([data-slot=table-row]):hover:not([data-state=selected])>*]:line-on-accent has-aria-expanded:[&_:where([data-slot=table-row])]:bg-accent [&_:where([data-slot=table-row]):has([aria-expanded=true]):not([data-state=selected])>*]:line-on-accent data-[state=selected]:[&_:where([data-slot=table-row])]:bg-muted',
+      // quiet. The translucent hairline keeps its weight over the tint.
+      '[&_:where([data-slot=table-row])>*]:border-b [&_:where([data-slot=table-row])>*]:transition-colors [&_:where([data-slot=table-row])]:transition-colors [&_:where([data-slot=table-body])_:where([data-slot=table-row]):hover]:bg-accent has-aria-expanded:[&_:where([data-slot=table-row])]:bg-accent data-[state=selected]:[&_:where([data-slot=table-row])]:bg-muted',
       '[&_:where([data-slot=table-head])]:h-11 [&_:where([data-slot=table-head])]:px-4 [&_:where([data-slot=table-head])]:text-left [&_:where([data-slot=table-head])]:align-middle [&_:where([data-slot=table-head])]:text-xs [&_:where([data-slot=table-head])]:font-medium [&_:where([data-slot=table-head])]:uppercase [&_:where([data-slot=table-head])]:tracking-wider [&_:where([data-slot=table-head])]:whitespace-nowrap [&_:where([data-slot=table-head])]:text-muted-foreground',
       '[&_:where([data-slot=table-cell])]:px-4 [&_:where([data-slot=table-cell])]:py-3 [&_:where([data-slot=table-cell])]:align-middle [&_:where([data-slot=table-cell])]:whitespace-nowrap',
       '[&_:where([data-slot=table-head],[data-slot=table-cell]):has([data-slot=checkbox])]:pr-0 [&_:where([data-slot=table-head],[data-slot=table-cell])>[data-slot=checkbox]]:translate-y-[2px]',
@@ -340,9 +366,9 @@ export const playa = definePreset(() => ({
       '[&_:where([data-slot=data-table-toolbar])]:flex [&_:where([data-slot=data-table-toolbar])]:flex-col [&_:where([data-slot=data-table-toolbar])]:gap-2 sm:[&_:where([data-slot=data-table-toolbar])]:flex-row sm:[&_:where([data-slot=data-table-toolbar])]:items-center sm:[&_:where([data-slot=data-table-toolbar])]:justify-between',
       '[&_:where([data-slot=data-table-toolbar-controls])]:flex [&_:where([data-slot=data-table-toolbar-controls])]:flex-1 [&_:where([data-slot=data-table-toolbar-controls])]:flex-wrap [&_:where([data-slot=data-table-toolbar-controls])]:items-center [&_:where([data-slot=data-table-toolbar-controls])]:gap-2',
       '[&_:where([data-slot=data-table-search])]:h-8 [&_:where([data-slot=data-table-search])]:w-[180px] [&_:where([data-slot=data-table-search])]:rounded-md [&_:where([data-slot=data-table-search])]:edge-input [&_:where([data-slot=data-table-search])]:bg-transparent [&_:where([data-slot=data-table-search])]:px-3 [&_:where([data-slot=data-table-search])]:text-sm [&_:where([data-slot=data-table-search])]:outline-none [&_:where([data-slot=data-table-search])]:placeholder:text-muted-foreground focus-visible:[&_:where([data-slot=data-table-search])]:inset-ring-ring focus-visible:[&_:where([data-slot=data-table-search])]:ring-3 focus-visible:[&_:where([data-slot=data-table-search])]:ring-ring/25 lg:[&_:where([data-slot=data-table-search])]:w-[260px]',
-      '[&_:where([data-slot=data-table-facet])]:inline-flex [&_:where([data-slot=data-table-facet])]:h-8 [&_:where([data-slot=data-table-facet])]:items-center [&_:where([data-slot=data-table-facet])]:gap-2 [&_:where([data-slot=data-table-facet])]:rounded-md [&_:where([data-slot=data-table-facet])]:border [&_:where([data-slot=data-table-facet])]:border-dashed [&_:where([data-slot=data-table-facet])]:px-3 [&_:where([data-slot=data-table-facet])]:text-sm [&_:where([data-slot=data-table-facet])]:font-medium [&_:where([data-slot=data-table-facet])]:outline-none hover:[&_:where([data-slot=data-table-facet])]:bg-accent hover:[&_:where([data-slot=data-table-facet])]:line-on-accent focus-visible:[&_:where([data-slot=data-table-facet])]:ring-3 focus-visible:[&_:where([data-slot=data-table-facet])]:ring-ring/50',
+      '[&_:where([data-slot=data-table-facet])]:inline-flex [&_:where([data-slot=data-table-facet])]:h-8 [&_:where([data-slot=data-table-facet])]:items-center [&_:where([data-slot=data-table-facet])]:gap-2 [&_:where([data-slot=data-table-facet])]:rounded-md [&_:where([data-slot=data-table-facet])]:border [&_:where([data-slot=data-table-facet])]:border-dashed [&_:where([data-slot=data-table-facet])]:px-3 [&_:where([data-slot=data-table-facet])]:text-sm [&_:where([data-slot=data-table-facet])]:font-medium [&_:where([data-slot=data-table-facet])]:outline-none hover:[&_:where([data-slot=data-table-facet])]:bg-accent focus-visible:[&_:where([data-slot=data-table-facet])]:ring-3 focus-visible:[&_:where([data-slot=data-table-facet])]:ring-ring/50',
       '[&_:where([data-slot=data-table-facet-icon])]:i-lucide-list-filter [&_:where([data-slot=data-table-facet-icon])]:size-4 [&_:where([data-slot=data-table-facet-count])]:rounded-xs [&_:where([data-slot=data-table-facet-count])]:bg-muted [&_:where([data-slot=data-table-facet-count])]:px-1.5 [&_:where([data-slot=data-table-facet-count])]:py-0.5 [&_:where([data-slot=data-table-facet-count])]:text-xs [&_:where([data-slot=data-table-facet-count])]:tabular-nums',
-      '[&_:where([data-slot=data-table-columns])]:inline-flex [&_:where([data-slot=data-table-columns])]:h-8 [&_:where([data-slot=data-table-columns])]:items-center [&_:where([data-slot=data-table-columns])]:gap-2 [&_:where([data-slot=data-table-columns])]:rounded-md [&_:where([data-slot=data-table-columns])]:edge [&_:where([data-slot=data-table-columns])]:px-3 [&_:where([data-slot=data-table-columns])]:text-sm [&_:where([data-slot=data-table-columns])]:font-medium [&_:where([data-slot=data-table-columns])]:outline-none hover:[&_:where([data-slot=data-table-columns])]:bg-accent hover:[&_:where([data-slot=data-table-columns])]:edge-on-accent focus-visible:[&_:where([data-slot=data-table-columns])]:ring-3 focus-visible:[&_:where([data-slot=data-table-columns])]:ring-ring/50 [&_:where([data-slot=data-table-columns-icon])]:i-lucide-chevron-down [&_:where([data-slot=data-table-columns-icon])]:size-4',
+      '[&_:where([data-slot=data-table-columns])]:inline-flex [&_:where([data-slot=data-table-columns])]:h-8 [&_:where([data-slot=data-table-columns])]:items-center [&_:where([data-slot=data-table-columns])]:gap-2 [&_:where([data-slot=data-table-columns])]:rounded-md [&_:where([data-slot=data-table-columns])]:edge [&_:where([data-slot=data-table-columns])]:px-3 [&_:where([data-slot=data-table-columns])]:text-sm [&_:where([data-slot=data-table-columns])]:font-medium [&_:where([data-slot=data-table-columns])]:outline-none hover:[&_:where([data-slot=data-table-columns])]:bg-accent focus-visible:[&_:where([data-slot=data-table-columns])]:ring-3 focus-visible:[&_:where([data-slot=data-table-columns])]:ring-ring/50 [&_:where([data-slot=data-table-columns-icon])]:i-lucide-chevron-down [&_:where([data-slot=data-table-columns-icon])]:size-4',
       '[&_:where([data-slot=data-table-reset])]:inline-flex [&_:where([data-slot=data-table-reset])]:h-8 [&_:where([data-slot=data-table-reset])]:items-center [&_:where([data-slot=data-table-reset])]:gap-2 [&_:where([data-slot=data-table-reset])]:rounded-md [&_:where([data-slot=data-table-reset])]:px-3 [&_:where([data-slot=data-table-reset])]:text-sm [&_:where([data-slot=data-table-reset])]:font-medium hover:[&_:where([data-slot=data-table-reset])]:bg-accent [&_:where([data-slot=data-table-reset-icon])]:i-lucide-x [&_:where([data-slot=data-table-reset-icon])]:size-4',
       '[&_:where([data-slot=data-table-facet-option-icon])]:flex [&_:where([data-slot=data-table-facet-option-icon])]:size-4 [&_:where([data-slot=data-table-facet-option-icon]>*)]:size-4',
       '[&_:where([data-slot=data-table-container])]:playa-table-container',
@@ -356,7 +382,7 @@ export const playa = definePreset(() => ({
       '[&_:where([data-slot=data-table-empty])]:h-24 [&_:where([data-slot=data-table-empty])]:text-center [&_:where([data-slot=data-table-empty])]:text-muted-foreground',
       '[&_:where([data-slot=data-table-footer])]:flex [&_:where([data-slot=data-table-footer])]:flex-col [&_:where([data-slot=data-table-footer])]:gap-2 sm:[&_:where([data-slot=data-table-footer])]:flex-row sm:[&_:where([data-slot=data-table-footer])]:items-center sm:[&_:where([data-slot=data-table-footer])]:justify-between [&_:where([data-slot=data-table-selection-summary])]:text-sm [&_:where([data-slot=data-table-selection-summary])]:text-muted-foreground [&_:where([data-slot=data-table-selection-summary])]:tabular-nums',
       '[&_:where([data-slot=data-table-pagination])]:flex [&_:where([data-slot=data-table-pagination])]:flex-wrap [&_:where([data-slot=data-table-pagination])]:items-center [&_:where([data-slot=data-table-pagination])]:gap-4 [&_:where([data-slot=data-table-page-size])]:flex [&_:where([data-slot=data-table-page-size])]:items-center [&_:where([data-slot=data-table-page-size])]:gap-2 [&_:where([data-slot=data-table-page-size])]:text-sm [&_:where([data-slot=data-table-page-size])]:font-medium [&_:where([data-slot=data-table-page-indicator])]:w-[100px] [&_:where([data-slot=data-table-page-indicator])]:text-center [&_:where([data-slot=data-table-page-indicator])]:text-sm [&_:where([data-slot=data-table-page-indicator])]:font-medium [&_:where([data-slot=data-table-page-indicator])]:tabular-nums [&_:where([data-slot=data-table-pagination-actions])]:flex [&_:where([data-slot=data-table-pagination-actions])]:items-center [&_:where([data-slot=data-table-pagination-actions])]:gap-2',
-      '[&_:where([data-slot=data-table-pagination-action])]:inline-flex [&_:where([data-slot=data-table-pagination-action])]:size-8 [&_:where([data-slot=data-table-pagination-action])]:items-center [&_:where([data-slot=data-table-pagination-action])]:justify-center [&_:where([data-slot=data-table-pagination-action])]:rounded-md [&_:where([data-slot=data-table-pagination-action])]:edge [&_:where([data-slot=data-table-pagination-action])]:outline-none disabled:[&_:where([data-slot=data-table-pagination-action])]:opacity-50 hover:[&_:where([data-slot=data-table-pagination-action])]:bg-accent hover:[&_:where([data-slot=data-table-pagination-action])]:edge-on-accent focus-visible:[&_:where([data-slot=data-table-pagination-action])]:ring-3 focus-visible:[&_:where([data-slot=data-table-pagination-action])]:ring-ring/50 [&_:where([data-action=first]>span)]:i-lucide-chevrons-left [&_:where([data-action=previous]>span)]:i-lucide-chevron-left [&_:where([data-action=next]>span)]:i-lucide-chevron-right [&_:where([data-action=last]>span)]:i-lucide-chevrons-right [&_:where([data-slot=data-table-pagination-action]>span)]:size-4',
+      '[&_:where([data-slot=data-table-pagination-action])]:inline-flex [&_:where([data-slot=data-table-pagination-action])]:size-8 [&_:where([data-slot=data-table-pagination-action])]:items-center [&_:where([data-slot=data-table-pagination-action])]:justify-center [&_:where([data-slot=data-table-pagination-action])]:rounded-md [&_:where([data-slot=data-table-pagination-action])]:edge [&_:where([data-slot=data-table-pagination-action])]:outline-none disabled:[&_:where([data-slot=data-table-pagination-action])]:opacity-50 hover:[&_:where([data-slot=data-table-pagination-action])]:bg-accent focus-visible:[&_:where([data-slot=data-table-pagination-action])]:ring-3 focus-visible:[&_:where([data-slot=data-table-pagination-action])]:ring-ring/50 [&_:where([data-action=first]>span)]:i-lucide-chevrons-left [&_:where([data-action=previous]>span)]:i-lucide-chevron-left [&_:where([data-action=next]>span)]:i-lucide-chevron-right [&_:where([data-action=last]>span)]:i-lucide-chevrons-right [&_:where([data-slot=data-table-pagination-action]>span)]:size-4',
     ].join(' '),
     // Toasts and their parts are base-owned nodes, themed by slot from each
     // viewport. Surfaces key off `data-variant`; info, success and warning
@@ -371,16 +397,20 @@ export const playa = definePreset(() => ({
       '[&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:bg-warning/10 [&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:text-warning [&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:inset-ring [&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:inset-ring-warning/25 [&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:backdrop-blur-xl [&[data-rich-colors]>:where([data-slot=toast][data-variant=warning])]:backdrop-saturate-150',
       '[&_:where([data-slot=toast-content])]:grid [&_:where([data-slot=toast-content])]:gap-1 [&_:where([data-slot=toast-content])]:transition-opacity [&_:where([data-slot=toast-content])]:duration-200 motion-reduce:[&_:where([data-slot=toast-content])]:transition-none [&_:where([data-slot=toast-title])]:text-sm [&_:where([data-slot=toast-title])]:font-semibold [&_:where([data-slot=toast-description])]:text-sm [&_:where([data-slot=toast-description])]:opacity-90',
       '[&_:where([data-slot=toast-action-wrapper])]:col-start-2 [&_:where([data-slot=toast-action-wrapper])]:row-span-2 [&_:where([data-slot=toast-action-wrapper])]:row-start-1 [&_:where([data-slot=toast-action-wrapper])]:self-center [&_:where([data-slot=toast-action-wrapper])]:transition-opacity [&_:where([data-slot=toast-action-wrapper])]:duration-200 motion-reduce:[&_:where([data-slot=toast-action-wrapper])]:transition-none',
-      '[&_:where([data-slot=toast-action])]:inline-flex [&_:where([data-slot=toast-action])]:h-8 [&_:where([data-slot=toast-action])]:shrink-0 [&_:where([data-slot=toast-action])]:items-center [&_:where([data-slot=toast-action])]:justify-center [&_:where([data-slot=toast-action])]:rounded-md [&_:where([data-slot=toast-action])]:edge [&_:where([data-slot=toast-action])]:bg-transparent [&_:where([data-slot=toast-action])]:px-3 [&_:where([data-slot=toast-action])]:text-sm [&_:where([data-slot=toast-action])]:font-medium [&_:where([data-slot=toast-action])]:transition-colors [&_:where([data-slot=toast-action])]:outline-none hover:[&_:where([data-slot=toast-action])]:bg-accent hover:[&_:where([data-slot=toast-action])]:edge-on-accent hover:[&_:where([data-slot=toast-action])]:text-accent-foreground focus-visible:[&_:where([data-slot=toast-action])]:ring-3 focus-visible:[&_:where([data-slot=toast-action])]:ring-ring/50 disabled:[&_:where([data-slot=toast-action])]:pointer-events-none disabled:[&_:where([data-slot=toast-action])]:opacity-50 [&_:is([data-variant=danger]_[data-slot=toast-action])]:inset-ring-danger/40 hover:[&_:is([data-variant=danger]_[data-slot=toast-action])]:bg-danger/10 hover:[&_:is([data-variant=danger]_[data-slot=toast-action])]:inset-ring-danger/33 hover:[&_:is([data-variant=danger]_[data-slot=toast-action])]:text-danger',
+      '[&_:where([data-slot=toast-action])]:inline-flex [&_:where([data-slot=toast-action])]:h-8 [&_:where([data-slot=toast-action])]:shrink-0 [&_:where([data-slot=toast-action])]:items-center [&_:where([data-slot=toast-action])]:justify-center [&_:where([data-slot=toast-action])]:rounded-md [&_:where([data-slot=toast-action])]:edge [&_:where([data-slot=toast-action])]:bg-transparent [&_:where([data-slot=toast-action])]:px-3 [&_:where([data-slot=toast-action])]:text-sm [&_:where([data-slot=toast-action])]:font-medium [&_:where([data-slot=toast-action])]:transition-colors [&_:where([data-slot=toast-action])]:outline-none hover:[&_:where([data-slot=toast-action])]:bg-accent hover:[&_:where([data-slot=toast-action])]:text-accent-foreground focus-visible:[&_:where([data-slot=toast-action])]:ring-3 focus-visible:[&_:where([data-slot=toast-action])]:ring-ring/50 disabled:[&_:where([data-slot=toast-action])]:pointer-events-none disabled:[&_:where([data-slot=toast-action])]:opacity-50 [&_:is([data-variant=danger]_[data-slot=toast-action])]:inset-ring-danger/40 hover:[&_:is([data-variant=danger]_[data-slot=toast-action])]:bg-danger/10 hover:[&_:is([data-variant=danger]_[data-slot=toast-action])]:inset-ring-danger/33 hover:[&_:is([data-variant=danger]_[data-slot=toast-action])]:text-danger',
       '[&_:where([data-slot=toast-close])]:absolute [&_:where([data-slot=toast-close])]:right-2 [&_:where([data-slot=toast-close])]:top-2 [&_:where([data-slot=toast-close])]:inline-flex [&_:where([data-slot=toast-close])]:size-8 [&_:where([data-slot=toast-close])]:items-center [&_:where([data-slot=toast-close])]:justify-center [&_:where([data-slot=toast-close])]:rounded-md [&_:where([data-slot=toast-close])]:text-foreground/60 [&_:where([data-slot=toast-close])]:opacity-70 [&_:where([data-slot=toast-close])]:outline-none [&_:where([data-slot=toast-close])]:transition-opacity hover:[&_:where([data-slot=toast-close])]:text-foreground hover:[&_:where([data-slot=toast-close])]:opacity-100 focus-visible:[&_:where([data-slot=toast-close])]:opacity-100 focus-visible:[&_:where([data-slot=toast-close])]:ring-2 focus-visible:[&_:where([data-slot=toast-close])]:ring-ring/50 disabled:[&_:where([data-slot=toast-close])]:pointer-events-none [&_:is([data-variant=danger]_[data-slot=toast-close])]:text-danger/70 hover:[&_:is([data-variant=danger]_[data-slot=toast-close])]:text-danger',
     ].join(' '),
   },
-  theme: {
+  // Wind4's theme merges after this preset's own `theme`, so every key Wind4
+  // also defines (radius, shadow, font) is set here instead.
+  extendTheme: base => {
+    const theme = base as Record<string, Record<string, string>>
     // Single-knob radius scale: every rounded-* token derives from --radius
     // (0.75rem), so controls land at 12px, panels at 16px, cards and dialogs
     // at 20px, and chat bubbles at 24px. Nested rows stay concentric: an 8px
     // item inside 4px padding meets its 12px container edge exactly.
-    radius: {
+    theme.radius = {
+      ...theme.radius,
       DEFAULT: 'var(--radius)',
       xs: 'calc(var(--radius) - 0.5rem)',
       sm: 'calc(var(--radius) - 0.25rem)',
@@ -388,13 +418,14 @@ export const playa = definePreset(() => ({
       lg: 'calc(var(--radius) + 0.25rem)',
       xl: 'calc(var(--radius) + 0.5rem)',
       '2xl': 'calc(var(--radius) + 0.75rem)',
-    },
-    // Scheme-aware elevation: the values live in the preflight so dark mode
-    // deepens shadows without extra utilities. xs rests, lg floats.
-    shadow: {
-      xs: 'var(--shadow-xs)',
-      lg: 'var(--shadow-lg)',
-    },
+    }
+    // Scheme-aware elevation from the tokens: xs rests, lg floats, xl is modal.
+    theme.shadow = { ...theme.shadow, xs: 'var(--shadow-xs)', lg: 'var(--shadow-lg)', xl: 'var(--shadow-xl)' }
+    // DM Sans is the interface, JetBrains Mono is data, and `font-title` is
+    // the one Fraunces line on a page.
+    theme.font = { ...theme.font, sans: 'var(--font-body)', mono: 'var(--font-data)', title: 'var(--font-display)' }
+  },
+  theme: {
     colors: {
       background: 'var(--background)',
       foreground: 'var(--foreground)',
@@ -408,8 +439,11 @@ export const playa = definePreset(() => ({
       'secondary-foreground': 'var(--secondary-foreground)',
       muted: 'var(--muted)',
       'muted-foreground': 'var(--muted-foreground)',
+      'faint-foreground': 'var(--faint-foreground)',
       accent: 'var(--accent)',
       'accent-foreground': 'var(--accent-foreground)',
+      link: 'var(--link)',
+      'gold-text': 'var(--gold-text)',
       danger: 'var(--danger)',
       'danger-foreground': 'var(--danger-foreground)',
       success: 'var(--success)',

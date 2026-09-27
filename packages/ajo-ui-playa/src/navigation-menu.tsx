@@ -34,7 +34,7 @@ export type {
 const rootBase = 'group/navigation-menu relative flex max-w-max flex-1 items-center justify-center'
 const listBase = 'group flex flex-1 list-none items-center justify-center gap-1'
 const triggerBase = 'group inline-flex h-9 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-medium transition-[color,box-shadow] outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-accent data-[state=open]:text-accent-foreground'
-// The popup surface lives on the content panel; the Adapter supplies available
+// The popup surface lives on the content element; the Adapter supplies available
 // height and final side, while Playa owns overflow and directional motion.
 const contentBase = 'z-50 m-0 min-w-[12rem] overflow-x-hidden overflow-y-auto scrollbar-soft rounded-md glass-overlay edge p-2 shadow-lg outline-none'
 const linkBase = 'flex flex-col gap-1 rounded-sm p-2 text-sm transition-[color,background-color,box-shadow] outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground'
@@ -58,7 +58,7 @@ const NavigationMenuItem: Stateless<NavigationMenuItemArgs> = ({ class: classes,
 	<BaseNavigationMenuItem {...attrs} class={clx('relative', classes)} />
 )
 
-/** Button that opens an item content panel. */
+/** Button that opens an item's content. */
 const NavigationMenuTrigger: Stateless<NavigationMenuTriggerArgs> = ({
 	children,
 	class: classes,
@@ -73,7 +73,7 @@ const NavigationMenuTrigger: Stateless<NavigationMenuTriggerArgs> = ({
 	</BaseNavigationMenuTrigger>
 )
 
-/** Popover panel for a NavigationMenuItem. */
+/** Popover content for a NavigationMenuItem. */
 const NavigationMenuContent: Stateless<NavigationMenuContentArgs> = ({ class: classes, ...attrs }) => (
 	<BaseNavigationMenuContent {...attrs} class={clx(contentBase, popupAnimation, popupSlide, classes)} />
 )

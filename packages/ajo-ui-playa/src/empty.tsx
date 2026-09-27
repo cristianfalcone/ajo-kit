@@ -48,7 +48,7 @@ const EmptyMedia: Stateless<EmptyMediaArgs> = ({ class: classes, variant = 'defa
 const EmptyTitle = part<EmptyTitleArgs>('div', 'empty-title', { class: 'text-lg font-medium tracking-tight' })
 
 /** Description slot for empty-state explanatory copy. */
-const EmptyDescription = part<EmptyDescriptionArgs>('p', 'empty-description', { class: 'text-sm/relaxed text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary' })
+const EmptyDescription = part<EmptyDescriptionArgs>('p', 'empty-description', { class: 'text-sm/relaxed text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-link' })
 
 /** Content slot for empty-state actions, inputs, or links. */
 const EmptyContent = part<EmptyContentArgs>('div', 'empty-content', { class: 'flex w-full max-w-sm min-w-0 flex-col items-center gap-4 text-sm text-balance' })

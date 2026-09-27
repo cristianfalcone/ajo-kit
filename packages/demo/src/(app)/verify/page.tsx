@@ -13,7 +13,7 @@ const Verify: Stateful<PageArgs> = function* () {
 		<section class="flex min-h-[calc(100vh-10rem)] items-start justify-center py-8">
 			<Card class="w-full max-w-xl text-center">
 				<CardContent class="space-y-6">
-					<div class="mx-auto flex size-12 items-center justify-center rounded-lg bg-primary/10 text-primary inset-ring inset-ring-primary/25">
+					<div class="mx-auto flex size-12 items-center justify-center rounded-lg bg-primary/10 text-gold-text inset-ring inset-ring-primary/25">
 						<span class="i-lucide-mail size-6" />
 					</div>
 

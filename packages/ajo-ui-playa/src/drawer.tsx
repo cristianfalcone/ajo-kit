@@ -45,7 +45,7 @@ const Drawer: Stateless<DrawerArgs> = ({
 	<BaseDrawer {...attrs} class={clx('contents', classes)} />
 )
 
-/** Native modal drawer panel with an optional drag handle; compose DialogClose inside it for a close control. */
+/** Native modal drawer surface with an optional drag handle; compose DialogClose inside it for a close control. */
 const DrawerContent: Stateless<DrawerContentArgs> = ({ class: classes, handle, ...attrs }) => (
 	<BaseDrawerContent
 		{...attrs}

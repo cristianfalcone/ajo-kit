@@ -56,7 +56,7 @@ const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
 				<Card>
 					<CardContent class="flex flex-col gap-4 sm:flex-row sm:items-center">
 						<div class="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 inset-ring inset-ring-primary/25">
-							<span class="i-lucide-user size-7 text-primary" />
+							<span class="i-lucide-user size-7 text-gold-text" />
 						</div>
 						<div class="min-w-0 flex-1 space-y-1">
 							<h1 class="text-2xl font-semibold tracking-tight">
@@ -100,7 +100,7 @@ const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
 				<div class="space-y-4">
 					<div class="flex items-center justify-between">
 						<h2 class="text-lg font-semibold text-foreground">Recent Sessions</h2>
-						<a href="/account/sessions" class="text-sm text-primary hover:underline">View all</a>
+						<a href="/account/sessions" class="text-sm text-link hover:underline">View all</a>
 					</div>
 					<Card class="overflow-hidden py-0">
 						<Table>
@@ -158,7 +158,7 @@ const ActionCard = ({ href, icon, label, description }: { href: string; icon: st
 	<Card as="a" href={href} size="sm" class="transition-colors hover:bg-accent hover:text-accent-foreground">
 		<CardContent class="flex items-center gap-3">
 			<span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 inset-ring inset-ring-primary/25">
-				<span class={`${icon} size-5 text-primary`} />
+				<span class={`${icon} size-5 text-gold-text`} />
 			</span>
 			<span class="min-w-0">
 				<span class="block text-sm font-medium">{label}</span>

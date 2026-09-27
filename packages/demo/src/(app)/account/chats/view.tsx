@@ -28,7 +28,7 @@ type ChatListArgs = {
 }
 
 const tones = [
-	'bg-primary/15 text-primary',
+	'bg-primary/15 text-gold-text',
 	'bg-info/15 text-info',
 	'bg-success/15 text-success',
 	'bg-warning/15 text-warning',

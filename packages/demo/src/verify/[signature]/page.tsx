@@ -32,7 +32,7 @@ const VerifyResult: Stateful<PageArgs<Data>> = function* (args) {
 					</CardContent>
 
 					<CardFooter class="justify-center">
-						<a href="/verify" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
+						<a href="/verify" class="text-sm font-medium text-link underline-offset-4 hover:underline">
 							Request a new verification link
 						</a>
 					</CardFooter>
@@ -47,7 +47,7 @@ const VerifyResult: Stateful<PageArgs<Data>> = function* (args) {
 					</CardContent>
 
 					<CardFooter class="justify-center">
-						<a href="/dashboard" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
+						<a href="/dashboard" class="text-sm font-medium text-link underline-offset-4 hover:underline">
 							Go to dashboard
 						</a>
 					</CardFooter>

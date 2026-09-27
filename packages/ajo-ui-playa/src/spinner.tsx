@@ -18,7 +18,7 @@ const Spinner: Stateless<SpinnerArgs> = ({
 	return (
 		<span
 			{...attrs}
-			class={clx('inline-flex size-4 shrink-0 items-center justify-center text-primary', classes)}
+			class={clx('inline-flex size-4 shrink-0 items-center justify-center', classes)}
 			data-slot="spinner"
 			role={role}
 		>

@@ -128,7 +128,7 @@ const ItemContent = part<ItemContentArgs>('div', 'item-content', { class: 'flex 
 const ItemTitle = part<ItemTitleArgs>('div', 'item-title', { class: 'flex w-fit items-center gap-2 text-sm font-medium leading-snug' })
 
 /** Item descriptive text. */
-const ItemDescription = part<ItemDescriptionArgs>('p', 'item-description', { class: 'line-clamp-2 text-balance text-sm font-normal leading-normal text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary' })
+const ItemDescription = part<ItemDescriptionArgs>('p', 'item-description', { class: 'line-clamp-2 text-balance text-sm font-normal leading-normal text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-link' })
 
 /** Action slot for buttons, menus, or status controls. */
 const ItemActions = part<ItemActionsArgs>('div', 'item-actions', { class: 'flex items-center gap-2' })

@@ -117,7 +117,7 @@ type StatTone = 'accent' | 'danger'
 const statTones: Record<StatTone, { icon: string; text: string; value: string }> = {
 	accent: {
 		icon: 'bg-primary/10 inset-ring-primary/25',
-		text: 'text-primary',
+		text: 'text-gold-text',
 		value: 'text-card-foreground',
 	},
 	danger: {

@@ -32,7 +32,7 @@ const groupBase = 'flex h-full w-full overflow-hidden'
 const panelBase = 'min-h-0 min-w-0 overflow-hidden'
 const handleBase = 'relative flex touch-none shrink-0 items-center justify-center bg-border outline-none after:absolute after:content-empty focus-visible:ring-3 focus-visible:ring-ring/50'
 
-/** Resizable panel group for split layouts. */
+/** Resizable pane group for split layouts. */
 const ResizablePanelGroup: Stateless<ResizablePanelGroupArgs> = ({ class: classes, orientation, ...attrs }) => (
 	<BaseResizablePanelGroup
 		{...attrs}
@@ -41,7 +41,7 @@ const ResizablePanelGroup: Stateless<ResizablePanelGroupArgs> = ({ class: classe
 	/>
 )
 
-/** Resizable flex panel. */
+/** Resizable flex pane. */
 const ResizablePanel: Stateless<ResizablePanelArgs> = ({ class: classes, ...attrs }) => (
 	<BaseResizablePanel {...attrs} class={clx(panelBase, classes)} />
 )

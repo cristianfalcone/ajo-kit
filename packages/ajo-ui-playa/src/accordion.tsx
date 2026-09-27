@@ -37,7 +37,7 @@ const AccordionTrigger: Stateless<AccordionTriggerArgs> = ({ children, class: cl
 	</BaseAccordionTrigger>
 )
 
-/** Accordion panel content. */
+/** Content region of an accordion item. */
 const AccordionContent: Stateless<AccordionContentArgs> = ({ children, class: classes, ...attrs }) => (
 	<BaseAccordionContent {...attrs} class="overflow-hidden text-sm">
 		<div class={clx('pb-4 pt-0', classes)}>
