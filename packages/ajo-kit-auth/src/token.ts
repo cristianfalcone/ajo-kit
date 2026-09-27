@@ -1,10 +1,11 @@
 import { db } from 'ajo-kit/database'
 import type { Auth } from './types'
 import { generate, hash } from './session'
-import { abilities as granted, scoped } from './account'
+import { abilities as granted, parse, scoped } from './account'
 import { can, intersect, merge } from './ability.client'
 import { clearToken } from './confirm'
 import type { Ability } from './ability.client'
+import { stamp } from './format'
 
 const lifetime = 90 * 24 * 60 * 60 * 1000
 
@@ -15,7 +16,7 @@ export async function create(
 	abilities: Ability[],
 	options: { subject?: string; ttl?: number | null } = {}
 ) {
-	if (options.subject !== undefined && (typeof options.subject !== 'string' || !options.subject.trim())) {
+	if (options.subject !== undefined && !options.subject.trim()) {
 		throw new Error('Token subject is required')
 	}
 
@@ -23,7 +24,7 @@ export async function create(
 	const ttl = options.ttl === undefined ? lifetime : options.ttl
 	const expiry = ttl === null ? null : Date.now() + ttl
 
-	if (ttl !== null && (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0 || !Number.isFinite(new Date(expiry!).getTime()))) {
+	if (ttl !== null && (!Number.isFinite(ttl) || ttl <= 0 || !Number.isFinite(new Date(expiry!).getTime()))) {
 		throw new Error('Token TTL must be a positive finite duration')
 	}
 	if (subject !== null && (ttl === null || ttl > lifetime)) {
@@ -47,7 +48,7 @@ export async function create(
 		abilities: JSON.stringify(intersect(abilities, account)),
 		subject,
 		last: null,
-		expiry: expiry === null ? null : new Date(expiry).toISOString()
+		expiry: expiry === null ? null : stamp(expiry)
 	}).execute()
 
 	return plain
@@ -73,22 +74,16 @@ export async function validate(plain: string) {
 		return null
 	}
 
-	let abilities: unknown
+	const abilities = parse(token.abilities)
 
-	try {
-		abilities = JSON.parse(token.abilities)
-	} catch {
-		return null
-	}
-
-	if (!Array.isArray(abilities) || !abilities.every(ability => typeof ability === 'string')) return null
+	if (!abilities) return null
 
 	await db<Auth>().updateTable('tokens')
-		.set({ last: new Date().toISOString() })
+		.set({ last: stamp() })
 		.where('id', '=', id)
 		.execute()
 
-	return { ...token, abilities: abilities as Ability[] }
+	return { ...token, abilities }
 }
 
 /** Revokes a token by full stored id only when it belongs to the given user. */

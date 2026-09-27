@@ -1,14 +1,12 @@
 import { db, type Kysely } from 'ajo-kit/database'
 import { generate, hash } from './session'
 import type { Auth } from './types'
+import { normalize, stamp } from './format'
 
 const day = 24 * 60 * 60 * 1000
 const week = 7 * day
 
-const stamp = (at = Date.now()) => new Date(at).toISOString()
 const clean = (value: string | undefined) => value?.trim() ?? ''
-const normalize = (email: string | undefined) => email?.trim().toLowerCase() ?? ''
-const identity = (token: string) => hash(token)
 
 type Presentation = {
 	role: string
@@ -17,17 +15,6 @@ type Presentation = {
 	team: number | null
 	user: number | null
 }
-
-const presentation = (
-	row: Omit<Presentation, 'user'>,
-	user: number | null
-): Presentation => ({
-	role: row.role,
-	name: row.name,
-	email: row.email,
-	team: row.team,
-	user,
-})
 
 async function presentable(store: Kysely<Auth>, id: string, now = stamp()): Promise<Presentation | null> {
 	const row = await store
@@ -39,13 +26,16 @@ async function presentable(store: Kysely<Auth>, id: string, now = stamp()): Prom
 		.executeTakeFirst()
 
 	if (!row) return null
-	if (row.accepted === null) return presentation(row, null)
-	if (row.acceptor === null) return null
+
+	const { accepted, acceptor, ...view } = row
+
+	if (accepted === null) return { ...view, user: null }
+	if (acceptor === null) return null
 
 	const user = await store
 		.selectFrom('users')
 		.select('password')
-		.where('id', '=', row.acceptor)
+		.where('id', '=', acceptor)
 		.executeTakeFirst()
 
 	if (!user || user.password !== null) return null
@@ -53,10 +43,10 @@ async function presentable(store: Kysely<Auth>, id: string, now = stamp()): Prom
 	const credential = await store
 		.selectFrom('credentials')
 		.select('id')
-		.where('user', '=', row.acceptor)
+		.where('user', '=', acceptor)
 		.executeTakeFirst()
 
-	return credential ? null : presentation(row, row.acceptor)
+	return credential ? null : { ...view, user: acceptor }
 }
 
 /** Creates a single-use invitation and returns its plaintext token once. */
@@ -100,7 +90,7 @@ export async function create(input: {
 		await trx
 			.insertInto('invites')
 			.values({
-				id: identity(token),
+				id: hash(token),
 				email,
 				name: clean(input.name),
 				role: input.role,
@@ -119,7 +109,7 @@ export async function create(input: {
 
 /** Resolves a presentable invitation without exposing its stored token hash. */
 export async function get(token: string): Promise<Presentation | null> {
-	return presentable(db<Auth>(), identity(token))
+	return presentable(db<Auth>(), hash(token))
 }
 
 /**
@@ -131,7 +121,7 @@ export async function accept(token: string, input: {
 	name?: string
 	passwordHash?: string
 }): Promise<number | null> {
-	const id = identity(token)
+	const id = hash(token)
 	const now = stamp()
 
 	return db<Auth>().transaction().execute(async trx => {
@@ -140,7 +130,7 @@ export async function accept(token: string, input: {
 		if (!view) return null
 		if (view.user !== null) return view.user
 
-		const email = view.email ?? normalize(input.email)
+		const email = view.email ?? normalize(input.email ?? '')
 
 		if (!email) return null
 
@@ -201,7 +191,7 @@ export async function accept(token: string, input: {
 			.where('id', '=', id)
 			.execute()
 
-		return Number(created.id)
+		return created.id
 	})
 }
 

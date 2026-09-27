@@ -8,15 +8,16 @@ export type Grant = {
 	abilities: Ability[]
 }
 
-function parse(value: string): Ability[] {
+/** Parses a stored ability list, or returns null when it is not a JSON array of strings. */
+export function parse(value: string): Ability[] | null {
 	try {
 		const abilities = JSON.parse(value)
 
 		return Array.isArray(abilities) && abilities.every(ability => typeof ability === 'string')
 			? abilities
-			: []
+			: null
 	} catch {
-		return []
+		return null
 	}
 }
 
@@ -32,7 +33,7 @@ export async function grants(user: number): Promise<Grant[]> {
 
 	return roles.map(role => ({
 		name: role.name,
-		abilities: parse(role.abilities),
+		abilities: parse(role.abilities) ?? [],
 	}))
 }
 
@@ -57,5 +58,5 @@ export async function scoped(user: number, subject: string): Promise<Ability[]> 
 		.where('claims.subject', '=', subject)
 		.execute()
 
-	return merge(...roles.map(role => parse(role.abilities)))
+	return merge(...roles.map(role => parse(role.abilities) ?? []))
 }

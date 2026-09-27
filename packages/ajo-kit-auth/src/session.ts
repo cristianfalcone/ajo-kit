@@ -1,6 +1,7 @@
 import { db, sql } from 'ajo-kit/database'
 import { randomBase64Url, sha256Hex } from 'ajo-kit/platform'
 import type { Auth } from './types'
+import { stamp } from './format'
 
 const minute = 60 * 1000
 const day = 24 * 60 * 60 * 1000
@@ -13,10 +14,6 @@ type Row = {
 	expiry: string
 	last: string | null
 	created: string
-}
-
-function stamp(now = Date.now()): string {
-	return new Date(now).toISOString()
 }
 
 function time(value: string | null): number {
@@ -44,14 +41,6 @@ function cutoff(now = Date.now()): string {
 function drop(id: string) {
 	return db<Auth>()
 		.deleteFrom('sessions')
-		.where('id', '=', id)
-		.execute()
-}
-
-function mark(id: string, last = stamp()) {
-	return db<Auth>()
-		.updateTable('sessions')
-		.set({ last })
 		.where('id', '=', id)
 		.execute()
 }
@@ -124,7 +113,7 @@ export const validate = async (plain: string, activity = true) => {
 	if (activity && stale(session, now)) {
 		const last = stamp(now)
 
-		await mark(id, last)
+		await db<Auth>().updateTable('sessions').set({ last }).where('id', '=', id).execute()
 
 		return { ...session, last }
 	}

@@ -2,12 +2,12 @@ import { base64UrlDecode, base64UrlEncode, hmacSha256Hex, timingSafeEqual } from
 import * as secret from './secret'
 import { db } from 'ajo-kit/database'
 import type { Auth } from './types'
+import { normalize, stamp } from './format'
 
 const hours = 24
 const hex = /^[0-9a-f]+$/i
 const utf8 = new TextDecoder('utf-8', { fatal: true })
 const ascii = (value: string) => Uint8Array.from(value, character => character.charCodeAt(0))
-const normalize = (email: string) => email.trim().toLowerCase()
 
 /** Signs a user id and normalized email into a time-limited verification signature. */
 export function sign(user: number, email: string): string {
@@ -33,21 +33,17 @@ export async function validate(signature: string): Promise<number | null> {
 
 		const decoded = utf8.decode(base64UrlDecode(signature))
 		const [user, expiry, bound, sig, extra] = decoded.split(':')
+
+		if (extra !== undefined || !sig || !hex.test(sig)) return null
+		if (!timingSafeEqual(ascii(sig.toLowerCase()), ascii(hmacSha256Hex(key, `${user}:${expiry}:${bound}`)))) return null
+
 		const id = Number(user)
 		const deadline = Number(expiry)
 
-		if (extra !== undefined || !Number.isSafeInteger(id) || id < 1) return null
+		if (!Number.isSafeInteger(id) || id < 1) return null
 		if (!Number.isFinite(deadline) || Date.now() > deadline) return null
 
-		const data = `${user}:${expiry}:${bound}`
-		const expected = hmacSha256Hex(key, data)
-		if (!sig || !hex.test(sig)) return null
-		const actual = ascii(sig.toLowerCase())
-		const wanted = ascii(expected)
-
-		if (!timingSafeEqual(actual, wanted) || !bound) return null
-
-		const email = normalize(utf8.decode(base64UrlDecode(bound)))
+		const email = normalize(utf8.decode(base64UrlDecode(bound!)))
 
 		return db<Auth>().transaction().execute(async trx => {
 			const account = await trx
@@ -61,22 +57,14 @@ export async function validate(signature: string): Promise<number | null> {
 
 			const changed = await trx
 				.updateTable('users')
-				.set({ verified: new Date().toISOString() })
+				.set({ verified: stamp() })
 				.where('id', '=', id)
 				.where('email', '=', account.email)
 				.where('verified', 'is', null)
 				.returning('id')
 				.executeTakeFirst()
 
-			if (changed) return id
-
-			const current = await trx
-				.selectFrom('users')
-				.select(['email', 'verified'])
-				.where('id', '=', id)
-				.executeTakeFirst()
-
-			return current && normalize(current.email) === email && current.verified !== null ? id : null
+			return changed ? id : null
 		})
 
 	} catch {

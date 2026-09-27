@@ -7,15 +7,11 @@
 // `password.verify` ends, and the caller goes on to `session.create` and
 // `cookie.write` as it always did.
 
-import {
-	base64UrlDecode,
-	base64UrlEncode,
-	randomBase64Url,
-	sha256Hex,
-	type PublicKey as Key,
-} from 'ajo-kit/platform'
+import { base64UrlDecode, base64UrlEncode, type PublicKey as Key } from 'ajo-kit/platform'
 import { db } from 'ajo-kit/database'
 import type { Auth } from './types'
+import { stamp } from './format'
+import { generate, hash } from './session'
 import {
 	algorithms,
 	authenticator,
@@ -56,10 +52,6 @@ const relying = (): Party => {
 	return party
 }
 
-const stamp = (at: number) => new Date(at).toISOString()
-
-const digest = (plain: string) => sha256Hex(plain)
-
 const bytes = (value: unknown, what: string) => {
 	// The ceremony types are erased at runtime: what arrives is whatever the
 	// request body parsed into, so a field that is not a string has to be
@@ -70,11 +62,6 @@ const bytes = (value: unknown, what: string) => {
 }
 
 const utf8 = new TextDecoder('utf-8', { fatal: true })
-
-const storedKey = (value: string): Key => {
-	try { return JSON.parse(utf8.decode(base64UrlDecode(value))) as Key }
-	catch { throw new Malformed('stored credential public key is malformed') }
-}
 
 /**
  * Issues a challenge for either ceremony and records it. Challenges are
@@ -88,13 +75,13 @@ const challenge = async (
 	handle?: string,
 ) => {
 
-	const plain = randomBase64Url(32)
+	const plain = generate()
 	const now = Date.now()
 
 	await db<Auth>().deleteFrom('challenges').where('expiry', '<', stamp(now)).execute()
 
 	await db<Auth>().insertInto('challenges').values({
-		id: digest(plain),
+		id: hash(plain),
 		kind,
 		user: user ?? null,
 		handle: handle ?? null,
@@ -115,9 +102,9 @@ const answer = async (plain: string, kind: 'register' | 'authenticate') => {
 
 	const issued = await db<Auth>()
 		.deleteFrom('challenges')
-		.where('id', '=', digest(plain))
+		.where('id', '=', hash(plain))
 		.where('kind', '=', kind)
-		.where('expiry', '>', stamp(Date.now()))
+		.where('expiry', '>', stamp())
 		.returning(['user', 'handle'])
 		.executeTakeFirst()
 
@@ -176,7 +163,7 @@ const identity = async (user: number) => {
 		.where('user', '=', user)
 		.executeTakeFirst()
 
-	return row?.handle ?? randomBase64Url(32)
+	return row?.handle ?? generate()
 }
 
 const credentials = async (user: number) => {
@@ -293,12 +280,9 @@ export const register = async (user: number, response: Attestation) => {
 		const current = await trx.selectFrom('credentials').select('handle').where('user', '=', user).executeTakeFirst()
 		if (current && current.handle !== handle) throw new Malformed('account registered another passkey during this ceremony')
 
-		// A credential id already claimed belongs to whoever claimed it. Letting
-		// a second account register it would let one account answer for another.
-		const taken = await trx.selectFrom('credentials').select('id').where('id', '=', id).executeTakeFirst()
-		if (taken) throw new Malformed('credential is already registered')
-
-		await trx.insertInto('credentials').values({
+		// A credential id already claimed belongs to whoever claimed it: the
+		// primary key refuses a second claim, which never replaces the first.
+		const inserted = await trx.insertInto('credentials').values({
 			id,
 			user,
 			handle,
@@ -306,11 +290,13 @@ export const register = async (user: number, response: Attestation) => {
 			alg: key.alg,
 			counter: parsed.counter,
 			transports: response.transports ? JSON.stringify(response.transports) : null,
-			verified: stamp(Date.now()),
+			verified: stamp(),
 			eligible: parsed.eligible ? 1 : 0,
 			backed: parsed.backed ? 1 : 0,
 			last: null,
-		}).execute()
+		}).onConflict(conflict => conflict.column('id').doNothing()).returning('id').executeTakeFirst()
+
+		if (!inserted) throw new Malformed('credential is already registered')
 	})
 
 	return id
@@ -334,7 +320,7 @@ export const authenticate = async (response: Assertion): Promise<number> => {
 
 	const stored = await db<Auth>()
 		.selectFrom('credentials')
-		.select(['id', 'user', 'handle', 'key', 'alg', 'eligible'])
+		.select(['id', 'user', 'handle', 'key', 'eligible'])
 		.where('id', '=', response.id)
 		.executeTakeFirst()
 
@@ -364,7 +350,8 @@ export const authenticate = async (response: Assertion): Promise<number> => {
 		throw new Malformed('credential changed its backup eligibility')
 	}
 
-	const key = { alg: stored.alg, key: storedKey(stored.key) }
+	// register() stored the key publicKey() accepted, as base64url JSON.
+	const key = JSON.parse(utf8.decode(base64UrlDecode(stored.key))) as Key
 
 	if (!signature(key, authData, raw, bytes(response.signature, 'signature'))) {
 		throw new Malformed('signature does not verify')
@@ -373,11 +360,13 @@ export const authenticate = async (response: Assertion): Promise<number> => {
 	// The counter is recorded, not enforced: synced passkeys report zero from
 	// every device by design, so a regression is a signal for whoever reads
 	// the row, never a reason to refuse the person in front of us.
+	const now = stamp()
+
 	await db<Auth>().updateTable('credentials').set({
 		counter: parsed.counter,
 		backed: parsed.backed ? 1 : 0,
-		verified: stamp(Date.now()),
-		last: stamp(Date.now()),
+		verified: now,
+		last: now,
 	}).where('id', '=', stored.id).execute()
 
 	return stored.user

@@ -12,7 +12,7 @@ const name = () => https() ? host : plain
 
 /** Secure follows the app's canonical scheme: an https deployment locks its
  * cookies to TLS; an http origin must not set a flag its own scheme rejects. */
-const secure = () => env('APP_URL')?.startsWith('https:') ? '; Secure' : ''
+const secure = () => https() ? '; Secure' : ''
 
 const base = () => `HttpOnly; SameSite=Lax; Path=/${secure()}`
 

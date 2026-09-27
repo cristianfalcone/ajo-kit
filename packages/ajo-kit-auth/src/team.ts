@@ -8,6 +8,7 @@
 
 import { db } from 'ajo-kit/database'
 import type { Auth } from './types'
+import { stamp } from './format'
 
 /** Creates a team and returns its id. A duplicate name surfaces as the unique violation. */
 export async function create(name: string): Promise<number> {
@@ -17,7 +18,7 @@ export async function create(name: string): Promise<number> {
 		.returning('id')
 		.executeTakeFirstOrThrow()
 
-	return Number(row.id)
+	return row.id
 }
 
 /** Deletes a team, revoking pending invitations before its rows cascade away. */
@@ -25,7 +26,7 @@ export async function remove(team: number): Promise<void> {
 	await db<Auth>().transaction().execute(async trx => {
 		await trx
 			.updateTable('invites')
-			.set({ revoked: new Date().toISOString() })
+			.set({ revoked: stamp() })
 			.where('team', '=', team)
 			.where('accepted', 'is', null)
 			.where('revoked', 'is', null)
@@ -63,13 +64,7 @@ export async function list(): Promise<{ id: number; name: string; created: strin
 		.orderBy('teams.name')
 		.execute()
 
-	return rows.map(row => ({
-		id: Number(row.id),
-		name: String(row.name),
-		created: String(row.created),
-		teammates: Number(row.teammates ?? 0),
-		claims: Number(row.claims ?? 0),
-	}))
+	return rows.map(row => ({ ...row, teammates: Number(row.teammates), claims: Number(row.claims) }))
 }
 
 /**
@@ -95,21 +90,14 @@ export async function leave(team: number, user: number): Promise<void> {
 
 /** The team's members with their role names, ordered by user name. */
 export async function members(team: number): Promise<{ user: number; name: string; email: string; role: string }[]> {
-	const rows = await db<Auth>()
+	return db<Auth>()
 		.selectFrom('teammates')
 		.innerJoin('users', 'users.id', 'teammates.user')
 		.innerJoin('roles', 'roles.id', 'teammates.role')
-		.select(['users.id', 'users.name', 'users.email', 'roles.name as role'])
+		.select(['users.id as user', 'users.name', 'users.email', 'roles.name as role'])
 		.where('teammates.team', '=', team)
 		.orderBy('users.name')
 		.execute()
-
-	return rows.map(row => ({
-		user: Number(row.id),
-		name: String(row.name),
-		email: String(row.email),
-		role: String(row.role),
-	}))
 }
 
 /** Records that the team holds a subject; claiming again is a no-op. */
@@ -141,7 +129,7 @@ export async function claims(team: number): Promise<string[]> {
 		.orderBy('subject')
 		.execute()
 
-	return rows.map(row => String(row.subject))
+	return rows.map(row => row.subject)
 }
 
 /** Every subject the user reaches through any team membership, distinct and ordered. */
@@ -155,5 +143,5 @@ export async function subjects(user: number): Promise<string[]> {
 		.orderBy('claims.subject')
 		.execute()
 
-	return rows.map(row => String(row.subject))
+	return rows.map(row => row.subject)
 }

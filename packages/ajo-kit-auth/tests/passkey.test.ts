@@ -6,18 +6,11 @@
 // with the format.
 
 import { createHash, createSign, generateKeyPairSync, randomBytes, sign } from 'node:crypto'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { close, connect, db } from 'ajo-kit/database'
+import { db } from 'ajo-kit/database'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import * as passkey from '../src/passkey'
-import { up } from '../migrations/0002_passkeys'
-import { up as initial } from '../migrations/0001_initial'
-import { up as teams } from '../migrations/0003_teams'
-import { up as invites } from '../migrations/0004_invites'
-import { up as integrity } from '../migrations/0005_integrity'
 import { ES256, EdDSA, RS256 } from '../src/webauthn'
+import { setup, teardown } from './database.fixture'
 
 const rpId = 'localhost'
 const origin = 'http://localhost:8080'
@@ -169,19 +162,10 @@ const assertion = (signer: Signer, challenge: string, options: { flags?: number;
 /** What each authenticator was told to remember, as a real one would. */
 const handles = new Map<string, string>()
 
-let directory: string
-
 // The real migrations against a real SQLite file: the schema under test is
 // the one a host would run, not a fixture's idea of it.
 beforeEach(async () => {
-	directory = mkdtempSync(join(tmpdir(), 'ajo-kit-auth-passkey-'))
-	connect(join(directory, 'test.sqlite'))
-
-	await initial(db<any>())
-	await up(db<any>())
-	await teams(db<any>())
-	await invites(db<any>())
-	await integrity(db<any>())
+	await setup()
 	await db<any>().insertInto('users').values({ id: 1, email: 'owner@example.test' }).execute()
 	await db<any>().insertInto('users').values({ id: 2, email: 'other@example.test' }).execute()
 
@@ -190,8 +174,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
 	vi.useRealTimers()
-	await close()
-	rmSync(directory, { recursive: true, force: true })
+	await teardown()
 })
 
 /**
@@ -317,6 +300,26 @@ describe('the registration ceremony', () => {
 		const challenge = await registrationChallenge(2)
 		await expect(passkey.register(2, attestation(signer, challenge)))
 			.rejects.toThrow(/already registered/)
+		expect(await db<any>().selectFrom('credentials').select('user').execute()).toEqual([{ user: 1 }])
+	})
+
+	test('two accounts claiming one credential id at once store it once', async () => {
+		const signer = p256()
+		const a = await registrationChallenge(1)
+		const b = await registrationChallenge(2)
+
+		const results = await Promise.allSettled([
+			passkey.register(1, attestation(signer, a)),
+			passkey.register(2, attestation(signer, b)),
+		])
+
+		const winner = results.findIndex(result => result.status === 'fulfilled') + 1
+
+		expect(results.map(result => result.status).sort()).toEqual(['fulfilled', 'rejected'])
+		expect(results.find(result => result.status === 'rejected')).toMatchObject({
+			reason: expect.objectContaining({ message: expect.stringMatching(/already registered/) }),
+		})
+		expect(await db<any>().selectFrom('credentials').select('user').execute()).toEqual([{ user: winner }])
 	})
 
 	// The bug this test exists for shipped invisible: enrolling through a
@@ -426,6 +429,21 @@ describe('the authentication ceremony', () => {
 		}
 
 		await expect(passkey.authenticate(response)).rejects.toThrow(/does not verify/)
+	})
+
+	// The stored key parses as JSON but the host refuses to import it: the
+	// ceremony must fail the signature, not escape as a crash.
+	test('a stored key the host refuses fails the signature', async () => {
+		const signer = p256()
+		await enroll(signer)
+
+		const row = await db<any>().selectFrom('credentials').select('key').executeTakeFirstOrThrow()
+		const key = JSON.parse(Buffer.from(row.key, 'base64url').toString('utf8'))
+		const narrow = { ...key, x: url(Buffer.from(key.x, 'base64url').subarray(1)) }
+		await db<any>().updateTable('credentials').set({ key: url(Buffer.from(JSON.stringify(narrow))) }).execute()
+
+		const challenge = await authenticationChallenge()
+		await expect(passkey.authenticate(assertion(signer, challenge))).rejects.toThrow(/does not verify/)
 	})
 
 	test('an assertion from an unexpected origin is refused', async () => {
@@ -563,21 +581,29 @@ describe('what a credential may not become', () => {
 			.rejects.toThrow(/standard exponent/)
 	})
 
-	test('an RSA key with a small modulus cannot be registered', async () => {
-		const options = await passkey.registration({ id: 1, name: 'owner@example.test' })
-		const signer = {
-			id: randomBytes(32),
-			cose: cbor.keys([
-				[1, cbor.int(3)],
-				[3, cbor.int(-257)],
-				[-1, cbor.bytes(randomBytes(64))],
-				[-2, cbor.bytes(Buffer.from([0x01, 0x00, 0x01]))],
-			]),
-			sign: () => Buffer.alloc(0),
+	// validatePublicKey refuses these on both platform faces; the ceremony
+	// must surface that as a refusal of the key.
+	test('a key of the wrong width or an RSA modulus under 2048 bits cannot be registered', async () => {
+		const modulus = (length: number) => Buffer.alloc(length, 0xc3).fill(0xc5, length - 1)
+		const exponent = cbor.bytes(Buffer.from([0x01, 0x00, 0x01]))
+		const keys = [
+			cbor.keys([[1, cbor.int(2)], [3, cbor.int(ES256)], [-1, cbor.int(1)], [-2, cbor.bytes(randomBytes(31))], [-3, cbor.bytes(randomBytes(32))]]),
+			cbor.keys([[1, cbor.int(2)], [3, cbor.int(ES256)], [-1, cbor.int(1)], [-2, cbor.bytes(randomBytes(32))], [-3, cbor.bytes(randomBytes(33))]]),
+			cbor.keys([[1, cbor.int(1)], [3, cbor.int(EdDSA)], [-1, cbor.int(6)], [-2, cbor.bytes(randomBytes(31))]]),
+			cbor.keys([[1, cbor.int(1)], [3, cbor.int(EdDSA)], [-1, cbor.int(6)], [-2, cbor.bytes(randomBytes(33))]]),
+			cbor.keys([[1, cbor.int(3)], [3, cbor.int(RS256)], [-1, cbor.bytes(modulus(255))], [-2, exponent]]),
+			cbor.keys([[1, cbor.int(3)], [3, cbor.int(RS256)], [-1, cbor.bytes(modulus(64))], [-2, exponent]]),
+		]
+
+		for (const cose of keys) {
+			const options = await passkey.registration({ id: 1, name: 'owner@example.test' })
+			const signer = { id: randomBytes(32), cose, sign: () => Buffer.alloc(0) }
+
+			await expect(passkey.register(1, attestation(signer, options.challenge)))
+				.rejects.toThrow(/usable public key/)
 		}
 
-		await expect(passkey.register(1, attestation(signer, options.challenge)))
-			.rejects.toThrow(/modulus is too small/)
+		expect(await passkey.list(1)).toHaveLength(0)
 	})
 
 	// A point that is not on the curve is refused as malformed input, not as
@@ -628,8 +654,9 @@ describe('what a credential may not become', () => {
 		const at = key.indexOf('P-256') + 5
 		await db<any>().updateTable('credentials').set({ key: url(Buffer.concat([key.subarray(0, at), surrogate, key.subarray(at)])) }).execute()
 
+		// A replacing decoder would reach the verifier and refuse the signature instead.
 		const challenge = await authenticationChallenge()
-		await expect(passkey.authenticate(assertion(signer, challenge))).rejects.toThrow(/stored credential public key is malformed/)
+		await expect(passkey.authenticate(assertion(signer, challenge))).rejects.toThrow(TypeError)
 	})
 
 	// Backup eligibility is fixed for a credential's life. Gaining it means

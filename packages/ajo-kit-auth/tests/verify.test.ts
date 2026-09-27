@@ -56,6 +56,24 @@ describe('ajo-kit-auth email verification', () => {
 		await expect(validate(signature)).resolves.toBeNull()
 	})
 
+	// Every case names the account that exists, so only the HMAC or the exact
+	// four-part shape can refuse it.
+	test('a link for the real account refuses a changed signature, expiry or trailing segment', async () => {
+		const [user, expiry, email, value] = Buffer.from(sign(42, 'user@example.test'), 'base64url').toString().split(':')
+		const link = (...parts: string[]) => Buffer.from(parts.join(':')).toString('base64url')
+		const flipped = value!.slice(0, -1) + (value!.endsWith('0') ? '1' : '0')
+		const data = `${user}:${expiry}:${email}`
+		const sig = createHmac('sha256', 'slice-nine-vector-secret').update(data).digest('hex')
+
+		await expect(validate(link(user!, expiry!, email!, flipped))).resolves.toBeNull()
+		await expect(validate(link(user!, String(Number(expiry) + 1), email!, value!))).resolves.toBeNull()
+		await expect(validate(link(data, sig, 'x'))).resolves.toBeNull()
+		await expect(db<any>().selectFrom('users').select('verified').where('id', '=', 42)
+			.executeTakeFirstOrThrow()).resolves.toEqual({ verified: null })
+
+		await expect(validate(link(data, sig))).resolves.toBe(42)
+	})
+
 	test('a signature minted before an email change cannot verify the new address', async () => {
 		const signature = sign(42, 'user@example.test')
 

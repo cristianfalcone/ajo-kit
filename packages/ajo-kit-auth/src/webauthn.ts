@@ -120,7 +120,7 @@ const value = (cursor: Cursor, level = 0): Cbor => {
 }
 
 /** Decodes one CBOR item and reports how many bytes it occupied. */
-export const read = (bytes: Uint8Array): { item: Cbor; length: number } => {
+const read = (bytes: Uint8Array): { item: Cbor; length: number } => {
 	const cursor: Cursor = { view: new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), bytes, at: 0 }
 	const item = value(cursor)
 	return { item, length: cursor.at }
@@ -195,12 +195,9 @@ export const authenticator = (bytes: Uint8Array): Authenticator => {
 	return data
 }
 
-const bytes = (key: Map<number | string, Cbor>, label: number, size?: number): Uint8Array => {
+const bytes = (key: Map<number | string, Cbor>, label: number): Uint8Array => {
 	const held = key.get(label)
 	if (!(held instanceof Uint8Array)) return fail('COSE key holds a malformed coordinate')
-	// Fixed-width coordinates are fixed width: a short one base64urls into a
-	// different key than the authenticator registered.
-	if (size !== undefined && held.length !== size) fail('COSE coordinate has the wrong width')
 	return held
 }
 
@@ -226,9 +223,9 @@ export const publicKey = (key: Map<number | string, Cbor>) => {
 
 	if (typeof alg !== 'number') fail('COSE key declares no algorithm')
 
-	// Every validation is wrapped: the coordinates are attacker-supplied, and a
-	// point off the curve makes the host throw a TypeError that would otherwise
-	// escape a ceremony as a crash rather than a refusal.
+	// The host refuses coordinates of the wrong width, P-256 points off the
+	// curve and RSA moduli under 2048 bits. Its TypeError is wrapped: the
+	// coordinates are attacker-supplied, and a refusal must not escape as a crash.
 	const validated = (stored: Key) => {
 		try { validatePublicKey(stored); return stored }
 		catch { return fail('COSE key does not describe a usable public key') }
@@ -238,7 +235,7 @@ export const publicKey = (key: Map<number | string, Cbor>) => {
 		if (kty !== 2 || key.get(-1) !== 1) fail('ES256 key is not a P-256 key')
 		return {
 			alg,
-			key: validated({ kty: 'EC', crv: 'P-256', x: url(bytes(key, -2, 32)), y: url(bytes(key, -3, 32)) }),
+			key: validated({ kty: 'EC', crv: 'P-256', x: url(bytes(key, -2)), y: url(bytes(key, -3)) }),
 		}
 	}
 
@@ -246,7 +243,7 @@ export const publicKey = (key: Map<number | string, Cbor>) => {
 		if (kty !== 1 || key.get(-1) !== 6) fail('EdDSA key is not an Ed25519 key')
 		return {
 			alg,
-			key: validated({ kty: 'OKP', crv: 'Ed25519', x: url(bytes(key, -2, 32)) }),
+			key: validated({ kty: 'OKP', crv: 'Ed25519', x: url(bytes(key, -2)) }),
 		}
 	}
 
@@ -256,15 +253,10 @@ export const publicKey = (key: Map<number | string, Cbor>) => {
 		const n = bytes(key, -1)
 		const e = bytes(key, -2)
 
-		// Neither of these is a formality. An RSA key is only as good as its
-		// exponent and modulus, and nothing else in this file would notice a
-		// bad one: with e = 1 the verification becomes an identity, and every
-		// signature over every message verifies against a key whose private
-		// half nobody holds. Real authenticators use 65537 and 2048-bit
-		// moduli; a credential offering anything else is not an authenticator
-		// making an unusual choice, it is someone registering a skeleton key.
+		// Stricter than either host: with e = 1 verification is an identity,
+		// real authenticators use 65537, and a credential offering anything
+		// else is someone registering a skeleton key.
 		if (!same(e, new Uint8Array([0x01, 0x00, 0x01]))) fail('RSA key does not use the standard exponent')
-		if (n.length < 256) fail('RSA modulus is too small')
 
 		return {
 			alg,
@@ -276,30 +268,21 @@ export const publicKey = (key: Map<number | string, Cbor>) => {
 }
 
 /**
- * Verifies an assertion signature over `authenticatorData || sha256(clientDataJSON)`.
+ * Verifies an assertion signature over `authenticatorData || sha256(clientDataJSON)`
+ * with a key `publicKey` accepted; the key type selects the algorithm.
  *
  * ES256 signatures arrive ASN.1 DER encoded. Both platform faces preserve
  * that format rather than passing P1363 bytes to a verifier by accident.
  */
-export const signature = (
-	stored: { alg: number; key: Key },
-	data: Uint8Array,
-	client: Uint8Array,
-	sig: Uint8Array,
-): boolean => {
+export const signature = (key: Key, data: Uint8Array, client: Uint8Array, sig: Uint8Array): boolean => {
+	// The host re-imports and validates the key on every call; a key it
+	// refuses fails the signature instead of escaping as a crash.
 	try {
-		if (
-			(stored.alg === ES256 && stored.key.kty !== 'EC') ||
-			(stored.alg === EdDSA && stored.key.kty !== 'OKP') ||
-			(stored.alg === RS256 && stored.key.kty !== 'RSA') ||
-			!algorithms.includes(stored.alg)
-		) return false
-
 		const hash = digest(client)
 		const signed = new Uint8Array(data.length + hash.length)
 		signed.set(data)
 		signed.set(hash, data.length)
-		return verifySignature(stored.key, signed, sig)
+		return verifySignature(key, signed, sig)
 	} catch {
 		return false
 	}

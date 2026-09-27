@@ -2,34 +2,19 @@
 // paths. The suite runs all real auth migrations so token claims, membership
 // constraints, passkey detection, and audit state use the shipped schema.
 
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { close, connect, db, sql } from 'ajo-kit/database'
+import { db, sql } from 'ajo-kit/database'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { up as initial } from '../migrations/0001_initial'
-import { up as passkeys } from '../migrations/0002_passkeys'
-import { up as teams } from '../migrations/0003_teams'
-import { up as invites } from '../migrations/0004_invites'
-import { up as integrity } from '../migrations/0005_integrity'
+import { setup, teardown } from './database.fixture'
 import * as invite from '../src/invite'
 import { hash } from '../src/session'
 import * as team from '../src/team'
 
 const now = '2026-06-26T00:00:00.000Z'
-let directory: string
 
 beforeEach(async () => {
 	vi.useFakeTimers()
 	vi.setSystemTime(new Date(now))
-	directory = mkdtempSync(join(tmpdir(), 'ajo-kit-auth-invite-'))
-	connect(join(directory, 'test.sqlite'))
-
-	await initial(db<any>())
-	await passkeys(db<any>())
-	await teams(db<any>())
-	await invites(db<any>())
-	await integrity(db<any>())
+	await setup()
 	await db<any>().insertInto('roles').values([
 		{ id: 1, name: 'owner', abilities: '["*"]' },
 		{ id: 2, name: 'member', abilities: '[]' },
@@ -44,8 +29,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-	await close()
-	rmSync(directory, { recursive: true, force: true })
+	await teardown()
 	vi.useRealTimers()
 })
 

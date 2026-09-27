@@ -399,9 +399,11 @@ it was minted for. Production requires a strong `APP_SECRET`.
 WebAuthn, implemented here rather than depended upon: registration asks for
 `attestation: 'none'`, which is what every mainstream passkey provider emits,
 so there is no attestation statement to verify and no certificate chain to
-walk. What remains is CBOR, fixed-offset parsing, and signatures `node:crypto`
-verifies natively. Accepts ES256, EdDSA and RS256; dropping RS256 would lock
-out Windows Hello over a TPM.
+walk. What remains is CBOR, fixed-offset parsing, and signatures the platform
+verifies natively (`node:crypto` on Node, `runtime:crypto` on the engine).
+Accepts ES256, EdDSA and RS256; dropping RS256 would lock out Windows Hello
+over a TPM. The platform refuses key coordinates of the wrong width and RSA
+moduli under 2048 bits, and an RS256 key must use the exponent 65537.
 
 ```ts
 import { passkey } from 'ajo-kit-auth'
@@ -433,7 +435,8 @@ authenticator now verifies the user; a presence-only key stops working, and
 its owner must enroll a passkey that verifies the user. An
 account's first credential is stored atomically: when two registrations for a
 credential-less account race, the first to finish wins and the other is
-refused.
+refused. A credential id belongs to the account that registered it first; a
+later registration of the same id, by any account, is refused.
 
 **The relying party id is permanent.** Credentials are bound to `rpId` for
 life and there is no migration: passkeys registered against `localhost` (an
