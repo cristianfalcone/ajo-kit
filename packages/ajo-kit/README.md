@@ -228,7 +228,10 @@ Notes:
   only JSON bodies parsed and read any other body with `req.read(limit)`.
 - actions receive an explicit third-argument context; `action.emit()` both
   broadcasts changed topics and includes them in that action's JSON response.
-- `parent()` resolves merged ancestor loader data.
+- layout loaders run in parallel, and `parent()` waits for the loaders above
+  and resolves their merged data. The page loader starts after every layout
+  loader has finished, and `head()` runs after all loaders; its second
+  argument resolves the data of the loader in the same `handler.ts`.
 
 ## Actions from Client
 
@@ -267,7 +270,7 @@ Successful non-redirect actions dispatch `ajo:action` with returned JSON detail.
 import type { Middleware } from 'ajo-kit'
 
 const log: Middleware = (req, _res, next) => {
-  console.log(req.method, req.url)
+  console.log(req.method, req.originalUrl)
   next()
 }
 
@@ -329,12 +332,28 @@ topics change. One process accepts at most 128 live streams and at most 8 per
 session, bearer token, attached user, or anonymous client address; excess
 connections receive `503` or `429` without an SSE upgrade.
 
+## Request timing
+
+Set `AJO_TIMING=1` while measuring route requests:
+
+```sh
+AJO_TIMING=1 pnpm dev
+```
+
+Each page or route JSON response then carries a `Server-Timing` header with
+`total`, `loader`, and `render` durations in milliseconds, and the process logs
+one line with the method, URL, status, cache result, durations, and body bytes.
+An empty value, `0`, `false`, or `off` leaves timing off. The engine artifact
+accepts `AJO_TIMING` as an optional variable. Route JSON answers name their
+cache result in `X-Ajo-Cache` (`miss`, `revalidated`, or `fresh`) whether or
+not timing is on.
+
 ## Route cache and its scope
 
 The client keeps a small in-memory cache of route payloads (50 entries, 5
 minute TTL) and revalidates with `X-Have`, so an unchanged route costs a 304
-instead of a payload. Login and logout are SPA navigations — no reload clears
-that cache — so every entry is partitioned by a **scope**: an opaque label the
+instead of a payload. Login and logout are SPA navigations, and no reload clears
+that cache, so every entry is partitioned by a **scope**: an opaque label the
 server derives per request from whichever credential your auth middleware
 attached (`req.token`, `req.session`, `req.user`, else `anon`), hashed with its
 keyspace so ids from different tables cannot collide. Set `req.scope` in a
@@ -343,7 +362,7 @@ middleware to decide the partition yourself.
 The scope travels in the SSR document, in route JSON, and in live messages.
 The client caches only under the scope the payload was computed for, drops the
 previous partition when the identity changes, and presents the scope alongside
-its freshness material — the server's fast 304 confirms a hash only for the
+its freshness material: the server's fast 304 confirms a hash only for the
 identity that cached it. Without a scope nothing is cached at all: guessing
 wrong would mean showing one person another person's data, so it fails closed.
 
@@ -360,16 +379,21 @@ SSE topic versions, active connections, and update fanout are stored in process
 memory. Multi-process deployments require shared topic coordination and
 fanout. Store SQLite database files on persistent local disk.
 
-For non-local production, configure `APP_URL` to the public `http` or `https`
-origin; the Ajo engine refuses to start without it. When the host supplies the
-managed origins manifest through `AJO_ORIGINS_FILE`, only the Hosts listed in
-that manifest are admitted.
+The Ajo engine requires `APP_URL`, the public `http` or `https` origin: it
+refuses to start without it and answers `421` to a request whose `Host` does
+not match it. When the host supplies the managed origins manifest through
+`AJO_ORIGINS_FILE`, only the Hosts listed in that manifest are admitted.
 
 `db()` connects on first use to `DATABASE_PATH`, or `./database.sqlite` when it
 is unset, so Apps call `connect(path)` only to choose another path. The Ajo
 engine accepts `:memory:` or a file path, which it joins beneath the runtime
 application data root after dropping `.` and empty segments; the engine refuses
 `..` segments and paths outside its declared roots.
+
+Both faces open SQLite files in WAL mode with foreign keys on and a 5 second
+busy timeout. The Node face uses `synchronous = NORMAL`; the engine uses
+`synchronous = FULL`, so a committed transaction survives power loss, and keeps
+SQLite's temporary storage in memory.
 
 `kit migrate` composes:
 
@@ -380,7 +404,9 @@ Each migration provider uses a contiguous sequence beginning at `0001`, so a
 plugin and the app may both define `0001_initial`. Stored identities use
 `plugin/<package>/<name>` and `project/<name>` in one SQLite history and lock.
 
-Every migration exports `up()` and `down()`. `migrate down` rolls back the
+Every migration exports `up()` and `down()`. Each migration applies on its
+own, since SQLite DDL does not run inside one Kysely transaction: a failure
+leaves the earlier migrations applied. `migrate down` rolls back the
 latest executed migration across all providers. `migrate status` rejects
 history entries whose migration is unavailable.
 
@@ -442,8 +468,19 @@ the same directory mount.
 | `ajo-kit/client` | Client boot and `action()` |
 | `ajo-kit/validate` | Valibot helpers and `parse()` |
 | `ajo-kit/database` | SQLite, Kysely, and database lifecycle |
+| `ajo-kit/platform` | `env()` and the hashing, random, base64url, and signature helpers, with one face per host |
 | `ajo-kit/vite` | Vite plugin and its options |
 | `ajo-kit/node` | Programmatic Node host utilities for development, engine builds, and tests |
+| `ajo-kit/engine` | Engine startup, imported by the entry `kit build` generates |
+
+Read configuration with `env()` from `ajo-kit/platform`; the engine has no
+`process`:
+
+```ts
+import { env } from 'ajo-kit/platform'
+
+const from = env('MAIL_FROM')
+```
 
 ## Core API
 
@@ -458,9 +495,11 @@ import {
   api,
   date,
   ip,
+  locale,
   navigate,
   origin,
   production,
+  requestOrigin,
 } from 'ajo-kit'
 import type {
   Action,
@@ -490,8 +529,9 @@ resolves the current request origin; with a managed origins manifest it accepts
 only the direct request host listed by the host. Use it when a request or form
 must stay on the current alias. Adding aliases does not redirect requests or
 share browser cookies, sessions, or passkey registrations between origins.
-`navigate()` performs client navigation, `date()` formats ISO timestamps, and
-`production()` is true when `NODE_ENV` is `production`.
+`navigate()` performs client navigation, `date()` formats ISO timestamps in
+the frozen SSR `locale` (`en-US`), and `production()` is true when `NODE_ENV`
+is `production`.
 
 ## Server API
 
@@ -514,6 +554,8 @@ commit on either path.
 Route `head()` loaders return `Head`. Ancestor and page values are merged for
 SSR and client navigation: a later title wins, and a later meta with the same
 `name` or `property`, or a link with the same `rel`, replaces the earlier one.
+A route keeps one link per `rel`, so a page overrides an ancestor's canonical
+or icon link.
 
 ```ts
 type Head = {
@@ -554,7 +596,8 @@ entries, and the engine SSR graph, and keeps the client entry out of dependency
 pre-bundling. Custom `guard` patterns extend the default client graph protection.
 
 `css` entries load before application hydration. JSX compiles through the
-`tsconfig.json` settings above.
+`tsconfig.json` settings above. For `.jsx` files, or a project without a
+tsconfig, set `oxc: { jsx: { importSource: 'ajo' } }` in `vite.config.ts`.
 
 ## Node Host API
 

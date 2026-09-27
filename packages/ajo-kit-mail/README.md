@@ -29,11 +29,16 @@ pnpm add nodemailer # only when using smtp()
 Configure a transport once during app boot:
 
 ```ts
+import { env } from 'ajo-kit/platform'
 import { configure } from 'ajo-kit-mail'
-import { smtp } from 'ajo-kit-mail/smtp'
+import { http } from 'ajo-kit-mail/http'
 
 configure({
-	transport: smtp({ host: 'smtp.example.com', user: 'apikey', pass: process.env.SMTP_PASS }),
+	transport: http({
+		url: 'https://api.provider.example/send',
+		headers: () => ({ Authorization: `Bearer ${env('MAIL_TOKEN')}` }),
+		body: mail => ({ from: mail.from.address, to: mail.to.address, subject: mail.subject, text: mail.text }),
+	}),
 	from: { address: 'noreply@example.com', name: 'Ajo' },
 })
 ```
@@ -85,22 +90,19 @@ One connection per message over nodemailer, with mandatory verified TLS:
 STARTTLS is required on port 587 (`implicit: true` for 465), the certificate
 is verified, and the floor is TLS 1.2. None of that is configurable, and
 there is no credential URL form: discrete `host`/`user`/`pass` fields only.
-Local development uses `capture()` instead of an insecure flag.
+Local development uses `capture()` instead of an insecure flag. SMTP runs on
+Node only: the engine build has no `ajo-kit-mail/smtp`, so engine Apps send
+through `http()`.
 
 ### `http(options)`
 
-A JSON provider over global `fetch`. The body mapping is the only
-provider-specific code an app writes:
+A JSON provider over global `fetch`, as in the setup above. The `body`
+mapping is the only provider-specific code an app writes. `headers` is a
+factory, so a secret is read on each send. `id` reads the provider's message id
+from a success body:
 
 ```ts
-import { http } from 'ajo-kit-mail/http'
-
-const transport = http({
-	url: 'https://api.provider.example/send',
-	headers: () => ({ Authorization: `Bearer ${read()}` }), // factory: read per send
-	body: mail => ({ from: mail.from.address, to: mail.to.address, subject: mail.subject, text: mail.text }),
-	id: payload => (payload as { id?: string }).id,
-})
+id: payload => (payload as { id?: string }).id
 ```
 
 The message `key` is forwarded as `Idempotency-Key`. Failure bodies are

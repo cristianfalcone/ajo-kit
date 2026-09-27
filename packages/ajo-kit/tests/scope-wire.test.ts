@@ -260,10 +260,9 @@ describe('the fresh shortcut and the leak it must not reopen', () => {
 	test('another identity presenting that material reaches the loaders', async () => {
 		const { body: alpha } = await json({ 'X-Test-Session': 'alpha-session-id' })
 
-		// The pre-scope leak: B navigates with A's cached hash and versions in
-		// the same tab. The shortcut used to confirm them without running a
-		// loader; now the scope mismatch sends B down the loader path and the
-		// answer is computed as B.
+		// B navigates with A's cached hash and versions in the same tab. The
+		// scope mismatch sends B down the loader path, so the answer is
+		// computed as B instead of confirming A's material.
 		const { response, body } = await json({
 			'X-Test-Session': 'beta-session-id',
 			'X-Have': alpha!.hash,

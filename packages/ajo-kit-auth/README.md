@@ -12,6 +12,8 @@ Includes:
 - password reset tokens
 - email verification signatures
 - single-use account invitations
+- passkeys (WebAuthn)
+- teams that scope abilities to a subject
 
 ## Install
 
@@ -90,6 +92,18 @@ import { password } from 'ajo-kit-auth'
 ```
 
 Argon2id hash/verify helpers.
+
+A sign-in path verifies against a fixed dummy hash when the account does not
+exist, so the response time does not reveal which emails have accounts:
+
+```ts
+const dummy = await password.hash('not-a-user-password')
+
+const valid = await password.verify(input.password, user?.password ?? dummy)
+```
+
+Never return password hashes or token and session secrets: loaders, actions
+and API handlers select only the columns a response needs.
 
 ### `session`
 
@@ -267,7 +281,7 @@ const abilities = await account.abilities(user)
 merges them and removes duplicate or redundant wildcard grants. Authorize with
 abilities through `ability()` or `authorize()`. `account.scoped(user, subject)`
 resolves the abilities a user gains over one subject through team membership;
-global grants stay out on purpose — `admit()` composes both.
+global grants stay out on purpose, and `admit()` composes both.
 
 ### `team`
 
@@ -285,20 +299,20 @@ Teams are subject-scoped authorization groups, not tenants or organizations.
 They have no active request context, settings, resource ownership, or data
 isolation; applications own resource isolation and query scoping. Each
 teammate holds a role from the same `roles` catalog global members use. A claim
-records that the team holds a subject — an opaque string your app defines (an
+records that the team holds a subject: an opaque string your app defines (an
 app name, a project id, a customer). Authority composes one way: global grants
 always apply everywhere; on top, for one subject, a user gains the abilities
 of every role they hold in every team claiming it. A bearer token can narrow
 that authority further through its abilities and subject.
 
 - `create(name)` / `rename(team, name)` / `remove(team)` / `get(team)` /
-  `list()` — lifecycle; `list()` carries member and claim counts.
-- `join(team, user, role)` — one membership per team and user; joining again
+  `list()`: lifecycle; `list()` carries member and claim counts.
+- `join(team, user, role)`: one membership per team and user; joining again
   changes the role. `leave(team, user)` removes it.
-- `members(team)` — users with their role names.
+- `members(team)`: users with their role names.
 - `claim(team, subject)` (idempotent) / `release(team, subject)` /
   `claims(team)` / `holders(subject)`.
-- `of(user)` — the user's teams with role names. `subjects(user)` — every
+- `of(user)`: the user's teams with role names. `subjects(user)`: every
   subject reachable through any membership, for scoping list views.
 
 ### `invite`
@@ -413,7 +427,7 @@ it was minted for. Production requires a strong `APP_SECRET`.
 WebAuthn, implemented here rather than depended upon: registration asks for
 `attestation: 'none'`, which is what every mainstream passkey provider emits,
 so there is no attestation statement to verify and no certificate chain to
-walk — what remains is CBOR, fixed-offset parsing, and signatures `node:crypto`
+walk. What remains is CBOR, fixed-offset parsing, and signatures `node:crypto`
 verifies natively. Accepts ES256, EdDSA and RS256; dropping RS256 would lock
 out Windows Hello over a TPM.
 
@@ -455,7 +469,7 @@ SSH tunnel, say) will not be offered when the same host is later served at a
 real name, and the browser will not even show them. Register the durable name
 from the start where one exists; treat tunnel credentials as disposable where
 it does not. In production use the apex (`example.com`, never
-`app.example.com`) — any subdomain can assert against the apex, not the
+`app.example.com`): any subdomain can assert against the apex, not the
 reverse.
 
 The counter is recorded and not enforced: passkeys synced through iCloud or

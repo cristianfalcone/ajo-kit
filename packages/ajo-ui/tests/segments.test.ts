@@ -369,8 +369,8 @@ describe('deletion', () => {
 	})
 
 	test("backspace after month-name letters erases by letter, never NaN ('m','a' repro)", () => {
-		// The live repro: 'm','a' buffers a non-unique name prefix; Backspace
-		// used to Number('m') the remainder into a committed '2026-NaN-NaN'.
+		// 'm','a' buffers a non-unique name prefix; Backspace must erase the
+		// letter and never commit a numeric parse of the remainder.
 		const f = field({ kind: 'date', locale: 'en-US', defaultValue: '2026-01-04' })
 		f.type('month', 'm')
 		f.type('month', 'a')
@@ -572,9 +572,8 @@ describe('granularity inference', () => {
 
 	test('controlled echo never narrows an inferred seconds shape', () => {
 		// Mirrors input-date's sync sequence: adopt a controlled value, edit to
-		// incomplete (emit null), owner echoes null. The echo used to re-infer
-		// minute, drop the seconds segment (stranding second=30), and truncate
-		// the next commit to '09:45'.
+		// incomplete (emit null), owner echoes null. The echo keeps the seconds
+		// segment, so the next commit still carries seconds.
 		const f = field({ kind: 'time', locale: 'en-US' })
 		f.sync('09:00:30')
 		expect(shapeOf(f)).toContain('second')

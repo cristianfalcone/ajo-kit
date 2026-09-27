@@ -1,4 +1,4 @@
-# Ajo Notes — standalone starter
+# Ajo Notes: standalone starter
 
 A small private notebook built with Ajo, ajo-kit, auth, mail and Playa. It includes
 account registration, cookie sessions and CSRF, SQLite migrations, private notes,
@@ -146,11 +146,12 @@ convenience for the same command, not a Node production server.
 
 ## Package and deploy
 
-The scratch `Containerfile` consumes `dist/ajo`, the matching native runtime and
-its license notices, and the operator's maintained CA bundle from verified
-runtime/base-image inputs. It makes the compiled app and `/ajo/data` accessible
-to uid/gid 1000, then runs the engine as that user. No image build fetches tools
-or embeds credentials. Prepare these inputs after installing the pair above:
+The [ajo-kit-server README](https://www.npmjs.com/package/ajo-kit-server#prepare-the-app-image)
+owns the App image requirements. This project's scratch `Containerfile` also
+copies the engine's license notices and the operator's verified CA bundle, for
+HTTPS mail, and gives uid/gid 1000 the writable `/ajo/data`. No image build
+fetches tools or embeds credentials. Prepare its inputs after installing the
+pair above:
 
 ```sh
 mkdir -p runtime/notices/licenses
