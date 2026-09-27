@@ -10,37 +10,31 @@ import {
 	type DialogHeaderArgs,
 	type DialogTitleArgs,
 } from 'ajo-ui/dialog'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 import {
 	Drawer as BaseDrawer,
 	DrawerContent as BaseDrawerContent,
-	type DrawerContentArgs as BaseDrawerContentArgs,
 	type DrawerArgs,
-	type DrawerSide,
+	type DrawerContentArgs,
 } from 'ajo-ui/drawer'
-import { modalClose, modalClosed, modalSurface } from './modal'
-export type { DrawerArgs, DrawerSide } from 'ajo-ui/drawer'
-
-export type DrawerContentArgs = OmitArg<BaseDrawerContentArgs, 'class' | 'closeClass' | 'closeIconClass' | 'handle' | 'handleClass' | 'sideClass'> & FixedArgs<'closeClass' | 'closeIconClass' | 'handleClass' | 'sideClass'> & {
-	/** Additional UnoCSS classes for the drawer panel. */
-	class?: string
-	/** Show the optional drag handle. */
-	handle?: boolean
-}
+import { modalClosed, modalSurface } from './modal'
+export type { DrawerArgs, DrawerContentArgs, DrawerSide } from 'ajo-ui/drawer'
 
 const base = clsx(modalSurface, 'group/drawer-content m-0 flex flex-col gap-4')
-const sides: Record<DrawerSide, string> = {
-	right: 'inset-y-0 right-0 left-auto h-full max-h-none w-3/4 max-w-none border-l sm:max-w-sm',
-	left: 'inset-y-0 left-0 right-auto h-full max-h-none w-3/4 max-w-none border-r sm:max-w-sm',
-	top: 'inset-x-0 top-0 bottom-auto h-auto w-full max-w-none border-b',
-	bottom: 'inset-x-0 bottom-0 top-auto h-auto w-full max-w-none border-t',
-}
-const handleSides: Record<DrawerSide, string> = {
-	...sides,
-	top: 'inset-x-0 top-0 bottom-auto mb-24 max-h-[80vh] w-full max-w-none rounded-b-lg border-b',
-	bottom: 'inset-x-0 bottom-0 top-auto mt-24 max-h-[80vh] w-full max-w-none rounded-t-lg border-t',
-}
-const handleBase = 'mx-auto mt-4 h-2 w-[100px] shrink-0 touch-none cursor-grab rounded-full bg-muted active:cursor-grabbing'
+// Edge geometry keys off the base's `data-side`; top and bottom drawers with
+// a handle become rounded sheets capped below the viewport height.
+const horizontal = [
+	'data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:left-auto data-[side=right]:h-full data-[side=right]:max-h-none data-[side=right]:w-3/4 data-[side=right]:max-w-none data-[side=right]:border-l data-[side=right]:sm:max-w-sm',
+	'data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:right-auto data-[side=left]:h-full data-[side=left]:max-h-none data-[side=left]:w-3/4 data-[side=left]:max-w-none data-[side=left]:border-r data-[side=left]:sm:max-w-sm',
+].join(' ')
+const vertical = [
+	'data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:bottom-auto data-[side=top]:h-auto data-[side=top]:w-full data-[side=top]:max-w-none data-[side=top]:border-b',
+	'data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:top-auto data-[side=bottom]:h-auto data-[side=bottom]:w-full data-[side=bottom]:max-w-none data-[side=bottom]:border-t',
+].join(' ')
+const sheet = [
+	'data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:bottom-auto data-[side=top]:mb-24 data-[side=top]:max-h-[80vh] data-[side=top]:w-full data-[side=top]:max-w-none data-[side=top]:rounded-b-lg data-[side=top]:border-b',
+	'data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:top-auto data-[side=bottom]:mt-24 data-[side=bottom]:max-h-[80vh] data-[side=bottom]:w-full data-[side=bottom]:max-w-none data-[side=bottom]:rounded-t-lg data-[side=bottom]:border-t',
+].join(' ')
+const handleBase = '*:data-[slot=drawer-handle]:mx-auto *:data-[slot=drawer-handle]:mt-4 *:data-[slot=drawer-handle]:h-2 *:data-[slot=drawer-handle]:w-[100px] *:data-[slot=drawer-handle]:shrink-0 *:data-[slot=drawer-handle]:touch-none *:data-[slot=drawer-handle]:cursor-grab *:data-[slot=drawer-handle]:rounded-full *:data-[slot=drawer-handle]:bg-muted *:data-[slot=drawer-handle]:active:cursor-grabbing'
 const headerBase = 'flex flex-col p-4 group-data-[side=bottom]/drawer-content:text-center group-data-[side=top]/drawer-content:text-center md:text-left'
 
 /** Root provider for a modal drawer; compose DialogTrigger and DialogClose from the Playa dialog. */
@@ -51,29 +45,14 @@ const Drawer: Stateless<DrawerArgs> = ({
 	<BaseDrawer {...attrs} class={clsx('contents', classes)} />
 )
 
-/** Native modal drawer panel with a draggable bottom handle. */
-const DrawerContent: Stateless<DrawerContentArgs> = ({
-	children,
-	class: classes,
-	handle,
-	...attrs
-}) => {
-	const hasHandle = handle === true
-
-	return (
-		<BaseDrawerContent
-			{...attrs}
-			closeClass={modalClose}
-			closeIconClass="i-lucide-x block size-4"
-			class={clsx(modalClosed, base, classes)}
-			handle={hasHandle}
-			handleClass={handleBase}
-			sideClass={hasHandle ? handleSides : sides}
-		>
-			{children}
-		</BaseDrawerContent>
-	)
-}
+/** Native modal drawer panel with an optional drag handle; compose DialogClose inside it for a close control. */
+const DrawerContent: Stateless<DrawerContentArgs> = ({ class: classes, handle, ...attrs }) => (
+	<BaseDrawerContent
+		{...attrs}
+		class={clsx(modalClosed, base, horizontal, handle ? clsx(sheet, handleBase) : vertical, classes)}
+		handle={handle}
+	/>
+)
 
 /** Header area for drawer title and description, themed for the drawer edge. */
 const DrawerHeader: Stateless<DialogHeaderArgs> = ({ class: classes, ...attrs }) => (

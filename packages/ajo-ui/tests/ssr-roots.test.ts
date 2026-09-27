@@ -10,7 +10,7 @@ import { ChartContainer } from 'ajo-ui/chart'
 import { Checkbox } from 'ajo-ui/checkbox'
 import { CheckboxGroup, CheckboxGroupItem } from 'ajo-ui/checkbox-group'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from 'ajo-ui/collapsible'
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from 'ajo-ui/command'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from 'ajo-ui/command'
 import { ContextMenu, ContextMenuTrigger } from 'ajo-ui/context-menu'
 import { DataTable } from 'ajo-ui/data-table'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from 'ajo-ui/dialog'
@@ -20,7 +20,7 @@ import { Field } from 'ajo-ui/field'
 import { InputDate } from 'ajo-ui/input-date'
 import { InputGroup, InputGroupInput } from 'ajo-ui/input-group'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from 'ajo-ui/input-otp'
-import { Menu, MenuContent, MenuItem, MenuRadioGroup, MenuRadioItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from 'ajo-ui/menu'
+import { Menu, MenuCheckboxItem, MenuContent, MenuItem, MenuRadioGroup, MenuRadioItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from 'ajo-ui/menu'
 import { Menubar, MenubarMenu, MenubarTrigger } from 'ajo-ui/menubar'
 import { MessageScroller, MessageScrollerContent, MessageScrollerItem, MessageScrollerViewport } from 'ajo-ui/message-scroller'
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from 'ajo-ui/navigation-menu'
@@ -28,7 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from 'ajo-ui/popover'
 import { Progress } from 'ajo-ui/progress'
 import { RadioGroup, RadioGroupItem } from 'ajo-ui/radio-group'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from 'ajo-ui/resizable'
-import { Select, SelectContent, SelectItem, SelectList, SelectTrigger, SelectValue } from 'ajo-ui/select'
+import { Select, SelectChip, SelectChips, SelectClear, SelectContent, SelectInput, SelectItem, SelectList, SelectTrigger, SelectValue } from 'ajo-ui/select'
 import { Sidebar, SidebarContent, SidebarProvider } from 'ajo-ui/sidebar'
 import { Slider } from 'ajo-ui/slider'
 import { Switch } from 'ajo-ui/switch'
@@ -366,6 +366,42 @@ test('SSR Drawer handle is a pointer-only decoration', () => {
 	expect(handle).not.toContain('role=')
 	expect(handle).not.toContain('tabindex')
 	expect(handle).not.toContain('aria-label')
+})
+
+test('SSR inner nodes carry stable slots for themes, and DrawerContent renders no close control', () => {
+	const slots = (html: string) => Array.from(html.matchAll(/data-slot="([^"]+)"/g), match => match[1])
+	const drawer = ssr(jsx(Drawer, { children: jsx(DrawerContent, { children: 'Panel' }) }))
+	const command = ssr(jsx(Command, {
+		children: [
+			jsx(CommandInput, {}),
+			jsx(CommandList, { children: jsx(CommandGroup, { children: jsx(CommandItem, { children: 'One' }), heading: 'Group' }) }),
+		],
+	}))
+	const select = ssr(jsx(Select, {
+		children: [
+			jsx(SelectTrigger, { children: jsx(SelectValue, {}) }),
+			jsx(SelectInput, { children: jsx(SelectClear, {}) }),
+			jsx(SelectChips, { children: jsx(SelectChip, { children: 'One' }) }),
+			jsx(SelectContent, { children: jsx(SelectList, { children: jsx(SelectItem, { children: 'One' }) }) }),
+		],
+		defaultValue: 'One',
+	}))
+	const menu = ssr(jsx(Menu, {
+		children: [
+			jsx(MenuTrigger, { children: 'Open' }),
+			jsx(MenuContent, {
+				children: [
+					jsx(MenuCheckboxItem, { checked: true, children: 'Checked' }),
+					jsx(MenuSub, { children: jsx(MenuSubTrigger, { children: 'More' }) }),
+				],
+			}),
+		],
+	}))
+
+	expect(slots(drawer)).not.toContain('dialog-close')
+	expect(slots(command)).toEqual(expect.arrayContaining(['command-input-wrapper', 'command-input-icon', 'command-group-heading']))
+	expect(slots(select)).toEqual(expect.arrayContaining(['select-icon', 'select-input-trigger-icon', 'select-clear-icon', 'select-chip-remove-icon', 'select-item-indicator-icon']))
+	expect(slots(menu)).toEqual(expect.arrayContaining(['menu-item-indicator', 'menu-item-indicator-icon', 'menu-sub-trigger-icon']))
 })
 
 test('SSR Tooltip keeps positioning at the root and one manual semantic surface', () => {

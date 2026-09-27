@@ -61,13 +61,11 @@ export const menuContent = ({ minWidth = '8rem' }: {
 
 export const menuItem = 'playa-menu-item'
 export const menuChoiceRow = 'playa-menu-choice-row'
-export const menuIndicator = 'playa-menu-indicator'
 export const menuLabel = 'playa-menu-label'
 export const menuSeparator = 'playa-menu-separator'
 export const menuShortcut = 'playa-menu-shortcut'
-export const menuCheckIcon = 'playa-menu-check-icon'
-export const menuRadioIcon = 'playa-menu-radio-icon'
-export const menuSubTriggerIcon = 'playa-menu-sub-trigger-icon'
+/** Themes a checkbox item's base-owned indicator and check icon by slot. */
+export const menuCheckIndicator = '*:data-[slot=menu-item-indicator]:playa-menu-indicator **:data-[slot=menu-item-indicator-icon]:playa-menu-check-icon'
 export const menuSubTriggerOpen = 'playa-menu-sub-trigger-open'
 
 const inputGroupRoot = [

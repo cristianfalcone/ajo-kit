@@ -41,6 +41,17 @@ describe('playa preset', () => {
 		expect(css).toMatch(/\.playa-chart :is\(\[data-indicator=dashed\]>\[data-slot=chart-tooltip-indicator\]\)\{[^}]*border-style:dashed;[^}]*border-width:1\.5px;/)
 	})
 
+	it('themes base-owned inner nodes through their slots and state attributes', async () => {
+		const uno = await createGenerator({ presets: [playa()] })
+		const { css } = await uno.generate('playa-select-item playa-select-input playa-toaster')
+
+		expect(css).toContain('.playa-select-item > *[data-selected=true][data-slot=select-item-indicator]{opacity:100%;}')
+		expect(css).toContain('.playa-select-input:has([data-slot=select-clear]) [data-slot=select-input-trigger]{display:none;}')
+		expect(css).toContain('.playa-toaster>:where([data-slot=toast][data-variant=danger]){color:')
+		expect(css).toContain('.playa-toaster[data-rich-colors]>:where([data-slot=toast][data-variant=info]){color:')
+		expect(css).toContain('[data-rich-colors]>[data-slot=toast][data-variant=info]{background-color:')
+	})
+
 	it('does not eagerly emit application-only shortcuts or icons', async () => {
 		const uno = await createGenerator({ presets: [playa()] })
 		const { css } = await uno.generate('site-container h-9')

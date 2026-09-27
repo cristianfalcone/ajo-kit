@@ -3,7 +3,6 @@ import { render } from 'ajo'
 import { browser, callHandler, hotkey as bindHotkey, id } from 'ajo-cloves'
 import { closePopover, openPopover } from './native'
 import { popupStyle } from './popup'
-import { clx } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
 
 /** Visual tone applied to a toast. */
@@ -116,14 +115,6 @@ export type ToastPromiseMessages<T = unknown> = {
 	error: Children | ((error: unknown) => Children)
 }
 
-/** Renderable snapshot of a generated toast. */
-export type ToastView = ToastOptions & {
-	id: string
-	kind: ToastKind
-	open: boolean
-	title: Children
-}
-
 // `ref` is omitted: the runtime routes a stateful component's ref to its
 // host, so the viewport element ref cannot be part of the public args.
 /** Props for the managed viewports that render generated toasts. */
@@ -142,17 +133,15 @@ export type ToasterArgs = OmitArg<ToastViewportArgs, 'children' | 'position' | '
 	limit?: number
 	/** Pause generated toast timers while the window is blurred. */
 	pauseOnWindowBlur?: boolean
-	actionClass?: string
-	actionWrapperClass?: string
-	closeClass?: string
+	/** Content of the generated close buttons. */
 	closeChildren?: Children
-	contentClass?: string
-	descriptionClass?: string
-	titleClass?: string
-	toastClass?: string | ((toast: ToastView) => string | undefined)
 } & FixedArgs<'children' | 'ref'>
 
-type ToastRecord = ToastView & {
+type ToastRecord = ToastOptions & {
+	id: string
+	kind: ToastKind
+	open: boolean
+	title: Children
 	/** Milliseconds left; unset until a Toaster arms the timer with its default duration. */
 	remaining?: number
 	startedAt: number
@@ -645,14 +634,9 @@ const Toaster: Stateful<ToasterArgs> = function* () {
 	}
 
 	for (const {
-		actionClass,
-		actionWrapperClass,
 		class: classes,
 		closeButton = true,
 		closeChildren,
-		closeClass,
-		contentClass,
-		descriptionClass,
 		duration = 5000,
 		expand = false,
 		hotkey: keys = hotkeyDefault,
@@ -661,8 +645,6 @@ const Toaster: Stateful<ToasterArgs> = function* () {
 		limit = 3,
 		pauseOnWindowBlur: pause = true,
 		position = 'bottom-right',
-		titleClass,
-		toastClass,
 		...attrs
 	} of this) {
 		hotkey = keys
@@ -728,7 +710,7 @@ const Toaster: Stateful<ToasterArgs> = function* () {
 
 						return (
 							<Toast
-								class={clx(typeof toastClass === 'function' ? toastClass(item) : toastClass, item.class)}
+								class={item.class}
 								data-closing={item.open ? 'false' : 'true'}
 								data-expanded={expanded ? 'true' : 'false'}
 								data-front={index === 0 ? 'true' : 'false'}
@@ -750,20 +732,20 @@ const Toaster: Stateful<ToasterArgs> = function* () {
 								].join(';')}
 								variant={variants[item.kind]}
 							>
-								<div class={contentClass} data-slot="toast-content">
-									<ToastTitle class={titleClass}>
+								<div data-slot="toast-content">
+									<ToastTitle>
 										{icon == null ? null : <span data-slot="toast-icon">{icon}</span>}
 										{item.title}
 									</ToastTitle>
-									{item.description == null ? null : <ToastDescription class={descriptionClass}>{item.description}</ToastDescription>}
+									{item.description == null ? null : <ToastDescription>{item.description}</ToastDescription>}
 								</div>
 								{item.action == null ? null : (
-									<div class={actionWrapperClass} data-slot="toast-action-wrapper">
-										<ToastAction class={actionClass} onAction={item.action.onClick}>{item.action.label}</ToastAction>
+									<div data-slot="toast-action-wrapper">
+										<ToastAction onAction={item.action.onClick}>{item.action.label}</ToastAction>
 									</div>
 								)}
 								{(item.closeButton ?? closeButton) ? (
-									<ToastClose class={closeClass} onClose={() => dismiss(item.id)}>
+									<ToastClose onClose={() => dismiss(item.id)}>
 										{closeChildren}
 									</ToastClose>
 								) : null}

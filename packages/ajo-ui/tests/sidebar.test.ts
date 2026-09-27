@@ -39,5 +39,7 @@ test('the mobile drawer keeps the sidebar slot and the caller ref', () => {
 	const drawer = document.querySelector('dialog')
 
 	expect(drawer?.getAttribute('data-slot')).toBe('sidebar')
+	expect(drawer?.querySelector('[data-slot="sidebar-inner"]')?.textContent).toBe('Nav')
+	expect(drawer?.querySelector('[data-slot="dialog-close"]')).toBeNull()
 	expect(ref).toHaveBeenCalledWith(drawer)
 })

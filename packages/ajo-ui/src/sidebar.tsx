@@ -41,8 +41,8 @@ export type SidebarArgs = WithChildren<IntrinsicElements['aside'] & {
 	variant?: SidebarVariant
 	collapsible?: SidebarCollapsible
 	class?: string
+	/** Classes for the mobile drawer panel, which replace `class` in that presentation. */
 	mobileClass?: string
-	mobileContentClass?: string
 }>
 
 /** Props for a button that toggles the sidebar. */
@@ -123,8 +123,6 @@ export type SidebarMenuBadgeArgs = WithChildren<IntrinsicElements['div'] & {
 export type SidebarMenuSkeletonArgs = IntrinsicElements['div'] & {
 	showIcon?: boolean
 	width?: string
-	iconClass?: string
-	textClass?: string
 	class?: string
 }
 
@@ -256,7 +254,6 @@ const Sidebar: Stateless<SidebarArgs> = ({
 	class: classes,
 	collapsible = 'offcanvas',
 	mobileClass,
-	mobileContentClass,
 	side = 'left',
 	variant = 'sidebar',
 	...attrs
@@ -282,9 +279,8 @@ const Sidebar: Stateless<SidebarArgs> = ({
 					data-mobile="true"
 					data-variant={variant}
 					data-slot="sidebar"
-					showCloseButton={false}
 				>
-					<div class={mobileContentClass}>
+					<div data-slot="sidebar-inner">
 						{children}
 					</div>
 				</DrawerContent>
@@ -441,15 +437,13 @@ const SidebarMenuBadge = part<SidebarMenuBadgeArgs>('div', 'sidebar-menu-badge')
 /** Unstyled loading placeholder for a sidebar menu item. */
 const SidebarMenuSkeleton: Stateless<SidebarMenuSkeletonArgs> = ({
 	class: classes,
-	iconClass,
 	showIcon,
-	textClass,
 	width = '70%',
 	...attrs
 }) => (
 	<div {...attrs} class={classes} data-slot="sidebar-menu-skeleton">
-		{showIcon ? <div class={iconClass} data-slot="sidebar-menu-skeleton-icon" /> : null}
-		<div class={textClass} data-slot="sidebar-menu-skeleton-text" style={`max-width:${width}`} />
+		{showIcon ? <div data-slot="sidebar-menu-skeleton-icon" /> : null}
+		<div data-slot="sidebar-menu-skeleton-text" style={`max-width:${width}`} />
 	</div>
 )
 

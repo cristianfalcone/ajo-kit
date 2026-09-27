@@ -1,8 +1,8 @@
 import type { Stateful, Stateless } from 'ajo'
 import { callRef, move } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { clx, rootAttrs } from './shared'
-import { Dialog, DialogClose, DialogContent, type DialogArgs, type DialogContentArgs } from './dialog'
+import { rootAttrs } from './shared'
+import { Dialog, DialogContent, type DialogArgs, type DialogContentArgs } from './dialog'
 
 /** Viewport edge from which a Drawer panel enters. */
 export type DrawerSide = 'top' | 'right' | 'bottom' | 'left'
@@ -12,18 +12,10 @@ export type DrawerArgs = DialogArgs & {
 	/** Edge where the drawer enters from. */
 	side?: DrawerSide
 }
-/** Arguments for the Drawer panel, drag handle, and default close control. */
+/** Arguments for the Drawer panel and its drag handle; compose DialogClose inside it for a close control. */
 export type DrawerContentArgs = DialogContentArgs & {
-	closeClass?: string
-	/** Icon class for the default close button. */
-	closeIconClass?: string
-	/** Accessible label for the default close button. */
-	closeLabel?: string
-	/** Render a pointer-only drag handle; keyboard users close with Escape or the close button. */
+	/** Render a pointer-only drag handle; keyboard users close with Escape or a composed DialogClose. */
 	handle?: boolean
-	handleClass?: string
-	showCloseButton?: boolean
-	sideClass?: Partial<Record<DrawerSide, string>>
 }
 
 type DrawerContextValue = {
@@ -107,19 +99,12 @@ const transform = (offset: number, side: DrawerSide) => {
 	return `translateY(${offset}px)`
 }
 
-/** Unstyled native Drawer panel with optional drag and close controls. */
+/** Unstyled native Drawer panel with an optional drag handle. */
 const DrawerContent: Stateless<DrawerContentArgs> = ({
 	children,
-	class: classes,
-	closeClass,
-	closeIconClass,
-	closeLabel = 'Close',
 	'data-slot': slot = 'drawer-content',
 	handle = false,
-	handleClass,
 	ref,
-	showCloseButton = true,
-	sideClass,
 	...attrs
 }) => {
 	const drawer = DrawerContext()
@@ -133,7 +118,6 @@ const DrawerContent: Stateless<DrawerContentArgs> = ({
 	return (
 		<DialogContent
 			{...attrs}
-			class={clx(sideClass?.[side], classes)}
 			data-side={side}
 			data-slot={slot}
 			ref={reference}
@@ -141,17 +125,11 @@ const DrawerContent: Stateless<DrawerContentArgs> = ({
 			{handle ? (
 				<div
 					aria-hidden="true"
-					class={handleClass}
 					data-slot="drawer-handle"
 					set:onpointerdown={(event: PointerEvent) => drawer.drag.start(event)}
 				/>
 			) : null}
 			{children}
-			{showCloseButton ? (
-				<DialogClose aria-label={closeLabel} class={closeClass} data-slot="drawer-close">
-					<span aria-hidden="true" class={closeIconClass} data-slot="drawer-close-icon" />
-				</DialogClose>
-			) : null}
 		</DialogContent>
 	)
 }

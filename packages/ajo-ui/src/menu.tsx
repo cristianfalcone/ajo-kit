@@ -78,8 +78,6 @@ export type MenuCheckboxItemArgs = WithChildren<OmitArg<IntrinsicElements['div']
 	textValue?: string
 	/** Additional UnoCSS classes. */
 	class?: string
-	indicatorClass?: string
-	indicatorIconClass?: string
 }>
 
 /** Arguments for a single-selection group of menu radio items. */
@@ -104,8 +102,6 @@ export type MenuRadioItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], '
 	textValue?: string
 	/** Additional UnoCSS classes. */
 	class?: string
-	indicatorClass?: string
-	indicatorIconClass?: string
 }>
 
 /** Arguments for a non-interactive label inside menu content. */
@@ -145,9 +141,7 @@ export type MenuSubArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'gap' |
 }> & FixedArgs<'gap' | 'onchange' | 'placement'>
 
 /** Arguments for the item that opens a nested Menu. */
-export type MenuSubTriggerArgs = MenuItemArgs & {
-	iconClass?: string
-}
+export type MenuSubTriggerArgs = MenuItemArgs
 /** Arguments for a nested Menu surface with system-owned positioning and semantics. */
 export type MenuSubContentArgs = MenuContentArgs
 
@@ -339,8 +333,6 @@ const choiceItem = (opts: {
 	children: Children
 	class?: string
 	disabled: boolean
-	indicatorClass?: string
-	indicatorIconClass?: string
 	label: string
 	action: (event: Event) => void
 	onClick: unknown
@@ -365,8 +357,8 @@ const choiceItem = (opts: {
 			set:onpointermove={highlight}
 			tabindex="-1"
 		>
-			<span class={opts.indicatorClass}>
-				{opts.checked ? <span aria-hidden="true" class={opts.indicatorIconClass} /> : null}
+			<span data-slot="menu-item-indicator">
+				{opts.checked ? <span aria-hidden="true" data-slot="menu-item-indicator-icon" /> : null}
 			</span>
 			{opts.children}
 		</div>
@@ -380,8 +372,6 @@ const MenuCheckboxItem: Stateless<MenuCheckboxItemArgs> = ({
 	class: classes,
 	'data-slot': slot = 'menu-checkbox-item',
 	disabled,
-	indicatorClass,
-	indicatorIconClass,
 	onCheckedChange,
 	textValue,
 	'set:onclick': onClick,
@@ -396,8 +386,6 @@ const MenuCheckboxItem: Stateless<MenuCheckboxItemArgs> = ({
 		children,
 		class: classes,
 		disabled: Boolean(disabled ?? menu?.disabled),
-		indicatorClass,
-		indicatorIconClass,
 		label: textValue ?? text(children),
 		action: event => onCheckedChange?.(!checkedFlag, event),
 		onClick,
@@ -442,8 +430,6 @@ const MenuRadioItem: Stateless<MenuRadioItemArgs> = ({
 	class: classes,
 	'data-slot': slot = 'menu-radio-item',
 	disabled,
-	indicatorClass,
-	indicatorIconClass,
 	textValue,
 	value,
 	'set:onclick': onClick,
@@ -459,8 +445,6 @@ const MenuRadioItem: Stateless<MenuRadioItemArgs> = ({
 		children,
 		class: classes,
 		disabled: Boolean(disabled ?? menu?.disabled),
-		indicatorClass,
-		indicatorIconClass,
 		label: textValue ?? text(children),
 		action: event => group?.change(itemValue, event),
 		onClick,
@@ -597,7 +581,6 @@ const MenuSubTrigger: Stateless<MenuSubTriggerArgs> = ({
 	class: classes,
 	'data-slot': slot = 'menu-sub-trigger',
 	disabled,
-	iconClass,
 	id,
 	inset,
 	ref,
@@ -659,7 +642,7 @@ const MenuSubTrigger: Stateless<MenuSubTriggerArgs> = ({
 			tabindex="-1"
 		>
 			{children}
-			<span aria-hidden="true" class={iconClass} />
+			<span aria-hidden="true" data-slot="menu-sub-trigger-icon" />
 		</div>
 	)
 }

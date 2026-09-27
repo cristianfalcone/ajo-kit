@@ -28,7 +28,7 @@ export type AlertDialogTriggerArgs = BaseDialogTriggerArgs
 export type AlertDialogContentArgs = OmitArg<
 	BaseDialogContentArgs,
 	'class' | 'onPointerDownOutside' | 'role'
-> & FixedArgs<'onPointerDownOutside' | 'role' | 'showCloseButton' | 'unstyled'> & {
+> & FixedArgs<'onPointerDownOutside' | 'role' | 'unstyled'> & {
 	/** Additional UnoCSS classes for the alert dialog panel. */
 	class?: string
 	/** Dialog width and layout density. */
@@ -94,7 +94,6 @@ const AlertDialogContent: Stateless<AlertDialogContentArgs> = ({
 		data-slot="alert-dialog-content"
 		onPointerDownOutside={event => event.preventDefault()}
 		role="alertdialog"
-		showCloseButton={false}
 		unstyled={false}
 	/>
 )

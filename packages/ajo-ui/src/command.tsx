@@ -38,8 +38,6 @@ export type CommandArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'onchan
 export type CommandInputArgs = OmitArg<IntrinsicElements['input'], 'onchange' | 'value'> & {
 	/** Additional UnoCSS classes. */
 	class?: string
-	iconClass?: string
-	wrapperClass?: string
 } & FixedArgs<'onchange' | 'value'>
 
 /** Arguments for the Command listbox container. */
@@ -62,7 +60,6 @@ export type CommandGroupArgs = WithChildren<IntrinsicElements['div'] & {
 	forceMount?: boolean
 	/** Additional UnoCSS classes. */
 	class?: string
-	headingClass?: string
 }>
 
 /** Arguments for a visual separator between command groups. */
@@ -229,10 +226,8 @@ const Command: Stateless<CommandArgs> = args => (
 const CommandInput: Stateless<CommandInputArgs> = ({
 	class: classes,
 	disabled,
-	iconClass,
 	placeholder = 'Type a command or search...',
 	type: _type,
-	wrapperClass,
 	'set:oninput': onInput,
 	...attrs
 }) => {
@@ -240,8 +235,8 @@ const CommandInput: Stateless<CommandInputArgs> = ({
 	const disabledFlag = Boolean(disabled ?? command?.disabled)
 
 	return (
-		<div class={wrapperClass} data-slot="command-input-wrapper">
-			<span aria-hidden="true" class={iconClass} />
+		<div data-slot="command-input-wrapper">
+			<span aria-hidden="true" data-slot="command-input-icon" />
 			<input
 				{...attrs}
 				aria-activedescendant={command?.activeId || undefined}
@@ -291,7 +286,6 @@ const CommandGroup: Stateless<CommandGroupArgs> = ({
 	class: classes,
 	forceMount,
 	heading,
-	headingClass,
 	...attrs
 }) => (
 	<div
@@ -301,7 +295,7 @@ const CommandGroup: Stateless<CommandGroupArgs> = ({
 		data-slot="command-group"
 		role="group"
 	>
-		{heading ? <div class={headingClass} data-slot="command-group-heading">{heading}</div> : null}
+		{heading ? <div data-slot="command-group-heading">{heading}</div> : null}
 		{children}
 	</div>
 )

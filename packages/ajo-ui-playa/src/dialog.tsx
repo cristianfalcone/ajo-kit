@@ -4,25 +4,26 @@ import {
 	Dialog as BaseDialog,
 	DialogClose as BaseDialogClose,
 	type DialogArgs,
+	type DialogCloseArgs,
 	DialogContent as BaseDialogContent,
 	type DialogContentArgs as BaseDialogContentArgs,
 	DialogDescription as BaseDialogDescription,
 	type DialogDescriptionArgs,
 	DialogFooter as BaseDialogFooter,
-	type DialogFooterArgs as BaseDialogFooterArgs,
+	type DialogFooterArgs,
 	DialogHeader as BaseDialogHeader,
 	type DialogHeaderArgs,
 	DialogTitle as BaseDialogTitle,
 	type DialogTitleArgs,
 } from 'ajo-ui/dialog'
-import { buttonVariants } from './button'
 import { modalCentered, modalClose, modalClosed, modalEnter, modalSurface } from './modal'
 
-export { DialogClose, DialogTrigger } from 'ajo-ui/dialog'
+export { DialogTrigger } from 'ajo-ui/dialog'
 export type {
 	DialogArgs,
 	DialogCloseArgs,
 	DialogDescriptionArgs,
+	DialogFooterArgs,
 	DialogHeaderArgs,
 	DialogSectionArgs,
 	DialogTitleArgs,
@@ -32,13 +33,6 @@ export type {
 export type DialogContentArgs = BaseDialogContentArgs & {
 	/** Skip the default centered dialog panel classes for composed primitives. */
 	unstyled?: boolean
-	/** Show the default top-right close button. */
-	showCloseButton?: boolean
-}
-
-export type DialogFooterArgs = BaseDialogFooterArgs & {
-	/** Add an outline close button after custom footer actions. */
-	showCloseButton?: boolean
 }
 
 const contentBase = clsx(
@@ -53,26 +47,18 @@ const Dialog: Stateless<DialogArgs> = ({ class: classes, ...attrs }) => (
 	<BaseDialog {...attrs} class={clsx('contents', classes)} />
 )
 
-/** Native modal dialog panel. */
-const DialogContent: Stateless<DialogContentArgs> = ({
-	children,
-	class: classes,
-	showCloseButton = true,
-	unstyled,
-	...attrs
-}) => (
-	<BaseDialogContent
-		{...attrs}
-		class={clsx(modalClosed, !unstyled && contentBase, classes)}
-	>
-		{children}
-		{showCloseButton ? (
-			<BaseDialogClose class={modalClose} aria-label="Close">
-				<span aria-hidden="true" class="i-lucide-x block size-4" />
-				<span class="sr-only">Close</span>
-			</BaseDialogClose>
-		) : null}
-	</BaseDialogContent>
+/** Native modal dialog panel; compose DialogClose inside it for a close control. */
+const DialogContent: Stateless<DialogContentArgs> = ({ class: classes, unstyled, ...attrs }) => (
+	<BaseDialogContent {...attrs} class={clsx(modalClosed, !unstyled && contentBase, classes)} />
+)
+
+/** Button that closes its dialog or drawer; with no children it renders the themed corner X labelled "Close". */
+const DialogClose: Stateless<DialogCloseArgs> = ({ children, class: classes, ...attrs }) => children == null ? (
+	<BaseDialogClose aria-label="Close" {...attrs} class={clsx(modalClose, classes)}>
+		<span aria-hidden="true" class="i-lucide-x block size-4" />
+	</BaseDialogClose>
+) : (
+	<BaseDialogClose {...attrs} class={classes}>{children}</BaseDialogClose>
 )
 
 /** Header area for dialog title and description. */
@@ -81,18 +67,8 @@ const DialogHeader: Stateless<DialogHeaderArgs> = ({ class: classes, ...attrs })
 )
 
 /** Footer area for dialog actions. */
-const DialogFooter: Stateless<DialogFooterArgs> = ({
-	children,
-	class: classes,
-	showCloseButton,
-	...attrs
-}) => (
-	<BaseDialogFooter {...attrs} class={clsx('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', classes)}>
-		{children}
-		{showCloseButton ? (
-			<BaseDialogClose class={buttonVariants({ variant: 'outline' })}>Close</BaseDialogClose>
-		) : null}
-	</BaseDialogFooter>
+const DialogFooter: Stateless<DialogFooterArgs> = ({ class: classes, ...attrs }) => (
+	<BaseDialogFooter {...attrs} class={clsx('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', classes)} />
 )
 
 /** Accessible title for DialogContent. */
@@ -107,6 +83,7 @@ const DialogDescription: Stateless<DialogDescriptionArgs> = ({ class: classes, .
 
 export {
 	Dialog,
+	DialogClose,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,

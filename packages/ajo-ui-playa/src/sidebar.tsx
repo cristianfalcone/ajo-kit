@@ -1,6 +1,6 @@
 import type { Stateless } from 'ajo'
 import clsx from 'clsx'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import type { OmitArg } from 'ajo-ui/utils'
 import {
 	Sidebar as BaseSidebar,
 	SidebarContent as BaseSidebarContent,
@@ -23,9 +23,9 @@ import {
 	SidebarMenuSubItem as BaseSidebarMenuSubItem,
 	SidebarProvider as BaseSidebarProvider,
 	SidebarTrigger as BaseSidebarTrigger,
+	type SidebarArgs,
 	type SidebarCollapsible,
 	type SidebarContextValue,
-	type SidebarArgs as BaseSidebarArgs,
 	type SidebarContentArgs,
 	type SidebarFooterArgs,
 	type SidebarGroupActionArgs,
@@ -39,7 +39,7 @@ import {
 	type SidebarMenuBadgeArgs,
 	type SidebarMenuButtonArgs as BaseSidebarMenuButtonArgs,
 	type SidebarMenuItemArgs,
-	type SidebarMenuSkeletonArgs as BaseSidebarMenuSkeletonArgs,
+	type SidebarMenuSkeletonArgs,
 	type SidebarMenuSubArgs,
 	type SidebarMenuSubButtonArgs as BaseSidebarMenuSubButtonArgs,
 	type SidebarMenuSubItemArgs,
@@ -55,6 +55,7 @@ import { scrollAreaVariants } from './internal/recipes'
 import { Separator, type SeparatorArgs } from './separator'
 
 export type {
+	SidebarArgs,
 	SidebarCollapsible,
 	SidebarContextValue,
 	SidebarContentArgs,
@@ -68,6 +69,7 @@ export type {
 	SidebarMenuArgs,
 	SidebarMenuBadgeArgs,
 	SidebarMenuItemArgs,
+	SidebarMenuSkeletonArgs,
 	SidebarMenuSubArgs,
 	SidebarMenuSubItemArgs,
 	SidebarProviderArgs,
@@ -84,10 +86,6 @@ export type SidebarMenuButtonVariant = 'default' | 'outline'
 export type SidebarMenuButtonSize = 'default' | 'lg' | 'sm'
 export type SidebarMenuSubButtonSize = 'md' | 'sm'
 
-export type SidebarArgs = OmitArg<BaseSidebarArgs, 'mobileContentClass'> & FixedArgs<'mobileContentClass'> & {
-	/** Additional UnoCSS classes for the mobile dialog; `class` stays desktop-only. */
-	mobileClass?: string
-}
 export type SidebarMenuButtonArgs = OmitArg<BaseSidebarMenuButtonArgs, 'size'> & {
 	variant?: SidebarMenuButtonVariant
 	size?: SidebarMenuButtonSize
@@ -95,7 +93,6 @@ export type SidebarMenuButtonArgs = OmitArg<BaseSidebarMenuButtonArgs, 'size'> &
 export type SidebarMenuActionArgs = BaseSidebarMenuActionArgs & {
 	showOnHover?: boolean
 }
-export type SidebarMenuSkeletonArgs = OmitArg<BaseSidebarMenuSkeletonArgs, 'iconClass' | 'textClass'> & FixedArgs<'iconClass' | 'textClass'>
 export type SidebarMenuSubButtonArgs = OmitArg<BaseSidebarMenuSubButtonArgs, 'size'> & {
 	size?: SidebarMenuSubButtonSize
 }
@@ -150,9 +147,9 @@ const Sidebar: Stateless<SidebarArgs> = ({
 		mobileClass={clsx(
 			'fixed inset-y-0 z-40 m-0 h-dvh max-h-none w-[var(--sidebar-width-mobile)] max-w-[calc(100vw-2rem)] border-0 glass-overlay edge p-0 shadow-lg backdrop:bg-black/20 backdrop:backdrop-blur-sm',
 			side === 'left' ? 'left-0' : 'right-0',
+			'*:data-[slot=sidebar-inner]:flex *:data-[slot=sidebar-inner]:h-full *:data-[slot=sidebar-inner]:w-full *:data-[slot=sidebar-inner]:flex-col',
 			mobileClass,
 		)}
-		mobileContentClass="flex h-full w-full flex-col"
 		side={side}
 		variant={variant}
 	/>
@@ -331,9 +328,12 @@ const SidebarMenuSkeleton: Stateless<SidebarMenuSkeletonArgs> = ({
 }) => (
 	<BaseSidebarMenuSkeleton
 		{...attrs}
-		class={clsx('flex h-8 animate-pulse items-center gap-2 rounded-md px-2 motion-reduce:animate-none', classes)}
-		iconClass="size-4 rounded-xs bg-muted"
-		textClass="h-4 flex-1 rounded-xs bg-muted"
+		class={clsx(
+			'flex h-8 animate-pulse items-center gap-2 rounded-md px-2 motion-reduce:animate-none',
+			'*:data-[slot=sidebar-menu-skeleton-icon]:size-4 *:data-[slot=sidebar-menu-skeleton-icon]:rounded-xs *:data-[slot=sidebar-menu-skeleton-icon]:bg-muted',
+			'*:data-[slot=sidebar-menu-skeleton-text]:h-4 *:data-[slot=sidebar-menu-skeleton-text]:flex-1 *:data-[slot=sidebar-menu-skeleton-text]:rounded-xs *:data-[slot=sidebar-menu-skeleton-text]:bg-muted',
+			classes,
+		)}
 	/>
 )
 

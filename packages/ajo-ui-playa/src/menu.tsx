@@ -14,46 +14,42 @@ import {
 } from 'ajo-ui/menu'
 import type {
 	MenuArgs,
-	MenuCheckboxItemArgs as BaseMenuCheckboxItemArgs,
+	MenuCheckboxItemArgs,
 	MenuContentArgs,
 	MenuGroupArgs,
 	MenuItemArgs,
 	MenuLabelArgs,
 	MenuRadioGroupArgs,
-	MenuRadioItemArgs as BaseMenuRadioItemArgs,
+	MenuRadioItemArgs,
 	MenuSeparatorArgs,
 	MenuShortcutArgs,
 	MenuSubArgs,
 	MenuSubContentArgs,
-	MenuSubTriggerArgs as BaseMenuSubTriggerArgs,
+	MenuSubTriggerArgs,
 	MenuTriggerArgs,
 	MenuVariant,
 } from 'ajo-ui/menu'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 import {
-	menuCheckIcon,
+	menuCheckIndicator,
 	menuChoiceRow,
 	menuContent,
-	menuIndicator,
 	menuItem,
 	menuLabel,
-	menuRadioIcon,
 	menuSeparator,
 	menuShortcut,
-	menuSubTriggerIcon,
 	menuSubTriggerOpen,
 } from './internal/recipes'
 
 export { MenuGroup, MenuRadioGroup, MenuSub, MenuTrigger } from 'ajo-ui/menu'
 
-export type { MenuArgs, MenuContentArgs, MenuGroupArgs, MenuItemArgs, MenuLabelArgs, MenuRadioGroupArgs, MenuSeparatorArgs, MenuShortcutArgs, MenuSubArgs, MenuSubContentArgs, MenuTriggerArgs, MenuVariant }
+export type { MenuArgs, MenuCheckboxItemArgs, MenuContentArgs, MenuGroupArgs, MenuItemArgs, MenuLabelArgs, MenuRadioGroupArgs, MenuRadioItemArgs, MenuSeparatorArgs, MenuShortcutArgs, MenuSubArgs, MenuSubContentArgs, MenuSubTriggerArgs, MenuTriggerArgs, MenuVariant }
 export type { PopupPlacement, PopupPosition } from 'ajo-ui/menu'
-export type MenuCheckboxItemArgs = OmitArg<BaseMenuCheckboxItemArgs, 'indicatorClass' | 'indicatorIconClass'> & FixedArgs<'indicatorClass' | 'indicatorIconClass'>
-export type MenuRadioItemArgs = OmitArg<BaseMenuRadioItemArgs, 'indicatorClass' | 'indicatorIconClass'> & FixedArgs<'indicatorClass' | 'indicatorIconClass'>
-export type MenuSubTriggerArgs = OmitArg<BaseMenuSubTriggerArgs, 'iconClass'> & FixedArgs<'iconClass'>
 
 const rootBase = 'playa-menu-root'
 const contentBase = menuContent()
+// The radio indicator and the submenu chevron are base-owned nodes, themed by slot.
+const radioIndicator = '*:data-[slot=menu-item-indicator]:playa-menu-indicator **:data-[slot=menu-item-indicator-icon]:playa-menu-radio-icon'
+const subTriggerIcon = '*:data-[slot=menu-sub-trigger-icon]:playa-menu-sub-trigger-icon'
 
 /** Root provider for a menu. */
 const Menu: Stateless<MenuArgs> = ({ class: classes, ...attrs }) => (
@@ -77,23 +73,12 @@ const MenuItem: Stateless<MenuItemArgs> = ({ class: classes, ...attrs }) => (
 
 /** Checkable menu item. */
 const MenuCheckboxItem: Stateless<MenuCheckboxItemArgs> = ({ class: classes, ...attrs }) => (
-	<BaseMenuCheckboxItem
-		{...attrs}
-		class={clsx(menuChoiceRow, classes)}
-		indicatorClass={menuIndicator}
-		indicatorIconClass={menuCheckIcon}
-	/>
+	<BaseMenuCheckboxItem {...attrs} class={clsx(menuChoiceRow, menuCheckIndicator, classes)} />
 )
 
 /** Radio item inside a menu radio group. */
 const MenuRadioItem: Stateless<MenuRadioItemArgs> = ({ class: classes, value, ...attrs }) => (
-	<BaseMenuRadioItem
-		{...attrs}
-		class={clsx(menuChoiceRow, classes)}
-		indicatorClass={menuIndicator}
-		indicatorIconClass={menuRadioIcon}
-		value={String(value)}
-	/>
+	<BaseMenuRadioItem {...attrs} class={clsx(menuChoiceRow, radioIndicator, classes)} value={String(value)} />
 )
 
 /** Visual separator between menu groups. */
@@ -108,11 +93,7 @@ const MenuShortcut: Stateless<MenuShortcutArgs> = ({ class: classes, ...attrs })
 
 /** Trigger item that opens a submenu. */
 const MenuSubTrigger: Stateless<MenuSubTriggerArgs> = ({ class: classes, ...attrs }) => (
-	<BaseMenuSubTrigger
-		{...attrs}
-		class={clsx(menuItem, menuSubTriggerOpen, classes)}
-		iconClass={menuSubTriggerIcon}
-	/>
+	<BaseMenuSubTrigger {...attrs} class={clsx(menuItem, menuSubTriggerOpen, subTriggerIcon, classes)} />
 )
 
 /** Content for a submenu. */

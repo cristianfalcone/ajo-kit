@@ -56,7 +56,6 @@ export type SelectArgs<Multiple extends boolean = false> = WithChildren<OmitArg<
 export type SelectTriggerArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
-	iconClass?: string
 }>
 
 /** Props for rendering the current selection or its placeholder. */
@@ -75,17 +74,12 @@ export type SelectInputArgs = WithChildren<OmitArg<IntrinsicElements['input'], '
 	triggerLabel?: string
 	/** Additional UnoCSS classes for the input group. */
 	class?: string
-	addonClass?: string
-	buttonClass?: string
-	buttonIconClass?: string
-	inputClass?: string
 }> & FixedArgs<'onchange' | 'value'>
 
 /** Props for the button that clears the current selection. */
 export type SelectClearArgs = WithChildren<IntrinsicElements['button'] & {
 	/** Additional UnoCSS classes. */
 	class?: string
-	iconClass?: string
 }>
 
 /** Props for the select popup; positioning and native semantics belong to Select. */
@@ -118,8 +112,6 @@ export type SelectItemArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'id'
 	onSelect?: (value: string, event: Event) => void
 	/** Additional UnoCSS classes. */
 	class?: string
-	indicatorClass?: string
-	indicatorIconClass?: string
 }> & FixedArgs<'id'>
 
 /** Props for grouping related select options. */
@@ -172,8 +164,6 @@ export type SelectChipArgs = WithChildren<IntrinsicElements['span'] & {
 	removeLabel?: string
 	/** Additional UnoCSS classes. */
 	class?: string
-	removeClass?: string
-	removeIconClass?: string
 }>
 
 /** Props for the search input composed inside a chip collection. */
@@ -742,7 +732,6 @@ const SelectTrigger: Stateless<SelectTriggerArgs> = ({
 	children,
 	class: classes,
 	disabled,
-	iconClass,
 	id: idArg,
 	ref,
 	type = 'button',
@@ -784,7 +773,7 @@ const SelectTrigger: Stateless<SelectTriggerArgs> = ({
 			type={type}
 		>
 			{children}
-			<span aria-hidden="true" class={iconClass} data-slot="select-icon" />
+			<span aria-hidden="true" data-slot="select-icon" />
 		</button>
 	)
 }
@@ -851,13 +840,9 @@ const inputAttrs = (select: SelectContextValue | null, { disabled, onInput, ref 
 /** Input field or in-popup search box for a Select; children sit in its inline-end addon before the trigger. Inside a Field its input is the field's control. */
 const SelectInput: Stateless<SelectInputArgs> = ({
 	children,
-	addonClass,
-	buttonClass,
-	buttonIconClass,
 	class: classes,
 	disabled,
 	id: idArg,
-	inputClass,
 	ref,
 	showTrigger = true,
 	triggerLabel = 'Show options',
@@ -890,25 +875,23 @@ const SelectInput: Stateless<SelectInputArgs> = ({
 				{...field?.controlAttrs}
 				{...attrs}
 				{...inputAttrs(select, { disabled, onInput, ref })}
-				class={inputClass}
 				data-slot="select-input"
 				id={idArg ?? field?.ids.control ?? select?.inputId}
 				set:value={shown}
 			/>
-			<InputGroupAddon align="inline-end" class={addonClass}>
+			<InputGroupAddon align="inline-end">
 				{children}
 				{showTrigger ? (
 					<InputGroupButton
 						aria-controls={select?.listId}
 						aria-expanded={select?.open ? 'true' : 'false'}
 						aria-label={triggerLabel}
-						class={buttonClass}
 						data-slot="select-input-trigger"
 						disabled={disabledFlag}
 						set:onclick={(event: Event) => select?.setOpen(!select?.open, event)}
 						type="button"
 					>
-						<span aria-hidden="true" class={buttonIconClass} />
+						<span aria-hidden="true" data-slot="select-input-trigger-icon" />
 					</InputGroupButton>
 				) : null}
 			</InputGroupAddon>
@@ -921,7 +904,6 @@ const SelectClear: Stateless<SelectClearArgs> = ({
 	children,
 	class: classes,
 	disabled,
-	iconClass,
 	type = 'button',
 	'set:onclick': onClick,
 	...attrs
@@ -945,7 +927,7 @@ const SelectClear: Stateless<SelectClearArgs> = ({
 			}}
 			type={type}
 		>
-			{children ?? <span aria-hidden="true" class={iconClass} />}
+			{children ?? <span aria-hidden="true" data-slot="select-clear-icon" />}
 		</button>
 	)
 }
@@ -997,8 +979,6 @@ const SelectItem: Stateless<SelectItemArgs> = ({
 	children,
 	disabled,
 	forceMount,
-	indicatorClass,
-	indicatorIconClass,
 	keywords = [],
 	onSelect,
 	textValue,
@@ -1040,8 +1020,8 @@ const SelectItem: Stateless<SelectItemArgs> = ({
 			tabindex={disabledFlag ? undefined : '-1'}
 		>
 			{children}
-			<span aria-hidden="true" class={indicatorClass} data-selected={selected ? 'true' : 'false'} data-slot="select-item-indicator">
-				<span class={indicatorIconClass} />
+			<span aria-hidden="true" data-selected={selected ? 'true' : 'false'} data-slot="select-item-indicator">
+				<span data-slot="select-item-indicator-icon" />
 			</span>
 		</div>
 	)
@@ -1115,9 +1095,7 @@ const SelectChips: Stateless<SelectChipsArgs> = ({
 const SelectChip: Stateless<SelectChipArgs> = ({
 	children,
 	class: classes,
-	removeClass,
 	removeLabel,
-	removeIconClass,
 	value,
 	...attrs
 }) => {
@@ -1129,7 +1107,6 @@ const SelectChip: Stateless<SelectChipArgs> = ({
 			{children}
 			<button
 				aria-label={removeLabel ?? `Remove ${key}`}
-				class={removeClass}
 				data-slot="select-chip-remove"
 				disabled={select?.disabled}
 				tabindex="-1"
@@ -1139,7 +1116,7 @@ const SelectChip: Stateless<SelectChipArgs> = ({
 					select?.remove(key, event)
 				}}
 			>
-				<span aria-hidden="true" class={removeIconClass} />
+				<span aria-hidden="true" data-slot="select-chip-remove-icon" />
 			</button>
 		</span>
 	)

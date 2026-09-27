@@ -4,6 +4,7 @@ import type { Meta, Story } from './app'
 import Button, { buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Dialog,
+	DialogClose,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -153,7 +154,10 @@ const AboveModalDemo: Stateful = function* () {
 						<DialogDescription>Toasts fired around this modal must stay above it in the top layer.</DialogDescription>
 					</DialogHeader>
 					<Button type="button" variant="outline" set:onclick={inside}>Toast From Dialog</Button>
-					<DialogFooter showCloseButton />
+					<DialogFooter>
+						<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
+					</DialogFooter>
+					<DialogClose />
 				</DialogContent>
 			</Dialog>
 			<Toaster duration={0} />

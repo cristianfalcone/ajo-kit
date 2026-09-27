@@ -16,6 +16,7 @@ import {
 } from 'ajo-ui-playa/command'
 import {
 	Dialog as UiDialog,
+	DialogClose as UiDialogClose,
 	DialogContent as UiDialogContent,
 	DialogDescription as UiDialogDescription,
 	DialogTitle as UiDialogTitle,
@@ -248,6 +249,7 @@ const TriggeredCommandDialogExample = () => (
 			<Command>
 				<DialogCommands />
 			</Command>
+			<UiDialogClose />
 		</UiDialogContent>
 	</UiDialog>
 )

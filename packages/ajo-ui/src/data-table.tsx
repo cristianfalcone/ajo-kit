@@ -107,8 +107,6 @@ type DataTableClassName =
 	| 'checkbox_input'
 	| 'menu'
 	| 'menu_content'
-	| 'menu_indicator'
-	| 'menu_indicator_icon'
 	| 'menu_item'
 	| 'menu_label'
 	| 'menu_separator'
@@ -373,8 +371,6 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 													key={option.value}
 													checked={column.active.includes(option.value)}
 													class={classNames.menu_item}
-													indicatorClass={classNames.menu_indicator}
-													indicatorIconClass={classNames.menu_indicator_icon}
 													onCheckedChange={checked => {
 														announceAfterRender = 'immediate'
 														model.setFacet(column.id, option.value, checked)
@@ -420,8 +416,6 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 											checked={column.visible}
 											class={classNames.menu_item}
 											disabled={column.visible && visibleCount === 1}
-											indicatorClass={classNames.menu_indicator}
-											indicatorIconClass={classNames.menu_indicator_icon}
 											onCheckedChange={checked => model.toggleColumn(column.id, checked)}
 											textValue={column.column.label}
 										>

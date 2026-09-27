@@ -24,7 +24,6 @@ export default {
 		trigger: 'Open Dialog',
 		title: 'Edit profile',
 		description: "Make changes to your profile here. Click save when you're done.",
-		showCloseButton: true,
 	},
 	parameters: {
 		docs: { description: 'Native HTMLDialogElement dialog with Ajo Kit composition, accessible title/description, Escape handling, and controlled/uncontrolled state.' },
@@ -61,19 +60,21 @@ const ControlledExample: Stateful<Args> = function* () {
 	let open = false
 	const setOpen = (next: boolean) => this.next(() => open = next)
 
-	for (const { defaultOpen: _defaultOpen, description, showCloseButton, title, trigger, ...args } of this) yield (
+	for (const { defaultOpen: _defaultOpen, description, title, trigger, ...args } of this) yield (
 		<div class="grid gap-3">
 			<Button type="button" variant="outline" set:onclick={() => setOpen(true)}>{trigger}</Button>
 			<p class="text-sm text-muted-foreground">Open: {open ? 'yes' : 'no'}</p>
 			<Dialog {...args} open={open} onOpenChange={setOpen}>
-				<DialogContent showCloseButton={showCloseButton}>
+				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>{title}</DialogTitle>
 						<DialogDescription>{description}</DialogDescription>
 					</DialogHeader>
-					<DialogFooter showCloseButton>
+					<DialogFooter>
 						<Button type="button" set:onclick={() => setOpen(false)}>Done</Button>
+						<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
 					</DialogFooter>
+					<DialogClose />
 				</DialogContent>
 			</Dialog>
 		</div>
@@ -81,15 +82,16 @@ const ControlledExample: Stateful<Args> = function* () {
 }
 
 export const Basic: Story<typeof Dialog> = {
-	render: ({ description, showCloseButton, title, trigger, ...args }) => (
+	render: ({ description, title, trigger, ...args }) => (
 		<Dialog {...args}>
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				{trigger}
 			</DialogTrigger>
-			<DialogContent class="sm:max-w-[425px]" showCloseButton={showCloseButton}>
+			<DialogContent class="sm:max-w-[425px]">
 				<form class="grid gap-4">
 					<DemoForm title={title} description={description} />
 				</form>
+				<DialogClose />
 			</DialogContent>
 		</Dialog>
 	),
@@ -164,12 +166,12 @@ export const Invite: Story<typeof Dialog> = {
 		title: 'Invite collaborators',
 		description: 'Share access with teammates who should review this workspace.',
 	},
-	render: ({ description, showCloseButton, title, trigger, ...args }) => (
+	render: ({ description, title, trigger, ...args }) => (
 		<Dialog {...args}>
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				{trigger}
 			</DialogTrigger>
-			<DialogContent showCloseButton={showCloseButton}>
+			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription>{description}</DialogDescription>
@@ -178,9 +180,11 @@ export const Invite: Story<typeof Dialog> = {
 					<Label for="dialog-email">Email</Label>
 					<Input id="dialog-email" type="email" placeholder="name@example.com" />
 				</div>
-				<DialogFooter showCloseButton>
+				<DialogFooter>
 					<Button type="button">Send invite</Button>
+					<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
 				</DialogFooter>
+				<DialogClose />
 			</DialogContent>
 		</Dialog>
 	),
@@ -247,21 +251,21 @@ export const NoDefaultCloseButton: Story<typeof Dialog> = {
 	args: {
 		trigger: 'Open custom close dialog',
 		title: 'Custom footer close',
-		description: 'The top-right close affordance is omitted, but composed footer actions can still close the dialog.',
-		showCloseButton: false,
+		description: 'No top-right close is composed; the footer action closes the dialog.',
 	},
-	render: ({ description, showCloseButton, title, trigger, ...args }) => (
+	render: ({ description, title, trigger, ...args }) => (
 		<Dialog {...args}>
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				{trigger}
 			</DialogTrigger>
-			<DialogContent showCloseButton={showCloseButton}>
+			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription>{description}</DialogDescription>
 				</DialogHeader>
-				<DialogFooter showCloseButton>
+				<DialogFooter>
 					<Button type="button">Confirm</Button>
+					<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
@@ -279,7 +283,7 @@ export const NoDefaultCloseButton: Story<typeof Dialog> = {
 
 		const closes = dialog.querySelectorAll('[data-slot="dialog-close"]')
 		if (!dialog.open) throw new Error('Dialog without default close button did not open')
-		if (closes.length !== 1) throw new Error('Dialog rendered an unexpected default close button')
+		if (closes.length !== 1) throw new Error('Dialog rendered a close button that was not composed')
 
 		const close = closes[0] as HTMLButtonElement | undefined
 		if (!close) throw new Error('Dialog footer close button was not rendered')
@@ -296,13 +300,12 @@ export const PreventEscape: Story<typeof Dialog> = {
 		title: 'Unsaved changes',
 		description: 'Escape is prevented so the dialog can require an explicit action.',
 	},
-	render: ({ description, showCloseButton, title, trigger, ...args }) => (
+	render: ({ description, title, trigger, ...args }) => (
 		<Dialog {...args}>
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				{trigger}
 			</DialogTrigger>
 			<DialogContent
-				showCloseButton={showCloseButton}
 				set:onkeydown={(event: KeyboardEvent) => {
 					if (event.key === 'Escape') event.preventDefault()
 				}}
@@ -311,7 +314,10 @@ export const PreventEscape: Story<typeof Dialog> = {
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription>{description}</DialogDescription>
 				</DialogHeader>
-				<DialogFooter showCloseButton />
+				<DialogFooter>
+					<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
+				</DialogFooter>
+				<DialogClose />
 			</DialogContent>
 		</Dialog>
 	),

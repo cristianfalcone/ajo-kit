@@ -22,7 +22,6 @@ export default {
 		defaultOpen: false,
 		modal: true,
 		side: 'right',
-		showCloseButton: true,
 		trigger: 'Open',
 		title: 'Edit profile',
 		description: "Make changes to your profile here. Click save when you're done.",
@@ -51,8 +50,8 @@ const settle = async (element: Element) => {
 }
 
 const closeButton = (drawer: HTMLDialogElement) => {
-	const close = drawer.querySelector<HTMLButtonElement>('[data-slot="drawer-close"][aria-label="Close"]')
-	if (!close) throw new Error('Drawer default close button was not rendered')
+	const close = drawer.querySelector<HTMLButtonElement>('[data-slot="dialog-close"][aria-label="Close"]')
+	if (!close) throw new Error('Drawer composed close button was not rendered')
 	return close
 }
 
@@ -63,7 +62,7 @@ const assertCloseButton = (drawer: HTMLDialogElement) => {
 	const iconRect = icon?.getBoundingClientRect()
 
 	if (closeRect.width < 24 || closeRect.height < 24 || !iconRect || iconRect.width < 12 || iconRect.height < 12) {
-		throw new Error('Drawer default close button or icon has no clickable box')
+		throw new Error('Drawer composed close button or icon has no clickable box')
 	}
 
 	return close
@@ -196,8 +195,8 @@ const ProfileFields = () => (
 	</div>
 )
 
-const ProfileContent = ({ description, showCloseButton = true, title }: Args) => (
-	<DrawerContent showCloseButton={showCloseButton}>
+const ProfileContent = ({ description, title }: Args) => (
+	<DrawerContent>
 		<DrawerHeader>
 			<DrawerTitle>{title}</DrawerTitle>
 			<DrawerDescription>{description}</DrawerDescription>
@@ -207,6 +206,7 @@ const ProfileContent = ({ description, showCloseButton = true, title }: Args) =>
 			<Button type="submit">Save changes</Button>
 			<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
 		</DrawerFooter>
+		<DialogClose />
 	</DrawerContent>
 )
 
@@ -224,6 +224,7 @@ const NavigationContent = () => (
 		<DrawerFooter>
 			<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
 		</DrawerFooter>
+		<DialogClose />
 	</>
 )
 
@@ -231,24 +232,24 @@ const ControlledExample: Stateful<Args> = function* () {
 	let open = false
 	const setOpen = (next: boolean) => this.next(() => open = next)
 
-	for (const { defaultOpen: _defaultOpen, description, showCloseButton, side, title, trigger, ...args } of this) yield (
+	for (const { defaultOpen: _defaultOpen, description, side, title, trigger, ...args } of this) yield (
 		<div class="grid gap-3">
 			<Button type="button" variant="outline" set:onclick={() => setOpen(true)}>{trigger}</Button>
 			<p class="text-sm text-muted-foreground">Open: {open ? 'yes' : 'no'}</p>
 			<Drawer {...args} side={side} open={open} onOpenChange={setOpen}>
-				<ProfileContent showCloseButton={showCloseButton} title={title} description={description} />
+				<ProfileContent title={title} description={description} />
 			</Drawer>
 		</div>
 	)
 }
 
 export const Basic: Story<typeof Drawer> = {
-	render: ({ description, showCloseButton, side, title, trigger, ...args }) => (
+	render: ({ description, side, title, trigger, ...args }) => (
 		<Drawer {...args} side={side}>
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				{trigger}
 			</DialogTrigger>
-			<ProfileContent showCloseButton={showCloseButton} title={title} description={description} />
+			<ProfileContent title={title} description={description} />
 		</Drawer>
 	),
 	play: async ({ canvas }) => {
@@ -296,14 +297,14 @@ export const Sides: Story<typeof Drawer> = {
 		side: { control: false },
 		trigger: { control: false },
 	},
-	render: ({ defaultOpen: _defaultOpen, description, showCloseButton, side: _side, title, trigger: _trigger, ...args }) => (
+	render: ({ defaultOpen: _defaultOpen, description, side: _side, title, trigger: _trigger, ...args }) => (
 		<div class="grid grid-cols-2 gap-2">
 			{sides.map(side => (
 				<Drawer key={side} {...args} side={side}>
 					<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 						{side}
 					</DialogTrigger>
-					<ProfileContent showCloseButton={showCloseButton} title={title} description={description} />
+					<ProfileContent title={title} description={description} />
 				</Drawer>
 			))}
 		</div>
@@ -356,7 +357,7 @@ export const Controlled: Story<typeof Drawer> = {
 			throw new Error('Controlled Drawer did not open')
 		}
 
-		const close = canvas.querySelector<HTMLButtonElement>('[data-slot="drawer-close"]')
+		const close = canvas.querySelector<HTMLButtonElement>('[data-slot="dialog-close"][aria-label="Close"]')
 		if (!close) throw new Error('Controlled Drawer close button was not rendered')
 		close.click()
 		await frame()
@@ -372,14 +373,13 @@ export const NoCloseButton: Story<typeof Drawer> = {
 		trigger: 'Open notifications',
 		title: 'Notifications',
 		description: 'Review updates from this workspace.',
-		showCloseButton: false,
 	},
-	render: ({ description, showCloseButton, side, title, trigger, ...args }) => (
+	render: ({ description, side, title, trigger, ...args }) => (
 		<Drawer {...args} side={side}>
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				{trigger}
 			</DialogTrigger>
-			<DrawerContent showCloseButton={showCloseButton}>
+			<DrawerContent>
 				<DrawerHeader>
 					<DrawerTitle>{title}</DrawerTitle>
 					<DrawerDescription>{description}</DrawerDescription>
@@ -407,7 +407,7 @@ export const NoCloseButton: Story<typeof Drawer> = {
 
 		const closes = drawer.querySelectorAll('[data-slot="dialog-close"]')
 		if (!drawer.open) throw new Error('Drawer did not open from trigger')
-		if (drawer.querySelector('[data-slot="drawer-close"]') || closes.length !== 1) throw new Error('Drawer rendered an unexpected default close button')
+		if (closes.length !== 1) throw new Error('Drawer rendered a close button that was not composed')
 
 		const close = closes[0] as HTMLButtonElement | undefined
 		if (!close) throw new Error('Drawer footer close button was not rendered')

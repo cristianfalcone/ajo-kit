@@ -14,8 +14,8 @@ import type {
 	CommandArgs,
 	CommandEmptyArgs,
 	CommandFilter,
-	CommandGroupArgs as BaseCommandGroupArgs,
-	CommandInputArgs as BaseCommandInputArgs,
+	CommandGroupArgs,
+	CommandInputArgs,
 	CommandItemArgs,
 	CommandListArgs,
 	CommandSeparatorArgs,
@@ -23,17 +23,17 @@ import type {
 } from 'ajo-ui/command'
 import {
 	Dialog,
-	DialogClose,
 	DialogContent,
 	DialogDescription,
 	DialogTitle,
 	type DialogContentArgs,
 } from 'ajo-ui/dialog'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import type { OmitArg } from 'ajo-ui/utils'
+import { DialogClose } from './dialog'
 import { menuItem, menuShortcut, scrollAreaVariants } from './internal/recipes'
-import { modalCentered, modalClose, modalClosed, modalEnter, modalSurface } from './modal'
+import { modalCentered, modalClosed, modalEnter, modalSurface } from './modal'
 
-export type { CommandArgs, CommandEmptyArgs, CommandFilter, CommandItemArgs, CommandListArgs, CommandSeparatorArgs, CommandShortcutArgs }
+export type { CommandArgs, CommandEmptyArgs, CommandFilter, CommandGroupArgs, CommandInputArgs, CommandItemArgs, CommandListArgs, CommandSeparatorArgs, CommandShortcutArgs }
 /** Arguments for a native dialog that owns a Command palette. */
 export type CommandDialogArgs = WithChildren<OmitArg<IntrinsicElements['dialog'], 'open'> & {
 	/** Controlled dialog open state. */
@@ -48,15 +48,11 @@ export type CommandDialogArgs = WithChildren<OmitArg<IntrinsicElements['dialog']
 	title?: string
 	/** Accessible dialog description. */
 	description?: string
-	/** Show the default close button. */
-	showCloseButton?: boolean
-	/** Accessible label for the default close button. */
+	/** Accessible label for the close button. */
 	closeLabel?: string
 	/** Additional UnoCSS classes for the dialog panel. */
 	class?: string
 }>
-export type CommandInputArgs = OmitArg<BaseCommandInputArgs, 'iconClass' | 'wrapperClass'> & FixedArgs<'iconClass' | 'wrapperClass'>
-export type CommandGroupArgs = OmitArg<BaseCommandGroupArgs, 'headingClass'> & FixedArgs<'headingClass'>
 
 const base = 'flex h-full w-full flex-col overflow-hidden rounded-md text-popover-foreground'
 const dialogBase = clsx(
@@ -68,6 +64,13 @@ const dialogBase = clsx(
 )
 const dialogCommandBase = '**:data-[slot=command-input-wrapper]:h-12 [&_[data-slot=command-input-wrapper]_svg]:size-5 [&_[data-slot=command-input]]:h-12 [&_[data-slot=command-item]]:px-2 [&_[data-slot=command-item]]:py-3 [&_[data-slot=command-item]_svg]:size-5'
 const inputBase = 'flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50'
+// The input's wrapper and search icon, and a group's heading, are base-owned
+// nodes themed through their slots from the Command root.
+const slotBase = [
+	'[&_:where([data-slot=command-input-wrapper])]:flex [&_:where([data-slot=command-input-wrapper])]:h-9 [&_:where([data-slot=command-input-wrapper])]:items-center [&_:where([data-slot=command-input-wrapper])]:gap-2 [&_:where([data-slot=command-input-wrapper])]:border-b [&_:where([data-slot=command-input-wrapper])]:px-3',
+	'[&_:where([data-slot=command-input-icon])]:i-lucide-search [&_:where([data-slot=command-input-icon])]:size-4 [&_:where([data-slot=command-input-icon])]:shrink-0 [&_:where([data-slot=command-input-icon])]:opacity-50',
+	'[&_:where([data-slot=command-group-heading])]:px-2 [&_:where([data-slot=command-group-heading])]:py-1.5 [&_:where([data-slot=command-group-heading])]:text-xs [&_:where([data-slot=command-group-heading])]:font-medium [&_:where([data-slot=command-group-heading])]:text-muted-foreground',
+].join(' ')
 const listBase = clsx(scrollAreaVariants({ axis: 'y' }), 'max-h-[300px] scroll-py-1')
 // Shares the menu row token: command speaks the same data-highlighted/
 // data-disabled vocabulary; the token's focus/inset/danger selectors never
@@ -76,7 +79,7 @@ const itemBase = menuItem
 
 /** Searchable command menu. */
 const Command: Stateless<CommandArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommand {...attrs} class={clsx(base, classes)} />
+	<BaseCommand {...attrs} class={clsx(base, slotBase, classes)} />
 )
 
 /** Native dialog wrapper for a Command palette; keep it open on Escape by preventing the Escape keydown. */
@@ -88,7 +91,6 @@ const CommandDialog: Stateless<CommandDialogArgs> = ({
 	description = 'Search for a command to run...',
 	onOpenChange,
 	open,
-	showCloseButton = true,
 	title = 'Command Palette',
 	...attrs
 }) => (
@@ -98,11 +100,7 @@ const CommandDialog: Stateless<CommandDialogArgs> = ({
 				<DialogTitle>{title}</DialogTitle>
 				<DialogDescription>{description}</DialogDescription>
 			</div>
-			{showCloseButton ? (
-				<DialogClose aria-label={closeLabel} class={modalClose}>
-					<span aria-hidden="true" class="i-lucide-x block size-4" />
-				</DialogClose>
-			) : null}
+			<DialogClose aria-label={closeLabel} />
 			<Command class={dialogCommandBase}>
 				{children}
 			</Command>
@@ -112,12 +110,7 @@ const CommandDialog: Stateless<CommandDialogArgs> = ({
 
 /** Search input for a Command menu. */
 const CommandInput: Stateless<CommandInputArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommandInput
-		{...attrs}
-		class={clsx(inputBase, classes)}
-		iconClass="i-lucide-search size-4 shrink-0 opacity-50"
-		wrapperClass="flex h-9 items-center gap-2 border-b px-3"
-	/>
+	<BaseCommandInput {...attrs} class={clsx(inputBase, classes)} />
 )
 
 /** Scrollable list for command options. */
@@ -132,11 +125,7 @@ const CommandEmpty: Stateless<CommandEmptyArgs> = ({ class: classes, ...attrs })
 
 /** Group of related command items. */
 const CommandGroup: Stateless<CommandGroupArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommandGroup
-		{...attrs}
-		class={clsx('overflow-hidden p-1 text-foreground', classes)}
-		headingClass="px-2 py-1.5 text-xs font-medium text-muted-foreground"
-	/>
+	<BaseCommandGroup {...attrs} class={clsx('overflow-hidden p-1 text-foreground', classes)} />
 )
 
 /** Visual separator between command groups. */

@@ -1,6 +1,6 @@
 import type { Stateless } from 'ajo'
 import clsx from 'clsx'
-import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
+import type { OmitArg } from 'ajo-ui/utils'
 import {
 	Select as BaseSelect,
 	SelectChip as BaseSelectChip,
@@ -20,17 +20,17 @@ import {
 } from 'ajo-ui/select'
 import type {
 	SelectArgs,
-	SelectChipArgs as BaseSelectChipArgs,
+	SelectChipArgs,
 	SelectChipsArgs,
 	SelectChipsInputArgs,
-	SelectClearArgs as BaseSelectClearArgs,
+	SelectClearArgs,
 	SelectContentArgs,
 	SelectCreateArgs,
 	SelectEmptyArgs,
 	SelectFilter,
 	SelectGroupArgs,
-	SelectInputArgs as BaseSelectInputArgs,
-	SelectItemArgs as BaseSelectItemArgs,
+	SelectInputArgs,
+	SelectItemArgs,
 	SelectLabelArgs,
 	SelectListArgs,
 	SelectSeparatorArgs,
@@ -40,21 +40,17 @@ import type {
 } from 'ajo-ui/select'
 import { buttonVariants } from './button'
 import { chipVariants } from './chip'
-import { inputGroupAddon, inputGroupAddonAlign, inputGroupInput, inputGroupVariants } from './internal/recipes'
+import { inputGroupVariants } from './internal/recipes'
 export { SelectGroup, SelectValue } from 'ajo-ui/select'
 export type { PopupPlacement, PopupPosition } from 'ajo-ui/select'
 
-export type { SelectArgs, SelectChipsArgs, SelectChipsInputArgs, SelectContentArgs, SelectCreateArgs, SelectEmptyArgs, SelectFilter, SelectGroupArgs, SelectLabelArgs, SelectListArgs, SelectSeparatorArgs, SelectStatusArgs, SelectValueArgs }
+export type { SelectArgs, SelectChipArgs, SelectChipsArgs, SelectChipsInputArgs, SelectClearArgs, SelectContentArgs, SelectCreateArgs, SelectEmptyArgs, SelectFilter, SelectGroupArgs, SelectInputArgs, SelectItemArgs, SelectLabelArgs, SelectListArgs, SelectSeparatorArgs, SelectStatusArgs, SelectValueArgs }
 /** Visual size of the Playa select trigger. */
 export type SelectSize = 'default' | 'sm'
-export type SelectTriggerArgs = OmitArg<BaseSelectTriggerArgs, 'iconClass' | 'size'> & FixedArgs<'iconClass'> & {
+export type SelectTriggerArgs = OmitArg<BaseSelectTriggerArgs, 'size'> & {
 	/** Trigger height, stamped as `data-size`. */
 	size?: SelectSize
 }
-export type SelectClearArgs = OmitArg<BaseSelectClearArgs, 'iconClass'> & FixedArgs<'iconClass'>
-export type SelectInputArgs = OmitArg<BaseSelectInputArgs, 'addonClass' | 'buttonClass' | 'buttonIconClass' | 'inputClass'> & FixedArgs<'addonClass' | 'buttonClass' | 'buttonIconClass' | 'inputClass'>
-export type SelectItemArgs = OmitArg<BaseSelectItemArgs, 'indicatorClass' | 'indicatorIconClass'> & FixedArgs<'indicatorClass' | 'indicatorIconClass'>
-export type SelectChipArgs = OmitArg<BaseSelectChipArgs, 'removeClass' | 'removeIconClass'> & FixedArgs<'removeClass' | 'removeIconClass'>
 
 const rootBase = 'playa-select-root'
 const triggerBase = 'playa-select-trigger'
@@ -66,13 +62,14 @@ const triggerBase = 'playa-select-trigger'
 const contentBase = 'playa-select-content'
 const listBase = 'playa-select-list'
 const itemBase = 'playa-select-item'
-const indicatorClass = 'playa-select-indicator'
-const indicatorIconClass = 'playa-select-indicator-icon'
 const chipsBase = 'playa-select-chips'
 const chipInputBase = 'playa-select-chips-input'
-const inputButtonBase = clsx(buttonVariants({ size: 'none', variant: 'muted-ghost' }), 'size-6 rounded-[calc(var(--radius)-5px)] [&_svg:not([class*=size-])]:size-4')
-// A composed SelectClear takes the trigger's place while there is something to clear.
-const inputTriggerBase = clsx(inputButtonBase, '[[data-slot=input-group-addon]:has([data-slot=select-clear])_&]:hidden')
+const clearBase = clsx(
+	buttonVariants({ size: 'none', variant: 'muted-ghost' }),
+	'size-6 rounded-[calc(var(--radius)-5px)] [&_svg:not([class*=size-])]:size-4',
+	'*:data-[slot=select-clear-icon]:i-lucide-x *:data-[slot=select-clear-icon]:pointer-events-none *:data-[slot=select-clear-icon]:size-4',
+)
+const chipRemove = '*:data-[slot=select-chip-remove]:-mr-1 *:data-[slot=select-chip-remove]:inline-flex *:data-[slot=select-chip-remove]:size-4 *:data-[slot=select-chip-remove]:shrink-0 *:data-[slot=select-chip-remove]:items-center *:data-[slot=select-chip-remove]:justify-center *:data-[slot=select-chip-remove]:rounded-full *:data-[slot=select-chip-remove]:opacity-50 *:data-[slot=select-chip-remove]:hover:opacity-100 **:data-[slot=select-chip-remove-icon]:i-lucide-x **:data-[slot=select-chip-remove-icon]:pointer-events-none **:data-[slot=select-chip-remove-icon]:size-3'
 
 /** Unified select: single, multiple, searchable, editable, chips, and tagging by composition. */
 const Select = <Multiple extends boolean = false>({ class: classes, ...attrs }: SelectArgs<Multiple>) => (
@@ -85,29 +82,17 @@ const SelectTrigger: Stateless<SelectTriggerArgs> = ({ class: classes, size = 'd
 		{...attrs}
 		class={clsx(triggerBase, classes)}
 		data-size={size}
-		iconClass="playa-select-trigger-icon"
 	/>
 )
 
 /** Input field or in-popup search box for a Select. */
 const SelectInput: Stateless<SelectInputArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectInput
-		{...attrs}
-		addonClass={clsx(inputGroupAddon, inputGroupAddonAlign['inline-end'])}
-		buttonClass={inputTriggerBase}
-		buttonIconClass="i-lucide-chevron-down pointer-events-none size-4 text-muted-foreground"
-		class={inputGroupVariants({ class: classes, width: 'auto' })}
-		inputClass={inputGroupInput}
-	/>
+	<BaseSelectInput {...attrs} class={inputGroupVariants({ class: clsx('playa-select-input', classes), width: 'auto' })} />
 )
 
 /** Button that clears the current selection and search; compose it in SelectInput. */
 const SelectClear: Stateless<SelectClearArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectClear
-		{...attrs}
-		class={clsx(inputButtonBase, classes)}
-		iconClass="i-lucide-x pointer-events-none size-4"
-	/>
+	<BaseSelectClear {...attrs} class={clsx(clearBase, classes)} />
 )
 
 /** Popup panel for Select options. */
@@ -122,12 +107,7 @@ const SelectList: Stateless<SelectListArgs> = ({ class: classes, ...attrs }) => 
 
 /** Selectable Select option. */
 const SelectItem: Stateless<SelectItemArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectItem
-		{...attrs}
-		class={clsx(itemBase, classes)}
-		indicatorClass={indicatorClass}
-		indicatorIconClass={indicatorIconClass}
-	/>
+	<BaseSelectItem {...attrs} class={clsx(itemBase, classes)} />
 )
 
 /** Label for a SelectGroup. */
@@ -162,12 +142,7 @@ const SelectChips: Stateless<SelectChipsArgs> = ({ class: classes, ...attrs }) =
 
 /** Selected chip for multiple Select usage; composes the Chip visual language. */
 const SelectChip: Stateless<SelectChipArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectChip
-		{...attrs}
-		class={clsx(chipVariants({ variant: 'secondary' }), 'has-[button]:pr-1', classes)}
-		removeClass="-mr-1 inline-flex size-4 shrink-0 items-center justify-center rounded-full opacity-50 hover:opacity-100"
-		removeIconClass="i-lucide-x pointer-events-none size-3"
-	/>
+	<BaseSelectChip {...attrs} class={clsx(chipVariants({ variant: 'secondary' }), 'has-[button]:pr-1', chipRemove, classes)} />
 )
 
 /** Input used inside SelectChips. */
