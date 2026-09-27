@@ -77,94 +77,37 @@ const textBase = 'flex items-center gap-2 text-sm text-muted-foreground [&_svg]:
 const textareaBase = 'flex min-h-16 min-w-0 flex-1 resize-none rounded-none border-0 bg-transparent px-3 py-3 text-base shadow-none transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm aria-invalid:ring-0'
 
 /** Root wrapper for grouped inputs and addons. */
-const InputGroup: Stateless<InputGroupArgs> = ({
-	children,
-	class: classes,
-	disabled,
-	...attrs
-}) => (
-	<BaseInputGroup
-		{...attrs}
-		class={inputGroupVariants({ class: classes })}
-		disabled={disabled}
-	>
-		{children}
-	</BaseInputGroup>
+const InputGroup: Stateless<InputGroupArgs> = ({ class: classes, ...attrs }) => (
+	<BaseInputGroup {...attrs} class={inputGroupVariants({ class: classes })} />
 )
 
 /** Addon area for icons, text, buttons, or helper content. */
-const InputGroupAddon: Stateless<InputGroupAddonArgs> = ({
-	align = 'inline-start',
-	children,
-	class: classes,
-	'set:onclick': onclick,
-	...attrs
-}) => (
-	<BaseInputGroupAddon
-		{...attrs}
-		align={align}
-		class={clx(inputGroupAddon, inputGroupAddonAlign[align], classes)}
-		set:onclick={onclick}
-	>
-		{children}
-	</BaseInputGroupAddon>
+const InputGroupAddon: Stateless<InputGroupAddonArgs> = ({ align = 'inline-start', class: classes, ...attrs }) => (
+	<BaseInputGroupAddon {...attrs} align={align} class={clx(inputGroupAddon, inputGroupAddonAlign[align], classes)} />
 )
 
 /** Button sized for InputGroup addons. */
-const InputGroupButton: Stateless<InputGroupButtonArgs> = ({
-	children,
-	class: classes,
-	'data-slot': slot = 'input-group-button',
-	size = 'xs',
-	type = 'button',
-	variant = 'ghost',
-	...attrs
-}) => (
+const InputGroupButton: Stateless<InputGroupButtonArgs> = ({ class: classes, size = 'xs', variant = 'ghost', ...attrs }) => (
 	<BaseInputGroupButton
 		{...attrs}
 		class={clx(buttonVariants({ size: 'none', variant }), buttonSizeClasses[size], classes)}
 		data-size={size}
-		data-slot={slot}
-		type={type}
-	>
-		{children}
-	</BaseInputGroupButton>
-)
-
-/** Text helper for InputGroup addons. */
-const InputGroupText: Stateless<InputGroupTextArgs> = ({ children, class: classes, ...attrs }) => (
-	<BaseInputGroupText {...attrs} class={clx(textBase, classes)}>
-		{children}
-	</BaseInputGroupText>
-)
-
-/** Input control styled for InputGroup. */
-const InputGroupInput: Stateless<InputGroupInputArgs> = ({
-	class: classes,
-	'data-slot': slot = 'input-group-control',
-	type = 'text',
-	...attrs
-}) => (
-	<BaseInputGroupInput
-		{...attrs}
-		class={clx(inputGroupInput, classes)}
-		data-slot={slot}
-		type={type}
 	/>
 )
 
+/** Text helper for InputGroup addons. */
+const InputGroupText: Stateless<InputGroupTextArgs> = ({ class: classes, ...attrs }) => (
+	<BaseInputGroupText {...attrs} class={clx(textBase, classes)} />
+)
+
+/** Input control styled for InputGroup. */
+const InputGroupInput: Stateless<InputGroupInputArgs> = ({ class: classes, ...attrs }) => (
+	<BaseInputGroupInput {...attrs} class={clx(inputGroupInput, classes)} />
+)
+
 /** Textarea control styled for InputGroup. */
-const InputGroupTextarea: Stateless<InputGroupTextareaArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<BaseInputGroupTextarea
-		{...attrs}
-		class={clx(textareaBase, classes)}
-	>
-		{children}
-	</BaseInputGroupTextarea>
+const InputGroupTextarea: Stateless<InputGroupTextareaArgs> = ({ class: classes, ...attrs }) => (
+	<BaseInputGroupTextarea {...attrs} class={clx(textareaBase, classes)} />
 )
 
 export {

@@ -6,14 +6,10 @@ import {
 	ResizablePanel as BaseResizablePanel,
 	ResizablePanelGroup as BaseResizablePanelGroup,
 	type ResizableHandleArgs as BaseResizableHandleArgs,
-	type ResizableOrientation as BaseResizableOrientation,
 	type ResizablePanelArgs as BaseResizablePanelArgs,
 	type ResizablePanelGroupArgs as BaseResizablePanelGroupArgs,
-	type ResizableSize as BaseResizableSize,
 } from 'ajo-ui/resizable'
-
-export type ResizableOrientation = BaseResizableOrientation
-export type ResizableSize = BaseResizableSize
+export type { ResizableOrientation, ResizableSize } from 'ajo-ui/resizable'
 
 export type ResizablePanelGroupArgs = BaseResizablePanelGroupArgs & {
 	/** Additional UnoCSS classes. */
@@ -37,41 +33,17 @@ const panelBase = 'min-h-0 min-w-0 overflow-hidden'
 const handleBase = 'relative flex touch-none shrink-0 items-center justify-center bg-border outline-none after:absolute after:content-empty focus-visible:ring-3 focus-visible:ring-ring/50'
 
 /** Resizable panel group for split layouts. */
-const ResizablePanelGroup: Stateless<ResizablePanelGroupArgs> = ({
-	children,
-	class: classes,
-	orientation = 'horizontal',
-	...attrs
-}) => (
+const ResizablePanelGroup: Stateless<ResizablePanelGroupArgs> = ({ class: classes, orientation, ...attrs }) => (
 	<BaseResizablePanelGroup
 		{...attrs}
 		class={clx(groupBase, orientation === 'vertical' && 'flex-col', classes)}
 		orientation={orientation}
-	>
-		{children}
-	</BaseResizablePanelGroup>
+	/>
 )
 
 /** Resizable flex panel. */
-const ResizablePanel: Stateless<ResizablePanelArgs> = ({
-	children,
-	class: classes,
-	defaultSize,
-	maxSize,
-	minSize,
-	style,
-	...attrs
-}) => (
-	<BaseResizablePanel
-		{...attrs}
-		class={clx(panelBase, classes)}
-		defaultSize={defaultSize}
-		maxSize={maxSize}
-		minSize={minSize}
-		style={style}
-	>
-		{children}
-	</BaseResizablePanel>
+const ResizablePanel: Stateless<ResizablePanelArgs> = ({ class: classes, ...attrs }) => (
+	<BaseResizablePanel {...attrs} class={clx(panelBase, classes)} />
 )
 
 /** Resize separator between adjacent panels. */

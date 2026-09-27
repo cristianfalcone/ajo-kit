@@ -1,6 +1,7 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { listen, roving, selection } from 'ajo-cloves'
 import { context } from 'ajo/context'
+import { type Direction, DirectionContext } from './direction'
 import { flag, rootAttrs } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Toggle, type ToggleArgs } from './toggle'
@@ -10,19 +11,15 @@ export type ToggleGroupType = 'multiple' | 'single'
 /** Layout and keyboard-navigation axis of a toggle group. */
 export type ToggleGroupOrientation = 'horizontal' | 'vertical'
 
-type ToggleGroupSharedArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'defaultValue' | 'type' | 'value'> & {
+type ToggleGroupSharedArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'defaultValue' | 'dir' | 'type' | 'value'> & {
+	/** Text direction for horizontal arrow-key navigation. Defaults to the nearest DirectionProvider. */
+	dir?: Direction
 	/** Disable every item in the group. */
 	disabled?: boolean
 	/** Allow arrow-key focus to wrap at the ends. */
 	loop?: boolean
 	/** Layout orientation. */
 	orientation?: ToggleGroupOrientation
-	/** Shared item size marker. */
-	size?: string
-	/** Spacing marker shared with items. */
-	spacing?: number
-	/** Shared item variant marker. */
-	variant?: string
 }>
 
 /** Props for a toggle group that selects at most one value. */
@@ -54,27 +51,20 @@ export type ToggleGroupArgs = ToggleGroupSingleArgs | ToggleGroupMultipleArgs
 export type ToggleGroupItemArgs = OmitArg<ToggleArgs, 'defaultPressed' | 'onPressedChange' | 'pressed'> & {
 	/** Item value used by the parent toggle group. */
 	value: string
-	/** Item size marker. */
-	size?: string
-	/** Item variant marker. */
-	variant?: string
 } & FixedArgs<'defaultPressed' | 'onPressedChange' | 'pressed'>
 
-/** State and styling markers exposed to descendant toggle-group items. */
+/** State exposed to descendant toggle-group items. */
 export type ToggleGroupContextValue = {
 	disabled?: boolean
 	orientation: ToggleGroupOrientation
 	pressed: (value: string) => boolean
-	size?: string
-	spacing: number
 	toggle: (value: string, event: Event) => void
 	type: ToggleGroupType
-	variant?: string
 }
 
-type ToggleGroupRootArgs = ToggleGroupArgs & Required<Pick<ToggleGroupSharedArgs, 'orientation' | 'spacing'>>
+type ToggleGroupRootArgs = ToggleGroupArgs & Required<Pick<ToggleGroupSharedArgs, 'dir' | 'orientation'>>
 
-/** Composition context exposing ToggleGroup state and styling markers to descendant items. */
+/** Composition context exposing ToggleGroup state to descendant items. */
 export const ToggleGroupContext = context<ToggleGroupContextValue | null>(null)
 
 const selected = (type: ToggleGroupType, value: string | string[] | undefined) =>
@@ -88,6 +78,7 @@ const focusableItems = (root: HTMLElement) =>
 		.filter(button => !button.disabled)
 
 const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue, type: initialType = 'single' }) {
+	let dir: Direction = 'ltr'
 	let disabled = false
 	let loop = true
 	let onValueChange: ToggleGroupRootArgs['onValueChange']
@@ -116,6 +107,7 @@ const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue
 	const nav = roving(this, {
 		items: () => focusableItems(this),
 		orientation: () => orientation,
+		dir: () => dir,
 		loop: () => loop,
 		onMove: target => target.focus(),
 	})
@@ -134,6 +126,7 @@ const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue
 
 	for (const args of this) {
 		type = args.type ?? 'single'
+		dir = args.dir
 		orientation = args.orientation
 		disabled = Boolean(args.disabled)
 		loop = args.loop !== false
@@ -144,11 +137,8 @@ const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue
 			disabled,
 			orientation,
 			pressed,
-			size: args.size,
-			spacing: args.spacing,
 			toggle: change,
 			type,
-			variant: args.variant,
 		})
 
 		yield <>{args.children}</>
@@ -158,25 +148,23 @@ const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue
 
 /** Unstyled toggle group with selection state and roving keyboard focus. */
 const ToggleGroup: Stateless<ToggleGroupArgs> = ({
+	dir,
 	orientation = 'horizontal',
 	role = 'group',
-	spacing = 2,
 	...args
 }) => {
 	const disabled = flag(args.disabled)
 
 	return (
 		<ToggleGroupRoot
-			{...rootAttrs(args, ['defaultValue', 'disabled', 'loop', 'onValueChange', 'size', 'type', 'value', 'variant'])}
+			{...rootAttrs(args, ['defaultValue', 'disabled', 'loop', 'onValueChange', 'type', 'value'])}
+			dir={dir ?? DirectionContext()}
 			orientation={orientation}
-			spacing={spacing}
 			attr:aria-disabled={disabled}
 			attr:data-disabled={disabled}
 			attr:data-orientation={orientation}
-			attr:data-size={args.size}
 			attr:data-slot="toggle-group"
-			attr:data-spacing={spacing}
-			attr:data-variant={args.variant}
+			attr:dir={dir}
 			attr:role={role}
 		/>
 	)
@@ -185,14 +173,10 @@ const ToggleGroup: Stateless<ToggleGroupArgs> = ({
 /** Unstyled toggle group item wired to the nearest group. */
 const ToggleGroupItem: Stateless<ToggleGroupItemArgs> = ({
 	disabled,
-	size,
 	value,
-	variant,
 	...attrs
 }) => {
 	const group = ToggleGroupContext()
-	const itemSize = size ?? group?.size
-	const itemVariant = variant ?? group?.variant
 	const disabledFlag = Boolean(disabled ?? group?.disabled)
 	const pressed = group?.pressed(value) ?? false
 
@@ -200,10 +184,7 @@ const ToggleGroupItem: Stateless<ToggleGroupItemArgs> = ({
 		<Toggle
 			{...attrs}
 			data-orientation={group?.orientation ?? 'horizontal'}
-			data-size={itemSize}
 			data-slot="toggle-group-item"
-			data-spacing={group?.spacing ?? 2}
-			data-variant={itemVariant}
 			disabled={disabledFlag}
 			pressed={pressed}
 			value={value}

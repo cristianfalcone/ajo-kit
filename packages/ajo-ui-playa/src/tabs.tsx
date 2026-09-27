@@ -5,16 +5,13 @@ import {
 	TabsContent as BaseTabsContent,
 	TabsList as BaseTabsList,
 	TabsTrigger as BaseTabsTrigger,
-	type TabsActivationMode as BaseTabsActivationMode,
 	type TabsArgs as BaseTabsArgs,
 	type TabsContentArgs as BaseTabsContentArgs,
 	type TabsListArgs as BaseTabsListArgs,
-	type TabsOrientation as BaseTabsOrientation,
 	type TabsTriggerArgs as BaseTabsTriggerArgs,
 } from 'ajo-ui/tabs'
+export type { TabsActivationMode, TabsOrientation } from 'ajo-ui/tabs'
 
-export type TabsOrientation = BaseTabsOrientation
-export type TabsActivationMode = BaseTabsActivationMode
 export type TabsListVariant = 'default' | 'line'
 
 export type TabsArgs = BaseTabsArgs & { class?: string }
@@ -75,93 +72,23 @@ const triggerBase = clx(
 const contentBase = 'flex-1 outline-none'
 
 /** Root provider for tab state. */
-const Tabs: Stateless<TabsArgs> = ({
-	activationMode = 'automatic',
-	children,
-	class: classes,
-	defaultValue,
-	dir,
-	loop = true,
-	onValueChange,
-	orientation = 'horizontal',
-	value,
-	...attrs
-}) => (
-	<BaseTabs
-		{...attrs}
-		activationMode={activationMode}
-		class={clx(rootBase, classes)}
-		defaultValue={defaultValue}
-		dir={dir}
-		loop={loop}
-		onValueChange={onValueChange}
-		orientation={orientation}
-		value={value}
-	>
-		{children}
-	</BaseTabs>
+const Tabs: Stateless<TabsArgs> = ({ class: classes, ...attrs }) => (
+	<BaseTabs {...attrs} class={clx(rootBase, classes)} />
 )
 
 /** Container for tab triggers. */
-const TabsList: Stateless<TabsListArgs> = ({
-	children,
-	class: classes,
-	role = 'tablist',
-	variant = 'default',
-	...attrs
-}) => (
-	<BaseTabsList
-		{...attrs}
-		class={clx(listBase, listVariants[variant], classes)}
-		data-variant={variant}
-		role={role}
-	>
-		{children}
-	</BaseTabsList>
+const TabsList: Stateless<TabsListArgs> = ({ class: classes, variant = 'default', ...attrs }) => (
+	<BaseTabsList {...attrs} class={clx(listBase, listVariants[variant], classes)} data-variant={variant} />
 )
 
 /** Button that activates a tab panel. */
-const TabsTrigger: Stateless<TabsTriggerArgs> = ({
-	children,
-	class: classes,
-	disabled,
-	id,
-	'set:onclick': onClick,
-	'set:onfocus': onFocus,
-	type = 'button',
-	value,
-	...attrs
-}) => (
-	<BaseTabsTrigger
-		{...attrs}
-		class={clx(triggerBase, classes)}
-		disabled={disabled}
-		id={id}
-		set:onclick={onClick}
-		set:onfocus={onFocus}
-		type={type}
-		value={String(value)}
-	>
-		{children}
-	</BaseTabsTrigger>
+const TabsTrigger: Stateless<TabsTriggerArgs> = ({ class: classes, ...attrs }) => (
+	<BaseTabsTrigger {...attrs} class={clx(triggerBase, classes)} />
 )
 
 /** Panel displayed by its matching TabsTrigger. */
-const TabsContent: Stateless<TabsContentArgs> = ({
-	children,
-	class: classes,
-	forceMount,
-	value,
-	...attrs
-}) => (
-	<BaseTabsContent
-		{...attrs}
-		class={clx(contentBase, classes)}
-		forceMount={forceMount}
-		value={String(value)}
-	>
-		{children}
-	</BaseTabsContent>
+const TabsContent: Stateless<TabsContentArgs> = ({ class: classes, ...attrs }) => (
+	<BaseTabsContent {...attrs} class={clx(contentBase, classes)} />
 )
 
 export { Tabs, TabsContent, TabsList, TabsTrigger }

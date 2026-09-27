@@ -18,59 +18,18 @@ const triggerBase = 'inline-flex cursor-pointer list-none items-center justify-c
 const contentBase = 'overflow-hidden'
 
 /** Collapsible disclosure rendered as a native details element. */
-const Collapsible: Stateless<CollapsibleArgs> = ({
-	children,
-	class: classes,
-	defaultOpen,
-	disabled,
-	onOpenChange,
-	open,
-	...attrs
-}) => (
-	<BaseCollapsible
-		{...attrs}
-		class={clx(disclosureContent, classes)}
-		defaultOpen={defaultOpen}
-		disabled={Boolean(disabled)}
-		onOpenChange={onOpenChange}
-		open={open}
-	>
-		{children}
-	</BaseCollapsible>
+const Collapsible: Stateless<CollapsibleArgs> = ({ class: classes, ...attrs }) => (
+	<BaseCollapsible {...attrs} class={clx(disclosureContent, classes)} />
 )
 
 /** Summary trigger that toggles a parent Collapsible. */
-const CollapsibleTrigger: Stateless<CollapsibleTriggerArgs> = ({
-	children,
-	class: classes,
-	disabled,
-	id,
-	'set:onclick': onClick,
-	...attrs
-}) => (
-	<BaseCollapsibleTrigger
-		{...attrs}
-		class={clx(triggerBase, classes)}
-		disabled={disabled}
-		id={id}
-		set:onclick={onClick}
-	>
-		{children}
-	</BaseCollapsibleTrigger>
+const CollapsibleTrigger: Stateless<CollapsibleTriggerArgs> = ({ class: classes, ...attrs }) => (
+	<BaseCollapsibleTrigger {...attrs} class={clx(triggerBase, classes)} />
 )
 
 /** Content panel natively shown or hidden by a parent Collapsible. */
-const CollapsibleContent: Stateless<CollapsibleContentArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<BaseCollapsibleContent
-		{...attrs}
-		class={clx(contentBase, classes)}
-	>
-		{children}
-	</BaseCollapsibleContent>
+const CollapsibleContent: Stateless<CollapsibleContentArgs> = ({ class: classes, ...attrs }) => (
+	<BaseCollapsibleContent {...attrs} class={clx(contentBase, classes)} />
 )
 
 export { Collapsible, CollapsibleContent, CollapsibleTrigger }

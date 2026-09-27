@@ -10,6 +10,7 @@ import { PaginationLink } from 'ajo-ui-playa/pagination'
 import { RadioGroup, RadioGroupItem } from 'ajo-ui-playa/radio-group'
 import { Spinner } from 'ajo-ui-playa/spinner'
 import { Toggle } from 'ajo-ui-playa/toggle'
+import { ToggleGroup, ToggleGroupItem } from 'ajo-ui-playa/toggle-group'
 
 test('SSR renders checkbox state on the host and leaves the native input unmirrored', () => {
 	const html = ssr(jsx(Checkbox, {}))
@@ -81,4 +82,24 @@ test('SSR renders input OTP state attributes without DOM host writes', () => {
 
 	expect(html).toMatch(new RegExp(`^<${defaults.tag}\\b(?=[^>]*data-slot="input-otp")(?=[^>]*data-state="incomplete")[^>]*>`))
 	expect(html).toMatch(/<input\b(?=[^>]*data-slot="input-otp-input")(?=[^>]*data-state="incomplete")[^>]*>/)
+})
+
+test('ToggleGroup items take the group size and variant, and spacing 0 seams them at the group', () => {
+	const html = ssr(jsx(ToggleGroup, {
+		'aria-label': 'Alignment',
+		children: [
+			jsx(ToggleGroupItem, { children: 'Left', value: 'left' }),
+			jsx(ToggleGroupItem, { children: 'Right', size: 'sm', value: 'right' }),
+		],
+		size: 'lg',
+		spacing: 0,
+		variant: 'outline',
+	}))
+	const item = (value: string) => html.match(new RegExp(`<button\\b[^>]*value="${value}"[^>]*>`))?.[0] ?? ''
+
+	expect(item('left')).toMatch(/class="(?=[^"]*\bh-10\b)(?=[^"]*\bedge\b)/)
+	expect(item('right')).toMatch(/class="(?=[^"]*\bh-8\b)(?=[^"]*\bedge\b)/)
+	expect(html).toMatch(/<div class="contents [^"]*:not\(:first-child\)\]:rounded-l-none[^"]*"><button\b/)
+	expect(html).not.toContain('first:rounded-l-md')
+	expect(html).toContain('--toggle-group-gap:0rem')
 })

@@ -1,26 +1,31 @@
-import type { Stateless } from 'ajo'
+import type { Stateful, Stateless, WithChildren } from 'ajo'
+import { context } from 'ajo/context'
 import {
 	ToggleGroup as BaseToggleGroup,
-	ToggleGroupContext as BaseToggleGroupContext,
 	ToggleGroupItem as BaseToggleGroupItem,
 	type ToggleGroupArgs as BaseToggleGroupArgs,
 	type ToggleGroupItemArgs as BaseToggleGroupItemArgs,
 	type ToggleGroupMultipleArgs as BaseToggleGroupMultipleArgs,
-	type ToggleGroupOrientation as BaseToggleGroupOrientation,
 	type ToggleGroupSingleArgs as BaseToggleGroupSingleArgs,
-	type ToggleGroupType as BaseToggleGroupType,
 } from 'ajo-ui/toggle-group'
-import { toggleVariants } from './internal/recipes'
-import type { ToggleSize, ToggleVariant } from './toggle'
 import { clx, stlx } from 'ajo-ui/utils'
+import { toggleVariants } from './internal/recipes'
+import { segmentSeams } from './internal/seams'
+import type { ToggleSize, ToggleVariant } from './toggle'
+export type { ToggleGroupOrientation, ToggleGroupType } from 'ajo-ui/toggle-group'
 
-export type ToggleGroupType = BaseToggleGroupType
-export type ToggleGroupOrientation = BaseToggleGroupOrientation
-
-type ThemeToggleGroupArgs = {
-	class?: string
+type ItemTheme = {
+	/** Item size; the group's size applies to every item that sets none. */
 	size?: ToggleSize
+	/** Item variant; the group's variant applies to every item that sets none. */
 	variant?: ToggleVariant
+}
+
+type ThemeToggleGroupArgs = ItemTheme & {
+	/** Additional UnoCSS classes. */
+	class?: string
+	/** Gap between items in 0.25rem steps; 0 joins them into one segmented control. */
+	spacing?: number
 }
 
 export type ToggleGroupSingleArgs = BaseToggleGroupSingleArgs & ThemeToggleGroupArgs
@@ -28,99 +33,66 @@ export type ToggleGroupMultipleArgs = BaseToggleGroupMultipleArgs & ThemeToggleG
 
 export type ToggleGroupArgs = ToggleGroupSingleArgs | ToggleGroupMultipleArgs
 
-export type ToggleGroupItemArgs = BaseToggleGroupItemArgs & ThemeToggleGroupArgs
+export type ToggleGroupItemArgs = BaseToggleGroupItemArgs & ItemTheme & {
+	/** Additional UnoCSS classes. */
+	class?: string
+}
 
 const rootBase = 'group/toggle-group flex w-fit items-center rounded-md gap-[var(--toggle-group-gap)]'
-const rootOrientation: Record<ToggleGroupOrientation, string> = {
+const rootOrientation = {
 	horizontal: 'flex-row',
 	vertical: 'flex-col',
 }
 const itemBase = 'w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10'
 
-const style = (spacing: number, current: unknown) => {
-	const gap = `${Math.max(0, spacing) * 0.25}rem`
-	return stlx(typeof current === 'string' ? current : undefined, { '--toggle-group-gap': gap })
+const ItemThemeContext = context<ItemTheme>({})
+
+// Stateless adapters cannot write context, so the group's item size and
+// variant ride on this layout-free (display: contents) host around the items.
+// It also carries the connected seams, since the items are its children.
+const Items: Stateful<WithChildren<ItemTheme>> = function* () {
+	for (const { children, size, variant } of this) {
+		ItemThemeContext({ size, variant })
+		yield <>{children}</>
+	}
 }
-
-const connected = (spacing: number, orientation: ToggleGroupOrientation) => {
-	if (spacing !== 0) return ''
-
-	// Connected segments touch instead of overlapping: the non-first ring
-	// drops its leading edge (three inset shadows), so every seam is painted
-	// by exactly one hairline — two overlapped translucent rings would
-	// composite darker than the group's outer edges. `relative` lets the
-	// focused item's z-10 lift its focus ring above its neighbors.
-	return orientation === 'vertical'
-		? 'relative rounded-none first:rounded-t-md last:rounded-b-md [&:not(:first-child)]:[--un-inset-ring-shadow:inset_1px_0_0_var(--un-inset-ring-color,currentColor),inset_-1px_0_0_var(--un-inset-ring-color,currentColor),inset_0_-1px_0_var(--un-inset-ring-color,currentColor)]'
-		: 'relative rounded-none first:rounded-l-md last:rounded-r-md [&:not(:first-child)]:[--un-inset-ring-shadow:inset_0_1px_0_var(--un-inset-ring-color,currentColor),inset_0_-1px_0_var(--un-inset-ring-color,currentColor),inset_-1px_0_0_var(--un-inset-ring-color,currentColor)]'
-}
-
-const toggleSize = (value: unknown): ToggleSize | undefined =>
-	value === 'sm' || value === 'lg' || value === 'default' ? value : undefined
-
-const toggleVariant = (value: unknown): ToggleVariant | undefined =>
-	value === 'outline' || value === 'default' ? value : undefined
 
 /** Group of toggle buttons with single or multiple selection. */
 const ToggleGroup: Stateless<ToggleGroupArgs> = ({
+	children,
 	class: classes,
-	loop = true,
 	orientation = 'horizontal',
-	role = 'group',
-	size = 'default',
+	size,
 	spacing = 2,
-	style: styles,
-	variant = 'default',
+	style,
+	variant,
 	...attrs
-}) => {
-	const rootClass = clx(rootBase, rootOrientation[orientation], classes)
-	const rootStyle = style(spacing, styles)
-
-	return (
-		<BaseToggleGroup
-			{...attrs as BaseToggleGroupArgs}
-			class={rootClass}
-			loop={loop}
-			orientation={orientation}
-			role={role}
-			size={size}
-			spacing={spacing}
-			style={rootStyle}
-			variant={variant}
-		/>
-	)
-}
+}) => (
+	<BaseToggleGroup
+		{...attrs as BaseToggleGroupArgs}
+		class={clx(rootBase, rootOrientation[orientation], classes)}
+		orientation={orientation}
+		style={stlx(style, { '--toggle-group-gap': `${spacing * 0.25}rem` })}
+	>
+		<Items attr:class={clx('contents', spacing === 0 && segmentSeams[orientation])} size={size} variant={variant}>
+			{children}
+		</Items>
+	</BaseToggleGroup>
+)
 
 /** Toggle button item that participates in a parent ToggleGroup. */
 const ToggleGroupItem: Stateless<ToggleGroupItemArgs> = ({
 	class: classes,
-	disabled,
 	size,
-	value,
 	variant,
 	...attrs
 }) => {
-	const group = BaseToggleGroupContext()
-	const itemValue = String(value)
-	const groupVariant = toggleVariant(variant) ?? toggleVariant(group?.variant) ?? 'default'
-	const groupSize = toggleSize(size) ?? toggleSize(group?.size) ?? 'default'
-	const groupSpacing = group?.spacing ?? 2
-	const groupOrientation = group?.orientation ?? 'horizontal'
-	const itemClass = typeof classes === 'string' ? classes : undefined
+	const group = ItemThemeContext()
 
 	return (
 		<BaseToggleGroupItem
 			{...attrs}
-			disabled={disabled}
-			size={groupSize}
-			value={itemValue}
-			variant={groupVariant}
-			class={clx(
-				toggleVariants({ size: groupSize, variant: groupVariant }),
-				itemBase,
-				connected(groupSpacing, groupOrientation),
-				itemClass,
-			)}
+			class={clx(toggleVariants({ size: size ?? group.size, variant: variant ?? group.variant }), itemBase, classes)}
 		/>
 	)
 }

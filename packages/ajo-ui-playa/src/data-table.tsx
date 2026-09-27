@@ -1,7 +1,8 @@
 import {
 	DataTable as BaseDataTable,
-	type DataTableArgs as BaseDataTableArgs,
-	type DataTableColumn as BaseDataTableColumn,
+	type DataTableArgs,
+	type DataTableData,
+	type DataTableKey,
 } from 'ajo-ui/data-table'
 import { clx } from 'ajo-ui/utils'
 import {
@@ -11,17 +12,7 @@ import {
 	menuCheckIndicator,
 	menuContent,
 } from './internal/recipes'
-
-type DataTableData = any[] | Record<string, any>
-type DataTableKey = number | string
-
-/** Column schema accepted by the Playa-styled DataTable. */
-export type DataTableColumn<T extends DataTableData> = BaseDataTableColumn<T>
-/** Arguments accepted by the Playa-styled DataTable. */
-export type DataTableArgs<
-	T extends DataTableData = Record<string, unknown>,
-	Key extends DataTableKey = DataTableKey,
-> = BaseDataTableArgs<T, Key>
+export type { DataTableArgs, DataTableColumn } from 'ajo-ui/data-table'
 
 /**
  * Playa-styled DataTable; state, semantics, and structure remain base-owned.

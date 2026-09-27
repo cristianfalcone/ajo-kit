@@ -49,11 +49,19 @@ export const publicRadioGroupItem = radio.RadioGroupItem
 declare const fieldValue: NonNullable<ReturnType<typeof field.FieldContext>>
 declare const carouselValue: NonNullable<ReturnType<typeof carousel.CarouselContext>>
 declare const messageScrollerValue: NonNullable<ReturnType<typeof messageScroller.MessageScrollerContext>>
+declare const toggleValue: NonNullable<ReturnType<typeof toggle.ToggleGroupContext>>
 
 // @ts-expect-error Render-pass bookkeeping is private to Field.
 export const leakedFieldReset = fieldValue.reset
 // @ts-expect-error The invalid state comes from Field args only.
 export const leakedFieldSync = fieldValue.sync
+
+// @ts-expect-error Item size is a theme arg, not ToggleGroup state.
+export const leakedToggleSize = toggleValue.size
+// @ts-expect-error Item spacing is a theme arg, not ToggleGroup state.
+export const leakedToggleSpacing = toggleValue.spacing
+// @ts-expect-error Item variant is a theme arg, not ToggleGroup state.
+export const leakedToggleVariant = toggleValue.variant
 
 export const carouselScrollTo: (index: number) => void = carouselValue.scrollTo
 // @ts-expect-error Viewport registration is private to Carousel parts.

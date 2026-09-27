@@ -3,10 +3,10 @@ import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import {
 	Slider as BaseSlider,
 	type SliderArgs as BaseSliderArgs,
-	type SliderOrientation as BaseSliderOrientation,
+	type SliderOrientation,
 } from 'ajo-ui/slider'
+export type { SliderOrientation } from 'ajo-ui/slider'
 
-export type SliderOrientation = BaseSliderOrientation
 export type SliderArgs = OmitArg<
 	BaseSliderArgs,
 	'inputClass' | 'rangeClass' | 'thumbClass' | 'trackClass'
@@ -31,26 +31,16 @@ const thumbBase = 'pointer-events-none absolute z-10 block size-4 rounded-full e
 const inputBase = 'pointer-events-none absolute inset-0 z-20 m-0 size-full appearance-none opacity-0'
 
 /** Range slider with component styling, native range inputs, and Ajo state. */
-const Slider: Stateless<SliderArgs> = ({
-	class: classes,
-	disabled,
-	orientation = 'horizontal',
-	...attrs
-}) => {
-	const disabledFlag = disabled ? true : undefined
-
-	return (
-		<BaseSlider
-			{...attrs}
-			disabled={disabledFlag}
-			inputClass={clx(inputBase, orientation === 'vertical' && '[writing-mode:vertical-lr]')}
-			orientation={orientation}
-			rangeClass={clx(rangeBase, rangeOrientation[orientation])}
-			thumbClass={thumbBase}
-			trackClass={clx(trackBase, trackOrientation[orientation])}
-			class={clx(rootBase, rootOrientation[orientation], disabledFlag && 'cursor-not-allowed opacity-50', classes)}
-		/>
-	)
-}
+const Slider: Stateless<SliderArgs> = ({ class: classes, orientation = 'horizontal', ...attrs }) => (
+	<BaseSlider
+		{...attrs}
+		inputClass={clx(inputBase, orientation === 'vertical' && '[writing-mode:vertical-lr]')}
+		orientation={orientation}
+		rangeClass={clx(rangeBase, rangeOrientation[orientation])}
+		thumbClass={thumbBase}
+		trackClass={clx(trackBase, trackOrientation[orientation])}
+		class={clx(rootBase, rootOrientation[orientation], attrs.disabled ? 'cursor-not-allowed opacity-50' : undefined, classes)}
+	/>
+)
 
 export { Slider }

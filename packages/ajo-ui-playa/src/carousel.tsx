@@ -42,25 +42,12 @@ export type CarouselButtonArgs = OmitArg<BaseCarouselButtonArgs, 'children'> & F
 const horizontal = () => CarouselContext()?.orientation !== 'vertical'
 
 /** Native scroll-snap carousel root. */
-const Carousel: Stateless<CarouselArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
-	<BaseCarousel
-		{...attrs}
-		class={clx('relative [&_[data-slot=carousel-content]]:overflow-hidden', classes)}
-	>
-		{children}
-	</BaseCarousel>
+const Carousel: Stateless<CarouselArgs> = ({ class: classes, ...attrs }) => (
+	<BaseCarousel {...attrs} class={clx('relative [&_[data-slot=carousel-content]]:overflow-hidden', classes)} />
 )
 
 /** Scroll viewport and track for carousel slides. */
-const CarouselContent: Stateless<CarouselContentArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
+const CarouselContent: Stateless<CarouselContentArgs> = ({ class: classes, ...attrs }) => (
 	<BaseCarouselContent
 		{...attrs}
 		class={clx(
@@ -70,45 +57,27 @@ const CarouselContent: Stateless<CarouselContentArgs> = ({
 				: '-mt-4 max-h-full flex-col overflow-y-auto snap-y snap-mandatory',
 			classes,
 		)}
-	>
-		{children}
-	</BaseCarouselContent>
+	/>
 )
 
 /** Carousel slide item. */
-const CarouselItem: Stateless<CarouselItemArgs> = ({
-	children,
-	class: classes,
-	...attrs
-}) => (
+const CarouselItem: Stateless<CarouselItemArgs> = ({ class: classes, ...attrs }) => (
 	<BaseCarouselItem
 		{...attrs}
-		class={clx(
-			'min-w-0 shrink-0 grow-0 basis-full snap-start',
-			horizontal() ? 'ps-4' : 'pt-4',
-			classes,
-		)}
-	>
-		{children}
-	</BaseCarouselItem>
+		class={clx('min-w-0 shrink-0 grow-0 basis-full snap-start', horizontal() ? 'ps-4' : 'pt-4', classes)}
+	/>
 )
 
 const carouselButton = (step: 'previous' | 'next'): Stateless<CarouselButtonArgs> => {
 	const next = step === 'next'
 	const Base = next ? BaseCarouselNext : BaseCarouselPrevious
 
-	return ({
-		'aria-label': label = next ? 'Next slide' : 'Previous slide',
-		class: classes,
-		variant = 'outline',
-		...attrs
-	}) => {
+	return ({ class: classes, variant = 'outline', ...attrs }) => {
 		const inline = horizontal()
 
 		return (
 			<Base
 				{...attrs}
-				aria-label={label}
 				class={clx(
 					buttonVariants({ size: 'none', variant }),
 					'absolute size-8 rounded-full',
