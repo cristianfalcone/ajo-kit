@@ -1,6 +1,6 @@
 import type { Host } from 'ajo'
 import { expect, test, vi } from 'vitest'
-import type { DataTableArgs, DataTableColumn } from '../src/data-table-contract'
+import type { DataTableArgs, DataTableColumn } from '../src/data-table'
 import { createDataTableModel } from '../src/data-table-model'
 
 type Row = {
@@ -60,7 +60,7 @@ const args = (overrides: Partial<DataTableArgs<Row, string>> = {}): DataTableArg
 test('one pipeline owns search, facets, sorting, and pagination', () => {
 	const fixture = host()
 	const initial = args({ search: {} })
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Row, string>(fixture.host)
 
 	let view = model.sync(initial)
 	expect(view.rows.map(row => row.original.name)).toEqual(['Cora', 'Ada'])
@@ -110,7 +110,8 @@ test('sorts numeric string chunks beyond safe integer precision', () => {
 		pagination: false,
 		rows: naturalRows,
 	}
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<NaturalRow, string>(fixture.host)
+	model.sync(initial)
 
 	model.sort('name')
 	expect(model.sync(initial).rows.map(row => row.key)).toEqual(['low', 'high'])
@@ -120,7 +121,7 @@ test('sorts numeric string chunks beyond safe integer precision', () => {
 test('reset returns to the first page without active filters', () => {
 	const fixture = host()
 	const initial = args()
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Row, string>(fixture.host)
 	model.sync(initial)
 	model.nextPage()
 	expect(model.sync(initial).page.index).toBe(1)
@@ -142,7 +143,8 @@ test('normalizes blank search before evaluating searchable values', () => {
 		rows: complexRows,
 		search: {},
 	}
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Complex, string>(fixture.host)
+	model.sync(initial)
 
 	model.setQuery('   ')
 	const view = model.sync(initial)
@@ -164,7 +166,7 @@ test('caches undefined accessor values for a stable snapshot', () => {
 		pagination: false,
 		rows: [{ id: 'missing' }],
 	}
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Optional, string>(fixture.host)
 
 	expect(model.sync(initial).rows[0]!.cells[0]!.value).toBeUndefined()
 	expect(model.sync(initial).rows[0]!.cells[0]!.value).toBeUndefined()
@@ -197,8 +199,8 @@ test('automatic facets can select null and undefined values', () => {
 		pagination: false,
 		rows: optionalRows,
 	}
-	const model = createDataTableModel(fixture.host, initial)
-
+	const model = createDataTableModel<Optional, string>(fixture.host)
+	model.sync(initial)
 	model.setFacet('status', '', true)
 	expect(model.sync(initial).rows.map(row => row.key)).toEqual(['missing', 'unset'])
 	fixture.controller.abort()
@@ -212,7 +214,7 @@ test('non-hideable columns remain visible from the initial schema', () => {
 			{ ...columns[1]!, defaultHidden: true, hideable: false },
 		],
 	})
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Row, string>(fixture.host)
 	const view = model.sync(initial)
 	expect(view.columns.map(column => [column.id, column.visible])).toEqual([
 		['name', true],
@@ -225,7 +227,7 @@ test('non-hideable columns remain visible from the initial schema', () => {
 test('replacement schemas preserve visible columns before applying default hints', () => {
 	const fixture = host()
 	const initial = args({ columns: [columns[0]!] })
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Row, string>(fixture.host)
 	expect(model.sync(initial).columns[0]).toMatchObject({ id: 'name', visible: true })
 
 	const replacement = {
@@ -239,7 +241,7 @@ test('replacement schemas preserve visible columns before applying default hints
 test('replacement schemas reject all-new columns without a visible default', () => {
 	const fixture = host()
 	const initial = args({ columns: [columns[0]!] })
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Row, string>(fixture.host)
 	model.sync(initial)
 
 	const replacement = {
@@ -259,7 +261,7 @@ test('selection is key-first, survives row reorder, and prunes deleted rows', ()
 			onValueChange: keys => changes.push([...keys]),
 		},
 	})
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Row, string>(fixture.host)
 	let view = model.sync(initial)
 
 	model.toggleRow(view.rows[1]!.id, true)
@@ -287,7 +289,7 @@ test('rebuilds core rows when key or accessor semantics change in place', () => 
 			onValueChange: keys => changes.push([...keys]),
 		},
 	})
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Row, string>(fixture.host)
 
 	let view = model.sync(initial)
 	expect(view.rows[0]).toMatchObject({ id: 's:c', key: 'c' })
@@ -327,7 +329,7 @@ test('controlled selection proposes changes without mutating optimistically', ()
 			value: ['c'],
 		},
 	})
-	const model = createDataTableModel(fixture.host, controlled)
+	const model = createDataTableModel<Row, string>(fixture.host)
 	let view = model.sync(controlled)
 	expect(view.selectedCount).toBe(1)
 	model.sort('name')
@@ -380,7 +382,7 @@ test('accepts a synchronous controlled echo with the originating event', () => {
 			value: [],
 		},
 	})
-	model = createDataTableModel(fixture.host, current)
+	model = createDataTableModel<Row, string>(fixture.host)
 	const row = model.sync(current).rows[0]!
 	model.toggleRow(row.id, true, event)
 	expect(model.selected(row.id)).toBe(true)
@@ -394,7 +396,7 @@ test('accepts a synchronous controlled echo with the originating event', () => {
 test('coalesces host invalidation and cancels pending work on abort', async () => {
 	const fixture = host()
 	const initial = args({ search: {} })
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Row, string>(fixture.host)
 	model.sync(initial)
 
 	model.setQuery('a')
@@ -423,7 +425,7 @@ test('propagates controlled callback errors without corrupting model state', () 
 			value: [],
 		},
 	})
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Row, string>(fixture.host)
 	const row = model.sync(initial).rows[0]!
 	expect(() => model.toggleRow(row.id, true)).toThrow(error)
 	let view = model.sync(initial)
@@ -434,46 +436,54 @@ test('propagates controlled callback errors without corrupting model state', () 
 	fixture.controller.abort()
 })
 
-test('invalid identity and schema fail before rows render', () => {
+test('duplicate identities and a schema without a visible column fail before rows render', () => {
+	const model = () => createDataTableModel<Row, string>(host().host)
+
 	const duplicate = args({ rows: [rows[0]!, { ...rows[1]!, id: rows[0]!.id }] })
-	expect(() => createDataTableModel(host().host, duplicate)).toThrowError(
-		'DataTable duplicate row key "c" 0/1',
-	)
+	expect(() => model().sync(duplicate)).toThrowError('DataTable duplicate row key "c" 0/1')
+
+	type Numbered = { id: number; name: string }
+	const zeros: DataTableArgs<Numbered, number> = {
+		columns: [{ label: 'Name', value: 'name' }],
+		getRowKey: row => row.id,
+		label: 'Signed zeros',
+		rows: [{ id: 0, name: 'Zero' }, { id: -0, name: 'Negative zero' }],
+	}
+	expect(() => createDataTableModel<Numbered, number>(host().host).sync(zeros)).toThrowError('DataTable duplicate row key 0 0/1')
+
+	const columnIds = args({ columns: [columns[0]!, { id: 'name', label: 'Status', value: 'status' }] })
+	expect(() => model().sync(columnIds)).toThrowError('DataTable duplicate column "name"')
 
 	const hidden = args({ columns: columns.map(column => ({ ...column, defaultHidden: true })) })
-	expect(() => createDataTableModel(host().host, hidden)).toThrowError(
-		'DataTable needs a visible column',
-	)
+	expect(() => model().sync(hidden)).toThrowError('DataTable needs a visible column')
+})
 
-	const displayFacet = {
-		cell: (row: Row) => row.name,
-		facet: { label: 'Invalid', options: [{ label: 'Ada', value: 'ada' }] },
-		id: 'display',
-		label: 'Display',
-	} as unknown as DataTableColumn<Row>
-	expect(() => createDataTableModel(host().host, args({ columns: [displayFacet] }))).toThrowError(
-		'DataTable display column "display" cannot define a facet',
-	)
+test('untyped row values render, search, and sort without throwing', () => {
+	type Loose = { id: string; value: unknown }
+	const fixture = host()
+	const initial: DataTableArgs<Loose, string> = {
+		columns: [{ label: 'Value', value: 'value' }],
+		getRowKey: row => row.id,
+		label: 'Loose values',
+		pagination: false,
+		rows: [
+			{ id: 'text', value: 'b' },
+			{ id: 'ten', value: 10 },
+			{ id: 'object', value: { toString: () => 'object b' } },
+			{ id: 'number', value: 2 },
+			{ id: 'missing', value: null },
+		],
+		search: {},
+	}
+	const model = createDataTableModel<Loose, string>(fixture.host)
+	model.sync(initial)
 
-	const duplicateMissing = args({
-		selection: {
-			defaultValue: ['missing', 'missing'],
-			getRowLabel: row => row.name,
-		},
-	})
-	expect(() => createDataTableModel(host().host, duplicateMissing)).toThrowError(/DataTable duplicate selection key/)
+	model.sort('value')
+	expect(model.sync(initial).rows.map(row => row.key)).toEqual(['number', 'ten', 'object', 'text', 'missing'])
 
-	const duplicateDefault = args({
-		selection: {
-			defaultValue: ['a', 'a'],
-			getRowLabel: row => row.name,
-			onValueChange: () => {},
-			value: ['c'],
-		},
-	})
-	expect(() => createDataTableModel(host().host, duplicateDefault)).toThrowError(
-		'DataTable duplicate selection key "a"',
-	)
+	model.setQuery('B')
+	expect(model.sync(initial).rows.map(row => row.key)).toEqual(['object', 'text'])
+	fixture.controller.abort()
 })
 
 test('a non-hideable column overrides its default-hidden hint', () => {
@@ -481,7 +491,7 @@ test('a non-hideable column overrides its default-hidden hint', () => {
 	const initial = args({
 		columns: [{ defaultHidden: true, hideable: false, label: 'Name', value: 'name' }],
 	})
-	const model = createDataTableModel(fixture.host, initial)
+	const model = createDataTableModel<Row, string>(fixture.host)
 
 	expect(model.sync(initial).columns[0]).toMatchObject({ visible: true })
 	fixture.controller.abort()
@@ -497,7 +507,7 @@ test('string and numeric keys remain distinct', () => {
 		rows: mixedRows,
 	}
 	const fixture = host()
-	const model = createDataTableModel(fixture.host, mixed)
+	const model = createDataTableModel<Mixed, number | string>(fixture.host)
 	expect(model.sync(mixed).rows.map(row => row.key)).toEqual([1, '1'])
 	fixture.controller.abort()
 })
@@ -543,7 +553,7 @@ test('keeps page projection and selection bounded with 10k rows', () => {
 		rows: largeRows,
 		selection: { getRowLabel: row => row.name },
 	}
-	const model = createDataTableModel(fixture.host, large)
+	const model = createDataTableModel<LargeRow, number>(fixture.host)
 
 	let view = model.sync(large)
 	expect(view.rows).toHaveLength(25)

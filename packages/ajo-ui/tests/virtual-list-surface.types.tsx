@@ -13,12 +13,12 @@ export const inferredVirtualList = (
 		getItemKey={user => user.id}
 		estimateSize={user => user.name.length * 4}
 		renderItem={(user, index) => `${index}: ${user.name}`}
-		setApi={api => api.scrollTo({ key: 'ada' })}
+		setApi={api => api.scrollTo('ada')}
 	/>
 )
 
 export const stringApi: VirtualListApi<string> = {
-	scrollTo: target => typeof target.key === 'string',
+	scrollTo: key => typeof key === 'string',
 }
 
 export const inferredItemShape = (

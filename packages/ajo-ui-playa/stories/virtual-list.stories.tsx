@@ -179,7 +179,7 @@ export const Interactive: Story<typeof VirtualList> = {
 		if (!first) throw new Error('Interactive VirtualList did not render its first control')
 		first.focus()
 		if (document.activeElement !== first) throw new Error('VirtualList row control did not receive focus')
-		if (!interactiveApis.get(element)?.scrollTo({ key: 4_000 }, { align: 'center' })) {
+		if (!interactiveApis.get(element)?.scrollTo(4_000, { align: 'center' })) {
 			throw new Error('VirtualList controller rejected a current key')
 		}
 		await waitUntil(() => element.textContent?.includes('Command #4001') === true)

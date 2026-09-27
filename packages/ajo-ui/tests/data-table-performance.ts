@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks'
 import { arch, cpus, platform } from 'node:os'
 import type { Host } from 'ajo'
-import type { DataTableArgs, DataTableColumn } from '../src/data-table-contract'
+import type { DataTableArgs, DataTableColumn } from '../src/data-table'
 import { createDataTableModel } from '../src/data-table-model'
 
 type Row = {
@@ -73,7 +73,7 @@ const measure = (data: readonly Row[], query: string) => {
 		search: {},
 		selection: { getRowLabel: row => row.name },
 	}
-	const created = timed(() => createDataTableModel(host, args))
+	const created = timed(() => createDataTableModel<Row, number>(host))
 	const cold = timed(() => created.value.sync(args))
 	const repeat = timed(() => created.value.sync(args))
 	const search = timed(() => {
@@ -140,7 +140,7 @@ const collectability = async () => {
 	const refs: Array<WeakRef<object>> = []
 	for (let index = 0; index < 50; index++) {
 		const { controller, host } = lifecycle()
-		let model: ReturnType<typeof createDataTableModel<Row, number>> | undefined = createDataTableModel(host, args)
+		let model: ReturnType<typeof createDataTableModel<Row, number>> | undefined = createDataTableModel<Row, number>(host)
 		model.sync(args)
 		refs.push(new WeakRef(model))
 		controller.abort()

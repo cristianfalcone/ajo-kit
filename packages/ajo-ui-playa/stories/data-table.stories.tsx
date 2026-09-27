@@ -724,15 +724,36 @@ export const Pagination: Story<typeof DataTable> = {
 
 		pageAction(canvas, 'last')?.click()
 		await waitUntil(() => indicator() === 'Page 3 of 3')
-		const size = canvas.querySelector<HTMLButtonElement>('[data-slot="data-table-page-size"] [data-slot="select-trigger"]')
-		const options = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="select-item"]')).map(item => item.dataset.value)
-		if (!size || options.join(',') !== '2,3,6') throw new Error('DataTable page-size options did not match the public configuration')
-		size.click()
-		await frame()
-		canvas.querySelector<HTMLElement>('[data-slot="select-item"][data-value="3"]')?.click()
+		const size = canvas.querySelector<HTMLSelectElement>('select[data-slot="data-table-page-size-select"]')
+		const options = Array.from(size?.options ?? [], option => option.value)
+		if (!size || options.join(',') !== '2,3,6' || size.value !== '2' || size.getAttribute('aria-label') !== 'Rows per page') {
+			throw new Error('DataTable page-size select did not match the public configuration')
+		}
+		// Native option lists paint outside the page theme, so each option
+		// carries the popover surface in both themes.
+		const root = document.documentElement
+		const dark = root.classList.contains('dark')
+		const probe = document.createElement('span')
+		probe.className = 'bg-popover text-popover-foreground'
+		canvas.append(probe)
+		try {
+			for (const mode of [false, true]) {
+				root.classList.toggle('dark', mode)
+				const expected = getComputedStyle(probe)
+				const option = getComputedStyle(size.options[0]!)
+				if (option.backgroundColor !== expected.backgroundColor || option.color !== expected.color) {
+					throw new Error(`DataTable page-size options did not take the ${mode ? 'dark' : 'light'} popover surface`)
+				}
+			}
+		} finally {
+			root.classList.toggle('dark', dark)
+			probe.remove()
+		}
+		size.value = '3'
+		size.dispatchEvent(new Event('change', { bubbles: true }))
 		await waitUntil(() => indicator() === 'Page 1 of 2' && dataRows(canvas).length === 3)
-		if (!canvas.querySelector('[data-slot="data-table-page-size"] [data-slot="select-trigger"]')?.textContent?.includes('3')) {
-			throw new Error('DataTable page-size trigger did not expose the committed size')
+		if (size.value !== '3' || size.selectedOptions[0]?.textContent !== '3') {
+			throw new Error('DataTable page-size select did not expose the committed size')
 		}
 	},
 }

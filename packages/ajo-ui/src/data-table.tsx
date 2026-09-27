@@ -1,12 +1,11 @@
-import type { IntrinsicElements, Stateful } from 'ajo'
+import type { Children, IntrinsicElements, Stateful } from 'ajo'
 import { announce, dom, listen, statefulRootAttrs as rootAttrs, timer } from 'ajo-cloves'
 import { Checkbox } from './checkbox'
-import type { DataTableArgs, DataTableColumn, DataTableData, DataTableKey, DataTableLabels } from './data-table-contract'
+import { defaultResultsLabel } from './collection'
 import {
 	createDataTableModel,
 	type DataTableCellView,
 	type DataTableRowView,
-	type DataTableView,
 } from './data-table-model'
 import {
 	Menu,
@@ -16,21 +15,169 @@ import {
 	MenuSeparator,
 	MenuTrigger,
 } from './menu'
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectList,
-	SelectTrigger,
-	SelectValue,
-} from './select'
 import { Toolbar } from './toolbar'
+import type { FixedArgs, OmitArg } from './utils'
 
-export type { DataTableArgs, DataTableColumn } from './data-table-contract'
+export type DataTableKey = number | string
+export type DataTableData = any[] | Record<string, any>
+
+type DataTableScalar = boolean | number | string | null | undefined
+
+type DataTableCellContext = {
+	readonly columnId: string
+	readonly sourceIndex: number
+	readonly value: unknown
+}
+
+type DataTableFacet<T extends DataTableData> = {
+	readonly label: string
+	readonly options: readonly {
+		readonly icon?: Children
+		readonly label: string
+		readonly value: string
+	}[]
+	readonly values?: (row: T, sourceIndex: number) => string | readonly string[]
+}
+
+type DataTableColumnBase = {
+	/** Plain accessible name used by menus, sorting, and announcements. */
+	readonly label: string
+	/** Visual header content. Defaults to `label`. */
+	readonly header?: Children
+	readonly align?: 'center' | 'left' | 'right'
+	readonly defaultHidden?: boolean
+	readonly hideable?: boolean
+}
+
+type DataTableValue<T extends DataTableData> =
+	| { readonly id?: string; readonly value: keyof T & string }
+	| { readonly id: string; readonly value: (row: T, sourceIndex: number) => unknown }
+
+type DataTableValueColumn<T extends DataTableData> = DataTableColumnBase & DataTableValue<T> & {
+	readonly cell?: (row: T, context: DataTableCellContext) => Children
+	readonly sort?: false | ((left: T, right: T) => number)
+	readonly search?: false | ((row: T, sourceIndex: number) => DataTableScalar)
+	readonly facet?: DataTableFacet<T>
+}
+
+type DataTableDisplayColumn<T extends DataTableData> = DataTableColumnBase & {
+	readonly id: string
+	readonly value?: never
+	readonly cell: (row: T, context: DataTableCellContext) => Children
+	readonly sort?: false
+	readonly search?: false
+	readonly facet?: never
+}
+
+/** A stable Ajo column schema; engine implementation details stay private. */
+export type DataTableColumn<T extends DataTableData> = DataTableDisplayColumn<T> | DataTableValueColumn<T>
+
+type DataTableSelectionChange<Key extends DataTableKey> = (
+	keys: readonly Key[],
+	event?: Event,
+) => void
+
+type DataTableSelection<T extends DataTableData, Key extends DataTableKey = DataTableKey> = {
+	getRowLabel: (row: T, sourceIndex: number) => string
+} & (
+	| {
+		value: readonly Key[]
+		defaultValue?: readonly Key[]
+		onValueChange: DataTableSelectionChange<Key>
+	}
+	| {
+		value?: undefined
+		defaultValue?: readonly Key[]
+		onValueChange?: DataTableSelectionChange<Key>
+	}
+)
+
+type DataTablePagination = {
+	defaultSize?: number
+	sizes?: readonly number[]
+}
+
+type DataTableSortName = 'ascending' | 'descending' | 'none'
+
+/** Parts DataTable renders from other families, themed through `classNames`. */
+type DataTableClassName =
+	| 'checkbox'
+	| 'checkbox_indicator'
+	| 'checkbox_input'
+	| 'menu'
+	| 'menu_content'
+	| 'menu_indicator'
+	| 'menu_indicator_icon'
+	| 'menu_item'
+	| 'menu_label'
+	| 'menu_separator'
+	| 'page_size'
+
+type DataTableLabels = {
+	columns: string
+	deselectPage: string
+	deselectResults: string
+	deselectRow: (rowLabel: string) => string
+	firstPage: string
+	lastPage: string
+	nextPage: string
+	page: (page: number, pages: number) => string
+	pagination: (tableLabel: string) => string
+	previousPage: string
+	reset: string
+	results: (count: number) => string
+	rowsPerPage: string
+	search: string
+	selectPage: string
+	selectResults: string
+	selectRow: (rowLabel: string) => string
+	selected: (selected: number, sourceTotal: number) => string
+	sort: (columnLabel: string, next: DataTableSortName) => string
+	toolbar: (tableLabel: string) => string
+}
+
+/** Arguments for the client-side, paginated DataTable strategy. */
+export type DataTableArgs<
+	T extends DataTableData = Record<string, unknown>,
+	Key extends DataTableKey = DataTableKey,
+> = OmitArg<
+	IntrinsicElements['div'],
+	'aria-label' | 'aria-labelledby' | 'children' | 'data-slot'
+> & FixedArgs<
+	'aria-label'
+	| 'aria-labelledby'
+	| 'attr:aria-label'
+	| 'attr:aria-labelledby'
+	| 'attr:data-slot'
+	| 'children'
+	| 'data-slot'
+	| 'set:ariaLabel'
+	| 'set:ariaLabelledByElements'
+> & {
+	/** Plain accessible name applied to the native table element. */
+	label: string
+	/** Immutable ordered logical collection. */
+	rows: readonly T[]
+	/** Stable unique identity across filter, sort, page, and refresh. */
+	getRowKey: (row: T, sourceIndex: number) => Key
+	/** Immutable column schema with stable IDs. */
+	columns: readonly DataTableColumn<T>[]
+	/** Opt-in global search. */
+	search?: { placeholder?: string }
+	/** Presence enables key-first row selection. */
+	selection?: DataTableSelection<T, Key>
+	/** Pagination is enabled by default; false renders every filtered row. */
+	pagination?: false | DataTablePagination
+	/** Class names for the menu, checkbox and page-size parts no caller composes. */
+	classNames?: Partial<Record<DataTableClassName, string>>
+	empty?: Children
+	labels?: Partial<DataTableLabels>
+	children?: never
+}
 
 type DataTableRootArgs<T extends DataTableData, Key extends DataTableKey> = Pick<
 	DataTableArgs<T, Key>,
-	'columns' | 'empty' | 'getRowKey' | 'label' | 'labels' | 'pagination' | 'rows' | 'search' | 'selection'
+	'classNames' | 'columns' | 'empty' | 'getRowKey' | 'label' | 'labels' | 'pagination' | 'rows' | 'search' | 'selection'
 >
 
 type FocusTarget = { column?: string; row: string }
@@ -47,7 +194,7 @@ const defaultLabels: DataTableLabels = {
 	pagination: table => `${table} pagination`,
 	previousPage: 'Previous page',
 	reset: 'Reset',
-	results: count => `${count} result${count === 1 ? '' : 's'}`,
+	results: defaultResultsLabel,
 	rowsPerPage: 'Rows per page',
 	search: 'Search',
 	selectPage: 'Select page',
@@ -56,11 +203,6 @@ const defaultLabels: DataTableLabels = {
 	selected: (selected, total) => `${selected} of ${total} ${total === 1 ? 'row' : 'rows'} selected.`,
 	sort: (column, next) => `Sort ${column} ${next}`,
 	toolbar: table => `${table} controls`,
-}
-
-const validLabel = (value: unknown, name: string) => {
-	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`DataTable invalid ${name}`)
-	return value
 }
 
 const align = (value: DataTableColumn<any>['align']) => value ?? 'left'
@@ -75,12 +217,7 @@ const cellContent = (
 		sourceIndex: row.sourceIndex,
 		value: cell.value,
 	})
-	if (cell.value == null) return ''
-	if (typeof cell.value === 'number' && !Number.isFinite(cell.value)) {
-		throw new TypeError(`DataTable cannot render ${cell.column.id} at ${row.sourceIndex}`)
-	}
-	if (['bigint', 'boolean', 'number', 'string'].includes(typeof cell.value)) return String(cell.value)
-	throw new TypeError(`DataTable cannot render ${cell.column.id} at ${row.sourceIndex}`)
+	return cell.value == null ? '' : String(cell.value)
 }
 
 const activeElement = (host: HTMLElement): HTMLElement | null => {
@@ -111,7 +248,7 @@ const findCoordinate = (host: HTMLElement, target: FocusTarget) => {
 }
 
 const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* () {
-	let model: ReturnType<typeof createDataTableModel<any, DataTableKey>> | undefined
+	const model = createDataTableModel<any, DataTableKey>(this)
 	let table: HTMLTableElement | null = null
 	let searchElement: HTMLInputElement | null = null
 	let composing = false
@@ -134,7 +271,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 		if (event.target !== searchElement || !searchElement) return
 		composing = false
 		announceAfterRender = 'deferred'
-		model?.setQuery(searchElement.value)
+		model.setQuery(searchElement.value)
 	})
 
 	const preserveFocus = () => {
@@ -156,65 +293,48 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 		})
 	}
 
-	this.signal.addEventListener('abort', () => {
-		composing = false
-		searchElement = null
-		table = null
-		model = undefined
-	}, { once: true })
-
 	for (const args of this) {
 		preserveFocus()
-		model ??= createDataTableModel(this, args)
-		const view = model.sync(args) as DataTableView<any, DataTableKey>
+		const view = model.sync(args)
 		const labels = { ...defaultLabels, ...args.labels }
-		const text = <Name extends keyof DataTableLabels>(name: Name) => validLabel(labels[name], `label ${name}`)
-		const call = <Name extends keyof DataTableLabels>(
-			name: Name,
-			...values: DataTableLabels[Name] extends (...args: infer Params) => string ? Params : never
-		) => validLabel(((labels[name] as unknown) as (...args: typeof values) => string)(...values), `label ${name}`)
+		const classNames = args.classNames ?? {}
 		const visibleColumns = view.columns.filter(column => column.visible)
 		const visibleCount = visibleColumns.length
 		const selectAllLabel = () => view.selection.all
-			? text(view.page.enabled ? 'deselectPage' : 'deselectResults')
-			: text(view.page.enabled ? 'selectPage' : 'selectResults')
+			? labels[view.page.enabled ? 'deselectPage' : 'deselectResults']
+			: labels[view.page.enabled ? 'selectPage' : 'selectResults']
 
 		if (announceAfterRender) {
-			const message = call('results', view.filteredCount)
+			const message = labels.results(view.filteredCount)
 			results.stop()
 			if (announceAfterRender === 'immediate') live.polite(message)
 			else results.start(200, () => live.polite(message))
 			announceAfterRender = undefined
 		}
 
-		const announceResults = (mode: 'deferred' | 'immediate') => {
-			announceAfterRender = mode
-		}
-
 		const selectLabel = (row: DataTableRowView<any, DataTableKey>) => {
-			const selection = args.selection!
-			const rowLabel = validLabel(selection.getRowLabel(row.original, row.sourceIndex), 'row label')
-			return row.selected ? call('deselectRow', rowLabel) : call('selectRow', rowLabel)
+			const rowLabel = args.selection!.getRowLabel(row.original, row.sourceIndex)
+			return row.selected ? labels.deselectRow(rowLabel) : labels.selectRow(rowLabel)
 		}
 
 		yield (
 			<>
 				{args.search || view.columns.some(column => column.column.facet?.options.length) || view.visibility ? (
 					<Toolbar
-						aria-label={call('toolbar', args.label)}
+						aria-label={labels.toolbar(args.label)}
 						data-slot="data-table-toolbar"
 					>
 						<div data-slot="data-table-toolbar-controls">
 							{args.search ? (
 								<input
-									aria-label={text('search')}
+									aria-label={labels.search}
 									data-slot="data-table-search"
-									placeholder={args.search.placeholder ?? text('search')}
+									placeholder={args.search.placeholder ?? labels.search}
 									ref={searchRef}
 									set:oninput={(event: InputEvent) => {
 										if (composing || event.isComposing) return
-										announceResults('deferred')
-										model!.setQuery((event.currentTarget as HTMLInputElement).value)
+										announceAfterRender = 'deferred'
+										model.setQuery((event.currentTarget as HTMLInputElement).value)
 									}}
 									set:onkeydown={(event: KeyboardEvent) => {
 										if (
@@ -225,7 +345,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 										) return
 										announceAfterRender = undefined
 										results.stop()
-										live.polite(call('results', view.filteredCount))
+										live.polite(labels.results(view.filteredCount))
 									}}
 									set:value={view.query}
 									type="search"
@@ -236,7 +356,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 								const facet = column.column.facet
 								if (!facet?.options.length) return []
 								return [(
-									<Menu key={column.id}>
+									<Menu key={column.id} class={classNames.menu}>
 										<MenuTrigger data-slot="data-table-facet">
 											<span aria-hidden="true" data-slot="data-table-facet-icon" />
 											{facet.label}
@@ -244,16 +364,19 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 												<span data-slot="data-table-facet-count">{column.active.length}</span>
 											) : null}
 										</MenuTrigger>
-										<MenuContent data-slot="data-table-facet-content">
-											<MenuLabel>{facet.label}</MenuLabel>
-											<MenuSeparator />
+										<MenuContent class={classNames.menu_content} data-slot="data-table-facet-content">
+											<MenuLabel class={classNames.menu_label}>{facet.label}</MenuLabel>
+											<MenuSeparator class={classNames.menu_separator} />
 											{facet.options.map(option => (
 												<MenuCheckboxItem
 													key={option.value}
 													checked={column.active.includes(option.value)}
+													class={classNames.menu_item}
+													indicatorClass={classNames.menu_indicator}
+													indicatorIconClass={classNames.menu_indicator_icon}
 													onCheckedChange={checked => {
-														announceResults('immediate')
-														model!.setFacet(column.id, option.value, checked)
+														announceAfterRender = 'immediate'
+														model.setFacet(column.id, option.value, checked)
 													}}
 													textValue={option.label}
 												>
@@ -270,32 +393,35 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 								<button
 									data-slot="data-table-reset"
 									set:onclick={() => {
-										announceResults('immediate')
-										model!.reset()
+										announceAfterRender = 'immediate'
+										model.reset()
 									}}
 									type="button"
 								>
-									{text('reset')}
+									{labels.reset}
 									<span aria-hidden="true" data-slot="data-table-reset-icon" />
 								</button>
 							) : null}
 						</div>
 
 						{view.visibility ? (
-							<Menu placement="bottom-end">
+							<Menu class={classNames.menu} placement="bottom-end">
 								<MenuTrigger data-slot="data-table-columns">
-									{text('columns')}
+									{labels.columns}
 									<span aria-hidden="true" data-slot="data-table-columns-icon" />
 								</MenuTrigger>
-								<MenuContent data-slot="data-table-columns-content">
-									<MenuLabel>{text('columns')}</MenuLabel>
-									<MenuSeparator />
+								<MenuContent class={classNames.menu_content} data-slot="data-table-columns-content">
+									<MenuLabel class={classNames.menu_label}>{labels.columns}</MenuLabel>
+									<MenuSeparator class={classNames.menu_separator} />
 									{view.columns.filter(column => column.column.hideable !== false).map(column => (
 										<MenuCheckboxItem
 											key={column.id}
 											checked={column.visible}
+											class={classNames.menu_item}
 											disabled={column.visible && visibleCount === 1}
-											onCheckedChange={checked => model!.toggleColumn(column.id, checked)}
+											indicatorClass={classNames.menu_indicator}
+											indicatorIconClass={classNames.menu_indicator_icon}
+											onCheckedChange={checked => model.toggleColumn(column.id, checked)}
 											textValue={column.column.label}
 										>
 											{column.column.label}
@@ -320,10 +446,13 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 									<th data-slot="table-head" scope="col">
 										<Checkbox
 											aria-label={selectAllLabel()}
+											class={classNames.checkbox}
 											disabled={!view.rows.length}
 											checked={view.selection.all}
+											indicatorClass={classNames.checkbox_indicator}
+											inputClass={classNames.checkbox_input}
 											set:indeterminate={view.selection.some}
-											onCheckedChange={(checked, event) => model!.togglePage(checked, event)}
+											onCheckedChange={(checked, event) => model.togglePage(checked, event)}
 										/>
 									</th>
 								) : null}
@@ -341,9 +470,9 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 										>
 											{sortable ? (
 												<button
-													aria-label={call('sort', column.column.label, next)}
+													aria-label={labels.sort(column.column.label, next)}
 													data-slot="data-table-sort-trigger"
-													set:onclick={() => model!.sort(column.id)}
+													set:onclick={() => model.sort(column.id)}
 													type="button"
 												>
 													<span>{column.column.header ?? column.column.label}</span>
@@ -368,7 +497,10 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 											<Checkbox
 												aria-label={selectLabel(row)}
 												checked={row.selected}
-												onCheckedChange={(checked, event) => model!.toggleRow(row.id, checked, event)}
+												class={classNames.checkbox}
+												indicatorClass={classNames.checkbox_indicator}
+												inputClass={classNames.checkbox_input}
+												onCheckedChange={(checked, event) => model.toggleRow(row.id, checked, event)}
 											/>
 										</td>
 									) : null}
@@ -401,61 +533,59 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 					<div data-slot="data-table-footer">
 						{view.selection.enabled ? (
 							<div aria-live="polite" data-slot="data-table-selection-summary" role="status">
-								{call('selected', view.selectedCount, view.sourceCount)}
+								{labels.selected(view.selectedCount, view.sourceCount)}
 							</div>
 						) : null}
 						{view.page.enabled ? (
-							<nav aria-label={call('pagination', args.label)} data-slot="data-table-pagination">
+							<nav aria-label={labels.pagination(args.label)} data-slot="data-table-pagination">
 								<div data-slot="data-table-page-size">
-									<span>{text('rowsPerPage')}</span>
-									<Select
-										value={String(view.page.size)}
-										onValueChange={value => { if (value) model!.setPageSize(Number(value)) }}
+									<span>{labels.rowsPerPage}</span>
+									<select
+										aria-label={labels.rowsPerPage}
+										class={classNames.page_size}
+										data-slot="data-table-page-size-select"
+										set:onchange={(event: Event) => model.setPageSize(Number((event.currentTarget as HTMLSelectElement).value))}
+										set:value={String(view.page.size)}
 									>
-										<SelectTrigger aria-label={text('rowsPerPage')}>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectList>
-												{view.page.sizes.map(size => <SelectItem key={size} value={String(size)}>{size}</SelectItem>)}
-											</SelectList>
-										</SelectContent>
-									</Select>
+										{view.page.sizes.map(size => (
+											<option key={size} selected={size === view.page.size} value={String(size)}>{size}</option>
+										))}
+									</select>
 								</div>
 								<div data-slot="data-table-page-indicator">
-									{call('page', view.page.index + 1, view.page.count)}
+									{labels.page(view.page.index + 1, view.page.count)}
 								</div>
 								<div data-slot="data-table-pagination-actions">
 									<button
-										aria-label={text('firstPage')}
+										aria-label={labels.firstPage}
 										data-action="first"
 										data-slot="data-table-pagination-action"
 										disabled={view.page.index === 0}
-										set:onclick={() => model!.firstPage()}
+										set:onclick={() => model.firstPage()}
 										type="button"
 									><span aria-hidden="true" /></button>
 									<button
-										aria-label={text('previousPage')}
+										aria-label={labels.previousPage}
 										data-action="previous"
 										data-slot="data-table-pagination-action"
 										disabled={view.page.index === 0}
-										set:onclick={() => model!.previousPage()}
+										set:onclick={() => model.previousPage()}
 										type="button"
 									><span aria-hidden="true" /></button>
 									<button
-										aria-label={text('nextPage')}
+										aria-label={labels.nextPage}
 										data-action="next"
 										data-slot="data-table-pagination-action"
 										disabled={view.page.index >= view.page.count - 1}
-										set:onclick={() => model!.nextPage()}
+										set:onclick={() => model.nextPage()}
 										type="button"
 									><span aria-hidden="true" /></button>
 									<button
-										aria-label={text('lastPage')}
+										aria-label={labels.lastPage}
 										data-action="last"
 										data-slot="data-table-pagination-action"
 										disabled={view.page.index >= view.page.count - 1}
-										set:onclick={() => model!.lastPage()}
+										set:onclick={() => model.lastPage()}
 										type="button"
 									><span aria-hidden="true" /></button>
 								</div>
@@ -468,23 +598,11 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 	}
 }
 
-const safeRootAttrs = (attrs: Record<string, unknown>) => {
-	const result = { ...rootAttrs(attrs) }
-	for (const name of [
-		'aria-label',
-		'aria-labelledby',
-		'attr:aria-label',
-		'attr:aria-labelledby',
-		'set:ariaLabel',
-		'set:ariaLabelledByElements',
-	]) delete result[name]
-	return result
-}
-
 /** Native, Ajo-owned client DataTable powered by its private indexed model. */
 const DataTable = <T extends DataTableData, Key extends DataTableKey = DataTableKey>({
 	children: _children,
 	class: classes,
+	classNames,
 	columns,
 	empty,
 	getRowKey,
@@ -497,7 +615,8 @@ const DataTable = <T extends DataTableData, Key extends DataTableKey = DataTable
 	...attrs
 }: DataTableArgs<T, Key>) => (
 	<DataTableRoot
-		{...safeRootAttrs(attrs as Record<string, unknown>) as IntrinsicElements['div']}
+		{...rootAttrs(attrs as Record<string, unknown>) as IntrinsicElements['div']}
+		classNames={classNames}
 		columns={columns}
 		empty={empty}
 		getRowKey={getRowKey}

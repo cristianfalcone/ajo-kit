@@ -108,17 +108,6 @@ test('the list host consumes fresh snapshots and forwards its lifecycle ref', ()
 	expect(refs.at(-1)).toBeNull()
 })
 
-test('membership changes require a new items snapshot', () => {
-	const items = [{ id: 'first', label: 'First' }]
-	const capture = () => undefined
-	render(view(items, capture), document.body)
-	items.push({ id: 'second', label: 'Second' })
-
-	expect(() => render(view(items, capture), document.body)).toThrowError(
-		'VirtualList mutated items',
-	)
-})
-
 test('a connected list replaces prerender rows with a bounded viewport range', async () => {
 	const items = Array.from({ length: 100 }, (_, index) => ({ id: `item-${index}`, label: `Item ${index}` }))
 	render(jsx(VirtualList, {
@@ -670,23 +659,19 @@ test('the mounted controller scrolls to a current key and rejects missing target
 	expect(Object.keys(api!)).toEqual(['scrollTo'])
 	expect(receivers).toBe(1)
 	scrolls.length = 0
-	expect(api!.scrollTo({ key: 'missing' })).toBe(false)
+	expect(api!.scrollTo('missing')).toBe(false)
 	expect(scrolls).toHaveLength(0)
-	expect(() => api!.scrollTo({} as never)).toThrowError(
-		new TypeError('VirtualList target needs key or index'),
-	)
-	expect(api!.scrollTo({ key: 'item-50' }, { align: 'center' })).toBe(true)
+	expect(api!.scrollTo('item-50', { align: 'center' })).toBe(true)
 	expect(scrolls).toContainEqual({ behavior: 'auto', top: 960 })
 	scrolls.length = 0
-	expect(api!.scrollTo({ index: 10 }, { align: 'start' })).toBe(true)
+	expect(api!.scrollTo('item-10', { align: 'start' })).toBe(true)
 	expect(scrolls).toContainEqual({ behavior: 'auto', top: 200 })
 	scrolls.length = 0
-	expect(api!.scrollTo({ index: 10 }, { align: 'end' })).toBe(true)
+	expect(api!.scrollTo('item-10', { align: 'end' })).toBe(true)
 	expect(scrolls).toContainEqual({ behavior: 'auto', top: 120 })
 	scrolls.length = 0
-	expect(api!.scrollTo({ index: 20 }, { align: 'nearest' })).toBe(true)
+	expect(api!.scrollTo('item-20', { align: 'nearest' })).toBe(true)
 	expect(scrolls).toContainEqual({ behavior: 'auto', top: 320 })
-	expect(api!.scrollTo({ index: 100 })).toBe(false)
 
 	render(jsx(VirtualList, {
 		estimateSize: 20,
@@ -812,7 +797,7 @@ test('unmount disconnects observers once and makes the retained controller inert
 		const unobserves = observer.instances.reduce((count, instance) => count + instance.unobserve.mock.calls.length, 0)
 		expect(disconnects).toBeGreaterThan(0)
 		expect(unobserves).toBeGreaterThan(0)
-		expect(api!.scrollTo({ index: 0 })).toBe(false)
+		expect(api!.scrollTo('item-0')).toBe(false)
 
 		render(null, document.body)
 		expect(observer.instances.reduce((count, instance) => count + instance.disconnect.mock.calls.length, 0)).toBe(disconnects)

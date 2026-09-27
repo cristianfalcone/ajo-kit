@@ -108,6 +108,6 @@ export const virtualListThemePreservesGenericInference = (
 			// @ts-expect-error The Playa adapter must not erase the inferred item shape.
 			return person.missing
 		}}
-		setApi={(api: VirtualListApi<string>) => api.scrollTo({ key: 'ada' })}
+		setApi={(api: VirtualListApi<string>) => api.scrollTo('ada')}
 	/>
 )

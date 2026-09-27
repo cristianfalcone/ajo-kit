@@ -21,7 +21,6 @@ type BuildResult = {
 }
 
 const entry = 'virtual:ajo-ui-bundle-entry'
-const dataTableModelEntry = 'virtual:ajo-data-table-model'
 const uiRequire = createRequire(resolve('packages/ajo-ui/package.json'))
 
 const tanstackEntry = (id: string) => {
@@ -39,11 +38,7 @@ const bundle = async (name: string, source: string): Promise<Result> => {
 	const virtualEntry: Plugin = {
 		name: 'ajo-ui-bundle-entry',
 		load: id => id === `\0${entry}` ? source : null,
-		resolveId: id => id === entry
-			? `\0${entry}`
-			: id === dataTableModelEntry
-				? resolve('packages/ajo-ui/src/data-table-model.ts')
-			: uiEntry(id) ?? tanstackEntry(id),
+		resolveId: id => id === entry ? `\0${entry}` : uiEntry(id) ?? tanstackEntry(id),
 	}
 	const result = await build({
 		build: {
@@ -150,10 +145,6 @@ const dataTable = await bundle('data-table', `
 	import { DataTable } from 'ajo-ui/data-table'
 	globalThis.__ajoFixture = DataTable
 `)
-const dataTableModel = await bundle('data-table-model', `
-	import { createDataTableModel } from '${dataTableModelEntry}'
-	globalThis.__ajoFixture = createDataTableModel
-`)
 
 console.log(JSON.stringify([
 	framework,
@@ -173,7 +164,6 @@ console.log(JSON.stringify([
 	chartDirect,
 	core,
 	virtualList,
-	dataTableModel,
 	dataTable,
 ].map(({ brotli, bytes, gzip, name }) => ({ brotli, bytes, gzip, name })), null, 2))
 
@@ -246,17 +236,11 @@ if (incrementalGzip > 9 * 1024) {
 console.log(`VirtualList incremental gzip: ${incrementalGzip} bytes`)
 console.log(`VirtualList incremental Brotli: ${virtualList.brotli - framework.brotli} bytes`)
 
-if (dataTableModel.code.includes(virtualMarker)) {
-	throw new Error('The DataTable model fixture retained the VirtualList engine')
-}
-if (dataTableModel.gzip > 5 * 1024 || dataTableModel.brotli > 5 * 1024) {
-	throw new Error(`DataTable model exceeded the 5/5 KiB gzip/Brotli budgets: ${dataTableModel.gzip}/${dataTableModel.brotli} bytes`)
-}
-console.log(`DataTable model gzip: ${dataTableModel.gzip} bytes`)
-console.log(`DataTable model Brotli: ${dataTableModel.brotli} bytes`)
 if (dataTable.code.includes(virtualMarker)) {
 	throw new Error('The DataTable fixture retained the VirtualList engine')
 }
+// The rows-per-page control is a native select, so DataTable never pulls in the Select family.
+if (hasModule(dataTable, '/src/select.tsx')) throw new Error('The DataTable fixture retained the Select family')
 const dataTableIncrementalGzip = dataTable.gzip - framework.gzip
 const dataTableIncrementalBrotli = dataTable.brotli - framework.brotli
 // DataTable composes Menu, so isolate its table-specific payload from the

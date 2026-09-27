@@ -44,34 +44,3 @@ test('a snapshot rejects duplicate item keys before rendering', () => {
 		renderItem: (item: { name: string }) => item.name,
 	}))).toThrowError(new TypeError('VirtualList duplicate key "same" 0/1'))
 })
-
-test('a snapshot rejects non-finite numeric item keys', () => {
-	expect(() => ssr(jsx(VirtualList, {
-		getItemKey: () => Number.NaN,
-		items: ['invalid'],
-		estimateSize: 40,
-		renderItem: (item: string) => item,
-	}))).toThrowError(new TypeError('VirtualList invalid key at 0'))
-})
-
-test('a snapshot rejects a non-positive size estimate', () => {
-	expect(() => ssr(jsx(VirtualList, {
-		getItemKey: (item: string) => item,
-		items: ['invalid'],
-		estimateSize: 0,
-		renderItem: (item: string) => item,
-	}))).toThrowError(new RangeError('VirtualList invalid estimate at 0'))
-})
-
-test.each([
-	['overscan', -1],
-	['prerender', 1.5],
-] as const)('rejects invalid %s', (option, value) => {
-	expect(() => ssr(jsx(VirtualList, {
-		getItemKey: (item: string) => item,
-		items: ['item'],
-		estimateSize: 40,
-		[option]: value,
-		renderItem: (item: string) => item,
-	}))).toThrowError(new RangeError(`VirtualList invalid ${option}`))
-})

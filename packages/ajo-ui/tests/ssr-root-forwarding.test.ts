@@ -70,18 +70,23 @@ test('DataTable explicit column IDs override property-derived identity', () => {
 	expect(html).not.toContain('data-column-id=' + JSON.stringify('name'))
 })
 
-test.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
-	'DataTable rejects automatic rendering of the non-finite number %s',
-	value => {
-		expect(() => ssr(jsx(DataTable, {
-			columns: [{ label: 'Score', value: 'score' }],
-			getRowKey: (row: { id: string }) => row.id,
-			label: 'Scores',
-			pagination: false,
-			rows: [{ id: 'one', score: value }],
-		}))).toThrow(TypeError)
-	},
-)
+test('DataTable default cells render any value as escaped text', () => {
+	const html = ssr(jsx(DataTable, {
+		columns: [{ label: 'Score', value: 'score' }],
+		getRowKey: (row: { id: string }) => row.id,
+		label: 'Scores',
+		pagination: false,
+		rows: [
+			{ id: 'nan', score: Number.NaN },
+			{ id: 'infinity', score: Number.NEGATIVE_INFINITY },
+			{ id: 'object', score: { toString: () => '<b>bold</b>' } },
+			{ id: 'missing', score: null },
+		],
+	}))
+	const cells = [...html.matchAll(/<td\b[^>]*data-column-id="score"[^>]*>(.*?)<\/td>/g)].map(match => match[1])
+
+	expect(cells).toEqual(['NaN', '-Infinity', '&#60;b&#62;bold&#60;/b&#62;', ''])
+})
 
 test('VirtualList forwards DOM attrs to its single semantic host without leaking behavior args', () => {
 	const html = ssr(jsx(VirtualList, {

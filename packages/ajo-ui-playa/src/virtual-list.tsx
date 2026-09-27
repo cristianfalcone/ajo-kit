@@ -10,7 +10,6 @@ export type {
 	VirtualListApi,
 	VirtualListKey,
 	VirtualListScrollOptions,
-	VirtualListTarget,
 } from 'ajo-ui/virtual-list'
 
 /** Playa VirtualList args: `class`/`style` target its frame; other DOM args target the `ul`. */

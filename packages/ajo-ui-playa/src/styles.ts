@@ -5,7 +5,6 @@ const softScrollbar = [
   '.scrollbar-soft',
   '.playa-menu-content',
   '.playa-select-list',
-  '.playa-data-table :where([data-menu-content=true],[data-slot=select-list])',
 ]
 const softScrollbarSelector = (pseudo = '') =>
   softScrollbar.map(selector => `${selector}${pseudo}`).join(',')
@@ -231,9 +230,6 @@ export const playa = definePreset(() => ({
     // Unframed scroll owners retain an inset thumb so rounded popup roots stay
     // safe. ScrollAreaFrame viewports opt into the full-width override above;
     // their hard clip contains paint without shrinking the handle.
-    // Menu and Select are rendered both through their Playa adapters and as
-    // base descendants of composite families such as DataTable. Keep their
-    // complete visual recipes here so both paths consume the same source.
     'playa-menu-root': 'relative inline-block',
     'playa-menu-content-open': [{ 'transition-property': 'opacity' }],
     'playa-menu-content-visible': 'opacity-100',
@@ -250,9 +246,7 @@ export const playa = definePreset(() => ({
       },
     ],
     'playa-menu-item': 'relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[highlighted=true]:bg-accent data-[highlighted=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[inset]:pl-8 data-[variant=danger]:text-danger data-[variant=danger]:focus:bg-danger/10 data-[variant=danger]:focus:text-danger data-[variant=danger]:data-[highlighted=true]:bg-danger/10 data-[variant=danger]:data-[highlighted=true]:text-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground data-[variant=danger]:[&_svg]:text-danger',
-    'playa-menu-choice-focus': 'bg-accent text-accent-foreground',
-    'playa-menu-choice-disabled': 'pointer-events-none opacity-50',
-    'playa-menu-choice-row': 'relative flex cursor-default select-none items-center gap-2 rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:playa-menu-choice-focus data-[highlighted=true]:playa-menu-choice-focus data-[disabled=true]:playa-menu-choice-disabled [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
+    'playa-menu-choice-row': 'relative flex cursor-default select-none items-center gap-2 rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[highlighted=true]:bg-accent data-[highlighted=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
     'playa-menu-indicator': 'pointer-events-none absolute left-2 flex size-3.5 items-center justify-center',
     'playa-menu-label': 'px-2 py-1.5 text-sm font-medium data-[inset]:pl-8',
     'playa-menu-separator': '-mx-1 my-1 h-px bg-border',
@@ -262,42 +256,22 @@ export const playa = definePreset(() => ({
     'playa-menu-sub-trigger-icon': 'i-lucide-chevron-right ml-auto size-4',
     'playa-menu-sub-trigger-open': 'data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
     'playa-select-root': 'relative inline-block',
-    'playa-select-trigger-focus': 'inset-ring-ring ring-3 ring-ring/25',
-    'playa-select-trigger-disabled': 'cursor-not-allowed opacity-50',
-    'playa-select-trigger-invalid': 'inset-ring-danger ring-danger/20',
-    'playa-select-trigger-placeholder': 'text-muted-foreground',
-    'playa-select-value': 'line-clamp-1 flex items-center gap-2',
-    'playa-select-trigger': 'flex w-fit items-center justify-between gap-2 rounded-md edge-input bg-transparent px-3 py-2 text-sm whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:playa-select-trigger-focus disabled:playa-select-trigger-disabled aria-invalid:playa-select-trigger-invalid data-[placeholder]:playa-select-trigger-placeholder data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:playa-select-value [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground',
+    'playa-select-trigger': 'flex w-fit items-center justify-between gap-2 rounded-md edge-input bg-transparent px-3 py-2 text-sm whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:inset-ring-ring focus-visible:ring-3 focus-visible:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:inset-ring-danger aria-invalid:ring-danger/20 data-[placeholder]:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground',
     'playa-select-trigger-icon': 'i-lucide-chevron-down size-4 opacity-50',
-    'playa-select-content-layout': 'flex',
-    'playa-select-content-open': 'animate-in fade-in-0 zoom-in-95',
-    'playa-select-content-closed': 'animate-out fade-out-0 zoom-out-95',
-    'playa-select-content': 'isolate z-50 m-0 [&:popover-open]:playa-select-content-layout max-h-[max(96px,var(--available-height,24rem))] min-w-[var(--reference-width,8rem)] flex-col overflow-hidden rounded-md glass-overlay edge shadow-lg outline-none data-[state=open]:playa-select-content-open data-[state=closed]:playa-select-content-closed',
-    'playa-select-list-empty': 'p-0',
-    'playa-select-list': 'overflow-y-auto overflow-x-hidden overscroll-contain min-h-0 scroll-py-1 p-1 [[data-slot=select-content][data-empty]_&]:playa-select-list-empty',
-    'playa-select-row-highlighted': 'bg-accent text-accent-foreground',
-    'playa-select-row-disabled': 'pointer-events-none opacity-50',
-    'playa-select-row': 'relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pl-2 text-sm outline-none select-none data-[highlighted=true]:playa-select-row-highlighted data-[disabled=true]:playa-select-row-disabled [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground',
+    'playa-select-content': 'isolate z-50 m-0 [&:popover-open]:flex max-h-[max(96px,var(--available-height,24rem))] min-w-[var(--reference-width,8rem)] flex-col overflow-hidden rounded-md glass-overlay edge shadow-lg outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
+    'playa-select-list': 'overflow-y-auto overflow-x-hidden overscroll-contain min-h-0 scroll-py-1 p-1 [[data-slot=select-content][data-empty]_&]:p-0',
+    'playa-select-row': 'relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pl-2 text-sm outline-none select-none data-[highlighted=true]:bg-accent data-[highlighted=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground',
     'playa-select-item': 'playa-select-row pr-9',
     'playa-select-create': 'playa-select-row pr-2 text-muted-foreground data-[highlighted=true]:text-accent-foreground',
-    'playa-select-indicator-coarse': 'size-5',
-    'playa-select-indicator-selected': 'opacity-100',
-    'playa-select-indicator-empty': 'opacity-0',
-    'playa-select-indicator': 'pointer-events-none absolute right-2 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground pointer-coarse:playa-select-indicator-coarse data-[selected=true]:playa-select-indicator-selected data-[selected=false]:playa-select-indicator-empty',
-    'playa-select-indicator-icon-coarse': 'size-3.5',
-    'playa-select-indicator-icon': 'i-lucide-check pointer-events-none size-3 pointer-coarse:playa-select-indicator-icon-coarse',
+    'playa-select-indicator': 'pointer-events-none absolute right-2 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground pointer-coarse:size-5 data-[selected=true]:opacity-100 data-[selected=false]:opacity-0',
+    'playa-select-indicator-icon': 'i-lucide-check pointer-events-none size-3 pointer-coarse:size-3.5',
     'playa-select-label': 'px-2 py-1.5 text-xs text-muted-foreground pointer-coarse:px-3 pointer-coarse:py-2 pointer-coarse:text-sm',
     'playa-select-separator': 'pointer-events-none -mx-1 my-1 h-px bg-border',
     'playa-select-empty': 'hidden w-full justify-center py-2 text-center text-sm text-muted-foreground [[data-slot=select-content][data-empty]_&]:flex',
     'playa-select-status': 'flex w-full items-center justify-center gap-2 py-2 text-center text-sm text-muted-foreground empty:hidden',
     'playa-select-chips': 'flex min-h-9 flex-wrap items-center gap-1.5 rounded-md edge-input bg-transparent px-2.5 py-1.5 text-sm transition-[color,box-shadow] focus-within:inset-ring-ring focus-within:ring-3 focus-within:ring-ring/25 has-aria-invalid:inset-ring-danger has-aria-invalid:ring-danger/20',
     'playa-select-chips-input': 'min-w-16 flex-1 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
-    // Checkbox splits into a stateless base and the stateful box: composite
-    // recipes (DataTable) re-style the base through slot prefixes, and nesting
-    // `has-*` tokens under a slot prefix would hang the `:has()` on the recipe
-    // root instead of the box.
-    'playa-checkbox-base': 'relative inline-flex size-4 shrink-0 items-center justify-center rounded-xs edge-input bg-transparent outline-none transition-[background-color,box-shadow] duration-150 motion-reduce:transition-none',
-    'playa-checkbox-box': 'playa-checkbox-base has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[[aria-invalid=true]]:inset-ring-danger has-[[aria-invalid=true]]:ring-danger/20',
+    'playa-checkbox-box': 'relative inline-flex size-4 shrink-0 items-center justify-center rounded-xs edge-input bg-transparent outline-none transition-[background-color,box-shadow] duration-150 motion-reduce:transition-none has-[:focus-visible]:inset-ring-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[[aria-invalid=true]]:inset-ring-danger has-[[aria-invalid=true]]:ring-danger/20',
     // The frame is an outline, not an inset ring: outlines paint after all
     // descendants, so opaque row fills (a selected row's bg-muted) cannot
     // cover the table's edges the way they cover an inset box-shadow. Offset
@@ -364,13 +338,7 @@ export const playa = definePreset(() => ({
       '[&_:where([data-slot=data-table-facet-icon])]:i-lucide-list-filter [&_:where([data-slot=data-table-facet-icon])]:size-4 [&_:where([data-slot=data-table-facet-count])]:rounded-xs [&_:where([data-slot=data-table-facet-count])]:bg-muted [&_:where([data-slot=data-table-facet-count])]:px-1.5 [&_:where([data-slot=data-table-facet-count])]:py-0.5 [&_:where([data-slot=data-table-facet-count])]:text-xs [&_:where([data-slot=data-table-facet-count])]:tabular-nums',
       '[&_:where([data-slot=data-table-columns])]:inline-flex [&_:where([data-slot=data-table-columns])]:h-8 [&_:where([data-slot=data-table-columns])]:items-center [&_:where([data-slot=data-table-columns])]:gap-2 [&_:where([data-slot=data-table-columns])]:rounded-md [&_:where([data-slot=data-table-columns])]:edge [&_:where([data-slot=data-table-columns])]:px-3 [&_:where([data-slot=data-table-columns])]:text-sm [&_:where([data-slot=data-table-columns])]:font-medium [&_:where([data-slot=data-table-columns])]:outline-none hover:[&_:where([data-slot=data-table-columns])]:bg-accent hover:[&_:where([data-slot=data-table-columns])]:edge-on-accent focus-visible:[&_:where([data-slot=data-table-columns])]:ring-3 focus-visible:[&_:where([data-slot=data-table-columns])]:ring-ring/50 [&_:where([data-slot=data-table-columns-icon])]:i-lucide-chevron-down [&_:where([data-slot=data-table-columns-icon])]:size-4',
       '[&_:where([data-slot=data-table-reset])]:inline-flex [&_:where([data-slot=data-table-reset])]:h-8 [&_:where([data-slot=data-table-reset])]:items-center [&_:where([data-slot=data-table-reset])]:gap-2 [&_:where([data-slot=data-table-reset])]:rounded-md [&_:where([data-slot=data-table-reset])]:px-3 [&_:where([data-slot=data-table-reset])]:text-sm [&_:where([data-slot=data-table-reset])]:font-medium hover:[&_:where([data-slot=data-table-reset])]:bg-accent [&_:where([data-slot=data-table-reset-icon])]:i-lucide-x [&_:where([data-slot=data-table-reset-icon])]:size-4',
-      '[&_:where([data-slot=menu])]:playa-menu-root',
-      '[&_:where([data-slot=data-table-facet-content],[data-slot=data-table-columns-content])]:playa-menu-content [&_:where([data-slot=data-table-facet-content],[data-slot=data-table-columns-content])]:min-w-[8rem]',
-      'motion-reduce:[&_:where([data-slot=data-table-facet-content],[data-slot=data-table-columns-content])]:playa-menu-content-reduced data-[state=open]:[&_:where([data-slot=data-table-facet-content],[data-slot=data-table-columns-content])]:playa-menu-content-open data-[state=open]:data-[side]:[&_:where([data-slot=data-table-facet-content],[data-slot=data-table-columns-content])]:playa-menu-content-visible starting:data-[state=open]:data-[side]:[&_:where([data-slot=data-table-facet-content],[data-slot=data-table-columns-content])]:playa-menu-content-hidden',
-      '[&_:where([data-slot=menu-label])]:playa-menu-label [&_:where([data-slot=menu-separator])]:playa-menu-separator',
-      '[&_:where([data-slot=menu-checkbox-item])]:playa-menu-choice-row',
-      'focus:[&_:where([data-slot=menu-checkbox-item])]:playa-menu-choice-focus data-[highlighted=true]:[&_:where([data-slot=menu-checkbox-item])]:playa-menu-choice-focus data-[disabled=true]:[&_:where([data-slot=menu-checkbox-item])]:playa-menu-choice-disabled',
-      '[&_:where([data-slot=menu-checkbox-item]>span:first-child)]:playa-menu-indicator [&_:where([data-slot=menu-checkbox-item]>span:first-child>span)]:playa-menu-check-icon [&_:where([data-slot=data-table-facet-option-icon])]:flex [&_:where([data-slot=data-table-facet-option-icon])]:size-4 [&_:where([data-slot=data-table-facet-option-icon]>*)]:size-4',
+      '[&_:where([data-slot=data-table-facet-option-icon])]:flex [&_:where([data-slot=data-table-facet-option-icon])]:size-4 [&_:where([data-slot=data-table-facet-option-icon]>*)]:size-4',
       '[&_:where([data-slot=data-table-container])]:playa-table-container',
       // The sort trigger is an inline pill: symmetric px-2/-mx-2 keeps its
       // label and icon exactly where static header text sits (the th's px-4
@@ -379,21 +347,9 @@ export const playa = definePreset(() => ({
       // inherits the th typography except text-transform, which the preflight
       // resets on form controls, so uppercase is restated.
       '[&_:where([data-slot=data-table-sort-trigger])]:-mx-2 [&_:where([data-slot=data-table-sort-trigger])]:inline-flex [&_:where([data-slot=data-table-sort-trigger])]:h-8 [&_:where([data-slot=data-table-sort-trigger])]:items-center [&_:where([data-slot=data-table-sort-trigger])]:gap-2 [&_:where([data-slot=data-table-sort-trigger])]:rounded-md [&_:where([data-slot=data-table-sort-trigger])]:px-2 [&_:where([data-slot=data-table-sort-trigger])]:align-middle [&_:where([data-slot=data-table-sort-trigger])]:uppercase hover:[&_:where([data-slot=data-table-sort-trigger])]:bg-accent focus-visible:[&_:where([data-slot=data-table-sort-trigger])]:ring-3 focus-visible:[&_:where([data-slot=data-table-sort-trigger])]:ring-ring/50 [&_:where([data-slot=data-table-sort-icon])]:size-4 [&_:where([data-slot=data-table-sort-icon][data-sort=none])]:i-lucide-arrow-up-down [&_:where([data-slot=data-table-sort-icon][data-sort=asc])]:i-lucide-arrow-up [&_:where([data-slot=data-table-sort-icon][data-sort=desc])]:i-lucide-arrow-down',
-      // Checkbox composes the stateless base plus variant-first state rules;
-      // stateful colors use `:is` so they outrank the neutral `:where` base
-      // regardless of Uno emission order.
-      '[&_:where([data-slot=checkbox])]:playa-checkbox-base [&_:where([data-slot=checkbox]):has(:focus-visible)]:inset-ring-ring [&_:where([data-slot=checkbox]):has(:focus-visible)]:ring-3 [&_:where([data-slot=checkbox]):has(:focus-visible)]:ring-ring/50 [&_:where([data-slot=checkbox]):has(:disabled)]:cursor-not-allowed [&_:where([data-slot=checkbox]):has(:disabled)]:opacity-50 [&_:where([data-slot=checkbox]):has([aria-invalid=true])]:inset-ring-danger [&_:where([data-slot=checkbox]):has([aria-invalid=true])]:ring-danger/20',
-      '[&_:is([data-slot=checkbox][data-state=checked],[data-slot=checkbox][data-state=indeterminate])]:inset-ring-transparent [&_:is([data-slot=checkbox][data-state=checked],[data-slot=checkbox][data-state=indeterminate])]:bg-primary [&_:is([data-slot=checkbox][data-state=checked],[data-slot=checkbox][data-state=indeterminate])]:text-primary-foreground [&_:where([data-slot=checkbox-input])]:absolute [&_:where([data-slot=checkbox-input])]:inset-0 [&_:where([data-slot=checkbox-input])]:m-0 [&_:where([data-slot=checkbox-input])]:size-full [&_:where([data-slot=checkbox-input])]:cursor-pointer [&_:where([data-slot=checkbox-input])]:opacity-0 disabled:[&_:where([data-slot=checkbox-input])]:cursor-not-allowed',
-      '[&_:where([data-slot=checkbox-indicator])]:pointer-events-none [&_:where([data-slot=checkbox-indicator])]:absolute [&_:where([data-slot=checkbox-indicator])]:size-3.5 [&_:where([data-slot=checkbox-indicator])]:opacity-0 [&_:where([data-slot=checkbox-indicator])]:i-lucide-check [&_:is([data-slot=checkbox][data-state=indeterminate]>[data-slot=checkbox-indicator])]:i-lucide-minus [&_:is([data-slot=checkbox][data-state=checked]>[data-slot=checkbox-indicator],[data-slot=checkbox][data-state=indeterminate]>[data-slot=checkbox-indicator])]:opacity-100',
       '[&_:where([data-slot=data-table-empty])]:h-24 [&_:where([data-slot=data-table-empty])]:text-center [&_:where([data-slot=data-table-empty])]:text-muted-foreground',
       '[&_:where([data-slot=data-table-footer])]:flex [&_:where([data-slot=data-table-footer])]:flex-col [&_:where([data-slot=data-table-footer])]:gap-2 sm:[&_:where([data-slot=data-table-footer])]:flex-row sm:[&_:where([data-slot=data-table-footer])]:items-center sm:[&_:where([data-slot=data-table-footer])]:justify-between [&_:where([data-slot=data-table-selection-summary])]:text-sm [&_:where([data-slot=data-table-selection-summary])]:text-muted-foreground [&_:where([data-slot=data-table-selection-summary])]:tabular-nums',
       '[&_:where([data-slot=data-table-pagination])]:flex [&_:where([data-slot=data-table-pagination])]:flex-wrap [&_:where([data-slot=data-table-pagination])]:items-center [&_:where([data-slot=data-table-pagination])]:gap-4 [&_:where([data-slot=data-table-page-size])]:flex [&_:where([data-slot=data-table-page-size])]:items-center [&_:where([data-slot=data-table-page-size])]:gap-2 [&_:where([data-slot=data-table-page-size])]:text-sm [&_:where([data-slot=data-table-page-size])]:font-medium [&_:where([data-slot=data-table-page-indicator])]:w-[100px] [&_:where([data-slot=data-table-page-indicator])]:text-center [&_:where([data-slot=data-table-page-indicator])]:text-sm [&_:where([data-slot=data-table-page-indicator])]:font-medium [&_:where([data-slot=data-table-page-indicator])]:tabular-nums [&_:where([data-slot=data-table-pagination-actions])]:flex [&_:where([data-slot=data-table-pagination-actions])]:items-center [&_:where([data-slot=data-table-pagination-actions])]:gap-2',
-      '[&_:where([data-slot=select])]:playa-select-root [&_:where([data-slot=select-trigger])]:playa-select-trigger [&_:where([data-slot=select-trigger])]:!h-8 [&_:where([data-slot=select-trigger])]:!w-[74px] [&_:where([data-slot=select-icon])]:playa-select-trigger-icon',
-      'focus-visible:[&_:where([data-slot=select-trigger])]:playa-select-trigger-focus disabled:[&_:where([data-slot=select-trigger])]:playa-select-trigger-disabled aria-invalid:[&_:where([data-slot=select-trigger])]:playa-select-trigger-invalid data-[placeholder]:[&_:where([data-slot=select-trigger])]:playa-select-trigger-placeholder [&_:where([data-slot=select-trigger])>[data-slot=select-value]]:playa-select-value',
-      '[&_:where([data-slot=select-content])]:playa-select-content [&_:where([data-slot=select-list])]:playa-select-list [&_:where([data-slot=select-item])]:playa-select-item',
-      '[&_:where([data-slot=select-content]:popover-open)]:playa-select-content-layout data-[state=open]:[&_:where([data-slot=select-content])]:playa-select-content-open data-[state=closed]:[&_:where([data-slot=select-content])]:playa-select-content-closed [&_:where([data-slot=select-content][data-empty])_[data-slot=select-list]]:playa-select-list-empty data-[highlighted=true]:[&_:where([data-slot=select-item])]:playa-select-row-highlighted data-[disabled=true]:[&_:where([data-slot=select-item])]:playa-select-row-disabled',
-      '[&_:where([data-slot=select-item-indicator])]:playa-select-indicator [&_:where([data-slot=select-item-indicator]>span)]:playa-select-indicator-icon',
-      'pointer-coarse:[&_:where([data-slot=select-item-indicator])]:playa-select-indicator-coarse data-[selected=true]:[&_:where([data-slot=select-item-indicator])]:playa-select-indicator-selected data-[selected=false]:[&_:where([data-slot=select-item-indicator])]:playa-select-indicator-empty pointer-coarse:[&_:where([data-slot=select-item-indicator]>span)]:playa-select-indicator-icon-coarse',
       '[&_:where([data-slot=data-table-pagination-action])]:inline-flex [&_:where([data-slot=data-table-pagination-action])]:size-8 [&_:where([data-slot=data-table-pagination-action])]:items-center [&_:where([data-slot=data-table-pagination-action])]:justify-center [&_:where([data-slot=data-table-pagination-action])]:rounded-md [&_:where([data-slot=data-table-pagination-action])]:edge [&_:where([data-slot=data-table-pagination-action])]:outline-none disabled:[&_:where([data-slot=data-table-pagination-action])]:opacity-50 hover:[&_:where([data-slot=data-table-pagination-action])]:bg-accent hover:[&_:where([data-slot=data-table-pagination-action])]:edge-on-accent focus-visible:[&_:where([data-slot=data-table-pagination-action])]:ring-3 focus-visible:[&_:where([data-slot=data-table-pagination-action])]:ring-ring/50 [&_:where([data-action=first]>span)]:i-lucide-chevrons-left [&_:where([data-action=previous]>span)]:i-lucide-chevron-left [&_:where([data-action=next]>span)]:i-lucide-chevron-right [&_:where([data-action=last]>span)]:i-lucide-chevrons-right [&_:where([data-slot=data-table-pagination-action]>span)]:size-4',
     ].join(' '),
   },
