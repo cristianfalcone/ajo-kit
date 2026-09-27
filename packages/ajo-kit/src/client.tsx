@@ -3,9 +3,40 @@ import { current } from 'ajo/context'
 import App, { boot, init } from './app'
 import type { State, Action } from './constants'
 import { navigate } from './constants'
-import { fields, body as make } from './form'
-import { parse } from './ssr'
 import { invalidate } from './cache'
+
+/** Converts form values into JSON fields; repeated names and multiple selects stay arrays. */
+const fields = (form: HTMLFormElement) => {
+
+	const seen = new Set<string>()
+	const arrays = new Set<string>()
+
+	for (const element of Array.from(form.elements)) {
+
+		const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+		const name = control.name
+
+		if (!name) continue
+
+		if (seen.has(name) || control instanceof HTMLSelectElement && control.multiple) arrays.add(name)
+		else seen.add(name)
+	}
+
+	const body: Record<string, string | string[]> = {}
+
+	for (const [name, value] of new FormData(form)) {
+
+		if (typeof value !== 'string') continue
+
+		const current = body[name]
+
+		if (current === undefined) body[name] = arrays.has(name) ? [value] : value
+		else if (Array.isArray(current)) current.push(value)
+		else body[name] = [current, value]
+	}
+
+	return body
+}
 
 /** Creates state and submit/invoke helpers for a route action in a stateful generator component. */
 export function action<T = unknown>(name?: string, init?: RequestInit): Action<T> {
@@ -64,7 +95,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): Action<T
 			})
 
 			const json = await response.json().catch(() => null) as
-				| { redirect?: string; topics?: string[]; versions?: Record<string, number>; error?: { status?: number; message?: string; fields?: Record<string, string[] | undefined> }; message?: string; fields?: Record<string, string[] | undefined> }
+				| { redirect?: string; topics?: string[]; versions?: Record<string, number>; error?: { status?: number; message?: string; fields?: Record<string, string[] | undefined> } }
 				| null
 
 			if (controller !== current || current.signal.aborted) return
@@ -73,8 +104,8 @@ export function action<T = unknown>(name?: string, init?: RequestInit): Action<T
 
 				state.error = {
 					status: json?.error?.status ?? response.status,
-					message: json?.error?.message ?? json?.message ?? 'Action failed',
-					fields: json?.error?.fields ?? json?.fields
+					message: json?.error?.message ?? 'Action failed',
+					fields: json?.error?.fields
 				}
 
 				return
@@ -117,8 +148,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): Action<T
 	state.submit = (event: SubmitEvent) => {
 		event.preventDefault()
 		const form = event.target as HTMLFormElement
-		const data = make(new FormData(form), fields(form))
-		run(data).then(() => { if (!state.error) form.reset() })
+		run(fields(form)).then(() => { if (!state.error) form.reset() })
 	}
 
 	return state
@@ -126,7 +156,7 @@ export function action<T = unknown>(name?: string, init?: RequestInit): Action<T
 
 if (!import.meta.env.SSR) {
 	const script = globalThis.document?.getElementById('__SSR__')
-	const data = script?.textContent ? parse<State>(script.textContent) : null
+	const data = script?.textContent ? JSON.parse(script.textContent) as State : null
 	init(data)
 }
 

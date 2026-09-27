@@ -16,8 +16,6 @@ const load = async () => {
 }
 
 afterEach(async () => {
-	const { clear } = await import('../src/cache')
-	clear()
 	vi.unstubAllGlobals()
 	// Fresh module state per test: the adopted scope is module-level in app.tsx.
 	vi.resetModules()
@@ -110,7 +108,7 @@ test('an unscoped boot caches nothing rather than guessing a partition', async (
 // under the previous identity — an abandoned navigation, a refresh dispatched
 // before the cookie changed — undoing the identity that replaced it.
 test('a response in flight across an identity change cannot roll the scope back', async () => {
-	const { init, resolve, layouts, cache, current } = await load()
+	const { init, resolve, layouts, cache } = await load()
 
 	init(state('/a', 'scope-a'))
 	await drain(resolve('/a', layouts, page()))
@@ -128,7 +126,6 @@ test('a response in flight across an identity change cannot roll the scope back'
 	// While it is in flight the identity changes: login, logout, either way a
 	// navigation answers under a new scope.
 	await drain(resolve('/b', layouts, page()))
-	const era = current()
 	expect(cache.get('/b', { scope: 'scope-b' })).toBeTruthy()
 
 	// Now the old identity's reply finally lands.
@@ -137,7 +134,6 @@ test('a response in flight across an identity change cannot roll the scope back'
 
 	// The client is still scope-b: its partition survived, and the stale
 	// payload was not cached under an identity it does not belong to.
-	expect(current()).toBe(era)
 	expect(cache.get('/b', { scope: 'scope-b' })).toBeTruthy()
 	expect(cache.get('/c', { scope: 'scope-b' })).toBeUndefined()
 	expect(cache.get('/c', { scope: 'scope-a' })).toBeUndefined()

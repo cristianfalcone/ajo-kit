@@ -133,7 +133,7 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 	expect(users.headers()['server-timing']).toContain('total;dur=')
 	expect(users.headers()['server-timing']).toContain('loader;dur=')
 	expect(users.headers()['server-timing']).toContain('render;dur=')
-	expect(Number(users.headers()['x-ajo-bytes'])).toBeGreaterThan(0)
+	expect(Number(users.headers()['content-length'])).toBe((await users.body()).byteLength)
 	expect(users.headers().etag).toBeTruthy()
 
 	const body = await users.json()
@@ -167,7 +167,7 @@ test('route data uses no-store JSON, ETag, topics, versions and early 304', asyn
 	expect(cached.headers()['x-ajo-cache']).toBe('fresh')
 	expect(cached.headers()['server-timing']).toContain('total;dur=')
 	expect(cached.headers()['server-timing']).toContain('loader;dur=0')
-	expect(cached.headers()['x-ajo-bytes']).toBe('0')
+	expect(cached.headers()['content-length']).toBeUndefined()
 	secure(cached.headers())
 	expect(await cached.text()).toBe('')
 })

@@ -6,7 +6,6 @@ export {
 	Forbidden,
 	Denied,
 	Invalid,
-	normalize,
 	navigate,
 	ajax,
 	api,

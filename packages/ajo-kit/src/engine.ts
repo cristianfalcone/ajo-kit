@@ -5,13 +5,12 @@ import { normalize, requestOrigin, setOriginReader, type Bootstrap } from './con
 import { attach, request, type Reply } from './http'
 import { security } from './headers'
 import { migrator, type MigrationRegistry } from './migrations'
-import { closeLive, create, type Registries } from './server'
-import { compile } from './template'
+import { closeLive, create } from './server'
+import { wares } from 'virtual:ajo/handlers'
 
 /** Generated engine entry configuration. */
 export interface StartOptions {
 	template: string
-	registries: Registries
 	migrations: MigrationRegistry
 	options: { database: boolean }
 	/** runtime:fs readText, passed only when the App declares the host origin manifest. */
@@ -58,10 +57,10 @@ export async function start(input: StartOptions): Promise<void> {
 			if (error) throw error
 		}
 
-		const hook = (await input.registries.wares['/src/wares.ts']?.())?.bootstrap as Bootstrap | undefined
+		const hook = (await wares['/src/wares.ts']?.())?.bootstrap as Bootstrap | undefined
 		if (hook) await hook({ db: db() })
 
-		const handler = await create(compile(input.template), input.registries)
+		const handler = await create(input.template)
 		const assets = files(`${app.root}/client`)
 		const server = serve({ host: app.env('HOST') ?? '0.0.0.0', port: Number(app.env('PORT') ?? 8080) }, async raw => {
 			const incoming = request({

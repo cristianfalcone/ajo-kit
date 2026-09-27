@@ -12,9 +12,15 @@ const req = (target: string, method = 'GET', headers: Headers = {}, chunks: stri
 
 const text = (reply: Reply) => typeof reply.body === 'string' ? reply.body : new TextDecoder().decode(reply.body)
 
+// The Router has no default answers: the server supplies both.
+const router = () => new Router({
+	error: (error, _, reply) => reply.writeHead((error as { status?: number }).status ?? 500).end('failed'),
+	missing: (_, reply) => reply.writeHead(404).end('missing'),
+})
+
 describe('ajo-kit HTTP kernel', () => {
 	test('routes literal, parameter, and wildcard paths and handles a miss', async () => {
-		const app = new Router()
+		const app = router()
 		app.get('/literal', (_, reply) => reply.end('literal'))
 		app.get('/users/:id', (request, reply) => reply.end(request.params.id))
 		app.get('/files/*', (request, reply) => reply.end(request.params['*']))
@@ -25,11 +31,11 @@ describe('ajo-kit HTTP kernel', () => {
 
 		const missing = await app.handler(req('/missing'))
 		expect(missing.statusCode).toBe(404)
-		expect(text(missing)).toBe('Not found')
+		expect(text(missing)).toBe('missing')
 	})
 
 	test('dispatches only the first matching route and keeps its params alone', async () => {
-		const app = new Router()
+		const app = router()
 		const seen: string[] = []
 		app.get('/notes/new', (request, _, next) => { seen.push(`new ${JSON.stringify(request.params)}`); next() })
 		app.get('/notes/:id', (request, reply) => { seen.push(`id ${request.params.id}`); reply.end() })
@@ -44,7 +50,6 @@ describe('ajo-kit HTTP kernel', () => {
 
 		expect(value).toMatchObject({
 			method: 'POST',
-			target: '/search?q=one&q=two',
 			originalUrl: '/search?q=one&q=two',
 			path: '/search',
 			query: { q: ['one', 'two'] },
@@ -63,7 +68,8 @@ describe('ajo-kit HTTP kernel', () => {
 			error: (_, __, reply) => {
 				order.push('error')
 				reply.writeHead(500).end('masked')
-			}
+			},
+			missing: (_, reply) => reply.writeHead(404).end(),
 		})
 
 		app.use(around)
@@ -81,29 +87,22 @@ describe('ajo-kit HTTP kernel', () => {
 	})
 
 	test('rejects a body over the selected read limit with 413 semantics', async () => {
-		const app = new Router()
+		const app = router()
 		app.post('/body', async (request, reply) => reply.end(await request.read(5)))
 
 		const response = await app.handler(req('/body', 'POST', {}, ['123', '456']))
 		expect(response.statusCode).toBe(413)
-		expect(text(response)).toBe('Content Too Large')
 	})
 
-	test('keeps repeated response headers and suppresses HEAD and 204 bodies', () => {
+	test('keeps repeated response headers and leaves the length to the host', () => {
 		const reply = new Reply()
 		reply.setHeader('Set-Cookie', ['one=1', 'two=2'])
 		expect(reply.getHeader('set-cookie')).toEqual(['one=1', 'two=2'])
 
-		const head = new Reply('HEAD')
-		send(head, 200, 'hello')
-		expect(head.body).toBeUndefined()
-		expect(head.getHeader('content-length')).toBe(5)
-
-		const empty = new Reply()
-		empty.setHeader('Content-Type', 'text/plain').setHeader('Content-Length', 6).writeHead(204).end('hidden')
-		expect(empty.body).toBeUndefined()
-		expect(empty.hasHeader('content-type')).toBe(false)
-		expect(empty.hasHeader('content-length')).toBe(false)
+		send(reply, 200, 'héllo')
+		expect(reply.body).toBe('héllo')
+		expect(reply.getHeader('content-type')).toBe('text/plain')
+		expect(reply.hasHeader('content-length')).toBe(false)
 	})
 
 	test('buffers SSE sends until attached and closes explicitly', async () => {

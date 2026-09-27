@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http'
 import { once } from 'node:events'
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { jsx } from 'ajo/jsx-runtime'
-import { Failure, Missing, links } from '../src/constants'
+import { Failure, Missing } from '../src/constants'
 import type { LayoutArgs, Parent, Request } from '../src/constants'
 import { handler } from '../src/node'
 
@@ -15,7 +15,7 @@ let origin: string
 beforeAll(async () => {
 	vi.stubEnv('NODE_ENV', 'production')
 	const { create } = await import('../src/server')
-	const app = await create(({ head, root, data }) => `<html><head>${head}</head><body>${data}${root}</body></html>`, {
+	const app = await create('<html><head><!-- ssr:head --></head><body><!-- ssr:data --><!-- ssr:root --></body></html>', {
 		routes: {
 			'/src/layout.tsx': async () => ({
 				default: ({ error, children }: Partial<LayoutArgs>) => error ? jsx('output', { children: error.message }) : children,
@@ -80,11 +80,78 @@ describe('ajo-kit loader failure over HTTP', () => {
 	}
 })
 
-// A parent can be read after its loader has already failed.
-test('parent() preserves an ancestor rejection for a later descendant', async () => {
-	const [ancestor, descendant] = links(2)
-	const failure = new Missing()
-	ancestor.deferred.reject(failure)
-	await new Promise<void>(resolve => setImmediate(resolve))
-	await expect(descendant.parent()).rejects.toBe(failure)
+// A fresh module graph per handler: route registration is module state.
+const serve = async (registries: Parameters<typeof import('../src/server')['create']>[1]) => {
+	vi.resetModules()
+	const { create } = await import('../src/server')
+	const http = await import('../src/http')
+	const app = await create('<head><!-- ssr:head --></head><!-- ssr:data --><!-- ssr:missing --><main><!-- ssr:root --></main>', registries)
+	return async (target: string) => {
+		const reply = await app(http.request({ method: 'GET', target, headers: { accept: 'text/html' }, read: async () => new Uint8Array() }))
+		return { status: reply.statusCode, html: String(reply.body) }
+	}
+}
+
+describe('ajo-kit route assembly', () => {
+	test('a directory with a layout, a page and a head handler calls head once', async () => {
+		let calls = 0
+		const get = await serve({
+			routes: {
+				'/src/docs/layout.tsx': async () => ({ default: ({ children }: Partial<LayoutArgs>) => children }),
+				'/src/docs/page.tsx': async () => ({ default: () => null }),
+			},
+			handlers: {
+				'/src/docs/handler.ts': async () => ({
+					layout: async () => ({}),
+					page: async () => ({ note: '$&' }),
+					head: async () => {
+						calls++
+						return { title: 'Docs' }
+					},
+				}),
+			},
+			wares: {},
+		})
+
+		const { status, html } = await get('/docs')
+
+		expect(status).toBe(200)
+		expect(calls).toBe(1)
+		// Slots fill by split and join: a `$&` in the data stays literal and unknown slots drop.
+		expect(html.startsWith('<head><title>Docs</title></head><script type="application/json" id="__SSR__">')).toBe(true)
+		expect(html).toContain('"note":"$&"')
+		expect(html).not.toContain('ssr:')
+	})
+
+	// A parent can be read after its loader has already failed.
+	test('parent() preserves an ancestor rejection for a later descendant', async () => {
+		let failure: unknown
+		let seen: unknown
+		const get = await serve({
+			routes: {
+				'/src/layout.tsx': async () => ({ default: ({ children }: Partial<LayoutArgs>) => children }),
+				'/src/deep/layout.tsx': async () => ({ default: ({ children }: Partial<LayoutArgs>) => children }),
+				'/src/deep/page.tsx': async () => ({ default: () => null }),
+			},
+			handlers: {
+				'/src/handler.ts': async () => {
+					// The fresh graph's own class, so normalize() passes it through untouched.
+					const { Missing } = await import('../src/constants')
+					failure = new Missing()
+					return { layout: async () => { throw failure } }
+				},
+				'/src/deep/handler.ts': async () => ({
+					layout: async (_: Request, parent: Parent) => {
+						await new Promise(resolve => setTimeout(resolve, 10))
+						await parent().catch(error => { seen = error })
+						return {}
+					},
+				}),
+			},
+			wares: {},
+		})
+
+		expect((await get('/deep')).status).toBe(404)
+		await vi.waitFor(() => expect(seen).toBe(failure))
+	})
 })

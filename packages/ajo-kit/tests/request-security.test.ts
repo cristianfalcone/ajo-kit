@@ -1,8 +1,9 @@
 import { createServer, type Server } from 'node:http'
 import { once } from 'node:events'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
-import { ip, origin, requestOrigin, setOriginReader } from '../src/constants'
+import { ip, origin, requestOrigin, setOriginReader, type Request } from '../src/constants'
 import { handler } from '../src/node'
+import { send, type Reply } from '../src/http'
 
 vi.mock('virtual:ajo/routes', () => ({ routes: {} }))
 vi.mock('virtual:ajo/handlers', () => ({ handlers: {}, wares: {} }))
@@ -30,7 +31,7 @@ describe('ajo-kit request security helpers', () => {
 	test('uses forwarded client IPs only when proxy trust is explicit', () => {
 		const req = {
 			headers: { 'x-forwarded-for': '203.0.113.8, 10.0.0.1' },
-			socket: { remoteAddress: '10.0.0.5' },
+			remoteAddress: '10.0.0.5',
 		} as any
 
 		delete process.env.TRUST_PROXY
@@ -40,7 +41,7 @@ describe('ajo-kit request security helpers', () => {
 		expect(ip(req)).toBe('10.0.0.1')
 		expect(ip({
 			headers: { 'x-forwarded-for': '::ffff:127.0.0.1, bad' },
-			socket: { remoteAddress: '10.0.0.5' },
+			remoteAddress: '10.0.0.5',
 		} as any)).toBe('10.0.0.5')
 	})
 
@@ -48,7 +49,7 @@ describe('ajo-kit request security helpers', () => {
 		process.env.TRUST_PROXY = '1'
 		expect(ip({
 			headers: { 'x-forwarded-for': ['203.0.113.8', '198.51.100.7, 10.0.0.1'] },
-			socket: { remoteAddress: '10.0.0.5' },
+			remoteAddress: '10.0.0.5',
 		} as any)).toBe('10.0.0.1')
 
 		delete process.env.APP_URL
@@ -157,21 +158,36 @@ describe('ajo-kit request security helpers', () => {
 
 })
 
-describe('ajo-kit action lookup', () => {
+describe('ajo-kit action lookup and bodies', () => {
 	let server: Server
 	let base: string
+	let received: any
 	const cookie = 'session=cookie-secret-value'
 
 	beforeAll(async () => {
 		const { create } = await import('../src/server')
-		const app = await create(({ data, root }) => `${data}${root}`, {
+		const app = await create('<!-- ssr:data --><!-- ssr:root -->', {
 			routes: {
 				'/src/page.tsx': async () => ({ default: () => null }),
 				'/src/child/page.tsx': async () => ({ default: () => null }),
 			},
 			handlers: {
 				'/src/handler.ts': async () => ({ actions: { parent: async () => ({ ran: 'parent' }) } }),
-				'/src/child/handler.ts': async () => ({ actions: { own: async () => ({ ran: 'own' }) } }),
+				'/src/child/handler.ts': async () => ({
+					actions: {
+						own: async () => ({ ran: 'own' }),
+						echo: async (req: Request) => {
+							received = req.body
+							return { body: req.body }
+						},
+					},
+					default: {
+						post: async (req: Request, res: Reply) => {
+							received = req.body
+							send(res, 200, new TextDecoder().decode(await req.read(1024)))
+						},
+					},
+				}),
 			},
 			wares: {},
 		})
@@ -206,5 +222,45 @@ describe('ajo-kit action lookup', () => {
 			expect(response.status).toBe(200)
 			expect(await response.json()).toEqual({ ran: name })
 		}
+	})
+
+	const post = (target: string, body: URLSearchParams) => fetch(`${base}${target}`, { method: 'POST', body, redirect: 'manual' })
+
+	test('a form posted without JavaScript reaches the action with its fields and redirects', async () => {
+		received = undefined
+		const response = await post('/child?/echo', new URLSearchParams([['title', 'Hello'], ['tag', 'a'], ['tag', 'b']]))
+
+		expect(response.status).toBe(302)
+		expect(response.headers.get('location')).toBe('/child')
+		expect(received).toEqual({ title: 'Hello', tag: 'b' })
+	})
+
+	test('JSON action bodies are unchanged', async () => {
+		const response = await fetch(`${base}/child?/echo`, {
+			method: 'POST',
+			headers: { accept: 'application/json', 'content-type': 'application/json' },
+			body: JSON.stringify({ tags: ['a', 'b'], nested: { ok: true } }),
+		})
+
+		expect(await response.json()).toEqual({ body: { tags: ['a', 'b'], nested: { ok: true } } })
+	})
+
+	test('prototype keys in a form body stay own string fields', async () => {
+		received = undefined
+		await post('/child?/echo', new URLSearchParams('__proto__=1&constructor=1&__proto__[x]=1'))
+
+		expect(Object.hasOwn(received, '__proto__')).toBe(true)
+		expect(Object.getPrototypeOf(received)).toBe(Object.prototype)
+		expect(received.constructor).toBe('1')
+		expect(received['__proto__[x]']).toBe('1')
+		expect(({} as any).x).toBeUndefined()
+	})
+
+	test('an API route leaves a urlencoded body unread', async () => {
+		received = undefined
+		const response = await post('/api/child', new URLSearchParams('a=1'))
+
+		expect(received).toEqual({})
+		expect(await response.text()).toBe('a=1')
 	})
 })

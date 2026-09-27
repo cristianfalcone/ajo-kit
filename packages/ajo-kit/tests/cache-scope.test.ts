@@ -1,8 +1,6 @@
-import { afterEach, expect, test } from 'vitest'
-import { clear, drop, get, set } from '../src/cache'
+import { expect, test } from 'vitest'
+import { drop, get, set } from '../src/cache'
 import type { State } from '../src/constants'
-
-afterEach(clear)
 
 test('cache isolates and drops scopes while refusing unscoped entries', () => {
 	const first: State = {

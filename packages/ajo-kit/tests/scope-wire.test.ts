@@ -79,7 +79,7 @@ let origin: string
 beforeAll(async () => {
 	const { create } = await import('../src/server')
 	const { handler } = await import('../src/node')
-	const app = await create(slots => `${slots.head ?? ''}|${slots.data ?? ''}|${slots.root ?? ''}`)
+	const app = await create('<!-- ssr:head -->|<!-- ssr:data -->|<!-- ssr:root -->')
 	server = createServer(handler(app))
 	await new Promise<void>(resolve => server.listen(0, resolve))
 	origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`

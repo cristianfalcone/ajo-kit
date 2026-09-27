@@ -8,7 +8,6 @@ export type Response = Reply
 export type { Head } from './head'
 import type { Head } from './head'
 import type { Kysely } from './database'
-import type { Timing } from './timing'
 
 // Route errors with HTTP status codes
 
@@ -65,12 +64,7 @@ export class Invalid extends Failure {
 		super(400, message)
 	}
 	toJSON() {
-		return {
-			message: mask(this.status, this.message),
-			status: this.status,
-			fields: this.fields,
-			...(!production() && import.meta.env.DEV && { stack: this.stack })
-		}
+		return { ...super.toJSON(), fields: this.fields }
 	}
 }
 
@@ -114,9 +108,6 @@ export type Entry = Record<string, unknown>
 
 /** Ordered loader data for layouts followed by the page. */
 export type Data = Entry[]
-
-/** Server payload containing head data followed by loader entries. */
-export type Payload = [Head, ...Data]
 
 /** Reads merged data from ancestor loaders. */
 export type Parent = () => Promise<Entry>
@@ -207,7 +198,8 @@ export const api = (req: Request) => req.path.startsWith('/api/')
 const enabled = (value: string | undefined) => value === '1' || value?.toLowerCase() === 'true'
 const proxy = () => enabled(env('TRUST_PROXY'))
 
-const first = (value: string | string[] | undefined) =>
+/** Returns the first value of a repeated header or query field. */
+export const first = (value: string | string[] | undefined) =>
 	Array.isArray(value) ? value[0] : value
 
 // The one trusted proxy appends its entry, so only the last forwarded hop is its own.
@@ -249,10 +241,9 @@ const forwarded = (header: string | string[] | undefined) => {
 
 /** Resolves the client IP, honoring TRUST_PROXY with the last forwarded IP. */
 export const ip = (req: Request) => {
-	const remote = req.remoteAddress ?? (req as Request & { socket?: { remoteAddress?: string } }).socket?.remoteAddress
 	const raw = proxy()
-		? forwarded(req.headers['x-forwarded-for']) ?? remote
-		: remote
+		? forwarded(req.headers['x-forwarded-for']) ?? req.remoteAddress
+		: req.remoteAddress
 
 	return raw ? address(raw) : 'unknown'
 }
@@ -363,49 +354,7 @@ declare module './http' {
 		scope?: string
 		topics?: Set<string>
 		track?: (topic: string | string[]) => void
-		verifyLive?: () => Promise<boolean>
-		timing?: Timing
-		revalidate?: () => Promise<Payload>
-		head?: Head
-		entries?: Data
 	}
-}
-
-// Deferred promises for parallel loader execution
-
-/** Internal parent/deferred link used to run loaders in parallel. */
-export type Link = {
-	parent: Parent
-	deferred: { promise: Promise<Entry>; resolve: (value: Entry) => void; reject: (error: Error) => void }
-}
-
-/** Builds parent/deferred links for a loader chain. */
-export function links(count: number): Link[] {
-
-	const chain: Link[] = []
-
-	for (let depth = 0; depth < count; depth++) {
-
-		let resolve!: (value: Entry) => void
-		let reject!: (error: Error) => void
-
-		const promise = new Promise<Entry>((res, rej) => {
-			resolve = res
-			reject = rej
-		})
-
-		// A loader's own rejection reaches the request handler even when no
-		// descendant calls parent(). Observe this copy without changing what
-		// parent() awaits, so an unused link cannot become an unhandled rejection.
-		void promise.catch(() => {})
-
-		const parent = async () =>
-			Object.assign({}, ...await Promise.all(chain.slice(0, depth).map(link => link.deferred.promise)))
-
-		chain.push({ parent, deferred: { promise, resolve, reject } })
-	}
-
-	return chain
 }
 
 // Formatting

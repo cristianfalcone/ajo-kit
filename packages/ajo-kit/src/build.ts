@@ -225,11 +225,9 @@ export function engine(options: {
 	const code = [
 		...(options.origins ? ["import { readText } from 'runtime:fs'"] : []),
 		"import { start } from 'ajo-kit/engine'",
-		"import { routes } from 'virtual:ajo/routes'",
-		"import { handlers, wares } from 'virtual:ajo/handlers'",
 		...migrations.map((item, index) => `import * as migration${index} from ${JSON.stringify(item.file)}`),
 		`const options = JSON.parse('{"database":${marker}}')`,
-		`await start({ template: ${JSON.stringify(options.template)}, registries: { routes, handlers, wares }, migrations: [${
+		`await start({ template: ${JSON.stringify(options.template)}, migrations: [${
 			migrations.map((item, index) => `{ name: ${JSON.stringify(item.name)}, migration: migration${index} }`).join(',')
 		}], options${options.origins ? ', origins: readText' : ''} })`,
 	].join('\n')

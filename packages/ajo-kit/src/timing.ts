@@ -31,15 +31,15 @@ export const start = (): Timing | undefined =>
 /** Measures monotonic elapsed milliseconds rounded to one decimal place. */
 export const elapsed = (start: number) => round(performance.now() - start)
 
-/** Completes enabled timing state without allocating a result when diagnostics are off. */
+/** Completes started timing state with the response outcome. */
 export const finish = (
-	timing: Timing | undefined,
+	timing: Timing,
 	result: Omit<Result, keyof Timing | 'total'>,
-): Result | undefined => timing && {
+): Result => ({
 	...timing,
 	...result,
 	total: elapsed(timing.start),
-}
+})
 
 /** Formats server phase durations for the standard `Server-Timing` header. */
 export const header = (result: Result) => [
@@ -54,17 +54,4 @@ export const log = (label: string, result: Result) => {
 	const loader = result.loader === undefined ? '-' : `${result.loader}ms`
 	const render = result.render === undefined ? '-' : `${result.render}ms`
 	console.log(`[ajo] ${label} ${result.status}${cache} total=${result.total}ms loader=${loader} render=${render} bytes=${result.bytes}`)
-}
-
-/** @internal Unused by production code — kept for ad-hoc profiling; not public API. */
-export async function measure<T>(label: string, run: () => T | Promise<T>): Promise<T> {
-	if (!active()) return run()
-
-	const start = performance.now()
-
-	try {
-		return await run()
-	} finally {
-		console.log(`[ajo:timing] ${label} ${elapsed(start)}ms`)
-	}
 }

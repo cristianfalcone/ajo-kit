@@ -221,6 +221,11 @@ Notes:
 - API handlers in `default` must write/send the HTTP response.
 - `actions` are invoked by `POST /current-route?/actionName`.
 - action `"default"` is used when no `?/name` is provided.
+- an action reads a JSON body, or the `application/x-www-form-urlencoded` body
+  of a form posted without JavaScript as flat string fields (the last value of a
+  repeated name wins), up to 100 KiB, into `req.body`. A native post answers with
+  a redirect to the action's `redirect` or the current route. API handlers get
+  only JSON bodies parsed and read any other body with `req.read(limit)`.
 - actions receive an explicit third-argument context; `action.emit()` both
   broadcasts changed topics and includes them in that action's JSON response.
 - `parent()` resolves merged ancestor loader data.
@@ -454,7 +459,6 @@ import {
   date,
   ip,
   navigate,
-  normalize,
   origin,
 } from 'ajo-kit'
 import type {
@@ -475,8 +479,8 @@ import type {
 ```
 
 `Failure` carries an HTTP status. `Missing`, `Forbidden`, `Denied`, and
-`Invalid` represent 404, 403, 401, and 400 responses. `normalize()` converts an
-unknown thrown value into a `Failure`.
+`Invalid` represent 404, 403, 401, and 400 responses. Any other thrown value
+answers with its numeric `status` when that is 400 to 599, otherwise 500.
 
 `ajax()` and `api()` classify requests. `ip()` resolves the client address, and
 `origin(req)` resolves the canonical application origin from `APP_URL` in
@@ -547,19 +551,19 @@ pre-bundling. Custom `guard` patterns extend the default client graph protection
 ## Node Host API
 
 ```ts
-import { build, compile, dev, listen } from 'ajo-kit/node'
+import { build, dev, listen } from 'ajo-kit/node'
 import type { Options } from 'ajo-kit/node'
 
 const options: Options = {
   hmr: { overlay: false },
 }
 
-await dev(options)
+await listen(await dev(options), 5173, { strict: true })
 ```
 
-`dev()` exposes the Vite development shell, and `build()` stages the engine
-artifact inputs and descriptor in `.ajo/`. `compile()` fills `<!-- ssr:name -->`
-HTML slots. `listen()` starts Node-hosted development or test applications and
-can require a strict port. The `default` condition
+`dev()` returns a Node request listener that runs Vite's middleware before the
+kit handler, and `build()` stages the engine artifact inputs and descriptor in
+`.ajo/`. `listen()` serves a request listener for Node-hosted development or
+test applications and can require a strict port. The `default` condition
 faces for `ajo-kit/platform` and `ajo-kit/database` are likewise dev-time Node
 shims for Vite, Vitest, and CLI operations; they are not production runtimes.

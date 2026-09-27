@@ -4,11 +4,8 @@ import { join } from 'node:path'
 import * as http from 'node:http'
 import * as vite from 'vite'
 import { attach, reader, request, type Handler } from './http'
-import { compile } from './template'
 import { appEngine, descriptor, engine } from './build'
 import { migrationModules } from './migrate'
-
-export { compile } from './template'
 
 const fallback = `<!DOCTYPE html>
 <html lang="en">
@@ -72,27 +69,18 @@ export type Options = {
 	hmr?: vite.ServerOptions['hmr']
 }
 
-/** Creates the development Polka app with Vite middleware and route reloads. */
-export async function dev(options: Options = {}) {
-
-	const { default: polka } = await import('polka')
-	const app = polka()
+/** Creates the development request listener: Vite middleware first, then the kit handler with route reloads. */
+export async function dev(options: Options = {}): Promise<http.RequestListener> {
 
 	const server = await vite.createServer({
 		server: { middlewareMode: true, ...(options.hmr !== undefined && { hmr: options.hmr }) },
 		appType: 'custom',
 	})
 
-	app.use(server.middlewares)
-
-	let raw = await html()
-	raw = await server.transformIndexHtml('/', raw)
-	const template = compile(raw)
+	const template = await server.transformIndexHtml('/', await html())
 
 	const { create } = await server.ssrLoadModule('ajo-kit/server')
 	let inner = handler(await create(template))
-
-	app.use((req, res) => inner(req, res))
 
 	const route = /(handler|wares|page|layout)\.[jt]sx?$/
 	// Edited pages and layouts hot-swap in the browser; only added or removed routes reload it.
@@ -111,7 +99,7 @@ export async function dev(options: Options = {}) {
 
 	for (const event of ['add', 'change', 'unlink'] as const) server.watcher.on(event, reload(event))
 
-	return app
+	return (req, res) => server.middlewares(req, res, () => inner(req, res))
 }
 
 /** Builds the client and closed server graph into .ajo and emits its descriptor. */
@@ -157,16 +145,16 @@ export async function build(): Promise<void> {
 	await fs.writeFile(join(staging, 'compiler.json'), JSON.stringify(value, null, '\t') + '\n')
 }
 
-/** Starts a Node dev/test app, incrementing the port unless strict is set. */
-export const listen = (app: any, port = 5173, options: { strict?: boolean } = {}): Promise<number> => new Promise((resolve, reject) => {
-	http.createServer(app.handler)
+/** Serves a Node dev/test request listener, incrementing the port unless strict is set. */
+export const listen = (listener: http.RequestListener, port = 5173, options: { strict?: boolean } = {}): Promise<number> => new Promise((resolve, reject) => {
+	http.createServer(listener)
 		.listen(port, () => {
 			console.log(`Server started at http://localhost:${port}`)
 			resolve(port)
 		})
 		.once('error', (error: NodeJS.ErrnoException) =>
 			error.code === 'EADDRINUSE' && !options.strict
-				? resolve(listen(app, port + 1, options))
+				? resolve(listen(listener, port + 1, options))
 				: reject(error)
 		)
 })

@@ -218,3 +218,35 @@ test('action composes caller signals without surrendering lifecycle abort owners
 	await expect(externalResult).resolves.toBeUndefined()
 	await expect(internalResult).resolves.toBeUndefined()
 })
+
+test('action submit posts form fields as JSON, keeping repeated names and multiple selects as arrays', async () => {
+	const bodies: unknown[] = []
+	let save: Action<{ ok: true }> | undefined
+	const { action, jsx, render } = await load()
+
+	vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+		bodies.push(JSON.parse(String(init?.body)))
+		return json({ ok: true })
+	}))
+
+	function* Form() {
+		save = action<{ ok: true }>('save')
+
+		while (true) yield jsx('button', { children: 'save' })
+	}
+
+	render(jsx(Form, {}), document.body)
+
+	const form = document.createElement('form')
+	form.innerHTML = `
+		<input name="name" value="Deploy key">
+		<input type="checkbox" name="abilities" value="read" checked>
+		<input type="checkbox" name="abilities" value="write" checked>
+		<select name="scopes" multiple><option value="one" selected>one</option><option value="two">two</option></select>
+	`
+	document.body.append(form)
+
+	need(save).submit({ preventDefault: () => { }, target: form } as unknown as SubmitEvent)
+
+	await vi.waitFor(() => expect(bodies).toEqual([{ name: 'Deploy key', abilities: ['read', 'write'], scopes: ['one'] }]))
+})

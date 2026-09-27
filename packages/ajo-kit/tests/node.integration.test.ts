@@ -16,7 +16,7 @@ describe('ajo-kit node server integration', () => {
 
 		try {
 			await expect(
-				listen({ handler: (_: unknown, res: { end: (body: string) => void }) => res.end('ok') }, (address as AddressInfo).port, { strict: true })
+				listen((_, res) => res.end('ok'), (address as AddressInfo).port, { strict: true })
 			).rejects.toMatchObject({ code: 'EADDRINUSE' })
 		} finally {
 			await new Promise<void>((resolve, reject) => {

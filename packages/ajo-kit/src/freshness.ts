@@ -64,8 +64,3 @@ export function fresh(client: Versions | null) {
 	const entries = Object.entries(client ?? {})
 	return entries.length > 0 && entries.every(([topic, version]) => (versions.get(topic) ?? 0) === version)
 }
-
-/** @internal Test-only reset of process topic versions — not public API. */
-export function reset() {
-	versions.clear()
-}

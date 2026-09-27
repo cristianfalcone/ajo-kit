@@ -20,7 +20,6 @@ export interface Headers {
 /** Host-neutral request consumed by ajo-kit routes and middleware. */
 export interface Request {
 	method: string
-	target: string
 	originalUrl: string
 	path: string
 	query: Record<string, Header>
@@ -28,7 +27,7 @@ export interface Request {
 	headers: Headers
 	remoteAddress?: string
 	read: (limit: number) => Promise<Uint8Array>
-	/** Parsed JSON body; loosely typed as handlers relied on pre-kernel. */
+	/** Parsed JSON body, or the flat string fields of a form posted to a page action. */
 	body?: any
 }
 /** Input accepted by the host-neutral request factory. */
@@ -58,7 +57,6 @@ export function request(input: Input): Request {
 	}
 	return {
 		method: input.method.toUpperCase(),
-		target: input.target,
 		originalUrl: input.target,
 		path,
 		query,
@@ -108,7 +106,6 @@ export class Reply {
 	readonly headers = new Map<string, Value>()
 	body?: string | Uint8Array
 	stream?: SSE
-	constructor(readonly method = 'GET') {}
 	setHeader(key: string, value: Value) {
 		this.headers.set(key.toLowerCase(), value)
 		return this
@@ -128,15 +125,11 @@ export class Reply {
 		for (const [key, value] of Object.entries(headers ?? {})) this.setHeader(key, value)
 		return this
 	}
+	/** Completes the reply; the host writes Content-Length and drops bodies for HEAD, 204 and 304. */
 	end(body?: string | Uint8Array) {
 		if (this.writableEnded) return this
 		this.writableEnded = true
-		if (this.statusCode === 204 || this.statusCode === 304) {
-			this.removeHeader('Content-Type')
-			this.removeHeader('Content-Length')
-			return this
-		}
-		if (this.method !== 'HEAD') this.body = body
+		this.body = body
 		return this
 	}
 
@@ -201,8 +194,8 @@ type Route = {
 }
 
 type Options = {
-	error?: (error: unknown, request: Request, reply: Reply) => unknown | Promise<unknown>
-	missing?: (request: Request, reply: Reply) => unknown | Promise<unknown>
+	error: (error: unknown, request: Request, reply: Reply) => unknown | Promise<unknown>
+	missing: (request: Request, reply: Reply) => unknown | Promise<unknown>
 }
 
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -242,9 +235,9 @@ export class Router {
 	private wares: Middleware[] = []
 	private routes: Route[] = []
 
-	constructor(private config: Options = {}) {
+	constructor(private config: Options) {
 		this.handler = async request => {
-			const reply = new Reply(request.method)
+			const reply = new Reply()
 			const handlers = [...this.wares]
 			let found = false
 
@@ -257,20 +250,12 @@ export class Router {
 				handlers.push(...route.handlers)
 				break
 			}
-			if (!found) handlers.push(async (request, reply) => {
-				if (this.config.missing) await this.config.missing(request, reply)
-				else reply.writeHead(404).end('Not found')
-			})
+			if (!found) handlers.push(this.config.missing)
 			let handled = false
 			const fail = async (error: unknown) => {
 				if (handled) throw error
 				handled = true
-				if (this.config.error) await this.config.error(error, request, reply)
-				else {
-					const value = error && typeof error === 'object' ? (error as { status?: unknown }).status : undefined
-					const status = typeof value === 'number' && value >= 400 && value <= 599 ? value : 500
-					reply.writeHead(status).end(status === 413 ? 'Content Too Large' : 'Internal Server Error')
-				}
+				await this.config.error(error, request, reply)
 			}
 			let index = 0
 			const dispatch = async (): Promise<void> => {
@@ -298,16 +283,11 @@ export class Router {
 
 	get(pattern: string, ...handlers: Middleware[]) { return this.route('GET', pattern, ...handlers) }
 	post(pattern: string, ...handlers: Middleware[]) { return this.route('POST', pattern, ...handlers) }
-	put(pattern: string, ...handlers: Middleware[]) { return this.route('PUT', pattern, ...handlers) }
-	patch(pattern: string, ...handlers: Middleware[]) { return this.route('PATCH', pattern, ...handlers) }
-	delete(pattern: string, ...handlers: Middleware[]) { return this.route('DELETE', pattern, ...handlers) }
-	options(pattern: string, ...handlers: Middleware[]) { return this.route('OPTIONS', pattern, ...handlers) }
-	head(pattern: string, ...handlers: Middleware[]) { return this.route('HEAD', pattern, ...handlers) }
 }
 
 const status = new Map([[200, 'OK'], [400, 'Bad Request'], [404, 'Not Found'], [500, 'Internal Server Error']])
 
-/** Serializes a value into a completed host-neutral reply with content headers. */
+/** Serializes a value into a completed host-neutral reply with its Content-Type. */
 export function send(reply: Reply, code = 200, data: unknown = '', headers: Record<string, Value> = {}) {
 	for (const [key, value] of Object.entries(headers)) reply.setHeader(key, value)
 
@@ -326,6 +306,5 @@ export function send(reply: Reply, code = 200, data: unknown = '', headers: Reco
 	}
 
 	reply.setHeader('Content-Type', type)
-	reply.setHeader('Content-Length', body instanceof Uint8Array ? body.byteLength : new TextEncoder().encode(body).byteLength)
 	reply.writeHead(code).end(body)
 }

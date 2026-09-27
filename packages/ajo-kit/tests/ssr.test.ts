@@ -2,53 +2,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import type { Stateful } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
-import * as ssr from '../src/ssr'
 import type { Action, ActionContext, LayoutArgs, PageArgs, Request } from '../src/constants'
-import type { Reply } from '../src/http'
-
-describe('ajo-kit SSR payload', () => {
-	test('ssr.serialize is safe inside script tags and round-trips values', () => {
-		const value = {
-			text: '</script><script>globalThis.__xss=1</script>',
-			html: '<img src=x onerror=alert(1)>',
-			ampersand: '&',
-			line: '\u2028',
-			paragraph: '\u2029',
-			date: new Date('2026-06-19T00:00:00.000Z'),
-			map: new Map([['key', 'value']]),
-			set: new Set(['a', 'b']),
-			big: 10n,
-			missing: undefined,
-		}
-
-		const serialized = ssr.serialize(value)
-
-		expect(serialized).not.toContain('</script>')
-		expect(serialized).not.toContain('<img')
-		expect(serialized).not.toContain('\u2028')
-		expect(serialized).not.toContain('\u2029')
-
-		const parsed = ssr.parse<typeof value>(serialized)
-
-		expect(parsed.text).toBe(value.text)
-		expect(parsed.html).toBe(value.html)
-		expect(parsed.ampersand).toBe('&')
-		expect(parsed.date).toEqual(value.date)
-		expect(parsed.map.get('key')).toBe('value')
-		expect(parsed.set.has('a')).toBe(true)
-		expect(parsed.big).toBe(10n)
-		expect('missing' in parsed).toBe(true)
-		expect(parsed.missing).toBeUndefined()
-	})
-
-	test('ssr.script emits a data script, not executable boot code', () => {
-		const script = ssr.script({ url: '/dashboard' })
-
-		expect(script).toContain('type="application/json"')
-		expect(script).toContain('id="__SSR__"')
-		expect(script).not.toContain('globalThis.__SSR__')
-	})
-})
+import { attach, type Reply } from '../src/http'
 
 // Server-render a route through the real handler, then boot the real client
 // entry over that DOM. Route modules wait on `gate`, so a test can hold the
@@ -97,6 +52,7 @@ const registries = {
 					req.track?.('notes')
 					return { title: titles.get(req.params.id) ?? req.params.id }
 				},
+				head: async (req: Request) => ({ title: `Note ${req.params.id}` }),
 				actions: {
 					rename: async (req: Request, _: Reply, { emit }: ActionContext) => {
 						titles.set(req.params.id, req.body.title)
@@ -129,7 +85,7 @@ const start = async (path: string) => {
 	const server = await import('../src/server')
 	const http = await import('../src/http')
 	const { navigate } = await import('../src/constants')
-	const app = await server.create(({ root, data }) => `<div id="root">${root}</div>${data}`, registries)
+	const app = await server.create('<div id="root"><!-- ssr:root --></div><!-- ssr:data -->', registries)
 
 	const call = (target: string, init: RequestInit = {}) => {
 		const url = new URL(target, location.href)
@@ -207,6 +163,50 @@ afterEach(async () => {
 	titles.clear()
 	sources.length = 0
 	vi.unstubAllGlobals()
+})
+
+describe('ajo-kit SSR payload', () => {
+	const state = () => JSON.parse(document.getElementById('__SSR__')!.textContent!)
+
+	test('SSR state containing </script> and U+2028 embeds as inert JSON', async () => {
+		const title = '</script><script>globalThis.__xss=1</script>\u2028\u2029<!--'
+		titles.set('7', title)
+		const { call } = await start('/notes/7')
+		const html = text(await call('/notes/7', { headers: { accept: 'text/html' } }))
+		const script = /<script type="application\/json" id="__SSR__">(.*?)<\/script>/s.exec(html)![1]
+
+		expect(script).not.toContain('<')
+		expect(script).not.toContain('\u2028')
+		expect(script).not.toContain('\u2029')
+		expect(JSON.parse(script).data.at(-1)).toEqual({ title })
+		expect(state().data.at(-1)).toEqual({ title })
+		expect((globalThis as { __xss?: number }).__xss).toBeUndefined()
+	})
+
+	test('SSR, route JSON and a live update deliver the same payload for the same loader', async () => {
+		const { server, call } = await start('/notes/7')
+		const pick = ({ data, head, hash, topics, versions, scope }: Record<string, unknown>) => ({ data, head, hash, topics, versions, scope })
+		const json = async () => JSON.parse(text(await call('/notes/7', { headers: { accept: 'application/json' } })))
+
+		expect(pick(await json())).toEqual(pick(state()))
+		expect(state().head).toEqual({ title: 'Note 7' })
+
+		const messages: string[] = []
+		attach(await call('/notes/7', { headers: { accept: 'text/event-stream' } }), {
+			send: chunk => messages.push(chunk),
+			close: () => {},
+			closed: new Promise<void>(() => {}),
+		})
+
+		titles.set('7', 'Seven')
+		server.emit('notes')
+		await vi.waitFor(() => expect(messages).toHaveLength(1))
+
+		const live = JSON.parse(/^data: (.*)$/m.exec(messages[0])![1])
+
+		expect(live.data.at(-1)).toEqual({ title: 'Seven' })
+		expect(pick(live)).toEqual(pick(await json()))
+	})
 })
 
 describe('ajo-kit client boot over SSR', () => {

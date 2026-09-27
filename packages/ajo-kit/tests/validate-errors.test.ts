@@ -43,6 +43,11 @@ describe('ajo-kit validation and errors', () => {
 			status: 500,
 			message: 'Internal Server Error',
 		})
+		expect(new Invalid({ name: ['Required'] }).toJSON()).toEqual({
+			status: 400,
+			message: 'Validation failed',
+			fields: { name: ['Required'] },
+		})
 		expect(new Invalid({ name: ['Required'] }).toJSON()).toMatchObject({
 			status: 400,
 			message: 'Validation failed',
@@ -51,10 +56,7 @@ describe('ajo-kit validation and errors', () => {
 	})
 
 	test('normalize preserves safe middleware status codes', () => {
-		const invalid = Object.assign(new Error('Invalid content'), {
-			status: 422,
-			details: 'Unexpected token',
-		})
+		const invalid = Object.assign(new Error('Invalid content'), { status: 422 })
 		const large = Object.assign(new Error('Exceeded "Content-Length" limit'), { status: 413 })
 		const hidden = Object.assign(new Error('teapot'), { status: 399 })
 

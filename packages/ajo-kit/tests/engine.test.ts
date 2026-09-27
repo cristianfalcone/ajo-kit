@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
 	receive: undefined as ((raw: any) => Promise<any>) | undefined,
 	listen: undefined as unknown,
 	files: vi.fn(),
+	wares: {} as Record<string, () => Promise<Record<string, unknown>>>,
 	environment: {
 		APP_URL: 'https://example.test',
 		DATABASE_PATH: ':memory:',
@@ -40,6 +41,8 @@ vi.mock('runtime:http', () => ({
 	},
 }))
 
+vi.mock('virtual:ajo/handlers', () => ({ handlers: {}, wares: state.wares }))
+
 vi.mock('ajo-kit/database', () => ({
 	close: vi.fn(async () => { state.events.push('close') }),
 	db: vi.fn(() => {
@@ -70,16 +73,16 @@ const migration = {
 	migration: { up: async () => {}, down: async () => {} },
 }
 
-const input = (root?: () => Promise<Record<string, unknown>>): StartOptions => ({
-	template: '<!-- ssr:root -->',
-	registries: {
-		routes: {},
-		handlers: {},
-		wares: root ? { '/src/wares.ts': root } : {},
-	},
-	migrations: [migration],
-	options: { database: true },
-})
+// The root wares module the engine reads the bootstrap hook from.
+const input = (root?: () => Promise<Record<string, unknown>>): StartOptions => {
+	for (const key of Object.keys(state.wares)) delete state.wares[key]
+	if (root) state.wares['/src/wares.ts'] = root
+	return {
+		template: '<!-- ssr:root -->',
+		migrations: [migration],
+		options: { database: true },
+	}
+}
 
 const raw = (host: string) => ({
 	method: 'GET',

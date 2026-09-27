@@ -17,7 +17,7 @@ let closeLive: () => void
 beforeAll(async () => {
 	const server = await import('../src/server')
 	closeLive = server.closeLive
-	app = await server.create(() => '', {
+	app = await server.create('', {
 		routes: {
 			'/src/live/page.tsx': async () => ({ default: () => null }),
 			'/src/plain/page.tsx': async () => ({ default: () => null }),
@@ -85,6 +85,8 @@ describe('ajo-kit live stream admission', () => {
 
 		expect(reply.statusCode).toBe(200)
 		expect(reply.getHeader('content-type')).toBe('text/event-stream')
+		// The host owns stream framing headers; the kit declares only the type.
+		for (const name of ['cache-control', 'connection', 'x-accel-buffering', 'content-length']) expect(reply.hasHeader(name)).toBe(false)
 		expect(reply.stream).toBeDefined()
 
 		await close([reply])

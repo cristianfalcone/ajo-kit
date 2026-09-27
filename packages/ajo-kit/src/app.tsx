@@ -10,7 +10,6 @@ import type {
 	Loader,
 	Page,
 	State,
-	Payload,
 } from './constants'
 import { apply } from './head'
 import { drop, evict, get, set } from './cache'
@@ -61,9 +60,6 @@ let scope: string | undefined
 // drop the partition that replaced it, and re-cache what the client has
 // already stopped being.
 let era = 0
-
-/** @internal Exposes the identity era for tests only — not public API. */
-export const current = () => era
 
 /** Adopts a scope declared by a response issued in era `since`. */
 const adopt = (next: string | undefined, since = era) => {
@@ -306,13 +302,8 @@ export async function* resolve(
 	}
 }
 
-type Message = {
-	data: Payload
-	hash?: string
-	topics?: string[]
-	versions?: Record<string, number>
-	scope?: string
-}
+/** A live update: the same payload fields as route JSON. */
+type Message = Omit<Load, 'since' | 'error' | 'redirect'>
 
 type Status = 'closed' | 'connecting' | 'open'
 
@@ -354,8 +345,7 @@ function stream(update: (message: Message) => void, notify?: (status: Status) =>
 		}
 
 		source.onmessage = event => {
-			const message = JSON.parse(event.data) as Message
-			if (message.data) update(message)
+			update(JSON.parse(event.data) as Message)
 		}
 
 		// The server names this close a dead credential — reconnecting cannot
@@ -425,7 +415,7 @@ const App: Stateful<{ page: Component; state?: State }> = function* ({ page, sta
 
 	const sse = stream(message => {
 
-		if (!active || !message.data) return
+		if (!active) return
 
 		// A message declaring another scope was computed for an identity this
 		// client is not on — it is never adopted and never rendered. The
@@ -449,10 +439,8 @@ const App: Stateful<{ page: Component; state?: State }> = function* ({ page, sta
 
 		live++
 
-		const [head, ...data] = message.data
-
-		commit(active, { ...message, data, head, since: era })
-		apply(head)
+		commit(active, { ...message, since: era })
+		if (message.head) apply(message.head)
 
 		this.next()
 	// On expiry or reconnect the loaders re-run for the current URL: the

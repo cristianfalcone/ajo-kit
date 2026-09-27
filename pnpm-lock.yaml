@@ -52,15 +52,9 @@ importers:
 
   packages/ajo-kit:
     dependencies:
-      '@types/better-sqlite3':
-        specifier: ^7.6.13
-        version: 7.6.13
       better-sqlite3:
         specifier: ^12.11.1
         version: 12.11.1
-      devalue:
-        specifier: ^5.8.1
-        version: 5.8.1
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -70,9 +64,6 @@ importers:
       navaid:
         specifier: ^1.2.0
         version: 1.2.0
-      polka:
-        specifier: 1.0.0-next.28
-        version: 1.0.0-next.28
       sade:
         specifier: ^1.8.1
         version: 1.8.1
@@ -80,6 +71,9 @@ importers:
         specifier: ^1.4.1
         version: 1.4.1(typescript@6.0.3)
     devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.13
+        version: 7.6.13
       ajo:
         specifier: 0.1.35
         version: 0.1.35
