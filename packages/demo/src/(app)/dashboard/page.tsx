@@ -4,6 +4,7 @@ import { Card, CardContent } from 'ajo-ui-playa/card'
 import { Chip } from 'ajo-ui-playa/chip'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'ajo-ui-playa/table'
 import { can } from '/src/abilities'
+import { agent, ago, Stat } from '/src/view'
 
 type Session = {
 	id: string
@@ -31,66 +32,6 @@ type Data = {
 		unread: number
 	}
 	recentSessions: Session[]
-}
-
-type MetricTone = 'accent' | 'danger'
-
-const metricTone: Record<MetricTone, { icon: string; text: string; value: string }> = {
-	accent: {
-		icon: 'bg-primary/10 inset-ring-primary/25',
-		text: 'text-primary',
-		value: 'text-card-foreground',
-	},
-	danger: {
-		icon: 'bg-danger/10 inset-ring-danger/25',
-		text: 'text-danger',
-		value: 'text-danger',
-	},
-}
-
-const Metric = ({
-	icon,
-	label,
-	tone = 'accent',
-	value,
-}: {
-	icon: string
-	label: string
-	tone?: MetricTone
-	value: number | string
-}) => {
-	const styles = metricTone[tone]
-
-	return (
-		<Card size="sm">
-			<CardContent class="flex items-center gap-4">
-				<div class={`flex size-12 shrink-0 items-center justify-center rounded-lg inset-ring ${styles.icon}`}>
-					<span class={`${icon} size-6 ${styles.text}`} />
-				</div>
-				<div class="min-w-0">
-					<p class={`text-2xl font-semibold leading-tight tabular-nums ${styles.value}`}>{value}</p>
-					<p class="truncate text-sm text-muted-foreground">{label}</p>
-				</div>
-			</CardContent>
-		</Card>
-	)
-}
-
-function timeAgo(iso: string) {
-
-	const diff = Date.now() - new Date(iso).getTime()
-	const mins = Math.floor(diff / 60000)
-
-	if (mins < 1) return 'Just now'
-	if (mins < 60) return `${mins}m ago`
-
-	const hours = Math.floor(mins / 60)
-
-	if (hours < 24) return `${hours}h ago`
-
-	const days = Math.floor(hours / 24)
-
-	return `${days}d ago`
 }
 
 const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
@@ -149,10 +90,10 @@ const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
 
 				{/* Quick Stats */}
 				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-					<Metric icon="i-lucide-monitor" label="Active Sessions" value={stats.sessions} />
-					<Metric icon="i-lucide-key" label="API Tokens" value={stats.tokens} />
-					<Metric icon="i-lucide-message-circle" label="Chats" value={stats.chats} />
-					<Metric icon="i-lucide-mail" label="Unread Messages" value={stats.unread} tone={stats.unread > 0 ? 'danger' : 'accent'} />
+					<Stat icon="i-lucide-monitor" label="Active Sessions" value={stats.sessions} />
+					<Stat icon="i-lucide-key" label="API Tokens" value={stats.tokens} />
+					<Stat icon="i-lucide-message-circle" label="Chats" value={stats.chats} />
+					<Stat icon="i-lucide-mail" label="Unread Messages" value={stats.unread} tone={stats.unread > 0 ? 'danger' : 'accent'} />
 				</div>
 
 				{/* Recent Sessions */}
@@ -175,13 +116,13 @@ const Dashboard: Stateful<PageArgs<Data>> = function* (args) {
 								{recentSessions.map(session => (
 									<TableRow key={session.id}>
 										<TableCell class="max-w-[200px] truncate">
-											{parseAgent(session.agent)}
+											{agent(session.agent)}
 										</TableCell>
 										<TableCell class="font-mono text-xs text-muted-foreground">
 											{session.ip ?? '-'}
 										</TableCell>
 										<TableCell class="text-muted-foreground">
-											{timeAgo(session.last)}
+											{ago(session.last)}
 										</TableCell>
 										<TableCell>
 											{session.current ? (
@@ -226,12 +167,3 @@ const ActionCard = ({ href, icon, label, description }: { href: string; icon: st
 		</CardContent>
 	</Card>
 )
-
-function parseAgent(agent: string | null): string {
-	if (!agent) return 'Unknown device'
-	const browser = agent.match(/(Chrome|Firefox|Safari|Edge|Opera)[/\s](\d+)/)?.[0]
-		?? agent.match(/(Mobile|Tablet)/)?.[0]
-		?? 'Browser'
-	const os = agent.match(/(Windows|Mac OS X|Linux|Android|iOS|iPhone)[^;)]*/)?.[0] ?? ''
-	return [browser, os].filter(Boolean).join(' on ')
-}

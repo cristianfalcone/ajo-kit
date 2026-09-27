@@ -1,13 +1,22 @@
-import type { Children, Stateful } from 'ajo'
+import type { Children, Stateful, Stateless } from 'ajo'
 import { locale, type PageArgs } from 'ajo-kit'
 import { action } from 'ajo-kit/client'
-import { frame, visibility } from 'ajo-cloves'
+import { timer, visibility } from 'ajo-cloves'
 import clsx from 'clsx'
 import { Bubble, BubbleContent } from 'ajo-ui-playa/bubble'
 import { buttonVariants } from 'ajo-ui-playa/button'
 import { Input } from 'ajo-ui-playa/input'
 import { Message as MessageRow, MessageContent, MessageFooter, MessageGroup, MessageHeader } from 'ajo-ui-playa/message'
+import {
+	MessageScroller,
+	MessageScrollerButton,
+	MessageScrollerContent,
+	MessageScrollerContext,
+	MessageScrollerItem,
+	MessageScrollerViewport,
+} from 'ajo-ui-playa/message-scroller'
 import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'
+import { ago } from '/src/view'
 import { ChatAvatar } from '../view'
 
 type Message = {
@@ -18,19 +27,9 @@ type Message = {
 	userName: string
 }
 
-type Chat = {
-	id: number
-	name: string | null
-}
-
-type Participant = {
-	id: number
-	name: string
-}
-
 type Data = {
-	chat: Chat
-	participants: Participant[]
+	chat: { id: number; name: string | null }
+	participants: { id: number; name: string }[]
 	messages: Message[]
 	hasMore: boolean
 	me: number
@@ -38,906 +37,386 @@ type Data = {
 	oldestUnreadId: number | null
 }
 
-type LoadPage = {
+type Page = {
 	messages: Message[]
 	hasMore: boolean
 }
 
-type SendResult = {
-	ok: true
-	message: Message
+/** The loader's page size, and the messages kept in the DOM: at least three pages. */
+const PAGE = 10
+const WINDOW = 30
+const HOLD = 1800
+const FADE = 4200
+const DAY = 86_400_000
+
+const day = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
+const clock = new Intl.DateTimeFormat(locale, { timeStyle: 'short' })
+const relative = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+const midnight = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+
+const dayLabel = (date: Date, now: Date) => {
+	const days = Math.round((midnight(date) - midnight(now)) / DAY)
+	return Math.abs(days) <= 1 ? relative.format(days, 'day') : day.format(date)
 }
 
-type LoadDirection = 'older' | 'newer'
+/** Sends a message, hands it to the room and follows the transcript to its end. */
+const Composer: Stateful<{ sent: (message: Message) => void }> = function* (args) {
 
-type RestoreSnapshot = {
-	id: number
-	anchorTop: number | null
-	scrollTop: number
-	scrollHeight: number
-}
-
-const TOP_LOAD_THRESHOLD = 180
-const BOTTOM_LOAD_THRESHOLD = 180
-const BOTTOM_STICK_THRESHOLD = 100
-const BOTTOM_READ_THRESHOLD = 12
-const WINDOW_PAGES = 3
-const UNREAD_HIGHLIGHT_HOLD_MS = 1800
-const UNREAD_HIGHLIGHT_FADE_MS = 4200
-const DAY_IN_MS = 86_400_000
-
-const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
-
-	const send = action<SendResult>('send')
-	const load = action<LoadPage>('load')
-	const markAsSeen = action<{ ok: true }>('markAsSeen')
-	const vis = visibility(this)
-	const dayFormatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
-	const timeFormatter = new Intl.DateTimeFormat(locale, { timeStyle: 'short' })
-	const relativeFormatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'long' })
+	const send = action<{ ok: true; message: Message }>('send')
 
 	let text = ''
 
-	const boxRef: { current: HTMLDivElement | null } = { current: null }
-
-	let timeline: Message[] = []
-	let pageSize = 0
-	let canLoadOlder = false
-	let canLoadNewer = false
-	let activeChatId: number | null = null
-	let lastMessageId: number | undefined
-	let marked = ''
-	let wasAtBottom = true
-	let shouldJumpToBottom = false
-	let forceMarkAsSeen = false
-	let markOnFirstOpen = false
-	let unreadPillHidden = false
-	let lastUnreadCount = 0
-	let jumpToUnreadId: number | null = null
-	let markAfterUnreadJump = false
-	let unreadJumpInProgress = false
-	let unreadJumpTimeout: ReturnType<typeof setTimeout> | null = null
-	let unreadHighlightIds = new Set<number>()
-	let unreadHighlightedOnceIds = new Set<number>()
-
-	const unreadHighlightTimers = new Map<number, ReturnType<typeof setTimeout>>()
-	const pendingRestoreRef: { current: RestoreSnapshot | null } = { current: null }
-
-	const clearUnreadJumpTimeout = () => {
-		if (unreadJumpTimeout === null) return
-		clearTimeout(unreadJumpTimeout)
-		unreadJumpTimeout = null
-	}
-
-	const unreadVisibilityCheck = frame(() => this.next())
-
-	const scheduleUnreadVisibilityCheck = () => {
-
-		if (import.meta.env.SSR) return
-		unreadVisibilityCheck()
-	}
-
-	const clearUnreadHighlightTimers = () => {
-		for (const timeout of unreadHighlightTimers.values()) clearTimeout(timeout)
-		unreadHighlightTimers.clear()
-	}
-
-	const startUnreadHighlight = (ids: number[]) => {
-
-		if (ids.length === 0) return
-
-		const next = new Set(unreadHighlightIds)
-
-		for (const id of ids) {
-
-			if (unreadHighlightedOnceIds.has(id)) continue
-
-			unreadHighlightedOnceIds.add(id)
-
-			next.add(id)
-
-			const existing = unreadHighlightTimers.get(id)
-
-			if (existing) clearTimeout(existing)
-
-			const timeout = setTimeout(() => {
-
-				this.next(() => {
-
-					if (!unreadHighlightIds.has(id)) {
-						unreadHighlightTimers.delete(id)
-						return
-					}
-
-					const reduced = new Set(unreadHighlightIds)
-
-					reduced.delete(id)
-
-					unreadHighlightIds = reduced
-
-					unreadHighlightTimers.delete(id)
-				})
-
-			}, UNREAD_HIGHLIGHT_HOLD_MS)
-
-			unreadHighlightTimers.set(id, timeout)
-		}
-
-		unreadHighlightIds = next
-	}
-
-	const finishUnreadJump = (markSeen = false) => {
-
-		clearUnreadJumpTimeout()
-
-		unreadJumpInProgress = false
-		jumpToUnreadId = null
-
-		if (markAfterUnreadJump) {
-			markAfterUnreadJump = false
-			if (markSeen) forceMarkAsSeen = true
-		}
-	}
-
-	const resolveUnreadAnchorId = (
-		items: Message[],
-		meId: number | undefined,
-		unreadCount: number,
-		fallbackId: number | null,
-		hasNewerPages: boolean
-	) => {
-
-		if (unreadCount <= 0) return null
-
-		// Source of truth: backend oldest unread id.
-		// Derive only as a last-resort fallback when that id is unavailable in the latest loaded window.
-		if (fallbackId !== null) {
-			const fallbackLoaded = items.some(message => message.id === fallbackId)
-			if (fallbackLoaded || hasNewerPages) return fallbackId
-		}
-
-		if (typeof meId !== 'number') return fallbackId
-
-		const incomingIds = items.filter(message => message.user !== meId).map(message => message.id)
-
-		if (incomingIds.length < unreadCount) return fallbackId
-
-		const candidate = incomingIds[incomingIds.length - unreadCount]
-
-		return candidate ?? fallbackId
-	}
-
-	const parseMessageDate = (value: string) => {
-
-		const normalized = (value.includes('T') ? value : value.replace(' ', 'T')).trim()
-		const hasExplicitOffset = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized)
-		const isoUtc = hasExplicitOffset ? normalized : `${normalized}Z`
-		const date = new Date(isoUtc)
-
-		return Number.isNaN(date.getTime()) ? new Date() : date
-	}
-
-	const dayStamp = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
-
-	const formatDaySeparator = (date: Date, now: Date) => {
-
-		const deltaDays = Math.round((dayStamp(date) - dayStamp(now)) / DAY_IN_MS)
-
-		if (deltaDays === 0 || deltaDays === -1 || deltaDays === 1) return relativeFormatter.format(deltaDays, 'day')
-
-		return dayFormatter.format(date)
-	}
-
-	const formatMessageTime = (date: Date, now: Date) => {
-
-		const dateDay = dayStamp(date)
-		const nowDay = dayStamp(now)
-
-		if (dateDay === nowDay) {
-
-			const deltaSeconds = Math.round((date.getTime() - now.getTime()) / 1000)
-			const absSeconds = Math.abs(deltaSeconds)
-
-			if (absSeconds < 45) return relativeFormatter.format(0, 'second')
-			if (absSeconds < 90) return relativeFormatter.format(deltaSeconds < 0 ? -1 : 1, 'minute')
-			if (absSeconds < 3600) return relativeFormatter.format(Math.round(deltaSeconds / 60), 'minute')
-
-			return relativeFormatter.format(Math.round(deltaSeconds / 3600), 'hour')
-		}
-
-		return timeFormatter.format(date)
-	}
-
-	const retain = (items: Message[], edge: 'older' | 'newer') => {
-		const windowSize = Math.max(pageSize * WINDOW_PAGES, 1)
-		timeline = items
-		if (items.length <= windowSize) return
-
-		if (edge === 'older') {
-			timeline = items.slice(0, windowSize)
-			canLoadNewer = true
-		} else {
-			timeline = items.slice(items.length - windowSize)
-			canLoadOlder = true
-		}
-	}
-
-	const growPageSize = (size: number) => {
-		if (size > pageSize) pageSize = size
-		if (pageSize < 1) pageSize = 1
-	}
-
-	const bottomOffset = (element: HTMLDivElement) => element.scrollHeight - element.scrollTop - element.clientHeight
-
-	const unreadIdsFromAnchor = (items: Message[], meId: number | undefined, anchorId: number | null) => {
-
-		if (anchorId === null || typeof meId !== 'number') return []
-
-		return items
-			.filter(message => message.user !== meId && message.id >= anchorId)
-			.map(message => message.id)
-	}
-
-	const resetWindowForChat = (
-		incoming: Message[],
-		hasMore: boolean,
-		incomingNewest: number | undefined,
-		unreadCount: number,
-		shouldJumpToUnreadOnOpen: boolean,
-		initialUnreadAnchorId: number | null
-	) => {
-
-		pageSize = Math.max(incoming.length, 1)
-		timeline = incoming
-		canLoadOlder = hasMore
-		canLoadNewer = false
-		lastMessageId = incomingNewest
-		wasAtBottom = !shouldJumpToUnreadOnOpen
-		forceMarkAsSeen = false
-		markOnFirstOpen = unreadCount > 0 && !shouldJumpToUnreadOnOpen
-		unreadPillHidden = shouldJumpToUnreadOnOpen
-		lastUnreadCount = unreadCount
-
-		finishUnreadJump()
-		unreadVisibilityCheck.cancel()
-		clearUnreadHighlightTimers()
-
-		unreadHighlightIds = new Set()
-		unreadHighlightedOnceIds = new Set()
-		jumpToUnreadId = shouldJumpToUnreadOnOpen ? initialUnreadAnchorId : null
-		markAfterUnreadJump = shouldJumpToUnreadOnOpen
-
-		pendingRestoreRef.current = null
-
-		if (import.meta.env.SSR) return
-
-		queueMicrotask(() => {
-			if (shouldJumpToUnreadOnOpen) this.next()
-			else scrollToBottom()
-		})
-	}
-
-	const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
-		const box = boxRef.current
-		if (!box) return
-		box.scrollTo({ top: box.scrollHeight, behavior })
-	}
-
-	const maybeLoad = (direction: LoadDirection, options?: { force?: boolean }) => {
-
-		const box = boxRef.current
-
-		if (!box || args.loading || load.loading) return
-		if (unreadJumpInProgress && !options?.force) return
-
-		const wantsOlder = direction === 'older'
-		const enabled = wantsOlder ? canLoadOlder : canLoadNewer
-
-		if (!enabled && !options?.force) return
-
-		const cursor = wantsOlder ? timeline[0]?.id : timeline.at(-1)?.id
-
-		if (!cursor) return
-
-		const chat = activeChatId
-
-		void load.invoke({ direction, cursor }).then(result => {
-
-			if (chat !== activeChatId) return
-			if (!result) return
-
-			const chunk = result.messages ?? []
-			const anchor = box.querySelector<HTMLElement>(`[data-message-id='${cursor}']`)
-			const anchorTop = anchor?.getBoundingClientRect().top ?? null
-			const scrollTop = box.scrollTop
-			const scrollHeight = box.scrollHeight
-
-			this.next(() => {
-
-				if (chat !== activeChatId) return
-
-				if (chunk.length === 0) {
-					if (wantsOlder) canLoadOlder = false
-					else canLoadNewer = false
-					return
-				}
-
-				growPageSize(chunk.length)
-
-				const known = new Set(timeline.map(message => message.id))
-				const unique = chunk.filter(message => !known.has(message.id))
-
-				if (unique.length > 0) {
-
-					const next = wantsOlder ? [...unique, ...timeline] : [...timeline, ...unique]
-					retain(next, wantsOlder ? 'older' : 'newer')
-
-					pendingRestoreRef.current = { id: cursor, anchorTop, scrollTop, scrollHeight }
-				}
-
-				if (wantsOlder) canLoadOlder = result.hasMore
-				else canLoadNewer = result.hasMore
-			})
-		})
-	}
-
-	const fillViewportLoadOlder = frame(() => maybeLoad('older'))
-	const jumpLoadOlder = frame(() => maybeLoad('older', { force: true }))
-	const jumpLoadNewer = frame(() => maybeLoad('newer', { force: true }))
-
-	const scrollCheck = frame(() => {
-
-		const box = boxRef.current
-
-		if (!box) return
-
-		const offsetFromBottom = bottomOffset(box)
-		const atBottom = offsetFromBottom <= BOTTOM_STICK_THRESHOLD
-
-		if (atBottom !== wasAtBottom) this.next(() => wasAtBottom = atBottom)
-		else wasAtBottom = atBottom
-
-		if (unreadJumpInProgress) return
-
-		if (box.scrollTop <= TOP_LOAD_THRESHOLD) maybeLoad('older')
-		if (offsetFromBottom <= BOTTOM_LOAD_THRESHOLD) maybeLoad('newer')
-		if (lastUnreadCount > 0) scheduleUnreadVisibilityCheck()
-	})
-
-	const onScroll = () => {
-		if (import.meta.env.SSR) return
-		scrollCheck()
-	}
-
-	const onSend = (event: SubmitEvent) => {
-
-		event.preventDefault()
-
-		const form = event.currentTarget as HTMLFormElement
-		const value = text.trim()
-
-		if (!value || send.loading) return
-
-		const chat = activeChatId
-
-		this.next(() => {
-			text = ''
-			shouldJumpToBottom = true
-		})
-		form.reset()
-
-		void send.invoke({ text: value }).then(result => {
-
-			if (chat !== activeChatId) return
-			if (!result?.message) return
-
-			this.next(() => {
-
-				if (chat !== activeChatId) return
-
-				if (!timeline.some(message => message.id === result.message.id)) {
-					growPageSize(1)
-
-					retain([...timeline, result.message], 'newer')
-					canLoadNewer = false
-				}
-
-				shouldJumpToBottom = true
-			})
-		})
-	}
-
-	const scrollToMessage = (messageId: number, behavior: ScrollBehavior = 'smooth') => {
-
-		const box = boxRef.current
-
-		if (!box) return false
-
-		const target = box.querySelector<HTMLElement>(`[data-message-id='${messageId}']`)
-
-		if (!target) return false
-
-		const boxRect = box.getBoundingClientRect()
-		const targetRect = target.getBoundingClientRect()
-		const top = targetRect.top - boxRect.top + box.scrollTop - 16
-
-		box.scrollTo({ top: Math.max(top, 0), behavior })
-
-		return true
-	}
-
-	const isMessageVisible = (messageId: number) => {
-
-		const box = boxRef.current
-
-		if (!box) return false
-
-		const target = box.querySelector<HTMLElement>(`[data-message-id='${messageId}']`)
-
-		if (!target) return false
-
-		const boxRect = box.getBoundingClientRect()
-		const targetRect = target.getBoundingClientRect()
-		const topEdge = boxRect.top + 4
-		const bottomEdge = boxRect.bottom - 4
-
-		return targetRect.bottom >= topEdge && targetRect.top <= bottomEdge
-	}
-
-	this.signal.addEventListener('abort', () => {
-		clearUnreadJumpTimeout()
-		unreadVisibilityCheck.cancel()
-		scrollCheck.cancel()
-		fillViewportLoadOlder.cancel()
-		jumpLoadOlder.cancel()
-		jumpLoadNewer.cancel()
-		clearUnreadHighlightTimers()
-	}, { once: true })
-
 	for (args of this) {
 
-		const { data, loading } = args
-		const incoming = data?.messages ?? []
-		const incomingNewest = incoming.at(-1)?.id
-		const unreadCount = data?.unreadCount ?? 0
-		const oldestUnreadId = data?.oldestUnreadId ?? null
-		const meId = data?.me
-		const chat = data?.chat?.id ?? null
-		const initialUnreadAnchorId = resolveUnreadAnchorId(incoming, meId, unreadCount, oldestUnreadId, false)
-		const shouldJumpToUnreadOnOpen = unreadCount > 0 && initialUnreadAnchorId !== null
+		const scroller = MessageScrollerContext()!
 
-		if (chat !== activeChatId) {
+		const submit = async (event: SubmitEvent) => {
 
-			activeChatId = chat
-			send.reset()
-			load.reset()
-			markAsSeen.reset()
+			event.preventDefault()
 
-			resetWindowForChat(
-				incoming,
-				Boolean(data?.hasMore),
-				incomingNewest,
-				unreadCount,
-				shouldJumpToUnreadOnOpen,
-				initialUnreadAnchorId
-			)
+			const form = event.currentTarget as HTMLFormElement
+			const value = text.trim()
 
-		} else if (data && !loading) {
+			if (!value || send.loading) return
 
-			growPageSize(incoming.length)
+			this.next(() => text = '')
+			form.reset()
 
-			if (shouldJumpToBottom && incoming.length > 0) {
-				// After sending, force the latest server window so we can always scroll to the newest message.
-				timeline = incoming
-				canLoadOlder = Boolean(data.hasMore)
-				canLoadNewer = false
-			} else if (!timeline.length) {
-				timeline = incoming
+			const result = await send.invoke({ text: value })
+
+			if (!result) return
+
+			args.sent(result.message)
+			scroller.scrollToEnd()
+		}
+
+		yield (
+			<form set:onsubmit={submit} class="flex gap-2 border-t p-4">
+				<div class="flex-1">
+					<Input
+						name="text"
+						value={text}
+						set:oninput={event => this.next(() => text = (event.target as HTMLInputElement).value)}
+						placeholder="Type a message..."
+						aria-label="Message"
+						autocomplete="off"
+					/>
+				</div>
+				<Tooltip delayDuration={500}>
+					<TooltipTrigger
+						type="submit"
+						aria-label="Send"
+						disabled={!text.trim() || send.loading}
+						data-variant="default"
+						class={buttonVariants({ size: 'icon' })}
+					>
+						<span class="i-lucide-send-horizontal size-4" />
+					</TooltipTrigger>
+					<TooltipContent>Send</TooltipContent>
+				</Tooltip>
+			</form>
+		)
+	}
+}
+
+/** The unread pill: loads the first unread message into the window, then scrolls to it. */
+const UnreadJump: Stateless<{ count: number; reveal: () => Promise<number> }> = ({ count, reveal }) => {
+
+	const scroller = MessageScrollerContext()!
+
+	return (
+		<button
+			type="button"
+			set:onclick={() => reveal().then(id => scroller.scrollToMessage(String(id)))}
+			class="absolute bottom-16 left-1/2 z-10 -translate-x-1/2 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-lg transition hover:bg-primary/90"
+		>
+			{count} new message{count !== 1 ? 's' : ''}
+		</button>
+	)
+}
+
+/** One room: a bounded window over its messages, paged, followed and marked as seen from what is visible. */
+const Room: Stateful<{ data: Data }> = function* ({ data }) {
+
+	const load = action<Page>('load')
+	const markAsSeen = action<{ ok: true }>('markAsSeen')
+	const tab = visibility(this)
+	const fade = timer(this)
+	const path = `/account/chats/${data.chat.id}`
+	// While the router loads another route this room stays rendered, and actions post to the current URL.
+	const here = () => globalThis.location?.pathname === path
+
+	let timeline = data.messages
+	let older = data.hasMore
+	let newer = false
+	let visible: string[] = []
+	// Pages in flight until one is in the window: the action is idle again one render before that,
+	// and a page that another one aborted settles while the newer one is still loading.
+	let paging = 0
+	let marked = ''
+	let lit = new Set<number>()
+	// The unread message the room opens at, and the one a jump heads for until it is in view.
+	const opening = data.unreadCount > 0 ? data.oldestUnreadId : null
+	let glow = opening
+
+	const seen = (id: number) => visible.includes(String(id))
+
+	// Keeps the window bounded, trimming the edge opposite to the one that grew. The trim never
+	// reaches a message in view and leaves a page past it, so the new far edge is out of view and
+	// a window that fits on screen grows instead of paging back and forth.
+	const retain = (messages: Message[], edge: 'older' | 'newer') => {
+		const shown = messages.map(message => seen(message.id))
+		timeline = messages
+		if (edge === 'older') {
+			const keep = Math.max(WINDOW, shown.lastIndexOf(true) + 1 + PAGE)
+			if (messages.length <= keep) return
+			timeline = messages.slice(0, keep)
+			newer = true
+		} else {
+			const from = shown.indexOf(true)
+			const keep = Math.max(WINDOW, from < 0 ? 0 : messages.length - from + PAGE)
+			if (messages.length <= keep) return
+			timeline = messages.slice(-keep)
+			older = true
+		}
+	}
+
+	// Merges by id: a message that arrives after a newer one still takes its place.
+	const append = (messages: Message[]) => {
+		const shown = new Set(timeline.map(message => message.id))
+		const first = timeline[0]?.id ?? 0
+		const fresh = messages.filter(message => message.id > first && !shown.has(message.id))
+		if (fresh.length) retain([...timeline, ...fresh].sort((a, b) => a.id - b.id), 'newer')
+	}
+
+	// Loads one page past an edge; resolves false when nothing arrived.
+	const page = async (direction: 'older' | 'newer') => {
+		const cursor = direction === 'older' ? timeline[0].id : timeline.at(-1)!.id
+		paging++
+		const result = await load.invoke({ direction, cursor })
+		paging--
+		if (!result) return false
+		return this.next(() => {
+			if (direction === 'older') {
+				older = result.hasMore
+				retain([...result.messages, ...timeline], 'older')
+			} else {
+				newer = result.hasMore
+				append(result.messages)
 			}
+			return result.messages.length > 0
+		}) ?? false
+	}
 
-			const timelineNewest = timeline.at(-1)?.id ?? 0
+	const reach = async (id: number) => {
+		while (older && timeline[0].id > id && await page('older'));
+		while (newer && timeline.at(-1)!.id < id && await page('newer'));
+	}
 
-			if (incomingNewest && incomingNewest > timelineNewest) {
+	const reveal = async () => {
+		const id = data.oldestUnreadId!
+		this.next(() => glow = id)
+		await reach(id)
+		return id
+	}
 
-				if (wasAtBottom && !canLoadNewer && !load.loading) {
+	const sent = (message: Message) => this.next(() => {
+		if (newer) {
+			timeline = data.messages
+			older = data.hasMore
+			newer = false
+		}
+		append([message])
+	})
 
-					const known = new Set(timeline.map(message => message.id))
-					const append = incoming.filter(message => message.id > timelineNewest && !known.has(message.id))
+	// The scroller opens at the unread message, so it mounts once the window holds it.
+	let ready = opening === null || !timeline.length || opening >= timeline[0].id
 
-					if (append.length > 0) {
+	if (!ready && !import.meta.env.SSR) reach(opening!).then(() => this.next(() => ready = true))
 
-						retain([...timeline, ...append], 'newer')
-					}
+	for ({ data } of this) {
 
-				} else {
-					canLoadNewer = true
-				}
-			}
+		if (!ready) {
+			yield <p class="p-4 text-sm text-muted-foreground">Loading messages...</p>
+			continue
 		}
 
-		const newest = timeline.at(-1)?.id
+		if (!newer) append(data.messages)
 
-		if (newest !== lastMessageId) {
-
-			const hadPrevious = lastMessageId !== undefined
-
-			lastMessageId = newest
-
-			if (!import.meta.env.SSR && hadPrevious && (wasAtBottom || shouldJumpToBottom)) {
-
-				const shouldForceBottom = shouldJumpToBottom
-
-				shouldJumpToBottom = false
-
-				queueMicrotask(() => {
-					scrollToBottom('auto')
-					if (shouldForceBottom) queueMicrotask(() => scrollToBottom('auto'))
-				})
-			}
+		// An edge message in view pulls the next page past it.
+		if (timeline.length && !paging && !load.error && here()) {
+			if (older && seen(timeline[0].id)) void page('older')
+			else if (newer && seen(timeline.at(-1)!.id)) void page('newer')
 		}
 
-		const pendingRestore = pendingRestoreRef.current
-
-		if (pendingRestore && !import.meta.env.SSR) {
-
-			const snapshot = pendingRestore
-
-			pendingRestoreRef.current = null
-
-			// During jump-to-unread we own the scroll position; skip anchor restore corrections.
-			if (jumpToUnreadId !== null) continue
-
-			// Keep the current viewport anchored when older messages are prepended.
-			queueMicrotask(() => {
-
-				const box = boxRef.current
-
-				if (!box) return
-
-				const anchor = box.querySelector<HTMLElement>(`[data-message-id='${snapshot.id}']`)
-
-				if (anchor && snapshot.anchorTop !== null) {
-
-					const delta = anchor.getBoundingClientRect().top - snapshot.anchorTop
-
-					box.scrollTop += delta
-
-					return
-				}
-
-				const delta = box.scrollHeight - snapshot.scrollHeight
-
-				box.scrollTop = snapshot.scrollTop + delta
-			})
+		// Once the unread message is in view, the unread run from it lights up and fades.
+		if (glow !== null && seen(glow)) {
+			const from = glow
+			lit = new Set(timeline.filter(message => message.user !== data.me && message.id >= from).map(message => message.id))
+			glow = null
+			fade.start(HOLD, () => this.next(() => lit = new Set()))
 		}
 
-		const liveBox = boxRef.current
+		const unread = data.unreadCount > 0 ? data.oldestUnreadId : null
+		const reading = unread !== null && visible.some(id => Number(id) >= unread)
 
-		if (!import.meta.env.SSR && liveBox && canLoadOlder && !load.loading && liveBox.scrollHeight <= liveBox.clientHeight + 24) {
-			fillViewportLoadOlder()
-		}
-
-		if (!import.meta.env.SSR && jumpToUnreadId) {
-
-			const targetId = jumpToUnreadId
-			const firstLoadedId = timeline[0]?.id ?? null
-			const lastLoadedId = timeline.at(-1)?.id ?? null
-			const needsOlder = firstLoadedId !== null && targetId < firstLoadedId
-			const needsNewer = lastLoadedId !== null && targetId > lastLoadedId
-
-			const target = boxRef.current?.querySelector<HTMLElement>(`[data-message-id='${targetId}']`)
-
-			if (target) {
-
-				pendingRestoreRef.current = null
-
-				if (!unreadJumpInProgress) {
-
-					unreadJumpInProgress = true
-
-					scrollToMessage(targetId, 'smooth')
-					clearUnreadJumpTimeout()
-
-					unreadJumpTimeout = setTimeout(() => {
-
-						this.next(() => {
-
-							if (jumpToUnreadId !== targetId) return
-
-							scrollToMessage(targetId, 'auto')
-
-							const idsToHighlight = unreadIdsFromAnchor(timeline, data?.me, targetId).filter(id => !unreadHighlightedOnceIds.has(id))
-
-							startUnreadHighlight(idsToHighlight)
-							finishUnreadJump(true)
-						})
-					}, 420)
-				}
-			} else if (!load.loading && needsOlder && canLoadOlder) {
-
-				jumpLoadOlder()
-
-			} else if (!load.loading && needsNewer && canLoadNewer) {
-
-				jumpLoadNewer()
-
-			} else if (!load.loading && needsOlder && !canLoadOlder) {
-
-				queueMicrotask(() => {
-					const box = boxRef.current
-					if (!box) return
-					box.scrollTo({ top: 0, behavior: 'smooth' })
-				})
-
-				finishUnreadJump(true)
-
-			} else if (!load.loading && needsNewer && !canLoadNewer) {
-
-				// Fallback: no further pages available but unread anchor not found ahead.
-				queueMicrotask(() => scrollToBottom('smooth'))
-
-				finishUnreadJump(true)
-			}
-		}
-
-		if (markOnFirstOpen) {
-			if (unreadCount > 0) forceMarkAsSeen = true
-			markOnFirstOpen = false
-		}
-
-		const unreadAnchorId = resolveUnreadAnchorId(timeline, meId, unreadCount, oldestUnreadId, canLoadNewer)
-
-		if (unreadCount > lastUnreadCount) unreadPillHidden = false
-		if (unreadCount === 0) unreadPillHidden = false
-
-		lastUnreadCount = unreadCount
-
-		const scrollBox = boxRef.current
-
-		const atConversationBottom =
-			!import.meta.env.SSR &&
-			scrollBox !== null &&
-			!canLoadNewer &&
-			bottomOffset(scrollBox) <= BOTTOM_READ_THRESHOLD
-
-		let oldestUnreadVisible = false
-
-		if (unreadAnchorId !== null && !import.meta.env.SSR) {
-
-			oldestUnreadVisible = isMessageVisible(unreadAnchorId)
-		}
-
-		if ((oldestUnreadVisible || atConversationBottom) && unreadCount > 0) {
-			unreadPillHidden = true
-			forceMarkAsSeen = true
-		}
-
-		const expectedPath = data?.chat?.id ? `/account/chats/${data.chat.id}` : null
-		const onActiveChatRoute = typeof location !== 'undefined' && expectedPath !== null && location.pathname === expectedPath
-
-		if (data?.chat?.id && onActiveChatRoute && vis.visible) {
-
-			const current = `${data.chat.id}:${newest ?? 0}:${unreadCount}`
-
-			if (forceMarkAsSeen && current !== marked && !markAsSeen.loading) {
-				marked = current
-				forceMarkAsSeen = false
+		if (reading && tab.visible && here() && !markAsSeen.loading) {
+			const key = `${unread}:${data.unreadCount}`
+			if (key !== marked) {
+				marked = key
 				void markAsSeen.invoke()
 			}
 		}
 
-		const showUnreadPill = unreadCount > 0 && !unreadPillHidden && !oldestUnreadVisible && !atConversationBottom
-
-		const onJumpToUnread = () => {
-
-			if (!unreadAnchorId) return
-
-			this.next(() => {
-
-				finishUnreadJump()
-
-				unreadPillHidden = true
-				canLoadNewer = true
-				jumpToUnreadId = unreadAnchorId
-				markAfterUnreadJump = true
-			})
-		}
-
 		const now = new Date()
-
-		let previousDayMarker: number | null = null
-
-		const timelineNodes: Children[] = []
+		const days = timeline.map(message => midnight(new Date(message.created)))
+		const nodes: Children[] = []
 		let run: Children[] = []
-		let runSender = ''
-		// Keyed by the run's first message id: sender+day repeats across runs
-		// in an alternating conversation and duplicate sibling keys corrupt
-		// keyed reconciliation.
-		let runKey = ''
+		// A run is keyed by its first message: sender and day repeat across runs.
+		let key = ''
 
-		const flushRun = () => {
-			if (!run.length) return
-			timelineNodes.push(<MessageGroup key={runKey}>{run}</MessageGroup>)
+		const flush = () => {
+			if (run.length) nodes.push(<MessageGroup key={key}>{run}</MessageGroup>)
 			run = []
 		}
 
-		timeline.forEach((msg, index) => {
+		timeline.forEach((message, index) => {
 
-			const messageDate = parseMessageDate(msg.created)
-			const marker = dayStamp(messageDate)
-			const needsSeparator = marker !== previousDayMarker
+			const date = new Date(message.created)
+			const mine = message.user === data.me
+			const first = index === 0 || days[index - 1] !== days[index]
+			const starts = first || timeline[index - 1].user !== message.user
+			const next = timeline[index + 1]
+			const ends = !next || days[index + 1] !== days[index] || next.user !== message.user
 
-			previousDayMarker = marker
+			if (starts) {
+				flush()
+				key = `run-${message.id}`
+			}
 
-			if (needsSeparator) {
-				flushRun()
-				timelineNodes.push(
-					<div key={`day-${marker}`} class="my-2 flex justify-center">
-						<time
-							dateTime={messageDate.toISOString()}
-							class="glass edge rounded-full px-3 py-1 text-xs font-medium text-muted-foreground"
-						>
-							{formatDaySeparator(messageDate, now)}
+			if (first) {
+				nodes.push(
+					<div key={`day-${days[index]}`} class="my-2 flex justify-center">
+						<time dateTime={message.created} class="glass edge rounded-full px-3 py-1 text-xs font-medium text-muted-foreground">
+							{dayLabel(date, now)}
 						</time>
 					</div>
 				)
 			}
 
-			const mine = msg.user === data?.me
-			const senderKey = `${msg.user}-${marker}`
-
-			if (runSender !== senderKey || needsSeparator) {
-				flushRun()
-				runSender = senderKey
-				runKey = `run-${msg.id}`
-			}
-
-			const next = timeline[index + 1]
-			const lastOfRun = !next || next.user !== msg.user || dayStamp(parseMessageDate(next.created)) !== marker
-
 			run.push(
-				<MessageRow
-					key={msg.id}
-					align={mine ? 'end' : 'start'}
-					data-message-id={msg.id}
-					class={clsx(
-						'rounded-xl px-2 py-1 transition-colors ease-out',
-						!mine && unreadHighlightIds.has(msg.id) && 'bg-warning/15',
-						index === timeline.length - 1 && 'last-message',
-					)}
-					style={!mine ? `transition-duration:${UNREAD_HIGHLIGHT_FADE_MS}ms` : undefined}
+				<MessageScrollerItem
+					key={message.id}
+					messageId={String(message.id)}
+					scrollAnchor={message.id === opening}
+					class={clsx('rounded-xl px-2 py-1 transition-colors ease-out', lit.has(message.id) && 'bg-warning/15')}
+					// The window is small and pages land above the reader: real heights, not
+					// content-visibility placeholders, keep the anchored row where it is.
+					style={`content-visibility:visible${mine ? '' : `;transition-duration:${FADE}ms`}`}
 				>
-					<MessageContent>
-						{!mine && run.length === 0 ? <MessageHeader>{msg.userName}</MessageHeader> : null}
-						<Bubble variant={mine ? 'default' : 'secondary'}>
-							<BubbleContent>{msg.text}</BubbleContent>
-						</Bubble>
-						{lastOfRun ? (
-							<MessageFooter>
-								<time dateTime={messageDate.toISOString()} title={timeFormatter.format(messageDate)}>
-									{formatMessageTime(messageDate, now)}
-								</time>
-							</MessageFooter>
-						) : null}
-					</MessageContent>
-				</MessageRow>
+					<MessageRow align={mine ? 'end' : 'start'}>
+						<MessageContent>
+							{!mine && starts ? <MessageHeader>{message.userName}</MessageHeader> : null}
+							<Bubble variant={mine ? 'default' : 'secondary'}>
+								<BubbleContent>{message.text}</BubbleContent>
+							</Bubble>
+							{ends ? (
+								<MessageFooter>
+									<time dateTime={message.created} title={clock.format(date)}>
+										{days[index] === midnight(now) ? ago(message.created) : clock.format(date)}
+									</time>
+								</MessageFooter>
+							) : null}
+						</MessageContent>
+					</MessageRow>
+				</MessageScrollerItem>
 			)
 		})
 
-		flushRun()
+		flush()
 
-		const title =
-			data?.chat?.name ||
-			data?.participants?.filter(p => p.id !== data?.me).map(p => p.name).join(', ') ||
-			'Chat'
+		yield (
+			<MessageScroller
+				autoScroll={!newer}
+				defaultScrollPosition="last-anchor"
+				scrollPreviousItemPeek={16}
+				onVisibilityChange={({ visibleMessageIds }) => this.next(() => visible = visibleMessageIds)}
+			>
+				<div class="relative min-h-0 flex-1">
+					<MessageScrollerViewport class="p-4" set:onscroll={load.error ? () => load.reset() : undefined}>
+						<MessageScrollerContent class="gap-3">
+							{older ? (
+								<p class="py-2 text-center text-xs text-muted-foreground">
+									{load.loading ? 'Loading messages...' : 'Scroll up to load older messages'}
+								</p>
+							) : timeline.length > 0 && (
+								<p class="py-2 text-center text-sm text-muted-foreground">
+									Beginning of conversation
+								</p>
+							)}
+							{load.error && (
+								<p class="py-2 text-center text-xs text-danger">
+									{load.error.message}
+								</p>
+							)}
+							{timeline.length ? nodes : (
+								<p class="py-12 text-center text-sm text-muted-foreground">
+									No messages yet. Start the conversation!
+								</p>
+							)}
+						</MessageScrollerContent>
+					</MessageScrollerViewport>
+					<MessageScrollerButton />
+					{unread !== null && !reading && glow === null && (
+						<UnreadJump count={data.unreadCount} reveal={reveal} />
+					)}
+				</div>
+				<Composer sent={sent} />
+			</MessageScroller>
+		)
+	}
+}
+
+Room.attrs = { class: 'flex min-h-0 flex-1 flex-col' }
+
+const ChatRoom: Stateful<PageArgs<Data>> = function* (args) {
+
+	for (args of this) {
+
+		const { data } = args
+
+		if (!data) {
+			yield null
+			continue
+		}
+
+		const title = data.chat.name || data.participants.filter(p => p.id !== data.me).map(p => p.name).join(', ') || 'Chat'
 
 		yield (
 			<>
 				<header class="flex items-center gap-4 border-b px-4 py-3">
-					{loading ? (
-						<p class="text-sm text-muted-foreground">
-							Loading conversation...
+					<ChatAvatar name={title} />
+					<div class="min-w-0">
+						<h2 class="truncate text-lg font-semibold text-foreground">
+							{title}
+						</h2>
+						<p class="text-xs text-muted-foreground">
+							{data.participants.length} participant{data.participants.length !== 1 ? 's' : ''}
 						</p>
-					) : (
-						<>
-							<ChatAvatar name={title} />
-							<div class="min-w-0">
-								<h2 class="truncate text-lg font-semibold text-foreground">
-									{title}
-								</h2>
-								{data?.participants && (
-									<p class="text-xs text-muted-foreground">
-										{data.participants.length} participant{data.participants.length !== 1 ? 's' : ''}
-									</p>
-								)}
-							</div>
-							<Tooltip delayDuration={500} class="ml-auto">
-								<TooltipTrigger
-									type="button"
-									aria-label="Chat options"
-									data-variant="ghost"
-									class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-								>
-									<span class="i-lucide-more-vertical size-4" />
-								</TooltipTrigger>
-								<TooltipContent>Chat options</TooltipContent>
-							</Tooltip>
-						</>
-					)}
-				</header>
-
-				<div class="relative min-h-0 flex-1">
-					<div
-						class="h-full space-y-3 overflow-y-auto scrollbar-soft scrollbar-gutter-stable p-4"
-						ref={el => boxRef.current = el}
-						set:onscroll={onScroll}
-					>
-						{loading ? (
-							<p class="text-sm text-muted-foreground">
-								Loading messages...
-							</p>
-						) : (
-							<>
-								{canLoadOlder && (
-									<div class="text-center py-2 text-xs text-muted-foreground">
-										{load.loading ? 'Loading messages...' : 'Scroll up to load older messages'}
-									</div>
-								)}
-								{load.error && (
-									<p class="text-center text-xs text-danger py-2">
-										{load.error.message}
-									</p>
-								)}
-								{!canLoadOlder && timeline.length > 0 && (
-									<p class="text-center text-muted-foreground py-2 text-sm">
-										Beginning of conversation
-									</p>
-								)}
-								{timeline.length === 0 ? (
-									<p class="py-12 text-center text-sm text-muted-foreground">
-										No messages yet. Start the conversation!
-									</p>
-								) : (
-									timelineNodes
-								)}
-							</>
-						)}
 					</div>
-					{showUnreadPill && (
-						<button
-							type="button"
-							set:onclick={onJumpToUnread}
-							class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-lg transition hover:bg-primary/90"
-						>
-							{unreadCount} new message{unreadCount !== 1 ? 's' : ''}
-						</button>
-					)}
-				</div>
-
-				<form set:onsubmit={onSend} class="flex gap-2 border-t p-4">
-					<div class="flex-1">
-						<Input
-							name="text"
-							value={text}
-							set:oninput={event => this.next(() => text = (event.target as HTMLInputElement).value)}
-							placeholder="Type a message..."
-							aria-label="Message"
-							autocomplete="off"
-						/>
-					</div>
-					<Tooltip delayDuration={500}>
+					<Tooltip delayDuration={500} class="ml-auto">
 						<TooltipTrigger
-							type="submit"
-							aria-label="Send"
-							disabled={!text.trim() || send.loading}
-							data-variant="default"
-							class={buttonVariants({ size: 'icon' })}
+							type="button"
+							aria-label="Chat options"
+							data-variant="ghost"
+							class={buttonVariants({ variant: 'ghost', size: 'icon' })}
 						>
-							<span class="i-lucide-send-horizontal size-4" />
+							<span class="i-lucide-more-vertical size-4" />
 						</TooltipTrigger>
-						<TooltipContent>Send</TooltipContent>
+						<TooltipContent>Chat options</TooltipContent>
 					</Tooltip>
-				</form>
+				</header>
+				<Room key={data.chat.id} data={data} />
 			</>
 		)
 	}

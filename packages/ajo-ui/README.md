@@ -130,7 +130,9 @@ trigger or the field input. A close from a controlled parent leaves focus to
 the browser's native popover handling.
 
 `MessageScroller` is the root of its family and takes `autoScroll`,
-`defaultScrollPosition`, `preserveScrollOnPrepend` and `scrollPreviousItemPeek`.
+`defaultScrollPosition`, `preserveScrollOnPrepend`, `scrollPreviousItemPeek` and
+`onVisibilityChange(visibility)`, called when the visible message ids or the
+current anchor change.
 Controls that drive it render inside the root and read the controller
 (`scrollToEnd`, `scrollToMessage`, `scrollToStart`, `scrollable`,
 `visibility`) from `MessageScrollerContext()`.

@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { Chip } from 'ajo-ui-playa/chip'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from 'ajo-ui-playa/empty'
 import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from 'ajo-ui-playa/item'
+import { instant } from '/src/view'
 
 export type ChatItem = {
 	id: number
@@ -40,22 +41,11 @@ const hash = (value: string) => {
 	return total
 }
 
-const parseDate = (value: string) => {
-	const normalized = value.includes('T') ? value : value.replace(' ', 'T')
-	const utc = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized) ? normalized : `${normalized}Z`
-	const date = new Date(utc)
-
-	return Number.isNaN(date.getTime()) ? null : date
-}
-
 const formatTime = (value?: string | null) => {
 
 	if (!value) return ''
 
-	const date = parseDate(value)
-
-	if (!date) return ''
-
+	const date = instant(value)
 	const now = new Date()
 	const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
 	const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()

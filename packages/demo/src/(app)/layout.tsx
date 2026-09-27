@@ -3,22 +3,10 @@ import type { Stateful } from 'ajo'
 import type { User, LayoutArgs, Action } from 'ajo-kit'
 import { ThemeContext, UnreadContext } from '/src/contexts'
 import { action } from 'ajo-kit/client'
-import { Button, buttonVariants } from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import { Chip } from 'ajo-ui-playa/chip'
-import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'
 import { can } from '/src/abilities'
-
-type LinkOptions = { exact?: boolean, include?: string[] }
-
-const links: [string, string, string, LinkOptions?][] = [
-	['/dashboard', 'Dashboard', 'i-lucide-layout-dashboard', { exact: true }],
-]
-
-const isActive = (path: string, url: string, options?: LinkOptions): boolean => {
-	if (options?.exact ? url === path : url.startsWith(path)) return true
-	if (options?.include?.some(path => url.startsWith(path))) return true
-	return false
-}
+import { IconAction } from '/src/view'
 
 type LayoutData = { user: User; unread: number }
 
@@ -66,15 +54,10 @@ const Nav = ({ user, unread, signout }: { user: User, unread: number, signout: A
 					<div class="flex h-14 items-center">
 						{/* Nav links */}
 						<div class="flex items-center gap-2">
-							{links.map(([path, label, icon, options]) => {
-								const active = isActive(path, url, options)
-								return (
-									<a key={path} href={path as string} class={linkClass(active)} aria-current={active ? 'page' : undefined}>
-										<span class={clsx(icon, 'size-4')} />
-										{label}
-									</a>
-								)
-							})}
+							<a href="/dashboard" class={linkClass(url === '/dashboard')} aria-current={url === '/dashboard' ? 'page' : undefined}>
+								<span class="i-lucide-layout-dashboard size-4" />
+								Dashboard
+							</a>
 
 							{can(user.abilities, 'admin:read') && (
 								<a href="/admin" class={linkClass(url.startsWith('/admin'))}>
@@ -97,20 +80,7 @@ const Nav = ({ user, unread, signout }: { user: User, unread: number, signout: A
 									</Chip>
 								)}
 							</a>
-							<form set:onsubmit={signout.submit} class="inline">
-								<Tooltip delayDuration={500}>
-									<TooltipTrigger
-										type="submit"
-										aria-label="Logout"
-										disabled={signout.loading}
-										data-variant="ghost"
-										class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-									>
-										<span class="i-lucide-log-out size-4" />
-									</TooltipTrigger>
-									<TooltipContent>Logout</TooltipContent>
-								</Tooltip>
-							</form>
+							<IconAction action={signout} label="Logout" icon="i-lucide-log-out" variant="ghost" size="icon" />
 						</div>
 					</div>
 				</div>

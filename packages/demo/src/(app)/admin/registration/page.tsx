@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, date } from 'ajo-kit'
 import { action } from 'ajo-kit/client'
-import { Button, buttonVariants } from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'ajo-ui-playa/card'
 import { Chip } from 'ajo-ui-playa/chip'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from 'ajo-ui-playa/empty'
@@ -10,9 +10,10 @@ import { Input } from 'ajo-ui-playa/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'ajo-ui-playa/table'
 import { toast } from 'ajo-ui-playa/toast'
 import { ToggleGroup, ToggleGroupItem } from 'ajo-ui-playa/toggle-group'
-import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'
 import type { Signup } from '/src/data/registration'
-import PageControls, { type PageInfo } from '../pagination'
+import { IconAction } from '/src/view'
+import type { Info } from '/src/data/pagination'
+import PageControls from '../pagination'
 
 type Invitation = {
 	id: string
@@ -24,7 +25,7 @@ type Invitation = {
 	status: 'pending'
 }
 
-type Data = { signup: Signup; invitations: Invitation[]; page: PageInfo }
+type Data = { signup: Signup; invitations: Invitation[]; page: Info }
 type ModeResult = { saved: boolean }
 type InviteResult = { invited: boolean }
 type RevokeResult = { revoked: boolean }
@@ -188,20 +189,7 @@ const Registration: Stateful<PageArgs<Data>> = function* (args) {
 													<TableCell>{row.inviterName || row.inviterEmail || 'Unknown'}</TableCell>
 													<TableCell class="text-muted-foreground">{date(row.expiry)}</TableCell>
 													<TableCell class="text-right">
-														<form set:onsubmit={revoke.submit}>
-															<input type="hidden" name="id" value={row.id} />
-															<Tooltip delayDuration={500}>
-																<TooltipTrigger
-																	type="submit"
-																	aria-label="Revoke invitation"
-																	disabled={revoke.loading}
-																	class={buttonVariants({ variant: 'danger-ghost', size: 'icon-sm' })}
-																>
-																	<span class="i-lucide-trash-2 size-4" />
-																</TooltipTrigger>
-																<TooltipContent>Revoke invitation</TooltipContent>
-															</Tooltip>
-														</form>
+														<IconAction action={revoke} name="id" value={row.id} label="Revoke invitation" icon="i-lucide-trash-2" />
 													</TableCell>
 												</TableRow>
 											)

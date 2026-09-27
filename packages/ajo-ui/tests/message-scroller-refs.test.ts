@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { render, type Stateful } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, onTestFinished, test } from 'vitest'
 import {
 	MessageScroller,
 	MessageScrollerButton,
@@ -224,4 +224,136 @@ test('one edge reading drives the controller, the edge buttons and data-overflow
 		expect(end.dataset.active).toBe(String(canEnd))
 	}
 	expect(root.hasAttribute('data-overflow-y')).toBe(false)
+})
+
+test('onVisibilityChange reports each change of the visible message ids once', async () => {
+	const reports: string[][] = []
+	render(jsx(MessageScroller, {
+		children: jsx(MessageScrollerViewport, {
+			children: jsx(MessageScrollerContent, {
+				children: ['a', 'b', 'c'].map(id => jsx(MessageScrollerItem, { children: id, key: id, messageId: id })),
+			}),
+		}),
+		defaultScrollPosition: 'start',
+		onVisibilityChange: ({ visibleMessageIds }: { visibleMessageIds: string[] }) => reports.push([...visibleMessageIds]),
+	}), document.body)
+
+	const viewport = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]')!
+	const items = [...document.querySelectorAll<HTMLElement>('[data-slot="message-scroller-item"]')]
+	const rect = (top: number, height: number) => ({ top, bottom: top + height }) as DOMRect
+	Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 100 })
+	Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 300 })
+	Object.defineProperty(viewport, 'scrollTo', { configurable: true, value: ({ top = 0 }: ScrollToOptions) => viewport.scrollTop = top })
+	viewport.getBoundingClientRect = () => rect(0, 100)
+	items.forEach((item, index) => item.getBoundingClientRect = () => rect(index * 100 - viewport.scrollTop, 100))
+
+	const scrollTo = async (top: number) => {
+		viewport.scrollTop = top
+		viewport.dispatchEvent(new Event('scroll'))
+		await waitFrames(2)
+	}
+
+	await waitFrames(4)
+	await scrollTo(0)
+	await scrollTo(0)
+	await scrollTo(50)
+	await scrollTo(200)
+	expect(reports).toEqual([['a'], ['a', 'b'], ['c']])
+})
+
+// Lays four 50px items out in DOM order inside a 100px viewport and records scroll writes.
+const mountTranscript = async (args: Record<string, unknown> = {}) => {
+	let api: MessageScrollerApi | undefined
+	render(jsx(MessageScroller, {
+		children: [
+			jsx(Probe, { receive: (next: MessageScrollerApi) => api = next }),
+			jsx(MessageScrollerViewport, {
+				children: jsx(MessageScrollerContent, {
+					children: ['a', 'b', 'c', 'd'].map(id => jsx(MessageScrollerItem, { children: id, key: id, messageId: id })),
+				}),
+			}),
+		],
+		...args,
+	}), document.body)
+
+	const viewport = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]')!
+	const content = document.querySelector<HTMLElement>('[data-slot="message-scroller-content"]')!
+	const items = () => [...content.querySelectorAll<HTMLElement>('[data-slot="message-scroller-item"]')]
+	const layout = { top: 0, writes: 0, scrolls: [] as number[] }
+	const rect = HTMLElement.prototype.getBoundingClientRect
+
+	Object.defineProperties(viewport, {
+		clientHeight: { configurable: true, value: 100 },
+		scrollHeight: { configurable: true, get: () => items().length * 50 },
+		scrollTop: { configurable: true, get: () => layout.top, set: (value: number) => { layout.writes++; layout.top = value } },
+		scrollTo: { configurable: true, value: ({ top = 0 }: ScrollToOptions) => { layout.scrolls.push(top); layout.top = Math.min(top, items().length * 50 - 100) } },
+		getBoundingClientRect: { configurable: true, value: () => ({ top: 0, bottom: 100 }) },
+	})
+	HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+		const index = items().indexOf(this)
+		return index < 0 ? rect.call(this) : { top: index * 50 - layout.top, bottom: index * 50 + 50 - layout.top } as DOMRect
+	}
+	onTestFinished(() => { HTMLElement.prototype.getBoundingClientRect = rect })
+
+	// The opening jump lands at the end; its scrollend clears the autoscroll flag.
+	await waitFrames(4)
+	viewport.dispatchEvent(new Event('scrollend'))
+	await waitFrames(2)
+	layout.writes = 0
+	layout.scrolls.length = 0
+
+	const prepend = (id: string) => {
+		const item = document.createElement('div')
+		item.dataset.slot = 'message-scroller-item'
+		item.dataset.messageId = id
+		content.prepend(item)
+	}
+
+	return { api: api!, content, layout, prepend, viewport }
+}
+
+test('a content change at the end neither scrolls nor flags an autoscroll that no scrollend would clear', async () => {
+	const { content, layout, viewport } = await mountTranscript()
+
+	content.firstElementChild!.textContent = 'edited'
+	await waitFrames(2)
+
+	expect(layout.scrolls).toEqual([])
+	expect(viewport.hasAttribute('data-autoscrolling')).toBe(false)
+})
+
+test("a reader's scroll that ends before the next frame is not taken back to the end", async () => {
+	const { layout, viewport } = await mountTranscript()
+
+	viewport.scrollTop = 0
+	viewport.dispatchEvent(new Event('scroll'))
+	viewport.dispatchEvent(new Event('scrollend'))
+	await waitFrames(2)
+
+	expect(layout.scrolls).toEqual([])
+	expect(viewport.scrollTop).toBe(0)
+})
+
+test('without autoScroll, rows prepended while the reader is at the end keep the visible row in place', async () => {
+	const { layout, prepend } = await mountTranscript({ autoScroll: false })
+
+	expect(layout.top).toBe(100)
+	prepend('y')
+	prepend('z')
+	await waitFrames(2)
+
+	expect(layout.top).toBe(200)
+})
+
+test('a jump in flight keeps its position when rows are prepended', async () => {
+	const { api, layout, prepend, viewport } = await mountTranscript()
+
+	api.scrollToMessage('a')
+	await waitFrames(2)
+	expect(viewport.hasAttribute('data-autoscrolling')).toBe(true)
+	layout.writes = 0
+	prepend('z')
+	await waitFrames(2)
+
+	expect(layout.writes).toBe(0)
 })

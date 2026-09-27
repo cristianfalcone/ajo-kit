@@ -51,6 +51,8 @@ export type MessageScrollerArgs = WithChildren<IntrinsicElements['div'] & {
 	autoScroll?: boolean
 	/** Initial scroll target once the viewport and items are mounted. */
 	defaultScrollPosition?: MessageScrollerDefaultPosition
+	/** Called when the visible message ids or the current anchor change. */
+	onVisibilityChange?: (visibility: MessageScrollerVisibility) => void
 	/** Preserve the visible row when older messages are prepended. */
 	preserveScrollOnPrepend?: boolean
 	/** Pixels to keep visible above a target item. */
@@ -60,7 +62,7 @@ export type MessageScrollerArgs = WithChildren<IntrinsicElements['div'] & {
 type MessageScrollerRootArgs = Required<Pick<
 	MessageScrollerArgs,
 	'autoScroll' | 'defaultScrollPosition' | 'preserveScrollOnPrepend' | 'scrollPreviousItemPeek'
->> & WithChildren
+>> & Pick<MessageScrollerArgs, 'onVisibilityChange'> & WithChildren
 
 /** Props for the scrollable message viewport. */
 export type MessageScrollerViewportArgs = WithChildren<IntrinsicElements['div']>
@@ -132,6 +134,7 @@ const stamp = (element: HTMLElement, name: string, value: string | null) => {
 const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
 	autoScroll,
 	defaultScrollPosition,
+	onVisibilityChange,
 	preserveScrollOnPrepend,
 	scrollPreviousItemPeek,
 }) {
@@ -144,6 +147,7 @@ const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
 	let currentDefaultPosition = defaultScrollPosition
 	let currentPreserve = preserveScrollOnPrepend
 	let currentPeek = scrollPreviousItemPeek
+	let notify = onVisibilityChange
 	let pending: PendingScroll | null = null
 	let preserveAnchor: PreserveAnchor | null = null
 	let settles = 0
@@ -242,6 +246,10 @@ const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
 	}
 
 	const commitItems = (reading: ReturnType<typeof readItems>) => {
+		const previous = visibility.visibleMessageIds
+		const changed = visibility.currentAnchorId !== reading.currentAnchorId ||
+			previous.length !== reading.visibleMessageIds.length ||
+			reading.visibleMessageIds.some((id, index) => id !== previous[index])
 		visibility.currentAnchorId = reading.currentAnchorId
 		visibility.visibleMessageIds = reading.visibleMessageIds
 		if (!currentPreserve) preserveAnchor = null
@@ -250,6 +258,7 @@ const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
 			// clears it before the next geometry read chooses a new row.
 			preserveAnchor ??= reading.preserveAnchor
 		}
+		if (changed) notify?.(visibility)
 	}
 
 	const sync = () => {
@@ -267,8 +276,10 @@ const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
 
 	const handleViewportEnd = (element: HTMLElement) => {
 		// `content-visibility:auto` items grow scrollHeight as they render,
-		// so a jump to the end can land short: settle until it sticks.
-		if (following && !atEnd() && settles < 10) {
+		// so a jump to the end can land short: settle until it sticks. Only
+		// our own jumps settle; a reader's scroll can end before `following`
+		// is read again on the next frame.
+		if (element.hasAttribute('data-autoscrolling') && following && !atEnd() && settles < 10) {
 			settles += 1
 			setAutoscrolling(true)
 			element.scrollTo({ behavior: 'auto', top: element.scrollHeight })
@@ -357,7 +368,9 @@ const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
 	}
 
 	const restoreAnchor = () => {
-		if (!viewport || !preserveAnchor || following || !currentPreserve) return
+		// Following the end with autoScroll re-pins it instead, and a jump in
+		// flight owns the position: writing scrollTop would cancel it.
+		if (!viewport || !preserveAnchor || (following && currentAutoScroll) || !currentPreserve || viewport.hasAttribute('data-autoscrolling')) return
 
 		const item = findItem(preserveAnchor.id)
 		if (!item) {
@@ -372,7 +385,9 @@ const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
 	const handleContentChange = () => {
 		queueMicrotask(() => {
 			restoreAnchor()
-			if (currentAutoScroll && following) scrollToEnd({ behavior: 'auto' })
+			// Already at the end there is nothing to follow, and flagging an
+			// autoscroll with no scroll to end it would outlive user scrolls.
+			if (currentAutoScroll && following && !atEnd()) scrollToEnd({ behavior: 'auto' })
 			flushPending()
 			schedule()
 		})
@@ -485,6 +500,7 @@ const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
 		autoScroll,
 		children,
 		defaultScrollPosition,
+		onVisibilityChange,
 		preserveScrollOnPrepend,
 		scrollPreviousItemPeek,
 	} of this) {
@@ -495,6 +511,7 @@ const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
 		if (!currentPreserve) preserveAnchor = null
 		else if (!wasPreserving && !following) preserveAnchor = readItems().preserveAnchor
 		currentPeek = scrollPreviousItemPeek
+		notify = onVisibilityChange
 
 		viewportScroll.sync()
 		viewportSize.sync()
@@ -512,6 +529,7 @@ const MessageScrollerRoot: Stateful<MessageScrollerRootArgs> = function* ({
 const MessageScroller: Stateless<MessageScrollerArgs> = ({
 	autoScroll = true,
 	defaultScrollPosition = 'end',
+	onVisibilityChange,
 	preserveScrollOnPrepend = true,
 	scrollPreviousItemPeek = 0,
 	...args
@@ -520,6 +538,7 @@ const MessageScroller: Stateless<MessageScrollerArgs> = ({
 		{...rootAttrs(args)}
 		autoScroll={autoScroll}
 		defaultScrollPosition={defaultScrollPosition}
+		onVisibilityChange={onVisibilityChange}
 		preserveScrollOnPrepend={preserveScrollOnPrepend}
 		scrollPreviousItemPeek={scrollPreviousItemPeek}
 		attr:data-slot="message-scroller"

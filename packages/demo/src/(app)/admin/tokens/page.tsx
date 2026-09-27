@@ -1,12 +1,12 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, date } from 'ajo-kit'
 import { action } from 'ajo-kit/client'
-import { buttonVariants } from 'ajo-ui-playa/button'
 import { Card } from 'ajo-ui-playa/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from 'ajo-ui-playa/empty'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'ajo-ui-playa/table'
-import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'
-import PageControls, { type PageInfo } from '../pagination'
+import { IconAction } from '/src/view'
+import type { Info } from '/src/data/pagination'
+import PageControls from '../pagination'
 
 type Token = {
 	id: string
@@ -19,7 +19,7 @@ type Token = {
 	email: string
 }
 
-type Data = { tokens: Token[]; page: PageInfo }
+type Data = { tokens: Token[]; page: Info }
 type FormResult = { revoked: boolean }
 
 const Tokens: Stateful<PageArgs<Data>> = function* (args) {
@@ -80,20 +80,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 											{token.last ? date(token.last) : 'Never'}
 										</TableCell>
 										<TableCell class="text-right">
-											<form set:onsubmit={form.submit}>
-												<input type="hidden" name="id" value={token.id} />
-												<Tooltip delayDuration={500}>
-													<TooltipTrigger
-														type="submit"
-														aria-label="Revoke this token"
-														disabled={form.loading}
-												class={buttonVariants({ variant: 'danger-ghost', size: 'icon-sm' })}
-													>
-														<span class="i-lucide-trash-2 size-4" />
-													</TooltipTrigger>
-													<TooltipContent>Revoke this token</TooltipContent>
-												</Tooltip>
-											</form>
+											<IconAction action={form} name="id" value={token.id} label="Revoke this token" icon="i-lucide-trash-2" />
 										</TableCell>
 									</TableRow>
 								))}

@@ -1,12 +1,63 @@
-import { expect, request, test } from './test'
+import { expect, request, test, type Page } from './test'
 import {
 	proof,
 	admin as creds,
+	data,
 	goto,
 	signin,
 	login,
 	member,
 } from './helpers'
+
+const room = (page: Page) => {
+	const viewport = page.locator('[data-slot="message-scroller-viewport"]')
+	const items = page.locator('[data-slot="message-scroller-item"]')
+	const ids = () => items.evaluateAll(nodes => nodes.map(node => Number((node as HTMLElement).dataset.messageId)))
+	// A scroll during the scroller's own jump would be taken back by it.
+	const scroll = async (to: 'top' | 'middle' | 'end') => {
+		await expect(viewport).not.toHaveAttribute('data-autoscrolling')
+		await viewport.evaluate((node, to) => node.scrollTo({
+			top: to === 'top' ? 0 : to === 'end' ? node.scrollHeight : (node.scrollHeight - node.clientHeight) / 2,
+		}), to)
+	}
+
+	// Keeps scrolling toward an edge, as a reader would, until a page arrives past it.
+	const pageAt = async (edge: 'top' | 'end') => {
+		const before = await ids()
+		const past = edge === 'top' ? before[0] : before.at(-1)!
+
+		await expect.poll(async () => {
+			const now = await ids()
+			const id = edge === 'top' ? now[0] : now.at(-1)!
+			if (id === past) await scroll(edge)
+			return edge === 'top' ? past - id : id - past
+		}).toBeGreaterThan(0)
+
+		return past
+	}
+
+	return {
+		items,
+		ids,
+		scroll,
+		pageAt,
+		message: (id: number) => page.locator(`[data-message-id="${id}"]`),
+	}
+}
+
+// Posts into the conversation between Cristian and Emily (chat 1), as Emily unless told otherwise.
+const post = async (base: string, texts: string[], credentials = member) => {
+	const sender = await request.newContext({ baseURL: base })
+
+	try {
+		await login(sender, base, credentials)
+		for (const text of texts) {
+			expect((await sender.post('/account/chats/1?/send', { headers: proof(base), data: { text } })).status()).toBe(200)
+		}
+	} finally {
+		await sender.dispose()
+	}
+}
 
 test('chat room sends a message and streams it to another active participant', async ({ browser, baseURL }) => {
 	const ctx = await browser.newContext({ baseURL })
@@ -385,4 +436,115 @@ test('chat actions refuse malformed and over-bound input with 400', async ({ req
 
 	expect(direct.status()).toBe(200)
 	await expect(direct.json()).resolves.toMatchObject({ redirect: expect.stringMatching(/^\/account\/chats\/\d+$/) })
+})
+
+test('chat room pages a bounded window around a stable viewport and returns with the edge button', async ({ page, baseURL }) => {
+	await post(baseURL!, Array.from({ length: 45 }, (_, index) => `History ${index + 1}`), creds)
+	await signin(page)
+	await goto(page, '/account/chats/1')
+
+	const transcript = room(page)
+	const end = page.getByRole('button', { name: 'Scroll to end' })
+
+	await expect(transcript.items.last()).toBeInViewport()
+	await expect(end).toHaveAttribute('data-active', 'false')
+
+	await transcript.scroll('middle')
+	await expect(end).toHaveAttribute('data-active', 'true')
+	await end.click()
+	await expect(transcript.items.last()).toBeInViewport()
+	await expect(end).toHaveAttribute('data-active', 'false')
+
+	const newest = (await transcript.ids()).at(-1)!
+
+	for (let round = 0; round < 4; round++) {
+		const first = await transcript.pageAt('top')
+
+		await expect(transcript.message(first)).toBeInViewport()
+		expect((await transcript.ids()).length).toBeLessThanOrEqual(30)
+	}
+
+	expect(await transcript.ids()).not.toContain(newest)
+
+	const last = await transcript.pageAt('end')
+
+	await expect(transcript.message(last)).toBeInViewport()
+	expect((await transcript.ids()).length).toBeLessThanOrEqual(30)
+})
+
+test('chat room in a tall viewport fills it with older pages and then stops loading', async ({ page, baseURL }) => {
+	await post(baseURL!, Array.from({ length: 60 }, (_, index) => `Tall ${index + 1}`), creds)
+	await page.setViewportSize({ width: 1280, height: 3200 })
+
+	let loads = 0
+
+	page.on('request', request => {
+		if (request.method() === 'POST' && request.url().includes('?/load')) loads++
+	})
+
+	await signin(page)
+	await goto(page, '/account/chats/1')
+
+	const transcript = room(page)
+
+	await expect(transcript.items.last()).toBeInViewport()
+	await expect(transcript.items.first()).not.toBeInViewport()
+
+	// Settled: a whole second passes without a page, then two more stay quiet.
+	await expect.poll(async () => {
+		const before = loads
+		await page.waitForTimeout(1000)
+		return loads - before
+	}).toBe(0)
+
+	const settled = loads
+
+	await page.waitForTimeout(2000)
+	expect(loads).toBe(settled)
+	await expect(transcript.items.last()).toBeInViewport()
+})
+
+test('chat room opens at the first unread message beyond one page, lights the unread run and marks it seen', async ({ page, baseURL }) => {
+	const tag = `Unread run ${Date.now()}`
+	const texts = Array.from({ length: 12 }, (_, index) => `${tag} u${String(index + 1).padStart(2, '0')}`)
+
+	await signin(page)
+	await post(baseURL!, texts)
+	await goto(page, '/account/chats/1')
+
+	const first = room(page).items.filter({ hasText: texts[0] })
+
+	await expect(first).toBeInViewport()
+	await expect(first).toHaveClass(/bg-warning/)
+	await expect.poll(async () => (await data(page.request, '/account/chats/1')).unreadCount).toBe(0)
+	await expect(first).not.toHaveClass(/bg-warning/)
+})
+
+test('chat room shows a pill for messages that arrive out of view, jumps to them and follows a sent message', async ({ page, baseURL }) => {
+	await signin(page)
+	await goto(page, '/account/chats/1')
+
+	const transcript = room(page)
+	const text = `Out of view ${Date.now()}`
+
+	await transcript.pageAt('top')
+	await post(baseURL!, [text])
+
+	const pill = page.getByRole('button', { name: '1 new message' })
+	const arrived = transcript.items.filter({ hasText: text })
+
+	await expect(pill).toBeVisible()
+	await expect(arrived).not.toBeInViewport()
+	await pill.click()
+	await expect(arrived).toBeInViewport()
+	await expect(pill).toHaveCount(0)
+	await expect.poll(async () => (await data(page.request, '/account/chats/1')).unreadCount).toBe(0)
+
+	const sent = `Sent from above ${Date.now()}`
+
+	await transcript.scroll('top')
+	await expect(arrived).not.toBeInViewport()
+	await page.getByPlaceholder('Type a message...').fill(sent)
+	await page.getByRole('button', { name: /^Send$/ }).click()
+	await expect(transcript.items.filter({ hasText: sent })).toBeInViewport()
 })

@@ -5,20 +5,12 @@ import {
 	PaginationNext,
 	PaginationPrevious,
 } from 'ajo-ui-playa/pagination'
-
-export type PageInfo = {
-	back: boolean
-	more: boolean
-	next?: string
-	page: number
-	prev?: string
-	size: number
-}
+import type { Info } from '/src/data/pagination'
 
 type PageControlsArgs = {
 	count: number
 	label: string
-	page: PageInfo
+	page: Info
 }
 
 const PageControls = ({ count, label, page }: PageControlsArgs) => {

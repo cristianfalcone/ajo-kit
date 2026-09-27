@@ -3,14 +3,14 @@ import clsx from 'clsx'
 import { type PageArgs, date } from 'ajo-kit'
 import { action } from 'ajo-kit/client'
 import { Alert, AlertDescription, AlertTitle } from 'ajo-ui-playa/alert'
-import { Button, buttonVariants } from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import { Card, CardContent, CardHeader, CardTitle } from 'ajo-ui-playa/card'
 import { Checkbox } from 'ajo-ui-playa/checkbox'
 import { Field, FieldError, FieldLabel } from 'ajo-ui-playa/field'
 import { Input } from 'ajo-ui-playa/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'ajo-ui-playa/table'
-import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'
 import { can, groups } from '/src/abilities'
+import { IconAction } from '/src/view'
 
 type Token = {
 	id: string
@@ -336,20 +336,7 @@ const Tokens: Stateful<PageArgs<Data>> = function* (args) {
 												{token.last ? date(token.last, shortDate) : 'Never'}
 											</TableCell>
 											<TableCell class="text-right">
-												<form set:onsubmit={revokeForm.submit}>
-													<input type="hidden" name="id" value={token.id} />
-													<Tooltip delayDuration={500}>
-														<TooltipTrigger
-															type="submit"
-															aria-label="Revoke this token"
-															disabled={revokeForm.loading}
-													class={buttonVariants({ variant: 'danger-ghost', size: 'icon-sm' })}
-														>
-															<span class="i-lucide-trash-2 size-4" />
-														</TooltipTrigger>
-														<TooltipContent>Revoke this token</TooltipContent>
-													</Tooltip>
-												</form>
+												<IconAction action={revokeForm} name="id" value={token.id} label="Revoke this token" icon="i-lucide-trash-2" />
 											</TableCell>
 										</TableRow>
 									))}

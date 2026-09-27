@@ -1,11 +1,11 @@
 import type { Stateful } from 'ajo'
 import { type PageArgs, date } from 'ajo-kit'
 import { action } from 'ajo-kit/client'
-import { buttonVariants } from 'ajo-ui-playa/button'
 import { Card } from 'ajo-ui-playa/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'ajo-ui-playa/table'
-import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'
-import PageControls, { type PageInfo } from '../pagination'
+import { agent, IconAction } from '/src/view'
+import type { Info } from '/src/data/pagination'
+import PageControls from '../pagination'
 
 type Session = {
 	id: string
@@ -19,26 +19,10 @@ type Session = {
 	email: string
 }
 
-type Data = { sessions: Session[]; page: PageInfo }
+type Data = { sessions: Session[]; page: Info }
 type FormResult = { revoked: boolean | number }
 
 const dateTime = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } as const
-
-function parseAgent(agent: string | null) {
-
-	if (!agent) return 'Unknown'
-
-	const browser = agent.includes('Chrome') ? 'Chrome' :
-		agent.includes('Firefox') ? 'Firefox' :
-		agent.includes('Safari') ? 'Safari' :
-		agent.includes('Edge') ? 'Edge' : 'Unknown'
-
-	const os = agent.includes('Windows') ? 'Windows' :
-		agent.includes('Mac') ? 'macOS' :
-		agent.includes('Linux') ? 'Linux' : ''
-
-	return `${browser}${os ? ` / ${os}` : ''}`
-}
 
 const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 
@@ -75,7 +59,7 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 										<div class="text-muted-foreground text-xs">{session.email}</div>
 									</TableCell>
 									<TableCell class="text-muted-foreground">
-										{parseAgent(session.agent)}
+										{agent(session.agent)}
 									</TableCell>
 									<TableCell class="font-mono text-xs text-muted-foreground">
 										{session.ip ?? '-'}
@@ -85,35 +69,16 @@ const Sessions: Stateful<PageArgs<Data>> = function* (args) {
 									</TableCell>
 									<TableCell class="text-right">
 										<div class="flex items-center justify-end gap-2">
-											<form set:onsubmit={revokeForm.submit}>
-												<input type="hidden" name="id" value={session.id} />
-												<Tooltip delayDuration={500}>
-													<TooltipTrigger
-														type="submit"
-														aria-label="Revoke this session"
-														disabled={revokeForm.loading}
-												class={buttonVariants({ variant: 'danger-ghost', size: 'icon-sm' })}
-													>
-														<span class="i-lucide-x size-4" />
-													</TooltipTrigger>
-													<TooltipContent>Revoke this session</TooltipContent>
-												</Tooltip>
-											</form>
-											<form set:onsubmit={revokeUserForm.submit}>
-												<input type="hidden" name="user" value={session.user} />
-												<Tooltip delayDuration={500}>
-													<TooltipTrigger
-														type="submit"
-														aria-label="Logout user from all sessions"
-														disabled={revokeUserForm.loading}
-														data-variant="ghost"
-														class={buttonVariants({ variant: 'ghost', size: 'icon-sm', class: 'text-muted-foreground data-[variant=ghost]:hover:text-foreground' })}
-													>
-														<span class="i-lucide-log-out size-4" />
-													</TooltipTrigger>
-													<TooltipContent>Logout user from all sessions</TooltipContent>
-												</Tooltip>
-											</form>
+											<IconAction action={revokeForm} name="id" value={session.id} label="Revoke this session" icon="i-lucide-x" />
+											<IconAction
+												action={revokeUserForm}
+												name="user"
+												value={session.user}
+												label="Logout user from all sessions"
+												icon="i-lucide-log-out"
+												variant="ghost"
+												class="text-muted-foreground data-[variant=ghost]:hover:text-foreground"
+											/>
 										</div>
 									</TableCell>
 								</TableRow>

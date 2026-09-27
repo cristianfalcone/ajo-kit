@@ -2,7 +2,8 @@ import { type PageArgs, date } from 'ajo-kit'
 import { Card } from 'ajo-ui-playa/card'
 import { Chip } from 'ajo-ui-playa/chip'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'ajo-ui-playa/table'
-import PageControls, { type PageInfo } from '../pagination'
+import type { Info } from '/src/data/pagination'
+import PageControls from '../pagination'
 
 type User = {
 	id: number
@@ -13,7 +14,7 @@ type User = {
 	role: string | null
 }
 
-type Data = { users: User[]; page: PageInfo }
+type Data = { users: User[]; page: Info }
 
 export default function Users({ data }: PageArgs<Data>) {
 
