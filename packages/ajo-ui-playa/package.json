@@ -3,7 +3,9 @@
   "version": "0.2.0",
   "description": "Playa themed UI components and UnoCSS preset for Ajo",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "files": [
     "dist",
     "README.md"
@@ -269,15 +271,25 @@
     "./virtual-list": {
       "types": "./src/virtual-list.tsx",
       "default": "./src/virtual-list.tsx"
-    }
+    },
+    "./fonts.css": "./src/fonts.css",
+    "./tokens.css": "./src/tokens.css"
   },
   "dependencies": {
+    "@fontsource-variable/dm-sans": "5.3.0",
+    "@fontsource-variable/fraunces": "5.3.0",
+    "@fontsource-variable/jetbrains-mono": "5.3.0",
     "@iconify-json/lucide": "1.2.136",
     "ajo-ui": "workspace:^"
   },
   "peerDependencies": {
     "ajo": "^0.2.0",
     "unocss": "66.10.5"
+  },
+  "peerDependenciesMeta": {
+    "unocss": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "ajo": "0.2.0",

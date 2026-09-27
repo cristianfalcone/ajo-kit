@@ -5,6 +5,8 @@ module.exports = {
 			if (manifest.private) return manifest
 
 			if (manifest.exports) manifest.exports = Object.fromEntries(Object.entries(manifest.exports).map(([subpath, entry]) => {
+				// A string export is a plain file that scripts/package-build.ts copies.
+				if (typeof entry === 'string') return [subpath, entry.replace(/^\.\/src\//, './dist/')]
 				// The same `base` names scripts/package-build.ts compiles; client-safe
 				// *.client.* sources keep their marker so the server-only guard
 				// exempts the published face too.

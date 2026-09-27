@@ -1,13 +1,14 @@
 import { execFileSync } from 'node:child_process'
-import { readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { copyFile, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'vite'
 
+// A string export is a plain file, such as a stylesheet, copied to dist as written.
 type Manifest = {
 	bin?: Record<string, string>
-	exports?: Record<string, { ajo?: string; browser?: string; default: string; types: string }>
+	exports?: Record<string, { ajo?: string; browser?: string; default: string; types: string } | string>
 	imports?: Record<string, Record<string, string>>
 	kit?: { migrations?: string }
 }
@@ -56,7 +57,14 @@ for (const name of process.argv.slice(2)) {
 	// into the packed manifest. A *.client.* source keeps its marker in the
 	// compiled name, which exempts the published face from the server-only guard.
 	const entries: Record<string, string> = {}
+	const types: string[] = []
+	const files: string[] = []
 	for (const [subpath, entry] of Object.entries(manifest.exports ?? {})) {
+		if (typeof entry === 'string') {
+			files.push(entry)
+			continue
+		}
+		types.push(source(entry.types))
 		const base = subpath === '.' ? 'index' : subpath.slice(2)
 		entries[/\.client\.[jt]sx?$/.test(entry.default) ? `${base}.client` : base] = source(entry.default)
 		if (entry.ajo) entries[`${base}.ajo`] = source(entry.ajo)
@@ -104,10 +112,10 @@ for (const name of process.argv.slice(2)) {
 			target: 'esnext',
 		},
 	})
-	// A package without exports, such as a bin-only one, has no declarations.
-	const exports = Object.values(manifest.exports ?? {})
-	if (exports.length) await declarations(directory, [
-		...exports.map(entry => source(entry.types)),
+	for (const file of files) await copyFile(source(file), source(file.replace(/^\.\/src\//, 'dist/')))
+	// A package without compiled exports, such as a bin-only one, has no declarations.
+	if (types.length) await declarations(directory, [
+		...types,
 		...imports.map(conditions => source(conditions.types)),
 		...(name === 'ajo-kit' ? [source('src/runtime.d.ts')] : []),
 	])

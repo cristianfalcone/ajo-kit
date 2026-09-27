@@ -68,10 +68,12 @@ const families = [
 	'virtual-list',
 ] as const
 
-test('the package exports exactly its preset root and public component families', () => {
+test('the package exports exactly its preset root, public component families and stylesheets', () => {
 	expect(metadata.exports).toEqual(Object.fromEntries([
 		['.', entry('./src/index.ts')],
 		...families.map(family => [`./${family}`, entry(`./src/${family}.tsx`)]),
+		['./fonts.css', './src/fonts.css'],
+		['./tokens.css', './src/tokens.css'],
 	]))
 	expect(Object.keys(surface)).toEqual(['playa'])
 })
@@ -83,8 +85,12 @@ test('families export named components without defaults', async () => {
 })
 
 test('the manifest keeps build-time peers and runtime ownership explicit', () => {
-	expect(metadata.sideEffects).toBe(false)
+	// Modules are tree-shakeable; an imported stylesheet is kept.
+	expect(metadata.sideEffects).toEqual(['*.css'])
 	expect(metadata.dependencies).toEqual({
+		'@fontsource-variable/dm-sans': '5.3.0',
+		'@fontsource-variable/fraunces': '5.3.0',
+		'@fontsource-variable/jetbrains-mono': '5.3.0',
 		'@iconify-json/lucide': '1.2.136',
 		'ajo-ui': 'workspace:^',
 	})
@@ -92,4 +98,6 @@ test('the manifest keeps build-time peers and runtime ownership explicit', () =>
 		ajo: '^0.2.0',
 		unocss: '66.10.5',
 	})
+	// An app that imports only tokens.css installs without UnoCSS.
+	expect(metadata.peerDependenciesMeta).toEqual({ unocss: { optional: true } })
 })

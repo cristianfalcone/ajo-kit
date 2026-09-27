@@ -9,7 +9,8 @@ pnpm add ajo ajo-ui-playa
 pnpm add -D unocss@66.10.5
 ```
 
-`ajo-ui-playa` requires `ajo ^0.2.0` and `unocss 66.10.5`.
+`ajo-ui-playa` requires `ajo ^0.2.0`. `unocss 66.10.5` is an optional peer:
+the preset and the component families need it, the stylesheets do not.
 
 ## UnoCSS Setup
 
@@ -56,6 +57,25 @@ export default defineConfig({
   plugins: [...kit({ css: ['virtual:uno.css'] }), unocss()],
 })
 ```
+
+## Stylesheets
+
+Two plain stylesheets need no UnoCSS. Import them from CSS or JavaScript through
+a bundler that resolves package exports, such as Vite:
+
+```css
+@import 'ajo-ui-playa/tokens.css';
+@import 'ajo-ui-playa/fonts.css';
+```
+
+- `ajo-ui-playa/tokens.css` holds Playa's design tokens as custom properties
+  (`--background`, `--primary`, `--radius`, ...), with `.dark` on an ancestor
+  selecting the dark values. `playa()` emits the same file as its first
+  preflight, so a UnoCSS app does not import it again.
+- `ajo-ui-playa/fonts.css` is opt-in and loads `DM Sans Variable`,
+  `JetBrains Mono Variable` and `Fraunces Variable` (weight axis) from
+  Fontsource. Each face declares its unicode ranges, so the browser downloads
+  only the subsets a page uses.
 
 ## Usage
 

@@ -1,5 +1,16 @@
+import { readFileSync } from 'node:fs'
 import { definePreset, presetIcons, presetWind4 } from 'unocss'
 import { icons as lucide } from '@iconify-json/lucide'
+
+// The tokens are a plain stylesheet that apps without UnoCSS import too; the
+// preset emits them, without comments or layout whitespace, as its first
+// preflight. The package build copies the file beside the built module;
+// `@vite-ignore` keeps that build from inlining it as a data URL.
+const tokens = readFileSync(new URL(/* @vite-ignore */ './tokens.css', import.meta.url), 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/\s*([{};,])\s*|(:)\s+/g, '$1$2')
+  .replace(/;}/g, '}')
+  .trim()
 
 // Edge fades for scroll-fade-x and the [data-overflow-*] stamps: one gradient per faded edge set.
 const fadeStops = {
@@ -112,16 +123,7 @@ export const playa = definePreset(() => ({
   preflights: [
     {
       getCSS: () => [
-        // Playa palette, "deep ocean" tuning: structural blues sit at OKLCH hue
-        // 250-256 and accents at 230-240 so nothing drifts teal, while the warm
-        // sand neutrals keep the beach identity. Every body-text pair holds
-        // WCAG >= 7:1 and every on-color foreground >= 4.5:1.
-        ':root{--radius:0.75rem;--background:#f3f0e9;--foreground:#1e3957;--card:#fafdff;--card-foreground:#1e3957;--popover:#fafdff;--popover-foreground:#1e3957;--primary:#284971;--primary-foreground:#f5fafd;--secondary:#dbe7f0;--secondary-foreground:#1e3957;--muted:#e9e6dc;--muted-foreground:#4f657e;--accent:rgb(40 73 113 / 0.09);--accent-foreground:#1e3957;--danger:#a94b4c;--danger-foreground:#fcf6f3;--success:#45764c;--success-foreground:#f2fbf5;--warning:#96650c;--warning-foreground:#fff9ec;--info:#276b8c;--info-foreground:#f1f9fd;--border:rgb(30 57 87 / 0.14);--input:rgb(30 57 87 / 0.26);--ring:#3e8ec1;--chart-1:#284971;--chart-2:#3e8ec1;--chart-3:#63a06c;--chart-4:#fcb53b;--chart-5:#b45253;--glass-highlight:rgb(255 255 255 / 0.35);--shadow-xs:0 1px 2px rgb(30 57 87 / 0.06),0 2px 8px -2px rgb(30 57 87 / 0.04);--shadow-lg:0 4px 12px -4px rgb(30 57 87 / 0.1),0 16px 40px -8px rgb(30 57 87 / 0.18)}',
-        // Dark mode is near-black desaturated charcoal (OKLCH C 0.010-0.020 at
-        // hue 252 — a whisper of ocean, not navy) so translucent surfaces
-        // composite naturally over the page; the warm sand accents carry the
-        // beach identity.
-        '.dark{--background:#101317;--foreground:#eae4da;--card:#1c2127;--card-foreground:#eae4da;--popover:#22282f;--popover-foreground:#eae4da;--primary:#d2c1b6;--primary-foreground:#14191e;--secondary:#29313a;--secondary-foreground:#eae4da;--muted:#181c21;--muted-foreground:#9da6b0;--accent:rgb(210 193 182 / 0.12);--accent-foreground:#f0ebe2;--danger:#d98e85;--danger-foreground:#101317;--success:#76ba89;--success-foreground:#101317;--warning:#fcb53b;--warning-foreground:#101317;--info:#75bfe3;--info-foreground:#101317;--border:rgb(210 193 182 / 0.16);--input:rgb(210 193 182 / 0.26);--ring:#75bfe3;--chart-1:#75bfe3;--chart-2:#d2c1b6;--chart-3:#76ba89;--chart-4:#fcb53b;--chart-5:#d98e85;--glass-highlight:rgb(255 255 255 / 0.07);--shadow-xs:0 1px 2px rgb(0 0 0 / 0.35),0 2px 8px -2px rgb(0 0 0 / 0.25);--shadow-lg:0 4px 12px -4px rgb(0 0 0 / 0.4),0 16px 40px -8px rgb(0 0 0 / 0.55)}',
+        tokens,
         // Opt in to animating block-size to `auto`: details-backed disclosures
         // (Collapsible, Accordion) transition ::details-content open/close in
         // engines that support keyword interpolation; others keep the snap.

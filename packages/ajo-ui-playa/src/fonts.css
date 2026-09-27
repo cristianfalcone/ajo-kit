@@ -1,0 +1,8 @@
+/*
+ * Playa's faces, opt-in: DM Sans for the interface, JetBrains Mono for data and
+ * Fraunces on the weight axis for page titles. Each face declares its
+ * unicode-range subsets, so a page downloads only the files its text uses.
+ */
+@import '@fontsource-variable/dm-sans/index.css';
+@import '@fontsource-variable/jetbrains-mono/index.css';
+@import '@fontsource-variable/fraunces/wght.css';

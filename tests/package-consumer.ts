@@ -16,12 +16,12 @@ type PublishedManifest = {
 	bin?: Record<string, string>
 	dependencies?: Record<string, string>
 	dist: { integrity: string }
-	exports?: Record<string, { default?: string; import?: string; types?: string }>
+	exports?: Record<string, { default?: string; import?: string; types?: string } | string>
 	imports?: Record<string, Record<string, string>>
 	kit?: { migrations?: string }
 	peerDependencies?: Record<string, string>
 	peerDependenciesMeta?: Record<string, { optional?: boolean }>
-	sideEffects?: boolean
+	sideEffects?: boolean | string[]
 	types?: string
 }
 
@@ -238,6 +238,10 @@ const publish = async ({ directory, name, version }: Package, tarballs: string, 
 		!path.startsWith('.tmp/')),
 	`${name} packed source, a private test, or a generated path`)
 	for (const [subpath, entry] of Object.entries(manifest.exports ?? {})) {
+		if (typeof entry === 'string') {
+			assert(entry.startsWith('./dist/') && packlist.includes(entry.slice(2)), `${name} export ${subpath} omitted its file`)
+			continue
+		}
 		assert(entry.import?.startsWith('./dist/'), `${name} export ${subpath} has no compiled import target`)
 		assert.equal(entry.default, entry.import, `${name} export ${subpath} has divergent runtime targets`)
 		assert(entry.types?.startsWith('./dist/'), `${name} export ${subpath} has no compiled type target`)
@@ -249,7 +253,9 @@ const publish = async ({ directory, name, version }: Package, tarballs: string, 
 			assert(packlist.includes(target.replace(/^\.\//, '')), `${name} import ${specifier} (${condition}) omitted ${target}`)
 		}
 	}
-	assert.equal(manifest.types, manifest.exports?.['.']?.types, `${name} top-level types diverged from its root export`)
+	const index = manifest.exports?.['.']
+	assert(typeof index !== 'string', `${name} root export is a plain file`)
+	assert.equal(manifest.types, index?.types, `${name} top-level types diverged from its root export`)
 
 	const javascript = packlist.filter(path => path.startsWith('dist/') && path.endsWith('.js'))
 	const size = await measure(javascript.map(path => join(directory, path)))
@@ -263,23 +269,28 @@ const publish = async ({ directory, name, version }: Package, tarballs: string, 
 
 // A consumer of the published packages: one manifest, the registry pinned
 // to the local Verdaccio, and the files the probe needs.
-const project = async (directory: string, registry: string, sources: Record<string, string>) => {
+const project = async (
+	directory: string,
+	registry: string,
+	sources: Record<string, string>,
+	manifest: { dependencies: Record<string, string>; devDependencies: Record<string, string> } = { dependencies, devDependencies },
+) => {
 	await writeJson(join(directory, 'package.json'), {
 		name: basename(directory),
 		version: '0.0.0',
 		private: true,
 		type: 'module',
-		dependencies,
-		devDependencies,
+		...manifest,
 	})
 	await write(join(directory, '.npmrc'), [
 		`registry=${registry}/`,
-		'auto-install-peers=false',
-		'package-import-method=copy',
-		'strict-peer-dependencies=true',
 		'',
 	].join('\n'))
+	// pnpm reads peer settings only from pnpm-workspace.yaml: a missing
+	// required peer fails the install.
 	await write(join(directory, 'pnpm-workspace.yaml'), [
+		'autoInstallPeers: false',
+		'strictPeerDependencies: true',
 		'allowBuilds:',
 		'  argon2: true',
 		'  better-sqlite3: false',
@@ -301,15 +312,16 @@ const project = async (directory: string, registry: string, sources: Record<stri
 		},
 		include: ['src'],
 	})
-	await write(join(directory, 'uno.config.ts'), [
-		"import { defineConfig } from 'unocss'",
-		"import { playa } from 'ajo-ui-playa'",
-		'export default defineConfig({ presets: [playa()] })',
-		'',
-	].join('\n'))
 	for (const [path, contents] of Object.entries(sources)) await write(join(directory, path), contents)
 	await pnpm(['install', '--no-frozen-lockfile'], directory)
 }
+
+const unoConfig = [
+	"import { defineConfig } from 'unocss'",
+	"import { playa } from 'ajo-ui-playa'",
+	'export default defineConfig({ presets: [playa()] })',
+	'',
+].join('\n')
 
 const verifyDependencyGraph = async (consumer: string) => {
 	const lock = await readFile(join(consumer, 'pnpm-lock.yaml'), 'utf8')
@@ -401,7 +413,7 @@ const buildPlaya = async (consumer: string) => {
 
 	const cssFiles = await files(join(consumer, 'dist'), '.css')
 	const css = (await Promise.all(cssFiles.map(path => readFile(path, 'utf8')))).join('\n')
-	assert.match(css, /:root\{--radius:0?\.75rem/, 'Playa preflight was absent')
+	assert.match(css, /:root\{[^}]*--radius:/, 'Playa preflight was absent')
 	assert(css.includes('.playa-checkbox-box'), 'published Checkbox source was not extracted')
 	assert(css.includes('.i-lucide-check'), 'Lucide icon CSS was absent')
 	assert(!css.includes('.playa-select-trigger'), 'an unused family recipe was emitted')
@@ -448,6 +460,7 @@ const verifyNodeNextDeclarations = async (consumer: string) => {
 // must pass the server-only guard.
 const kitCssProbe = async (directory: string, registry: string) => {
 	await project(directory, registry, {
+		'uno.config.ts': unoConfig,
 		'index.html': [
 			'<!DOCTYPE html>',
 			'<html lang="en">',
@@ -489,7 +502,7 @@ const kitCssProbe = async (directory: string, registry: string) => {
 	assert.match(html, /<link rel="stylesheet"[^>]*\/assets\/[^"]*\.css/,
 		'built index.html does not reference the stylesheet')
 	const css = (await Promise.all(cssFiles.map(path => readFile(path, 'utf8')))).join('\n')
-	assert.match(css, /:root\{--radius:0?\.75rem/, 'Playa preflight was absent from the kit build')
+	assert.match(css, /:root\{[^}]*--radius:/, 'Playa preflight was absent from the kit build')
 
 	if (process.platform === 'win32') {
 		console.log('package consumer: executable compiler fixture requires POSIX; skipped on Windows')
@@ -606,6 +619,36 @@ const createProbe = async (
 		error instanceof CommandFailure && JSON.parse(error.stdout).error.code === 'host_unknown')
 }
 
+// An app without UnoCSS takes Playa's stylesheets only: it installs under
+// strict peers without unocss, and Vite resolves tokens.css from a module and
+// fonts.css from a stylesheet, emitting the face files the CSS references.
+const stylesheetProbe = async (directory: string, registry: string) => {
+	await project(directory, registry, {
+		'index.html': '<p>Stylesheets</p><script type="module" src="/src/main.js"></script>\n',
+		'src/main.js': "import 'ajo-ui-playa/tokens.css'\nimport './app.css'\n",
+		'src/app.css': "@import 'ajo-ui-playa/fonts.css';\n",
+	}, {
+		dependencies: { ajo: pins.ajo, 'ajo-ui-playa': versions['ajo-ui-playa'] },
+		devDependencies: { vite: pins.vite },
+	})
+	await assert.rejects(access(join(directory, 'node_modules/unocss')), { code: 'ENOENT' })
+
+	const vite = await import(pathToFileURL(createRequire(join(directory, 'package.json')).resolve('vite')).href) as typeof import('vite')
+	await vite.build({ root: directory, configFile: false, logLevel: 'silent', build: { emptyOutDir: true, outDir: 'dist' } })
+	const cssFiles = await files(join(directory, 'dist'), '.css')
+	const css = (await Promise.all(cssFiles.map(path => readFile(path, 'utf8')))).join('\n')
+	assert.match(css, /:root\{[^}]*--radius:/, 'tokens.css was absent')
+	for (const family of ['DM Sans Variable', 'JetBrains Mono Variable', 'Fraunces Variable']) {
+		assert.match(css, new RegExp(`font-family:["']?${family}`), `fonts.css omitted ${family}`)
+	}
+	const fonts = await files(join(directory, 'dist'), '.woff2')
+	assert(fonts.length > 0, 'the build emitted no face file')
+	for (const url of css.matchAll(/url\(["']?\/assets\/([^"')]+\.woff2)/g)) {
+		assert(fonts.some(path => basename(path) === url[1]), `built CSS references a missing ${url[1]}`)
+	}
+	console.log(`package consumer: Playa stylesheets without UnoCSS ${JSON.stringify({ css: await measure(cssFiles), fonts: await measure(fonts) })}`)
+}
+
 const main = async () => {
 	const temporary = await mkdtemp(join(tmpdir(), 'ajo-kit-consumer-'))
 	let registry: Awaited<ReturnType<typeof startRegistry>> | undefined
@@ -630,9 +673,10 @@ const main = async () => {
 		}
 
 		const manifest = (name: string) => published[name].manifest
-		for (const name of ['ajo-cloves', 'ajo-ui', 'ajo-ui-playa']) {
+		for (const name of ['ajo-cloves', 'ajo-ui']) {
 			assert.equal(manifest(name).sideEffects, false, `${name} is not marked tree-shakeable`)
 		}
+		assert.deepEqual(manifest('ajo-ui-playa').sideEffects, ['*.css'], 'ajo-ui-playa must mark only its stylesheets as side effects')
 		assert.equal(manifest('ajo-kit').bin?.kit, './dist/bin/kit.js')
 		assert(published['ajo-kit'].packlist.includes('dist/bin/kit.js'), 'ajo-kit packlist omitted its compiled CLI')
 		assert.equal(manifest('ajo-kit-auth').peerDependencies?.['ajo-kit'], `^${versions['ajo-kit']}`)
@@ -644,6 +688,7 @@ const main = async () => {
 		assert.equal(manifest('ajo-ui').dependencies?.['ajo-cloves'], `^${versions['ajo-cloves']}`)
 		assert.equal(manifest('ajo-ui-playa').dependencies?.['ajo-ui'], `^${versions['ajo-ui']}`)
 		assert.equal(manifest('ajo-ui-playa').peerDependencies?.unocss, pins.unocss)
+		assert.equal(manifest('ajo-ui-playa').peerDependenciesMeta?.unocss?.optional, true)
 
 		assert.equal(manifest('ajo-kit-auth').kit?.migrations, './dist/migrations/')
 		const migrations = published['ajo-kit-auth'].packlist
@@ -655,6 +700,7 @@ const main = async () => {
 
 		const consumer = join(temporary, 'consumer')
 		await project(consumer, registry.url, {
+			'uno.config.ts': unoConfig,
 			'index.html': '<div id="app"></div><script type="module" src="/src/main.tsx"></script>\n',
 			'vite.config.ts': [
 				"import { fileURLToPath } from 'node:url'",
@@ -699,6 +745,8 @@ const main = async () => {
 		console.log('package consumer: Playa client, SSR and CSS, ajo-ui NodeNext declarations passed')
 		await kitCssProbe(join(temporary, 'kit-css-consumer'), registry.url)
 		console.log('package consumer: kit build stylesheet and sealing contract passed')
+		await stylesheetProbe(join(temporary, 'stylesheet-consumer'), registry.url)
+		console.log('package consumer: Playa tokens and fonts without UnoCSS passed')
 		await createProbe(join(temporary, 'create-consumer'), registry.url, published, integrities)
 		console.log('package consumer: pnpm create ajo, the starter install, type check and tests passed')
 	} catch (error) {

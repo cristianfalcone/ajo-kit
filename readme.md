@@ -67,7 +67,8 @@ pnpm add -D unocss@66.10.5
 ```
 
 See the [`ajo-ui-playa` guide](packages/ajo-ui-playa/README.md) for UnoCSS
-setup, themed component imports, and the complete family catalog.
+setup, the token and font stylesheets, themed component imports, and the
+complete family catalog.
 
 ## Starter
 
