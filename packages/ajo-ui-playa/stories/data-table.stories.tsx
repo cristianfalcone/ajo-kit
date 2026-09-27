@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame, wait, until } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import { DataTable, type DataTableColumn } from 'ajo-ui-playa/data-table'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from 'ajo-ui-playa/menu'
@@ -263,8 +264,6 @@ const dataRows = (canvas: HTMLElement) =>
 const cells = (canvas: HTMLElement, columnId: string) =>
 	dataRows(canvas).map(row => row.querySelector<HTMLElement>(`[data-slot="table-cell"][data-column-id="${columnId}"]`)?.textContent?.trim() ?? '')
 
-const frame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
 const sortTrigger = (canvas: HTMLElement, columnId: string) =>
 	canvas.querySelector<HTMLButtonElement>(`[data-slot="table-head"][data-column-id="${columnId}"] [data-slot="data-table-sort-trigger"]`)
 
@@ -279,15 +278,6 @@ const type = (input: HTMLInputElement, value: string) => {
 	input.dispatchEvent(new InputEvent('input', { bubbles: true, data: value }))
 }
 
-const waitUntil = async (check: () => boolean, timeout = 1200) => {
-	const start = performance.now()
-	while (performance.now() - start < timeout) {
-		if (check()) return
-		await new Promise(resolve => setTimeout(resolve, 16))
-	}
-	throw new Error('Timed out waiting for DataTable state')
-}
-
 const waitForVisualCheck = async (input: HTMLInputElement, label: string) => {
 	const root = input.closest<HTMLElement>('[data-slot="checkbox"]')
 	const indicator = root?.querySelector<HTMLElement>('[data-slot="checkbox-indicator"]')
@@ -298,7 +288,7 @@ const waitForVisualCheck = async (input: HTMLInputElement, label: string) => {
 		&& getComputedStyle(indicator).opacity === '1'
 		&& getComputedStyle(root).backgroundColor !== 'rgba(0, 0, 0, 0)'
 	try {
-		await waitUntil(matches)
+		await until(matches)
 	} catch {
 		const inputState = `${input.checked}/${input.indeterminate}`
 		const visualState = `${getComputedStyle(indicator).opacity}/${getComputedStyle(root).backgroundColor}`
@@ -429,15 +419,15 @@ export const Default: Story<typeof DataTable> = {
 		const search = canvas.querySelector<HTMLInputElement>('[data-slot="data-table-search"]')
 		if (!search) throw new Error('DataTable search input was not rendered')
 		type(search, 'carmella')
-		await waitUntil(() => dataRows(canvas).length === 1)
+		await until(() => dataRows(canvas).length === 1)
 		search.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }))
-		await waitUntil(() => announced() === '1 result')
+		await until(() => announced() === '1 result')
 		const liveRegion = document.body.querySelector<HTMLElement>('[aria-live="polite"][aria-atomic="true"]')
 		if (!liveRegion) throw new Error('DataTable results live region was not rendered')
 		const messages = [liveRegion.textContent ?? '']
 		const observer = new MutationObserver(() => { if (liveRegion.textContent) messages.push(liveRegion.textContent) })
 		observer.observe(liveRegion, { childList: true, subtree: true })
-		await new Promise(resolve => setTimeout(resolve, 240))
+		await wait(240)
 		observer.disconnect()
 		if (dataRows(canvas).length !== 1 || !canvas.textContent?.includes('carmella@example.com')) {
 			throw new Error('DataTable search did not filter rows')
@@ -450,7 +440,7 @@ export const Default: Story<typeof DataTable> = {
 		const reset = canvas.querySelector<HTMLButtonElement>('[data-slot="data-table-reset"]')
 		reset?.focus()
 		reset?.click()
-		await waitUntil(() => dataRows(canvas).length === 5 && announced() === '6 results')
+		await until(() => dataRows(canvas).length === 5 && announced() === '6 results')
 		if (dataRows(canvas).length !== 5) throw new Error('DataTable reset did not restore paginated rows')
 		if (announced() !== '6 results') throw new Error('DataTable did not announce its plural result label')
 		if (document.activeElement !== table) throw new Error('DataTable reset left focus on the document body')
@@ -464,7 +454,7 @@ export const Default: Story<typeof DataTable> = {
 		if (!focusedCheckbox || !focusedRowId || !focusedColumnId) throw new Error('DataTable focus coordinate was not rendered')
 		focusedCheckbox.focus()
 		emailSort.click()
-		await waitUntil(() => canvas.querySelector('[aria-sort="ascending"]') != null)
+		await until(() => canvas.querySelector('[aria-sort="ascending"]') != null)
 		const firstEmail = canvas.querySelector('[data-slot="table-body"] [data-slot="table-row"] [data-slot="table-cell"]:nth-child(3)')
 		if (!firstEmail?.textContent?.includes('abe45@example.com')) throw new Error('DataTable ascending sort did not reorder rows')
 		if (!canvas.querySelector('[aria-sort="ascending"]')) throw new Error('DataTable sorted column did not expose aria-sort')
@@ -477,7 +467,7 @@ export const Default: Story<typeof DataTable> = {
 			|| active.closest<HTMLElement>('[data-column-id]')?.dataset.columnId !== focusedColumnId
 		) throw new Error('DataTable did not restore focus by row key and column ID after sorting')
 		firstRowCheckbox.click()
-		await waitUntil(() => selectedKeys.length === 1)
+		await until(() => selectedKeys.length === 1)
 		if (selectedKeys[0] !== '3u1reuv4') throw new Error('DataTable selection did not emit the stable row key')
 		const summary = canvas.querySelector('[data-slot="data-table-selection-summary"]')
 		if (!summary?.textContent?.includes('1') || !summary.textContent.includes('6')) {
@@ -488,7 +478,7 @@ export const Default: Story<typeof DataTable> = {
 		if (!nextPage) throw new Error('DataTable next page action was not rendered')
 		nextPage.focus()
 		nextPage.click()
-		await waitUntil(() => nextPage.disabled)
+		await until(() => nextPage.disabled)
 		if (document.activeElement !== table) throw new Error('DataTable pagination boundary left focus on the document body')
 	},
 }
@@ -518,15 +508,14 @@ export const SearchAndFacets: Story<typeof DataTable> = {
 		decoyCell.append(decoy)
 		decoy.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }))
 		decoy.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: decoy.value }))
-		await frame()
-		await frame()
+		await frame(2)
 		if (dataRows(canvas).length !== payments.length) {
 			throw new Error('DataTable accepted IME events from a spoofed descendant slot')
 		}
 		decoy.remove()
 
 		type(search, 'success')
-		await waitUntil(() => dataRows(canvas).length === 0)
+		await until(() => dataRows(canvas).length === 0)
 		const composingSearch = canvas.querySelector<HTMLInputElement>('[data-slot=data-table-search]')
 		if (!composingSearch) throw new Error('DataTable search disappeared before IME composition')
 		const beforeComposition = announced()
@@ -538,7 +527,7 @@ export const SearchAndFacets: Story<typeof DataTable> = {
 			inputType: 'insertCompositionText',
 			isComposing: true,
 		}))
-		await new Promise(resolve => setTimeout(resolve, 240))
+		await wait(240)
 		if (dataRows(canvas).length !== 0 || announced() !== beforeComposition) {
 			throw new Error('DataTable filtered or announced an unfinished IME composition')
 		}
@@ -548,35 +537,35 @@ export const SearchAndFacets: Story<typeof DataTable> = {
 			throw new Error('DataTable committed an IME composition from Enter')
 		}
 		composingSearch.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: 'm5gr84i9' }))
-		await waitUntil(() => dataRows(canvas).length === 1)
-		await new Promise(resolve => setTimeout(resolve, 240))
+		await until(() => dataRows(canvas).length === 1)
+		await wait(240)
 		if (announced() !== '1 result') {
 			throw new Error(`DataTable announced ${announced() ?? 'nothing'} after IME composition`)
 		}
 		canvas.querySelector<HTMLButtonElement>('[data-slot=data-table-reset]')?.click()
-		await waitUntil(() => dataRows(canvas).length === payments.length)
+		await until(() => dataRows(canvas).length === payments.length)
 
 		type(search, 'success')
-		await waitUntil(() => dataRows(canvas).length === 0)
+		await until(() => dataRows(canvas).length === 0)
 		if (!canvas.querySelector('[data-slot="data-table-empty"]')) {
 			throw new Error('DataTable search:false columns still participated in global search')
 		}
 
 		type(search, 'm5gr84i9')
-		await waitUntil(() => dataRows(canvas).length === 1)
+		await until(() => dataRows(canvas).length === 1)
 		if (!cells(canvas, 'email')[0]?.includes('ken99@example.com')) {
 			throw new Error('DataTable custom search mapper did not expose the payment ID')
 		}
 
 		canvas.querySelector<HTMLButtonElement>('[data-slot="data-table-reset"]')?.click()
-		await waitUntil(() => dataRows(canvas).length === payments.length)
+		await until(() => dataRows(canvas).length === payments.length)
 
 		facet('Status')?.click()
 		await frame()
 		menuItem(canvas, 'Success')?.click()
-		await waitUntil(() => dataRows(canvas).length === 3)
+		await until(() => dataRows(canvas).length === 3)
 		menuItem(canvas, 'Processing')?.click()
-		await waitUntil(() => dataRows(canvas).length === 4)
+		await until(() => dataRows(canvas).length === 4)
 		if (facet('Status')?.querySelector('[data-slot="data-table-facet-count"]')?.textContent !== '2') {
 			throw new Error('DataTable did not expose the two active options in one facet')
 		}
@@ -587,7 +576,7 @@ export const SearchAndFacets: Story<typeof DataTable> = {
 		facet('Tags')?.click()
 		await frame()
 		menuItem(canvas, 'Priority')?.click()
-		await waitUntil(() => dataRows(canvas).length === 2)
+		await until(() => dataRows(canvas).length === 2)
 		if (cells(canvas, 'email').join('|') !== 'abe45@example.com|monserrat44@example.com') {
 			throw new Error('DataTable facets did not compose with AND semantics')
 		}
@@ -596,7 +585,7 @@ export const SearchAndFacets: Story<typeof DataTable> = {
 		}
 
 		canvas.querySelector<HTMLButtonElement>('[data-slot="data-table-reset"]')?.click()
-		await waitUntil(() => dataRows(canvas).length === payments.length)
+		await until(() => dataRows(canvas).length === payments.length)
 		if (canvas.querySelector('[data-slot="data-table-facet-count"]')) {
 			throw new Error('DataTable reset did not clear all facet counts')
 		}
@@ -619,7 +608,7 @@ export const NullishFacet: Story<typeof DataTable> = {
 		facet.click()
 		await frame()
 		menuItem(canvas, 'Unassigned')?.click()
-		await waitUntil(() => dataRows(canvas).length === 2)
+		await until(() => dataRows(canvas).length === 2)
 		if (cells(canvas, 'owner').some(Boolean)) {
 			throw new Error('DataTable nullish facet retained an assigned row')
 		}
@@ -651,30 +640,30 @@ export const Sorting: Story<typeof DataTable> = {
 		}
 
 		sortTrigger(canvas, 'status')?.click()
-		await waitUntil(() => canvas.querySelector('[data-column-id="status"][aria-sort="ascending"]') != null)
+		await until(() => canvas.querySelector('[data-column-id="status"][aria-sort="ascending"]') != null)
 		if (cells(canvas, 'status')[0] !== 'processing') {
 			throw new Error('DataTable custom comparator was not used for ascending sort')
 		}
 		if (canvas.querySelectorAll('[aria-sort]').length !== 1) throw new Error('DataTable exposed more than one sorted column')
 
 		sortTrigger(canvas, 'status')?.click()
-		await waitUntil(() => canvas.querySelector('[data-column-id="status"][aria-sort="descending"]') != null)
+		await until(() => canvas.querySelector('[data-column-id="status"][aria-sort="descending"]') != null)
 		if (cells(canvas, 'status')[0] !== 'pending') throw new Error('DataTable descending sort did not reverse the comparator')
 
 		sortTrigger(canvas, 'status')?.click()
-		await waitUntil(() => canvas.querySelector('[aria-sort]') == null)
+		await until(() => canvas.querySelector('[aria-sort]') == null)
 		if (cells(canvas, 'source').join(',') !== '1,2,3,4,5,6') {
 			throw new Error('DataTable third sort activation did not restore source order')
 		}
 
 		sortTrigger(canvas, 'recipient')?.click()
-		await waitUntil(() => cells(canvas, 'recipient')[0] === 'abe45')
+		await until(() => cells(canvas, 'recipient')[0] === 'abe45')
 		if (canvas.querySelector('[data-column-id="recipient"]')?.getAttribute('aria-sort') !== 'ascending') {
 			throw new Error('DataTable function accessor did not participate in sorting')
 		}
 
 		sortTrigger(canvas, 'amount')?.click()
-		await waitUntil(() => cells(canvas, 'amount')[0] === '$125.00')
+		await until(() => cells(canvas, 'amount')[0] === '$125.00')
 		if (canvas.querySelectorAll('[aria-sort]').length !== 1) {
 			throw new Error('DataTable did not preserve its single-sort contract')
 		}
@@ -708,22 +697,22 @@ export const Pagination: Story<typeof DataTable> = {
 		expectBoundary(true)
 
 		pageAction(canvas, 'next')?.click()
-		await waitUntil(() => indicator() === 'Page 2 of 3')
+		await until(() => indicator() === 'Page 2 of 3')
 		if (cells(canvas, 'email').join('|') !== 'monserrat44@example.com|silas22@example.com') {
 			throw new Error('DataTable next page action skipped logical rows')
 		}
 
 		pageAction(canvas, 'last')?.click()
-		await waitUntil(() => indicator() === 'Page 3 of 3')
+		await until(() => indicator() === 'Page 3 of 3')
 		expectBoundary(false)
 
 		pageAction(canvas, 'previous')?.click()
-		await waitUntil(() => indicator() === 'Page 2 of 3')
+		await until(() => indicator() === 'Page 2 of 3')
 		pageAction(canvas, 'first')?.click()
-		await waitUntil(() => indicator() === 'Page 1 of 3')
+		await until(() => indicator() === 'Page 1 of 3')
 
 		pageAction(canvas, 'last')?.click()
-		await waitUntil(() => indicator() === 'Page 3 of 3')
+		await until(() => indicator() === 'Page 3 of 3')
 		const size = canvas.querySelector<HTMLSelectElement>('select[data-slot="data-table-page-size-select"]')
 		const options = Array.from(size?.options ?? [], option => option.value)
 		if (!size || options.join(',') !== '2,3,6' || size.value !== '2' || size.getAttribute('aria-label') !== 'Rows per page') {
@@ -751,7 +740,7 @@ export const Pagination: Story<typeof DataTable> = {
 		}
 		size.value = '3'
 		size.dispatchEvent(new Event('change', { bubbles: true }))
-		await waitUntil(() => indicator() === 'Page 1 of 2' && dataRows(canvas).length === 3)
+		await until(() => indicator() === 'Page 1 of 2' && dataRows(canvas).length === 3)
 		if (size.value !== '3' || size.selectedOptions[0]?.textContent !== '3') {
 			throw new Error('DataTable page-size select did not expose the committed size')
 		}
@@ -790,7 +779,7 @@ export const SelectionAcrossTransforms: Story<typeof DataTable> = {
 		}
 
 		header()?.click()
-		await waitUntil(() => transformedKeys.length === 2 && header()?.checked === true)
+		await until(() => transformedKeys.length === 2 && header()?.checked === true)
 		if (transformedKeys.join(',') !== 'm5gr84i9,3u1reuv4') {
 			throw new Error('DataTable page selection did not emit source-ordered stable keys')
 		}
@@ -799,13 +788,13 @@ export const SelectionAcrossTransforms: Story<typeof DataTable> = {
 		}
 
 		pageAction(canvas, 'next')?.click()
-		await waitUntil(() => cells(canvas, 'email')[0] === 'monserrat44@example.com')
+		await until(() => cells(canvas, 'email')[0] === 'monserrat44@example.com')
 		if (header()?.checked || header()?.indeterminate) throw new Error('DataTable select-page state leaked across pages')
 		checkbox('monserrat44@example.com')?.click()
-		await waitUntil(() => transformedKeys.length === 3)
+		await until(() => transformedKeys.length === 3)
 
 		sortTrigger(canvas, 'email')?.click()
-		await waitUntil(() => cells(canvas, 'email')[0] === 'abe45@example.com')
+		await until(() => cells(canvas, 'email')[0] === 'abe45@example.com')
 		if (!checkbox('abe45@example.com')?.checked || !header()?.indeterminate) {
 			throw new Error('DataTable selection did not persist by key across sorting')
 		}
@@ -813,7 +802,7 @@ export const SelectionAcrossTransforms: Story<typeof DataTable> = {
 		const search = canvas.querySelector<HTMLInputElement>('[data-slot="data-table-search"]')
 		if (!search) throw new Error('Selectable DataTable search was not rendered')
 		type(search, 'monserrat')
-		await waitUntil(() => dataRows(canvas).length === 1)
+		await until(() => dataRows(canvas).length === 1)
 		if (!checkbox('monserrat44@example.com')?.checked || !header()?.checked || !summary()?.includes('3 of 6')) {
 			throw new Error('DataTable selection did not persist across filtering or preserve source totals')
 		}
@@ -833,10 +822,10 @@ export const ControlledSelection: Story<typeof DataTable> = {
 		const checkbox = canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')
 		if (!checkbox) throw new Error('Controlled DataTable row checkbox was not rendered')
 		checkbox.click()
-		await waitUntil(() => controlledKeys.length === 1)
+		await until(() => controlledKeys.length === 1)
 		const row = canvas.querySelector('[data-slot="table-body"] [data-slot="table-row"]')
 		const summary = canvas.querySelector('[data-slot="data-table-selection-summary"]')
-		await waitUntil(() => summary?.textContent?.includes('1 of 2') === true)
+		await until(() => summary?.textContent?.includes('1 of 2') === true)
 		const currentCheckbox = canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')
 		if (!currentCheckbox?.checked) throw new Error('Controlled DataTable count changed without checking its row input')
 		await waitForVisualCheck(currentCheckbox, 'Controlled DataTable row')
@@ -846,7 +835,7 @@ export const ControlledSelection: Story<typeof DataTable> = {
 
 		acceptControlledSelection = false
 		canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')!.click()
-		await waitUntil(() => controlledKeys.length === 0)
+		await until(() => controlledKeys.length === 0)
 		if (!canvas.querySelector<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')?.checked) {
 			throw new Error('Controlled DataTable did not restore a rejected selection change')
 		}
@@ -854,12 +843,12 @@ export const ControlledSelection: Story<typeof DataTable> = {
 		const page = canvas.querySelector<HTMLInputElement>('[data-slot="table-head"] [data-slot="checkbox-input"]')
 		if (!page?.indeterminate || page.checked) throw new Error('Controlled DataTable did not expose partial page selection')
 		page.click()
-		await waitUntil(() => controlledKeys.length === 2)
+		await until(() => controlledKeys.length === 2)
 		if (!page.indeterminate || page.checked) throw new Error('Controlled DataTable did not restore a rejected page selection')
 
 		acceptControlledSelection = true
 		page.click()
-		await waitUntil(() => summary?.textContent?.includes('2 of 2') === true)
+		await until(() => summary?.textContent?.includes('2 of 2') === true)
 		const currentPage = canvas.querySelector<HTMLInputElement>('[data-slot="table-head"] [data-slot="checkbox-input"]')
 		const checked = Array.from(canvas.querySelectorAll<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]'))
 		if (!currentPage?.checked || currentPage.indeterminate || checked.some(input => !input.checked)) {
@@ -893,10 +882,10 @@ export const Unpaginated: Story<typeof DataTable> = {
 		const search = canvas.querySelector<HTMLInputElement>('[data-slot="data-table-search"]')
 		if (!search) throw new Error('Unpaginated DataTable search was not rendered')
 		type(search, 'success')
-		await waitUntil(() => dataRows(canvas).length === 3)
+		await until(() => dataRows(canvas).length === 3)
 
 		header()?.click()
-		await waitUntil(() => Array.from(canvas.querySelectorAll<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')).every(input => input.checked))
+		await until(() => Array.from(canvas.querySelectorAll<HTMLInputElement>('[data-slot="table-body"] [data-slot="checkbox-input"]')).every(input => input.checked))
 		if (!canvas.querySelector('[data-slot="data-table-selection-summary"]')?.textContent?.includes('3 of 6')) {
 			throw new Error('Unpaginated DataTable did not select all filtered rows against the source total')
 		}
@@ -905,7 +894,7 @@ export const Unpaginated: Story<typeof DataTable> = {
 		}
 
 		type(search, '')
-		await waitUntil(() => dataRows(canvas).length === payments.length)
+		await until(() => dataRows(canvas).length === payments.length)
 		if (!header()?.indeterminate || header()?.checked) {
 			throw new Error('Unpaginated DataTable did not preserve a filtered selection as partial source selection')
 		}
@@ -971,13 +960,13 @@ export const ColumnVisibility: Story<typeof DataTable> = {
 		}
 
 		menuItem(canvas, 'Amount')?.click()
-		await waitUntil(() => visible().join(',') === 'status,amount')
+		await until(() => visible().join(',') === 'status,amount')
 		if (menuItem(canvas, 'Status')?.getAttribute('aria-disabled') === 'true') {
 			throw new Error('DataTable kept a column disabled after another became visible')
 		}
 
 		menuItem(canvas, 'Status')?.click()
-		await waitUntil(() => visible().join(',') === 'amount')
+		await until(() => visible().join(',') === 'amount')
 		if (menuItem(canvas, 'Amount')?.getAttribute('aria-disabled') !== 'true') {
 			throw new Error('DataTable did not move the last-visible guard to the remaining column')
 		}
@@ -1056,7 +1045,7 @@ export const Localized: Story<typeof DataTable> = {
 		}
 
 		type(search!, 'monserrat')
-		await waitUntil(() => dataRows(canvas).length === 1 && announced() === '1 resultado')
+		await until(() => dataRows(canvas).length === 1 && announced() === '1 resultado')
 		const reset = canvas.querySelector<HTMLButtonElement>('[data-slot="data-table-reset"]')
 		if (reset?.textContent?.trim() !== 'Restablecer') throw new Error('DataTable did not localize its reset action')
 	},
@@ -1070,22 +1059,22 @@ export const ImmutableSnapshots: Story<typeof DataTable> = {
 		if (cells(canvas, 'email')[0] !== 'ken99@example.com') throw new Error('Live DataTable did not render the initial snapshot')
 
 		ken()?.click()
-		await waitUntil(() => ken()?.checked === true && summary()?.includes('1 of 4') === true)
+		await until(() => ken()?.checked === true && summary()?.includes('1 of 4') === true)
 
 		canvas.querySelector<HTMLButtonElement>('[data-story-action="extend-schema"]')?.click()
-		await waitUntil(() => canvas.querySelector('[data-slot="table-head"][data-column-id="tags"]') != null)
+		await until(() => canvas.querySelector('[data-slot="table-head"][data-column-id="tags"]') != null)
 		if (!ken()?.checked || cells(canvas, 'tags')[0] !== 'international') {
 			throw new Error('DataTable did not reconcile a replaced immutable column schema by ID')
 		}
 
 		canvas.querySelector<HTMLButtonElement>('[data-story-action="reverse"]')?.click()
-		await waitUntil(() => cells(canvas, 'email')[0] === 'silas22@example.com')
+		await until(() => cells(canvas, 'email')[0] === 'silas22@example.com')
 		if (!ken()?.checked || dataRows(canvas).at(-1)?.textContent?.includes('ken99@example.com') !== true) {
 			throw new Error('DataTable selection did not follow its stable key through a reordered snapshot')
 		}
 
 		canvas.querySelector<HTMLButtonElement>('[data-story-action="remove-ken"]')?.click()
-		await waitUntil(() => dataRows(canvas).length === 3 && summary()?.includes('0 of 3') === true)
+		await until(() => dataRows(canvas).length === 3 && summary()?.includes('0 of 3') === true)
 		if (ken()) throw new Error('DataTable retained a row removed from the immutable snapshot')
 	},
 }

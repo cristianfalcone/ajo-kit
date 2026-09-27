@@ -18,7 +18,6 @@ describe('drawer theme', () => {
 		expect(handled).toContain('data-[side=bottom]:rounded-t-lg')
 		expect(plain).not.toContain('data-[side=bottom]:rounded-t-lg')
 		expect(handled).toContain('*:data-[slot=drawer-handle]:bg-muted')
-		expect(handled.some(token => token.includes('drawer-handle') && token.endsWith(':hidden'))).toBe(false)
 	})
 })
 

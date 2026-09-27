@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Args, Meta, Story } from './app'
+import { frame } from './play'
 import { buttonVariants } from 'ajo-ui-playa/button'
 import {
 	AlertDialog,
@@ -35,8 +36,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof AlertDialog>
-
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
 const BasicContent = ({ action, cancel, description, size, title }: Args) => (
 	<AlertDialogContent size={size}>
@@ -116,7 +115,7 @@ export const Basic: Story<typeof AlertDialog> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog.open || dialog.getAttribute('role') !== 'alertdialog') {
 			throw new Error('AlertDialog did not open with alertdialog role')
@@ -161,14 +160,14 @@ export const Basic: Story<typeof AlertDialog> = {
 		}
 
 		cancel.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open || trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('AlertDialog did not close from cancel')
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		dialog.dispatchEvent(new MouseEvent('click', {
 			bubbles: true,
@@ -176,14 +175,14 @@ export const Basic: Story<typeof AlertDialog> = {
 			clientX: 0,
 			clientY: 0,
 		}))
-		await frame()
+		await frame(2)
 
 		if (!dialog.open || trigger.getAttribute('aria-expanded') !== 'true') {
 			throw new Error('AlertDialog closed from outside click')
 		}
 
 		dialog.dispatchEvent(new Event('cancel', { bubbles: true, cancelable: true }))
-		await frame()
+		await frame(2)
 
 		if (dialog.open || trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('AlertDialog did not close from Escape cancel event')
@@ -229,7 +228,7 @@ export const SmallWithMedia: Story<typeof AlertDialog> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog?.open || dialog.dataset.size !== 'sm' || !media) {
 			throw new Error('Small media AlertDialog did not render expected state')
@@ -238,7 +237,7 @@ export const SmallWithMedia: Story<typeof AlertDialog> = {
 		const cancel = dialog.querySelector<HTMLButtonElement>('[data-slot="alert-dialog-cancel"]')
 		if (!cancel) throw new Error('Small media AlertDialog cancel button was not rendered')
 		cancel.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open) throw new Error('Small media AlertDialog did not close after smoke')
 	},
@@ -262,7 +261,7 @@ export const Controlled: Story<typeof AlertDialog> = {
 		}
 
 		open.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog.open || !canvas.textContent?.includes('Open: yes')) {
 			throw new Error('Controlled AlertDialog did not open')
@@ -271,7 +270,7 @@ export const Controlled: Story<typeof AlertDialog> = {
 		const action = canvas.querySelector<HTMLButtonElement>('[data-slot="alert-dialog-action"]')
 		if (!action) throw new Error('Controlled AlertDialog action was not rendered')
 		action.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open || !canvas.textContent?.includes('Open: no')) {
 			throw new Error('Controlled AlertDialog did not close from action')
@@ -293,14 +292,14 @@ export const Danger: Story<typeof AlertDialog> = {
 		if (!trigger) throw new Error('Danger AlertDialog trigger was not rendered')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		const action = canvas.querySelector<HTMLButtonElement>('[data-slot="alert-dialog-action"]')
 		const dialog = canvas.querySelector<HTMLDialogElement>('[data-slot="alert-dialog-content"]')
 		if (!action || !dialog) throw new Error('Danger AlertDialog action or content was not rendered')
 
 		action.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open || !canvas.textContent?.includes('Result: deleted')) {
 			throw new Error('AlertDialog action did not run and close')

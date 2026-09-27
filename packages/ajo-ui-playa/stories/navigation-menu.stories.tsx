@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { wait, until } from './play'
 import {
 	NavigationMenu,
 	NavigationMenuContent,
@@ -149,16 +150,6 @@ const openContent = (canvas: HTMLElement) =>
 	Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="navigation-menu-content"]'))
 		.find(content => content.matches(':popover-open'))
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-const until = async (check: () => boolean, label: string, timeout = 3000) => {
-	const start = Date.now()
-	while (!check()) {
-		if (Date.now() - start > timeout) throw new Error(`Timed out waiting for: ${label}`)
-		await sleep(16)
-	}
-}
-
 const enter = (element: HTMLElement) => element.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }))
 const leave = (element: HTMLElement) => element.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }))
 
@@ -259,7 +250,7 @@ export const ScrollAndHiddenReference: Story<typeof NavigationMenu> = {
 		const button = trigger(canvas, 'Scroll target')
 		if (!scroller || !button) throw new Error('Scroll geometry fixture was not rendered')
 		scroller.scrollTop = 40
-		await sleep(32)
+		await wait(32)
 		button.click()
 		await until(() => Boolean(openContent(canvas)), 'scroll panel open')
 		const panel = openContent(canvas)
@@ -320,13 +311,13 @@ export const Hover: Story<typeof NavigationMenu> = {
 
 		// Open needs hover intent: nothing right after enter, panel after the delay.
 		enter(components)
-		await sleep(30)
+		await wait(30)
 		if (openContent(canvas)) throw new Error('Panel opened before the hover open delay elapsed')
 		await until(() => Boolean(openContent(canvas)), 'panel open after hover delay')
 
 		// Leave closes, after the close delay.
 		leave(components)
-		await sleep(40)
+		await wait(40)
 		if (!openContent(canvas)) throw new Error('Panel closed before the hover close delay elapsed')
 		await until(() => !openContent(canvas), 'panel closed after pointer leave')
 
@@ -334,7 +325,7 @@ export const Hover: Story<typeof NavigationMenu> = {
 		enter(components)
 		await until(() => Boolean(openContent(canvas)), 'panel reopened by hover')
 		components.click()
-		await sleep(120)
+		await wait(120)
 		if (!openContent(canvas)) throw new Error('Click on a hover-opened trigger toggled the panel closed')
 		if (components.getAttribute('data-state') !== 'open') throw new Error('Trigger lost open state after click')
 
@@ -379,7 +370,7 @@ export const Keyboard: Story<typeof NavigationMenu> = {
 		for (const link of links) {
 			if (link.tabIndex < 0) throw new Error('Panel link is not tabbable')
 			link.focus()
-			await sleep(16)
+			await wait(16)
 			if (!content.matches(':popover-open')) throw new Error('Panel closed while walking its links')
 		}
 
@@ -487,7 +478,7 @@ export const RejectedControlledClose: Story<typeof NavigationMenu> = {
 		if (!panel || !link) throw new Error('Pinned NavigationMenu panel or link was not rendered')
 		link.focus()
 		key(link, 'Escape')
-		await sleep(32)
+		await wait(32)
 		if (!panel.matches(':popover-open')) throw new Error('Rejected controlled close hid the NavigationMenu panel')
 		if (document.activeElement !== link) throw new Error('Rejected controlled close moved focus out of the still-open NavigationMenu panel')
 	},

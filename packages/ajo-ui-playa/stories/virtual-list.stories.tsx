@@ -1,24 +1,13 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
+import { until, assertScrollFrame, assertScrollFrameFocus } from './play'
 import { VirtualList, type VirtualListApi } from 'ajo-ui-playa/virtual-list'
-import { assertScrollFrame, assertScrollFrameFocus } from './scroll-frame'
 
 const fixedItems = Array.from({ length: 100_000 }, (_, index) => index)
 const variableItems = Array.from({ length: 10_000 }, (_, index) => index)
 const interactiveItems = Array.from({ length: 5_000 }, (_, index) => index)
 const darkItems = fixedItems.slice(0, 1_000)
 const interactiveApis = new WeakMap<HTMLUListElement, VirtualListApi<number>>()
-
-const waitFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
-const waitUntil = async (check: () => boolean, timeout = 1600) => {
-	const start = performance.now()
-	while (performance.now() - start < timeout) {
-		if (check()) return
-		await waitFrame()
-	}
-	throw new Error('Timed out waiting for VirtualList state')
-}
 
 const root = (canvas: HTMLElement) => {
 	const element = canvas.querySelector<HTMLUListElement>('[data-slot="virtual-list"]')
@@ -89,7 +78,7 @@ export const Fixed: Story<typeof VirtualList> = {
 	play: async ({ canvas }) => {
 		const element = root(canvas)
 		assertRootContract(canvas, element)
-		await waitUntil(() => element.querySelectorAll('[data-slot="virtual-list-item"]').length > 0)
+		await until(() => element.querySelectorAll('[data-slot="virtual-list-item"]').length > 0)
 		const initialCount = element.querySelectorAll('[data-slot="virtual-list-item"]').length
 		if (initialCount >= 50) throw new Error(`VirtualList materialized too many fixed rows: ${initialCount}`)
 		const first = element.querySelector('[data-slot="virtual-list-item"]')
@@ -99,7 +88,7 @@ export const Fixed: Story<typeof VirtualList> = {
 
 		element.scrollTop = 50_000 * 40
 		element.dispatchEvent(new Event('scroll'))
-		await waitUntil(() => element.textContent?.includes('Release #50001') === true)
+		await until(() => element.textContent?.includes('Release #50001') === true)
 		if (element.querySelectorAll('[data-slot="virtual-list-item"]').length >= 50) {
 			throw new Error('VirtualList DOM grew with the fixed dataset')
 		}
@@ -129,7 +118,7 @@ export const Variable: Story<typeof VirtualList> = {
 	play: async ({ canvas }) => {
 		const element = root(canvas)
 		assertRootContract(canvas, element)
-		await waitUntil(() => element.querySelectorAll('[data-slot="virtual-list-item"]').length >= 3)
+		await until(() => element.querySelectorAll('[data-slot="virtual-list-item"]').length >= 3)
 		const heights = new Set(Array.from(
 			element.querySelectorAll<HTMLElement>('[data-slot="virtual-list-item"]'),
 			item => item.offsetHeight,
@@ -174,7 +163,7 @@ export const Interactive: Story<typeof VirtualList> = {
 	play: async ({ canvas }) => {
 		const element = root(canvas)
 		assertRootContract(canvas, element)
-		await waitUntil(() => Boolean(interactiveApis.get(element) && element.querySelector('button')))
+		await until(() => Boolean(interactiveApis.get(element) && element.querySelector('button')))
 		const first = element.querySelector<HTMLButtonElement>('button')
 		if (!first) throw new Error('Interactive VirtualList did not render its first control')
 		first.focus()
@@ -182,7 +171,7 @@ export const Interactive: Story<typeof VirtualList> = {
 		if (!interactiveApis.get(element)?.scrollTo(4_000, { align: 'center' })) {
 			throw new Error('VirtualList controller rejected a current key')
 		}
-		await waitUntil(() => element.textContent?.includes('Command #4001') === true)
+		await until(() => element.textContent?.includes('Command #4001') === true)
 		if (!first.isConnected || document.activeElement !== first) {
 			throw new Error('VirtualList did not pin the focused row across a distant jump')
 		}

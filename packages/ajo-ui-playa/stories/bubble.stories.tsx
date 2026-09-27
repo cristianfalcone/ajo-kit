@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import {
 	Bubble,
@@ -25,10 +26,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof Bubble>
-
-const fixed = { variant: { control: false }, align: { control: false } } as const
-
-const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
 const InteractiveExample: Stateful = function* () {
 	let selected = 'none'
@@ -62,7 +59,6 @@ const InteractiveExample: Stateful = function* () {
 }
 
 export const Variants: Story = {
-	argTypes: fixed,
 	render: () => (
 		<div class="grid w-[32rem] gap-5">
 			<Bubble variant="default">
@@ -100,7 +96,6 @@ export const Variants: Story = {
 }
 
 export const Alignment: Story = {
-	argTypes: fixed,
 	render: () => (
 		<div class="grid w-96 gap-3">
 			<Bubble align="start" variant="secondary">
@@ -120,7 +115,6 @@ export const Alignment: Story = {
 }
 
 export const Group: Story = {
-	argTypes: fixed,
 	render: () => (
 		<div class="grid w-96 gap-5">
 			<BubbleGroup>
@@ -151,7 +145,6 @@ export const Group: Story = {
 }
 
 export const Interactive: Story = {
-	argTypes: fixed,
 	render: () => <InteractiveExample />,
 	play: async ({ canvas }) => {
 		const password = canvas.querySelector<HTMLButtonElement>('#password-help')
@@ -160,7 +153,7 @@ export const Interactive: Story = {
 		if (password.type !== 'button') throw new Error('Interactive button bubble should default to type button')
 
 		password.click()
-		await nextFrame()
+		await frame()
 		if (!canvas.textContent?.includes('Selected: password')) {
 			throw new Error('Interactive button bubble did not fire click handler')
 		}
@@ -168,7 +161,6 @@ export const Interactive: Story = {
 }
 
 export const Reactions: Story = {
-	argTypes: fixed,
 	render: () => (
 		<div class="grid w-96 gap-8">
 			<Bubble variant="secondary">

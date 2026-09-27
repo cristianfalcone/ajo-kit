@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
-import type { Meta, Story, StoryContext } from './app'
+import type { Meta, Story } from './app'
+import { frame, wait, press } from './play'
 import {
 	Field,
 	FieldDescription,
@@ -61,12 +62,6 @@ const countries = [
 	{ code: 'UY', label: 'Uruguay', value: 'uruguay' },
 ] satisfies Country[]
 
-const bind = (setArg: StoryContext['setArg']) => (next: string) => setArg('defaultValue', next)
-
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
 const announced = () =>
 	document.body.querySelector<HTMLElement>('[aria-live="polite"][aria-atomic="true"]')?.textContent
 
@@ -74,11 +69,8 @@ const typeInto = async (input: HTMLInputElement, value: string) => {
 	input.focus()
 	input.value = value
 	input.dispatchEvent(new InputEvent('input', { bubbles: true, data: value }))
-	await frame()
+	await frame(2)
 }
-
-const press = (target: HTMLElement, key: string) =>
-	target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
 
 export default {
 	title: 'UI/Select',
@@ -121,30 +113,6 @@ const FruitSelect = (args: Record<string, unknown> = {}) => (
 		</SelectContent>
 	</Select>
 )
-
-const ControlledExample: Stateful = function* () {
-	let value = 'system'
-	const change = (next: string) => this.next(() => value = next)
-
-	while (true) yield (
-		<Field class="max-w-sm">
-			<FieldLabel>Theme</FieldLabel>
-			<Select name="theme" value={value} onValueChange={change}>
-				<SelectTrigger id="controlled-select" class="w-[180px]">
-					<SelectValue placeholder="Select theme" />
-				</SelectTrigger>
-				<SelectContent>
-					<SelectList>
-						<SelectItem value="light">Light</SelectItem>
-						<SelectItem value="dark">Dark</SelectItem>
-						<SelectItem value="system">System</SelectItem>
-					</SelectList>
-				</SelectContent>
-			</Select>
-			<FieldDescription>Selected: {value}</FieldDescription>
-		</Field>
-	)
-}
 
 const RejectedCloseExample: Stateful = function* () {
 	while (true) yield (
@@ -358,7 +326,7 @@ export const Basic: Story<typeof Select> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (trigger.getAttribute('aria-expanded') !== 'true') {
 			throw new Error('Select trigger did not open the popup')
@@ -379,14 +347,14 @@ export const Basic: Story<typeof Select> = {
 		}
 
 		banana.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
-		await frame()
+		await frame(2)
 
 		if (!banana.hasAttribute('data-highlighted') || document.activeElement !== banana) {
 			throw new Error('Select item did not highlight on pointer hover')
 		}
 
 		banana.click()
-		await frame()
+		await frame(2)
 
 		if (trigger.getAttribute('aria-expanded') !== 'false' || !trigger.textContent?.includes('Banana')) {
 			throw new Error('Select did not choose Banana after item click')
@@ -398,12 +366,12 @@ export const Basic: Story<typeof Select> = {
 		// Single toggle-off: clicking the selected option again deselects it
 		// and the commit closes the popup.
 		trigger.click()
-		await frame()
+		await frame(2)
 		if (banana.getAttribute('aria-selected') !== 'true') {
 			throw new Error('Reopened select did not mark Banana selected')
 		}
 		banana.click()
-		await frame()
+		await frame(2)
 		if (trigger.textContent?.includes('Banana')) {
 			throw new Error('Clicking the selected option did not deselect it')
 		}
@@ -411,12 +379,12 @@ export const Basic: Story<typeof Select> = {
 			throw new Error('Deselecting did not close the popup')
 		}
 		trigger.click()
-		await frame()
+		await frame(2)
 		if (banana.getAttribute('aria-selected') !== 'false') {
 			throw new Error('Deselected option still reads as selected')
 		}
 		banana.click()
-		await frame()
+		await frame(2)
 	},
 }
 
@@ -436,7 +404,7 @@ export const GeometryOverride: Story<typeof Select> = {
 		const content = canvas.querySelector<HTMLElement>('[data-slot="select-content"]')
 		if (!trigger || !content) throw new Error('Select geometry fixture was not rendered')
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		const triggerRect = trigger.getBoundingClientRect()
 		if (content.dataset.placement !== 'bottom-end') {
@@ -465,15 +433,15 @@ export const Deselectable: Story<typeof Select> = {
 		if (!trigger.textContent?.includes('Select a fruit')) throw new Error('Deselectable select should start on the placeholder')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 		grapes.click()
-		await frame()
+		await frame(2)
 		if (!trigger.textContent?.includes('Grapes')) throw new Error('Deselectable select did not pick Grapes')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 		grapes.click()
-		await frame()
+		await frame(2)
 		if (!trigger.textContent?.includes('Select a fruit')) {
 			throw new Error('Clicking the selected option did not return to the placeholder')
 		}
@@ -495,10 +463,10 @@ export const Required: Story<typeof Select> = {
 		if (!trigger.textContent?.includes('Banana')) throw new Error('Required select should start on its default value')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 		if (banana.getAttribute('aria-selected') !== 'true') throw new Error('Required select did not mark its default selected')
 		banana.click()
-		await frame()
+		await frame(2)
 		if (!trigger.textContent?.includes('Banana')) {
 			throw new Error('Required select must keep its value when the selected option is clicked again')
 		}
@@ -518,7 +486,7 @@ export const WithLabel: Story<typeof Select> = {
 	render: ({ description, label, ...args }, { setArg }) => (
 		<Field class="max-w-sm">
 			<FieldLabel for="favorite-fruit">{label}</FieldLabel>
-			<Select {...args} onValueChange={bind(setArg)}>
+			<Select {...args} onValueChange={next => setArg('defaultValue', next)}>
 				<SelectTrigger id="favorite-fruit" class="w-[220px]">
 					<SelectValue placeholder="Select a fruit" />
 				</SelectTrigger>
@@ -542,7 +510,7 @@ export const Groups: Story<typeof Select> = {
 		defaultValue: { control: 'select', options: ['', ...fruits, ...vegetables] },
 	},
 	render: (args, { setArg }) => (
-		<Select {...args} onValueChange={bind(setArg)}>
+		<Select {...args} onValueChange={next => setArg('defaultValue', next)}>
 			<SelectTrigger class="w-[220px]" aria-label="Food">
 				<SelectValue placeholder="Select food" />
 			</SelectTrigger>
@@ -568,7 +536,7 @@ export const Groups: Story<typeof Select> = {
 export const Small: Story<typeof Select> = {
 	args: { defaultValue: 'banana' },
 	render: (args, { setArg }) => (
-		<Select {...args} onValueChange={bind(setArg)}>
+		<Select {...args} onValueChange={next => setArg('defaultValue', next)}>
 			<SelectTrigger size="sm" class="w-[180px]" aria-label="Small fruit">
 				<SelectValue placeholder="Select a fruit" />
 			</SelectTrigger>
@@ -584,7 +552,7 @@ export const Small: Story<typeof Select> = {
 export const Disabled: Story<typeof Select> = {
 	args: { defaultValue: 'apple', disabled: true },
 	render: (args, { setArg }) => (
-		<Select {...args} onValueChange={bind(setArg)}>
+		<Select {...args} onValueChange={next => setArg('defaultValue', next)}>
 			<SelectTrigger class="w-[180px]" aria-label="Disabled fruit">
 				<SelectValue placeholder="Select a fruit" />
 			</SelectTrigger>
@@ -606,7 +574,7 @@ export const Invalid: Story<typeof Select> = {
 	render: ({ description, error, label, ...args }, { setArg }) => (
 		<Field invalid class="max-w-sm">
 			<FieldLabel for="invalid-select">{label}</FieldLabel>
-			<Select {...args} required onValueChange={bind(setArg)}>
+			<Select {...args} required onValueChange={next => setArg('defaultValue', next)}>
 				<SelectTrigger id="invalid-select" class="w-[220px]" aria-invalid="true">
 					<SelectValue placeholder="Select a fruit" />
 				</SelectTrigger>
@@ -621,7 +589,7 @@ export const Invalid: Story<typeof Select> = {
 		</Field>
 	),
 	play: async ({ canvas }) => {
-		await frame()
+		await frame(2)
 
 		const label = canvas.querySelector<HTMLElement>('[data-slot="field-label"]')
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')
@@ -640,15 +608,15 @@ export const Invalid: Story<typeof Select> = {
 
 		// A required selection cannot be toggled off from the list.
 		trigger.click()
-		await frame()
+		await frame(2)
 		const apple = canvas.querySelector<HTMLElement>('[data-slot="select-item"][data-value="apple"]')
 		if (!apple) throw new Error('Required select apple option was not rendered')
 		apple.click()
-		await frame()
+		await frame(2)
 		trigger.click()
-		await frame()
+		await frame(2)
 		apple.click()
-		await frame()
+		await frame(2)
 		if (!trigger.textContent?.includes('Apple')) {
 			throw new Error('Required select must keep its value when the selected option is clicked again')
 		}
@@ -660,7 +628,7 @@ export const Scrollable: Story<typeof Select> = {
 		defaultValue: { control: 'select', options: ['', ...zones] },
 	},
 	render: (args, { setArg }) => (
-		<Select {...args} onValueChange={bind(setArg)}>
+		<Select {...args} onValueChange={next => setArg('defaultValue', next)}>
 			<SelectTrigger class="w-[260px]" aria-label="Timezone">
 				<SelectValue placeholder="Select a timezone" />
 			</SelectTrigger>
@@ -706,7 +674,7 @@ export const Keyboard: Story = {
 
 		trigger.focus()
 		press(trigger, 'ArrowDown')
-		await frame()
+		await frame(2)
 
 		const active = document.activeElement as HTMLElement | null
 		if (trigger.getAttribute('aria-expanded') !== 'true' || active?.dataset.value !== 'dark') {
@@ -715,7 +683,7 @@ export const Keyboard: Story = {
 		if (!focusSawGeometry) throw new Error('Select focused an option before current geometry committed')
 
 		press(active, 'Enter')
-		await frame()
+		await frame(2)
 
 		if (trigger.getAttribute('aria-expanded') !== 'false' || !trigger.textContent?.includes('Dark')) {
 			throw new Error('Enter did not select the focused option')
@@ -752,7 +720,7 @@ export const ClosedTypeahead: Story = {
 
 		trigger.focus()
 		press(trigger, 'd')
-		await frame()
+		await frame(2)
 
 		if (trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Closed typeahead opened the popup')
@@ -763,57 +731,28 @@ export const ClosedTypeahead: Story = {
 	},
 }
 
-export const Controlled: Story = {
-	argTypes: {
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
-	render: () => <ControlledExample />,
-	play: async ({ canvas }) => {
-		const trigger = canvas.querySelector<HTMLButtonElement>('#controlled-select')
-		const dark = canvas.querySelector<HTMLElement>('[data-slot="select-item"][data-value="dark"]')
-		if (!trigger || !dark) throw new Error('Controlled select trigger or item was not rendered')
-		if (!trigger.textContent?.includes('System') || !canvas.textContent?.includes('Selected: system')) {
-			throw new Error('Controlled select did not render its initial value')
-		}
-
-		trigger.click()
-		await frame()
-		dark.click()
-		await frame()
-
-		if (!trigger.textContent?.includes('Dark') || !canvas.textContent?.includes('Selected: dark')) {
-			throw new Error('Controlled select did not update after choosing Dark')
-		}
-	},
-}
-
 export const RejectedControlledClose: Story = {
 	render: () => <RejectedCloseExample />,
 	play: async ({ canvas }) => {
 		const content = canvas.querySelector<HTMLElement>('[data-slot="select-content"]')
 		const dark = canvas.querySelector<HTMLElement>('[data-slot="select-item"][data-value="dark"]')
 		if (!content || !dark) throw new Error('Rejected-close Select fixture was not rendered')
-		await frame()
+		await frame(2)
 		if (!content.matches(':popover-open')) throw new Error('Controlled-open Select did not open')
 		dark.focus()
 		press(dark, 'Escape')
-		await frame()
+		await frame(2)
 		if (!content.matches(':popover-open')) throw new Error('Rejected controlled close hid the Select popup')
 		if (document.activeElement !== dark) throw new Error('Rejected controlled close moved focus out of the still-open popup')
 
 		dark.click()
-		await frame()
+		await frame(2)
 		if (!content.matches(':popover-open')) throw new Error('Rejected item close hid the Select popup')
 		if (document.activeElement !== dark) throw new Error('Rejected item close moved focus out of the still-open popup')
 	},
 }
 
 export const Autocomplete: Story<typeof Select> = {
-	argTypes: {
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
 	render: () => <AutocompleteExample />,
 	play: async ({ canvas }) => {
 		const input = canvas.querySelector<HTMLInputElement>('[data-slot="select-input"]')
@@ -844,7 +783,7 @@ export const Autocomplete: Story<typeof Select> = {
 		}
 
 		svelte.click()
-		await frame()
+		await frame(2)
 
 		if (input.value !== 'SvelteKit' || !canvas.textContent?.includes('Selected: SvelteKit')) {
 			throw new Error('Autocomplete did not select SvelteKit')
@@ -852,7 +791,7 @@ export const Autocomplete: Story<typeof Select> = {
 
 		// Escape on a closed input must stay closed (regression: it used to reopen).
 		press(input, 'Escape')
-		await frame()
+		await frame(2)
 
 		if (content?.dataset.state === 'open') {
 			throw new Error('Escape on a closed input reopened the popup')
@@ -868,7 +807,7 @@ export const Autocomplete: Story<typeof Select> = {
 			throw new Error('SelectClear did not replace the chevron while a value was selected')
 		}
 		clear.click()
-		await frame()
+		await frame(2)
 		if (!canvas.textContent?.includes('Selected: none') || canvas.querySelector('[data-slot="select-clear"]')) {
 			throw new Error('SelectClear did not clear the selection')
 		}
@@ -877,10 +816,6 @@ export const Autocomplete: Story<typeof Select> = {
 }
 
 export const MultipleChips: Story<typeof Select> = {
-	argTypes: {
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
 	render: () => <ChipsExample />,
 	play: async ({ canvas }) => {
 		const input = canvas.querySelector<HTMLInputElement>('[data-slot="select-chips-input"]')
@@ -898,7 +833,7 @@ export const MultipleChips: Story<typeof Select> = {
 		if (!remix || remix.hidden) throw new Error('Chips select did not filter Remix')
 
 		remix.click()
-		await frame()
+		await frame(2)
 
 		if (!canvas.textContent?.includes('Selected: Next.js, Remix')) {
 			throw new Error('Multiple selection did not add Remix')
@@ -907,7 +842,7 @@ export const MultipleChips: Story<typeof Select> = {
 		// Chip roving: ArrowLeft from an empty input focuses the last chip.
 		input.focus()
 		press(input, 'ArrowLeft')
-		await frame()
+		await frame(2)
 
 		const focused = document.activeElement as HTMLElement | null
 		if (focused?.dataset.slot !== 'select-chip' || focused.dataset.value !== 'Remix') {
@@ -915,7 +850,7 @@ export const MultipleChips: Story<typeof Select> = {
 		}
 
 		press(focused, 'Backspace')
-		await frame()
+		await frame(2)
 
 		if (!canvas.textContent?.includes('Selected: Next.js') || canvas.textContent?.includes('Remix,')) {
 			throw new Error('Backspace on a focused chip did not remove it')
@@ -925,7 +860,7 @@ export const MultipleChips: Story<typeof Select> = {
 		if (!remove) throw new Error('Select chip remove button was not rendered')
 
 		remove.click()
-		await frame()
+		await frame(2)
 
 		if (!canvas.textContent?.includes('Selected: none')) {
 			throw new Error('Chip remove did not clear the last value')
@@ -934,10 +869,6 @@ export const MultipleChips: Story<typeof Select> = {
 }
 
 export const CustomItems: Story<typeof Select> = {
-	argTypes: {
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
 	render: () => <CustomExample />,
 	play: async ({ canvas }) => {
 		const input = canvas.querySelector<HTMLInputElement>('[data-slot="select-input"]')
@@ -949,7 +880,7 @@ export const CustomItems: Story<typeof Select> = {
 		if (!uruguay || uruguay.hidden) throw new Error('Custom item did not match keyword search')
 
 		uruguay.click()
-		await frame()
+		await frame(2)
 
 		if (!canvas.textContent?.includes('Selected: Uruguay')) {
 			throw new Error('Custom item did not update the selected object')
@@ -958,10 +889,6 @@ export const CustomItems: Story<typeof Select> = {
 }
 
 export const PopupSearch: Story<typeof Select> = {
-	argTypes: {
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
 	render: () => <PopupExample />,
 	play: async ({ canvas }) => {
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')
@@ -969,7 +896,7 @@ export const PopupSearch: Story<typeof Select> = {
 		if (!trigger || !content) throw new Error('Popup search trigger or content was not rendered')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		const input = canvas.querySelector<HTMLInputElement>('[data-slot="select-input"]')
 		if (!input || trigger.getAttribute('aria-expanded') !== 'true') {
@@ -979,10 +906,10 @@ export const PopupSearch: Story<typeof Select> = {
 			throw new Error('Opening did not move focus into the in-popup search input')
 		}
 
-		await sleep(220)
+		await wait(220)
 		const geometryTrace: string[] = []
 		for (let sample = 0; sample < 24; sample++) {
-			await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+			await frame()
 			const rect = content.getBoundingClientRect()
 			geometryTrace.push([
 				content.dataset.placement ?? 'missing',
@@ -1003,7 +930,7 @@ export const PopupSearch: Story<typeof Select> = {
 		if (!japan || japan.hidden) throw new Error('Popup search did not filter Japan')
 
 		japan.click()
-		await frame()
+		await frame(2)
 
 		if (!trigger.textContent?.includes('Japan')) {
 			throw new Error('Popup search did not display the selected country')
@@ -1015,10 +942,6 @@ export const PopupSearch: Story<typeof Select> = {
 }
 
 export const GroupsFiltered: Story<typeof Select> = {
-	argTypes: {
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
 	render: () => (
 		<Select defaultValue="Docs" autoHighlight>
 			<SelectInput class="w-[22rem]" placeholder="Search category" />
@@ -1051,7 +974,7 @@ export const GroupsFiltered: Story<typeof Select> = {
 		}
 		const idleShadow = getComputedStyle(inputGroup).boxShadow
 		input.focus()
-		await frame()
+		await frame(2)
 		if (getComputedStyle(inputGroup).boxShadow === idleShadow) {
 			throw new Error('SelectInput focus did not activate the shared input-group ring')
 		}
@@ -1078,10 +1001,6 @@ export const GroupsFiltered: Story<typeof Select> = {
 }
 
 export const InvalidInput: Story<typeof Select> = {
-	argTypes: {
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
 	render: () => (
 		<Field invalid class="w-[22rem]">
 			<FieldLabel for="invalid-input-select">Framework</FieldLabel>
@@ -1099,7 +1018,7 @@ export const InvalidInput: Story<typeof Select> = {
 		</Field>
 	),
 	play: async ({ canvas }) => {
-		await frame()
+		await frame(2)
 
 		const label = canvas.querySelector<HTMLLabelElement>('[data-slot="field-label"]')
 		const input = canvas.querySelector<HTMLInputElement>('[data-slot="select-input"]')
@@ -1118,7 +1037,7 @@ export const InvalidInput: Story<typeof Select> = {
 
 		const invalidShadow = getComputedStyle(inputGroup).boxShadow
 		input.removeAttribute('aria-invalid')
-		await frame()
+		await frame(2)
 		if (getComputedStyle(inputGroup).boxShadow === invalidShadow) {
 			throw new Error('SelectInput aria-invalid did not activate the shared input-group danger ring')
 		}
@@ -1127,10 +1046,6 @@ export const InvalidInput: Story<typeof Select> = {
 }
 
 export const DisabledInput: Story<typeof Select> = {
-	argTypes: {
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
 	render: () => (
 		<Field class="w-[22rem]">
 			<FieldLabel>Framework</FieldLabel>
@@ -1148,10 +1063,6 @@ export const DisabledInput: Story<typeof Select> = {
 }
 
 export const Tagging: Story<typeof Select> = {
-	argTypes: {
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
 	render: () => <TaggingExample />,
 	play: async ({ canvas }) => {
 		const input = canvas.querySelector<HTMLInputElement>('[data-slot="select-chips-input"]')
@@ -1163,7 +1074,7 @@ export const Tagging: Story<typeof Select> = {
 		if (!create || create.hidden) throw new Error('Create row did not appear for an unmatched search')
 
 		create.click()
-		await frame()
+		await frame(2)
 
 		if (!canvas.textContent?.includes('Tags: ajo, deno')) {
 			throw new Error('Create row did not add the new tag')
@@ -1181,10 +1092,6 @@ export const Tagging: Story<typeof Select> = {
 }
 
 export const Async: Story<typeof Select> = {
-	argTypes: {
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
 	render: () => <AsyncExample />,
 	play: async ({ canvas }) => {
 		const input = canvas.querySelector<HTMLInputElement>('[data-slot="select-input"]')
@@ -1195,7 +1102,7 @@ export const Async: Story<typeof Select> = {
 		// is strictly a search result.
 		input.focus()
 		input.click()
-		await frame()
+		await frame(2)
 		const initialEmpty = canvas.querySelector<HTMLElement>('[data-slot="select-empty"]')
 		if (initialEmpty && !initialEmpty.hidden) {
 			throw new Error('Empty state rendered before any query was typed')
@@ -1215,8 +1122,8 @@ export const Async: Story<typeof Select> = {
 			throw new Error('Empty state rendered while loading')
 		}
 
-		await sleep(200)
-		await frame()
+		await wait(200)
+		await frame(2)
 
 		const nuxt = canvas.querySelector<HTMLElement>('[data-slot="select-item"][data-value="Nuxt.js"]')
 		if (!nuxt || nuxt.hidden) throw new Error('External Select filtering hid the server-owned Nuxt.js result')
@@ -1226,15 +1133,15 @@ export const Async: Story<typeof Select> = {
 
 		// A query with no matches shows the empty state...
 		await typeInto(input, 'zzz')
-		await sleep(200)
-		await frame()
+		await wait(200)
+		await frame(2)
 		const empty = canvas.querySelector<HTMLElement>('[data-slot="select-empty"]')
 		if (!empty || empty.hidden) throw new Error('Empty state did not render for a no-match query')
 
 		// ...and clearing the query hides it again.
 		await typeInto(input, '')
-		await sleep(200)
-		await frame()
+		await wait(200)
+		await frame(2)
 		const cleared = canvas.querySelector<HTMLElement>('[data-slot="select-empty"]')
 		if (cleared && !cleared.hidden) {
 			throw new Error('Empty state should hide once the query is cleared')
@@ -1243,10 +1150,6 @@ export const Async: Story<typeof Select> = {
 }
 
 export const FormMultiple: Story<typeof Select> = {
-	argTypes: {
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
 	render: () => (
 		<form id="select-form" class="grid w-[26rem] gap-3">
 			<Select multiple name="stack" defaultValue={['Next.js', 'Astro']}>

@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame, wait, press } from './play'
 import { Card, CardContent } from 'ajo-ui-playa/card'
 import {
 	Carousel,
@@ -22,8 +23,6 @@ export default {
 } satisfies Meta<typeof Carousel>
 
 const numbers = [1, 2, 3, 4, 5]
-const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const consumerClick = (event: MouseEvent) => {
 	const button = event.currentTarget as HTMLButtonElement
 	button.dataset.consumerClicks = String(Number(button.dataset.consumerClicks ?? 0) + 1)
@@ -124,7 +123,7 @@ export const Basic: Story = {
 		</Carousel>
 	),
 	play: async ({ canvas }) => {
-		await nextFrame()
+		await frame()
 		await wait(50)
 
 		const root = canvas.querySelector<HTMLElement>('[data-slot="carousel"]')
@@ -165,7 +164,7 @@ export const Basic: Story = {
 		})
 		try {
 			previous.click()
-			await nextFrame()
+			await frame()
 			if (previous.dataset.consumerClicks !== '1' || cancelledScrollCalls !== 0) {
 				throw new Error('Carousel previous consumer handler did not cancel internal scrolling')
 			}
@@ -212,7 +211,7 @@ export const Vertical: Story = {
 		</Carousel>
 	),
 	play: async ({ canvas }) => {
-		await nextFrame()
+		await frame()
 		await wait(50)
 
 		const root = canvas.querySelector<HTMLElement>('[data-slot="carousel"]')
@@ -250,7 +249,7 @@ export const Looping: Story = {
 		</Carousel>
 	),
 	play: async ({ canvas }) => {
-		await nextFrame()
+		await frame()
 		await wait(80)
 
 		const readout = canvas.querySelector<HTMLElement>('[data-carousel-readout]')
@@ -297,7 +296,7 @@ export const RightToLeft: Story = {
 		</DirectionProvider>
 	),
 	play: async ({ canvas }) => {
-		await nextFrame()
+		await frame()
 		await wait(50)
 
 		const root = canvas.querySelector<HTMLElement>('[data-slot="carousel"]')
@@ -309,7 +308,7 @@ export const RightToLeft: Story = {
 
 		const slide = () => readout.textContent?.trim()
 		const key = async (name: string) => {
-			root.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: name }))
+			press(root, name)
 			await wait(250)
 		}
 
@@ -342,7 +341,7 @@ export const RenderBudget: Story = {
 	name: 'Render Budget',
 	render: () => <RenderBudgetDemo />,
 	play: async ({ canvas }) => {
-		await nextFrame()
+		await frame()
 		await wait(50)
 
 		const track = canvas.querySelector<HTMLElement>('[data-slot="carousel-track"]')
@@ -373,8 +372,7 @@ export const RenderBudget: Story = {
 		}
 		const flushScroll = async () => {
 			track.dispatchEvent(new Event('scroll'))
-			await nextFrame()
-			await nextFrame()
+			await frame(2)
 		}
 
 		await flushScroll()
@@ -415,8 +413,7 @@ export const RenderBudget: Story = {
 				observer.observe(track)
 				track.style.width = `${Math.round(beforeWidth) + 37}px`
 			})
-			await nextFrame()
-			await nextFrame()
+			await frame(2)
 		}
 
 		const resizeSelectionBaseline = Number(probe().dataset.carouselRenderCount)
@@ -438,7 +435,7 @@ export const RenderBudget: Story = {
 		}
 
 		loop.click()
-		await nextFrame()
+		await frame()
 		if (previous.disabled || next.disabled) {
 			throw new Error('Dynamic loop did not refresh Carousel scrollability')
 		}

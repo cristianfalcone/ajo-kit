@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame, until, press } from './play'
 import { ContextMenu, ContextMenuTrigger } from 'ajo-ui-playa/context-menu'
 import {
 	MenuCheckboxItem,
@@ -27,17 +28,9 @@ export default {
 } satisfies Meta<typeof ContextMenu>
 
 const targetClass = 'flex h-36 w-72 select-none items-center justify-center rounded-md border border-dashed bg-muted/40 p-6 text-center text-sm text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
 // Menu surfaces animate open (scale/opacity transition), so geometry
 // assertions poll until placement and motion settle.
-const until = async (test: () => boolean, error: string) => {
-	const deadline = performance.now() + 1000
-	while (!test()) {
-		if (performance.now() > deadline) throw new Error(error)
-		await frame()
-	}
-}
 
 const openAndPositioned = (content: HTMLElement | null | undefined) => Boolean(
 	content?.matches(':popover-open')
@@ -60,7 +53,7 @@ const openContext = async (target: HTMLElement, x?: number, y?: number) => {
 }
 
 const closeContext = async (content: HTMLElement) => {
-	content.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+	press(content, 'Escape')
 	await until(() => !content.matches(':popover-open'), 'Context menu did not close from Escape')
 }
 
@@ -207,7 +200,7 @@ export const Basic: Story<typeof ContextMenu> = {
 		if (!duplicate) throw new Error('Context menu Duplicate item was not rendered')
 
 		duplicate.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
-		await frame()
+		await frame(2)
 
 		if (duplicate.dataset.highlighted !== 'true') {
 			throw new Error('Context menu item did not highlight on pointer hover')
@@ -235,7 +228,7 @@ export const Basic: Story<typeof ContextMenu> = {
 		}
 
 		copy.click()
-		await frame()
+		await frame(2)
 
 		if (!canvas.textContent?.includes('Action: copy') || target.getAttribute('data-state') !== 'closed' || document.activeElement !== target) {
 			throw new Error('Context menu item did not select and close')
@@ -266,14 +259,14 @@ export const Keyboard: Story<typeof ContextMenu> = {
 		}
 
 		focused.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
-		await frame()
+		await frame(2)
 
 		if ((document.activeElement as HTMLElement | null)?.dataset.label !== 'Duplicate') {
 			throw new Error('ArrowDown did not move focus to the next context menu item')
 		}
 
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }))
-		await frame()
+		await frame(2)
 
 		if (!canvas.textContent?.includes('Action: duplicate') || target.getAttribute('data-state') !== 'closed') {
 			throw new Error('Enter did not activate the focused context menu item')
@@ -319,7 +312,7 @@ export const Retargeting: Story = {
 		}
 
 		outside.click()
-		await frame()
+		await frame(2)
 		const second = canvas.querySelector<HTMLElement>('#retarget-context-b')
 		if (!second || second === first) throw new Error('Retarget fixture did not mount a fresh invoker')
 		const secondRect = second.getBoundingClientRect()
@@ -330,7 +323,7 @@ export const Retargeting: Story = {
 		}
 
 		await closeContext(content)
-		await frame()
+		await frame(2)
 		if (document.activeElement !== second || stateChanges() !== 'true,false') {
 			throw new Error('Escape did not restore the current real invoker exactly once')
 		}
@@ -339,7 +332,7 @@ export const Retargeting: Story = {
 		outside.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }))
 		outside.focus()
 		await until(() => !content.matches(':popover-open'), 'Outside pointer did not close ContextMenu')
-		await frame()
+		await frame(2)
 		if (document.activeElement !== outside || stateChanges() !== 'true,false,true,false') {
 			throw new Error('Outside dismissal restored the invoker or desynchronized open state')
 		}
@@ -358,7 +351,7 @@ export const Checkboxes: Story = {
 		if (!minimap) throw new Error('Context checkbox item was not rendered')
 
 		minimap.click()
-		await frame()
+		await frame(2)
 
 		if (minimap.getAttribute('aria-checked') !== 'true' || !canvas.textContent?.includes('Minimap: on')) {
 			throw new Error('Context checkbox item did not toggle on')
@@ -378,7 +371,7 @@ export const RadioGroup: Story = {
 		if (!spacious) throw new Error('Context radio item was not rendered')
 
 		spacious.click()
-		await frame()
+		await frame(2)
 
 		if (spacious.getAttribute('aria-checked') !== 'true' || !canvas.textContent?.includes('Density: spacious')) {
 			throw new Error('Context radio item did not select Spacious')
@@ -424,7 +417,7 @@ export const Submenu: Story = {
 		if (!content) throw new Error('Context submenu parent content was not rendered')
 
 		subTrigger.dispatchEvent(new MouseEvent('mouseenter'))
-		await frame()
+		await frame(2)
 
 		if (subTrigger.getAttribute('aria-expanded') !== 'true' || !subContent.matches(':popover-open')) {
 			throw new Error('Hover did not open the context submenu')
@@ -439,7 +432,7 @@ export const Submenu: Story = {
 		}, 'Context submenu was clipped by the parent menu instead of opening beside it')
 
 		remove.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
-		await frame()
+		await frame(2)
 
 		const hoverHighlighted = Array.from(content.querySelectorAll<HTMLElement>('[data-item="menu"][data-highlighted="true"]'))
 		if (subTrigger.getAttribute('aria-expanded') !== 'false' || subContent.matches(':popover-open') || hoverHighlighted.length !== 1 || hoverHighlighted[0]?.dataset.label !== 'Remove') {
@@ -476,8 +469,8 @@ export const DisabledFirstItem: Story = {
 
 		// Keyboard open (pointer opens focus the surface, not the first item).
 		target.focus()
-		target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'F10', shiftKey: true }))
-		await frame()
+		press(target, 'F10', { shiftKey: true })
+		await frame(2)
 
 		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
 		const restore = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="Restore"]')

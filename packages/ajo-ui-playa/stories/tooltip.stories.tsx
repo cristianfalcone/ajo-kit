@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { wait, until, press } from './play'
 import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Tooltip,
@@ -28,20 +29,10 @@ export default {
 	},
 } satisfies Meta<typeof Tooltip>
 
-const fixed = { content: { control: false }, gap: { control: false }, placement: { control: false } } as const
-
 const triggerClass = buttonVariants({ variant: 'outline' })
 const iconClass = buttonVariants({ variant: 'outline', size: 'icon-sm' })
 const hover = (element: HTMLElement) => element.dispatchEvent(new MouseEvent('mouseenter', { cancelable: true }))
 const leave = (element: HTMLElement) => element.dispatchEvent(new MouseEvent('mouseleave', { cancelable: true }))
-const wait = (ms = 30) => new Promise(resolve => setTimeout(resolve, ms))
-const until = async (condition: () => boolean, message: string, timeout = 1200) => {
-	const deadline = performance.now() + timeout
-	while (!condition()) {
-		if (performance.now() >= deadline) throw new Error(message)
-		await wait(20)
-	}
-}
 const sides = ['left', 'top', 'bottom', 'right'] as const
 
 const closeTo = (actual: number, expected: number, tolerance = 4) =>
@@ -150,7 +141,7 @@ export const Basic: Story<typeof Tooltip> = {
 		}
 
 		document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
-		await wait()
+		await wait(30)
 
 		if (!content.matches(':popover-open')) {
 			throw new Error('Outside pointerdown dismissed a hover tooltip')
@@ -166,7 +157,6 @@ export const Basic: Story<typeof Tooltip> = {
 }
 
 export const Keyboard: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<Tooltip>
 			<TooltipTrigger class={iconClass} id="keyboard-tooltip-trigger" aria-label="Save changes">
@@ -183,14 +173,14 @@ export const Keyboard: Story<typeof Tooltip> = {
 		if (!trigger || !content) throw new Error('Keyboard tooltip trigger or content was not rendered')
 
 		trigger.focus()
-		await wait()
+		await wait(30)
 
 		if (!content.matches(':popover-open')) {
 			throw new Error('Tooltip did not open on keyboard focus')
 		}
 
-		trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
-		await wait()
+		press(trigger, 'Escape')
+		await wait(30)
 
 		if (content.matches(':popover-open')) {
 			throw new Error('Tooltip did not close on Escape')
@@ -199,7 +189,6 @@ export const Keyboard: Story<typeof Tooltip> = {
 }
 
 export const Sides: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<div class="flex flex-wrap justify-center gap-2">
 			{sides.map(side => (
@@ -240,7 +229,6 @@ export const Sides: Story<typeof Tooltip> = {
 }
 
 export const ProviderDelay: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<TooltipProvider delayDuration={700} skipDelayDuration={0}>
 			<Tooltip>
@@ -281,7 +269,6 @@ export const ProviderDelay: Story<typeof Tooltip> = {
 }
 
 export const ProviderSkipDelay: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<TooltipProvider delayDuration={400} skipDelayDuration={1000}>
 			<div class="flex gap-2">
@@ -321,13 +308,12 @@ export const ProviderSkipDelay: Story<typeof Tooltip> = {
 		if (firstContent.matches(':popover-open')) throw new Error('First tooltip did not close before the skip window')
 
 		hover(secondTrigger)
-		await wait()
+		await wait(30)
 		if (!secondContent.matches(':popover-open')) throw new Error('Second tooltip did not skip delay within the provider window')
 	},
 }
 
 export const DisabledControl: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<Tooltip>
 			<TooltipTrigger as="span" class="inline-block w-fit" id="disabled-tooltip-trigger">
@@ -346,7 +332,7 @@ export const DisabledControl: Story<typeof Tooltip> = {
 		if (!trigger || !content) throw new Error('Disabled tooltip wrapper or content was not rendered')
 
 		hover(trigger)
-		await wait()
+		await wait(30)
 
 		if (!content.matches(':popover-open') || !canvas.textContent?.includes('currently unavailable')) {
 			throw new Error('Tooltip did not open for disabled control wrapper')
@@ -362,7 +348,6 @@ export const DisabledControl: Story<typeof Tooltip> = {
 }
 
 export const Arrow: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<Tooltip>
 			<TooltipTrigger class={triggerClass} id="arrow-tooltip-trigger">
@@ -381,7 +366,7 @@ export const Arrow: Story<typeof Tooltip> = {
 		if (!trigger || !content || !surface || !arrow) throw new Error('Arrow tooltip trigger, content, surface, or arrow was not rendered')
 
 		hover(trigger)
-		await wait()
+		await wait(30)
 
 		if (!content.matches(':popover-open') || content.dataset.side !== 'top') {
 			throw new Error('Arrow tooltip did not open on the top side')
@@ -416,7 +401,6 @@ export const Arrow: Story<typeof Tooltip> = {
 }
 
 export const Controlled: Story = {
-	argTypes: fixed,
 	render: () => <ControlledExample />,
 	play: async ({ canvas }) => {
 		const trigger = canvas.querySelector<HTMLElement>('#controlled-tooltip-trigger')
@@ -424,7 +408,7 @@ export const Controlled: Story = {
 		if (!trigger || !content) throw new Error('Controlled tooltip trigger or content was not rendered')
 
 		hover(trigger)
-		await wait()
+		await wait(30)
 
 		if (!content.matches(':popover-open') || !canvas.textContent?.includes('Open: yes')) {
 			throw new Error('Controlled tooltip did not update controlled state')
@@ -440,7 +424,6 @@ export const Controlled: Story = {
 }
 
 export const InlineReference: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<Tooltip placement="top">
 			<TooltipTrigger
@@ -478,7 +461,6 @@ export const InlineReference: Story<typeof Tooltip> = {
 }
 
 export const ClippedReference: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<div
 			class="rounded-md border border-border"
@@ -526,7 +508,6 @@ export const ClippedReference: Story<typeof Tooltip> = {
 }
 
 export const FocusAndHover: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<Tooltip>
 			<TooltipTrigger class={triggerClass} id="focus-disabled-hover-trigger">
@@ -555,7 +536,6 @@ export const FocusAndHover: Story<typeof Tooltip> = {
 }
 
 export const EscapeRecovery: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<Tooltip>
 			<TooltipTrigger class={triggerClass} id="escape-recovery-trigger">
@@ -592,7 +572,6 @@ export const EscapeRecovery: Story<typeof Tooltip> = {
 }
 
 export const ZeroSkipDelay: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<TooltipProvider delayDuration={300} skipDelayDuration={0}>
 			<div class="flex gap-2">
@@ -633,7 +612,6 @@ export const ZeroSkipDelay: Story<typeof Tooltip> = {
 }
 
 export const DescribedbyComposition: Story<typeof Tooltip> = {
-	argTypes: fixed,
 	render: () => (
 		<div class="grid justify-items-center gap-2">
 			<p id="tooltip-caller-description">Existing caller description</p>

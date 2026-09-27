@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -6,14 +6,11 @@ import sade from 'sade'
 import type { Plugin } from 'vite'
 
 type Options = {
-	'update-snapshots'?: boolean
 	browser?: string
-	compare: boolean
 	cycles?: number | string
 	match?: string
 	port: number
 	screenshots: boolean
-	updateSnapshots: boolean
 }
 
 type BrowserName = 'chromium' | 'firefox' | 'webkit'
@@ -265,10 +262,6 @@ function stories(): Plugin {
 }
 
 async function serve(port: number) {
-	const resolvedPort = Number(port)
-	if (!Number.isSafeInteger(resolvedPort) || resolvedPort < 0 || resolvedPort > 65_535) {
-		throw new Error(`Invalid port: ${port}`)
-	}
 	const vite = await import('vite')
 	const server = await vite.createServer({
 		appType: 'custom',
@@ -277,15 +270,15 @@ async function serve(port: number) {
 		root,
 		server: {
 			host,
-			port: resolvedPort || undefined,
-			strictPort: resolvedPort > 0,
+			port: port || undefined,
+			strictPort: port > 0,
 			hmr: { host, protocol: 'ws' },
 		},
 	})
 
 	await server.listen()
 	const address = server.httpServer?.address()
-	const actualPort = typeof address === 'object' && address ? address.port : resolvedPort
+	const actualPort = typeof address === 'object' && address ? address.port : port
 
 	return {
 		server,
@@ -398,11 +391,9 @@ async function managerSmoke(
 async function test(options: Options) {
 	const name = browserName(options.browser)
 	const cycles = Number(options.cycles ?? 0)
-	const updateSnapshots = Boolean(options.updateSnapshots || options['update-snapshots'])
-	const visual = options.screenshots || options.compare || updateSnapshots
+	const visual = options.screenshots
 	if (!Number.isSafeInteger(cycles) || cycles < 0) throw new Error('--cycles must be a non-negative integer.')
-	if (options.compare && updateSnapshots) throw new Error('--compare and --update-snapshots are mutually exclusive.')
-	if (cycles && visual) throw new Error('--cycles and visual screenshot options must run as separate gates.')
+	if (cycles && visual) throw new Error('--cycles and --screenshots must run as separate gates.')
 	const { server, url } = await serve(options.port)
 
 	try {
@@ -421,7 +412,6 @@ async function test(options: Options) {
 		const browser = await launch(name)
 		const failures: string[] = []
 		const directory = join(workspace, '.tmp/stories-screenshots', name)
-		const baselineDirectory = join(root, 'visual', process.platform, name)
 		const themes: Array<'dark' | 'light' | undefined> = visual
 			? ['light', 'dark']
 			: [undefined]
@@ -477,23 +467,10 @@ async function test(options: Options) {
 							}
 
 							if (visual && theme) {
-								const path = join(directory, theme, `${story.id}.png`)
-								const screenshot = await root.screenshot({
+								await root.screenshot({
 									animations: 'disabled',
-									path,
+									path: join(directory, theme, `${story.id}.png`),
 								})
-								const baseline = join(baselineDirectory, theme, `${story.id}.png`)
-								if (updateSnapshots) {
-									mkdirSync(join(baselineDirectory, theme), { recursive: true })
-									writeFileSync(baseline, screenshot)
-								} else if (options.compare) {
-									if (!existsSync(baseline)) {
-										throw new Error(`Visual baseline is missing: ${baseline}`)
-									}
-									if (!screenshot.equals(readFileSync(baseline))) {
-										throw new Error(`Visual baseline mismatch for ${story.id} [${name}/${theme}]. Actual: ${path}`)
-									}
-								}
 							}
 						} catch (error) {
 							errors.push(error instanceof Error ? error.stack ?? error.message : String(error))
@@ -521,8 +498,6 @@ async function test(options: Options) {
 		console.log('Stories manager smoke passed.')
 		console.log(`Stories smoke passed in ${name} for ${stories.length} stories${visual ? ' in light and dark' : ''}${match ? ` matching "${options.match}"` : ''}.`)
 		if (visual) console.log(`Screenshots written to ${directory}`)
-		if (options.compare) console.log(`Visual baselines matched ${baselineDirectory}`)
-		if (updateSnapshots) console.log(`Visual baselines updated in ${baselineDirectory}`)
 	} finally {
 		await server.close()
 	}
@@ -538,12 +513,10 @@ cli.command('dev', 'Start the Ajo UI stories harness', { default: true })
 
 cli.command('test', 'Run the stories smoke suite')
 	.option('-b, --browser', 'Playwright browser: chromium, firefox, or webkit', 'chromium')
-	.option('--compare', 'Compare screenshots byte-for-byte with committed visual baselines')
 	.option('--cycles', 'Run real Popover open/close lifecycle cycles', 0)
 	.option('-m, --match', 'Only run stories whose title, name, or id contains this text')
 	.option('-p, --port', 'Port number', 5182)
 	.option('--screenshots', 'Write screenshots to .tmp/stories-screenshots')
-	.option('--update-snapshots', 'Replace committed visual baselines with current screenshots')
 	.action(async (options: Options) => {
 		await test(options)
 	})

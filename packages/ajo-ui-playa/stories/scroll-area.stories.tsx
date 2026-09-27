@@ -1,8 +1,8 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
+import { frame, assertScrollFrame, assertScrollFrameFocus } from './play'
 import { ScrollArea } from 'ajo-ui-playa/scroll-area'
 import { Separator } from 'ajo-ui-playa/separator'
-import { assertScrollFrame, assertScrollFrameFocus } from './scroll-frame'
 
 const tags = Array.from({ length: 50 }, (_, index) => `v1.2.0-beta.${50 - index}`)
 
@@ -24,8 +24,6 @@ export default {
 
 const area = (canvas: HTMLElement) =>
 	canvas.querySelector<HTMLElement>('[data-slot="scroll-area"]')
-
-const waitFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
 export const Basic: Story<typeof ScrollArea> = {
 	render: () => (
@@ -51,7 +49,7 @@ export const Basic: Story<typeof ScrollArea> = {
 		if (root.scrollHeight <= root.clientHeight) throw new Error('ScrollArea did not create vertical overflow')
 
 		root.scrollTop = 80
-		await waitFrame()
+		await frame()
 
 		if (root.scrollTop <= 0) throw new Error('ScrollArea did not scroll vertically')
 		root.scrollTop = 0
@@ -80,7 +78,7 @@ export const Horizontal: Story<typeof ScrollArea> = {
 		if (root.scrollWidth <= root.clientWidth) throw new Error('ScrollArea did not create horizontal overflow')
 
 		root.scrollLeft = 120
-		await waitFrame()
+		await frame()
 
 		if (root.scrollLeft <= 0) throw new Error('ScrollArea did not scroll horizontally')
 		root.scrollLeft = 0
@@ -111,7 +109,7 @@ export const BothAxes: Story<typeof ScrollArea> = {
 
 		root.scrollLeft = 80
 		root.scrollTop = 80
-		await waitFrame()
+		await frame()
 
 		if (root.scrollLeft <= 0 || root.scrollTop <= 0) {
 			throw new Error('BothAxes ScrollArea did not scroll on both axes')

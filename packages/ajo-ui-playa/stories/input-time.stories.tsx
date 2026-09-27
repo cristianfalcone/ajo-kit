@@ -1,10 +1,9 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame, press } from './play'
 import { Field, FieldLabel } from 'ajo-ui-playa/field'
 import { InputTime } from 'ajo-ui-playa/input-date'
-
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
 const segment = (scope: Element, unit: string) => {
 	const found = scope.querySelector<HTMLElement>(`[data-segment="${unit}"]`)
@@ -31,21 +30,21 @@ const typeKeys = async (start: HTMLElement, data: string) => {
 		const active = document.activeElement
 		const target = active instanceof HTMLElement && active.dataset.segment ? active : start
 		target.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: key, cancelable: true, bubbles: true }))
-		await frame()
+		await frame(2)
 	}
 }
 
 // Hardware spin keys arrive as keydown (spin clove path).
-const press = async (target: HTMLElement, key: string) => {
+const step = async (target: HTMLElement, key: string) => {
 	target.focus()
-	target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
-	await frame()
+	press(target, key)
+	await frame(2)
 }
 
 const blur = async () => {
 	const active = document.activeElement
 	if (active instanceof HTMLElement) active.blur()
-	await frame()
+	await frame(2)
 }
 
 export default {
@@ -206,13 +205,13 @@ export const MinuteStep: Story<typeof InputTime> = {
 		const minute = segment(canvas, 'minute')
 
 		// The first arrow seeds from placeholderValue, then rides the 15-minute grid.
-		await press(minute, 'ArrowUp')
+		await step(minute, 'ArrowUp')
 		if (text(minute) !== '00') throw new Error(`First ArrowUp must seed 00, got "${text(minute)}"`)
-		await press(minute, 'ArrowUp')
+		await step(minute, 'ArrowUp')
 		if (text(minute) !== '15') throw new Error(`ArrowUp must step to 15, got "${text(minute)}"`)
-		await press(minute, 'ArrowUp')
+		await step(minute, 'ArrowUp')
 		if (text(minute) !== '30') throw new Error(`ArrowUp must step to 30, got "${text(minute)}"`)
-		await press(minute, 'ArrowDown')
+		await step(minute, 'ArrowDown')
 		if (text(minute) !== '15') throw new Error(`ArrowDown must step back to 15, got "${text(minute)}"`)
 
 		// A seeded minute never commits by itself.
@@ -294,7 +293,7 @@ export const Controlled: Story = {
 		if (text(hour) !== '12') throw new Error('Controlled 12:30 must display hour 12 (PM)')
 
 		clear.click()
-		await frame()
+		await frame(2)
 		if (!canvas.textContent?.includes('Selected: none')) throw new Error('Clear did not emit null through the owner')
 		if (hour.dataset.placeholder !== 'true') throw new Error('Cleared segments did not return to placeholders')
 		if (canvas.querySelector('[data-slot="input-date-clear"]')) throw new Error('Clear button must unrender without a value')
@@ -335,7 +334,7 @@ export const FocusRelocation: Story = {
 		const narrow = canvas.querySelector<HTMLButtonElement>('[data-story-action="narrow"]')
 		if (!narrow) throw new Error('Push button was not rendered')
 		narrow.click()
-		await frame()
+		await frame(2)
 		if (canvas.querySelector('[data-segment="second"]')) throw new Error('The narrower external value must drop the seconds segment')
 		let focused = document.activeElement
 		if (!(focused instanceof HTMLElement) || focused.dataset.segment !== 'minute') {
@@ -348,7 +347,7 @@ export const FocusRelocation: Story = {
 		const h24 = canvas.querySelector<HTMLButtonElement>('[data-story-action="h24"]')
 		if (!h24) throw new Error('24h button was not rendered')
 		h24.click()
-		await frame()
+		await frame(2)
 		if (canvas.querySelector('[data-segment="dayPeriod"]')) throw new Error('hourCycle 24 must drop the dayPeriod segment')
 		focused = document.activeElement
 		if (!(focused instanceof HTMLElement) || focused.dataset.segment !== 'minute') {

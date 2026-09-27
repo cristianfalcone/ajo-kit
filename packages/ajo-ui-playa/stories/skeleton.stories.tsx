@@ -20,8 +20,6 @@ export default {
 	},
 } satisfies Meta<typeof Skeleton>
 
-const fixed = { class: { control: false }, decorative: { control: false } } as const
-
 export const Basic: Story<typeof Skeleton> = {
 	render: args => <Skeleton {...args} />,
 	play: async ({ canvas }) => {
@@ -39,7 +37,6 @@ export const Basic: Story<typeof Skeleton> = {
 }
 
 export const Avatar: Story = {
-	argTypes: fixed,
 	render: () => (
 		<div class="flex items-center gap-4">
 			<Skeleton class="size-12 rounded-full" />
@@ -52,7 +49,6 @@ export const Avatar: Story = {
 }
 
 export const CardPreview: Story = {
-	argTypes: fixed,
 	render: () => (
 		<Card class="w-80">
 			<CardHeader class="gap-2">
@@ -71,7 +67,6 @@ export const CardPreview: Story = {
 }
 
 export const Text: Story = {
-	argTypes: fixed,
 	render: () => (
 		<div class="w-96 space-y-2">
 			<Skeleton class="h-4 w-full" />
@@ -82,7 +77,6 @@ export const Text: Story = {
 }
 
 export const TableRows: Story = {
-	argTypes: fixed,
 	render: () => (
 		<div class="flex w-full max-w-md flex-col gap-2" aria-busy="true" aria-label="Loading invoices">
 			{Array.from({ length: 5 }, (_, index) => (
@@ -106,7 +100,6 @@ export const TableRows: Story = {
 }
 
 export const SemanticPlaceholder: Story = {
-	argTypes: fixed,
 	render: () => (
 		<Skeleton
 			aria-label="Loading profile"

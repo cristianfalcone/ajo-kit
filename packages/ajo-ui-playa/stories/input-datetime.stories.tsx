@@ -1,12 +1,11 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame, press } from './play'
 import { Field, FieldLabel } from 'ajo-ui-playa/field'
 import { InputDateTime } from 'ajo-ui-playa/input-date'
 
 const july = new Date(2026, 6, 1)
-
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
 const segment = (scope: Element, unit: string) => {
 	const found = scope.querySelector<HTMLElement>(`[data-segment="${unit}"]`)
@@ -51,21 +50,21 @@ const typeKeys = async (start: HTMLElement, data: string) => {
 		const active = document.activeElement
 		const target = active instanceof HTMLElement && active.dataset.segment ? active : start
 		target.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: key, cancelable: true, bubbles: true }))
-		await frame()
+		await frame(2)
 	}
 }
 
 // Hardware spin keys arrive as keydown (spin clove path).
-const press = async (target: HTMLElement, key: string) => {
+const step = async (target: HTMLElement, key: string) => {
 	target.focus()
-	target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
-	await frame()
+	press(target, key)
+	await frame(2)
 }
 
 const blur = async () => {
 	const active = document.activeElement
 	if (active instanceof HTMLElement) active.blur()
-	await frame()
+	await frame(2)
 }
 
 export default {
@@ -135,10 +134,10 @@ export const CalendarMerge: Story<typeof InputDateTime> = {
 		await typeKeys(segment(pickup, 'hour'), '230p')
 		if (val(hidden(pickup, 'pickup')) !== '') throw new Error('Time without a date must not commit')
 		trigger(pickup).click()
-		await frame()
+		await frame(2)
 		if (trigger(pickup).getAttribute('aria-expanded') !== 'true') throw new Error('Trigger did not open the calendar popover')
 		day(pickup, '2026-07-15').click()
-		await frame()
+		await frame(2)
 		if (val(hidden(pickup, 'pickup')) !== '2026-07-15T14:30') {
 			throw new Error(`Pick must merge the typed 2:30 PM into 2026-07-15T14:30, got "${val(hidden(pickup, 'pickup'))}"`)
 		}
@@ -146,9 +145,9 @@ export const CalendarMerge: Story<typeof InputDateTime> = {
 
 		// No time entered: the pick seeds placeholder-value time.
 		trigger(dropoff).click()
-		await frame()
+		await frame(2)
 		day(dropoff, '2026-07-20').click()
-		await frame()
+		await frame(2)
 		if (val(hidden(dropoff, 'dropoff')) !== '2026-07-20T08:00') {
 			throw new Error(`Pick must seed placeholder time into 2026-07-20T08:00, got "${val(hidden(dropoff, 'dropoff'))}"`)
 		}
@@ -174,9 +173,9 @@ export const Seconds: Story<typeof InputDateTime> = {
 		if (text(second) !== '30') throw new Error('Seconds did not latch from the defaultValue')
 		if (val(value) !== '2026-07-10T09:00:30') throw new Error('Seconds field did not adopt its defaultValue')
 
-		await press(second, 'ArrowUp')
+		await step(second, 'ArrowUp')
 		if (val(value) !== '2026-07-10T09:00:31') throw new Error(`Spinning a complete field must commit eagerly, got "${val(value)}"`)
-		await press(second, 'ArrowDown')
+		await step(second, 'ArrowDown')
 		if (val(value) !== '2026-07-10T09:00:30') throw new Error('ArrowDown did not step the seconds back')
 
 		await blur()
@@ -204,7 +203,7 @@ export const CyclesAndStep: Story<typeof InputDateTime> = {
 		if (!twelve.querySelector('[data-segment="dayPeriod"]')) throw new Error('12h field did not render dayPeriod')
 		if (twentyFour.querySelector('[data-segment="dayPeriod"]')) throw new Error('24h field rendered dayPeriod')
 
-		await press(segment(twentyFour, 'minute'), 'ArrowUp')
+		await step(segment(twentyFour, 'minute'), 'ArrowUp')
 		if (val(hidden(twentyFour, 'twenty-four')) !== '2026-07-10T09:15') {
 			throw new Error('The minute segment did not inherit step={15}')
 		}
@@ -230,9 +229,9 @@ export const Range: Story<typeof InputDateTime> = {
 		const to = hidden(canvas, 'stay[to]')
 
 		trigger(canvas).click()
-		await frame()
+		await frame(2)
 		day(canvas, '2026-07-20').click()
-		await frame()
+		await frame(2)
 		// Progressive emission: from commits with seeded 15:00, to stays empty.
 		if (val(from) !== '2026-07-20T15:00' || val(to) !== '') {
 			throw new Error(`First pick must fill from only, got from "${val(from)}" to "${val(to)}"`)
@@ -242,7 +241,7 @@ export const Range: Story<typeof InputDateTime> = {
 		}
 
 		day(canvas, '2026-07-25').click()
-		await frame()
+		await frame(2)
 		if (val(from) !== '2026-07-20T15:00' || val(to) !== '2026-07-25T15:00') {
 			throw new Error(`Second pick must complete the range, got from "${val(from)}" to "${val(to)}"`)
 		}
@@ -288,7 +287,7 @@ export const Controlled: Story = {
 		const clear = canvas.querySelector<HTMLButtonElement>('[data-slot="input-date-clear"]')
 		if (!clear) throw new Error('Clear button was not rendered while a value exists')
 		clear.click()
-		await frame()
+		await frame(2)
 		if (!canvas.textContent?.includes('Selected: none')) throw new Error('Clear did not emit null through the owner')
 		if (minute.dataset.placeholder !== 'true') throw new Error('Cleared segments did not return to placeholders')
 

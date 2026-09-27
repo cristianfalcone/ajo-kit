@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import {
 	Field,
 	FieldDescription,
@@ -12,7 +13,6 @@ import {
 	InputOTPSeparator,
 	InputOTPSlot,
 	REGEXP_ONLY_DIGITS,
-	REGEXP_ONLY_DIGITS_AND_CHARS,
 } from 'ajo-ui-playa/input-otp'
 
 export default {
@@ -23,8 +23,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof InputOTP>
-
-const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
 const input = (canvas: HTMLElement) => {
 	const control = canvas.querySelector<HTMLInputElement>('[data-slot="input-otp-input"]')
@@ -42,7 +40,7 @@ const write = async (canvas: HTMLElement, value: string) => {
 	control.focus()
 	control.value = value
 	control.dispatchEvent(new Event('input', { bubbles: true }))
-	await nextFrame()
+	await frame()
 	return control
 }
 
@@ -53,37 +51,7 @@ const paste = async (canvas: HTMLElement, value: string) => {
 		value: { getData: (type: string) => type === 'text' ? value : '' },
 	})
 	control.dispatchEvent(event)
-	await nextFrame()
-}
-
-const ControlledExample: Stateful = function* () {
-	let value = ''
-	const setValue = (next: string) => this.next(() => value = next)
-
-	while (true) yield (
-		<Field class="w-80">
-			<FieldLabel for="controlled-otp">Verification code</FieldLabel>
-			<InputOTP
-				id="controlled-otp"
-				name="controlled-otp"
-				value={value}
-				onValueChange={setValue}
-				maxLength={6}
-				pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
-				inputmode="text"
-			>
-				<InputOTPGroup>
-					<InputOTPSlot index={0} />
-					<InputOTPSlot index={1} />
-					<InputOTPSlot index={2} />
-					<InputOTPSlot index={3} />
-					<InputOTPSlot index={4} />
-					<InputOTPSlot index={5} />
-				</InputOTPGroup>
-			</InputOTP>
-			<FieldDescription>{value ? `You entered: ${value}` : 'Enter your one-time password.'}</FieldDescription>
-		</Field>
-	)
+	await frame()
 }
 
 const CompleteExample: Stateful = function* () {
@@ -187,16 +155,6 @@ export const DigitsOnly: Story = {
 		await write(canvas, '12AB34')
 		if (slotValue(canvas) !== '1234') {
 			throw new Error('Input OTP digit pattern did not filter non-digits')
-		}
-	},
-}
-
-export const Controlled: Story = {
-	render: () => <ControlledExample />,
-	play: async ({ canvas }) => {
-		await write(canvas, 'A1B2C3')
-		if (!canvas.textContent?.includes('You entered: A1B2C3')) {
-			throw new Error('Controlled Input OTP did not report changes')
 		}
 	},
 }

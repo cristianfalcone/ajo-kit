@@ -1,5 +1,6 @@
 /** @jsxImportSource ajo */
-import type { Meta, Story, StoryContext } from './app'
+import type { Meta, Story } from './app'
+import { frame } from './play'
 import { Checkbox } from 'ajo-ui-playa/checkbox'
 import {
 	Field,
@@ -8,8 +9,6 @@ import {
 	FieldError,
 	FieldLabel,
 } from 'ajo-ui-playa/field'
-
-const frame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
 const token = (name: string) => {
 	const element = document.createElement('span')
@@ -34,8 +33,6 @@ const sameColor = (first: string, second: string) => {
 	return a.length === 3 && b.length === 3 && a.every((value, index) => Math.abs(value - b[index]) <= 1)
 }
 
-const bind = (setArg: StoryContext['setArg']) => (checked: boolean) => setArg('checked', checked)
-
 const assertLiveState = (input: HTMLInputElement, root: HTMLElement, state: string) => {
 	if (root.dataset.state !== state || input.hasAttribute('data-state') || input.hasAttribute('aria-checked')) {
 		throw new Error(`Checkbox live state did not sync as ${state} on the host only`)
@@ -56,7 +53,7 @@ export default {
 		disabled: { control: 'boolean' },
 	},
 	render: (args, { setArg }) => (
-		<Checkbox {...args} onCheckedChange={bind(setArg)} />
+		<Checkbox {...args} onCheckedChange={checked => setArg('checked', checked)} />
 	),
 	parameters: {
 		docs: { description: 'Native checkbox control styled like Ajo Kit while preserving form behavior.' },
@@ -85,7 +82,7 @@ export const WithLabel: Story<typeof Checkbox> = {
 	args: { id: 'terms-label', label: 'Accept terms and conditions' },
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" disabled={Boolean(args.disabled)}>
-			<Checkbox {...args} onCheckedChange={bind(setArg)} />
+			<Checkbox {...args} onCheckedChange={checked => setArg('checked', checked)} />
 			<FieldLabel for={args.id}>{args.label}</FieldLabel>
 		</Field>
 	),
@@ -99,7 +96,7 @@ export const Disabled: Story<typeof Checkbox> = {
 	args: { id: 'terms-disabled', disabled: true, label: 'Accept terms and conditions' },
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" disabled={Boolean(args.disabled)}>
-			<Checkbox {...args} onCheckedChange={bind(setArg)} />
+			<Checkbox {...args} onCheckedChange={checked => setArg('checked', checked)} />
 			<FieldLabel for={args.id}>{args.label}</FieldLabel>
 		</Field>
 	),
@@ -118,7 +115,7 @@ export const WithDescription: Story<typeof Checkbox> = {
 	},
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" disabled={Boolean(args.disabled)}>
-			<Checkbox {...args} onCheckedChange={bind(setArg)} />
+			<Checkbox {...args} onCheckedChange={checked => setArg('checked', checked)} />
 			<FieldContent>
 				<FieldLabel for={args.id}>{args.label}</FieldLabel>
 				<FieldDescription>{args.description}</FieldDescription>
@@ -136,7 +133,7 @@ export const Invalid: Story<typeof Checkbox> = {
 	},
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" invalid>
-			<Checkbox {...args} aria-invalid="true" onCheckedChange={bind(setArg)} />
+			<Checkbox {...args} aria-invalid="true" onCheckedChange={checked => setArg('checked', checked)} />
 			<FieldContent>
 				<FieldLabel for={args.id}>{args.label}</FieldLabel>
 				<FieldError>{args.error}</FieldError>
@@ -155,7 +152,7 @@ export const InvalidChecked: Story<typeof Checkbox> = {
 	},
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" invalid>
-			<Checkbox {...args} aria-invalid="true" onCheckedChange={bind(setArg)} />
+			<Checkbox {...args} aria-invalid="true" onCheckedChange={checked => setArg('checked', checked)} />
 			<FieldContent>
 				<FieldLabel for={args.id}>{args.label}</FieldLabel>
 				<FieldError>{args.error}</FieldError>

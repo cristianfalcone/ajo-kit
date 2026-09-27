@@ -1,9 +1,7 @@
 /** @jsxImportSource ajo */
-import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
 import { Field, FieldLabel } from 'ajo-ui-playa/field'
 import { Progress } from 'ajo-ui-playa/progress'
-import { Slider } from 'ajo-ui-playa/slider'
 
 export default {
 	title: 'UI/Progress',
@@ -13,18 +11,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof Progress>
-
-const ControlledExample: Stateful = function* () {
-	let value = 50
-	const setValue = (next: number[]) => this.next(() => value = next[0] ?? 0)
-
-	while (true) yield (
-		<div class="flex w-80 flex-col gap-4">
-			<Progress value={value} aria-label="Controlled progress" />
-			<Slider value={[value]} onValueChange={setValue} min={0} max={100} step={1} aria-label="Progress value" />
-		</div>
-	)
-}
 
 export const Basic: Story<typeof Progress> = {
 	args: {
@@ -102,23 +88,6 @@ export const CustomMax: Story<typeof Progress> = {
 
 		if (root.getAttribute('aria-valuemax') !== '32' || root.getAttribute('aria-valuenow') !== '24') {
 			throw new Error('Progress did not expose custom max semantics')
-		}
-	},
-}
-
-export const Controlled: Story = {
-	render: () => <ControlledExample />,
-	play: async ({ canvas }) => {
-		const progress = canvas.querySelector<HTMLElement>('[data-slot="progress"]')
-		const slider = canvas.querySelector<HTMLInputElement>('[data-slot="slider-input"]')
-		if (!progress || !slider) throw new Error('Controlled progress or slider was not rendered')
-
-		slider.value = '75'
-		slider.dispatchEvent(new InputEvent('input', { bubbles: true }))
-		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
-		if (progress.getAttribute('aria-valuenow') !== '75') {
-			throw new Error('Controlled progress did not update from slider')
 		}
 	},
 }

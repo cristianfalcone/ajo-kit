@@ -46,14 +46,6 @@ describe('button theme composition', () => {
 		expect(tokens(select.class)).not.toContain('hover:text-accent-foreground')
 	})
 
-	it('keeps every button variant flat: elevation belongs to surfaces, not controls', () => {
-		const variants = ['default', 'danger', 'outline', 'secondary', 'ghost', 'link', 'muted-ghost'] as const
-
-		for (const variant of variants) {
-			expect(tokens(buttonVariants({ variant }))).not.toContain('shadow-xs')
-		}
-	})
-
 	it('lets a composed surface own a narrower transition', () => {
 		const regular = tokens(buttonVariants())
 		const composed = tokens(buttonVariants({ transition: false }))

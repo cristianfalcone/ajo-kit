@@ -1,5 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import {
 	Breadcrumb,
 	BreadcrumbEllipsis,
@@ -200,7 +201,7 @@ export const Menu: Story<typeof Breadcrumb> = {
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="menu-trigger"]')
 		if (!trigger) throw new Error('Breadcrumb menu trigger was not rendered')
 		trigger.click()
-		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+		await frame()
 
 		const content = document.querySelector<HTMLElement>('[data-slot="menu-content"]')
 		if (!content?.matches(':popover-open')) throw new Error('Breadcrumb menu did not open')

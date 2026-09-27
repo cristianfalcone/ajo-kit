@@ -17,8 +17,6 @@ import {
 import { Input as TextInput } from 'ajo-ui-playa/input'
 import { Textarea } from 'ajo-ui-playa/textarea'
 
-const fixed = { orientation: { control: false }, invalid: { control: false } } as const
-
 export default {
 	title: 'UI/Field',
 	component: Field,
@@ -69,7 +67,6 @@ export const Invalid: Story<typeof Field> = {
 }
 
 export const MultipleErrors: Story<typeof Field> = {
-	argTypes: fixed,
 	render: () => (
 		<Field invalid class="max-w-sm">
 			<FieldLabel for="field-password">Password</FieldLabel>
@@ -86,7 +83,6 @@ export const MultipleErrors: Story<typeof Field> = {
 }
 
 export const Horizontal: Story<typeof Field> = {
-	argTypes: fixed,
 	render: () => (
 		<Field orientation="horizontal" class="max-w-md">
 			<input id="field-newsletter" type="checkbox" class="size-4 rounded-xs edge-input bg-transparent" />
@@ -99,7 +95,6 @@ export const Horizontal: Story<typeof Field> = {
 }
 
 export const Responsive: Story<typeof Field> = {
-	argTypes: fixed,
 	render: () => (
 		<Field orientation="responsive" class="max-w-xl">
 			<FieldLabel for="field-display-name">Display name</FieldLabel>
@@ -110,7 +105,6 @@ export const Responsive: Story<typeof Field> = {
 }
 
 export const Fieldset: Story<typeof Field> = {
-	argTypes: fixed,
 	render: () => (
 		<FieldSet class="w-full max-w-lg">
 			<FieldLegend>Profile</FieldLegend>
@@ -134,7 +128,6 @@ export const Fieldset: Story<typeof Field> = {
 }
 
 export const Sections: Story<typeof Field> = {
-	argTypes: fixed,
 	render: () => (
 		<FieldGroup class="w-full max-w-lg">
 			<Field>
@@ -155,7 +148,6 @@ export const Sections: Story<typeof Field> = {
 }
 
 export const AutoWiring: Story<typeof Field> = {
-	argTypes: fixed,
 	render: () => (
 		<div class="flex w-full max-w-sm flex-col gap-6">
 			<Field name="field-auto-wire" invalid>

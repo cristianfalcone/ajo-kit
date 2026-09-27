@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame, press } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import { Field, FieldLabel } from 'ajo-ui-playa/field'
 import {
@@ -20,8 +21,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof InputDate>
-
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
 // Deliberately non-asserting: `asserts` would pin literal narrowings across
 // the play's sequential re-reads of the same property.
@@ -96,24 +95,22 @@ const type = async (target: HTMLElement, text: string) => {
 			? document.activeElement
 			: target
 		current.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, data: key, inputType: 'insertText' }))
-		await frame()
+		await frame(2)
 	}
 }
 
 const erase = async (target: HTMLElement) => {
 	target.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'deleteContentBackward' }))
-	await frame()
+	await frame(2)
 }
 
-const press = async (target: HTMLElement, key: string, init: KeyboardEventInit = {}) => {
-	target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key, ...init }))
-	await frame()
+/** Presses `key` on `target` and waits for the segment to settle. */
+const step = async (target: HTMLElement, key: string, init?: KeyboardEventInit) => {
+	press(target, key, init)
+	await frame(2)
 }
 
-const escapeClose = async () => {
-	active().dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
-	await frame()
-}
+const escapeClose = () => step(active(), 'Escape')
 
 export const Basic: Story<typeof InputDate> = {
 	parameters: {
@@ -159,7 +156,7 @@ export const Basic: Story<typeof InputDate> = {
 		const label = canvas.querySelector<HTMLElement>('[data-slot="field-label"]')
 		if (!label) throw new Error('Field label was not rendered')
 		label.click()
-		await frame()
+		await frame(2)
 		ensure(document.activeElement === segment(dob, 'month'), 'Label click must focus the first segment')
 
 		// Single mode keeps the field context: the self-reference chain names
@@ -194,7 +191,7 @@ export const WithCalendar: Story<typeof InputDate> = {
 			'Calendar dialog must not retain legacy placement-input datasets')
 
 		button.click()
-		await frame()
+		await frame(2)
 		ensure(opened(panel) && button.getAttribute('aria-expanded') === 'true', 'Trigger click must open the calendar popover')
 		const reference = root(checkin)
 		const referenceWidth = Number.parseFloat(panel.style.getPropertyValue('--reference-width'))
@@ -214,7 +211,7 @@ export const WithCalendar: Story<typeof InputDate> = {
 		const iso = day?.dataset.day
 		if (!day || !iso) throw new Error('No non-fallback calendar day was rendered')
 		day.click()
-		await frame()
+		await frame(2)
 		ensure(value.value === iso, `Picking a day must commit ${iso}, got "${value.value}"`)
 		ensure(!opened(panel), 'Picking a day must close the popover')
 		ensure(segment(checkin, 'year').textContent === iso.slice(0, 4), 'Picked year must fill the year segment')
@@ -223,7 +220,7 @@ export const WithCalendar: Story<typeof InputDate> = {
 
 		const month = segment(checkin, 'month')
 		month.focus()
-		await press(month, 'ArrowDown', { altKey: true })
+		await step(month, 'ArrowDown', { altKey: true })
 		ensure(opened(panel), 'Alt+ArrowDown must open the popover from a segment')
 		const selectedDay = panel.querySelector<HTMLButtonElement>(`[data-slot="calendar-day-button"][data-day="${iso}"]`)
 		ensure(selectedDay?.dataset.state === 'selected', 'Selected calendar day button state must remain available to InputDate')
@@ -235,13 +232,13 @@ export const WithCalendar: Story<typeof InputDate> = {
 		// Autofocus is once-per-open transition: paging the month or typing
 		// with the popover open must not re-steal focus on every render.
 		button.click()
-		await frame()
+		await frame(2)
 		ensure(opened(panel), 'Reopening via the trigger must work')
 		const chevron = panel.querySelector<HTMLButtonElement>('[data-slot="calendar-next"]')
 		if (!chevron) throw new Error('Calendar next chevron was not rendered')
 		chevron.focus()
 		chevron.click()
-		await frame()
+		await frame(2)
 		ensure(active().dataset.slot === 'calendar-next', 'Paging the month must keep focus on the chevron')
 
 		month.focus()
@@ -254,7 +251,7 @@ export const WithCalendar: Story<typeof InputDate> = {
 		ensure(opened(panel), 'The popover must still be open before the field click')
 		const daySeg = segment(checkin, 'day')
 		daySeg.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }))
-		await frame()
+		await frame(2)
 		ensure(!opened(panel), 'A pointerdown on a segment while open must close the popover')
 		ensure(active() === segment(checkin, 'day'), "The click's own focus must win over any restore")
 	},
@@ -277,7 +274,7 @@ export const GeometryOverride: Story<typeof InputDate> = {
 		const panel = content(box)
 		const reference = root(box)
 		button.click()
-		await frame()
+		await frame(2)
 		ensure(opened(panel), 'Geometry override must open the calendar')
 		ensure(panel.dataset.placement === 'right-start', `Expected right-start, got ${panel.dataset.placement}`)
 		const referenceRect = reference.getBoundingClientRect()
@@ -302,7 +299,7 @@ export const RejectedControlledClose: Story<typeof InputDate> = {
 	play: async ({ canvas }) => {
 		const box = scope(canvas, 'date-rejected-close')
 		const panel = content(box)
-		await frame()
+		await frame(2)
 		ensure(opened(panel), 'Controlled-open calendar did not open')
 		const day = panel.querySelector<HTMLButtonElement>('[data-slot="calendar-day-button"][data-state="selected"]:not(:disabled)')
 			?? panel.querySelector<HTMLButtonElement>('[data-slot="calendar-day-button"]:not(:disabled)')
@@ -335,7 +332,7 @@ export const Range: Story<typeof InputDate> = {
 		const button = trigger(stay)
 		const panel = content(stay)
 		button.click()
-		await frame()
+		await frame(2)
 		ensure(opened(panel), 'Trigger click must open the range calendar')
 
 		const days = Array.from(panel.querySelectorAll<HTMLButtonElement>('[data-slot="calendar-day-button"]:not(:disabled)'))
@@ -345,7 +342,7 @@ export const Range: Story<typeof InputDate> = {
 		ensure(first.dataset.day && second.dataset.day && first.dataset.day < second.dataset.day, 'Expected chronological day buttons')
 
 		first.click()
-		await frame()
+		await frame(2)
 		ensure(fromHidden.value === first.dataset.day, `First pick must fill stay[from] with ${first.dataset.day}`)
 		ensure(toHidden.value === '', 'stay[to] must stay empty while the range is incomplete')
 		const partial = stayCommits[stayCommits.length - 1]
@@ -354,7 +351,7 @@ export const Range: Story<typeof InputDate> = {
 		ensure(opened(panel), 'The popover must stay open until the range completes')
 
 		second.click()
-		await frame()
+		await frame(2)
 		ensure(fromHidden.value === first.dataset.day && toHidden.value === second.dataset.day, 'Completing the range must fill both hidden inputs')
 		ensure(!opened(panel), 'Completing the range must close the popover')
 
@@ -363,7 +360,7 @@ export const Range: Story<typeof InputDate> = {
 		const fromSegments = segments(stay, 'from')
 		const lastFrom = fromSegments[fromSegments.length - 1]
 		lastFrom.focus()
-		await press(lastFrom, 'ArrowRight')
+		await step(lastFrom, 'ArrowRight')
 		ensure(document.activeElement === segments(stay, 'to')[0], 'ArrowRight must cross from the last from-segment to the first to-segment')
 	},
 }
@@ -388,7 +385,7 @@ export const Keyboard: Story<typeof InputDate> = {
 		await type(month, '3')
 		ensure(month.textContent === '3', 'Month must display 3')
 		ensure(document.activeElement === day, "Month '3' must auto-advance (no further digit fits)")
-		await press(active(), 'ArrowLeft')
+		await step(active(), 'ArrowLeft')
 		ensure(document.activeElement === month, 'ArrowLeft must move back to the month segment')
 		await type(month, '1')
 		ensure(document.activeElement === month, "Month '1' must wait for a second digit")
@@ -402,23 +399,23 @@ export const Keyboard: Story<typeof InputDate> = {
 
 		// Wrap stepping without carry.
 		day.focus()
-		await press(day, 'End')
+		await step(day, 'End')
 		ensure(day.textContent === '31' && value.value === '2026-12-31', 'End must land the day on its max')
-		await press(day, 'ArrowUp')
+		await step(day, 'ArrowUp')
 		ensure(day.textContent === '1', 'Day 31 + ArrowUp must wrap to 1')
 		ensure(month.textContent === '12', 'The day wrap must not carry into the month')
 		ensure(value.value === '2026-12-01', 'The wrap must commit eagerly')
 
 		// Backspace digit-walk, then retreat from the emptied segment.
 		year.focus()
-		await press(year, 'Backspace')
+		await step(year, 'Backspace')
 		ensure(year.textContent === '202', 'Backspace must strip the last year digit')
-		await press(year, 'Backspace')
-		await press(year, 'Backspace')
-		await press(year, 'Backspace')
+		await step(year, 'Backspace')
+		await step(year, 'Backspace')
+		await step(year, 'Backspace')
 		ensure(year.textContent === 'yyyy' && year.dataset.placeholder === 'true', 'The emptied year must show its placeholder')
 		ensure(value.value === '', 'Complete going incomplete must empty the hidden input')
-		await press(year, 'Backspace')
+		await step(year, 'Backspace')
 		ensure(document.activeElement === day, 'Backspace on an empty segment must retreat to the previous one')
 
 		// Dynamic Feb max: unknown year keeps 29 reachable, a known non-leap caps at 28.
@@ -426,22 +423,22 @@ export const Keyboard: Story<typeof InputDate> = {
 		ensure(month.textContent === '2', 'Month must display 2')
 		day.focus()
 		ensure(day.getAttribute('aria-valuemax') === '29', 'Feb with an unknown year must cap the day at 29')
-		await press(day, 'End')
+		await step(day, 'End')
 		ensure(day.textContent === '29', 'End must land on 29 while the year is unknown')
-		await press(day, 'ArrowUp')
+		await step(day, 'ArrowUp')
 		ensure(day.textContent === '1', 'Feb day 29 + ArrowUp must wrap to 1')
 		await type(year, '2026')
 		ensure(value.value === '2026-02-01', `Completing Feb must commit 2026-02-01, got "${value.value}"`)
 		ensure(day.getAttribute('aria-valuemax') === '28', 'Feb 2026 must cap the day at 28')
 		day.focus()
-		await press(day, 'End')
+		await step(day, 'End')
 		ensure(day.textContent === '28' && value.value === '2026-02-28', 'End must clamp to the real month length')
 
 		// Alt+arrows never reach spin: with no popup parts composed,
 		// Alt+ArrowDown/Up is a pinned no-op, not a step.
-		await press(day, 'ArrowUp', { altKey: true })
+		await step(day, 'ArrowUp', { altKey: true })
 		ensure(day.textContent === '28' && value.value === '2026-02-28', 'Alt+ArrowUp must not step the segment')
-		await press(day, 'ArrowDown', { altKey: true })
+		await step(day, 'ArrowDown', { altKey: true })
 		ensure(day.textContent === '28' && value.value === '2026-02-28', 'Alt+ArrowDown without popup parts must be a no-op')
 	},
 }
@@ -503,7 +500,7 @@ export const LocaleFlip: Story<typeof InputDate> = {
 		const flip = box.querySelector<HTMLButtonElement>('[data-story-action="to-en"]')
 		if (!flip) throw new Error('Flip button was not rendered')
 		flip.click()
-		await frame()
+		await frame(2)
 
 		const after = segments(box).map(item => item.dataset.segment).join(' ')
 		ensure(after === 'month day year', `en-US must order month/day/year, got "${after}"`)
@@ -563,7 +560,7 @@ export const Controlled: Story<typeof InputDate> = {
 		const push = box.querySelector<HTMLButtonElement>('[data-story-action="push"]')
 		if (!push) throw new Error('Push button was not rendered')
 		push.click()
-		await frame()
+		await frame(2)
 		ensure(month.textContent === '9', 'An external push must re-derive the month display')
 		await type(month, '2')
 		ensure(log.textContent === '2026-01-10 | 2026-12-10 | 2026-01-10 | 2026-02-05',
@@ -573,11 +570,11 @@ export const Controlled: Story<typeof InputDate> = {
 		const clear = box.querySelector<HTMLButtonElement>('[data-story-action="clear"]')
 		if (!clear) throw new Error('Clear button was not rendered')
 		clear.click()
-		await frame()
+		await frame(2)
 		ensure(month.textContent === 'mm' && month.dataset.placeholder === 'true', 'A controlled null must restore placeholders')
 		ensure(value.value === '', 'A controlled null must empty the hidden input')
 		push.click()
-		await frame()
+		await frame(2)
 		ensure(month.textContent === '9' && value.value === '2026-09-05', 'Pushing a value after null must refill the segments')
 	},
 }
@@ -656,14 +653,14 @@ export const ConstrainEager: Story<typeof InputDate> = {
 	),
 	play: async ({ canvas }) => {
 		// Jan 31 + month step: the clamp commits immediately.
-		const step = scope(canvas, 'step-clamp')
-		const stepValue = hidden(step, 'step-clamp')
+		const clamp = scope(canvas, 'step-clamp')
+		const stepValue = hidden(clamp, 'step-clamp')
 		ensure(stepValue.value === '2026-01-31', 'defaultValue must serialize on mount')
-		const stepMonth = segment(step, 'month')
+		const stepMonth = segment(clamp, 'month')
 		stepMonth.focus()
-		await press(stepMonth, 'ArrowUp')
+		await step(stepMonth, 'ArrowUp')
 		ensure(stepValue.value === '2026-02-28', `Jan 31 + month ArrowUp must emit the clamped 2026-02-28, got "${stepValue.value}"`)
-		ensure(segment(step, 'day').textContent === '28', 'The day segment must display the clamp')
+		ensure(segment(clamp, 'day').textContent === '28', 'The day segment must display the clamp')
 
 		// Typed entry keeps transient invalids representable; the completing
 		// keystroke clamps. es-AR (d/m/y) lets 30 land before Feb does.
@@ -704,7 +701,7 @@ export const MinMax: Story<typeof InputDate> = {
 		// The same args disable the out-of-range calendar cells.
 		const panel = content(window)
 		trigger(window).click()
-		await frame()
+		await frame(2)
 		ensure(opened(panel), 'Trigger click must open the calendar popover')
 		const outside = panel.querySelector<HTMLButtonElement>('[data-slot="calendar-day-button"][data-day="2026-07-15"]')
 		if (!outside) throw new Error('The calendar must open on the committed month')
@@ -743,11 +740,11 @@ export const InForm: Story<typeof InputDate> = {
 		const event = scope(canvas, 'event')
 		const day = segment(event, 'day')
 		day.focus()
-		await press(day, 'ArrowUp')
+		await step(day, 'ArrowUp')
 		ensure(new FormData(form).get('event') === '2026-03-06', 'Stepping must update the submitted value')
 
 		form.reset()
-		await frame()
+		await frame(2)
 		ensure(new FormData(form).get('event') === '2026-03-05', 'Form reset must restore defaultValue')
 		ensure(segment(event, 'day').textContent === '5', 'Form reset must restore the segment display')
 	},
@@ -789,12 +786,12 @@ export const Availability: Story<typeof InputDate> = {
 	play: async ({ canvas }) => {
 		const endpoint = scope(canvas, 'unavailable-endpoint')
 		trigger(endpoint).click()
-		await frame()
+		await frame(2)
 		const endpointDay = content(endpoint).querySelector<HTMLButtonElement>('[data-day="2026-07-11"]')
 		if (!endpointDay) throw new Error('Unavailable endpoint was not rendered')
 		ensure(!endpointDay.disabled && endpointDay.dataset.unavailable === 'true', 'Unavailable endpoint must stay selectable')
 		endpointDay.click()
-		await frame()
+		await frame(2)
 		ensure(hidden(endpoint, 'unavailable-endpoint').value === '2026-07-11', 'Unavailable endpoint must commit its value')
 		ensure(group(endpoint).dataset.invalid === 'true', 'Unavailable endpoint must stamp the field invalid')
 		ensure(messageOf(endpoint) === 'This date is unavailable', `Unavailable endpoint message was "${messageOf(endpoint)}"`)
@@ -806,7 +803,7 @@ export const Availability: Story<typeof InputDate> = {
 		const gap = scope(canvas, 'unavailable-gap')
 		ensure(group(gap, 'from').dataset.invalid !== 'true' && group(gap, 'to').dataset.invalid !== 'true', 'allowNonContiguous must suppress crossing invalidity')
 		trigger(gap).click()
-		await frame()
+		await frame(2)
 		const gapDay = content(gap).querySelector<HTMLButtonElement>('[data-day="2026-07-11"]')
 		if (!gapDay) throw new Error('Unavailable interior day was not rendered')
 		ensure(gapDay.dataset.unavailable === 'true', 'The interior gap must retain unavailable state')
@@ -833,7 +830,7 @@ export const Clearable: Story<typeof InputDate> = {
 		const clear = single.querySelector<HTMLButtonElement>('[data-slot="input-date-clear"]')
 		if (!clear) throw new Error('The clear button must render while a value exists')
 		clear.click()
-		await frame()
+		await frame(2)
 		ensure(hidden(single, 'single-clear').value === '', 'Clearing must empty the hidden input')
 		ensure(segment(single, 'month').dataset.placeholder === 'true', 'Clearing must restore the placeholders')
 		ensure(!single.querySelector('[data-slot="input-date-clear"]'), 'The clear button must disappear once empty')
@@ -844,7 +841,7 @@ export const Clearable: Story<typeof InputDate> = {
 		const rangeClear = range.querySelector<HTMLButtonElement>('[data-slot="input-date-clear"]')
 		if (!rangeClear) throw new Error('The range clear button must render while a value exists')
 		rangeClear.click()
-		await frame()
+		await frame(2)
 		ensure(hidden(range, 'range-clear[from]').value === '' && hidden(range, 'range-clear[to]').value === '', 'Clearing a range must empty both sides')
 		ensure(!range.querySelector('[data-slot="input-date-clear"]'), 'The range clear button must disappear once empty')
 		ensure(document.activeElement === segments(range, 'from')[0], 'Clearing a range must refocus its first segment')
@@ -903,13 +900,13 @@ export const Presets: Story<typeof InputDate> = {
 		const value = hidden(holiday, 'holiday')
 		const panel = content(holiday)
 		trigger(holiday).click()
-		await frame()
+		await frame(2)
 		ensure(opened(panel), 'Trigger click must open the popover')
 
 		const christmas = panel.querySelector<HTMLButtonElement>('[data-preset="2026-12-25"]')
 		if (!christmas) throw new Error('The Christmas preset was not rendered')
 		christmas.click()
-		await frame()
+		await frame(2)
 		ensure(value.value === '2026-12-25', `The preset must set the controlled value, got "${value.value}"`)
 		ensure(!opened(panel), 'The preset must close the popover through the controlled open state')
 		ensure(segment(holiday, 'month').textContent === '12' && segment(holiday, 'day').textContent === '25', 'The preset must fill the segments')
@@ -954,7 +951,7 @@ export const MonthNameTyping: Story<typeof InputDate> = {
 		await type(esMonth, 'j')
 		ensure(esMonth.getAttribute('aria-valuenow') === '6', 'The cycle must wrap back to junio')
 		segment(es, 'day').focus()
-		await frame()
+		await frame(2)
 		ensure(esMonth.textContent === '6', 'Blur must flush the letter buffer to the month number')
 	},
 }
@@ -973,9 +970,9 @@ export const PlusMinus: Story<typeof InputDate> = {
 		const value = hidden(pm, 'pm')
 		const day = segment(pm, 'day')
 		day.focus()
-		await press(day, '+')
+		await step(day, '+')
 		ensure(day.textContent === '11' && value.value === '2026-07-11', "'+' must step the day up")
-		await press(day, '-')
+		await step(day, '-')
 		ensure(day.textContent === '10' && value.value === '2026-07-10', "'-' must step the day back down")
 	},
 }
@@ -1040,12 +1037,12 @@ export const DisabledReadOnly: Story<typeof InputDate> = {
 		ensure(pinnedMonth.getAttribute('tabindex') === '0', 'readOnly segments must stay focusable')
 		const idleShadow = getComputedStyle(pinnedRoot).boxShadow
 		pinnedMonth.focus()
-		await frame()
+		await frame(2)
 		ensure(document.activeElement === pinnedMonth, 'readOnly segments must accept focus')
 		ensure(getComputedStyle(pinnedRoot).boxShadow !== idleShadow, 'Focused InputDate segment must activate the shared input-group ring')
 		await type(pinnedMonth, '9')
 		ensure(pinnedMonth.textContent === '5', 'readOnly must ignore typing')
-		await press(pinnedMonth, 'ArrowUp')
+		await step(pinnedMonth, 'ArrowUp')
 		ensure(hidden(pinned, 'pinned').value === '2026-05-10', 'readOnly must ignore stepping')
 	},
 }
@@ -1072,7 +1069,7 @@ export const RangeReversed: Story<typeof InputDate> = {
 		// Mutations keep emitting the value as typed while still reversed.
 		const toDay = segment(span, 'day', 'to')
 		toDay.focus()
-		await press(toDay, 'ArrowUp')
+		await step(toDay, 'ArrowUp')
 		ensure(hidden(span, 'span[to]').value === '2026-07-11', 'A reversed range must keep committing as typed')
 		ensure(group(span, 'to').getAttribute('aria-invalid') === 'true', 'The range must stay invalid while reversed')
 	},
@@ -1103,13 +1100,13 @@ export const CustomComposition: Story<typeof InputDate> = {
 		const button = trigger(custom)
 		ensure(Boolean(panel.id) && button.getAttribute('aria-controls') === panel.id, 'The hand-composed trigger must reference the root-owned content id')
 		button.click()
-		await frame()
+		await frame(2)
 		ensure(opened(panel), 'The hand-composed trigger must open the popover')
 		ensure(panel.querySelector('[data-slot="calendar"]'), 'The hand-composed content must render the calendar')
 		const day = panel.querySelector<HTMLButtonElement>('[data-day="2026-08-20"]')
 		if (!day) throw new Error('The calendar must open on the committed month')
 		day.click()
-		await frame()
+		await frame(2)
 		ensure(value.value === '2026-08-20', `The pick must commit its value, got "${value.value}"`)
 		ensure(!opened(panel), 'A pick must close the popover')
 	},

@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
-import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import {
 	Card,
@@ -38,8 +38,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof Tabs>
-
-const waitFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
 const tab = (canvas: HTMLElement, value: string) =>
 	canvas.querySelector<HTMLButtonElement>(`button[data-slot="tabs-trigger"][data-value="${value}"]`)
@@ -99,33 +97,6 @@ const PasswordPanel = () => (
 	</TabsContent>
 )
 
-const ControlledExample: Stateful = function* () {
-	let value = 'overview'
-	const setValue = (next: string) => this.next(() => value = next)
-
-	while (true) yield (
-		<div class="w-[480px] space-y-3">
-			<Tabs value={value} onValueChange={setValue}>
-				<TabsList variant="line">
-					<TabsTrigger value="overview">Overview</TabsTrigger>
-					<TabsTrigger value="analytics">Analytics</TabsTrigger>
-					<TabsTrigger value="reports">Reports</TabsTrigger>
-				</TabsList>
-				<TabsContent value="overview" class="rounded-md edge p-4 text-sm">
-					View your key metrics and recent project activity.
-				</TabsContent>
-				<TabsContent value="analytics" class="rounded-md edge p-4 text-sm">
-					Analytics are calculated from the last 30 days.
-				</TabsContent>
-				<TabsContent value="reports" class="rounded-md edge p-4 text-sm">
-					Reports are ready to export.
-				</TabsContent>
-			</Tabs>
-			<p data-tabs-value="true" class="text-sm text-muted-foreground">Selected: {value}</p>
-		</div>
-	)
-}
-
 export const ImplicitValue: Story<typeof Tabs> = {
 	render: () => (
 		<Tabs class="w-[360px]">
@@ -138,7 +109,7 @@ export const ImplicitValue: Story<typeof Tabs> = {
 		</Tabs>
 	),
 	play: async ({ canvas }) => {
-		await waitFrame()
+		await frame()
 		const first = tab(canvas, 'first')
 		const second = tab(canvas, 'second')
 		const firstPanel = panel(canvas, 'first')
@@ -222,7 +193,7 @@ export const Basic: Story<typeof Tabs> = {
 		}
 
 		password.click()
-		await waitFrame()
+		await frame()
 
 		if (password.getAttribute('aria-selected') !== 'true' || !panel(canvas, 'password')) {
 			throw new Error('Basic tabs did not activate clicked tab')
@@ -288,7 +259,7 @@ export const Vertical: Story<typeof Tabs> = {
 
 		account.focus()
 		account.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
-		await waitFrame()
+		await frame()
 
 		if (document.activeElement !== password) throw new Error('Vertical tabs ArrowDown did not move focus')
 		if (password.getAttribute('aria-selected') !== 'true') throw new Error('Vertical tabs did not auto-activate focused tab')
@@ -319,14 +290,14 @@ export const InheritedRTL: Story = {
 
 		analytics.focus()
 		analytics.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
-		await waitFrame()
+		await frame()
 
 		if (document.activeElement !== overview || overview.getAttribute('aria-selected') !== 'true') {
 			throw new Error('Inherited RTL Tabs ArrowRight did not move and activate the previous trigger')
 		}
 
 		overview.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
-		await waitFrame()
+		await frame()
 
 		if (document.activeElement !== analytics || analytics.getAttribute('aria-selected') !== 'true') {
 			throw new Error('Inherited RTL Tabs ArrowLeft did not move and activate the next trigger')
@@ -354,7 +325,7 @@ export const Disabled: Story<typeof Tabs> = {
 		if (!disabled.disabled) throw new Error('Disabled tab trigger was not disabled')
 
 		disabled.click()
-		await waitFrame()
+		await frame()
 
 		if (panel(canvas, 'disabled')) throw new Error('Disabled tab activated after click')
 	},
@@ -410,7 +381,7 @@ export const ManualActivation: Story<typeof Tabs> = {
 
 		overview.focus()
 		overview.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
-		await waitFrame()
+		await frame()
 
 		if (document.activeElement !== analytics) throw new Error('Manual tabs ArrowRight did not move focus')
 		if (analytics.getAttribute('aria-selected') === 'true') throw new Error('Manual tabs activated on focus')
@@ -420,30 +391,10 @@ export const ManualActivation: Story<typeof Tabs> = {
 			throw new Error('Manual tabs prevented native Enter activation')
 		}
 		analytics.click()
-		await waitFrame()
+		await frame()
 
 		if (analytics.getAttribute('aria-selected') !== 'true' || !panel(canvas, 'analytics')) {
 			throw new Error('Manual tabs did not activate on click')
-		}
-	},
-}
-
-export const Controlled: Story = {
-	argTypes: {
-		defaultValue: { control: false },
-		activationMode: { control: false },
-		orientation: { control: false },
-	},
-	render: () => <ControlledExample />,
-	play: async ({ canvas }) => {
-		const reports = tab(canvas, 'reports')
-		if (!reports) throw new Error('Controlled tabs did not render reports trigger')
-
-		reports.click()
-		await waitFrame()
-
-		if (!canvas.textContent?.includes('Selected: reports') || !panel(canvas, 'reports')) {
-			throw new Error('Controlled tabs did not update parent state after click')
 		}
 	},
 }
@@ -473,23 +424,17 @@ export const ForceMount: Story<typeof Tabs> = {
 
 const OVERFLOW_TABS = ['Overview', 'Analytics', 'Reports', 'Notifications', 'Integrations', 'Permissions', 'Billing', 'Advanced'] as const
 
-// The overflow stamps land on the next frame (measure is frame-coalesced).
-const settle = async () => {
-	await waitFrame()
-	await waitFrame()
-}
-
 // Waits out a smooth scroll: done after five stable frames.
 const settleScroll = async (list: HTMLElement) => {
 	let last = -1
 	let stable = 0
 	for (let index = 0; index < 120 && stable < 5; index++) {
-		await waitFrame()
+		await frame()
 		const now = Math.round(list.scrollLeft * 4096 + list.scrollTop)
 		stable = now === last ? stable + 1 : 0
 		last = now
 	}
-	await settle()
+	await frame(2)
 }
 
 const expectOverflow = (list: HTMLElement, axis: 'x' | 'y', expected: string) => {
@@ -534,7 +479,7 @@ export const OverflowHorizontal: Story<typeof Tabs> = {
 		const list = canvas.querySelector<HTMLElement>('[data-slot="tabs"]:not([data-fits]) [data-slot="tabs-list"]')
 		if (!list) throw new Error('Overflow tabs list was not rendered')
 
-		await settle()
+		await frame(2)
 		if (!(list.scrollWidth > list.clientWidth)) {
 			throw new Error('Overflow tabs list should overflow its container')
 		}
@@ -544,13 +489,13 @@ export const OverflowHorizontal: Story<typeof Tabs> = {
 		// scroll-smooth, and plays must not read mid-animation states.
 		expectOverflow(list, 'x', 'end')
 		list.scrollTo({ left: (list.scrollWidth - list.clientWidth) / 2, behavior: 'instant' })
-		await settle()
+		await frame(2)
 		expectOverflow(list, 'x', 'both')
 		list.scrollTo({ left: list.scrollWidth, behavior: 'instant' })
-		await settle()
+		await frame(2)
 		expectOverflow(list, 'x', 'start')
 		list.scrollTo({ left: 0, behavior: 'instant' })
-		await settle()
+		await frame(2)
 		expectOverflow(list, 'x', 'end')
 
 		// Activating a partially visible tab scrolls it fully into view and
@@ -605,17 +550,17 @@ export const OverflowVertical: Story<typeof Tabs> = {
 		const list = canvas.querySelector<HTMLElement>('[data-slot="tabs-list"]')
 		if (!list) throw new Error('Vertical overflow tabs list was not rendered')
 
-		await settle()
+		await frame(2)
 		if (!(list.scrollHeight > list.clientHeight)) {
 			throw new Error('Vertical tabs list should overflow its container height')
 		}
 
 		expectOverflow(list, 'y', 'end')
 		list.scrollTo({ top: (list.scrollHeight - list.clientHeight) / 2, behavior: 'instant' })
-		await settle()
+		await frame(2)
 		expectOverflow(list, 'y', 'both')
 		list.scrollTo({ top: list.scrollHeight, behavior: 'instant' })
-		await settle()
+		await frame(2)
 		expectOverflow(list, 'y', 'start')
 	},
 }

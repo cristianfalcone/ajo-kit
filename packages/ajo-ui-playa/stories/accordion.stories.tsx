@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
-import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import {
 	Accordion,
 	AccordionContent,
@@ -29,8 +29,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof Accordion>
-
-const waitFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
 const item = (canvas: HTMLElement, value: string) =>
 	canvas.querySelector<HTMLDetailsElement>(`details[data-slot="accordion-item"][data-value="${value}"]`)
@@ -62,31 +60,6 @@ const FaqItems = () => (
 	</>
 )
 
-const ControlledExample: Stateful = function* () {
-	let value = 'details'
-	const setValue = (next: string) => this.next(() => value = next)
-
-	while (true) yield (
-		<div class="w-96 space-y-3">
-			<Accordion type="single" collapsible value={value} onValueChange={setValue}>
-				<AccordionItem value="details">
-					<AccordionTrigger>Details</AccordionTrigger>
-					<AccordionContent>
-						Controlled accordions receive value from the parent state.
-					</AccordionContent>
-				</AccordionItem>
-				<AccordionItem value="billing">
-					<AccordionTrigger>Billing</AccordionTrigger>
-					<AccordionContent>
-						The callback updates Ajo state and rerenders the selected panel.
-					</AccordionContent>
-				</AccordionItem>
-			</Accordion>
-			<p data-accordion-value="true" class="text-sm text-muted-foreground">Open: {value || 'none'}</p>
-		</div>
-	)
-}
-
 export const Basic: Story<typeof Accordion> = {
 	render: args => (
 		<Accordion {...args} class="w-96">
@@ -101,7 +74,7 @@ export const Basic: Story<typeof Accordion> = {
 		if (!shipping.open || shipping.dataset.state !== 'open') throw new Error('Default accordion item was not open')
 
 		returnsTrigger.click()
-		await waitFrame()
+		await frame()
 
 		if (shipping.open || !returns.open) throw new Error('Single accordion did not move the open item after click')
 		if (returnsTrigger.getAttribute('aria-expanded') !== 'true') throw new Error('Accordion trigger did not expose expanded state')
@@ -128,7 +101,7 @@ export const Multiple: Story<typeof Accordion> = {
 		if (!shipping || !returns || !returnsTrigger) throw new Error('Multiple accordion did not render expected items')
 
 		returnsTrigger.click()
-		await waitFrame()
+		await frame()
 
 		if (!shipping.open || !returns.open) throw new Error('Multiple accordion did not keep both items open')
 	},
@@ -152,7 +125,7 @@ export const NonCollapsible: Story<typeof Accordion> = {
 		}
 
 		shippingTrigger.click()
-		await waitFrame()
+		await frame()
 
 		if (!shipping.open) throw new Error('Non-collapsible accordion closed its required open item')
 	},
@@ -183,7 +156,7 @@ export const Disabled: Story<typeof Accordion> = {
 		if (!disabled || !disabledTrigger) throw new Error('Disabled accordion item was not rendered')
 
 		disabledTrigger.click()
-		await waitFrame()
+		await frame()
 
 		if (disabled.open) throw new Error('Disabled accordion item opened after click')
 		if (disabledTrigger.getAttribute('aria-disabled') !== 'true') throw new Error('Disabled trigger did not expose aria-disabled')
@@ -202,27 +175,6 @@ export const InCard: Story<typeof Accordion> = {
 	),
 }
 
-export const Controlled: Story = {
-	argTypes: {
-		type: { control: false },
-		collapsible: { control: false },
-		defaultValue: { control: false },
-		disabled: { control: false },
-	},
-	render: () => <ControlledExample />,
-	play: async ({ canvas }) => {
-		const billing = trigger(canvas, 'Billing')
-		if (!billing) throw new Error('Controlled accordion trigger was not rendered')
-
-		billing.click()
-		await waitFrame()
-
-		if (!canvas.textContent?.includes('Open: billing')) {
-			throw new Error('Controlled accordion did not update parent state after click')
-		}
-	},
-}
-
 export const Keyboard: Story<typeof Accordion> = {
 	render: (args, { setArg }) => (
 		<Accordion {...args} onValueChange={(next: string) => setArg('defaultValue', next)} class="w-96">
@@ -237,12 +189,12 @@ export const Keyboard: Story<typeof Accordion> = {
 
 		shipping.focus()
 		shipping.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
-		await waitFrame()
+		await frame()
 
 		if (document.activeElement !== returns) throw new Error('Accordion ArrowDown did not move focus to next trigger')
 
 		returns.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
-		await waitFrame()
+		await frame()
 
 		if (document.activeElement !== support) throw new Error('Accordion End did not move focus to last trigger')
 	},

@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story, StoryContext } from './app'
+import { frame } from './play'
 import { Calendar, type CalendarDateRange, type CalendarModifiers } from 'ajo-ui-playa/calendar'
 
 export default {
@@ -12,7 +13,6 @@ export default {
 	},
 } satisfies Meta<typeof Calendar>
 
-const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 const pad = (value: number) => String(value).padStart(2, '0')
 const iso = (value: Date) => `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`
 const parse = (value: unknown) => typeof value === 'string' && value ? new Date(`${value}T12:00:00`) : undefined
@@ -47,7 +47,7 @@ const key = async (button: HTMLButtonElement, value: string, init: KeyboardEvent
 	})
 
 	button.dispatchEvent(event)
-	await nextFrame()
+	await frame()
 	return event
 }
 const focusedDay = () => (document.activeElement as HTMLElement | null)?.dataset.day
@@ -287,7 +287,7 @@ export const Basic: Story = {
 		}
 
 		day(canvas, '2026-07-15').click()
-		await nextFrame()
+		await frame()
 
 		if (!canvas.textContent?.includes('Selected: Jul 15, 2026')) {
 			throw new Error('Calendar single selection did not update')
@@ -308,12 +308,12 @@ export const DrillUpNavigation: Story = {
 		const trigger = () => canvas.querySelector<HTMLButtonElement>('[data-slot="calendar-view-trigger"]')
 		if (!trigger()) throw new Error('Default caption did not render as a view trigger')
 		trigger()!.click()
-		await nextFrame()
+		await frame()
 		if (!canvas.querySelector('[data-slot="calendar-month-view"]') || document.activeElement !== monthCell(canvas, '2026-07')) {
 			throw new Error('Day → month drill did not relocate focus to the anchored month')
 		}
 		trigger()!.click()
-		await nextFrame()
+		await frame()
 		if (!canvas.querySelector('[data-slot="calendar-year-view"]') || document.activeElement !== yearCell(canvas, 2026)) {
 			throw new Error('Month → year drill did not relocate focus to the anchored year')
 		}
@@ -335,13 +335,13 @@ export const MonthPicker: Story = {
 	render: () => <MonthPickerExample />,
 	play: async ({ canvas }) => {
 		monthCell(canvas, '2026-02').click()
-		await nextFrame()
+		await frame()
 		if (canvas.querySelector('[data-testid="month-selection"]')?.textContent !== '2026-02-01') {
 			throw new Error('Month picker did not emit the first day of the month')
 		}
 		if (monthCell(canvas, '2026-02').dataset.selected !== 'true') throw new Error('Picked month was not selected')
 		monthCell(canvas, '2026-02').click()
-		await nextFrame()
+		await frame()
 		if (canvas.querySelector('[data-testid="month-selection"]')?.textContent !== 'none') throw new Error('Month picker did not clear to null')
 	},
 }
@@ -354,7 +354,7 @@ export const MonthRangePicker: Story = {
 	play: async ({ canvas }) => {
 		monthCell(canvas, '2026-04').click()
 		monthCell(canvas, '2026-02').click()
-		await nextFrame()
+		await frame()
 		if (canvas.querySelector('[data-testid="month-range-selection"]')?.textContent !== '2026-02-01..2026-04-30') {
 			throw new Error('Month range did not emit inclusive canonical endpoints')
 		}
@@ -371,15 +371,15 @@ export const DOBViaDrill: Story = {
 	render: () => <Calendar defaultMonth={parse('2026-07-01')} startMonth={parse('1900-01-01')} endMonth={parse('2026-12-01')} class="rounded-lg edge shadow-xs" />,
 	play: async ({ canvas }) => {
 		canvas.querySelector<HTMLButtonElement>('[data-slot="calendar-view-trigger"]')!.click()
-		await nextFrame()
+		await frame()
 		canvas.querySelector<HTMLButtonElement>('[data-slot="calendar-view-trigger"]')!.click()
-		await nextFrame()
+		await frame()
 		yearCell(canvas, 2020).click()
-		await nextFrame()
+		await frame()
 		monthCell(canvas, '2020-06').click()
-		await nextFrame()
+		await frame()
 		day(canvas, '2020-06-15').click()
-		await nextFrame()
+		await frame()
 		if (day(canvas, '2020-06-15').dataset.state !== 'selected') throw new Error('DOB drill did not commit the final day')
 	},
 }
@@ -391,7 +391,7 @@ export const PresetComposition: Story = {
 	render: () => <PresetCalendarExample />,
 	play: async ({ canvas }) => {
 		canvas.querySelector<HTMLButtonElement>('[data-testid="preset-q2"]')!.click()
-		await nextFrame()
+		await frame()
 		if (canvas.querySelector('[data-testid="preset-selection"]')?.textContent !== '2026-04-01..2026-06-30') {
 			throw new Error('Application-owned preset did not update Calendar')
 		}
@@ -468,7 +468,7 @@ export const KeyboardNavigation: Story = {
 
 		previous.focus()
 		previous.click()
-		await nextFrame()
+		await frame()
 		if (!canvas.querySelector('[data-month="2026-05-01"]') || document.activeElement !== previous) {
 			throw new Error('Paging the month must keep focus on the chevron')
 		}
@@ -509,7 +509,7 @@ export const Range: Story = {
 		}
 
 		day(canvas, '2026-02-10').click()
-		await nextFrame()
+		await frame()
 
 		if (!canvas.textContent?.includes('Range: Feb 10, 2026 - none')) {
 			throw new Error('Calendar range restart did not update')
@@ -539,7 +539,7 @@ export const Multiple: Story = {
 		}
 
 		day(canvas, '2026-07-10').click()
-		await nextFrame()
+		await frame()
 
 		if (!canvas.textContent?.includes('Selected count: 3')) {
 			throw new Error('Calendar multiple selection did not add a date')
@@ -563,7 +563,7 @@ export const Controlled: Story = {
 		// Single: toggling the selected day off echoes null through the owner.
 		const single = pane('controlled-single')
 		day(single, '2026-07-15').click()
-		await nextFrame()
+		await frame()
 		if (emit('single-emit') !== 'null') throw new Error('Controlled single did not emit null on clear')
 		if (day(single, '2026-07-15').getAttribute('data-selected-single') === 'true') {
 			throw new Error('Controlled single kept the cleared selection (controlled clearing echo)')
@@ -571,7 +571,7 @@ export const Controlled: Story = {
 
 		// Still controlled after the null round-trip.
 		day(single, '2026-07-20').click()
-		await nextFrame()
+		await frame()
 		if (emit('single-emit') !== '2026-07-20' || day(single, '2026-07-20').getAttribute('data-selected-single') !== 'true') {
 			throw new Error('Controlled single did not stay controlled after clearing')
 		}
@@ -579,7 +579,7 @@ export const Controlled: Story = {
 		// Multiple: toggling the last date off emits [] and never null.
 		const multiple = pane('controlled-multiple')
 		day(multiple, '2026-07-08').click()
-		await nextFrame()
+		await frame()
 		if (emit('multiple-emit') !== '[]') throw new Error('Controlled multiple did not emit [] on last toggle-off')
 		if (day(multiple, '2026-07-08').getAttribute('data-selected-single') === 'true') {
 			throw new Error('Controlled multiple kept the cleared selection')
@@ -588,7 +588,7 @@ export const Controlled: Story = {
 		// Range: clicking the lone start emits null and clears both ends.
 		const range = pane('controlled-range')
 		day(range, '2026-07-06').click()
-		await nextFrame()
+		await frame()
 		if (emit('range-emit') !== 'null') throw new Error('Controlled range did not emit null on clear')
 		if (day(range, '2026-07-06').getAttribute('data-range-start') === 'true') {
 			throw new Error('Controlled range kept the cleared selection')
@@ -681,13 +681,13 @@ export const UnavailableVsDisabled: Story = {
 
 		unavailable.focus()
 		unavailable.click()
-		await nextFrame()
+		await frame()
 		if (document.activeElement !== unavailable || selected() !== '2026-07-11') {
 			throw new Error('Calendar unavailable day was not focusable and selectable')
 		}
 
 		disabled.click()
-		await nextFrame()
+		await frame()
 		if (selected() !== '2026-07-11') {
 			throw new Error('Calendar disabled day emitted a selection')
 		}

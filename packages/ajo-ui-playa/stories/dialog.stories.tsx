@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Args, Meta, Story } from './app'
+import { frame } from './play'
 import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Dialog,
@@ -30,8 +31,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof Dialog>
-
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
 const DemoForm = ({ description, title }: Args) => (
 	<>
@@ -112,7 +111,7 @@ export const Basic: Story<typeof Dialog> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog.open || trigger.getAttribute('aria-expanded') !== 'true') {
 			throw new Error('Dialog did not open after trigger click')
@@ -152,7 +151,7 @@ export const Basic: Story<typeof Dialog> = {
 		}
 
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open || trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Dialog did not close from DialogClose')
@@ -197,14 +196,14 @@ export const Invite: Story<typeof Dialog> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog.open) throw new Error('Invite dialog did not open from trigger')
 
 		const close = dialog.querySelector<HTMLButtonElement>('[data-slot="dialog-close"]')
 		if (!close) throw new Error('Invite dialog close button was not rendered')
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open) throw new Error('Invite dialog did not close after smoke')
 	},
@@ -230,7 +229,7 @@ export const Controlled: Story<typeof Dialog> = {
 		}
 
 		open.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog.open || !canvas.textContent?.includes('Open: yes')) {
 			throw new Error('Controlled dialog did not open')
@@ -239,7 +238,7 @@ export const Controlled: Story<typeof Dialog> = {
 		const close = canvas.querySelector<HTMLButtonElement>('[data-slot="dialog-close"]')
 		if (!close) throw new Error('Controlled dialog close button was not rendered')
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open || !canvas.textContent?.includes('Open: no')) {
 			throw new Error('Controlled dialog did not close')
@@ -279,7 +278,7 @@ export const NoDefaultCloseButton: Story<typeof Dialog> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		const closes = dialog.querySelectorAll('[data-slot="dialog-close"]')
 		if (!dialog.open) throw new Error('Dialog without default close button did not open')
@@ -288,7 +287,7 @@ export const NoDefaultCloseButton: Story<typeof Dialog> = {
 		const close = closes[0] as HTMLButtonElement | undefined
 		if (!close) throw new Error('Dialog footer close button was not rendered')
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open) throw new Error('Dialog without default close button did not close after smoke')
 	},
@@ -330,14 +329,14 @@ export const PreventEscape: Story<typeof Dialog> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog.open) throw new Error('Prevent Escape dialog did not open')
 
 		for (let index = 0; index < 3; index++) {
 			const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' })
 			;(document.activeElement ?? dialog).dispatchEvent(event)
-			await frame()
+			await frame(2)
 
 			if (!event.defaultPrevented) throw new Error('Prevent Escape dialog did not prevent Escape keydown')
 			if (!dialog.open) throw new Error('Dialog closed even though Escape was prevented')
@@ -346,7 +345,7 @@ export const PreventEscape: Story<typeof Dialog> = {
 		const close = dialog.querySelector<HTMLButtonElement>('[data-slot="dialog-close"]')
 		if (!close) throw new Error('Prevent Escape dialog close button was not rendered')
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open) throw new Error('Prevent Escape dialog did not close after smoke')
 	},

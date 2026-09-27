@@ -43,7 +43,6 @@ export const Basic: Story = {
 }
 
 export const Vertical: Story = {
-	argTypes: { orientation: { control: false } },
 	render: () => (
 		<ButtonGroup orientation="vertical" aria-label="Zoom controls">
 			<Button variant="outline" size="icon" aria-label="Zoom in">
@@ -63,7 +62,6 @@ export const Vertical: Story = {
 }
 
 export const WithSeparator: Story = {
-	argTypes: { orientation: { control: false } },
 	render: () => (
 		<ButtonGroup>
 			<Button variant="secondary" size="sm">Copy</Button>
@@ -80,7 +78,6 @@ export const WithSeparator: Story = {
 }
 
 export const WithInput: Story = {
-	argTypes: { orientation: { control: false } },
 	render: () => (
 		<ButtonGroup>
 			<ButtonGroupText as="label" for="button-group-search">
@@ -101,7 +98,6 @@ export const WithInput: Story = {
 }
 
 export const Nested: Story = {
-	argTypes: { orientation: { control: false } },
 	render: () => (
 		<ButtonGroup aria-label="Toolbar">
 			<ButtonGroup>

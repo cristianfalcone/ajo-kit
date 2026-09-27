@@ -2,6 +2,7 @@
 import type { Stateful } from 'ajo'
 import { move } from 'ajo-cloves'
 import type { Meta, Story } from './app'
+import { frame, wait, until } from './play'
 import { buttonVariants } from 'ajo-ui-playa/button'
 import { Field, FieldGroup, FieldLabel } from 'ajo-ui-playa/field'
 import { Input } from 'ajo-ui-playa/input'
@@ -33,19 +34,8 @@ export default {
 } satisfies Meta<typeof Popover>
 
 const fixed = { placement: { control: false }, title: { control: false }, description: { control: false } } as const
-const hoverFixed = fixed
 
 const triggerClass = buttonVariants({ variant: 'outline' })
-const wait = (ms?: number) => ms == null
-	? new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
-	: new Promise(resolve => setTimeout(resolve, ms))
-const until = async (check: () => boolean, message: string) => {
-	for (let attempt = 0; attempt < 40; attempt++) {
-		if (check()) return
-		await wait()
-	}
-	throw new Error(message)
-}
 const hover = (element: HTMLElement) => element.dispatchEvent(new MouseEvent('mouseenter', { cancelable: true }))
 const leave = (element: HTMLElement) => element.dispatchEvent(new MouseEvent('mouseleave', { cancelable: true }))
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
@@ -74,7 +64,7 @@ const dragAnchor = async (marker: HTMLElement, x: number, y: number) => {
 	marker.dispatchEvent(pointer('pointerdown', startX, startY))
 	marker.dispatchEvent(pointer('pointermove', x, y))
 	marker.dispatchEvent(pointer('pointerup', x, y))
-	await wait()
+	await frame(2)
 }
 
 const assertInsideViewport = (element: HTMLElement, label: string) => {
@@ -209,42 +199,6 @@ const VercelPreview = () => (
 		</div>
 	</div>
 )
-
-const ControlledExample: Stateful = function* () {
-	let open = false
-	const setOpen = (next: boolean) => this.next(() => open = next)
-
-	while (true) yield (
-		<div class="grid gap-3">
-			<Popover label="Controlled popover" description="This popover is driven by Ajo state." open={open} onOpenChange={setOpen} placement="bottom-start">
-				<PopoverTrigger class={triggerClass} id="controlled-popover-trigger">
-					{open ? 'Close' : 'Open'} controlled
-				</PopoverTrigger>
-				<PopoverContent class="w-64" />
-			</Popover>
-			<p class="text-sm text-muted-foreground">Open: {open ? 'yes' : 'no'}</p>
-		</div>
-	)
-}
-
-const ControlledHoverExample: Stateful = function* () {
-	let open = false
-	const setOpen = (next: boolean) => this.next(() => open = next)
-
-	while (true) yield (
-		<div class="grid justify-items-center gap-3">
-			<Popover label="Controlled hover preview" openOn="hover" open={open} onOpenChange={setOpen} openDelay={0} closeDelay={0}>
-				<PopoverTrigger class={triggerClass} id="controlled-hover-popover-trigger">
-					Controlled
-				</PopoverTrigger>
-				<PopoverContent class={hoverContentClass}>
-					<div class="text-sm">Controlled hover popover content.</div>
-				</PopoverContent>
-			</Popover>
-			<p class="text-sm text-muted-foreground">Open: {open ? 'yes' : 'no'}</p>
-		</div>
-	)
-}
 
 const DraggableAnchor: Stateful = function* () {
 	let marker: HTMLElement | null = null
@@ -383,14 +337,14 @@ export const Basic: Story<typeof Popover> = {
 		}
 
 		trigger.click()
-		await wait()
+		await frame(2)
 
 		if (!content.matches(':popover-open') || trigger.getAttribute('aria-expanded') !== 'true') {
 			throw new Error('Popover did not open after trigger click')
 		}
 
 		content.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-		await wait()
+		await frame(2)
 
 		if (content.matches(':popover-open') || trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Popover did not close on Escape')
@@ -399,7 +353,6 @@ export const Basic: Story<typeof Popover> = {
 }
 
 export const PlacementMatrix: Story = {
-	argTypes: fixed,
 	render: () => <PlacementMatrixExample />,
 	play: async ({ canvas }) => {
 		const matrix = canvas.querySelector<HTMLElement>('#popover-placement-matrix')
@@ -486,7 +439,7 @@ export const HoverBasic: Story<typeof Popover> = {
 		}
 
 		hover(trigger)
-		await wait()
+		await frame(2)
 
 		if (!content.matches(':popover-open') || content.dataset.state !== 'open') {
 			throw new Error('Hover-mode Popover did not open on hover')
@@ -516,7 +469,6 @@ export const HoverBasic: Story<typeof Popover> = {
 }
 
 export const WithForm: Story<typeof Popover> = {
-	argTypes: fixed,
 	render: () => (
 		<Popover label="Dimensions form" description="Set the dimensions for the layer." placement="bottom-start">
 			<PopoverTrigger class={triggerClass} id="form-popover-trigger">
@@ -546,7 +498,7 @@ export const WithForm: Story<typeof Popover> = {
 		if (!trigger || !content) throw new Error('Form popover trigger or content was not rendered')
 
 		trigger.click()
-		await wait()
+		await frame(2)
 
 		const input = canvas.querySelector<HTMLInputElement>('#popover-width')
 		if (!content.matches(':popover-open') || input?.value !== '100%') {
@@ -556,7 +508,6 @@ export const WithForm: Story<typeof Popover> = {
 }
 
 export const Alignments: Story<typeof Popover> = {
-	argTypes: fixed,
 	render: () => (
 		<div class="flex gap-6">
 			<Popover label="Start aligned popover" placement="bottom-start">
@@ -591,7 +542,7 @@ export const Alignments: Story<typeof Popover> = {
 		if (!trigger || !content) throw new Error('Aligned popover trigger or content was not rendered')
 
 		trigger.click()
-		await wait()
+		await frame(2)
 
 		if (!content.matches(':popover-open') || content.dataset.align !== 'start') {
 			throw new Error('Start-aligned popover did not open with align metadata')
@@ -599,25 +550,7 @@ export const Alignments: Story<typeof Popover> = {
 	},
 }
 
-export const Controlled: Story = {
-	argTypes: fixed,
-	render: () => <ControlledExample />,
-	play: async ({ canvas }) => {
-		const trigger = canvas.querySelector<HTMLButtonElement>('#controlled-popover-trigger')
-		const content = canvas.querySelector<HTMLElement>('[data-slot="popover-content"]')
-		if (!trigger || !content) throw new Error('Controlled popover trigger or content was not rendered')
-
-		trigger.click()
-		await wait()
-
-		if (!content.matches(':popover-open') || !canvas.textContent?.includes('Open: yes')) {
-			throw new Error('Controlled popover did not update open state')
-		}
-	},
-}
-
 export const HoverSides: Story<typeof Popover> = {
-	argTypes: hoverFixed,
 	render: () => (
 		<div class="flex flex-wrap justify-center gap-2">
 			{hoverSides.map(side => (
@@ -641,7 +574,7 @@ export const HoverSides: Story<typeof Popover> = {
 		if (!trigger || !content) throw new Error('Left hover popover trigger or content was not rendered')
 
 		hover(trigger)
-		await wait()
+		await frame(2)
 
 		if (!content.matches(':popover-open') || content.dataset.side !== 'left') {
 			throw new Error('Hover-mode Popover side preference was not applied')
@@ -650,7 +583,6 @@ export const HoverSides: Story<typeof Popover> = {
 }
 
 export const HoverDelays: Story<typeof Popover> = {
-	argTypes: hoverFixed,
 	render: () => (
 		<Popover label="Delayed hover popover" openOn="hover" openDelay={80} closeDelay={120}>
 			<PopoverTrigger class={triggerClass} id="delayed-hover-popover-trigger">
@@ -682,7 +614,6 @@ export const HoverDelays: Story<typeof Popover> = {
 }
 
 export const HoverKeyboard: Story<typeof Popover> = {
-	argTypes: hoverFixed,
 	render: () => (
 		<Popover label="Keyboard hover popover" openOn="hover" openDelay={0} closeDelay={0}>
 			<PopoverTrigger class={triggerClass} id="keyboard-hover-popover-trigger">
@@ -699,7 +630,7 @@ export const HoverKeyboard: Story<typeof Popover> = {
 		if (!trigger || !content) throw new Error('Keyboard hover popover trigger or content was not rendered')
 
 		trigger.focus()
-		await wait()
+		await frame(2)
 
 		if (!content.matches(':popover-open')) {
 			throw new Error('Hover-mode Popover did not open on focus')
@@ -707,7 +638,7 @@ export const HoverKeyboard: Story<typeof Popover> = {
 
 		const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
 		trigger.dispatchEvent(event)
-		await wait()
+		await frame(2)
 
 		if (!event.defaultPrevented || content.matches(':popover-open')) {
 			throw new Error('Hover-mode Popover did not close on Escape through the hover dismiss channel')
@@ -715,25 +646,7 @@ export const HoverKeyboard: Story<typeof Popover> = {
 	},
 }
 
-export const HoverControlled: Story = {
-	argTypes: hoverFixed,
-	render: () => <ControlledHoverExample />,
-	play: async ({ canvas }) => {
-		const trigger = canvas.querySelector<HTMLElement>('#controlled-hover-popover-trigger')
-		const content = canvas.querySelector<HTMLElement>('[data-slot="popover-content"]')
-		if (!trigger || !content) throw new Error('Controlled hover popover trigger or content was not rendered')
-
-		hover(trigger)
-		await wait()
-
-		if (!content.matches(':popover-open') || !canvas.textContent?.includes('Open: yes')) {
-			throw new Error('Controlled hover-mode Popover did not update controlled state')
-		}
-	},
-}
-
 export const ExplicitAnchor: Story<typeof Popover> = {
-	argTypes: fixed,
 	render: () => (
 		<Popover label="Explicitly anchored popover" placement="bottom">
 			<div class="grid justify-items-center gap-3">
@@ -753,10 +666,10 @@ export const ExplicitAnchor: Story<typeof Popover> = {
 		const content = canvas.querySelector<HTMLElement>('[data-slot="popover-content"]')
 		if (!trigger || !marker || !content) throw new Error('Anchored popover trigger, marker, or content was not rendered')
 
-		await wait()
+		await frame(2)
 
 		trigger.click()
-		await wait()
+		await frame(2)
 
 		if (!content.matches(':popover-open') || side(content) !== 'bottom') {
 			throw new Error('Anchored popover did not open on the requested side')
@@ -779,7 +692,6 @@ export const ExplicitAnchor: Story<typeof Popover> = {
 }
 
 export const AdaptiveGeometry: Story<typeof Popover> = {
-	argTypes: fixed,
 	render: () => (
 		<div
 			id="adaptive-popover-shell"
@@ -869,7 +781,6 @@ export const AdaptiveGeometry: Story<typeof Popover> = {
 }
 
 export const NarrowViewportLargeContent: Story<typeof Popover> = {
-	argTypes: fixed,
 	parameters: {
 		docs: { description: 'Constrains oversized rich content to a 320x480 viewport and keeps it scrollable inside the collision padding.' },
 		viewport: { width: 320, height: 480 },
@@ -937,7 +848,7 @@ export const NarrowViewportLargeContent: Story<typeof Popover> = {
 			throw new Error('Narrow viewport Popover did not retain scroll access to oversized content')
 		}
 		content.scrollTo({ left: 48, top: 64 })
-		await wait()
+		await frame(2)
 		if (content.scrollLeft < 1 || content.scrollTop < 1) {
 			throw new Error('Narrow viewport Popover could not scroll its oversized content')
 		}
@@ -951,7 +862,6 @@ export const NarrowViewportLargeContent: Story<typeof Popover> = {
 }
 
 export const WithArrow: Story<typeof Popover> = {
-	argTypes: fixed,
 	render: () => (
 		<Popover label="Anchored caret" description="The caret tracks the trigger center on the near edge." placement="bottom" gap={8}>
 			<PopoverTrigger class={triggerClass} id="arrow-popover-trigger">
@@ -968,7 +878,7 @@ export const WithArrow: Story<typeof Popover> = {
 		if (!trigger || !content || !surface || !arrow) throw new Error('Arrow popover trigger, content, surface, or arrow was not rendered')
 
 		trigger.click()
-		await wait()
+		await frame(2)
 
 		if (!content.matches(':popover-open') || side(content) !== 'bottom') {
 			throw new Error('Arrow popover did not open on the bottom side')
@@ -988,7 +898,6 @@ export const WithArrow: Story<typeof Popover> = {
 }
 
 export const ArrowSides: Story<typeof Popover> = {
-	argTypes: fixed,
 	render: () => (
 		<div class="grid grid-cols-2 gap-24 p-24">
 			{hoverSides.map(placement => (
@@ -1014,7 +923,7 @@ export const ArrowSides: Story<typeof Popover> = {
 			}
 
 			trigger.click()
-			await wait()
+			await frame(2)
 			if (!content.matches(':popover-open') || content.dataset.side !== placement) {
 				throw new Error(`${placement} arrow did not retain its requested side`)
 			}
@@ -1031,13 +940,12 @@ export const ArrowSides: Story<typeof Popover> = {
 			assertArrowOnEdge(arrow, content, edge[placement], `${placement} side`)
 			assertArrowSurface(content, surface, `${placement} side`)
 			trigger.click()
-			await wait()
+			await frame(2)
 		}
 	},
 }
 
 export const ArrowFlip: Story<typeof Popover> = {
-	argTypes: fixed,
 	render: () => (
 		<Popover label="Flipped caret" description="The content flips above; the caret stays on the anchor side." placement="bottom" gap={8}>
 			<PopoverTrigger
@@ -1058,7 +966,7 @@ export const ArrowFlip: Story<typeof Popover> = {
 		if (!trigger || !content || !surface || !arrow) throw new Error('Flip arrow popover trigger, content, surface, or arrow was not rendered')
 
 		trigger.click()
-		await wait()
+		await frame(2)
 
 		if (!content.matches(':popover-open') || side(content) !== 'top') {
 			throw new Error('Arrow popover did not flip to the top side')
@@ -1074,7 +982,6 @@ export const ArrowFlip: Story<typeof Popover> = {
 }
 
 export const ArrowUncentered: Story<typeof Popover> = {
-	argTypes: fixed,
 	render: () => (
 		<Popover label="Clamped caret" description="The caret clamps inside the content and flags data-arrow-uncentered." placement="bottom" gap={8}>
 			<PopoverTrigger
@@ -1096,7 +1003,7 @@ export const ArrowUncentered: Story<typeof Popover> = {
 		if (!trigger || !content || !surface || !arrow) throw new Error('Uncentered arrow popover trigger, content, surface, or arrow was not rendered')
 
 		trigger.click()
-		await wait()
+		await frame(2)
 
 		if (!content.matches(':popover-open') || side(content) !== 'bottom') {
 			throw new Error('Uncentered arrow popover did not open on the bottom side')

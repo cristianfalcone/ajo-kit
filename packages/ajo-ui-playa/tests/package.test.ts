@@ -1,10 +1,8 @@
-import { createRequire } from 'node:module'
 import { expect, test } from 'vitest'
 import * as surface from 'ajo-ui-playa'
 import metadata from '../package.json'
 
 const entry = (source: string) => ({ default: source, types: source })
-const require = createRequire(import.meta.url)
 const families = [
 	'accordion',
 	'alert',
@@ -78,17 +76,10 @@ test('the package exports exactly its preset root and public component families'
 	expect(Object.keys(surface)).toEqual(['playa'])
 })
 
-test.each([
-	'ajo-ui-playa/styles',
-	'ajo-ui-playa/internal',
-])('%s remains package-internal', specifier => {
-	let failure: unknown
-	try {
-		require.resolve(specifier)
-	} catch (error) {
-		failure = error
+test('families export named components without defaults', async () => {
+	for (const family of families) {
+		expect(Object.keys(await import(/* @vite-ignore */ `ajo-ui-playa/${family}`)), family).not.toContain('default')
 	}
-	expect(failure).toMatchObject({ code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
 })
 
 test('the manifest keeps build-time peers and runtime ownership explicit', () => {

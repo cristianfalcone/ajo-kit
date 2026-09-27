@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame, until } from './play'
 import { Avatar, AvatarFallback } from 'ajo-ui-playa/avatar'
 import { Bubble, BubbleContent } from 'ajo-ui-playa/bubble'
 import { Button } from 'ajo-ui-playa/button'
@@ -39,21 +40,6 @@ const notes = [
 	'Ship the smallest fix and rerun the story smoke.',
 ]
 
-const waitFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
-const waitFrames = async (count = 3) => {
-	for (let index = 0; index < count; index++) await waitFrame()
-}
-
-const waitUntil = async (check: () => boolean, timeout = 1200) => {
-	const start = performance.now()
-	while (performance.now() - start < timeout) {
-		if (check()) return
-		await waitFrame()
-	}
-	throw new Error('Timed out waiting for message scroller state')
-}
-
 const viewport = (canvas: HTMLElement) => {
 	const element = canvas.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]')
 	if (!element) throw new Error('MessageScrollerViewport was not rendered')
@@ -82,7 +68,7 @@ const traceSync = async (canvas: HTMLElement, api: MessageScrollerApi) => {
 
 	view.scrollTop = Math.max(1, Math.floor((view.scrollHeight - view.clientHeight) / 2))
 	view.dispatchEvent(new Event('scroll'))
-	await waitFrames(5)
+	await frame(5)
 	ensure(view.getAttribute('data-overflow-y') === 'both', 'A middle scroll position must expose both overflow edges')
 
 	const items = Array.from(content.querySelectorAll<HTMLElement>(ITEM_SELECTOR))
@@ -129,7 +115,7 @@ const traceSync = async (canvas: HTMLElement, api: MessageScrollerApi) => {
 	let changedSequence: string[] = []
 	try {
 		view.dispatchEvent(new Event('scroll'))
-		await waitFrame()
+		await frame()
 		await Promise.resolve()
 		mutations.push(...observer.takeRecords())
 		stableDiscoveries = discoveries
@@ -144,7 +130,7 @@ const traceSync = async (canvas: HTMLElement, api: MessageScrollerApi) => {
 		sequence.length = 0
 		view.scrollTop = 0
 		view.dispatchEvent(new Event('scroll'))
-		await waitFrame()
+		await frame()
 		changedDiscoveries = discoveries
 		changedViewportReads = viewportReads
 		changedItemReads = [...itemReads.values()]
@@ -318,7 +304,7 @@ export const Basic: Story<typeof MessageScroller> = {
 		const view = viewport(canvas)
 		const content = canvas.querySelector<HTMLElement>('[data-slot="message-scroller-content"]')
 
-		await waitFrames()
+		await frame(3)
 
 		if (!root) throw new Error('MessageScroller root was not rendered')
 		if (view.role !== 'region' || view.getAttribute('aria-label') !== 'Messages') {
@@ -355,7 +341,7 @@ export const Fits: Story<typeof MessageScroller> = {
 		const view = viewport(canvas)
 		const toggle = canvas.querySelector<HTMLButtonElement>('[data-message-overflow-toggle]')
 		if (!toggle) throw new Error('MessageScroller overflow-transition control was not rendered')
-		await waitFrames(5)
+		await frame(5)
 
 		if (view.scrollHeight > view.clientHeight) {
 			throw new Error('MessageScroller fitting fixture unexpectedly overflowed')
@@ -365,8 +351,8 @@ export const Fits: Story<typeof MessageScroller> = {
 		}
 
 		toggle.click()
-		await waitUntil(() => view.scrollHeight > view.clientHeight)
-		await waitFrames(5)
+		await until(() => view.scrollHeight > view.clientHeight)
+		await frame(5)
 		if (!['end', 'both'].includes(view.getAttribute('data-overflow-y') ?? '')) {
 			throw new Error('Content growth did not expose MessageScroller end overflow')
 		}
@@ -375,8 +361,8 @@ export const Fits: Story<typeof MessageScroller> = {
 		}
 
 		toggle.click()
-		await waitUntil(() => view.scrollHeight <= view.clientHeight)
-		await waitFrames(5)
+		await until(() => view.scrollHeight <= view.clientHeight)
+		await frame(5)
 		if (view.hasAttribute('data-overflow-y') || getComputedStyle(view).maskImage !== 'none') {
 			throw new Error('Content shrink did not clear MessageScroller overflow state')
 		}
@@ -395,21 +381,21 @@ export const FloatingButtons: Story<typeof MessageScroller> = {
 		const start = canvas.querySelector<HTMLButtonElement>('[data-slot="message-scroller-button"][data-direction="start"]')
 		if (!end || !start) throw new Error('MessageScroller buttons were not rendered')
 
-		await waitFrames()
+		await frame(3)
 		if (end.dataset.active !== 'true') throw new Error('End button should be active at the start')
 
 		const beforeEndClick = view.scrollTop
 		end.click()
-		await waitUntil(() => view.scrollTop > beforeEndClick)
+		await until(() => view.scrollTop > beforeEndClick)
 
 		view.scrollTop = view.scrollHeight
 		view.dispatchEvent(new Event('scroll', { bubbles: true }))
-		await waitUntil(() => start.dataset.active === 'true')
+		await until(() => start.dataset.active === 'true')
 		if (start.dataset.active !== 'true') throw new Error('Start button should be active at the end')
 
 		const beforeStartClick = view.scrollTop
 		start.click()
-		await waitUntil(() => view.scrollTop < beforeStartClick)
+		await until(() => view.scrollTop < beforeStartClick)
 	},
 }
 
@@ -424,9 +410,9 @@ export const JumpToMessage: Story<typeof MessageScroller> = {
 		const button = canvas.querySelector<HTMLButtonElement>('button')
 		if (!button) throw new Error('Jump button was not rendered')
 
-		await waitFrames()
+		await frame(3)
 		button.click()
-		await waitUntil(() => {
+		await until(() => {
 			const top = item(canvas, 'message-9').getBoundingClientRect().top - view.getBoundingClientRect().top
 			return top >= 8 && top <= 32
 		})
@@ -441,7 +427,7 @@ export const LastAnchor: Story<typeof MessageScroller> = {
 	),
 	play: async ({ canvas }) => {
 		const view = viewport(canvas)
-		await waitFrames()
+		await frame(3)
 
 		const target = item(canvas, 'message-21')
 		const top = target.getBoundingClientRect().top - view.getBoundingClientRect().top
@@ -458,10 +444,10 @@ export const StreamingFollow: Story<typeof MessageScroller> = {
 		const button = canvas.querySelector<HTMLButtonElement>('button')
 		if (!button) throw new Error('Append button was not rendered')
 
-		await waitFrames()
+		await frame(3)
 		const before = view.scrollTop
 		button.click()
-		await waitUntil(() => view.scrollTop > before)
+		await until(() => view.scrollTop > before)
 	},
 }
 
@@ -473,7 +459,7 @@ export const StartPosition: Story<typeof MessageScroller> = {
 	),
 	play: async ({ canvas }) => {
 		const view = viewport(canvas)
-		await waitFrames()
+		await frame(3)
 		if (view.scrollTop > 4) throw new Error('MessageScroller did not honor start position')
 		if (!['end', 'both'].includes(view.getAttribute('data-overflow-y') ?? '')) {
 			throw new Error('MessageScroller did not expose end scrollability')
@@ -535,7 +521,7 @@ export const HotPathContract: Story<typeof MessageScroller> = {
 		)
 	},
 	play: async ({ canvas }) => {
-		await waitFrames()
+		await frame(3)
 		try {
 			for (const id of ['hot-preserve', 'hot-no-preserve']) {
 				const scope = canvas.querySelector<HTMLElement>(`[data-story-scope="${id}"]`)
@@ -564,7 +550,7 @@ export const AutoscrollFallback: Story<typeof MessageScroller> = {
 		)
 	},
 	play: async ({ canvas }) => {
-		await waitFrames()
+		await frame(3)
 		const scope = canvas.querySelector<HTMLElement>('[data-story-scope="autoscroll-fallback"]')
 		const root = scope?.querySelector<HTMLElement>('[data-slot="message-scroller"]')
 		const view = scope ? viewport(scope) : null
@@ -577,8 +563,8 @@ export const AutoscrollFallback: Story<typeof MessageScroller> = {
 			ensure(root.hasAttribute('data-autoscrolling'), 'Root did not enter transient autoscroll state')
 			ensure(view.hasAttribute('data-autoscrolling'), 'Viewport did not enter transient autoscroll state')
 
-			await waitUntil(() =>
-				!root.hasAttribute('data-autoscrolling') && !view.hasAttribute('data-autoscrolling'), 3000)
+			await until(() =>
+				!root.hasAttribute('data-autoscrolling') && !view.hasAttribute('data-autoscrolling'))
 		} finally {
 			restore()
 			contractApis.clear()
@@ -598,7 +584,7 @@ export const PreserveOnPrepend: Story<typeof MessageScroller> = {
 		</div>
 	),
 	play: async ({ canvas }) => {
-		await waitFrames(5)
+		await frame(5)
 		for (const [id, preserve] of [['prepend-preserve', true], ['prepend-plain', false], ['prepend-enable', true]] as const) {
 			const scope = canvas.querySelector<HTMLElement>(`[data-story-scope="${id}"]`)
 			if (!scope) throw new Error(`Missing ${id} prepend fixture`)
@@ -610,9 +596,9 @@ export const PreserveOnPrepend: Story<typeof MessageScroller> = {
 			ensure(maxScroll > 20, 'Prepend fixture must overflow beyond both edge thresholds')
 			view.scrollTop = Math.min(maxScroll - 10, Math.max(10, Math.floor(maxScroll / 3)))
 			view.dispatchEvent(new Event('scroll'))
-			await waitFrames(5)
+			await frame(5)
 			view.dispatchEvent(new Event('scroll'))
-			await waitFrame()
+			await frame()
 			const viewRect = view.getBoundingClientRect()
 			const target = Array.from(scope.querySelectorAll<HTMLElement>(ITEM_SELECTOR)).find(element => {
 				const rect = element.getBoundingClientRect()
@@ -623,8 +609,8 @@ export const PreserveOnPrepend: Story<typeof MessageScroller> = {
 			const beforeScroll = view.scrollTop
 
 			button.click()
-			await waitUntil(() => Boolean(scope.querySelector('[data-message-id="message-8"]')))
-			await waitFrames(5)
+			await until(() => Boolean(scope.querySelector('[data-message-id="message-8"]')))
+			await frame(5)
 			const afterTop = target.getBoundingClientRect().top - view.getBoundingClientRect().top
 			if (preserve) {
 				ensure(Math.abs(afterTop - beforeTop) <= 2, `Prepend shifted ${target.dataset.messageId} by ${afterTop - beforeTop}px (top ${beforeTop}→${afterTop}, scroll ${beforeScroll}→${view.scrollTop})`)

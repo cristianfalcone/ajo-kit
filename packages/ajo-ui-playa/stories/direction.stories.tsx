@@ -44,7 +44,6 @@ export const RTL: Story = {
 }
 
 export const DirProp: Story = {
-	argTypes: { dir: { control: false } },
 	render: () => (
 		<DirectionProvider dir="ltr">
 			<DirectionReadout />
@@ -62,7 +61,6 @@ export const DirProp: Story = {
 }
 
 export const Nested: Story = {
-	argTypes: { dir: { control: false } },
 	render: () => (
 		<DirectionProvider dir="rtl">
 			<div class="grid gap-3">

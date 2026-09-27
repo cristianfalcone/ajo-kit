@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame, until, press } from './play'
 import { buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Menu,
@@ -29,14 +30,6 @@ export default {
 } satisfies Meta<typeof Menu>
 
 const triggerClass = buttonVariants({ variant: 'outline' })
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
-const until = async (condition: () => boolean, message: string) => {
-	for (let attempt = 0; attempt < 30; attempt++) {
-		if (condition()) return
-		await frame()
-	}
-	throw new Error(message)
-}
 
 const DemoMenu = () => (
 	<Menu placement="bottom-start">
@@ -191,7 +184,7 @@ export const Basic: Story<typeof Menu> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (trigger.getAttribute('aria-expanded') !== 'true') {
 			throw new Error('Menu did not open after trigger click')
@@ -204,14 +197,14 @@ export const Basic: Story<typeof Menu> = {
 		}
 
 		billing.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
-		await frame()
+		await frame(2)
 
 		if (billing.dataset.highlighted !== 'true' || document.activeElement !== billing) {
 			throw new Error('Menu item did not highlight on pointer hover')
 		}
 
 		billing.click()
-		await frame()
+		await frame(2)
 
 		if (trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Menu did not close after item click')
@@ -227,7 +220,7 @@ export const Keyboard: Story = {
 
 		trigger.focus()
 		trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
-		await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
+		await frame(2)
 
 		const focused = document.activeElement as HTMLElement | null
 		if (trigger.getAttribute('aria-expanded') !== 'true' || focused?.dataset.label !== 'Archive') {
@@ -235,14 +228,14 @@ export const Keyboard: Story = {
 		}
 
 		focused.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
-		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+		await frame()
 
 		if ((document.activeElement as HTMLElement | null)?.dataset.label !== 'Duplicate') {
 			throw new Error('ArrowDown did not move focus to the next menu item')
 		}
 
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
-		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+		await frame()
 
 		if (!canvas.textContent?.includes('Action: duplicate') || trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Enter did not activate the focused menu item')
@@ -258,9 +251,9 @@ export const Checkboxes: Story = {
 		if (!trigger || !panel) throw new Error('Checkbox menu trigger or Panel item was not rendered')
 
 		trigger.click()
-		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+		await frame()
 		panel.click()
-		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+		await frame()
 
 		if (panel.getAttribute('aria-checked') !== 'true' || !canvas.textContent?.includes('Panel: on')) {
 			throw new Error('Menu checkbox item did not toggle on')
@@ -276,9 +269,9 @@ export const RadioGroup: Story = {
 		if (!trigger || !right) throw new Error('Radio menu trigger or Right item was not rendered')
 
 		trigger.click()
-		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+		await frame()
 		right.click()
-		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+		await frame()
 
 		if (right.getAttribute('aria-checked') !== 'true' || !canvas.textContent?.includes('Position: right')) {
 			throw new Error('Menu radio item did not select Right')
@@ -318,17 +311,17 @@ export const Submenu: Story = {
 
 		trigger.focus()
 		trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
-		await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
+		await frame(2)
 
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
-		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+		await frame()
 
 		if (document.activeElement !== subTrigger) {
 			throw new Error('ArrowDown did not move focus to the submenu trigger')
 		}
 
 		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
-		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+		await frame()
 
 		if (subTrigger.getAttribute('aria-expanded') !== 'true' || !subContent.matches(':popover-open')) {
 			throw new Error('ArrowRight did not open the submenu')
@@ -338,7 +331,7 @@ export const Submenu: Story = {
 		if (!content) throw new Error('Submenu parent content was not rendered')
 
 		newTeam.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
-		await frame()
+		await frame(2)
 
 		const hoverHighlighted = Array.from(content.querySelectorAll<HTMLElement>('[data-item="menu"][data-highlighted="true"]'))
 		if (subTrigger.getAttribute('aria-expanded') !== 'false' || subContent.matches(':popover-open') || hoverHighlighted.length !== 1 || hoverHighlighted[0]?.dataset.label !== 'New team') {
@@ -346,9 +339,9 @@ export const Submenu: Story = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		const highlighted = Array.from(content.querySelectorAll<HTMLElement>('[data-item="menu"][data-highlighted="true"]'))
 		if (subTrigger.getAttribute('aria-expanded') !== 'false' || subContent.matches(':popover-open') || highlighted.length !== 1 || highlighted[0]?.dataset.label !== 'Team') {
@@ -359,17 +352,17 @@ export const Submenu: Story = {
 		// closes only the submenu (focus back on the sub trigger, the menu
 		// stays open); the next Escape closes the menu itself.
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
-		await frame()
+		await frame(2)
 		if (document.activeElement !== subTrigger) throw new Error('ArrowDown did not move focus to the submenu trigger')
 
-		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
-		await frame()
+		press(subTrigger, 'ArrowRight')
+		await frame(2)
 		if (subTrigger.getAttribute('aria-expanded') !== 'true' || !subContent.matches(':popover-open')) {
 			throw new Error('ArrowRight did not reopen the submenu for the Escape walk')
 		}
 
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
-		await frame()
+		await frame(2)
 		if (subTrigger.getAttribute('aria-expanded') !== 'false' || subContent.matches(':popover-open')) {
 			throw new Error('Escape did not close the submenu')
 		}
@@ -380,8 +373,8 @@ export const Submenu: Story = {
 			throw new Error('Escape did not return focus to the submenu trigger')
 		}
 
-		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
-		await frame()
+		press(subTrigger, 'Escape')
+		await frame(2)
 		if (trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Second Escape did not close the menu')
 		}
@@ -407,7 +400,7 @@ export const FocusModality: Story = {
 
 		// A real pointer click carries detail >= 1: the menu opens without keyboard-focusing the first item.
 		trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
-		await frame()
+		await frame(2)
 
 		if (trigger.getAttribute('aria-expanded') !== 'true') {
 			throw new Error('Pointer click did not open the menu')
@@ -417,7 +410,7 @@ export const FocusModality: Story = {
 		}
 
 		trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
-		await frame()
+		await frame(2)
 
 		if (trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Pointer click did not close the menu')
@@ -425,7 +418,7 @@ export const FocusModality: Story = {
 
 		trigger.focus()
 		trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
-		await frame()
+		await frame(2)
 
 		if (trigger.getAttribute('aria-expanded') !== 'true' || document.activeElement !== first || first.dataset.highlighted !== 'true') {
 			throw new Error('Keyboard open did not focus the first item')
@@ -547,9 +540,9 @@ export const Dismissal: Story = {
 		if (document.activeElement !== outside) throw new Error('Outside dismissal stole focus from its target')
 
 		trigger.focus()
-		trigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
+		press(trigger, 'ArrowDown')
 		await until(() => document.activeElement === first, 'Keyboard menu did not focus after geometry commit')
-		first.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+		press(first, 'Escape')
 		await until(() => !content.matches(':popover-open'), 'Escape did not close the root menu')
 		if (document.activeElement !== trigger) throw new Error('Escape did not restore focus to the menu trigger')
 	},
@@ -575,7 +568,7 @@ export const ControlledSubPrecommit: Story = {
 		}
 		document.addEventListener('focus', observeFocus, true)
 		subTrigger.focus()
-		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		press(subTrigger, 'ArrowRight')
 		close.click()
 		await until(
 			() => subTrigger.getAttribute('aria-expanded') === 'false' && !subContent.matches(':popover-open'),
@@ -637,36 +630,36 @@ export const NestedSubmenus: Story = {
 		}
 
 		rootTrigger.focus()
-		rootTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
+		press(rootTrigger, 'ArrowDown')
 		await until(() => document.activeElement === tools, 'Root menu did not focus its first submenu trigger')
 		if (tools.getAttribute('aria-expanded') !== 'false' || toolsContent.matches(':popover-open')) {
 			throw new Error('defaultOpen submenu survived while its parent root was closed')
 		}
 
-		tools.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		press(tools, 'ArrowRight')
 		await until(() => document.activeElement === share && toolsContent.matches(':popover-open'), 'First submenu did not open and focus after geometry commit')
 		if (!outsideParent(toolsContent, rootContent)) throw new Error('Submenu collision policy constrained it inside the parent surface')
-		share.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		press(share, 'ArrowRight')
 		await until(() => document.activeElement === leaf && shareContent.matches(':popover-open'), 'Second submenu level did not open')
 		if (!outsideParent(shareContent, toolsContent)) throw new Error('Nested submenu collision policy constrained it inside the parent surface')
 
-		leaf.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+		press(leaf, 'Escape')
 		await until(() => document.activeElement === share && !shareContent.matches(':popover-open'), 'First Escape did not close only the deepest submenu')
 		if (!toolsContent.matches(':popover-open')) throw new Error('Deep Escape closed its parent submenu')
 
-		share.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+		press(share, 'Escape')
 		await until(() => document.activeElement === tools && !toolsContent.matches(':popover-open'), 'Second Escape did not close the parent submenu')
 		if (rootTrigger.getAttribute('aria-expanded') !== 'true') throw new Error('Second Escape closed the root menu')
 
-		tools.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+		press(tools, 'Escape')
 		await until(() => rootTrigger.getAttribute('aria-expanded') === 'false', 'Third Escape did not close the root menu')
 		if (document.activeElement !== rootTrigger) throw new Error('Root Escape did not restore trigger focus')
 
-		rootTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
+		press(rootTrigger, 'ArrowDown')
 		await until(() => document.activeElement === tools, 'Root menu did not reopen for pointer dismissal')
-		tools.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		press(tools, 'ArrowRight')
 		await until(() => document.activeElement === share && toolsContent.matches(':popover-open'), 'Parent submenu did not reopen for pointer dismissal')
-		share.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		press(share, 'ArrowRight')
 		await until(() => document.activeElement === leaf && shareContent.matches(':popover-open'), 'Child submenu did not reopen for pointer dismissal')
 
 		exportItem.focus()
@@ -678,7 +671,7 @@ export const NestedSubmenus: Story = {
 		if (document.activeElement !== exportItem) throw new Error('Pointer branch pruning stole focus inside the parent submenu')
 
 		share.focus()
-		share.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		press(share, 'ArrowRight')
 		await until(() => document.activeElement === leaf && shareContent.matches(':popover-open'), 'Child submenu did not reopen before outside dismissal')
 		outside.focus()
 		outside.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))

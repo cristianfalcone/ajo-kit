@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame, until, press } from './play'
 import {
 	MenuCheckboxItem,
 	MenuGroup,
@@ -24,15 +25,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof Menubar>
-
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
-const until = async (condition: () => boolean, message: string) => {
-	for (let attempt = 0; attempt < 30; attempt++) {
-		if (condition()) return
-		await frame()
-	}
-	throw new Error(message)
-}
 
 const AppMenubar = ({ onSelect }: { onSelect?: (action: string) => (event: Event) => void }) => (
 	<Menubar aria-label="Application menu">
@@ -181,7 +173,7 @@ export const Basic: Story<typeof Menubar> = {
 		if (!trigger) throw new Error('File menubar trigger was not rendered')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		const item = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="New Tab"]')
 		const content = canvas.querySelector<HTMLElement>('[data-slot="menubar-content"]')
@@ -202,7 +194,7 @@ export const Basic: Story<typeof Menubar> = {
 		}
 
 		item.click()
-		await frame()
+		await frame(2)
 
 		if (!canvas.textContent?.includes('Action: new-tab') || trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Menubar item did not select and close')
@@ -219,23 +211,23 @@ export const Keyboard: Story<typeof Menubar> = {
 		if (!file || !edit || !view) throw new Error('Menubar triggers were not rendered')
 
 		file.focus()
-		file.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
-		await frame()
+		press(file, 'ArrowRight')
+		await frame(2)
 
 		if (document.activeElement !== edit) {
 			throw new Error('ArrowRight did not move focus to the next menubar trigger')
 		}
 
-		edit.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
-		await frame()
+		press(edit, 'ArrowDown')
+		await frame(2)
 
 		const focused = document.activeElement as HTMLElement | null
 		if (edit.getAttribute('aria-expanded') !== 'true' || focused?.dataset.label !== 'Undo') {
 			throw new Error('ArrowDown did not open Edit menu and focus the first item')
 		}
 
-		focused.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
-		await frame()
+		press(focused, 'ArrowDown')
+		await frame(2)
 
 		if ((document.activeElement as HTMLElement | null)?.dataset.label !== 'Redo') {
 			throw new Error('ArrowDown did not move within Menubar content')
@@ -255,7 +247,7 @@ export const Keyboard: Story<typeof Menubar> = {
 		}
 		firstViewItem?.addEventListener('focus', observeFocus, { once: true })
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
-		await frame()
+		await frame(2)
 
 		if (view.getAttribute('aria-expanded') !== 'true' || edit.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('ArrowRight inside the Edit menu did not move to the View menu')
@@ -272,7 +264,7 @@ export const Keyboard: Story<typeof Menubar> = {
 
 		// Tab from inside an open menu closes it.
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Tab' }))
-		await frame()
+		await frame(2)
 
 		if (view.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Tab inside an open menu did not close the menubar')
@@ -280,11 +272,11 @@ export const Keyboard: Story<typeof Menubar> = {
 
 		// Tab while focus sits ON an open trigger also closes.
 		view.click()
-		await frame()
+		await frame(2)
 		view.focus()
 		if (view.getAttribute('aria-expanded') !== 'true') throw new Error('View menu did not reopen from click')
-		view.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Tab' }))
-		await frame()
+		press(view, 'Tab')
+		await frame(2)
 
 		if (view.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Tab on an open trigger left the menu open')
@@ -306,7 +298,7 @@ export const KeyboardPrecommitTransfer: Story<typeof Menubar> = {
 		}
 
 		edit.focus()
-		edit.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
+		press(edit, 'ArrowDown')
 		await until(() => document.activeElement === undo, 'Edit menu did not establish keyboard focus')
 
 		let focusSawCommittedGeometry = false
@@ -320,8 +312,8 @@ export const KeyboardPrecommitTransfer: Story<typeof Menubar> = {
 
 		// A→B begins while focus is in A. Before B can commit, a second row
 		// arrow on trigger B transfers the same keyboard-entry intent to C.
-		undo.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
-		view.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		press(undo, 'ArrowRight')
+		press(view, 'ArrowRight')
 		await until(
 			() => fileContent.dataset.state === 'open' && document.activeElement === firstFileItem,
 			'Final File menu did not open and focus its first item',
@@ -339,10 +331,10 @@ export const KeyboardPrecommitTransfer: Story<typeof Menubar> = {
 			throw new Error('Keyboard precommit transfer focused before final geometry committed')
 		}
 
-		firstFileItem.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+		press(firstFileItem, 'Escape')
 		await until(() => file.getAttribute('aria-expanded') === 'false', 'File menu did not close before Home transfer')
 		edit.focus()
-		edit.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
+		press(edit, 'ArrowDown')
 		await until(() => document.activeElement === undo, 'Edit menu did not reopen for Home transfer')
 
 		let homeFocusSawCommittedGeometry = false
@@ -353,8 +345,8 @@ export const KeyboardPrecommitTransfer: Story<typeof Menubar> = {
 				&& fileContent.dataset.placement,
 			)
 		}, { once: true })
-		undo.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
-		view.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Home' }))
+		press(undo, 'ArrowRight')
+		press(view, 'Home')
 		await until(
 			() => file.getAttribute('aria-expanded') === 'true' && document.activeElement === firstFileItem,
 			'Home did not transfer pending keyboard entry to the final menu',
@@ -382,7 +374,7 @@ export const GeometryOverride: Story<typeof Menubar> = {
 		if (!trigger || !content) throw new Error('Override menubar did not render')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		const triggerRect = trigger.getBoundingClientRect()
 		if (content.dataset.placement !== 'top-end') {
@@ -410,21 +402,21 @@ export const RapidSwitching: Story<typeof Menubar> = {
 		if (!file || !edit || !view || !undo || !firstViewItem) throw new Error('Rapid-switch menubar did not render')
 
 		edit.focus()
-		edit.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }))
-		await frame()
+		press(edit, 'ArrowDown')
+		await frame(2)
 		if (document.activeElement !== undo) throw new Error('Edit menu did not establish keyboard focus')
 
 		// Start a keyboard move to View, then supersede it with pointer follow
 		// before View can commit geometry. The stale intent must never focus View.
-		undo.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		press(undo, 'ArrowRight')
 		file.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true, cancelable: true }))
-		await frame()
+		await frame(2)
 
 		if (file.getAttribute('aria-expanded') !== 'true' || view.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Rapid keyboard/pointer switch did not settle on File')
 		}
 		view.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true, cancelable: true }))
-		await frame()
+		await frame(2)
 
 		if (view.getAttribute('aria-expanded') !== 'true' || file.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Hover follow did not settle on View')
@@ -530,11 +522,11 @@ export const NestedOwnership: Story<typeof Menubar> = {
 		if (!outerFile || !outerEdit || !innerOne || !innerTwo || !outerFileContent) throw new Error('Nested Menubar ownership fixture was not rendered')
 
 		outerFile.focus()
-		outerFile.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		press(outerFile, 'ArrowRight')
 		if (document.activeElement !== outerEdit) {
 			throw new Error('Outer Menubar ArrowRight entered a nested Menubar trigger row')
 		}
-		outerEdit.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'i' }))
+		press(outerEdit, 'i')
 		if (document.activeElement !== outerEdit) {
 			throw new Error('Outer Menubar typeahead matched a nested Menubar trigger')
 		}
@@ -542,11 +534,11 @@ export const NestedOwnership: Story<typeof Menubar> = {
 		outerFile.click()
 		await until(() => outerFileContent.matches(':popover-open'), 'Outer menu did not open')
 		outerFile.focus()
-		outerFile.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		press(outerFile, 'ArrowRight')
 		if (document.activeElement !== outerEdit) {
 			throw new Error('Visible nested Menubar contaminated the outer trigger order')
 		}
-		outerEdit.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'i' }))
+		press(outerEdit, 'i')
 		if (document.activeElement !== outerEdit) {
 			throw new Error('Visible nested Menubar contaminated outer typeahead')
 		}
@@ -555,13 +547,13 @@ export const NestedOwnership: Story<typeof Menubar> = {
 		innerOne.click()
 		await until(() => innerOne.getAttribute('aria-expanded') === 'true', 'Inner menu did not open')
 		innerOne.focus()
-		innerOne.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
+		press(innerOne, 'ArrowRight')
 		if (document.activeElement !== innerTwo) {
 			const active = document.activeElement as HTMLElement | null
 			throw new Error(`Inner Menubar did not retain its own trigger navigation (${active?.id ?? active?.dataset.label ?? active?.tagName ?? 'missing'})`)
 		}
-		innerTwo.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Tab' }))
-		await frame()
+		press(innerTwo, 'Tab')
+		await frame(2)
 		if (outerFile.getAttribute('aria-expanded') !== 'true') {
 			throw new Error('Nested Menubar Tab was processed by the outer Menubar listener')
 		}
@@ -579,9 +571,9 @@ export const ControlledCloseRejection: Story<typeof Menubar> = {
 
 		await until(() => content.matches(':popover-open') && Boolean(content.dataset.placement), 'Controlled Menubar did not open')
 		item.focus()
-		item.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
+		press(item, 'Escape')
 		await until(() => count.textContent === '1', 'Controlled Menubar did not request its close')
-		await frame()
+		await frame(2)
 
 		const currentItem = canvas.querySelector<HTMLElement>('[data-label="Persistent action"]')
 		if (!content.matches(':popover-open') || trigger.getAttribute('aria-expanded') !== 'true') {
@@ -612,7 +604,7 @@ export const DisabledFirst: Story = {
 		</Menubar>
 	),
 	play: async ({ canvas }) => {
-		await frame()
+		await frame(2)
 		const enabled = canvas.querySelector<HTMLButtonElement>('#enabled-menubar-trigger')
 		if (!enabled) throw new Error('Enabled menubar trigger was not rendered')
 
@@ -631,13 +623,13 @@ export const Checkboxes: Story = {
 		if (!trigger) throw new Error('Checkbox menubar trigger was not rendered')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		const sidebar = canvas.querySelector<HTMLElement>('[data-slot="menu-checkbox-item"][data-label="Show sidebar"]')
 		if (!sidebar) throw new Error('Menubar checkbox item was not rendered')
 
 		sidebar.click()
-		await frame()
+		await frame(2)
 
 		if (sidebar.getAttribute('aria-checked') !== 'true' || !canvas.textContent?.includes('Sidebar: on')) {
 			throw new Error('Menubar checkbox item did not toggle on')
@@ -652,13 +644,13 @@ export const RadioGroup: Story = {
 		if (!trigger) throw new Error('Radio menubar trigger was not rendered')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		const work = canvas.querySelector<HTMLElement>('[data-slot="menu-radio-item"][data-label="Work"]')
 		if (!work) throw new Error('Menubar radio item was not rendered')
 
 		work.click()
-		await frame()
+		await frame(2)
 
 		if (work.getAttribute('aria-checked') !== 'true' || !canvas.textContent?.includes('Profile: work')) {
 			throw new Error('Menubar radio item did not select Work')
@@ -700,7 +692,7 @@ export const Submenu: Story = {
 		if (!trigger || !edit) throw new Error('Submenu menubar triggers were not rendered')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		const subTrigger = canvas.querySelector<HTMLElement>('[data-slot="menu-sub-trigger"]')
 		const subContent = canvas.querySelector<HTMLElement>('[data-slot="menu-sub-content"]')
@@ -708,14 +700,14 @@ export const Submenu: Story = {
 		if (!subTrigger || !subContent || !pdf) throw new Error('Menubar submenu trigger, content, or item was not rendered')
 
 		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowRight' }))
-		await frame()
+		await frame(2)
 
 		if (subTrigger.getAttribute('aria-expanded') !== 'true' || !subContent.matches(':popover-open')) {
 			throw new Error('ArrowRight did not open the menubar submenu')
 		}
 		await until(() => document.activeElement === pdf, 'Menubar submenu did not focus its first item')
-		pdf.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }))
-		await frame()
+		press(pdf, 'ArrowRight')
+		await frame(2)
 
 		if (trigger.getAttribute('aria-expanded') !== 'true' || edit.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('ArrowRight in submenu content switched the outer Menubar')

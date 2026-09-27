@@ -81,7 +81,6 @@ export const Basic: Story<typeof AspectRatio> = {
 }
 
 export const Square: Story<typeof AspectRatio> = {
-	argTypes: { ratio: { control: false } },
 	render: () => (
 		<div class="w-64">
 			<AspectRatio ratio={1} class="overflow-hidden rounded-lg edge bg-card shadow-xs">
@@ -97,7 +96,6 @@ export const Square: Story<typeof AspectRatio> = {
 }
 
 export const Portrait: Story<typeof AspectRatio> = {
-	argTypes: { ratio: { control: false } },
 	render: () => (
 		<div class="w-48">
 			<AspectRatio ratio={9 / 16} class="overflow-hidden rounded-lg edge bg-muted shadow-xs">
@@ -112,7 +110,6 @@ export const Portrait: Story<typeof AspectRatio> = {
 }
 
 export const Image: Story<typeof AspectRatio> = {
-	argTypes: { ratio: { control: false } },
 	render: () => (
 		<div class="w-[420px]">
 			<AspectRatio ratio={16 / 9} class="overflow-hidden rounded-lg bg-muted">
@@ -140,7 +137,6 @@ export const Image: Story<typeof AspectRatio> = {
 }
 
 export const CardMedia: Story<typeof AspectRatio> = {
-	argTypes: { ratio: { control: false } },
 	render: () => (
 		<Card class="w-[360px]">
 			<CardHeader>

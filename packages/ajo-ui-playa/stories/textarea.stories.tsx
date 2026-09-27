@@ -1,5 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
+import { frame, assertFieldControl } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import {
 	Field,
@@ -8,30 +9,6 @@ import {
 	FieldLabel,
 } from 'ajo-ui-playa/field'
 import { Textarea } from 'ajo-ui-playa/textarea'
-
-const frame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
-const tokens = (value: string | null) => new Set((value ?? '').split(/\s+/).filter(Boolean))
-
-const assertFieldControl = (canvas: HTMLElement, name: string, expectedId?: string) => {
-	const field = canvas.querySelector<HTMLElement>(`[data-story-field="${name}"]`)
-	const label = field?.querySelector<HTMLLabelElement>('[data-slot="field-label"]')
-	const description = field?.querySelector<HTMLElement>('[data-slot="field-description"]')
-	const error = field?.querySelector<HTMLElement>('[data-slot="field-error"]')
-	const control = field?.querySelector<HTMLTextAreaElement>('[data-slot="textarea"]')
-	if (!field || !label || !description || !error || !control) throw new Error(`Textarea field wiring story did not render ${name}`)
-
-	const labelFor = label.getAttribute('for')
-	if (!labelFor || control.id !== labelFor) throw new Error(`Textarea ${name} id did not match its label for attribute`)
-	if (expectedId && control.id !== expectedId) throw new Error(`Textarea ${name} did not keep its manual id`)
-
-	const describedby = tokens(control.getAttribute('aria-describedby'))
-	if (!describedby.has(description.id) || !describedby.has(error.id)) {
-		throw new Error(`Textarea ${name} aria-describedby did not include description and error ids`)
-	}
-	if (control.getAttribute('aria-invalid') !== 'true') throw new Error(`Textarea ${name} did not receive aria-invalid`)
-	if (control.getAttribute('aria-errormessage') !== error.id) throw new Error(`Textarea ${name} did not receive aria-errormessage`)
-}
 
 export default {
 	title: 'UI/Textarea',
@@ -101,11 +78,6 @@ export const Invalid: Story<typeof Textarea> = {
 }
 
 export const FieldWiring: Story<typeof Textarea> = {
-	argTypes: {
-		disabled: { control: false },
-		placeholder: { control: false },
-		rows: { control: false },
-	},
 	render: () => (
 		<div class="grid w-full max-w-md gap-6">
 			<Field name="textarea-auto-wire" invalid data-story-field="auto">
@@ -123,11 +95,10 @@ export const FieldWiring: Story<typeof Textarea> = {
 		</div>
 	),
 	play: async ({ canvas }) => {
-		await frame()
-		await frame()
+		await frame(2)
 
-		assertFieldControl(canvas, 'auto')
-		assertFieldControl(canvas, 'manual', 'manual-textarea-control')
+		assertFieldControl(canvas, 'auto', 'textarea')
+		assertFieldControl(canvas, 'manual', 'textarea', 'manual-textarea-control')
 	},
 }
 

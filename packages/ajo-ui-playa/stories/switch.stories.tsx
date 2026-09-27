@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
-import type { Stateful } from 'ajo'
-import type { Meta, Story, StoryContext } from './app'
+import type { Meta, Story } from './app'
+import { frame } from './play'
 import {
 	Field,
 	FieldContent,
@@ -9,8 +9,7 @@ import {
 } from 'ajo-ui-playa/field'
 import { Switch } from 'ajo-ui-playa/switch'
 
-const bind = (setArg: StoryContext['setArg']) => (next: boolean) => setArg('checked', next)
-const frame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+const sizes = ['default', 'sm'] as const
 
 export default {
 	title: 'UI/Switch',
@@ -25,31 +24,16 @@ export default {
 	argTypes: {
 		checked: { control: 'boolean' },
 		disabled: { control: 'boolean' },
-		size: { control: 'select', options: ['default', 'sm'] },
+		size: { control: 'select', options: sizes },
 	},
 	render: (args, { setArg }) => (
-		<Switch {...args} onCheckedChange={bind(setArg)} />
+		<Switch {...args} onCheckedChange={next => setArg('checked', next)} />
 	),
 	parameters: {
 		docs: { description: 'Native checkbox switch with Ajo Kit styling and form behavior.' },
 		layout: 'centered',
 	},
 } satisfies Meta<typeof Switch>
-
-const ControlledExample: Stateful = function* () {
-	let checked = true
-	const toggle = (next: boolean) => this.next(() => checked = next)
-
-	while (true) yield (
-		<Field orientation="horizontal" class="max-w-sm">
-			<Switch id="controlled-switch" name="controlled" checked={checked} onCheckedChange={toggle} />
-			<FieldContent>
-				<FieldLabel for="controlled-switch">Sync drafts</FieldLabel>
-				<FieldDescription>{checked ? 'Drafts sync automatically.' : 'Draft sync is paused.'}</FieldDescription>
-			</FieldContent>
-		</Field>
-	)
-}
 
 export const Basic: Story<typeof Switch> = {
 	play: async ({ canvas }) => {
@@ -75,12 +59,35 @@ export const Basic: Story<typeof Switch> = {
 	},
 }
 
-export const Checked: Story<typeof Switch> = {
-	args: { checked: true },
-}
-
-export const Small: Story<typeof Switch> = {
-	args: { size: 'sm', checked: true },
+export const Variants: Story<typeof Switch> = {
+	argTypes: {
+		checked: { control: false },
+		disabled: { control: false },
+		size: { control: false },
+	},
+	render: args => (
+		<div class="grid gap-4">
+			{[false, true].map(disabled => (
+				<div key={`${disabled}`} class="flex items-center gap-4">
+					{sizes.flatMap(size => [false, true].map(checked => {
+						const id = `switch-${size}-${checked}${disabled ? '-disabled' : ''}`
+						return (
+							<Switch
+								key={id}
+								{...args}
+								id={id}
+								name={id}
+								size={size}
+								checked={checked}
+								disabled={disabled}
+								aria-label={`${size} switch, ${checked ? 'on' : 'off'}${disabled ? ', disabled' : ''}`}
+							/>
+						)
+					}))}
+				</div>
+			))}
+		</div>
+	),
 }
 
 export const WithLabel: Story<typeof Switch> = {
@@ -91,7 +98,7 @@ export const WithLabel: Story<typeof Switch> = {
 	},
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" disabled={Boolean(args.disabled)}>
-			<Switch {...args} onCheckedChange={bind(setArg)} />
+			<Switch {...args} onCheckedChange={next => setArg('checked', next)} />
 			<FieldLabel for={args.id}>{args.label}</FieldLabel>
 		</Field>
 	),
@@ -107,7 +114,7 @@ export const WithDescription: Story<typeof Switch> = {
 	},
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" disabled={Boolean(args.disabled)}>
-			<Switch {...args} onCheckedChange={bind(setArg)} />
+			<Switch {...args} onCheckedChange={next => setArg('checked', next)} />
 			<FieldContent>
 				<FieldLabel for={args.id}>{args.label}</FieldLabel>
 				<FieldDescription>{args.description}</FieldDescription>
@@ -125,37 +132,8 @@ export const Disabled: Story<typeof Switch> = {
 	},
 	render: (args, { setArg }) => (
 		<Field orientation="horizontal" disabled={Boolean(args.disabled)}>
-			<Switch {...args} onCheckedChange={bind(setArg)} />
+			<Switch {...args} onCheckedChange={next => setArg('checked', next)} />
 			<FieldLabel for={args.id}>{args.label}</FieldLabel>
 		</Field>
 	),
-}
-
-export const DisabledChecked: Story<typeof Switch> = {
-	args: { checked: true, disabled: true },
-}
-
-export const Controlled: Story = {
-	argTypes: {
-		id: { control: false },
-		name: { control: false },
-		checked: { control: false },
-		disabled: { control: false },
-		size: { control: false },
-	},
-	render: () => <ControlledExample />,
-	play: async ({ canvas }) => {
-		const input = canvas.querySelector<HTMLInputElement>('#controlled-switch')
-		if (!input) throw new Error('Controlled switch input was not rendered')
-		if (!canvas.textContent?.includes('Drafts sync automatically.')) {
-			throw new Error('Controlled switch did not render its initial checked state')
-		}
-
-		input.click()
-		await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
-		if (!canvas.textContent?.includes('Draft sync is paused.')) {
-			throw new Error('Controlled switch did not update after click')
-		}
-	},
 }

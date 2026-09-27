@@ -1,5 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
+import { frame, press } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import { Input } from 'ajo-ui-playa/input'
 import { ToggleGroup, ToggleGroupItem } from 'ajo-ui-playa/toggle-group'
@@ -21,11 +22,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof Toolbar>
-
-const waitFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
-const press = (element: HTMLElement, key: string) =>
-	element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key }))
 
 const toolbarOf = (canvas: HTMLElement) => {
 	const toolbar = canvas.querySelector<HTMLElement>('[data-slot="toolbar"]')
@@ -51,7 +47,7 @@ export const Basic: Story<typeof Toolbar> = {
 		</Toolbar>
 	),
 	play: async ({ canvas }) => {
-		await waitFrame()
+		await frame()
 		const toolbar = toolbarOf(canvas)
 		if (toolbar.getAttribute('role') !== 'toolbar') throw new Error('Toolbar root is missing role="toolbar"')
 		if (toolbar.getAttribute('aria-label') !== 'Text formatting') throw new Error('Toolbar did not pass aria-label through')
@@ -68,16 +64,16 @@ export const Basic: Story<typeof Toolbar> = {
 
 		buttons[0].focus()
 		press(buttons[0], 'ArrowRight')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== buttons[1]) throw new Error('ArrowRight did not move focus to the next control')
 		if (stop(buttons[1]) !== 0 || stop(buttons[0]) !== -1) throw new Error('Tab stop did not follow focus')
 
 		press(buttons[1], 'End')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== buttons[3]) throw new Error('End did not move focus to the last control')
 
 		press(buttons[3], 'Home')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== buttons[0]) throw new Error('Home did not move focus to the first control')
 		if (buttons.filter(button => button.tabIndex === 0).length !== 1) throw new Error('Toolbar lost its single tab stop after roving')
 	},
@@ -97,7 +93,7 @@ export const WithToggleGroup: Story<typeof Toolbar> = {
 		</Toolbar>
 	),
 	play: async ({ canvas }) => {
-		await waitFrame()
+		await frame()
 		const toolbar = toolbarOf(canvas)
 		const [undo, bold, italic, redo] = buttonsOf(toolbar)
 		if (!undo || !bold || !italic || !redo) throw new Error('Toolbar with toggle group did not render four controls')
@@ -109,19 +105,19 @@ export const WithToggleGroup: Story<typeof Toolbar> = {
 
 		undo.focus()
 		press(undo, 'ArrowRight')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== bold) throw new Error('ArrowRight did not traverse into the toggle group')
 
 		press(bold, 'ArrowRight')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== italic) throw new Error('ArrowRight double-jumped inside the toggle group')
 
 		press(italic, 'ArrowRight')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== redo) throw new Error('ArrowRight did not traverse out of the toggle group')
 
 		press(redo, 'ArrowLeft')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== italic) throw new Error('ArrowLeft did not traverse back into the toggle group')
 	},
 }
@@ -135,7 +131,7 @@ export const WithInput: Story<typeof Toolbar> = {
 		</Toolbar>
 	),
 	play: async ({ canvas }) => {
-		await waitFrame()
+		await frame()
 		const toolbar = toolbarOf(canvas)
 		const [back, go] = buttonsOf(toolbar)
 		const input = toolbar.querySelector<HTMLInputElement>('input')
@@ -146,17 +142,17 @@ export const WithInput: Story<typeof Toolbar> = {
 		// dispatchEvent returns false when preventDefault was called: a mid-text
 		// arrow must be left to the caret (not consumed, focus unchanged).
 		const kept = press(input, 'ArrowLeft')
-		await waitFrame()
+		await frame()
 		if (!kept) throw new Error('Toolbar stole ArrowLeft from the text input caret')
 		if (document.activeElement !== input) throw new Error('ArrowLeft inside the input moved focus instead of the caret')
 
 		input.setSelectionRange(input.value.length, input.value.length)
 		press(input, 'ArrowRight')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== go) throw new Error('ArrowRight at the caret end did not rove to the next control')
 
 		press(go, 'ArrowLeft')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== input) throw new Error('ArrowLeft from a button did not rove back onto the input')
 	},
 }
@@ -175,7 +171,7 @@ export const WithSummary: Story<typeof Toolbar> = {
 		</Toolbar>
 	),
 	play: async ({ canvas }) => {
-		await waitFrame()
+		await frame()
 		const toolbar = toolbarOf(canvas)
 		const details = toolbar.querySelector<HTMLDetailsElement>('details')
 		const summary = toolbar.querySelector<HTMLElement>('summary')
@@ -191,21 +187,21 @@ export const WithSummary: Story<typeof Toolbar> = {
 
 		reset.focus()
 		press(reset, 'ArrowRight')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== summary) throw new Error('ArrowRight did not rove onto the summary control')
 
 		// Closed details content stays out of the row (offsetParent filter):
 		// the next arrow lands on Apply, not on the hidden button.
 		press(summary, 'ArrowRight')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== apply) throw new Error('ArrowRight from summary did not skip the closed details content')
 
 		// Opening the details folds its content into the live row.
 		details.open = true
-		await waitFrame()
+		await frame()
 		summary.focus()
 		press(summary, 'ArrowRight')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== active) throw new Error('Open details content did not join the toolbar row')
 	},
 }
@@ -224,7 +220,7 @@ export const WithDialogLayer: Story<typeof Toolbar> = {
 		</Toolbar>
 	),
 	play: async ({ canvas }) => {
-		await waitFrame()
+		await frame()
 		const toolbar = toolbarOf(canvas)
 		const dialog = toolbar.querySelector<HTMLDialogElement>('dialog')
 		if (!dialog) throw new Error('Toolbar dialog layer did not render')
@@ -247,14 +243,14 @@ export const WithDialogLayer: Story<typeof Toolbar> = {
 		// to the start instead of entering the dialog.
 		italic.focus()
 		press(italic, 'ArrowRight')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== bold) throw new Error('Toolbar roving crossed into the dialog layer')
 
 		// The toggle group inside the dialog keeps its own roving even though
 		// the toolbar is a DOM ancestor (its guard is layer-scoped).
 		left.focus()
 		press(left, 'ArrowRight')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== right) throw new Error('ToggleGroup inside a dialog layer lost its own roving')
 	},
 }
@@ -272,7 +268,7 @@ export const Vertical: Story<typeof Toolbar> = {
 		</Toolbar>
 	),
 	play: async ({ canvas }) => {
-		await waitFrame()
+		await frame()
 		const toolbar = toolbarOf(canvas)
 		if (toolbar.getAttribute('aria-orientation') !== 'vertical') throw new Error('Vertical toolbar did not expose aria-orientation')
 		if (toolbar.dataset.orientation !== 'vertical') throw new Error('Vertical toolbar did not expose data-orientation')
@@ -283,11 +279,11 @@ export const Vertical: Story<typeof Toolbar> = {
 		const [up, down] = buttonsOf(toolbar)
 		up.focus()
 		press(up, 'ArrowDown')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== down) throw new Error('ArrowDown did not move focus in the vertical toolbar')
 
 		press(down, 'ArrowRight')
-		await waitFrame()
+		await frame()
 		if (document.activeElement !== down) throw new Error('Horizontal arrows should not rove in a vertical toolbar')
 	},
 }

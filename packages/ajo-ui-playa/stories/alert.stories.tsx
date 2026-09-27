@@ -8,6 +8,15 @@ import {
 	AlertTitle,
 } from 'ajo-ui-playa/alert'
 
+const examples = {
+	default: ['i-lucide-check-circle', 'Account updated successfully', 'Your profile information has been saved. Changes will be reflected immediately.'],
+	danger: ['i-lucide-alert-circle', 'Payment failed', 'Your payment could not be processed. Please check your payment method and try again.'],
+	success: ['i-lucide-circle-check', 'Backup completed', 'Your data was backed up successfully. No further action is required.'],
+	warning: ['i-lucide-alert-triangle', 'Storage almost full', 'You are using 90% of your storage. Remove unused files to avoid interruptions.'],
+	info: ['i-lucide-circle-help', 'Scheduled maintenance', 'The service will be briefly unavailable on Sunday at 02:00 UTC.'],
+} as const
+const variants = Object.keys(examples) as Array<keyof typeof examples>
+
 export default {
 	title: 'UI/Alert',
 	component: Alert,
@@ -15,7 +24,7 @@ export default {
 		variant: 'default',
 	},
 	argTypes: {
-		variant: { control: 'select', options: ['default', 'danger', 'success', 'warning', 'info'] },
+		variant: { control: 'select', options: variants },
 	},
 	parameters: {
 		docs: { description: 'Callout for important user attention with title, description, icon, and action slots.' },
@@ -34,63 +43,20 @@ export const Default: Story<typeof Alert> = {
 	),
 }
 
-export const Danger: Story<typeof Alert> = {
-	args: {
-		variant: 'danger',
-	},
-	render: args => (
-		<Alert {...args}>
-			<span data-slot="alert-icon" class="i-lucide-alert-circle" />
-			<AlertTitle>Payment failed</AlertTitle>
-			<AlertDescription>
-				Your payment could not be processed. Please check your payment method and try again.
-			</AlertDescription>
-		</Alert>
-	),
-}
-
-export const Success: Story<typeof Alert> = {
-	args: {
-		variant: 'success',
-	},
-	render: args => (
-		<Alert {...args}>
-			<span data-slot="alert-icon" class="i-lucide-circle-check" />
-			<AlertTitle>Backup completed</AlertTitle>
-			<AlertDescription>
-				Your data was backed up successfully. No further action is required.
-			</AlertDescription>
-		</Alert>
-	),
-}
-
-export const Warning: Story<typeof Alert> = {
-	args: {
-		variant: 'warning',
-	},
-	render: args => (
-		<Alert {...args}>
-			<span data-slot="alert-icon" class="i-lucide-alert-triangle" />
-			<AlertTitle>Storage almost full</AlertTitle>
-			<AlertDescription>
-				You are using 90% of your storage. Remove unused files to avoid interruptions.
-			</AlertDescription>
-		</Alert>
-	),
-}
-
-export const Info: Story<typeof Alert> = {
-	args: {
-		variant: 'info',
-	},
-	render: args => (
-		<Alert {...args}>
-			<span data-slot="alert-icon" class="i-lucide-circle-help" />
-			<AlertTitle>Scheduled maintenance</AlertTitle>
-			<AlertDescription>
-				The service will be briefly unavailable on Sunday at 02:00 UTC.
-			</AlertDescription>
-		</Alert>
+export const Variants: Story<typeof Alert> = {
+	render: () => (
+		<div class="grid w-full max-w-xl gap-4">
+			{variants.map(variant => {
+				const [icon, title, description] = examples[variant]
+				return (
+					<Alert key={variant} variant={variant}>
+						<span data-slot="alert-icon" class={icon} />
+						<AlertTitle>{title}</AlertTitle>
+						<AlertDescription>{description}</AlertDescription>
+					</Alert>
+				)
+			})}
+		</div>
 	),
 }
 

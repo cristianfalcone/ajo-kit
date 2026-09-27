@@ -32,8 +32,6 @@ export default {
 	},
 } satisfies Meta<typeof Item>
 
-const fixed = { variant: { control: false }, size: { control: false } } as const
-
 export const Basic: Story = {
 	args: { title: 'Basic Item', description: 'A simple item with title and description.' },
 	render: args => (
@@ -128,7 +126,6 @@ export const WithAvatar: Story = {
 }
 
 export const Variants: Story = {
-	argTypes: fixed,
 	render: () => (
 		<div class="grid w-full max-w-md gap-3">
 			<Item>
@@ -160,7 +157,6 @@ export const Variants: Story = {
 }
 
 export const Sizes: Story = {
-	argTypes: fixed,
 	render: () => (
 		<div class="grid w-full max-w-md gap-3">
 			{(['default', 'sm', 'xs'] as const).map(size => (
@@ -185,7 +181,6 @@ export const Sizes: Story = {
 }
 
 export const Group: Story = {
-	argTypes: fixed,
 	render: () => (
 		<ItemGroup class="w-full max-w-md rounded-md edge">
 			<Item>

@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import {
 	Attachment,
 	AttachmentAction,
@@ -21,8 +22,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof Attachment>
-
-const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
 const image = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Crect width=%22120%22 height=%22120%22 fill=%22%233596ac%22/%3E%3Ccircle cx=%2278%22 cy=%2242%22 r=%2224%22 fill=%22%23f3f0e9%22 opacity=%22.88%22/%3E%3Cpath d=%22M0 95 34 58l23 23 18-17 45 47v9H0z%22 fill=%22%230f2334%22 opacity=%22.6%22/%3E%3C/svg%3E'
 
@@ -245,13 +244,13 @@ export const Trigger: Story = {
 		if (!action || !trigger) throw new Error('Attachment trigger story was not rendered')
 
 		action.click()
-		await nextFrame()
+		await frame()
 		if (!canvas.textContent?.includes('Opened: 0 · Removed: 1')) {
 			throw new Error('Attachment action should stay independently clickable')
 		}
 
 		trigger.click()
-		await nextFrame()
+		await frame()
 		if (!canvas.textContent?.includes('Opened: 1 · Removed: 1')) {
 			throw new Error('Attachment trigger did not activate independently')
 		}

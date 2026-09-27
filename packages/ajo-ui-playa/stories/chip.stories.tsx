@@ -1,9 +1,10 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import { Chip, chipVariants } from 'ajo-ui-playa/chip'
 
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
+const variants = ['default', 'secondary', 'danger', 'success', 'warning', 'info', 'outline', 'ghost', 'link'] as const
 
 export default {
 	title: 'UI/Chip',
@@ -13,7 +14,7 @@ export default {
 		children: 'Chip',
 	},
 	argTypes: {
-		variant: { control: 'select', options: ['default', 'secondary', 'danger', 'success', 'warning', 'info', 'outline', 'ghost', 'link'] },
+		variant: { control: 'select', options: variants },
 		children: { control: 'text', label: 'Text' },
 	},
 	parameters: {
@@ -24,38 +25,6 @@ export default {
 
 export const Default: Story<typeof Chip> = {}
 
-export const Secondary: Story<typeof Chip> = {
-	args: { variant: 'secondary', children: 'Secondary' },
-}
-
-export const Danger: Story<typeof Chip> = {
-	args: { variant: 'danger', children: 'Danger' },
-}
-
-export const Outline: Story<typeof Chip> = {
-	args: { variant: 'outline', children: 'Outline' },
-}
-
-export const Ghost: Story<typeof Chip> = {
-	args: { variant: 'ghost', children: 'Ghost' },
-}
-
-export const Success: Story<typeof Chip> = {
-	args: { variant: 'success', children: 'Success' },
-}
-
-export const Warning: Story<typeof Chip> = {
-	args: { variant: 'warning', children: 'Warning' },
-}
-
-export const Info: Story<typeof Chip> = {
-	args: { variant: 'info', children: 'Info' },
-}
-
-export const Link: Story<typeof Chip> = {
-	args: { variant: 'link', children: 'Link' },
-}
-
 export const Variants: Story<typeof Chip> = {
 	argTypes: {
 		children: { control: false },
@@ -63,14 +32,7 @@ export const Variants: Story<typeof Chip> = {
 	},
 	render: args => (
 		<div class="flex flex-wrap items-center gap-2">
-			<Chip {...args} variant="default">Default</Chip>
-			<Chip {...args} variant="secondary">Secondary</Chip>
-			<Chip {...args} variant="danger">Danger</Chip>
-			<Chip {...args} variant="success">Success</Chip>
-			<Chip {...args} variant="warning">Warning</Chip>
-			<Chip {...args} variant="info">Info</Chip>
-			<Chip {...args} variant="outline">Outline</Chip>
-			<Chip {...args} variant="ghost">Ghost</Chip>
+			{variants.map(variant => <Chip key={variant} {...args} variant={variant}>{variant}</Chip>)}
 		</div>
 	),
 }
@@ -122,10 +84,6 @@ const RemovableExample: Stateful = function* () {
 }
 
 export const Removable: Story<typeof Chip> = {
-	argTypes: {
-		children: { control: false },
-		variant: { control: false },
-	},
 	render: () => <RemovableExample />,
 	play: async ({ canvas }) => {
 		const chips = () => canvas.querySelectorAll('[data-slot="chip"]').length
@@ -135,7 +93,7 @@ export const Removable: Story<typeof Chip> = {
 		if (!remove) throw new Error('Chip remove button was not rendered')
 
 		remove.click()
-		await frame()
+		await frame(2)
 
 		if (chips() !== before - 1) throw new Error('Chip was not removed')
 	},

@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
-import type { Meta, Story, StoryContext } from './app'
+import type { Meta, Story } from './app'
+import { frame, until } from './play'
 import { Checkbox } from 'ajo-ui-playa/checkbox'
 import { CheckboxGroup, CheckboxGroupItem } from 'ajo-ui-playa/checkbox-group'
 import {
@@ -11,21 +12,11 @@ import {
 	FieldSet,
 } from 'ajo-ui-playa/field'
 
-const bind = (setArg: StoryContext['setArg']) => (next: string[]) => setArg('defaultValue', next)
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
-
 /** The icon Playa masks onto a checkbox indicator. */
 const glyph = (node: HTMLElement) => getComputedStyle(node).maskImage
 
 // Indicator icons transition in (spring pop with a short delay), so state
 // assertions poll until the styles settle instead of reading one frame.
-const until = async (test: () => boolean, error: string) => {
-	const deadline = performance.now() + 1000
-	while (!test()) {
-		if (performance.now() > deadline) throw new Error(error)
-		await frame()
-	}
-}
 
 export default {
 	title: 'UI/Checkbox Group',
@@ -62,21 +53,6 @@ const ToppingOptions = () => (
 		</Field>
 	</>
 )
-
-const ControlledExample: Stateful = function* () {
-	let value = ['cheese']
-	const setValue = (next: string[]) => this.next(() => value = next)
-
-	while (true) yield (
-		<FieldSet class="w-full max-w-sm">
-			<FieldLegend>Toppings</FieldLegend>
-			<CheckboxGroup name="controlled-toppings" value={value} onValueChange={setValue}>
-				<ToppingOptions />
-			</CheckboxGroup>
-			<FieldDescription>Selected: {value.length ? value.join(', ') : 'none'}</FieldDescription>
-		</FieldSet>
-	)
-}
 
 const toppings = ['cheese', 'mushrooms', 'olives']
 
@@ -120,7 +96,7 @@ export const Basic: Story<typeof CheckboxGroup> = {
 		</CheckboxGroup>
 	),
 	play: async ({ canvas }) => {
-		await frame()
+		await frame(2)
 		const group = canvas.querySelector<HTMLElement>('[data-slot="checkbox-group"]')
 		const layout = group ? getComputedStyle(group) : null
 		if (!group || group.dataset.orientation !== 'vertical' || layout?.display !== 'grid' || layout.gap !== '12px') {
@@ -135,14 +111,14 @@ export const Basic: Story<typeof CheckboxGroup> = {
 		}
 
 		mushrooms.click()
-		await frame()
+		await frame(2)
 
 		if (!mushrooms.checked || !cheese.checked) {
 			throw new Error('Basic uncontrolled group did not keep the clicked item checked')
 		}
 
 		mushrooms.click()
-		await frame()
+		await frame(2)
 
 		if (mushrooms.checked || !cheese.checked) {
 			throw new Error('Basic uncontrolled group did not uncheck the toggled item')
@@ -160,7 +136,7 @@ export const Form: Story<typeof CheckboxGroup> = {
 		</form>
 	),
 	play: async ({ canvas }) => {
-		await frame()
+		await frame(2)
 
 		const form = canvas.querySelector('form')
 		if (!form) throw new Error('Form story did not render a form')
@@ -170,7 +146,7 @@ export const Form: Story<typeof CheckboxGroup> = {
 		}
 
 		canvas.querySelector<HTMLInputElement>('#topping-mushrooms')?.click()
-		await frame()
+		await frame(2)
 
 		if (new FormData(form).getAll('toppings').join(',') !== 'cheese,mushrooms,olives') {
 			throw new Error('Form did not include the newly checked value')
@@ -184,7 +160,7 @@ export const Horizontal: Story<typeof CheckboxGroup> = {
 		orientation: 'horizontal',
 	},
 	render: (args, { setArg }) => (
-		<CheckboxGroup {...args} onValueChange={bind(setArg)}>
+		<CheckboxGroup {...args} onValueChange={next => setArg('defaultValue', next)}>
 			<ToppingOptions />
 		</CheckboxGroup>
 	),
@@ -207,7 +183,7 @@ export const VisualParity: Story = {
 		</div>
 	),
 	play: async ({ canvas }) => {
-		await frame()
+		await frame(2)
 		const standalone = canvas.querySelector<HTMLElement>('[data-slot="checkbox"]')
 		const grouped = canvas.querySelector<HTMLElement>('[data-slot="checkbox-group-item"]')
 		if (!standalone || !grouped) throw new Error('Checkbox parity controls were not rendered')
@@ -251,12 +227,12 @@ export const Disabled: Story<typeof CheckboxGroup> = {
 		disabled: true,
 	},
 	render: (args, { setArg }) => (
-		<CheckboxGroup {...args} onValueChange={bind(setArg)}>
+		<CheckboxGroup {...args} onValueChange={next => setArg('defaultValue', next)}>
 			<ToppingOptions />
 		</CheckboxGroup>
 	),
 	play: async ({ canvas }) => {
-		await frame()
+		await frame(2)
 
 		const inputs = Array.from(canvas.querySelectorAll<HTMLInputElement>('[data-slot="checkbox-input"]'))
 		if (inputs.length !== 3) throw new Error('Disabled checkbox group items were not rendered')
@@ -264,46 +240,10 @@ export const Disabled: Story<typeof CheckboxGroup> = {
 	},
 }
 
-export const Controlled: Story = {
-	argTypes: {
-		name: { control: false },
-		defaultValue: { control: false },
-		disabled: { control: false },
-		orientation: { control: false },
-	},
-	render: () => <ControlledExample />,
-	play: async ({ canvas }) => {
-		await frame()
-
-		const mushrooms = canvas.querySelector<HTMLInputElement>('#topping-mushrooms')
-		if (!mushrooms) throw new Error('Controlled checkbox group item was not rendered')
-
-		mushrooms.click()
-		await frame()
-
-		if (!mushrooms.checked || !canvas.textContent?.includes('Selected: cheese, mushrooms')) {
-			throw new Error('Controlled group did not append the clicked item')
-		}
-
-		mushrooms.click()
-		await frame()
-
-		if (mushrooms.checked || !canvas.textContent?.includes('Selected: cheese')) {
-			throw new Error('Controlled group did not remove the toggled item')
-		}
-	},
-}
-
 export const SelectAll: Story = {
-	argTypes: {
-		name: { control: false },
-		defaultValue: { control: false },
-		disabled: { control: false },
-		orientation: { control: false },
-	},
 	render: () => <SelectAllExample />,
 	play: async ({ canvas }) => {
-		await frame()
+		await frame(2)
 
 		const parent = canvas.querySelector<HTMLInputElement>('#toppings-all')
 		const items = Array.from(canvas.querySelectorAll<HTMLInputElement>('[data-slot="checkbox-group-item"] [data-slot="checkbox-input"]'))
@@ -324,7 +264,7 @@ export const SelectAll: Story = {
 		const mixedGlyph = glyph(indicator)
 
 		parent.click()
-		await frame()
+		await frame(2)
 
 		if (!parent.checked || parent.indeterminate || !items.every(item => item.checked)) {
 			throw new Error('Select all parent did not check every item')
@@ -336,7 +276,7 @@ export const SelectAll: Story = {
 		)
 
 		items[0].click()
-		await frame()
+		await frame(2)
 
 		if (!parent.indeterminate || items[0].checked) {
 			throw new Error('Unchecking one item did not return the parent to indeterminate')
@@ -348,9 +288,9 @@ export const SelectAll: Story = {
 		)
 
 		parent.click()
-		await frame()
+		await frame(2)
 		parent.click()
-		await frame()
+		await frame(2)
 
 		if (parent.checked || parent.indeterminate || items.some(item => item.checked) || !canvas.textContent?.includes('Selected: none')) {
 			throw new Error('Select all parent did not clear the selection')

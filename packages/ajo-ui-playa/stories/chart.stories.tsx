@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import {
 	ChartArea,
@@ -107,12 +108,6 @@ const innerScope = {
 	},
 } satisfies ChartConfig
 
-const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
-const waitFrames = async (count: number) => {
-	for (let index = 0; index < count; index++) await nextFrame()
-}
-
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 const expectAnimation = (element: Element, name: string) => {
@@ -135,7 +130,7 @@ const movePointer = async (svg: SVGSVGElement, clientX: number, clientY: number)
 		clientX,
 		clientY,
 	}))
-	await waitFrames(2)
+	await frame(2)
 	return { x: clientX, y: clientY }
 }
 
@@ -208,7 +203,7 @@ const expectBarHighlight = async (active: Element, inactive: Element) => {
 		activeOpacity = Number(getComputedStyle(active).opacity)
 		inactiveOpacity = Number(getComputedStyle(inactive).opacity)
 		if (activeOpacity === 1 && inactiveOpacity < 1) return
-		await waitFrames(1)
+		await frame()
 	}
 
 	if (activeOpacity !== 1) throw new Error(`Active bar opacity was ${activeOpacity}`)
@@ -398,7 +393,7 @@ export const BarCorners: Story = {
 
 		positive.style.animation = 'none'
 		negative.style.animation = 'none'
-		await waitFrames(1)
+		await frame()
 		const positiveBox = positive.getBBox()
 		const negativeBox = negative.getBBox()
 		if (Math.abs(positiveBox.y + positiveBox.height - negativeBox.y) > 0.5) {
@@ -440,7 +435,7 @@ export const FloatingGeometry: Story = {
 		}
 		svg.style.transformOrigin = 'center'
 		svg.style.transform = 'translate(7px, 3px) rotate(1deg)'
-		await waitFrames(1)
+		await frame()
 		const transformed = svg.getScreenCTM()
 		if (!transformed || Math.abs(transformed.b) < 0.001 || Math.abs(transformed.c) < 0.001) {
 			throw new Error('Chart geometry fixture must exercise a non-axis-aligned SVG transform')
@@ -477,7 +472,7 @@ export const FloatingGeometry: Story = {
 					// A root resize repositions on the next frame, so a stale box may briefly sit 12px off the moved point.
 					if (Math.abs(gap - 12) < 2 && insideRoot(tooltip)) break
 				}
-				await waitFrames(1)
+				await frame()
 			}
 			if (!tooltip) throw new Error(`${label} did not render a tooltip`)
 			if (Math.abs(gap - 12) >= 2) {
@@ -510,7 +505,7 @@ export const FloatingGeometry: Story = {
 		const beforeResize = svg.getBoundingClientRect().width
 		wrapper.style.width = '360px'
 		for (let attempt = 0; attempt < 24 && Math.abs(svg.getBoundingClientRect().width - beforeResize) < 1; attempt++) {
-			await waitFrames(1)
+			await frame()
 		}
 		if (Math.abs(svg.getBoundingClientRect().width - beforeResize) < 1) {
 			throw new Error('Chart fixture did not resize its SVG viewport')
@@ -522,14 +517,14 @@ export const FloatingGeometry: Story = {
 		if (!tooltip.textContent?.includes('Top left')) throw new Error('Keyboard focus did not activate the focused datum')
 
 		svg.dispatchEvent(new PointerEvent('pointerleave'))
-		await waitFrames(2)
+		await frame(2)
 		if (root.querySelector('[data-slot="chart-tooltip"]')) throw new Error('Pointer leave did not remove the Chart tooltip')
 
 		for (let cycle = 0; cycle < 12; cycle++) {
 			dispatch(cycle % geometryData.length)
 			await expectAttached(cycle % geometryData.length, 'Chart lifecycle cycle')
 			svg.dispatchEvent(new PointerEvent('pointerleave'))
-			await waitFrames(1)
+			await frame()
 			if (root.querySelector('[data-slot=chart-tooltip]')) throw new Error('A Chart lifecycle cycle retained its tooltip')
 		}
 
@@ -579,7 +574,7 @@ export const FloatingRetarget: Story = {
 					gap = pointGap(tooltip, datum(svg, kind).point)
 					if (Math.abs(gap - 12) < 2) return
 				}
-				await waitFrames(1)
+				await frame()
 			}
 			throw new Error(`${label} did not attach to its current SVG datum; gap=${gap.toFixed(1)}`)
 		}
@@ -595,7 +590,7 @@ export const FloatingRetarget: Story = {
 		bar.mark.focus()
 		await expectAttached(barSvg, 'bar', 'Retargeted bar')
 		remove.click()
-		await waitFrames(2)
+		await frame(2)
 		if (root.querySelector('[data-retarget-plot="bar"]')) throw new Error('Active bar plot was not removed')
 		if (root.querySelector('[data-slot="chart-tooltip"]')) throw new Error('Unmounting the active SVG retained its tooltip')
 
@@ -608,7 +603,7 @@ export const FloatingRetarget: Story = {
 		const beforeResize = currentLine.getBoundingClientRect().width
 		wrapper.style.width = '360px'
 		for (let attempt = 0; attempt < 24 && Math.abs(currentLine.getBoundingClientRect().width - beforeResize) < 1; attempt++) {
-			await waitFrames(1)
+			await frame()
 		}
 		if (Math.abs(currentLine.getBoundingClientRect().width - beforeResize) < 1) throw new Error('Retarget fixture did not resize')
 		await expectAttached(currentLine, 'line', 'Observed current line')
@@ -676,11 +671,11 @@ export const Area: Story = {
 			clientX: from.x,
 			clientY: from.y,
 		}))
-		await waitFrames(1)
+		await frame()
 		const tooltip = canvas.querySelector<HTMLElement>('[data-slot="chart-tooltip"]')
 		if (!tooltip) throw new Error('Area tooltip did not render after its first active frame')
 		const first = tooltip.getBoundingClientRect()
-		await waitFrames(16)
+		await frame(16)
 		const start = tooltip.getBoundingClientRect()
 		if (rectDistance(first, start) > 2) throw new Error('Area tooltip animated from an unpositioned first frame')
 		expectTooltip(canvas, 'February')
@@ -692,8 +687,8 @@ export const Area: Story = {
 			clientY: to.y,
 		}))
 		const samples: DOMRect[] = []
-		for (let frame = 0; frame < 8; frame++) {
-			await waitFrames(1)
+		for (let sample = 0; sample < 8; sample++) {
+			await frame()
 			const current = canvas.querySelector<HTMLElement>('[data-slot="chart-tooltip"]')
 			if (current !== tooltip) throw new Error('Area tooltip was replaced while retargeting')
 			const style = getComputedStyle(current)
@@ -702,7 +697,7 @@ export const Area: Story = {
 			}
 			samples.push(current.getBoundingClientRect())
 		}
-		await waitFrames(16)
+		await frame(16)
 		const end = tooltip.getBoundingClientRect()
 		if (rectDistance(start, end) < 100) throw new Error('Area tooltip did not retarget to a distant datum')
 		expectTooltip(canvas, 'May')
@@ -751,7 +746,7 @@ export const Pie: Story = {
 
 		const hole = svgClientPoint(svg, center, center)
 		await movePointer(svg, hole.x, hole.y)
-		await waitFrames(2)
+		await frame(2)
 		const after = canvas.querySelector<HTMLElement>('[data-slot="chart-legend"]')
 		if (!after) throw new Error('Pie legend was not rendered after clearing hover')
 		expectRectStable(before, after.getBoundingClientRect(), 'Pie legend')
@@ -821,7 +816,7 @@ export const DataUpdateTransitions: Story = {
 		}
 
 		button.click()
-		await waitFrames(2)
+		await frame(2)
 
 		const updated = canvas.querySelector<SVGRectElement>(selector)
 		const updatedStyle = canvas.querySelector<HTMLStyleElement>('[data-slot="chart"] > style[data-chart-scope]')

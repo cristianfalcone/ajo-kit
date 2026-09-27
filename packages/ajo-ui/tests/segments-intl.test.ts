@@ -57,3 +57,23 @@ test('committed segment values reuse formatters by locale, kind, precision, and 
 
 	expect(formatters).toHaveBeenCalledTimes(8)
 })
+
+// ajo/html renders with no document, so the <html lang> link of the locale chain
+// is unreachable on the server: without a locale arg the output is the fixed
+// en-US shape whatever the machine locale; other locales pass `locale`.
+test('SSR renders the machine-locale-independent en-US segment shape', () => {
+	const html = ssr(jsx(InputDate, { name: 'dob' }))
+
+	expect([...html.matchAll(/data-segment="(\w+)"/g)].map(match => match[1])).toEqual(['month', 'day', 'year'])
+	expect(html).toContain('>mm</div>')
+	expect(html).toContain('>dd</div>')
+	expect(html).toContain('>yyyy</div>')
+	expect(html).toContain('name="dob"')
+})
+
+test('SSR renders the explicit locale arg shape', () => {
+	const html = ssr(jsx(InputDate, { locale: 'es-AR', name: 'nacimiento' }))
+
+	expect([...html.matchAll(/data-segment="(\w+)"/g)].map(match => match[1])).toEqual(['day', 'month', 'year'])
+	expect(html).toContain('>aaaa</div>')
+})

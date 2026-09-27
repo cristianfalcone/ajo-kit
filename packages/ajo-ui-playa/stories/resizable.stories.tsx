@@ -1,5 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import {
 	ResizableHandle,
 	ResizablePanel,
@@ -14,8 +15,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof ResizablePanelGroup>
-
-const waitFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
 const handle = (canvas: HTMLElement, name = 'main') =>
 	canvas.querySelector<HTMLElement>(`[data-resizable-handle="${name}"]`)
@@ -64,7 +63,7 @@ const drag = async (el: HTMLElement, dx: number, dy = 0) => {
 	el.dispatchEvent(pointer('pointerdown', x, y))
 	target.dispatchEvent(pointer('pointermove', x + dx, y + dy))
 	target.dispatchEvent(pointer('pointerup', x + dx, y + dy))
-	await waitFrame()
+	await frame()
 }
 
 const reset = (...items: Array<[HTMLElement | null, string]>) => {
@@ -219,7 +218,7 @@ export const Keyboard: Story<typeof ResizablePanelGroup> = {
 		const before = left.getBoundingClientRect().width
 		divider.focus()
 		divider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
-		await waitFrame()
+		await frame()
 
 		const after = left.getBoundingClientRect().width
 		if (after <= before) throw new Error('Resizable keyboard ArrowRight did not grow left panel')

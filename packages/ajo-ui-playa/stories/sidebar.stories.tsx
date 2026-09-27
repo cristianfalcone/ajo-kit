@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Args, Meta, Story } from './app'
+import { frame, wait } from './play'
 import {
 	Sidebar,
 	SidebarContent,
@@ -232,8 +233,6 @@ const root = (canvas: HTMLElement) =>
 const panel = (canvas: HTMLElement) =>
 	canvas.querySelector<HTMLElement>('[data-slot="sidebar"]')
 
-const tick = () => new Promise(resolve => setTimeout(resolve))
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 const modB = () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', ctrlKey: true }))
 
 const expectDesktopWidth = (sidebar: HTMLElement, expected: number) => {
@@ -305,7 +304,7 @@ export const Default: Story<typeof Sidebar> = {
 			.find(node => node.textContent?.includes('Dashboard'))
 		if (!dashboard) throw new Error('Dashboard item was not rendered')
 		dashboard.click()
-		await tick()
+		await wait(0)
 		if (dashboard.getAttribute('aria-current') !== 'page') throw new Error('Clicking a sidebar item did not activate it')
 
 		// The search input filters the menu.
@@ -313,19 +312,19 @@ export const Default: Story<typeof Sidebar> = {
 		if (!input) throw new Error('Sidebar search input was not rendered')
 		input.value = 'tok'
 		input.dispatchEvent(new Event('input', { bubbles: true }))
-		await tick()
+		await wait(0)
 		const labels = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="sidebar-menu-button"]')).map(node => node.textContent ?? '')
 		if (!labels.some(label => label.includes('Tokens')) || labels.some(label => label.includes('Dashboard'))) {
 			throw new Error('Sidebar search did not filter the menu items')
 		}
 		input.value = ''
 		input.dispatchEvent(new Event('input', { bubbles: true }))
-		await tick()
+		await wait(0)
 
 		// The group action appends a project.
 		const before = canvas.querySelectorAll('[data-slot="sidebar-menu-button"]').length
 		canvas.querySelector<HTMLButtonElement>('[data-slot="sidebar-group-action"]')?.click()
-		await tick()
+		await wait(0)
 		if (canvas.querySelectorAll('[data-slot="sidebar-menu-button"]').length !== before + 1) {
 			throw new Error('SidebarGroupAction did not add a project')
 		}
@@ -342,22 +341,22 @@ export const Default: Story<typeof Sidebar> = {
 			const deadline = performance.now() + 1000
 			while (sub.checkVisibility()) {
 				if (performance.now() > deadline) throw new Error('Settings collapsible did not close its submenu')
-				await frame()
+				await frame(2)
 			}
 		}
 		settings.click()
-		await frame()
+		await frame(2)
 		if (!sub.checkVisibility()) throw new Error('Settings collapsible did not reopen its submenu')
 
 		// The item action opens its menu.
 		const more = canvas.querySelector<HTMLButtonElement>('[data-slot="sidebar-menu-action"]')
 		if (!more) throw new Error('Sidebar menu action was not rendered')
 		more.click()
-		await frame()
+		await frame(2)
 		const menu = document.querySelector<HTMLElement>('[data-slot="menu-content"]:popover-open')
 		if (!menu || !menu.textContent?.includes('Rename')) throw new Error('Menu action did not open')
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
-		await frame()
+		await frame(2)
 		if (menu.matches(':popover-open')) throw new Error('Escape did not close the action menu')
 
 		// The footer user menu opens.
@@ -365,23 +364,23 @@ export const Default: Story<typeof Sidebar> = {
 			.find(node => node.textContent?.includes('cristian@example.com'))
 		if (!user) throw new Error('Sidebar user menu button was not rendered')
 		user.click()
-		await frame()
+		await frame(2)
 		const userMenu = document.querySelector<HTMLElement>('[data-slot="menu-content"]:popover-open')
 		if (!userMenu || !userMenu.textContent?.includes('Sign out')) throw new Error('User menu did not open')
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
-		await frame()
+		await frame(2)
 		if (userMenu.matches(':popover-open')) throw new Error('Escape did not close the user menu')
 
 		// Trigger and shortcut still toggle the sidebar.
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="sidebar-trigger"]')
 		if (!trigger) throw new Error('SidebarTrigger was not rendered')
 		trigger.click()
-		await tick()
+		await wait(0)
 		if (sidebar.getAttribute('data-state') !== 'collapsed') throw new Error('SidebarTrigger did not collapse the sidebar')
 		expectDesktopWidth(sidebar, 48)
 
 		modB()
-		await tick()
+		await wait(0)
 		if (sidebar.getAttribute('data-state') !== 'expanded') throw new Error('mod+b shortcut did not expand the sidebar')
 	},
 }
@@ -401,7 +400,7 @@ export const ShortcutDisabled: Story<typeof Sidebar> = {
 		expectDesktopWidth(sidebar, 256)
 
 		modB()
-		await tick()
+		await wait(0)
 		if (sidebar.getAttribute('data-state') !== 'expanded') throw new Error('shortcut={false} did not disable the mod+b hotkey')
 	},
 }
@@ -528,7 +527,7 @@ export const Controlled: Story<typeof Sidebar> = {
 		const external = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Expand sidebar'))
 		if (!external) throw new Error('Controlled external button was not rendered')
 		external.click()
-		await tick()
+		await wait(0)
 		if (sidebar!.getAttribute('data-state') !== 'expanded') throw new Error('External button did not expand the controlled sidebar')
 		expectDesktopWidth(sidebar!, 256)
 		if (!canvas.textContent?.includes('Sidebar is expanded.')) throw new Error('Controlled state text did not update')
@@ -537,7 +536,7 @@ export const Controlled: Story<typeof Sidebar> = {
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="sidebar-trigger"]')
 		if (!trigger) throw new Error('SidebarTrigger was not rendered')
 		trigger.click()
-		await tick()
+		await wait(0)
 		if (sidebar!.getAttribute('data-state') !== 'collapsed') throw new Error('SidebarTrigger did not flow through the controlled owner')
 		if (!canvas.textContent?.includes('Sidebar is collapsed.')) throw new Error('Controlled state text did not follow the trigger')
 
@@ -597,7 +596,7 @@ export const Mobile: Story<typeof Sidebar> = {
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="sidebar-trigger"]')
 		if (!trigger) throw new Error('SidebarTrigger was not rendered')
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!drawer.open) throw new Error('SidebarTrigger did not open the mobile drawer')
 		if (!drawer.matches(':modal')) throw new Error('Mobile drawer did not open in the modal top layer')
@@ -616,17 +615,17 @@ export const Mobile: Story<typeof Sidebar> = {
 			.find(node => node.textContent?.includes('cristian@example.com'))
 		if (!user) throw new Error('Drawer user menu button was not rendered')
 		user.click()
-		await frame()
+		await frame(2)
 		const userMenu = document.querySelector<HTMLElement>('[data-slot="menu-content"]:popover-open')
 		if (!userMenu || !userMenu.textContent?.includes('Sign out')) throw new Error('Drawer user menu did not open')
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))
-		await frame()
+		await frame(2)
 		if (userMenu.matches(':popover-open')) throw new Error('Escape did not close the drawer user menu')
 
 		// The platform maps Escape to a cancelable `cancel` event on modal dialogs;
 		// synthetic keydowns cannot trigger it, so dispatch the event itself.
 		drawer.dispatchEvent(new Event('cancel', { cancelable: true }))
-		await frame()
+		await frame(2)
 
 		if (drawer.open) throw new Error('Escape (cancel) did not close the mobile drawer')
 		if (!canvas.textContent?.includes('Notified: false (cancel)')) {

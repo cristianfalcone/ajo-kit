@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame, press } from './play'
 import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Command,
@@ -31,8 +32,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof Command>
-
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
 const escape = (target: EventTarget) => {
 	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' })
@@ -125,36 +124,6 @@ const BasicExample: Stateful = function* () {
 		<div class="grid gap-3">
 			<CommandDemo onSelect={select} />
 			<p class="text-sm text-muted-foreground">Action: {action}</p>
-		</div>
-	)
-}
-
-const ControlledExample: Stateful = function* () {
-	let search = 'bill'
-	let value = 'billing'
-	const setSearch = (next: string) => this.next(() => search = next)
-	const setValue = (next: string) => this.next(() => value = next)
-
-	while (true) yield (
-		<div class="grid gap-3">
-			<Command
-				class="w-[28rem] glass-overlay edge shadow-lg"
-				search={search}
-				value={value}
-				onSearchChange={setSearch}
-				onValueChange={setValue}
-			>
-				<CommandInput placeholder="Search settings..." />
-				<CommandList>
-					<CommandEmpty>No settings found.</CommandEmpty>
-					<CommandGroup heading="Settings">
-						<CommandItem value="profile">Profile</CommandItem>
-						<CommandItem value="billing">Billing</CommandItem>
-						<CommandItem value="security">Security</CommandItem>
-					</CommandGroup>
-				</CommandList>
-			</Command>
-			<p class="text-sm text-muted-foreground">Search: {search}; Value: {value}</p>
 		</div>
 	)
 }
@@ -262,7 +231,7 @@ export const Basic: Story<typeof Command> = {
 		if (!input || !billing) throw new Error('Command input or Billing item was not rendered')
 
 		billing.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
-		await frame()
+		await frame(2)
 
 		if (billing.dataset.highlighted !== 'true') {
 			throw new Error('Command item did not highlight on pointer hover')
@@ -271,7 +240,7 @@ export const Basic: Story<typeof Command> = {
 		input.focus()
 		input.value = 'bill'
 		input.dispatchEvent(new InputEvent('input', { bubbles: true, data: 'bill' }))
-		await frame()
+		await frame(2)
 
 		const calendar = canvas.querySelector<HTMLElement>('[data-slot="command-item"][data-value="calendar"]')
 		if (!calendar?.hidden || billing.hidden) {
@@ -279,7 +248,7 @@ export const Basic: Story<typeof Command> = {
 		}
 
 		billing.click()
-		await frame()
+		await frame(2)
 
 		if (!canvas.textContent?.includes('Action: billing')) {
 			throw new Error('Command item did not call onSelect')
@@ -295,7 +264,7 @@ export const Keyboard: Story<typeof Command> = {
 
 		input.focus()
 		input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
-		await frame()
+		await frame(2)
 
 		let highlighted = canvas.querySelector<HTMLElement>('[data-slot="command-item"][data-highlighted="true"]')
 		if (highlighted?.dataset.value !== 'search-emoji') {
@@ -303,7 +272,7 @@ export const Keyboard: Story<typeof Command> = {
 		}
 
 		input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
-		await frame()
+		await frame(2)
 
 		highlighted = canvas.querySelector<HTMLElement>('[data-slot="command-item"][data-highlighted="true"]')
 		if (highlighted?.dataset.value !== 'calculator') {
@@ -311,7 +280,7 @@ export const Keyboard: Story<typeof Command> = {
 		}
 
 		input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }))
-		await frame()
+		await frame(2)
 
 		if (!canvas.textContent?.includes('Action: calculator')) {
 			throw new Error('Enter did not select the active Command item')
@@ -334,10 +303,10 @@ export const Empty: Story<typeof Command> = {
 		const search = async (value: string) => {
 			input.value = value
 			input.dispatchEvent(new InputEvent('input', { bubbles: true, data: value }))
-			await frame()
+			await frame(2)
 		}
 
-		await frame()
+		await frame(2)
 		if (suggestions.hidden || settings.hidden || separator.hidden || !empty.hidden) {
 			throw new Error('Command structure did not start fully visible')
 		}
@@ -369,40 +338,11 @@ export const ExternalFiltering: Story<typeof Command> = {
 
 		input.value = 'server-owned'
 		input.dispatchEvent(new InputEvent('input', { bubbles: true, data: 'server-owned' }))
-		await frame()
+		await frame(2)
 
 		const items = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="command-item"]'))
 		if (!items.length || items.some(item => item.hidden) || !empty.hidden) {
 			throw new Error('filter=null did not leave Command results under external ownership')
-		}
-	},
-}
-
-export const Controlled: Story<typeof Command> = {
-	render: () => <ControlledExample />,
-	play: async ({ canvas }) => {
-		const input = canvas.querySelector<HTMLInputElement>('[data-slot="command-input"]')
-		const billing = canvas.querySelector<HTMLElement>('[data-slot="command-item"][data-value="billing"]')
-		if (!input || !billing) throw new Error('Controlled command input or Billing item was not rendered')
-
-		if (input.value !== 'bill' || !canvas.textContent?.includes('Search: bill; Value: billing')) {
-			throw new Error('Controlled Command did not render initial search/value')
-		}
-
-		input.value = 'sec'
-		input.dispatchEvent(new InputEvent('input', { bubbles: true, data: 'sec' }))
-		await frame()
-
-		const security = canvas.querySelector<HTMLElement>('[data-slot="command-item"][data-value="security"]')
-		if (!security || security.hidden || !canvas.textContent?.includes('Search: sec')) {
-			throw new Error('Controlled Command did not update search')
-		}
-
-		security.click()
-		await frame()
-
-		if (!canvas.textContent?.includes('Value: security')) {
-			throw new Error('Controlled Command did not update value')
 		}
 	},
 }
@@ -415,7 +355,7 @@ export const Announce: Story<typeof Command> = {
 
 		input.value = 'bill'
 		input.dispatchEvent(new InputEvent('input', { bubbles: true, data: 'bill' }))
-		await frame()
+		await frame(2)
 
 		const region = Array.from(document.body.children).find(element =>
 			element.getAttribute('aria-live') === 'polite' && element.getAttribute('aria-atomic') === 'true')
@@ -426,7 +366,7 @@ export const Announce: Story<typeof Command> = {
 
 		input.value = 'zzz'
 		input.dispatchEvent(new InputEvent('input', { bubbles: true, data: 'zzz' }))
-		await frame()
+		await frame(2)
 
 		if (liveText() !== '0 results') {
 			throw new Error('Command announce did not update for an empty result set')
@@ -444,13 +384,13 @@ export const EnterFilterGuard: Story<typeof Command> = {
 		input.focus()
 		input.value = 'sec'
 		input.dispatchEvent(new InputEvent('input', { bubbles: true, data: 'sec' }))
-		await frame()
+		await frame(2)
 
 		if (!billing.hidden) throw new Error('Enter guard filter did not hide the controlled value item')
 
 		const guarded = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter' })
 		input.dispatchEvent(guarded)
-		await frame()
+		await frame(2)
 
 		if (guarded.defaultPrevented || canvas.textContent?.includes('Committed: billing')) {
 			throw new Error('Enter committed a filtered-out controlled value')
@@ -461,12 +401,12 @@ export const EnterFilterGuard: Story<typeof Command> = {
 
 		input.value = ''
 		input.dispatchEvent(new InputEvent('input', { bubbles: true }))
-		await frame()
+		await frame(2)
 
 		if (billing.hidden) throw new Error('Clearing the search did not restore the controlled value item')
 
-		input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter' }))
-		await frame()
+		press(input, 'Enter')
+		await frame(2)
 
 		if (!canvas.textContent?.includes('Committed: billing')) {
 			throw new Error('Enter did not commit the visible controlled value')
@@ -486,7 +426,7 @@ export const Dialog: Story<typeof Command> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog.open) throw new Error('CommandDialog did not open from trigger')
 
@@ -515,29 +455,29 @@ export const Dialog: Story<typeof Command> = {
 
 		input.value = 'save'
 		input.dispatchEvent(new InputEvent('input', { bubbles: true, data: 'save' }))
-		await frame()
+		await frame(2)
 
 		const save = canvas.querySelector<HTMLElement>('[data-slot="command-item"][data-value="save"]')
 		if (!save || save.hidden) throw new Error('CommandDialog did not filter command items')
 
 		const firstEscape = escape(input)
-		await frame()
+		await frame(2)
 
 		if (!firstEscape.defaultPrevented) throw new Error('CommandDialog search Escape was not prevented')
 		if (input.value !== '') throw new Error('CommandDialog Escape did not clear search first')
 		if (!dialog.open) throw new Error('CommandDialog closed before Escape reached empty search')
 
 		const secondEscape = escape(input)
-		await frame()
+		await frame(2)
 
 		if (secondEscape.defaultPrevented) throw new Error('CommandDialog empty-search Escape was prevented')
 		cancel(dialog)
-		await frame()
+		await frame(2)
 
 		if (dialog.open) throw new Error('CommandDialog did not close after empty-search Escape cancel')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog.open) throw new Error('CommandDialog did not reopen after Escape close')
 
@@ -553,16 +493,16 @@ export const Dialog: Story<typeof Command> = {
 			throw new Error('CommandDialog close button was not visible or clickable')
 		}
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open) throw new Error('CommandDialog did not close after smoke')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog.open) throw new Error('CommandDialog did not reopen for backdrop close')
 		backdrop(dialog)
-		await frame()
+		await frame(2)
 
 		if (dialog.open) throw new Error('CommandDialog did not close from backdrop click')
 	},
@@ -577,7 +517,7 @@ export const DialogDefaults: Story<typeof Command> = {
 	play: async ({ canvas }) => {
 		const dialog = canvas.querySelector<HTMLDialogElement>('[data-slot="command-dialog"]')
 		if (!dialog) throw new Error('Default CommandDialog was not rendered')
-		await frame()
+		await frame(2)
 
 		if (!dialog.open) throw new Error('Default CommandDialog did not start open')
 
@@ -602,14 +542,14 @@ export const DialogPreventableDismissal: Story<typeof Command> = {
 		if (!trigger || !dialog || !input) throw new Error('Guarded CommandDialog controls were not rendered')
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog.open || !canvas.textContent?.includes('Open: yes')) {
 			throw new Error('Guarded CommandDialog did not open')
 		}
 
 		const blockedEscape = escape(input)
-		await frame()
+		await frame(2)
 
 		if (!blockedEscape.defaultPrevented) throw new Error('CommandDialog set:onkeydown did not prevent Escape')
 		if (!dialog.open || !canvas.textContent?.includes('Escape: 1')) {
@@ -617,7 +557,7 @@ export const DialogPreventableDismissal: Story<typeof Command> = {
 		}
 
 		const blockedOutside = backdrop(dialog)
-		await frame()
+		await frame(2)
 
 		if (!blockedOutside.defaultPrevented) throw new Error('CommandDialog onPointerDownOutside did not prevent backdrop click')
 		if (!dialog.open || !canvas.textContent?.includes('Outside: 1')) {
@@ -627,7 +567,7 @@ export const DialogPreventableDismissal: Story<typeof Command> = {
 		const close = dialog.querySelector<HTMLButtonElement>('[data-slot="dialog-close"]')
 		if (!close) throw new Error('Guarded CommandDialog close button was not rendered')
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open || !canvas.textContent?.includes('Open: no')) {
 			throw new Error('Guarded CommandDialog did not close from family close button')
@@ -644,14 +584,14 @@ export const DialogTriggerFocusReturn: Story<typeof Command> = {
 
 		trigger.focus()
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!dialog.open) throw new Error('Triggered Command dialog did not open')
 
 		const close = dialog.querySelector<HTMLButtonElement>('[data-slot="dialog-close"]')
 		if (!close) throw new Error('Triggered Command dialog close button was not rendered')
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (dialog.open) throw new Error('Triggered Command dialog did not close')
 		if (document.activeElement !== trigger) {

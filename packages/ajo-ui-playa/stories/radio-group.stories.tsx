@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
-import type { Stateful } from 'ajo'
-import type { Meta, Story, StoryContext } from './app'
+import type { Meta, Story } from './app'
+import { frame } from './play'
 import {
 	Field,
 	FieldContent,
@@ -11,9 +11,6 @@ import {
 	FieldSet,
 } from 'ajo-ui-playa/field'
 import { RadioGroup, RadioGroupItem } from 'ajo-ui-playa/radio-group'
-
-const bind = (setArg: StoryContext['setArg']) => (next: string) => setArg('defaultValue', next)
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 
 export default {
 	title: 'UI/Radio Group',
@@ -51,21 +48,6 @@ const DensityOptions = () => (
 	</>
 )
 
-const ControlledExample: Stateful = function* () {
-	let value = 'default'
-	const setValue = (next: string) => this.next(() => value = next)
-
-	while (true) yield (
-		<FieldSet class="w-full max-w-sm">
-			<FieldLegend>Density</FieldLegend>
-			<RadioGroup name="controlled-density" value={value} onValueChange={setValue}>
-				<DensityOptions />
-			</RadioGroup>
-			<FieldDescription>Selected: {value}</FieldDescription>
-		</FieldSet>
-	)
-}
-
 export const Basic: Story<typeof RadioGroup> = {
 	render: args => (
 		<RadioGroup {...args}>
@@ -73,7 +55,7 @@ export const Basic: Story<typeof RadioGroup> = {
 		</RadioGroup>
 	),
 	play: async ({ canvas }) => {
-		await frame()
+		await frame(2)
 		const group = canvas.querySelector<HTMLElement>('[data-slot="radio-group"]')
 		const layout = group ? getComputedStyle(group) : null
 		if (!group || group.dataset.orientation !== 'vertical' || layout?.display !== 'grid' || layout.gap !== '12px') {
@@ -97,7 +79,7 @@ export const Basic: Story<typeof RadioGroup> = {
 			throw new Error('Radio visual did not expose the shared native input hit target')
 		}
 		input.click()
-		await frame()
+		await frame(2)
 		if (!input.checked) throw new Error('Radio native input did not select from its visual hit area')
 		if (previous.checked) throw new Error('Radio group did not uncheck the previous sibling natively')
 		for (const node of [root, input, previousRoot, previous]) {
@@ -118,7 +100,7 @@ export const WithFieldset: Story<typeof RadioGroup> = {
 		<FieldSet class="w-full max-w-sm">
 			<FieldLegend>{legend}</FieldLegend>
 			<FieldDescription>{description}</FieldDescription>
-			<RadioGroup {...args} onValueChange={bind(setArg)}>
+			<RadioGroup {...args} onValueChange={next => setArg('defaultValue', next)}>
 				<DensityOptions />
 			</RadioGroup>
 		</FieldSet>
@@ -135,7 +117,7 @@ export const Horizontal: Story<typeof RadioGroup> = {
 		defaultValue: { control: 'select', options: ['sm', 'md', 'lg'] },
 	},
 	render: (args, { setArg }) => (
-		<RadioGroup {...args} onValueChange={bind(setArg)}>
+		<RadioGroup {...args} onValueChange={next => setArg('defaultValue', next)}>
 			<div class="flex items-center gap-2">
 				<RadioGroupItem id="size-sm" value="sm" />
 				<FieldLabel for="size-sm">Small</FieldLabel>
@@ -166,7 +148,7 @@ export const Disabled: Story<typeof RadioGroup> = {
 		disabled: true,
 	},
 	render: (args, { setArg }) => (
-		<RadioGroup {...args} onValueChange={bind(setArg)}>
+		<RadioGroup {...args} onValueChange={next => setArg('defaultValue', next)}>
 			<DensityOptions />
 		</RadioGroup>
 	),
@@ -202,7 +184,7 @@ export const Invalid: Story<typeof RadioGroup> = {
 		</Field>
 	),
 	play: async ({ canvas }) => {
-		await frame()
+		await frame(2)
 
 		const label = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="field-label"]'))
 			.find(item => item.textContent?.trim() === 'Panel density')
@@ -217,14 +199,4 @@ export const Invalid: Story<typeof RadioGroup> = {
 			throw new Error('RadioGroup fieldset aria-describedby did not include description and error ids')
 		}
 	},
-}
-
-export const Controlled: Story = {
-	argTypes: {
-		name: { control: false },
-		defaultValue: { control: false },
-		disabled: { control: false },
-		orientation: { control: false },
-	},
-	render: () => <ControlledExample />,
 }

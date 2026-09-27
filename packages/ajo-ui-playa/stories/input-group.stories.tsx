@@ -1,5 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import {
 	InputGroup,
 	InputGroupAddon,
@@ -24,8 +25,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof InputGroup>
-
-const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
 export const Icon: Story = {
 	args: {
@@ -54,7 +53,7 @@ export const Icon: Story = {
 		}
 
 		addons[0]?.click()
-		await nextFrame()
+		await frame()
 
 		if (document.activeElement !== input) {
 			throw new Error('Input group addon click did not focus the control')

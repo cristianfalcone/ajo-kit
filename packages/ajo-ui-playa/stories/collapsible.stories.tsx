@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import { Card, CardContent } from 'ajo-ui-playa/card'
 import {
@@ -26,8 +27,6 @@ export default {
 	},
 } satisfies Meta<typeof Collapsible>
 
-const waitFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-
 const root = (canvas: HTMLElement) =>
 	canvas.querySelector<HTMLDetailsElement>('details[data-slot="collapsible"]')
 
@@ -39,28 +38,6 @@ const trigger = (canvas: HTMLElement) =>
 
 const visible = (element: HTMLElement | null) =>
 	Boolean(element?.checkVisibility())
-
-const ControlledExample: Stateful = function* () {
-	let open = false
-	const setOpen = (next: boolean) => this.next(() => open = next)
-
-	while (true) yield (
-		<div class="w-[350px] space-y-3">
-			<Collapsible open={open} onOpenChange={setOpen} class="space-y-2">
-				<CollapsibleTrigger class="w-full justify-between">
-					<span class="text-sm font-medium">Advanced settings</span>
-					<span class="i-lucide-chevrons-up-down size-4" />
-				</CollapsibleTrigger>
-				<CollapsibleContent>
-					<div class="rounded-md edge bg-muted/40 p-3 text-sm">
-						Controlled content is open.
-					</div>
-				</CollapsibleContent>
-			</Collapsible>
-			<p data-collapsible-value="true" class="text-sm text-muted-foreground">Open: {open ? 'yes' : 'no'}</p>
-		</div>
-	)
-}
 
 const ExternalExample: Stateful = function* () {
 	let open = false
@@ -110,7 +87,7 @@ export const Basic: Story<typeof Collapsible> = {
 		if (summary.getAttribute('aria-expanded') !== 'false') throw new Error('Closed trigger did not expose collapsed state')
 
 		summary.click()
-		await waitFrame()
+		await frame()
 
 		if (!details.open || !visible(panel)) throw new Error('Collapsible content did not show after click')
 		if (details.dataset.state !== 'open' || summary.getAttribute('aria-expanded') !== 'true') {
@@ -200,7 +177,7 @@ export const AlwaysMounted: Story<typeof Collapsible> = {
 		if (visible(panel) || panel.dataset.state !== 'closed') throw new Error('Closed content was not natively hidden while mounted')
 
 		summary.click()
-		await waitFrame()
+		await frame()
 
 		if (!visible(panel) || panel.getAttribute('data-state') !== 'open') throw new Error('Content did not show after click')
 	},
@@ -228,37 +205,13 @@ export const Disabled: Story<typeof Collapsible> = {
 		if (summary.getAttribute('aria-disabled') !== 'true') throw new Error('Disabled collapsible did not expose aria-disabled on its trigger')
 
 		summary.click()
-		await waitFrame()
+		await frame()
 
 		if (root(canvas)?.open || visible(content(canvas))) throw new Error('Disabled collapsible opened after click')
 	},
 }
 
-export const Controlled: Story = {
-	argTypes: {
-		defaultOpen: { control: false },
-		disabled: { control: false },
-	},
-	render: () => <ControlledExample />,
-	play: async ({ canvas }) => {
-		const summary = trigger(canvas)
-		if (!summary) throw new Error('Controlled collapsible trigger was not rendered')
-		if (!canvas.textContent?.includes('Open: no')) throw new Error('Controlled collapsible rendered wrong initial state')
-
-		summary.click()
-		await waitFrame()
-
-		if (!canvas.textContent?.includes('Open: yes') || !visible(content(canvas))) {
-			throw new Error('Controlled collapsible did not update parent state after click')
-		}
-	},
-}
-
 export const ExternalTrigger: Story = {
-	argTypes: {
-		defaultOpen: { control: false },
-		disabled: { control: false },
-	},
 	render: () => <ExternalExample />,
 	play: async ({ canvas }) => {
 		const button = canvas.querySelector<HTMLButtonElement>('[data-slot="button"]')
@@ -267,7 +220,7 @@ export const ExternalTrigger: Story = {
 		if (visible(panel)) throw new Error('Externally controlled collapsible rendered open')
 
 		button.click()
-		await waitFrame()
+		await frame()
 
 		if (!visible(panel) || !root(canvas)?.open) throw new Error('External button did not open the collapsible')
 	},

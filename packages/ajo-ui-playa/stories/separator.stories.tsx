@@ -19,8 +19,6 @@ export default {
 	},
 } satisfies Meta<typeof Separator>
 
-const fixed = { decorative: { control: false }, orientation: { control: false } } as const
-
 export const Basic: Story<typeof Separator> = {
 	render: args => (
 		<div class="w-72">
@@ -47,7 +45,6 @@ export const Basic: Story<typeof Separator> = {
 }
 
 export const Vertical: Story<typeof Separator> = {
-	argTypes: fixed,
 	render: () => (
 		<div class="flex h-5 items-center gap-4 text-sm">
 			<span>Blog</span>
@@ -65,7 +62,6 @@ export const Vertical: Story<typeof Separator> = {
 }
 
 export const Menu: Story<typeof Separator> = {
-	argTypes: fixed,
 	render: () => (
 		<div class="w-72 rounded-md edge bg-card p-3 text-card-foreground shadow-xs">
 			<div class="grid gap-1">
@@ -89,7 +85,6 @@ export const Menu: Story<typeof Separator> = {
 }
 
 export const List: Story<typeof Separator> = {
-	argTypes: fixed,
 	render: () => (
 		<div class="w-80 rounded-md edge bg-card text-card-foreground">
 			{[
@@ -110,7 +105,6 @@ export const List: Story<typeof Separator> = {
 }
 
 export const Semantic: Story<typeof Separator> = {
-	argTypes: fixed,
 	render: () => (
 		<div class="w-72 space-y-4">
 			<section>

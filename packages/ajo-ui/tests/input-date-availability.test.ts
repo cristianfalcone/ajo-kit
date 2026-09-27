@@ -7,6 +7,19 @@ import { InputDate, InputTime } from '../src/input-date'
 
 afterEach(() => render(null, document.body))
 
+test('InputDate shares Calendar matcher intersection semantics', () => {
+	const html = ssr(jsx(InputDate, {
+		defaultValue: '2026-07-13',
+		unavailable: {
+			after: new Date(2026, 6, 20, 12),
+			dayOfWeek: [1],
+		},
+	}))
+
+	expect(html).not.toContain('This date is unavailable')
+	expect(html).not.toContain('data-invalid="true"')
+})
+
 test('a range crossing an unavailable day invalidates both sides unless gaps are allowed', () => {
 	const props = {
 		defaultValue: { from: '2026-07-10', to: '2026-07-12' },

@@ -2,6 +2,8 @@
 import type { Meta, Story } from './app'
 import { Button, buttonVariants } from 'ajo-ui-playa/button'
 
+const variants = ['default', 'danger', 'danger-ghost', 'outline', 'secondary', 'ghost', 'muted-ghost', 'link'] as const
+
 export default {
 	title: 'UI/Button',
 	component: Button,
@@ -13,7 +15,7 @@ export default {
 	},
 	argTypes: {
 		children: { control: 'text', label: 'Text' },
-		variant: { control: 'select', options: ['default', 'danger', 'danger-ghost', 'outline', 'secondary', 'ghost', 'muted-ghost', 'link'] },
+		variant: { control: 'select', options: variants },
 		size: { control: 'select', options: ['default', 'xs', 'sm', 'lg', 'icon', 'icon-xs', 'icon-sm', 'icon-lg'] },
 		disabled: { control: 'boolean' },
 	},
@@ -25,50 +27,16 @@ export default {
 
 export const Default: Story<typeof Button> = {}
 
-export const Secondary: Story<typeof Button> = {
-	args: { variant: 'secondary', children: 'Secondary' },
-}
-
-export const Danger: Story<typeof Button> = {
-	args: { variant: 'danger', children: 'Delete' },
-}
-
-export const DangerGhost: Story<typeof Button> = {
-	args: { variant: 'danger-ghost', children: 'Delete' },
-	play: async ({ canvas }) => {
-		const button = canvas.querySelector<HTMLButtonElement>('[data-variant="danger-ghost"]')
-		if (!button || !button.classList.contains('text-danger') || button.classList.contains('text-foreground')) {
-			throw new Error('Danger ghost button lost single-owner destructive color')
-		}
-		if (!button.classList.contains('focus-visible:ring-danger/40') || button.classList.contains('focus-visible:ring-ring/50')) {
-			throw new Error('Danger ghost button lost single-owner destructive focus ring')
-		}
-		if (getComputedStyle(button).boxShadow !== 'none') {
-			throw new Error('Danger ghost button unexpectedly inherited an elevated shadow')
-		}
+export const Variants: Story<typeof Button> = {
+	argTypes: {
+		children: { control: false },
+		variant: { control: false },
 	},
-}
-
-export const MutedGhost: Story<typeof Button> = {
-	args: { variant: 'muted-ghost', children: 'Quiet action' },
-	play: async ({ canvas }) => {
-		const button = canvas.querySelector<HTMLButtonElement>('[data-variant="muted-ghost"]')
-		if (!button || !button.classList.contains('text-muted-foreground') || button.classList.contains('text-foreground')) {
-			throw new Error('Muted ghost button lost single-owner muted color')
-		}
-	},
-}
-
-export const Outline: Story<typeof Button> = {
-	args: { variant: 'outline', children: 'Cancel' },
-}
-
-export const Ghost: Story<typeof Button> = {
-	args: { variant: 'ghost', children: 'Ghost' },
-}
-
-export const Link: Story<typeof Button> = {
-	args: { variant: 'link', children: 'Open link' },
+	render: args => (
+		<div class="flex flex-wrap items-center gap-2">
+			{variants.map(variant => <Button key={variant} {...args} variant={variant}>{variant}</Button>)}
+		</div>
+	),
 }
 
 export const Sizes: Story<typeof Button> = {

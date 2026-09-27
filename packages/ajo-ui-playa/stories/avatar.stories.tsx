@@ -1,5 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
+import { frame } from './play'
 import {
 	Avatar,
 	AvatarBadge,
@@ -10,8 +11,6 @@ import {
 } from 'ajo-ui-playa/avatar'
 
 const image = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Crect width="64" height="64" fill="%23234c6a"/%3E%3Ccircle cx="32" cy="24" r="12" fill="white"/%3E%3Cpath d="M12 58c4-13 14-20 20-20s16 7 20 20" fill="white"/%3E%3C/svg%3E'
-
-const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
 
 export default {
 	title: 'UI/Avatar',
@@ -64,7 +63,7 @@ export const Fallback: Story<typeof Avatar> = {
 		if (!img || !fallback) throw new Error('Fallback avatar was not rendered')
 
 		img.dispatchEvent(new Event('error'))
-		await nextFrame()
+		await frame()
 
 		if (!img.hidden || fallback.textContent !== 'CN') {
 			throw new Error('Avatar image error did not reveal fallback')

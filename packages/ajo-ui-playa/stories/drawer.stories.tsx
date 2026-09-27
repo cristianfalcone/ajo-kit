@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Args, Meta, Story } from './app'
+import { frame } from './play'
 import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import { DialogClose, DialogTrigger } from 'ajo-ui-playa/dialog'
 import {
@@ -36,17 +37,16 @@ export default {
 } satisfies Meta<typeof Drawer>
 
 const sides: DrawerSide[] = ['top', 'right', 'bottom', 'left']
-const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))))
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 const settle = async (element: Element) => {
 	const animations = element.getAnimations().filter(animation => animation.playState !== 'finished')
 	if (!animations.length) {
-		await frame()
+		await frame(2)
 		return
 	}
 
 	await Promise.all(animations.map(animation => animation.finished.catch(() => undefined)))
-	await frame()
+	await frame(2)
 }
 
 const closeButton = (drawer: HTMLDialogElement) => {
@@ -261,7 +261,7 @@ export const Basic: Story<typeof Drawer> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!drawer.open || trigger.getAttribute('aria-expanded') !== 'true') {
 			throw new Error('Drawer did not open after trigger click')
@@ -283,7 +283,7 @@ export const Basic: Story<typeof Drawer> = {
 
 		const close = assertCloseButton(drawer)
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (drawer.open || trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Drawer did not close')
@@ -316,7 +316,7 @@ export const Sides: Story<typeof Drawer> = {
 			if (!trigger) throw new Error(`Drawer trigger for ${side} was not rendered`)
 
 			trigger.click()
-			await frame()
+			await frame(2)
 
 			const drawer = canvas.querySelector<HTMLDialogElement>(`[data-slot="drawer-content"][data-side="${side}"]`)
 			if (!drawer?.open) throw new Error(`Drawer side ${side} did not open`)
@@ -328,7 +328,7 @@ export const Sides: Story<typeof Drawer> = {
 
 			const close = assertCloseButton(drawer)
 			close.click()
-			await frame()
+			await frame(2)
 		}
 	},
 }
@@ -351,7 +351,7 @@ export const Controlled: Story<typeof Drawer> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!drawer.open || !canvas.textContent?.includes('Open: yes')) {
 			throw new Error('Controlled Drawer did not open')
@@ -360,7 +360,7 @@ export const Controlled: Story<typeof Drawer> = {
 		const close = canvas.querySelector<HTMLButtonElement>('[data-slot="dialog-close"][aria-label="Close"]')
 		if (!close) throw new Error('Controlled Drawer close button was not rendered')
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (drawer.open || !canvas.textContent?.includes('Open: no')) {
 			throw new Error('Controlled Drawer did not close')
@@ -403,7 +403,7 @@ export const NoCloseButton: Story<typeof Drawer> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		const closes = drawer.querySelectorAll('[data-slot="dialog-close"]')
 		if (!drawer.open) throw new Error('Drawer did not open from trigger')
@@ -412,14 +412,13 @@ export const NoCloseButton: Story<typeof Drawer> = {
 		const close = closes[0] as HTMLButtonElement | undefined
 		if (!close) throw new Error('Drawer footer close button was not rendered')
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (drawer.open) throw new Error('Drawer did not close after smoke')
 	},
 }
 
 export const NoHandleByDefault: Story<typeof Drawer> = {
-	argTypes: { side: { control: false } },
 	render: () => (
 		<Drawer>
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
@@ -439,7 +438,7 @@ export const NoHandleByDefault: Story<typeof Drawer> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!drawer.open || drawer.dataset.side !== 'right') {
 			throw new Error('Default Drawer did not open on the right side')
@@ -450,14 +449,13 @@ export const NoHandleByDefault: Story<typeof Drawer> = {
 
 		const close = closeButton(drawer)
 		close.click()
-		await frame()
+		await frame(2)
 
 		if (drawer.open) throw new Error('Default Drawer did not close after smoke')
 	},
 }
 
 export const DragHandle: Story<typeof Drawer> = {
-	argTypes: { side: { control: false } },
 	render: () => (
 		<Drawer side="bottom">
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
@@ -478,7 +476,7 @@ export const DragHandle: Story<typeof Drawer> = {
 		}
 
 		trigger.click()
-		await frame()
+		await frame(2)
 
 		if (!drawer.open || drawer.dataset.side !== 'bottom') {
 			throw new Error('Drawer handle story did not open on the bottom side')
@@ -489,7 +487,7 @@ export const DragHandle: Story<typeof Drawer> = {
 		}
 
 		drag(handle, 100, 140)
-		await frame()
+		await frame(2)
 
 		if (!drawer.open) throw new Error('Drawer closed after a below-threshold drag')
 		if (drawer.style.transform || drawer.style.transition || drawer.style.willChange) {
@@ -502,7 +500,7 @@ export const DragHandle: Story<typeof Drawer> = {
 		}
 
 		drag(handle, 100, 190)
-		await frame()
+		await frame(2)
 
 		if (drawer.open) throw new Error('Drawer did not close after dragging the handle')
 	},

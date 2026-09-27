@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } 
 import { DirectionProvider } from 'ajo-ui/direction'
 import { Drawer, DrawerContent } from 'ajo-ui/drawer'
 import { Field } from 'ajo-ui/field'
-import { InputDate } from 'ajo-ui/input-date'
+import { InputDate, InputDateTime, InputTime } from 'ajo-ui/input-date'
 import { InputGroup, InputGroupInput } from 'ajo-ui/input-group'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from 'ajo-ui/input-otp'
 import { Menu, MenuCheckboxItem, MenuContent, MenuItem, MenuRadioGroup, MenuRadioItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from 'ajo-ui/menu'
@@ -304,6 +304,60 @@ test('SSR choice groups keep orientation as data and OTP slots stamp only data-a
 	expect(slots[0]).toContain('data-active="true"')
 	expect(slots[1]).not.toContain('data-active')
 	expect(slots.join('')).not.toContain('data-state')
+})
+
+test('SSR renders checked state on the checkbox host and leaves the native input unmirrored', () => {
+	const unchecked = ssr(jsx(Checkbox, {}))
+	const checked = ssr(jsx(Checkbox, { defaultChecked: true }))
+	const mixed = ssr(jsx(Checkbox, { 'set:indeterminate': true }))
+
+	expect(unchecked).toMatch(/^<span\b(?=[^>]*data-slot="checkbox")(?=[^>]*data-state="unchecked")[^>]*>/)
+	expect(unchecked).toMatch(/<input\b(?=[^>]*data-slot="checkbox-input")(?![^>]*data-state)(?![^>]*aria-checked)(?![^>]*\schecked\b)[^>]*>/)
+	expect(checked).toMatch(/^<span\b(?=[^>]*data-state="checked")[^>]*>\s*<input\b(?=[^>]*\schecked\b)(?![^>]*defaultchecked)[^>]*>/)
+	expect(mixed).toMatch(/^<span\b(?=[^>]*data-slot="checkbox")(?=[^>]*data-state="indeterminate")[^>]*>/)
+	expect(mixed).toMatch(/<input\b(?=[^>]*data-slot="checkbox-input")(?![^>]*data-state)(?![^>]*aria-checked)[^>]*>/)
+})
+
+test('SSR renders radio, toggle and OTP state without host writes', () => {
+	const radio = ssr(jsx(RadioGroup, {
+		children: [
+			jsx(RadioGroupItem, { value: 'one' }),
+			jsx(RadioGroupItem, { value: 'two' }),
+		],
+		defaultValue: 'one',
+	}))
+	expect(radio).toMatch(/<input\b(?=[^>]*data-slot="radio-group-input")(?=[^>]*\schecked\b)(?=[^>]*value="one")[^>]*>/)
+	expect(radio).toMatch(/<input\b(?=[^>]*data-slot="radio-group-input")(?![^>]*\schecked\b)(?=[^>]*value="two")[^>]*>/)
+	expect(radio).not.toMatch(/data-state|aria-checked/)
+
+	expect(ssr(roots.toggle())).toMatch(/^<button\b(?=[^>]*data-slot="toggle")(?=[^>]*data-state="off")(?=[^>]*aria-pressed="false")[^>]*>/)
+
+	const otp = ssr(jsx(InputOTP, {}))
+	expect(otp).toMatch(/^<\w+\b(?=[^>]*data-slot="input-otp")(?=[^>]*data-state="incomplete")[^>]*>/)
+	expect(otp).toMatch(/<input\b(?=[^>]*data-slot="input-otp-input")(?=[^>]*data-state="incomplete")[^>]*>/)
+})
+
+test('SSR InputDate segments are hydration-safe spinbuttons, never editable before hydration', () => {
+	const html = ssr(roots['input-date']())
+
+	expect(html).toContain('role="spinbutton"')
+	expect(html).not.toContain('contenteditable')
+	expect(html).toContain('data-placeholder="true"')
+})
+
+test('SSR empty segment labels have family-wide defaults and overrides', () => {
+	const valueText = (html: string, segment: string) =>
+		html.match(new RegExp(`<div\\b[^>]*data-segment="${segment}"[^>]*>`))?.[0].match(/aria-valuetext="([^"]*)"/)?.[1]
+	const date = ssr(jsx(InputDate, { emptyLabel: 'No date' }))
+	const time = ssr(jsx(InputTime, { emptyLabel: 'No time', hourCycle: 12, locale: 'en-US' }))
+	const dateTime = ssr(jsx(InputDateTime, { emptyLabel: 'No date and time' }))
+
+	expect(valueText(ssr(jsx(InputDate, {})), 'month')).toBe('Empty')
+	expect(valueText(date, 'month')).toBe('No date')
+	expect(valueText(time, 'hour')).toBe('No time')
+	expect(valueText(time, 'dayPeriod')).toBe('No time')
+	expect(valueText(dateTime, 'month')).toBe('No date and time')
+	expect([date, time, dateTime].join('')).not.toMatch(/emptylabel=/i)
 })
 
 test('SSR Popover keeps one manual semantic surface with stable trigger relations', () => {

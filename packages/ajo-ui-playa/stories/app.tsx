@@ -34,7 +34,6 @@ import 'virtual:uno.css'
 
 export type Control =
 	| 'boolean'
-	| 'color'
 	| 'multi-select'
 	| 'number'
 	| 'object'
@@ -376,6 +375,8 @@ const loadStories = async () => {
 			const item = story as Story
 			const name = item.name ?? label(exportName)
 			const id = `${slug(meta.title)}--${slug(exportName)}`
+			// A render that takes no args consumes none, so it inherits no meta args or controls.
+			const inherited: Pick<Meta, 'args' | 'argTypes'> = item.render?.length === 0 ? {} : meta
 
 			entries.push({
 				id,
@@ -385,8 +386,8 @@ const loadStories = async () => {
 				exportName,
 				meta,
 				story: item,
-				args: { ...meta.args, ...item.args },
-				argTypes: { ...meta.argTypes, ...item.argTypes },
+				args: { ...inherited.args, ...item.args },
+				argTypes: { ...inherited.argTypes, ...item.argTypes },
 				parameters: { ...meta.parameters, ...item.parameters },
 			})
 		}
@@ -721,22 +722,6 @@ const ArgControl: Stateless<{
 						{current}
 					</span>
 				</div>
-				{description && <FieldDescription>{description}</FieldDescription>}
-			</UiField>
-		)
-	}
-
-	if (control === 'color') {
-		return (
-			<UiField>
-				<FieldLabel for={id}>{title}</FieldLabel>
-				<Input
-					id={id}
-					type="color"
-					class="h-9 w-full p-1"
-					set:value={String(value ?? '#000000')}
-					set:oninput={(event: Event) => setArg(name, input(event).value)}
-				/>
 				{description && <FieldDescription>{description}</FieldDescription>}
 			</UiField>
 		)

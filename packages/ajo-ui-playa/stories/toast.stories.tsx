@@ -1,6 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
+import { frame, wait } from './play'
 import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Dialog,
@@ -22,9 +23,6 @@ export default {
 		layout: 'centered',
 	},
 } satisfies Meta<typeof Toaster>
-
-const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 function assertCloseVisible(close: HTMLButtonElement | null): asserts close is HTMLButtonElement {
 	if (!close) throw new Error('Toast close button was not rendered')
@@ -213,7 +211,7 @@ export const Default: Story = {
 		}
 
 		button.click()
-		await nextFrame()
+		await frame()
 
 		const root = canvas.querySelector<HTMLElement>('[data-slot="toaster"]')
 		const toastNode = canvas.querySelector<HTMLElement>('[data-slot="toast"]')
@@ -244,7 +242,7 @@ export const Stacked: Story = {
 		if (!button) throw new Error('Toast stacked trigger was not rendered')
 
 		button.click()
-		await nextFrame()
+		await frame()
 		// Let the 200ms enter/stack transform transition settle before measuring.
 		await wait(300)
 
@@ -327,13 +325,13 @@ export const Types: Story = {
 		if (!success || !error) throw new Error('Toast type triggers were not rendered')
 
 		success.click()
-		await nextFrame()
+		await frame()
 		if (!canvas.querySelector('[data-slot="toast-icon"]') || !canvas.textContent?.includes('Event has been created')) {
 			throw new Error('Toast success toast did not render with an icon')
 		}
 
 		error.click()
-		await nextFrame()
+		await frame()
 		const alert = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="toast"]'))
 			.find(node => node.getAttribute('role') === 'alert')
 		if (!alert || !canvas.textContent?.includes('Event has not been created')) {
@@ -349,13 +347,13 @@ export const WithAction: Story = {
 		if (!button) throw new Error('Toast action trigger was not rendered')
 
 		button.click()
-		await nextFrame()
+		await frame()
 
 		const action = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Undo'))
 		if (!action) throw new Error('Toast action was not rendered')
 
 		action.click()
-		await nextFrame()
+		await frame()
 
 		if (!canvas.textContent?.includes('Undo applied')) {
 			throw new Error('Toast action callback did not run')
@@ -371,7 +369,7 @@ export const PromiseToast: Story = {
 		if (!button) throw new Error('Toast promise trigger was not rendered')
 
 		button.click()
-		await nextFrame()
+		await frame()
 		if (!canvas.textContent?.includes('Loading...')) {
 			throw new Error('Toast promise did not render loading state')
 		}
@@ -393,7 +391,7 @@ export const AboveModal: Story = {
 
 		// A toast fired before the modal shows the viewport popover.
 		first.click()
-		await nextFrame()
+		await frame()
 
 		const viewport = canvas.querySelector<HTMLElement>('[data-slot="toast-viewport"][data-position="bottom-right"]')
 		if (!viewport?.matches(':popover-open')) {
@@ -404,7 +402,7 @@ export const AboveModal: Story = {
 		// that hide popovers on showModal close it outright); the viewport
 		// must end up popover-open again, re-promoted above the modal.
 		trigger.click()
-		await nextFrame()
+		await frame()
 		if (!dialog.open) throw new Error('Toast above-modal dialog did not open')
 
 		// The dialog toggle event is queued, and the re-promotion rides a
@@ -421,8 +419,7 @@ export const AboveModal: Story = {
 		if (!inside) throw new Error('Toast above-modal dialog button was not rendered')
 
 		inside.click()
-		await nextFrame()
-		await nextFrame()
+		await frame(2)
 
 		if (!viewport.matches(':popover-open')) {
 			throw new Error('Toast viewport should stay popover-open while the dialog is open')
@@ -462,7 +459,7 @@ export const AboveModal: Story = {
 		// Closing the dialog re-homes surviving toasts back to the root
 		// viewport, and the live region stays shown.
 		dialog.querySelector<HTMLButtonElement>('[data-slot="dialog-close"]')?.click()
-		await nextFrame()
+		await frame()
 		if (dialog.open) throw new Error('Toast above-modal dialog did not close after smoke')
 		await wait(100)
 		if (!Array.from(viewport.querySelectorAll<HTMLElement>('[data-slot="toast"]')).some(node => node.textContent?.includes('Deploy queued'))) {
@@ -487,7 +484,7 @@ export const HoverPause: Story = {
 		if (!anchor) throw new Error('Toast hover-pause trigger was not rendered')
 
 		anchor.click()
-		await nextFrame()
+		await frame()
 
 		const viewport = canvas.querySelector<HTMLElement>('[data-slot="toast-viewport"][data-position="bottom-right"]')
 		if (!viewport || !canvas.textContent?.includes('Sticky while hovered')) {
@@ -496,7 +493,7 @@ export const HoverPause: Story = {
 
 		// Park the pointer on the stack.
 		viewport.dispatchEvent(new PointerEvent('pointerenter'))
-		await nextFrame()
+		await frame()
 
 		// A toast fired WHILE hovering must freeze with the rest of the stack:
 		// pointerenter cannot re-fire under a stationary pointer, so the render
@@ -525,7 +522,7 @@ export const Position: Story = {
 		if (!button) throw new Error('Toast position trigger was not rendered')
 
 		button.click()
-		await nextFrame()
+		await frame()
 
 		const viewport = canvas.querySelector<HTMLElement>('[data-slot="toast-viewport"][data-position="top-center"]')
 		if (!viewport || !viewport.textContent?.includes('Event has been created')) {
