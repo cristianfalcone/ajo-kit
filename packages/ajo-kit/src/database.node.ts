@@ -3,6 +3,7 @@
 import { createRequire } from 'node:module'
 import { Kysely, SqliteDialect } from 'kysely'
 import type * as BetterSqlite3 from 'better-sqlite3'
+import { env } from 'ajo-kit/platform'
 
 export { sql } from 'kysely'
 export type { Kysely, Generated, Selectable, Insertable } from 'kysely'
@@ -48,7 +49,7 @@ let instance: Kysely<any> | null = null
 let location: string | null = null
 
 /** Opens the shared SQLite database and configures safe defaults. */
-export function connect(path = './database.sqlite'): void {
+export function connect(path = env('DATABASE_PATH') ?? './database.sqlite'): void {
 	if (sqlite) {
 		if (location === path) return
 		throw new Error(`SQLite is already connected at ${location}`)

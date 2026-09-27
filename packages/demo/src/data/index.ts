@@ -1,8 +1,5 @@
-import { connect, db as base } from 'ajo-kit/database'
-import { env } from 'ajo-kit/platform'
+import { db as base } from 'ajo-kit/database'
 import type { DB } from './types'
-
-connect(env('DATABASE_PATH') ?? './database.sqlite')
 
 export const db = () => base<DB>()
 

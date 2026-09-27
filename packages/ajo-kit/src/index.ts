@@ -31,6 +31,5 @@ export type {
 	PageArgs,
 	LayoutArgs,
 	User,
+	Bootstrap,
 } from './constants'
-
-export type { Bootstrap } from './bootstrap'

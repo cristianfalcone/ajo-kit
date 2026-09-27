@@ -108,49 +108,41 @@ describe('ajo-kit request security helpers', () => {
 		expect(() => requestOrigin({ headers: { host: 'blog.example', 'x-forwarded-host': 'evil.test' } } as any)).not.toThrow()
 	})
 
-	test('requires APP_URL to be the exact canonical HTTPS origin in managed mode', () => {
+	test('returns the normalized manifest origin read from the fixed path', () => {
 		process.env.NODE_ENV = 'production'
-		process.env.AJO_ORIGINS_FILE = '/ajo/origin/origins.json'
-		for (const configured of [
-			'https://blog.panel.ajo.dev/',
-			'https://blog.panel.ajo.dev/path',
-			'https://blog.panel.ajo.dev?query=1',
-			'https://blog.panel.ajo.dev#fragment',
-			'https://user@blog.panel.ajo.dev',
-			'https://blog.panel.ajo.dev:443',
-			'http://blog.panel.ajo.dev',
-		]) {
-			process.env.APP_URL = configured
-			const canonical = new URL(configured).origin
-			setOriginReader(() => JSON.stringify({
-				schema: 'ajo.origins/v1',
-				origins: [canonical],
-			}))
-			expect(() => requestOrigin({ headers: { host: 'blog.panel.ajo.dev' } } as any))
-				.toThrow('Invalid APP_URL')
-		}
+		process.env.APP_URL = 'https://blog.panel.ajo.dev'
+		process.env.AJO_ORIGINS_FILE = '/tmp/origins.json'
+		const reader = vi.fn(() => JSON.stringify({ schema: 'ajo.origins/v1', origins: ['HTTPS://Blog.Example:443'] }))
+		setOriginReader(reader)
+
+		expect(requestOrigin({ headers: { host: 'blog.example' } } as any)).toBe('https://blog.example')
+		expect(reader).toHaveBeenCalledWith('/ajo/origin/origins.json', { maxBytes: 4096 })
+		expect(() => requestOrigin({ headers: { host: 'blog.panel.ajo.dev' } } as any)).toThrow('Misdirected Request')
 	})
 
-	test('fails closed for missing, malformed or unbound host manifests', () => {
+	test('fails closed for a missing reader or a malformed manifest, never falling back to APP_URL', () => {
 		process.env.NODE_ENV = 'production'
 		process.env.APP_URL = 'https://blog.panel.ajo.dev'
 		process.env.AJO_ORIGINS_FILE = '/ajo/origin/origins.json'
-		const values = [
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+		const admit = () => requestOrigin({ headers: { host: 'blog.panel.ajo.dev' } } as any)
+
+		expect(admit).toThrow('Invalid origin manifest')
+		setOriginReader(() => { throw new RangeError('too large') })
+		expect(admit).toThrow('Invalid origin manifest')
+		for (const value of [
 			'',
+			'null',
 			'{}',
-			JSON.stringify({ schema: 'ajo.origins/v1', origins: ['https://blog.example'] }),
-			JSON.stringify({ schema: 'ajo.origins/v1', origins: ['https://blog.panel.ajo.dev'], extra: true }),
-			JSON.stringify({ schema: 'ajo.origins/v1', origins: ['http://blog.panel.ajo.dev'] }),
-			JSON.stringify({ schema: 'ajo.origins/v1', origins: ['https://blog.panel.ajo.dev/path'] }),
-			'{"schema":"ajo.origins/v1","schema":"ajo.origins/v1","origins":["https://blog.panel.ajo.dev"]}',
-			'{"\\u0073chema":"ajo.origins/v1","schema":"ajo.origins/v1","origins":["https://blog.panel.ajo.dev"]}',
-		]
-		for (const value of values) {
+			JSON.stringify({ schema: 'ajo.origins/v2', origins: ['https://blog.panel.ajo.dev'] }),
+			JSON.stringify({ schema: 'ajo.origins/v1', origins: 'https://blog.panel.ajo.dev' }),
+			JSON.stringify({ schema: 'ajo.origins/v1', origins: ['https://blog.panel.ajo.dev', 1] }),
+			JSON.stringify({ schema: 'ajo.origins/v1', origins: ['https://blog.panel.ajo.dev', 'not a url'] }),
+		]) {
 			setOriginReader(() => value)
-			expect(() => requestOrigin({ headers: { host: 'blog.panel.ajo.dev' } } as any)).toThrow('Invalid origin manifest')
+			expect(admit).toThrow('Invalid origin manifest')
 		}
-		process.env.AJO_ORIGINS_FILE = '/tmp/origins.json'
-		expect(() => requestOrigin({ headers: { host: 'blog.panel.ajo.dev' } } as any)).toThrow('Invalid AJO_ORIGINS_FILE')
+		expect(log).toHaveBeenCalledWith('[security] Invalid origin manifest')
 	})
 
 	test('without the host manifest only the configured canonical Host is admitted', () => {

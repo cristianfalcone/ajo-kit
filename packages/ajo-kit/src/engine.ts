@@ -1,13 +1,11 @@
 import app from 'runtime:app'
 import { files, serve, type Response as RuntimeResponse, type Writer } from 'runtime:http'
-import { close, connect, db } from 'ajo-kit/database'
-import { run as runBootstrap } from './bootstrap'
-import { normalize, requestOrigin } from './constants'
+import { close, db } from 'ajo-kit/database'
+import { normalize, requestOrigin, setOriginReader, type Bootstrap } from './constants'
 import { attach, request, type Reply } from './http'
 import { security } from './headers'
 import { migrator, type MigrationRegistry } from './migrations'
 import { closeLive, create, type Registries } from './server'
-import { environment } from './engine-config'
 import { compile } from './template'
 
 /** Generated engine entry configuration. */
@@ -15,10 +13,9 @@ export interface StartOptions {
 	template: string
 	registries: Registries
 	migrations: MigrationRegistry
-	options: {
-		auth: boolean
-		database: boolean
-	}
+	options: { database: boolean }
+	/** runtime:fs readText, passed only when the App declares the host origin manifest. */
+	origins?: (path: string, options: { maxBytes: number }) => string
 }
 
 const values = (reply: Reply) => Object.fromEntries([...reply.headers].map(([name, value]) => [
@@ -42,52 +39,31 @@ const dynamic = (reply: Reply): RuntimeResponse => ({
 		: { body: reply.body }),
 })
 
-const secured = (response: RuntimeResponse, origins = false): RuntimeResponse => ({
-	...response,
-	headers: {
-		...Object.fromEntries(Object.entries(security()).map(([name, value]) => [name.toLowerCase(), String(value)])),
-		...response.headers,
-		...(origins && { 'x-ajo-origins': 'v1' }),
-	},
-})
-
 /** Migrates, creates, and binds the sole production runtime: the ajo engine. */
 export async function start(input: StartOptions): Promise<void> {
-	const configured = environment(app.env, input.options.auth)
-	const required = input.options.database || input.migrations.length > 0
-	let connected = false
-	const database = () => {
-		if (!connected) {
-			connect(configured.database)
-			connected = true
-		}
-		return db()
-	}
+	// Outside production auth signing falls back to a public key, so the engine refuses to start.
+	if (app.env('NODE_ENV') !== 'production') throw new Error('NODE_ENV must be "production" for the ajo engine')
+	let url: URL | undefined
+	try { url = new URL(app.env('APP_URL')!) } catch {}
+	if (url?.protocol !== 'http:' && url?.protocol !== 'https:') throw new Error('APP_URL must be an absolute HTTP(S) URL')
 
-	if (required) {
-		try {
-			const { error } = await migrator(database(), input.migrations).migrateToLatest()
+	setOriginReader(input.origins)
+	// Assets and early refusals take these here; dynamic replies get them from `secure`, the first ware in create().
+	const headers = Object.fromEntries(Object.entries(security()).map(([name, value]) => [name.toLowerCase(), value]))
+	const secured = (response: RuntimeResponse): RuntimeResponse => ({ ...response, headers: { ...headers, ...response.headers } })
+
+	try {
+		if (input.options.database || input.migrations.length > 0) {
+			const { error } = await migrator(db(), input.migrations).migrateToLatest()
 			if (error) throw error
-		} catch (error) {
-			await close()
-			throw error
 		}
-	}
 
-	let handler: Awaited<ReturnType<typeof create>>
-	try {
-		await runBootstrap(input.registries.wares['/src/wares.ts'], database, configured)
-		handler = await create(compile(input.template), input.registries)
-	} catch (error) {
-		if (connected) await close()
-		throw error
-	}
+		const hook = (await input.registries.wares['/src/wares.ts']?.())?.bootstrap as Bootstrap | undefined
+		if (hook) await hook({ db: db() })
 
-	let assets: ReturnType<typeof files>
-	let server: ReturnType<typeof serve>
-	try {
-		assets = files(`${app.root}/client`)
-		server = serve({ host: configured.host, port: configured.port }, async raw => {
+		const handler = await create(compile(input.template), input.registries)
+		const assets = files(`${app.root}/client`)
+		const server = serve({ host: app.env('HOST') ?? '0.0.0.0', port: Number(app.env('PORT') ?? 8080) }, async raw => {
 			const incoming = request({
 				method: raw.method,
 				target: raw.target,
@@ -106,18 +82,16 @@ export async function start(input: StartOptions): Promise<void> {
 			}
 
 			const asset = assets(raw)
-			if (asset) return secured(asset, incoming.originPolicy === 'v1')
-			const reply = await handler(incoming)
-			return secured(dynamic(reply), incoming.originPolicy === 'v1')
+			return asset ? secured(asset) : dynamic(await handler(incoming))
+		})
+
+		app.onShutdown(() => {
+			closeLive()
+			server.close()
+			void close().catch(error => console.error('[ajo] Database shutdown failed:', error))
 		})
 	} catch (error) {
-		if (connected) await close()
+		await close()
 		throw error
 	}
-
-	app.onShutdown(() => {
-		closeLive()
-		server.close()
-		if (connected) void close().catch(error => console.error('[ajo] Database shutdown failed:', error))
-	})
 }

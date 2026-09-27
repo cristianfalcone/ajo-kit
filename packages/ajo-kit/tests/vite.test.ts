@@ -40,11 +40,15 @@ describe('ajo-kit vite plugin', () => {
 		await expect(hook.handler.call(context, '/project/src/data/dates.client.ts', '/project/src/page.tsx')).resolves.toBeUndefined()
 	})
 
-	test('the engine entry loads host origins only when the App declares the integration', () => {
+	test('the engine entry passes the file reader only when the App declares host origins', () => {
 		const options = { template: '', migrations: [], database: false }
-		expect(engine(options).code).not.toContain("import 'ajo-kit/origins'")
-		expect(engine({ ...options, origins: false }).code).not.toContain("import 'ajo-kit/origins'")
-		expect(engine({ ...options, origins: true }).code).toContain("import 'ajo-kit/origins'")
+		for (const code of [engine(options).code, engine({ ...options, origins: false }).code]) {
+			expect(code).not.toContain('runtime:fs')
+			expect(code).not.toContain('origins:')
+		}
+		const code = engine({ ...options, origins: true }).code
+		expect(code).toContain("import { readText } from 'runtime:fs'")
+		expect(code).toContain('origins: readText })')
 	})
 
 	test('a root bootstrap export declares engine database use', () => {
@@ -73,7 +77,7 @@ describe('ajo-kit vite plugin', () => {
 		expect({ env: value.env, fs: value.fs, ipc: value.ipc }).toEqual({
 			env: {
 				required: ['NODE_ENV', 'APP_URL', 'A_REQUIRED', 'Z_REQUIRED'],
-				optional: ['APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT', 'A_OPTIONAL', 'Z_OPTIONAL'],
+				optional: ['DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT', 'A_OPTIONAL', 'Z_OPTIONAL'],
 			},
 			fs: { roots: ['/', '/ajo/data', '/proc'] },
 			ipc: { pipes: ['/ajo/ops/a', '/ajo/ops/z'] },

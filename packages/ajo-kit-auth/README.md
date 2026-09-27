@@ -70,12 +70,14 @@ APP_SECRET=<32+ random characters from your secret manager>
 ```
 
 Development can run without this value. Production fails closed when
-`APP_SECRET` is missing, too short, or left as a sample placeholder.
+`APP_SECRET` is missing, too short, or left as a sample placeholder, and the
+package declares it required in `kit.engine`, so the Ajo engine refuses to start
+without it.
 
 For non-local production, also configure `APP_URL` in the app environment for
 canonical generated links. When the host supplies a managed origins manifest,
-`APP_URL` must be an exact HTTPS origin listed there; form checks use the current
-request origin through `requestOrigin(req)` from `ajo-kit`.
+form checks use the current request origin through `requestOrigin(req)` from
+`ajo-kit`.
 
 ## Main Exports
 

@@ -144,7 +144,7 @@ export interface Descriptor {
 
 const base = {
 	required: ['NODE_ENV', 'APP_URL'],
-	optional: ['APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT'],
+	optional: ['DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT'],
 } as const
 
 const strings = (value: unknown, name: string): string[] => {
@@ -207,7 +207,6 @@ export interface EngineMigration {
 
 /** Information captured while emitting the engine server graph. */
 export interface EngineBuild {
-	auth: boolean
 	database: boolean
 	files: string[]
 	findings: GraphIssue[]
@@ -320,7 +319,6 @@ const named = (program: any, name: string) => program.body.some((node: any) => {
 		item.exportKind !== 'type' && (item.exported?.name === name || item.exported?.value === name))
 })
 
-const auth = '__AJO_ENGINE_AUTH__'
 const database = '__AJO_ENGINE_DATABASE__'
 
 /** Creates the generated engine entry and audits its emitted module graph. */
@@ -328,25 +326,25 @@ export function engine(options: {
 	template: string
 	migrations: readonly EngineMigration[]
 	database: boolean
-	/** Loads the host-origin reader only for Apps declaring its environment and filesystem root. */
+	/** Passes runtime:fs readText only for Apps declaring the origin manifest's environment and filesystem root. */
 	origins?: boolean
 }): { plugin: Plugin; result: EngineBuild; code: string } {
-	const result: EngineBuild = { auth: false, database: options.database, files: [], findings: [], migrations: [], net: false }
+	const result: EngineBuild = { database: options.database, files: [], findings: [], migrations: [], net: false }
 	const migrations = options.migrations.map(migration => ({ ...migration, file: clean(migration.file) }))
 	const migration = new Map(migrations.map((item, index) => [item.file, `migration-${String(index + 1).padStart(4, '0')}`]))
 
 	// The generated entry is written to a real staging file: Rolldown resolves
 	// entry modules natively, so a virtual entry id never reaches plugin hooks.
 	const code = [
-		...(options.origins ? ["import 'ajo-kit/origins'"] : []),
+		...(options.origins ? ["import { readText } from 'runtime:fs'"] : []),
 		"import { start } from 'ajo-kit/engine'",
 		"import { routes } from 'virtual:ajo/routes'",
 		"import { handlers, wares } from 'virtual:ajo/handlers'",
 		...migrations.map((item, index) => `import * as migration${index} from ${JSON.stringify(item.file)}`),
-		`const options = JSON.parse('{"auth":${auth},"database":${database}}')`,
+		`const options = JSON.parse('{"database":${database}}')`,
 		`await start({ template: ${JSON.stringify(options.template)}, registries: { routes, handlers, wares }, migrations: [${
 			migrations.map((item, index) => `{ name: ${JSON.stringify(item.name)}, migration: migration${index} }`).join(',')
-		}], options })`,
+		}], options${options.origins ? ', origins: readText' : ''} })`,
 	].join('\n')
 
 	const plugin: Plugin = {
@@ -399,21 +397,15 @@ export function engine(options: {
 				.filter(output => output.type === 'chunk')
 				.filter(chunk => !(chunk.moduleIds.length && chunk.moduleIds.every(id => id.includes('uno.css'))))
 			const ids = chunks.flatMap(chunk => chunk.moduleIds.map(clean))
-			result.auth = ids.some(id => /\/ajo-kit-auth\//.test(id))
 			result.net = ids.some(id => /\/ajo-kit-mail\/(?:src|dist)\/http\.[cm]?[jt]s$/.test(id))
 
-			let authPatched = false
-			let databasePatched = false
+			let patched = false
 			for (const chunk of chunks) {
-				if (chunk.code.includes(auth)) authPatched = true
-				if (chunk.code.includes(database)) databasePatched = true
-				if (chunk.code.includes(auth) || chunk.code.includes(database)) {
-					chunk.code = chunk.code
-						.replaceAll(auth, result.auth ? 'true' : 'false')
-						.replaceAll(database, result.database ? 'true' : 'false')
-				}
+				if (!chunk.code.includes(database)) continue
+				patched = true
+				chunk.code = chunk.code.replaceAll(database, result.database ? 'true' : 'false')
 			}
-			if (!authPatched || !databasePatched) this.error('Generated engine entry lost its graph declaration markers')
+			if (!patched) this.error('Generated engine entry lost its database declaration marker')
 
 			result.files = chunks.map(chunk => `server/${normalizePath(chunk.fileName)}`).sort()
 			result.migrations = migrations.map(item => {

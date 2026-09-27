@@ -9,7 +9,14 @@
   ],
   "kit": {
     "serverOnly": true,
-    "migrations": "./migrations/"
+    "migrations": "./migrations/",
+    "engine": {
+      "env": {
+        "required": [
+          "APP_SECRET"
+        ]
+      }
+    }
   },
   "scripts": {
     "build": "pnpm -w exec tsx scripts/package-build.ts ajo-kit-auth",

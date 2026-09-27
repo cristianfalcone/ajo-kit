@@ -259,7 +259,7 @@ The root `src/wares.ts` module may also export one production bootstrap hook:
 import type { Bootstrap, Middleware } from 'ajo-kit'
 import type { DB } from '/src/data/types'
 
-export const bootstrap: Bootstrap<DB> = async ({ db, config }) => {
+export const bootstrap: Bootstrap<DB> = async ({ db }) => {
   // Migrations are complete. Perform idempotent application setup here.
 }
 
@@ -269,14 +269,7 @@ export default [] satisfies Middleware[]
 The exact type is:
 
 ```ts
-type Bootstrap<Database = any> = (context: {
-  db: Kysely<Database>
-  config: Readonly<{
-    database: string
-    host: string
-    port: number
-  }>
-}) => Promise<void>
+type Bootstrap<Database = any> = (context: { db: Kysely<Database> }) => Promise<void>
 ```
 
 The Ajo engine loads this named export through the existing root wares registry,
@@ -345,18 +338,15 @@ memory. Multi-process deployments require shared topic coordination and
 fanout. Store SQLite database files on persistent local disk.
 
 For non-local production, configure `APP_URL` to the public `http` or `https`
-origin. When the host supplies the managed origins manifest through
-`AJO_ORIGINS_FILE`, `APP_URL` must be an exact HTTPS origin with no path,
-credentials, query, or fragment, and must appear in that manifest. Applications
-choose how to configure their database path:
+origin; the Ajo engine refuses to start without it. When the host supplies the
+managed origins manifest through `AJO_ORIGINS_FILE`, only the Hosts listed in
+that manifest are admitted.
 
-```ts
-connect(process.env.DATABASE_PATH ?? './database.sqlite')
-```
-
-The Ajo engine accepts `:memory:` or a relative file path. File paths resolve
-beneath the configured runtime application data root; absolute paths and `..`
-segments are rejected, and file-backed databases require a data root.
+`db()` connects on first use to `DATABASE_PATH`, or `./database.sqlite` when it
+is unset, so Apps call `connect(path)` only to choose another path. The Ajo
+engine accepts `:memory:` or a file path, which it joins beneath the runtime
+application data root after dropping `.` and empty segments; the engine refuses
+`..` segments and paths outside its declared roots.
 
 `kit migrate` composes:
 
@@ -415,9 +405,10 @@ plugin's name.
 For example, `ajo-kit-server` declares the optional `AJO_ORIGINS_FILE` variable
 and the `/ajo/origin` filesystem root. The host provides that directory as a
 read-only mount, including when the App has no custom domains. Builds with
-both declarations load the host-origin reader; Apps without this integration
-keep their existing descriptor and do not load that reader. To run a platform
-artifact directly on the engine, provide the same directory mount.
+both declarations pass the engine's file reader to the origin check; Apps
+without this integration keep their existing descriptor and never load
+`runtime:fs` for it. To run a platform artifact directly on the engine, provide
+the same directory mount.
 
 ## Public Entry Points
 

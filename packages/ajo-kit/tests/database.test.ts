@@ -1,10 +1,14 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import type { Generated, Kysely } from '../src/database'
-import { resolveDatabasePath } from '../src/database-path'
+import * as engine from '../src/database.ajo'
 import { close, connect, db, sql } from '../src/database.node'
+
+const open = vi.hoisted(() => vi.fn((_path: string) => ({ close() {} })))
+vi.mock('runtime:sqlite', () => ({ default: open }))
+vi.mock('runtime:app', () => ({ default: { data: '/ajo/data' } }))
 
 interface Item {
 	id: Generated<number>
@@ -189,6 +193,20 @@ describe('ajo-kit Node database', () => {
 		await expect(close()).resolves.toBeUndefined()
 	})
 
+	test('connects to DATABASE_PATH on first use', async () => {
+		const directory = mkdtempSync(join(tmpdir(), 'ajo-kit-database-'))
+		const path = join(directory, 'app.sqlite')
+		try {
+			vi.stubEnv('DATABASE_PATH', path)
+			await sql`select 1`.execute(db())
+			expect(() => connect(path)).not.toThrow()
+		} finally {
+			await close()
+			vi.unstubAllEnvs()
+			rmSync(directory, { force: true, recursive: true })
+		}
+	})
+
 	test('keeps repeated connection setup idempotent for one path', async () => {
 		connect(':memory:')
 		const database = db()
@@ -199,28 +217,37 @@ describe('ajo-kit Node database', () => {
 	})
 })
 
-describe('Ajo database path policy', () => {
-	test('passes memory databases through without a data root', () => {
-		expect(resolveDatabasePath(':memory:', undefined)).toBe(':memory:')
+describe('Ajo engine database path', () => {
+	afterEach(async () => {
+		await engine.close()
+		open.mockClear()
+		vi.unstubAllEnvs()
 	})
 
-	test('joins file paths beneath the data root', () => {
-		expect(resolveDatabasePath('./nested/database.sqlite', '/var/lib/ajo/data/'))
-			.toBe('/var/lib/ajo/data/nested/database.sqlite')
+	const opened = (path?: string) => {
+		engine.connect(path)
+		const [[value]] = open.mock.calls
+		return value
+	}
+
+	test('defaults to DATABASE_PATH, then ./database.sqlite, beneath the data root', async () => {
+		vi.stubEnv('DATABASE_PATH', undefined)
+		expect(opened()).toBe('/ajo/data/database.sqlite')
+		await engine.close()
+		open.mockClear()
+		vi.stubEnv('DATABASE_PATH', 'notes.sqlite')
+		expect(opened()).toBe('/ajo/data/notes.sqlite')
 	})
 
-	test('rejects absolute paths', () => {
-		expect(() => resolveDatabasePath('/tmp/database.sqlite', '/var/lib/ajo'))
-			.toThrow(TypeError)
+	test('passes memory databases through', () => {
+		expect(opened(':memory:')).toBe(':memory:')
 	})
 
-	test('rejects parent traversal', () => {
-		expect(() => resolveDatabasePath('../database.sqlite', '/var/lib/ajo'))
-			.toThrow(TypeError)
+	test('drops dot and empty segments so the engine sees a normalized path', () => {
+		expect(opened('./nested//database.sqlite')).toBe('/ajo/data/nested/database.sqlite')
 	})
 
-	test('requires a data root for file-backed databases', () => {
-		expect(() => resolveDatabasePath('database.sqlite', undefined))
-			.toThrow(TypeError)
+	test('leaves parent segments for the engine to refuse', () => {
+		expect(opened('../database.sqlite')).toBe('/ajo/data/../database.sqlite')
 	})
 })

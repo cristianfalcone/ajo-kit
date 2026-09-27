@@ -3,7 +3,7 @@ import type { Kysely } from 'kysely'
 export { sql } from 'kysely'
 export type { Kysely, Generated, Selectable, Insertable } from 'kysely'
 
-/** Opens the shared SQLite database at the given path. */
+/** Opens the shared SQLite database at the given path, by default DATABASE_PATH or ./database.sqlite. */
 export declare function connect(path?: string): void
 
 /** Returns the shared Kysely instance, opening SQLite on first use. */

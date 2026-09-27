@@ -1,5 +1,5 @@
 import type { Children, Component } from 'ajo'
-import { env, utf8ByteLength } from 'ajo-kit/platform'
+import { env } from 'ajo-kit/platform'
 import type { Params } from 'navaid'
 import type { Request, Reply, Middleware } from './http'
 export type { Request, Middleware }
@@ -7,6 +7,7 @@ export type { Request, Middleware }
 export type Response = Reply
 export type { Head } from './head'
 import type { Head } from './head'
+import type { Kysely } from './database'
 import type { Timing } from './timing'
 
 // Route errors with HTTP status codes
@@ -259,55 +260,23 @@ export const ip = (req: Request) => {
 type OriginReader = (path: string, options: { maxBytes: number }) => string
 let originReader: OriginReader | undefined
 
-/** Internal capability registration used only by the condition-selected origins module. */
+/** Registers the host-owned origin manifest reader; the engine entry passes runtime:fs readText. */
 export const setOriginReader = (reader: OriginReader | undefined) => {
 	originReader = reader
 }
 
-const MANIFEST = '/ajo/origin/origins.json'
 const domain = /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/
 
-const managedOrigin = () => {
-	const configured = env('APP_URL')
-	if (!configured) throw config('Invalid APP_URL')
-	let url: URL
-	try { url = new URL(configured) } catch { throw config('Invalid APP_URL') }
-	if (url.protocol !== 'https:' || url.origin !== configured || url.port || url.username || url.password ||
-		!domain.test(url.hostname) || url.hostname.includes('..') || url.hostname !== url.hostname.toLowerCase())
-		throw config('Invalid APP_URL')
-	return configured
-}
-
-const manifest = (canonical: string) => {
-	if (env('AJO_ORIGINS_FILE') !== MANIFEST) throw config('Invalid AJO_ORIGINS_FILE')
-	if (!originReader) throw config('Origin manifest reader is unavailable')
-
-	let text: string
-	try { text = originReader(MANIFEST, { maxBytes: 4096 }) }
-	catch { throw config('Invalid origin manifest') }
-	if (utf8ByteLength(text) > 4096) throw config('Invalid origin manifest')
-
-	let value: unknown
-	try { value = JSON.parse(text) } catch { throw config('Invalid origin manifest') }
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw config('Invalid origin manifest')
-	const record = value as Record<string, unknown>
-	const properties = text.match(/"(?:[^"\\]|\\.)*"\s*:/g)?.length ?? 0
-	if (properties !== 2 || Object.keys(record).sort().join(',') !== 'origins,schema' ||
-		record.schema !== 'ajo.origins/v1' || !Array.isArray(record.origins) ||
-		record.origins.length < 1 || record.origins.length > 9) throw config('Invalid origin manifest')
-
-	const origins: string[] = []
-	for (const item of record.origins) {
-		if (typeof item !== 'string') throw config('Invalid origin manifest')
-		let url: URL
-		try { url = new URL(item) } catch { throw config('Invalid origin manifest') }
-		if (url.protocol !== 'https:' || url.origin !== item || url.port || url.username || url.password ||
-			!domain.test(url.hostname) || url.hostname.includes('..') || url.hostname !== url.hostname.toLowerCase() ||
-			origins.includes(item)) throw config('Invalid origin manifest')
-		origins.push(item)
+// The host writes this manifest root-owned and read-only; any failure refuses the request.
+const manifest = (host: string) => {
+	try {
+		const value = JSON.parse(originReader!('/ajo/origin/origins.json', { maxBytes: 4096 }))
+		if (value?.schema !== 'ajo.origins/v1' || !Array.isArray(value.origins) ||
+			!value.origins.every((item: unknown) => typeof item === 'string')) throw new Error()
+		return (value.origins as string[]).map(item => new URL(item)).find(url => url.host === host)?.origin
+	} catch {
+		throw config('Invalid origin manifest')
 	}
-	if (!origins.includes(canonical)) throw config('Invalid origin manifest')
-	return origins
 }
 
 const requestHost = (req: Request) => {
@@ -358,21 +327,19 @@ export const origin = (req: Request) => {
 
 /**
  * Resolves the origin of this exact request after admitting its direct Host.
- * Production aliases come only from the host-owned origins manifest.
+ * With AJO_ORIGINS_FILE set, admitted Hosts come only from the host-owned origins manifest.
  */
 export const requestOrigin = (req: Request) => {
-	delete req.originPolicy
-	const managed = env('AJO_ORIGINS_FILE') !== undefined
-	const base = managed ? managedOrigin() : origin(req)
 	const host = requestHost(req)
-	const configured = env('APP_URL')
-	const allowed = managed ? manifest(base) : [base]
-	const matched = allowed.find(value => new URL(value).host === host)
+	const matched = env('AJO_ORIGINS_FILE') !== undefined
+		? manifest(host)
+		: [origin(req)].find(value => new URL(value).host === host)
 	if (!matched) throw new Failure(421, 'Misdirected Request')
-	if (env('AJO_ORIGINS_FILE') !== undefined) req.originPolicy = 'v1'
-	if (configured === undefined && production() && !local(host)) throw config('APP_URL is required in production')
 	return matched
 }
+
+/** Engine startup hook run after migrations and before request handling. */
+export type Bootstrap<Database = any> = (context: { db: Kysely<Database> }) => Promise<void>
 
 // Auth types
 
@@ -398,8 +365,6 @@ declare module './http' {
 		track?: (topic: string | string[]) => void
 		verifyLive?: () => Promise<boolean>
 		timing?: Timing
-		/** Validated host-origin policy version for the production adapter. */
-		originPolicy?: 'v1'
 		revalidate?: () => Promise<Payload>
 		head?: Head
 		entries?: Data

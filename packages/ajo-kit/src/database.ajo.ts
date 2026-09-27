@@ -1,7 +1,7 @@
 import app from 'runtime:app'
 import open from 'runtime:sqlite'
 import { Kysely, SqliteDialect } from 'kysely'
-import { resolveDatabasePath } from './database-path'
+import { env } from 'ajo-kit/platform'
 
 export { sql } from 'kysely'
 export type { Kysely, Generated, Selectable, Insertable } from 'kysely'
@@ -11,10 +11,10 @@ let instance: Kysely<any> | null = null
 let location: string | null = null
 
 /** Opens the shared SQLite database beneath the runtime application data root. */
-export function connect(path = './database.sqlite'): void {
-	// runtime:sqlite applies busy_timeout, foreign_keys, WAL, and synchronous
-	// defaults while opening the handle; see ajo-js/src/sqlite.c.
-	const resolved = resolveDatabasePath(path, app.data)
+export function connect(path = env('DATABASE_PATH') ?? './database.sqlite'): void {
+	// runtime:sqlite confines the path to the declared roots and applies busy_timeout,
+	// foreign_keys, WAL, and synchronous defaults while opening; see ajo-js/src/sqlite.c.
+	const resolved = path === ':memory:' ? path : `${app.data}/${path.split('/').filter(part => part && part !== '.').join('/')}`
 	if (sqlite) {
 		if (location === resolved) return
 		throw new Error(`SQLite is already connected at ${location}`)

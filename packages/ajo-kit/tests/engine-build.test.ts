@@ -63,7 +63,7 @@ describe('ajo engine build contract', () => {
 				migrations: [{ name: 'project/0001_initial', module: 'server/migrations/0001.js' }],
 				env: {
 					required: ['NODE_ENV', 'APP_URL'],
-					optional: ['APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT'],
+					optional: ['DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT'],
 				},
 				data: { required: true },
 				fs: { roots: [] },
@@ -108,7 +108,7 @@ describe('ajo engine build contract', () => {
 			expect({ env: value.env, fs: value.fs, ipc: value.ipc }).toEqual({
 				env: {
 					required: ['NODE_ENV', 'APP_URL'],
-					optional: ['APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT', ...optional],
+					optional: ['DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT', ...optional],
 				},
 				fs: { roots },
 				ipc: { pipes },
@@ -192,6 +192,19 @@ describe('ajo engine build contract', () => {
 		}
 	})
 
+	test('an App depending on ajo-kit-auth requires APP_SECRET', async () => {
+		const { app, staging } = await fixture()
+		try {
+			const auth = JSON.parse(await readFile(new URL('../../ajo-kit-auth/package.json', import.meta.url), 'utf8'))
+			await install(app, 'ajo-kit-auth', auth.kit.engine)
+			const value = await emitDescriptor(staging, input, app)
+			expect(value.env.required).toEqual(['NODE_ENV', 'APP_URL', 'APP_SECRET'])
+			expect(value.env.optional).not.toContain('APP_SECRET')
+		} finally {
+			await rm(app, { force: true, recursive: true })
+		}
+	})
+
 	test('merges shared authority once, promotes required variables, and sorts contributions', async () => {
 		const { app, staging } = await fixture({
 			env: { optional: ['SHARED', 'APP_OPTIONAL'] },
@@ -211,7 +224,7 @@ describe('ajo engine build contract', () => {
 			const value = await emitDescriptor(staging, input, app)
 			expect(value.env.required).toEqual(['NODE_ENV', 'APP_URL', 'A_REQUIRED', 'SHARED'])
 			expect(value.env.optional).toEqual([
-				'APP_SECRET', 'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT', 'APP_OPTIONAL', 'Z_OPTIONAL',
+				'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT', 'APP_OPTIONAL', 'Z_OPTIONAL',
 			])
 			expect(value.fs.roots).toEqual(['/ajo/data', '/ajo/origin'])
 			expect(value.ipc.pipes).toEqual(['/ajo/shared', '/ajo/zeta'])
@@ -269,7 +282,7 @@ describe('ajo engine build contract', () => {
 			[{ env: { required: ['AJO_NAME', 'AJO_NAME'] } }, 'env.required[1] duplicates "AJO_NAME"'],
 			[{ env: { required: ['NODE_ENV'] } }, 'env.required[0] duplicates "NODE_ENV"'],
 			[{ env: { required: ['PORT'] } }, 'env.required[0] duplicates "PORT"'],
-			[{ env: { optional: ['APP_SECRET'] } }, 'env.optional[0] duplicates "APP_SECRET"'],
+			[{ env: { optional: ['DATABASE_PATH'] } }, 'env.optional[0] duplicates "DATABASE_PATH"'],
 			[{ env: { optional: ['APP_URL'] } }, 'env.optional[0] duplicates "APP_URL"'],
 			[{ env: { required: ['AJO_NAME'], optional: ['AJO_NAME'] } }, 'env.optional[0] duplicates "AJO_NAME"'],
 			[{ fs: { roots: ['/ajo', '/ajo'] } }, 'fs.roots[1] duplicates "/ajo"'],
