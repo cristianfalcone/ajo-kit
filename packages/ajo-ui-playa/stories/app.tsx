@@ -7,6 +7,7 @@ import { Button } from 'ajo-ui-playa/button'
 import { Card, CardContent } from 'ajo-ui-playa/card'
 import { Checkbox } from 'ajo-ui-playa/checkbox'
 import { Chip } from 'ajo-ui-playa/chip'
+import { DirectionProvider, type Direction } from 'ajo-ui-playa/direction'
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -30,6 +31,7 @@ import { Select, SelectContent, SelectItem, SelectList, SelectTrigger, SelectVal
 import { Slider } from 'ajo-ui-playa/slider'
 import { Textarea } from 'ajo-ui-playa/textarea'
 import { ToggleGroup, ToggleGroupItem } from 'ajo-ui-playa/toggle-group'
+import 'ajo-ui-playa/fonts.css'
 import 'virtual:uno.css'
 
 export type Control =
@@ -58,11 +60,38 @@ export type Args = Record<string, any>
 
 type ComponentLike = (args: Args) => Children
 
+/**
+ * A named screens check. The runner runs all but `still` on every `Screens/*`
+ * story on top of its own play; a play reports `still` or `row` by throwing a `CheckError`.
+ */
+export type Check = 'axe' | 'focus' | 'forced-colors' | 'motion' | 'reflow' | 'row' | 'still' | 'target-size'
+
+/**
+ * Failures of one check that a screen has today, with the slice that fixes them.
+ * A failure is known only when its variant and its message match; an entry that
+ * matches no failure fails the run, so the list only shrinks.
+ */
+export type Known = {
+	check: Check
+	slice: string
+	/** Variant names such as `light-390`, or a variant and a layer such as `light-390 add-domain`; any variant when omitted. */
+	variants?: string[]
+	/** Text of the failing elements' descriptions, such as `"Create app"`; any element when omitted. */
+	targets?: string[]
+}
+
+/** An open-layer state: the selector of the trigger the runner clicks, and the viewport widths where it exists (all when omitted). */
+export type Layer = string | { trigger: string; widths: number[] }
+
 export type Parameters = {
 	docs?: {
 		description?: string
 	}
 	empty?: boolean
+	/** Screens failures that exist today, each with the slice that fixes it. */
+	known?: Known[]
+	/** Open-layer states the screens runner captures, by name. */
+	layers?: Record<string, Layer>
 	layout?: 'centered' | 'fullscreen' | 'padded'
 	/** Browser viewport used by automated story runs. */
 	viewport?: {
@@ -159,6 +188,8 @@ type State = {
 	entries: StoryEntry[]
 	errors: Record<string, string>
 	failure?: string
+	/** The named check a play failure belongs to, for the screens runner. */
+	failureCheck?: Check
 	failureKey?: string
 	live: Map<string, Record<string, unknown>>
 	loading: boolean
@@ -186,7 +217,7 @@ declare global {
 	var __AJO_STORIES_INDEX__: StorySummary[] | undefined
 }
 
-const modules = import.meta.glob<StoryModule>('./*.stories.tsx')
+const modules = import.meta.glob<StoryModule>(['./*.stories.tsx', './screens/*.stories.tsx'])
 const searchKey = 'search'
 const themeKey = 'theme.v1'
 const StoriesContext = context<StoriesApi | null>(null)
@@ -216,6 +247,9 @@ const query = (params: URLSearchParams) => {
 
 const readSearch = () => new URLSearchParams(location.search).get(searchKey) ?? ''
 
+/** `?dir=rtl` renders the stories right to left, with Arabic as the document language. */
+const direction: Direction = new URLSearchParams(location.search).get('dir') === 'rtl' ? 'rtl' : 'ltr'
+
 const storyHref = (id: string, search: string, options: { args?: Record<string, unknown>; canvas?: boolean; preview?: boolean; theme?: ThemeMode } = {}) => {
 	const current = new URLSearchParams(location.search)
 	const params = new URLSearchParams()
@@ -223,6 +257,7 @@ const storyHref = (id: string, search: string, options: { args?: Record<string, 
 	const filter = search.trim()
 
 	if (isThemeMode(theme)) params.set('theme', theme)
+	if (direction === 'rtl') params.set('dir', direction)
 	if (filter) params.set(searchKey, filter)
 	if (options.canvas) params.set('canvas', '1')
 	if (options.preview) params.set('preview', '1')
@@ -340,10 +375,12 @@ const parseArgs = () => {
 	}
 }
 
+const requested = () => location.pathname.match(/^\/story\/([^/]+)$/)?.[1]
+
+/** The story the path names, or the first story on the index; an unknown id picks none. */
 const pick = (entries: StoryEntry[]) => {
-	const match = location.pathname.match(/^\/story\/([^/]+)$/)
-	const id = match?.[1]
-	return entries.find(entry => entry.id === id) ?? entries[0]
+	const id = requested()
+	return id ? entries.find(entry => entry.id === id) : entries[0]
 }
 
 const publicIndex = (entries: StoryEntry[]): StorySummary[] => entries.map(entry => ({
@@ -990,6 +1027,7 @@ const initialState = (stored: string): State => ({
 	message: 'Loading stories...',
 	loading: true,
 	failure: undefined,
+	failureCheck: undefined,
 	failureKey: undefined,
 	search: readSearch(),
 	theme: readTheme(stored),
@@ -1001,6 +1039,7 @@ const App: Stateful = function* () {
 	const state = initialState(saved.value)
 	const played = new Set<string>()
 	let pendingFrameRender: StoryRenderMessage | undefined
+	let playing = false
 	let renderVersion = 0
 	let searchVersion = 0
 	let storyRoot: HTMLElement | null = null
@@ -1008,6 +1047,7 @@ const App: Stateful = function* () {
 
 	const clearFailure = () => {
 		state.failure = undefined
+		state.failureCheck = undefined
 		state.failureKey = undefined
 	}
 
@@ -1127,6 +1167,9 @@ const App: Stateful = function* () {
 		const entry = state.active
 		const canvas = storyRoot?.dataset.storyRoot === entry?.id ? storyRoot : null
 
+		// A play that changes args renders the story again; the story is ready only once the play settles.
+		if (playing) return
+
 		if (!entry || !key || preview || state.failureKey === key || played.has(entry.id)) {
 			document.documentElement.dataset.ajoReady = 'true'
 			return
@@ -1137,23 +1180,27 @@ const App: Stateful = function* () {
 				// Mark before running so plays fire once per story: replaying on every
 				// arg change would loop when a play interacts with setArg-bound state.
 				played.add(entry.id)
+				playing = true
 				await entry.story.play({ id: entry.id, name: entry.name, title: entry.title, canvas, setArg })
 			}
 		} catch (error) {
-			if (version === renderVersion) {
-				this.next(() => {
-					state.failure = error instanceof Error
-						? error.stack?.includes(error.message) ? error.stack : `${error.message}${error.stack ? `\n${error.stack}` : ''}`
-						: String(error)
-					state.failureKey = key
-				})
-			}
+			this.next(() => {
+				if (state.active !== entry) return
+				// A named check's message already lists what failed, one element per line.
+				const check = error instanceof Error && 'check' in error ? error.check as Check : undefined
+				state.failure = check ? (error as Error).message : error instanceof Error
+					? error.stack?.includes(error.message) ? error.stack : `${error.message}${error.stack ? `\n${error.stack}` : ''}`
+					: String(error)
+				state.failureCheck = check
+				state.failureKey = key
+			})
 			return
+		} finally {
+			playing = false
 		}
 
-		if (version === renderVersion) {
-			document.documentElement.dataset.ajoReady = 'true'
-		}
+		if (version === renderVersion) document.documentElement.dataset.ajoReady = 'true'
+		else this.next()
 	}
 
 	globalThis.addEventListener('popstate', () => this.next(syncLocation), { signal: this.signal })
@@ -1173,6 +1220,8 @@ const App: Stateful = function* () {
 			assignArg(event.data.name, event.data.value)
 		})
 	}, { signal: this.signal })
+	document.documentElement.dir = direction
+	document.documentElement.lang = direction === 'rtl' ? 'ar' : 'en'
 	applyTheme(state.theme, dark.matches)
 
 	void loadStories()
@@ -1221,11 +1270,12 @@ const App: Stateful = function* () {
 		if (!state.loading) queueMicrotask(() => void ready(version, key, preview))
 
 		if (state.loading || !active) {
+			const missing = !state.loading && !state.message
 			yield (
 				<main class="h-full bg-background p-6 text-foreground">
-					<Card size="sm">
+					<Card data-stories-error={state.loading ? undefined : 'true'} size="sm">
 						<CardContent>
-							{state.message}
+							{missing ? `Unknown story "${requested()}".` : state.message}
 						</CardContent>
 					</Card>
 				</main>
@@ -1237,9 +1287,11 @@ const App: Stateful = function* () {
 			yield (
 				<main class="h-full overflow-auto overscroll-contain bg-background text-foreground">
 					{screenshot && <style>{'*,::before,::after{animation-duration:0.001ms!important;animation-delay:0ms!important;transition-duration:0.001ms!important;scroll-behavior:auto!important}'}</style>}
-					<StoryView entry={active} args={args} root={captureStoryRoot} />
+					<DirectionProvider dir={direction}>
+						<StoryView entry={active} args={args} root={captureStoryRoot} />
+					</DirectionProvider>
 					{state.failure && (
-						<Card data-stories-error="true" size="sm" class="m-4">
+						<Card data-stories-error="true" data-stories-error-check={state.failureCheck} size="sm" class="m-4">
 							<CardContent>
 								<pre class="whitespace-pre-wrap text-xs text-danger">{state.failure}</pre>
 							</CardContent>

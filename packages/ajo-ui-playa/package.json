@@ -17,6 +17,7 @@
     "stories": "tsx stories/server.ts dev",
     "stories:test": "tsx stories/server.ts test",
     "stories:test:visual": "tsx stories/server.ts test --screenshots",
+    "stories:test:screens": "tsx stories/server.ts test --screens",
     "stories:test:floating": "tsx stories/server.ts test --match ui-popover--with-arrow --cycles 100 --port 0 && tsx stories/server.ts test --match ui-popover--with-arrow --screenshots --browser chromium --port 0 && tsx stories/server.ts test --match ui-popover--with-arrow --screenshots --browser firefox --port 0 && tsx stories/server.ts test --match ui-popover--with-arrow --screenshots --browser webkit --port 0"
   },
   "exports": {
@@ -294,6 +295,7 @@
   "devDependencies": {
     "ajo": "0.2.0",
     "ajo-cloves": "workspace:*",
+    "axe-core": "4.13.0",
     "playwright": "1.63.0",
     "sade": "1.8.1",
     "tsx": "4.23.15",

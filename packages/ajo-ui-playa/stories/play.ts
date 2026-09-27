@@ -1,3 +1,5 @@
+import type { Check } from './app'
+
 /** Resolves after `count` animation frames. */
 export const frame = async (count = 1) => {
 	for (let index = 0; index < count; index++) await new Promise(resolve => requestAnimationFrame(resolve))
@@ -86,4 +88,295 @@ export const assertScrollFrameFocus = async (viewport: HTMLElement, owner: strin
 		throw new Error(`${owner} frame did not paint viewport focus`)
 	}
 	viewport.blur()
+}
+
+/** The element as a tag, its slot and its accessible name or text, for failure messages. */
+const describe = (element: Element) => {
+	const slot = element.getAttribute('data-slot')
+	const name = element.getAttribute('aria-label') ?? element.textContent?.trim().slice(0, 40)
+	return `${element.localName}${slot ? `[data-slot=${slot}]` : ''}${name ? ` "${name}"` : ''}`
+}
+
+const interactive = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, [tabindex]:not([tabindex="-1"]), [role="button"], [role="checkbox"], [role="combobox"], [role="link"], [role="menuitem"], [role="option"], [role="radio"], [role="slider"], [role="switch"], [role="tab"]'
+
+/** The interactive elements in `root` that render: laid out, not hidden, not transparent. */
+const shown = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>(interactive)].filter(element => {
+	const style = getComputedStyle(element)
+	const rect = element.getBoundingClientRect()
+	return rect.width > 1 && rect.height > 1 && style.visibility !== 'hidden' && Number(style.opacity) > 0
+})
+
+/** A failure of a named screens check: the runner files it under `check`, one element per message line. */
+export class CheckError extends Error {
+	constructor(readonly check: Check, lines: string[]) {
+		super(lines.join('\n'))
+	}
+}
+
+const spread = (values: number[]) => Math.max(...values) - Math.min(...values)
+const overlap = (a: DOMRect, b: DOMRect) => Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+
+/**
+ * Asserts that the fields of every FieldRow that share a line keep their
+ * controls aligned: one centre for every control, and one top and one height
+ * for full-height controls (30 px or taller, provisional until `--control-sm`
+ * exists; a checkbox or switch only shares the centre), whether or not a
+ * neighbour has help, an error or a wrapped label. A line is the fields whose
+ * boxes overlap vertically, not the ones that share a top: subgrid gives the
+ * fields of a line one top, but a field pushed down on its own still overlaps
+ * its neighbours and must be compared with them. A stacked row has nothing to
+ * compare and a wrapped row is checked line by line.
+ */
+export const assertRowAligned = (canvas: HTMLElement) => {
+	const rows = [...canvas.querySelectorAll<HTMLElement>('[data-slot="field-row"]')]
+	if (!rows.length) throw new Error('No FieldRow rendered')
+	const lines: string[] = []
+	for (const row of rows) {
+		const fields: HTMLElement[][] = []
+		for (const field of row.querySelectorAll<HTMLElement>(':scope > [data-slot="field"]')) {
+			const rect = field.getBoundingClientRect()
+			const line = fields.find(line => line.some(other => overlap(other.getBoundingClientRect(), rect) > 0.5))
+			if (line) line.push(field)
+			else fields.push([field])
+		}
+		for (const line of fields) {
+			if (line.length < 2) continue
+			const controls = line.flatMap(field => [...field.querySelectorAll<HTMLElement>(':scope > :not([data-slot^="field-"])')])
+				.map(control => ({ control, rect: control.getBoundingClientRect() }))
+			const names = controls.map(({ control }) => describe(control)).join(', ')
+			const centres = controls.map(({ rect }) => rect.top + rect.height / 2)
+			const tall = controls.filter(({ rect }) => rect.height >= 30).map(({ rect }) => rect)
+			if (spread(centres) > 0.5) lines.push(`FieldRow controls do not share a centre: ${names} at ${centres.join(', ')}`)
+			else if (spread(tall.map(rect => rect.top)) > 0.5 || spread(tall.map(rect => rect.height)) > 0.5) {
+				lines.push(`FieldRow controls differ in top or height: ${names} at ${tall.map(rect => `${rect.top}/${rect.height}`).join(', ')}`)
+			}
+		}
+	}
+	if (lines.length) throw new CheckError('row', lines)
+}
+
+const box = (rect: DOMRect) => `${rect.left},${rect.top} ${rect.width}x${rect.height}`
+const moved = (a: DOMRect, b: DOMRect) =>
+	Math.max(Math.abs(a.left - b.left), Math.abs(a.top - b.top), Math.abs(a.width - b.width), Math.abs(a.height - b.height)) > 0.5
+
+/** Runs `change` and asserts that no visible interactive element in `canvas` moved or resized across it. */
+export const assertStill = async (canvas: HTMLElement, change: () => void | Promise<void>) => {
+	const before = new Map(shown(canvas).map(element => [element, element.getBoundingClientRect()]))
+	if (!before.size) throw new Error('No interactive element rendered')
+	await change()
+	await frame(2)
+	const lines: string[] = []
+	for (const element of shown(canvas)) {
+		const rect = before.get(element)
+		if (!rect) continue
+		const next = element.getBoundingClientRect()
+		if (moved(rect, next)) lines.push(`${describe(element)} moved from ${box(rect)} to ${box(next)}`)
+	}
+	if (lines.length) throw new CheckError('still', lines)
+}
+
+type Rgba = [number, number, number, number]
+
+let paint: CanvasRenderingContext2D | undefined
+
+/**
+ * Any computed CSS colour as sRGB 0 to 255 with alpha 0 to 1, through a canvas.
+ * A canvas keeps its previous fill for a colour it cannot parse, so two
+ * different sentinels that both survive the assignment mean it was rejected.
+ */
+const rgba = (color: string): Rgba => {
+	paint ??= document.createElement('canvas').getContext('2d', { willReadFrequently: true })!
+	const rejected = ['#010203', '#040506'].every(sentinel => {
+		paint!.fillStyle = sentinel
+		paint!.fillStyle = color
+		return paint!.fillStyle === sentinel
+	})
+	if (rejected) throw new Error(`The canvas cannot read the colour ${color}`)
+	paint.clearRect(0, 0, 1, 1)
+	paint.fillRect(0, 0, 1, 1)
+	const [r, g, b, a] = paint.getImageData(0, 0, 1, 1).data
+	return [r, g, b, a / 255]
+}
+
+const over = ([r, g, b, a]: Rgba, [br, bg, bb]: Rgba): Rgba =>
+	[r * a + br * (1 - a), g * a + bg * (1 - a), b * a + bb * (1 - a), 1]
+
+const luminance = ([r, g, b]: Rgba) => {
+	const linear = (value: number) => {
+		const channel = value / 255
+		return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+	}
+	return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+}
+
+const contrast = (a: Rgba, b: Rgba) => {
+	const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+	return (light + 0.05) / (dark + 0.05)
+}
+
+/** The opaque colour an element paints on: its own and its ancestors' background colours, composed. */
+const surface = (element: Element | null): Rgba => {
+	const layers: Rgba[] = []
+	for (let node = element; node; node = node.parentElement) {
+		const color = rgba(getComputedStyle(node).backgroundColor)
+		if (color[3] > 0) layers.push(color)
+		if (color[3] >= 1) break
+	}
+	return layers.reduceRight<Rgba>((below, layer) => over(layer, below), [255, 255, 255, 1])
+}
+
+/** Splits `value` at the characters `separator` matches outside parentheses, however deeply nested. */
+const split = (value: string, separator: RegExp) => {
+	const parts: string[] = []
+	let depth = 0
+	let start = 0
+	for (let index = 0; index < value.length; index++) {
+		const char = value[index]
+		if (char === '(') depth++
+		else if (char === ')') depth--
+		else if (!depth && separator.test(char)) {
+			parts.push(value.slice(start, index))
+			start = index + 1
+		}
+	}
+	parts.push(value.slice(start))
+	return parts.map(part => part.trim()).filter(Boolean)
+}
+
+/** A computed `box-shadow` as its layers, each with its colour (the one word that is not a length) and inset. */
+const shadows = (value: string) => value === 'none' ? [] : split(value, /,/).map(layer => {
+	const words = split(layer, /\s/)
+	return { color: words.find(word => word !== 'inset' && !/^[-+.\d]/.test(word)), inset: words.includes('inset'), layer }
+})
+
+type Indicator = { boxShadow: string; outline: string }
+
+const indicator = (element: Element): Indicator => {
+	const style = getComputedStyle(element)
+	return {
+		boxShadow: style.boxShadow,
+		outline: style.outlineStyle === 'none' || Number.parseFloat(style.outlineWidth) === 0
+			? 'none'
+			: `${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor}`,
+	}
+}
+
+let resting = new WeakMap<Element, Indicator>()
+let visited = new WeakSet<Element>()
+
+/**
+ * Starts a Tab walk at the top of the document, wherever a play left focus,
+ * and records the resting outline and shadow of every element in `root`.
+ * Returns how many elements in `root` take a Tab stop; call it before the first Tab.
+ */
+export const restFocus = (root: HTMLElement) => {
+	// Focus moves the sequential navigation starting point; blur alone leaves it on the old element.
+	const html = document.documentElement
+	html.tabIndex = -1
+	html.focus({ preventScroll: true })
+	html.removeAttribute('tabindex')
+	resting = new WeakMap()
+	visited = new WeakSet()
+	for (const element of [root, ...root.querySelectorAll('*')]) resting.set(element, indicator(element))
+	return shown(root).filter(element => element.tabIndex >= 0 && !element.matches(':disabled')).length
+}
+
+/**
+ * Asserts that the element keyboard focus is on shows the focus indicator:
+ * never the native outline, and an outline or shadow on it or an ancestor in
+ * `root` that differs from rest, with a colour at 3:1 against its surface.
+ * Returns a description of the element, or null once focus leaves `root` or
+ * comes back to an element already checked since `restFocus`.
+ */
+export const assertFocusVisible = (root: HTMLElement) => {
+	const element = document.activeElement
+	if (!element || !root.contains(element) || visited.has(element)) return null
+	visited.add(element)
+	const name = describe(element)
+	if (!element.matches(':focus-visible')) throw new Error(`${name} took keyboard focus without :focus-visible`)
+	if (getComputedStyle(element).outlineStyle === 'auto') throw new Error(`${name} shows the native focus outline`)
+
+	let best = 0
+	for (let node: Element | null = element; node && root.contains(node); node = node.parentElement) {
+		const rest = resting.get(node) ?? { boxShadow: 'none', outline: 'none' }
+		const now = indicator(node)
+		const colors: Array<[string, boolean]> = []
+		if (now.outline !== rest.outline && now.outline !== 'none') colors.push([getComputedStyle(node).outlineColor, false])
+		const before = new Set(shadows(rest.boxShadow).map(({ layer }) => layer))
+		for (const { color, inset, layer } of shadows(now.boxShadow)) {
+			if (!before.has(layer) && color) colors.push([color, inset])
+		}
+		for (const [color, inset] of colors) {
+			const behind = surface(inset ? node : node.parentElement)
+			best = Math.max(best, contrast(over(rgba(color), behind), behind))
+		}
+	}
+	if (best === 0) throw new Error(`${name} shows no focus indicator`)
+	if (best < 3) throw new Error(`${name} focus indicator is ${best.toFixed(2)}:1 against its surface, under 3:1`)
+	return name
+}
+
+/**
+ * Asserts WCAG 2.2 SC 2.5.8: every visible target in `root` is at least 24 by
+ * 24 CSS px, or a 24 px circle on its centre touches no other target nor the
+ * circle of another small target. Links inside a line of text are exempt.
+ * Throws a `target-size` failure with one line per undersized target.
+ */
+export const assertTargetSize = (root: HTMLElement) => {
+	const targets = shown(root)
+		.filter(element => !(element.localName === 'a' && getComputedStyle(element).display === 'inline'))
+		.map(element => ({ element, rect: element.getBoundingClientRect() }))
+	const small = (rect: DOMRect) => rect.width < 24 || rect.height < 24
+	const centre = (rect: DOMRect) => [rect.left + rect.width / 2, rect.top + rect.height / 2]
+	const gap = (x: number, y: number, rect: DOMRect) =>
+		Math.hypot(Math.max(rect.left - x, 0, x - rect.right), Math.max(rect.top - y, 0, y - rect.bottom))
+
+	const failures = targets.filter(({ element, rect }) => {
+		if (!small(rect)) return false
+		const [x, y] = centre(rect)
+		return targets.some(other => {
+			if (other.element === element || other.element.contains(element) || element.contains(other.element)) return false
+			if (small(other.rect)) {
+				const [ox, oy] = centre(other.rect)
+				return Math.hypot(ox - x, oy - y) < 24 || gap(x, y, other.rect) < 12
+			}
+			return gap(x, y, other.rect) < 12
+		})
+	})
+	if (failures.length) {
+		throw new CheckError('target-size', failures.map(({ element, rect }) => `${describe(element)} is ${rect.width}x${rect.height}, under 24 px without spacing`))
+	}
+}
+
+/** Asserts SC 1.4.10 at the current width: neither `root` nor any ancestor scrolls horizontally. */
+export const assertReflow = (root: HTMLElement) => {
+	for (let node: HTMLElement | null = root; node; node = node.parentElement) {
+		if (node.scrollWidth > node.clientWidth + 1) {
+			throw new Error(`${describe(node)} scrolls horizontally at ${innerWidth} px: ${node.scrollWidth} > ${node.clientWidth}`)
+		}
+	}
+}
+
+const moving = /^(?:transform|translate|scale|rotate)$/
+
+/**
+ * Watches for `ms` milliseconds and asserts that no running animation or
+ * transition moves anything with a transform; one failure line per element.
+ */
+export const assertNoTransformMotion = async (ms: number) => {
+	const seen = new Set<string>()
+	const deadline = performance.now() + ms
+	while (performance.now() < deadline) {
+		for (const animation of document.getAnimations()) {
+			const effect = animation.effect as KeyframeEffect | null
+			const target = effect?.target
+			const properties = animation instanceof CSSTransition
+				? [animation.transitionProperty]
+				: (effect?.getKeyframes() ?? []).flatMap(frame => Object.keys(frame))
+			const moved = new Set(properties.filter(property => moving.test(property)))
+			if (moved.size && target) seen.add(`${describe(target)} ${[...moved].join(' ')}`)
+		}
+		await frame()
+	}
+	if (seen.size) throw new CheckError('motion', [...seen].map(motion => `${motion} moves under reduced motion`))
 }
