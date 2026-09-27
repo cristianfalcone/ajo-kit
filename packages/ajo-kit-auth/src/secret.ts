@@ -1,10 +1,9 @@
+import { production } from 'ajo-kit'
 import { env } from 'ajo-kit/platform'
 
 const fallback = 'change-in-production'
 const minimum = 32
 const samples = new Set([fallback, 'your-secret-key'])
-
-const production = () => env('NODE_ENV') === 'production'
 
 /** Returns the app signing secret and fails closed in production. */
 export const value = () => {

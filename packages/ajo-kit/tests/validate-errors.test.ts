@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'vitest'
-import { Failure, Invalid, normalize } from '../src/constants'
+import { Failure, Invalid, normalize } from '../src/utils'
 import { minLength as min, object, parse, pipe, string } from '../src/validate'
 
 const environment = process.env.NODE_ENV

@@ -1,17 +1,38 @@
 import * as html from 'ajo/html'
 import type { Component } from 'ajo'
 import { sha256Hex, utf8ByteLength } from 'ajo-kit/platform'
-import { Reply, Router, send } from './http'
-export { send } from './http'
+import { Reply, Router, type Request, type Middleware, type Value } from './http'
 import App, { resolve, layouts, pages, error, match, parts, parents, register, specific } from './app'
-import { Failure, ancestors, normalize, ajax, api, ip, first } from './constants'
-import type { State, Data, Entry, Page, Parent, Request, Middleware, ActionContext, Loader } from './constants'
-import { merge, render as view, type Head } from './head'
-import * as headers from './headers'
+import { Failure, ancestors, normalize, ajax, api, ip, first, security, set, elapsed, finish, log, header, start, type Timing } from './utils'
+import type { State, Data, Entry, Page, Parent, ActionContext, Loader } from './utils'
+import { merge, range, view, type Head } from './head'
 import { bump, fresh, topics as sorted, parse, hash, snapshot, type Versions } from './freshness'
-import { elapsed, finish, log, header, start, type Timing } from './timing'
 import { routes } from 'virtual:ajo/routes'
 import { handlers, wares as discoveredWares } from 'virtual:ajo/handlers'
+
+const reasons = new Map([[200, 'OK'], [400, 'Bad Request'], [404, 'Not Found'], [500, 'Internal Server Error']])
+
+/** Serializes a value into a completed host-neutral reply with its Content-Type. */
+export function send(reply: Reply, code = 200, data: unknown = '', headers: Record<string, Value> = {}) {
+	for (const [key, value] of Object.entries(headers)) reply.setHeader(key, value)
+
+	let body: string | Uint8Array
+	let type = reply.getHeader('Content-Type')
+
+	if (data instanceof Uint8Array) {
+		body = data
+		type ||= 'application/octet-stream'
+	} else if (data !== null && typeof data === 'object') {
+		body = JSON.stringify(data) ?? ''
+		type ||= 'application/json; charset=utf-8'
+	} else {
+		body = data ? String(data) : reasons.get(code) ?? String(code)
+		type ||= 'text/plain'
+	}
+
+	reply.setHeader('Content-Type', type)
+	reply.writeHead(code).end(body)
+}
 
 /** Loader output, the one shape SSR state, route JSON and live messages carry. */
 type Payload = { data: Data; head: Head }
@@ -82,7 +103,7 @@ const write = (req: Request, res: Reply, hash?: string, early = false) => {
 	const cache = early ? 'fresh' : 'revalidated'
 
 	res.statusCode = 304
-	headers.set(res, base())
+	set(res, base())
 	res.setHeader('X-Ajo-Cache', cache)
 	if (hash) res.setHeader('ETag', `"${hash}"`)
 	done(req, res, 304, '', cache)
@@ -375,7 +396,7 @@ export async function create(template: string, registries: Registries = {
 		pieces.map((piece, index) => index % 2 ? slots[piece] ?? '' : piece).join('')
 
 	const secure: Middleware = (_, res, next) => {
-		headers.set(res, headers.security(), true)
+		set(res, security(), true)
 		next()
 	}
 
@@ -455,7 +476,7 @@ export async function create(template: string, registries: Registries = {
 
 		if (ajax(req)) {
 
-			headers.set(res, base('application/json; charset=utf-8'))
+			set(res, base('application/json; charset=utf-8'))
 
 			if (error) {
 				const body = JSON.stringify({ error: error.toJSON() })
@@ -503,7 +524,7 @@ export async function create(template: string, registries: Registries = {
 			scope: scope(req),
 		}
 		const body = fill({
-			head: view(payload.head),
+			head: range(html.render(view(payload.head))),
 			data: script(state),
 			root: html.render(<App page={resolved!.page} />),
 		})
@@ -633,7 +654,7 @@ export async function create(template: string, registries: Registries = {
 				})
 			}
 
-			headers.set(res, base('application/json; charset=utf-8'))
+			set(res, base('application/json; charset=utf-8'))
 
 			send(res, 200, JSON.stringify(payload))
 

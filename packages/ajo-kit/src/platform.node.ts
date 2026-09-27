@@ -9,52 +9,20 @@ import {
 	timingSafeEqual as equal,
 	verify,
 } from 'node:crypto'
-import { createRequire } from 'node:module'
-import type { Platform, PublicKey, PublicKeyBytes } from './platform'
-
-type Argon2 = {
-	readonly argon2id: number
-	hash(plain: string, options: {
-		type: number
-		memoryCost: number
-		timeCost: number
-		parallelism: number
-	}): Promise<string>
-	verify(phc: string, plain: string): Promise<boolean>
-}
+import type * as Platform from './platform'
 
 const canonical = /^[A-Za-z0-9_-]*$/
-
-let argon2: Argon2 | undefined
-
-// argon2 remains an ajo-kit-auth dependency. This source and the packed dist
-// face are both one directory below their package, so the sibling anchor works
-// in the workspace and for strict node_modules layouts without hoisting.
-// Lazy, and anchored via a dynamic string: browser-environment consumers
-// never reach the password seam, and Vite must not statically rewrite a
-// two-arg `new URL('...', import.meta.url)` into a client asset import (the
-// dev client graph reaches this module through the shared constants).
-const anchor = () =>
-	import.meta.url.replace(/\/ajo-kit\/(?:src|dist)\/[^/]*$/, '/ajo-kit-auth/package.json')
-const load = () => argon2 ??= createRequire(new URL(anchor()))('argon2') as Argon2
-
-const options = () => ({
-	type: load().argon2id,
-	memoryCost: 19456,
-	timeCost: 2,
-	parallelism: 1,
-})
 
 const bytes = (data: string | Uint8Array) =>
 	typeof data === 'string' ? Buffer.from(data) : data
 
-const keyBytes = (value: PublicKeyBytes, name: string): Uint8Array => {
+const keyBytes = (value: Platform.PublicKeyBytes, name: string): Uint8Array => {
 	if (value instanceof Uint8Array) return value
 	try { return base64UrlDecode(value) }
 	catch { throw new TypeError(`key.${name} must be canonical unpadded base64url`) }
 }
 
-const shape = (key: PublicKey, properties: string[]) => {
+const shape = (key: Platform.PublicKey, properties: string[]) => {
 	if (!key || typeof key !== 'object' || Array.isArray(key)) {
 		throw new TypeError('public key must be a plain key object')
 	}
@@ -64,7 +32,7 @@ const shape = (key: PublicKey, properties: string[]) => {
 	}
 }
 
-const jwk = (key: PublicKey): JsonWebKey => {
+const jwk = (key: Platform.PublicKey): JsonWebKey => {
 	if (key.kty === 'EC') {
 		shape(key, ['kty', 'crv', 'x', 'y'])
 		if (key.crv !== 'P-256') throw new TypeError('unsupported key curve')
@@ -100,12 +68,12 @@ const jwk = (key: PublicKey): JsonWebKey => {
 	throw new TypeError('unsupported key type')
 }
 
-const imported = (key: PublicKey) => {
+const imported = (key: Platform.PublicKey) => {
 	try { return createPublicKey({ key: jwk(key), format: 'jwk' }) }
 	catch { throw new TypeError('public key is invalid') }
 }
 
-export const base64UrlDecode: Platform['base64UrlDecode'] = data => {
+export const base64UrlDecode: typeof Platform.base64UrlDecode = data => {
 	if (!canonical.test(data) || data.length % 4 === 1) throw new SyntaxError('Invalid base64url')
 
 	const decoded = Buffer.from(data, 'base64url')
@@ -116,41 +84,35 @@ export const base64UrlDecode: Platform['base64UrlDecode'] = data => {
 	return Uint8Array.from(decoded)
 }
 
-export const base64UrlEncode: Platform['base64UrlEncode'] = data =>
+export const base64UrlEncode: typeof Platform.base64UrlEncode = data =>
 	Buffer.from(bytes(data)).toString('base64url')
 
-export const env: Platform['env'] = name =>
+export const env: typeof Platform.env = name =>
 	typeof process === 'undefined' ? undefined : process.env[name]
 
-export const argon2Hash: Platform['argon2Hash'] = plain =>
-	load().hash(plain, options())
-
-export const argon2Verify: Platform['argon2Verify'] = (phc, plain) =>
-	load().verify(phc, plain)
-
-export const hmacSha256Hex: Platform['hmacSha256Hex'] = (key, data) =>
+export const hmacSha256Hex: typeof Platform.hmacSha256Hex = (key, data) =>
 	createHmac('sha256', key).update(data).digest('hex')
 
-export const randomBase64Url: Platform['randomBase64Url'] = count =>
+export const randomBase64Url: typeof Platform.randomBase64Url = count =>
 	randomBytes(count).toString('base64url')
 
-export const randomUUID: Platform['randomUUID'] = uuid
+export const randomUUID: typeof Platform.randomUUID = uuid
 
-export const sha256Hex: Platform['sha256Hex'] = data =>
+export const sha256Hex: typeof Platform.sha256Hex = data =>
 	createHash('sha256').update(data).digest('hex')
 
-export const timingSafeEqual: Platform['timingSafeEqual'] = (left, right) =>
+export const timingSafeEqual: typeof Platform.timingSafeEqual = (left, right) =>
 	left.byteLength === right.byteLength && equal(left, right)
 
-export const utf8ByteLength: Platform['utf8ByteLength'] = data =>
+export const utf8ByteLength: typeof Platform.utf8ByteLength = data =>
 	Buffer.byteLength(data)
 
-export const validatePublicKey: Platform['validatePublicKey'] = key => {
+export const validatePublicKey: typeof Platform.validatePublicKey = key => {
 	imported(key)
 	return true
 }
 
-export const verifySignature: Platform['verifySignature'] = (key, data, signature) => {
+export const verifySignature: typeof Platform.verifySignature = (key, data, signature) => {
 	const publicKey = imported(key)
 	try {
 		if (key.kty === 'OKP') return verify(null, data, publicKey, signature)

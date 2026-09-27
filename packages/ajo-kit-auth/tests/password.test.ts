@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { describe, expect, test } from 'vitest'
-import { hash, verify } from '../src/password'
+import { hash, verify } from '#password'
 
 const argon2 = createRequire(import.meta.url)('argon2') as typeof import('argon2')
 const prefix = '$argon2id$v=19$m=19456,t=2,p=1$'

@@ -1,4 +1,4 @@
-import { env } from 'ajo-kit/platform'
+import { production } from 'ajo-kit'
 import {
 	Refused,
 	Undelivered,
@@ -51,8 +51,6 @@ export interface Options extends Policy {
 }
 
 let configuration: Options | undefined
-
-const production = () => env('NODE_ENV') === 'production'
 
 /**
  * Races the transport against the envelope signal. The race settles the caller;

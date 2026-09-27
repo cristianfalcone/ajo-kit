@@ -284,27 +284,3 @@ export class Router {
 	get(pattern: string, ...handlers: Middleware[]) { return this.route('GET', pattern, ...handlers) }
 	post(pattern: string, ...handlers: Middleware[]) { return this.route('POST', pattern, ...handlers) }
 }
-
-const status = new Map([[200, 'OK'], [400, 'Bad Request'], [404, 'Not Found'], [500, 'Internal Server Error']])
-
-/** Serializes a value into a completed host-neutral reply with its Content-Type. */
-export function send(reply: Reply, code = 200, data: unknown = '', headers: Record<string, Value> = {}) {
-	for (const [key, value] of Object.entries(headers)) reply.setHeader(key, value)
-
-	let body: string | Uint8Array
-	let type = reply.getHeader('Content-Type')
-
-	if (data instanceof Uint8Array) {
-		body = data
-		type ||= 'application/octet-stream'
-	} else if (data !== null && typeof data === 'object') {
-		body = JSON.stringify(data) ?? ''
-		type ||= 'application/json; charset=utf-8'
-	} else {
-		body = data ? String(data) : status.get(code) ?? String(code)
-		type ||= 'text/plain'
-	}
-
-	reply.setHeader('Content-Type', type)
-	reply.writeHead(code).end(body)
-}

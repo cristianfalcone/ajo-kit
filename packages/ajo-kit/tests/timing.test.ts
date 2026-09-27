@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { finish, header, start, type Result } from '../src/timing'
+import { finish, header, start, type Result } from '../src/utils'
 import { request } from '../src/http'
 
 const timing = process.env.AJO_TIMING

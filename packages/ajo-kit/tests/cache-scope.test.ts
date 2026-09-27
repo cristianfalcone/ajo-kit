@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { drop, get, set } from '../src/cache'
-import type { State } from '../src/constants'
+import type { State } from '../src/utils'
 
 test('cache isolates and drops scopes while refusing unscoped entries', () => {
 	const first: State = {

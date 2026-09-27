@@ -7,7 +7,7 @@
 // the only wall between them.
 
 import { afterEach, expect, test, vi } from 'vitest'
-import type { Page, State } from '../src/constants'
+import type { Page, State } from '../src/utils'
 
 const load = async () => {
 	const app = await import('../src/app')

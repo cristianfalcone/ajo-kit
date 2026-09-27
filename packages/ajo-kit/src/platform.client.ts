@@ -1,19 +1,13 @@
-import type { Platform } from './platform'
+import type * as Platform from './platform'
 
-// The browser face of the platform seam. The client graph reaches this module
-// through the shared constants; only the portable pieces may execute there.
-// Server-only crypto throws loudly — client code has no business calling it,
-// and a clear error beats a broken import of an externalized node builtin.
+// The browser face: the environment exposed to the client and base64url,
+// which browser WebAuthn ceremonies need. Server primitives are absent, so a
+// client import of one fails at build time.
 
 const canonical = /^[A-Za-z0-9_-]*$/
-
-const serverOnly = (name: string) => {
-	throw new Error(`${name} is server-only`)
-}
-
 const encoder = new TextEncoder()
 
-export const base64UrlDecode: Platform['base64UrlDecode'] = data => {
+export const base64UrlDecode: typeof Platform.base64UrlDecode = data => {
 	if (!canonical.test(data) || data.length % 4 === 1) throw new SyntaxError('Invalid base64url')
 
 	const padded = data + '='.repeat((4 - data.length % 4) % 4)
@@ -25,44 +19,14 @@ export const base64UrlDecode: Platform['base64UrlDecode'] = data => {
 	return bytes
 }
 
-export const base64UrlEncode: Platform['base64UrlEncode'] = data => {
+export const base64UrlEncode: typeof Platform.base64UrlEncode = data => {
 	const bytes = typeof data === 'string' ? encoder.encode(data) : data
 	let binary = ''
 	for (const byte of bytes) binary += String.fromCharCode(byte)
 	return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
 }
 
-/** Reads only variables exposed to the browser through `import.meta.env`. */
-export const env: Platform['env'] = name => {
+export const env: typeof Platform.env = name => {
 	const values = (import.meta as { env?: Record<string, string | undefined> }).env
 	return values?.[name]
 }
-
-/** Throws because password hashing is unavailable in browser bundles. */
-export const argon2Hash: Platform['argon2Hash'] = () => serverOnly('argon2Hash')
-
-/** Throws because password verification is unavailable in browser bundles. */
-export const argon2Verify: Platform['argon2Verify'] = () => serverOnly('argon2Verify')
-
-/** Throws because keyed hashing is unavailable in browser bundles. */
-export const hmacSha256Hex: Platform['hmacSha256Hex'] = () => serverOnly('hmacSha256Hex')
-
-export const randomBase64Url: Platform['randomBase64Url'] = count =>
-	base64UrlEncode(crypto.getRandomValues(new Uint8Array(count)))
-
-export const randomUUID: Platform['randomUUID'] = () => crypto.randomUUID()
-
-/** Throws because synchronous SHA-256 is unavailable in browser bundles. */
-export const sha256Hex: Platform['sha256Hex'] = () => serverOnly('sha256Hex')
-
-/** Throws because this browser face does not expose a constant-time comparison primitive. */
-export const timingSafeEqual: Platform['timingSafeEqual'] = () => serverOnly('timingSafeEqual')
-
-export const utf8ByteLength: Platform['utf8ByteLength'] = data =>
-	encoder.encode(data).byteLength
-
-/** Throws because public-key validation is server-only. */
-export const validatePublicKey: Platform['validatePublicKey'] = () => serverOnly('validatePublicKey')
-
-/** Throws because WebAuthn signature verification is server-only. */
-export const verifySignature: Platform['verifySignature'] = () => serverOnly('verifySignature')

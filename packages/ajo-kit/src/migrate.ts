@@ -1,17 +1,28 @@
 import type { Kysely } from 'kysely'
-import { FileMigrationProvider } from 'kysely/migration'
-import { existsSync, promises as fs } from 'node:fs'
-import * as path from 'node:path'
+import { Migrator, type Migration } from 'kysely/migration'
+import { existsSync } from 'node:fs'
+import { readdir } from 'node:fs/promises'
+import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { discover } from './discover'
-import { migrator, type CompiledMigration, type MigrationRegistry } from './migrations'
+
+/** Ordered migrations under their persisted qualified names. */
+export type Migrations = readonly { name: string; migration: Migration }[]
+
+/** Creates a Kysely runner for compiled migrations. */
+export function migrator(instance: Kysely<any>, migrations: Migrations): Migrator {
+	return new Migrator({
+		db: instance,
+		// Sources keep strict local sequences while Kysely permits a plugin to add
+		// its next migration after a project migration has already executed.
+		allowUnorderedMigrations: true,
+		provider: {
+			getMigrations: async () => Object.fromEntries(migrations.map(({ name, migration }) => [name, migration])),
+		},
+	})
+}
 
 type Source = { folder: string; id: string }
-
-/** A build-time migration module and its compiled registry value. */
-export interface MigrationModule extends CompiledMigration {
-	file: string
-}
 
 const extensions = ['.js', '.ts', '.mjs', '.mts', '.cjs', '.cts']
 const pattern = /^(\d{4})_[a-z0-9]+(?:_[a-z0-9]+)*$/
@@ -33,11 +44,10 @@ function validate(id: string, names: string[]) {
 	}
 }
 
+const stem = (name: string) => name.slice(0, name.lastIndexOf('.'))
+
 function local(id: string, files: string[]) {
-	const names = files
-		.filter(file)
-		.map(name => name.slice(0, name.lastIndexOf('.')))
-		.sort()
+	const names = files.filter(file).map(stem).sort()
 
 	if (new Set(names).size !== names.length) {
 		throw new Error(`${id} has duplicate migration filenames`)
@@ -60,65 +70,39 @@ export function migrationFile(files: string[], name: string) {
 	return `${String(number).padStart(4, '0')}_${safe}.ts`
 }
 
-async function load(source: Source): Promise<MigrationModule[]> {
-	const files = (await fs.readdir(source.folder)).filter(file)
-	const names = local(source.id, files)
-	const paths = new Map(files.map(file => [file.slice(0, file.lastIndexOf('.')), path.join(source.folder, file)]))
+async function load({ folder, id }: Source) {
+	// Validated names are unique and contiguous, so file order is sequence order.
+	const files = (await readdir(folder)).filter(file).sort()
+	local(id, files)
 
-	const migrations = await new FileMigrationProvider({
-		fs,
-		path,
-		migrationFolder: source.folder,
-		import: file => import(pathToFileURL(file).href),
-	}).getMigrations()
-	const incomplete = names.filter(name =>
-		typeof migrations[name]?.up !== 'function' || typeof migrations[name]?.down !== 'function'
-	)
-	if (incomplete.length) {
-		throw new Error(`${source.id} migrations must export up() and down(): ${incomplete.join(', ')}`)
-	}
-
-	return names.map(name => ({
-		name: `${source.id}/${name}`,
-		file: paths.get(name)!,
-		migration: migrations[name],
+	const modules = await Promise.all(files.map(async entry => {
+		const path = join(folder, entry)
+		const migration: Migration = await import(pathToFileURL(path).href)
+		return { name: `${id}/${stem(entry)}`, file: path, migration }
 	}))
-}
-
-async function compile(sources: Source[]): Promise<MigrationModule[]> {
-	const compiled: MigrationModule[] = []
-	const ids = new Set<string>()
-
-	for (const source of sources) {
-		if (ids.has(source.id)) throw new Error(`Duplicate migration source "${source.id}"`)
-		ids.add(source.id)
-
-		compiled.push(...await load(source))
+	const incomplete = modules.filter(({ migration }) => typeof migration.up !== 'function' || typeof migration.down !== 'function')
+	if (incomplete.length) {
+		throw new Error(`${id} migrations must export up() and down(): ${incomplete.map(({ name }) => name.slice(id.length + 1)).join(', ')}`)
 	}
 
-	return compiled.sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0)
+	return modules
 }
 
-/** Discovers and validates migration source modules for an application build. */
-export async function migrationModules(root = process.cwd()): Promise<readonly MigrationModule[]> {
+/** Discovers, validates and imports the plugin and project migrations of an application. */
+export async function migrationModules(root = process.cwd()) {
 	const sources: Source[] = discover(root)
 		.filter(plugin => plugin.migrations)
-		.sort((left, right) => left.name.localeCompare(right.name))
 		.map(plugin => ({ folder: plugin.migrations!, id: `plugin/${plugin.name}` }))
-	const project = path.join(root, 'db/migrations')
+	const project = join(root, 'db/migrations')
 	if (existsSync(project)) sources.push({ folder: project, id: 'project' })
-	return compile(sources)
-}
 
-/** Builds and validates the migration registry for Node-hosted dev/ops commands. */
-export async function registry(root = process.cwd()): Promise<MigrationRegistry> {
-	return (await migrationModules(root)).map(({ name, migration }) => ({ name, migration }))
+	const modules = []
+	for (const source of sources) modules.push(...await load(source))
+	return modules.sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0)
 }
-
-export { migrator } from './migrations'
 
 /** Lists migration state after rejecting history absent from the compiled registry. */
-export async function migrationStatus(instance: Kysely<any>, compiled: MigrationRegistry) {
+export async function migrationStatus(instance: Kysely<any>, compiled: Migrations) {
 	const migrations = await migrator(instance, compiled).getMigrations()
 	const history = await instance
 		.selectFrom('sqlite_master')

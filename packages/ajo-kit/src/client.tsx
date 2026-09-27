@@ -1,8 +1,8 @@
 import { render } from 'ajo'
 import { current } from 'ajo/context'
 import App, { boot, init } from './app'
-import type { State, Action } from './constants'
-import { navigate } from './constants'
+import type { State, Action } from './utils'
+import { navigate } from './utils'
 import { invalidate } from './cache'
 
 /** Converts form values into JSON fields; repeated names and multiple selects stay arrays. */

@@ -1,17 +1,16 @@
 import app from 'runtime:app'
 import { files, serve, type Response as RuntimeResponse, type Writer } from 'runtime:http'
 import { close, db } from 'ajo-kit/database'
-import { normalize, requestOrigin, setOriginReader, type Bootstrap } from './constants'
+import { normalize, requestOrigin, security, setOriginReader, type Bootstrap } from './utils'
 import { attach, request, type Reply } from './http'
-import { security } from './headers'
-import { migrator, type MigrationRegistry } from './migrations'
+import { migrator, type Migrations } from './migrate'
 import { closeLive, create } from './server'
 import { wares } from 'virtual:ajo/handlers'
 
 /** Generated engine entry configuration. */
 export interface StartOptions {
 	template: string
-	migrations: MigrationRegistry
+	migrations: Migrations
 	options: { database: boolean }
 	/** runtime:fs readText, passed only when the App declares the host origin manifest. */
 	origins?: (path: string, options: { maxBytes: number }) => string

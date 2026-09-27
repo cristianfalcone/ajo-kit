@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { set, verify } from '../src/csrf'
-import { setOriginReader } from '../../ajo-kit/src/constants'
+import { setOriginReader } from '../../ajo-kit/src/utils'
 
 const { credential } = vi.hoisted(() => ({
 	credential: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8',

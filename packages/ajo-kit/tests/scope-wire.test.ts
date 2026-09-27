@@ -7,7 +7,7 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
-import type { ActionContext } from '../src/constants'
+import type { ActionContext } from '../src/utils'
 import type { Middleware, Reply, Request } from '../src/http'
 
 // A ware that lets each test choose an identity per request: a session id, a

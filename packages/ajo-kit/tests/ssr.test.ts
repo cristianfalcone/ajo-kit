@@ -2,8 +2,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import type { Stateful } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
-import type { Action, ActionContext, LayoutArgs, PageArgs, Request } from '../src/constants'
-import { attach, type Reply } from '../src/http'
+import type { Action, ActionContext, LayoutArgs, PageArgs } from '../src/utils'
+import { attach, type Reply, type Request } from '../src/http'
 
 // Server-render a route through the real handler, then boot the real client
 // entry over that DOM. Route modules wait on `gate`, so a test can hold the
@@ -44,15 +44,18 @@ const registries = {
 	},
 	handlers: {
 		'/src/notes/[id]/handler.ts': async () => {
-			const { Missing } = await import('../src/constants')
-			const { send } = await import('../src/http')
+			const { Missing } = await import('../src/utils')
+			const { send } = await import('../src/server')
 			return {
 				page: async (req: Request) => {
 					if (req.params.id === 'missing') throw new Missing()
 					req.track?.('notes')
 					return { title: titles.get(req.params.id) ?? req.params.id }
 				},
-				head: async (req: Request) => ({ title: `Note ${req.params.id}` }),
+				head: async (req: Request) => ({
+					title: `Note ${req.params.id}`,
+					meta: [{ name: 'description', content: `About ${req.params.id}` }],
+				}),
 				actions: {
 					rename: async (req: Request, _: Reply, { emit }: ActionContext) => {
 						titles.set(req.params.id, req.body.title)
@@ -64,7 +67,7 @@ const registries = {
 			}
 		},
 		'/src/notes/new/handler.ts': async () => {
-			const { send } = await import('../src/http')
+			const { send } = await import('../src/server')
 			return {
 				page: async (req: Request) => ({ kind: 'new', params: { ...req.params } }),
 				default: { get: (req: Request, res: Reply) => send(res, 200, `new ${JSON.stringify(req.params)}`) },
@@ -78,14 +81,18 @@ const text = (reply: Reply) => typeof reply.body === 'string' ? reply.body : new
 
 const ready = () => document.documentElement.dataset.ajoReady
 
+// Template head tags on both sides of the route's managed range.
+const template = '<meta name="viewport" content="static">'
+const late = '<link rel="icon" href="/icon.svg">'
+
 const start = async (path: string) => {
 
 	vi.resetModules()
 
 	const server = await import('../src/server')
 	const http = await import('../src/http')
-	const { navigate } = await import('../src/constants')
-	const app = await server.create('<div id="root"><!-- ssr:root --></div><!-- ssr:data -->', registries)
+	const { navigate } = await import('../src/utils')
+	const app = await server.create(`<head>${template}<!-- ssr:head -->${late}</head><body><div id="root"><!-- ssr:root --></div><!-- ssr:data --></body>`, registries)
 
 	const call = (target: string, init: RequestInit = {}) => {
 		const url = new URL(target, location.href)
@@ -146,7 +153,7 @@ const start = async (path: string) => {
 
 	history.replaceState(null, '', path)
 	const page = await call(path, { headers: { accept: 'text/html' } })
-	document.body.innerHTML = text(page)
+	document.documentElement.innerHTML = text(page)
 
 	return { server, call, navigate, root: document.getElementById('root')! }
 }
@@ -189,7 +196,7 @@ describe('ajo-kit SSR payload', () => {
 		const json = async () => JSON.parse(text(await call('/notes/7', { headers: { accept: 'application/json' } })))
 
 		expect(pick(await json())).toEqual(pick(state()))
-		expect(state().head).toEqual({ title: 'Note 7' })
+		expect(state().head).toEqual({ title: 'Note 7', meta: [{ name: 'description', content: 'About 7' }] })
 
 		const messages: string[] = []
 		attach(await call('/notes/7', { headers: { accept: 'text/event-stream' } }), {
@@ -303,6 +310,27 @@ describe('ajo-kit client boot over SSR', () => {
 })
 
 describe('ajo-kit client navigation', () => {
+	test('navigation replaces the route head tags and leaves the template head alone', async () => {
+		const { navigate, root } = await start('/notes/7')
+		const [viewport, icon] = [document.head.firstElementChild!, document.head.lastElementChild!]
+
+		expect(document.title).toBe('Note 7')
+		expect(document.head.innerHTML).toBe(`${template}<!--ajo:head--><title>Note 7</title><meta name="description" content="About 7"><!--/ajo:head-->${late}`)
+
+		client = await import('../src/client')
+		await vi.waitFor(() => expect(ready()).toBe('true'))
+
+		navigate('/notes/new')
+		await vi.waitFor(() => expect(root.querySelector('article')!.textContent).toBe('new {}'))
+		expect(document.head.innerHTML).toBe(`${template}<!--ajo:head--><!--/ajo:head-->${late}`)
+
+		navigate('/notes/8')
+		await vi.waitFor(() => expect(document.title).toBe('Note 8'))
+		expect(document.head.innerHTML).toBe(`${template}<!--ajo:head--><title>Note 8</title><meta name="description" content="About 8"><!--/ajo:head-->${late}`)
+		expect(document.head.firstElementChild).toBe(viewport)
+		expect(document.head.lastElementChild).toBe(icon)
+	})
+
 	test('the live stream opens only on routes that track topics', async () => {
 		const { navigate, root } = await start('/notes/new')
 

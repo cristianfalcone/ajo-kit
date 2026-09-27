@@ -460,6 +460,7 @@ import {
   ip,
   navigate,
   origin,
+  production,
 } from 'ajo-kit'
 import type {
   Action,
@@ -489,7 +490,8 @@ resolves the current request origin; with a managed origins manifest it accepts
 only the direct request host listed by the host. Use it when a request or form
 must stay on the current alias. Adding aliases does not redirect requests or
 share browser cookies, sessions, or passkey registrations between origins.
-`navigate()` performs client navigation, and `date()` formats ISO timestamps.
+`navigate()` performs client navigation, `date()` formats ISO timestamps, and
+`production()` is true when `NODE_ENV` is `production`.
 
 ## Server API
 
@@ -510,7 +512,8 @@ commit on either path.
 ## Head
 
 Route `head()` loaders return `Head`. Ancestor and page values are merged for
-SSR and client navigation.
+SSR and client navigation: a later title wins, and a later meta with the same
+`name` or `property`, or a link with the same `rel`, replaces the earlier one.
 
 ```ts
 type Head = {
@@ -518,11 +521,16 @@ type Head = {
   meta?: (
     | { name: string; content: string }
     | { property: string; content: string }
-    | { httpEquiv: string; content: string }
   )[]
   link?: { rel: string; href: string; [key: string]: string | undefined }[]
 }
 ```
+
+The server renders these tags, escaped, between two comments at the
+`<!-- ssr:head -->` slot. Client navigation replaces only that range, so a tag
+the next route omits is removed and template tags around the slot are never
+touched. The document takes the first `<title>`: a template title placed after
+the slot is the fallback for routes without one.
 
 ## Vite API
 

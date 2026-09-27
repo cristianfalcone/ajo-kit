@@ -2,8 +2,9 @@ import { createServer, type Server } from 'node:http'
 import { once } from 'node:events'
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { jsx } from 'ajo/jsx-runtime'
-import { Failure, Missing } from '../src/constants'
-import type { LayoutArgs, Parent, Request } from '../src/constants'
+import { Failure, Missing } from '../src/utils'
+import type { LayoutArgs, Parent } from '../src/utils'
+import type { Request } from '../src/http'
 import { handler } from '../src/node'
 
 vi.mock('virtual:ajo/routes', () => ({ routes: {} }))
@@ -118,7 +119,7 @@ describe('ajo-kit route assembly', () => {
 		expect(status).toBe(200)
 		expect(calls).toBe(1)
 		// Slots fill by split and join: a `$&` in the data stays literal and unknown slots drop.
-		expect(html.startsWith('<head><title>Docs</title></head><script type="application/json" id="__SSR__">')).toBe(true)
+		expect(html.startsWith('<head><!--ajo:head--><title>Docs</title><!--/ajo:head--></head><script type="application/json" id="__SSR__">')).toBe(true)
 		expect(html).toContain('"note":"$&"')
 		expect(html).not.toContain('ssr:')
 	})
@@ -136,7 +137,7 @@ describe('ajo-kit route assembly', () => {
 			handlers: {
 				'/src/handler.ts': async () => {
 					// The fresh graph's own class, so normalize() passes it through untouched.
-					const { Missing } = await import('../src/constants')
+					const { Missing } = await import('../src/utils')
 					failure = new Missing()
 					return { layout: async () => { throw failure } }
 				},

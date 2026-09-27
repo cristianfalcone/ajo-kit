@@ -4,7 +4,7 @@ import {
 	type GenericSchema,
 	type InferOutput,
 } from 'valibot'
-import { Invalid, type Fields } from './constants'
+import { Invalid, type Fields } from './utils'
 
 export {
 	object, string, number, boolean, array, optional, literal, picklist,

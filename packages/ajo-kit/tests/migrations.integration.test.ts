@@ -3,8 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { close, connect, db } from '../src/database.node'
-import { migrationStatus, migrator, registry } from '../src/migrate'
-import type { MigrationRegistry } from '../src/migrations'
+import { migrationModules, migrationStatus, migrator, type Migrations } from '../src/migrate'
 
 describe('ajo-kit migrations integration', () => {
 	test('plugin and project own independent sequences', async () => {
@@ -38,7 +37,7 @@ describe('ajo-kit migrations integration', () => {
 
 		try {
 			connect(path)
-			const initial = await registry(root)
+			const initial = await migrationModules(root)
 			expect(initial.map(migration => migration.name)).toEqual([
 				'plugin/ajo-authored/0001_initial',
 				'project/0001_initial',
@@ -58,7 +57,7 @@ describe('ajo-kit migrations integration', () => {
 				"export async function down(db) { await db.schema.alterTable('plugin_ready').dropColumn('later').execute() }",
 			].join('\n'))
 
-			const extended = await registry(root)
+			const extended = await migrationModules(root)
 			expect(extended.map(migration => migration.name)).toEqual([
 				'plugin/ajo-authored/0001_initial',
 				'plugin/ajo-authored/0002_later',
@@ -103,7 +102,7 @@ describe('ajo-kit migrations integration', () => {
 			"export async function down(db) { await db.schema.dropTable('ready').execute() }",
 		].join('\n'))
 
-		const direct: MigrationRegistry = [{
+		const direct: Migrations = [{
 			name: 'project/0001_initial',
 			migration: {
 				async up(instance) {
@@ -115,7 +114,7 @@ describe('ajo-kit migrations integration', () => {
 			},
 		}]
 
-		async function run(path: string, compiled: MigrationRegistry) {
+		async function run(path: string, compiled: Migrations) {
 			connect(path)
 			try {
 				const result = await migrator(db(), compiled).migrateToLatest()
@@ -133,7 +132,7 @@ describe('ajo-kit migrations integration', () => {
 		}
 
 		try {
-			const files = await registry(root)
+			const files = await migrationModules(root)
 			rmSync(app, { recursive: true, force: true })
 			expect(await run(compiledPath, direct)).toEqual(await run(filePath, files))
 
@@ -160,7 +159,7 @@ describe('ajo-kit migrations integration', () => {
 		}
 	})
 
-	test('registry construction rejects migrations without up or down', async () => {
+	test('migration loading rejects migrations without up or down', async () => {
 		const root = mkdtempSync(join(tmpdir(), 'ajo-kit-migrate-down-'))
 		const app = join(root, 'db/migrations')
 
@@ -169,7 +168,7 @@ describe('ajo-kit migrations integration', () => {
 		writeFileSync(join(app, '0002_missing_down.ts'), 'export async function up() {}\n')
 
 		try {
-			await expect(registry(root)).rejects.toThrow(
+			await expect(migrationModules(root)).rejects.toThrow(
 				'must export up() and down(): 0001_missing_up, 0002_missing_down'
 			)
 		} finally {
@@ -177,7 +176,7 @@ describe('ajo-kit migrations integration', () => {
 		}
 	})
 
-	test('registry construction rejects duplicate migration filenames', async () => {
+	test('migration loading rejects duplicate migration filenames', async () => {
 		const root = mkdtempSync(join(tmpdir(), 'ajo-kit-migrate-duplicate-'))
 		const app = join(root, 'db/migrations')
 		const migration = 'export async function up() {}\nexport async function down() {}\n'
@@ -187,13 +186,13 @@ describe('ajo-kit migrations integration', () => {
 		writeFileSync(join(app, '0001_initial.js'), migration)
 
 		try {
-			await expect(registry(root)).rejects.toThrow('project has duplicate migration filenames')
+			await expect(migrationModules(root)).rejects.toThrow('project has duplicate migration filenames')
 		} finally {
 			rmSync(root, { recursive: true, force: true })
 		}
 	})
 
-	test('registry construction rejects spoofed plugin migration identities', async () => {
+	test('migration loading rejects spoofed plugin migration identities', async () => {
 		const root = mkdtempSync(join(tmpdir(), 'ajo-kit-migrate-source-'))
 		const migration = 'export async function up() {}\nexport async function down() {}\n'
 		writeFileSync(join(root, 'package.json'), JSON.stringify({
@@ -211,7 +210,7 @@ describe('ajo-kit migrations integration', () => {
 		}
 
 		try {
-			await expect(registry(root)).rejects.toThrow('Plugin package identity mismatch: expected "ajo-first"')
+			await expect(migrationModules(root)).rejects.toThrow('Plugin package identity mismatch: expected "ajo-first"')
 		} finally {
 			rmSync(root, { recursive: true, force: true })
 		}
@@ -231,11 +230,11 @@ describe('ajo-kit migrations integration', () => {
 
 		try {
 			connect(path)
-			const initialRegistry = await registry(root)
+			const initialRegistry = await migrationModules(root)
 			const migrated = await migrator(db(), initialRegistry).migrateToLatest()
 			expect(migrated.error).toBeUndefined()
 			renameSync(initial, join(app, '0001_rebased.ts'))
-			await expect(migrationStatus(db(), await registry(root)))
+			await expect(migrationStatus(db(), await migrationModules(root)))
 				.rejects.toThrow('Migration history references missing migrations: project/0001_initial')
 		} finally {
 			await close()
@@ -253,7 +252,7 @@ describe('ajo-kit migrations integration', () => {
 		writeFileSync(join(app, '0003_gap.ts'), migration)
 
 		try {
-			await expect(registry(root))
+			await expect(migrationModules(root))
 				.rejects.toThrow('expected 0002_*, found 0003_gap')
 		} finally {
 			rmSync(root, { recursive: true, force: true })

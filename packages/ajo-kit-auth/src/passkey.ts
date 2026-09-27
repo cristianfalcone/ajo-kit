@@ -7,7 +7,7 @@
 // `password.verify` ends, and the caller goes on to `session.create` and
 // `cookie.write` as it always did.
 
-import { strictUtf8Decode } from 'ajo-kit/bytes'
+import { strictUtf8Decode } from './bytes'
 import {
 	base64UrlDecode,
 	base64UrlEncode,

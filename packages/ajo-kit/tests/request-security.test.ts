@@ -1,9 +1,10 @@
 import { createServer, type Server } from 'node:http'
 import { once } from 'node:events'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
-import { ip, origin, requestOrigin, setOriginReader, type Request } from '../src/constants'
+import { ip, origin, requestOrigin, setOriginReader } from '../src/utils'
 import { handler } from '../src/node'
-import { send, type Reply } from '../src/http'
+import type { Reply, Request } from '../src/http'
+import { send } from '../src/server'
 
 vi.mock('virtual:ajo/routes', () => ({ routes: {} }))
 vi.mock('virtual:ajo/handlers', () => ({ handlers: {}, wares: {} }))

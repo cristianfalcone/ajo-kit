@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { State } from '../src/constants'
+import type { State } from '../src/utils'
 
 // The cache is process state: every test gets a fresh module and its own clock.
 let cache: typeof import('../src/cache')

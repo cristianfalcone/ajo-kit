@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { attach, reader, Reply, Router, request, send, type Headers, type Middleware } from '../src/http'
+import { attach, reader, Reply, Router, request, type Headers, type Middleware } from '../src/http'
+import { send } from '../src/server'
 
 const stream = (...chunks: string[]) => ({
 	async *[Symbol.asyncIterator]() {

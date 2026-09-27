@@ -1,4 +1,4 @@
-import { strictUtf8Decode } from 'ajo-kit/bytes'
+import { strictUtf8Decode } from './bytes'
 import { base64UrlDecode, base64UrlEncode, hmacSha256Hex, timingSafeEqual } from 'ajo-kit/platform'
 import * as secret from './secret'
 import { db } from './store'

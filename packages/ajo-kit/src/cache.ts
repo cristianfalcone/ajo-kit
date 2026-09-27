@@ -1,4 +1,4 @@
-import type { State } from './constants'
+import type { State } from './utils'
 
 const max = 50
 

@@ -1,9 +1,8 @@
-// Types
+import { render } from 'ajo'
 
 type Meta =
 	| { name: string; content: string }
 	| { property: string; content: string }
-	| { httpEquiv: string; content: string }
 
 type Link = { rel: string; href: string; [key: string]: string | undefined }
 
@@ -14,32 +13,12 @@ export type Head = {
 	link?: Link[]
 }
 
-// Key extractor for deduplication
-
-const key = {
-	meta: (entry: Meta) => 'name' in entry ? entry.name : 'property' in entry ? entry.property : entry.httpEquiv,
-	link: (entry: Link) => entry.rel,
-}
-
-const append = <T,>(items: T[], index: Map<string, number>, entry: T, id: string) => {
-	const position = index.get(id)
-
-	if (position === undefined) {
-		index.set(id, items.length)
-		items.push(entry)
-		return
-	}
-
-	items[position] = entry
-}
-
-/** Merges route heads, letting later meta/link entries win by key. */
+/** Merges route heads; a later meta (by name or property) or link (by rel) replaces an earlier one in place. */
 export function merge(...heads: (Head | undefined)[]): Head {
 
 	const result: Head = {}
-	const meta: Meta[] = []
-	const link: Link[] = []
-	const index = { meta: new Map<string, number>(), link: new Map<string, number>() }
+	const meta = new Map<string, Meta>()
+	const link = new Map<string, Link>()
 
 	for (const head of heads) {
 
@@ -47,76 +26,46 @@ export function merge(...heads: (Head | undefined)[]): Head {
 
 		if (head.title) result.title = head.title
 
-		for (const entry of head.meta ?? []) append(meta, index.meta, entry, key.meta(entry))
-		for (const entry of head.link ?? []) append(link, index.link, entry, key.link(entry))
+		for (const entry of head.meta ?? []) meta.set('name' in entry ? entry.name : entry.property, entry)
+		for (const entry of head.link ?? []) link.set(entry.rel, entry)
 	}
 
-	if (meta.length) result.meta = meta
-	if (link.length) result.link = link
+	if (meta.size) result.meta = [...meta.values()]
+	if (link.size) result.link = [...link.values()]
 
 	return result
 }
 
-// SSR: render to HTML string
+// A route's head tags live between these two comments. The server renders
+// them there and the client replaces only that range, so template tags
+// (viewport, icons, stylesheets, a template title) are never touched. The
+// first title in the document names it: a template title placed after the
+// range is the fallback for routes without one.
+const start = 'ajo:head'
+const end = '/ajo:head'
 
-const text = (value: string) => value
-	.replace(/&/g, '&amp;')
-	.replace(/</g, '&lt;')
-	.replace(/>/g, '&gt;')
+/** The route's head tags; the server renders them with ajo/html into range(), the client with apply(). */
+export const view = (head: Head) => [
+	head.title ? <title>{head.title}</title> : null,
+	head.meta?.map(entry => <meta {...entry} />),
+	head.link?.map(entry => <link {...entry} />),
+]
 
-const attribute = (value: string) => text(value).replace(/"/g, '&quot;')
+/** Wraps rendered head tags in the managed range. */
+export const range = (tags: string) => `<!--${start}-->${tags}<!--${end}-->`
 
-const attrs = (entries: Record<string, string | undefined>) =>
-	Object.entries(entries)
-		.filter((entry): entry is [string, string] => entry[1] !== undefined)
-		.map(([name, value]) => `${name}="${attribute(value)}"`)
-		.join(' ')
+const marker = (data: string) =>
+	[...document.head.childNodes].find(node => node instanceof Comment && node.data === data)
 
-const tag = (name: 'meta' | 'link', entries: Record<string, string | undefined>) =>
-	`<${name} ${attrs(entries)}>`
+/** Replaces the managed head range during client navigation. */
+export function apply(head: Head): void {
 
-/** Renders a Head object into SSR-safe HTML tags. */
-export function render(head: Head = {}): string {
+	const first = marker(start)
+	const last = marker(end)
+	if (!first || !last) return
 
-	const tags: string[] = []
-
-	if (head.title) tags.push(`<title>${text(head.title)}</title>`)
-
-	for (const entry of head.meta ?? []) tags.push(tag('meta', entry))
-	for (const entry of head.link ?? []) tags.push(tag('link', entry))
-
-	return tags.join('\n  ')
-}
-
-/** Applies a Head object to document.head during client navigation. */
-export function apply(head: Head = {}): void {
-	// Diff existing nodes before mutating them.
-
-	if (head.title && document.title !== head.title) document.title = head.title
-
-	const upsert = (selector: string, attrs: Record<string, string>) => {
-
-		let node = document.head.querySelector(selector)
-
-		if (!node) {
-			node = document.createElement(selector.startsWith('link') ? 'link' : 'meta')
-			for (const [attr, value] of Object.entries(attrs)) node.setAttribute(attr, value)
-			document.head.appendChild(node)
-			return
-		}
-
-		for (const [attr, value] of Object.entries(attrs)) {
-			if (node.getAttribute(attr) !== value) node.setAttribute(attr, value)
-		}
-	}
-
-	for (const entry of head.meta ?? []) {
-		const id = key.meta(entry)
-		const selector = 'name' in entry ? `meta[name="${id}"]` : 'property' in entry ? `meta[property="${id}"]` : `meta[http-equiv="${id}"]`
-		upsert(selector, entry as Record<string, string>)
-	}
-
-	for (const entry of head.link ?? []) {
-		upsert(`link[rel="${entry.rel}"]`, entry as Record<string, string>)
-	}
+	// Empty the range, then render at its end: Ajo's search for a reusable
+	// element walks element siblings, so it would pass a comment bound.
+	while (first.nextSibling !== last) first.nextSibling!.remove()
+	render(view(head), document.head, last, last)
 }

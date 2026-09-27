@@ -13,6 +13,7 @@ type Export = {
 
 type Manifest = {
 	exports: Record<string, Export>
+	imports?: Record<string, Record<string, string>>
 	kit?: { migrations?: string }
 	name: string
 }
@@ -127,6 +128,15 @@ for (const name of selected) {
 		const base = subpath === '.' ? 'index' : subpath.slice(2)
 		entries[`${base}.client`] = resolve(directory, entry.browser)
 	}
+	// Private `#` imports stay external and resolve against the packed manifest,
+	// so each conditional target ships under its source name.
+	const imports = Object.values(manifest.imports ?? {})
+	for (const conditions of imports) {
+		for (const [condition, source] of Object.entries(conditions)) {
+			if (condition === 'types') continue
+			entries[source.replace(/^\.\/src\//, '').replace(/\.[jt]sx?$/, '')] = resolve(directory, source)
+		}
+	}
 	if (name === 'ajo-kit') entries['bin/kit'] = resolve(directory, 'bin/kit.ts')
 	if (manifest.kit?.migrations) {
 		const migrationDirectory = resolve(directory, manifest.kit.migrations)
@@ -165,10 +175,11 @@ for (const name of selected) {
 	})
 	declarations(name, directory, [
 		...exports.map(([, entry]) => resolve(directory, entry.types)),
+		...imports.map(conditions => resolve(directory, conditions.types)),
 		...(name === 'ajo-kit' ? [resolve(directory, 'src/runtime.d.ts')] : []),
 	])
-	await Promise.all(exports.map(([, entry]) =>
-		access(resolve(directory, 'dist', declaration(entry.types)))))
+	await Promise.all([...exports.map(([, entry]) => entry.types), ...imports.map(conditions => conditions.types)].map(types =>
+		access(resolve(directory, 'dist', declaration(types)))))
 
 	await Promise.all(Object.keys(entries).map(entry =>
 		access(resolve(directory, 'dist', `${entry}.js`))))

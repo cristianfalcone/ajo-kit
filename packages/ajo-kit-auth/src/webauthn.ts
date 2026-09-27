@@ -10,7 +10,7 @@
 // The moment real attestation is needed — enterprise policy, TPM formats —
 // this is the wrong file and @simplewebauthn/server is the right dependency.
 
-import { concatBytes, strictUtf8Decode } from 'ajo-kit/bytes'
+import { concatBytes, strictUtf8Decode } from './bytes'
 import {
 	base64UrlEncode,
 	sha256Hex,

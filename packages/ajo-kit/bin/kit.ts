@@ -74,8 +74,8 @@ cli.command('migrate up')
 	.describe('Run pending migrations')
 	.option('-d, --database', 'Database path', defaults.database)
 	.action(async (opts: { database: string }) => {
-		const { migrator, registry } = await import('../src/migrate.ts')
-		const compiled = await registry()
+		const { migrator, migrationModules } = await import('../src/migrate.ts')
+		const compiled = await migrationModules()
 		await database(opts.database, async (db) => {
 			const { results, error } = await migrator(db(), compiled).migrateToLatest()
 			report(results, error, 'No pending migrations')
@@ -86,8 +86,8 @@ cli.command('migrate down')
 	.describe('Rollback last migration')
 	.option('-d, --database', 'Database path', defaults.database)
 	.action(async (opts: { database: string }) => {
-		const { migrator, registry } = await import('../src/migrate.ts')
-		const compiled = await registry()
+		const { migrator, migrationModules } = await import('../src/migrate.ts')
+		const compiled = await migrationModules()
 		await database(opts.database, async (db) => {
 			const { results, error } = await migrator(db(), compiled).migrateDown()
 			report(results, error, 'No migrations to rollback', ' (rolled back)')
@@ -98,8 +98,8 @@ cli.command('migrate status')
 	.describe('Show migration status')
 	.option('-d, --database', 'Database path', defaults.database)
 	.action(async (opts: { database: string }) => {
-		const { migrationStatus, registry } = await import('../src/migrate.ts')
-		const compiled = await registry()
+		const { migrationStatus, migrationModules } = await import('../src/migrate.ts')
+		const compiled = await migrationModules()
 		await database(opts.database, async (db) => {
 			const migrations = await migrationStatus(db(), compiled)
 			for (const m of migrations) console.log(`${m.executedAt ? ok : pending} ${m.name}`)

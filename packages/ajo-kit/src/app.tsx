@@ -1,6 +1,6 @@
 import navaid from 'navaid'
 import type { Component, Stateful } from 'ajo'
-import { Failure, navigate, ancestors } from './constants'
+import { Failure, navigate, ancestors } from './utils'
 import type {
 	Issue,
 	PageArgs,
@@ -10,7 +10,7 @@ import type {
 	Loader,
 	Page,
 	State,
-} from './constants'
+} from './utils'
 import { apply } from './head'
 import { drop, evict, get, set } from './cache'
 import { routes as discovered } from 'virtual:ajo/routes'

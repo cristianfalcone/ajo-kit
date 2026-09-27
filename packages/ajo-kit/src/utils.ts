@@ -1,13 +1,12 @@
 import type { Children, Component } from 'ajo'
 import { env } from 'ajo-kit/platform'
 import type { Params } from 'navaid'
-import type { Request, Reply, Middleware } from './http'
-export type { Request, Middleware }
-/** Host-neutral response accumulator used by route modules. */
-export type Response = Reply
-export type { Head } from './head'
+import type { Request, Reply, Value } from './http'
 import type { Head } from './head'
 import type { Kysely } from './database'
+
+/** Host-neutral response accumulator used by route modules. */
+export type Response = Reply
 
 // Route errors with HTTP status codes
 
@@ -369,3 +368,96 @@ export const locale = 'en-US'
 /** Formats an ISO date in the frozen SSR locale with compact defaults. */
 export const date = (iso: string, options?: Intl.DateTimeFormatOptions) =>
 	new Date(iso).toLocaleDateString(locale, options ?? { month: 'short', day: 'numeric', year: 'numeric' })
+
+// Response headers
+
+const https = () => {
+	if (!production()) return false
+
+	const origin = env('APP_URL')
+	if (!origin) return false
+
+	try {
+		return new URL(origin).protocol === 'https:'
+	} catch {
+		return false
+	}
+}
+
+/** Security headers shared by dynamic SSR responses and static assets. */
+export const security = () => ({
+	'X-Content-Type-Options': 'nosniff',
+	'Referrer-Policy': 'strict-origin-when-cross-origin',
+	'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+	'Content-Security-Policy': "frame-ancestors 'none'",
+	...(https() && { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' }),
+})
+
+/** Writes headers, optionally preserving values already set downstream. */
+export const set = (
+	res: { setHeader(key: string, value: Value): unknown; hasHeader(key: string): boolean },
+	values: Record<string, Value>,
+	missing = false,
+) => {
+	for (const [key, value] of Object.entries(values)) {
+		if (!missing || !res.hasHeader(key)) res.setHeader(key, value)
+	}
+}
+
+// Request timing
+
+const disabled = new Set(['', '0', 'false', 'off'])
+
+const timed = () => {
+	const value = env('AJO_TIMING')
+	return !!value && !disabled.has(value.toLowerCase())
+}
+
+const round = (value: number) => Math.round(value * 10) / 10
+
+/** Optional request phase timings measured in milliseconds from a monotonic clock. */
+export type Timing = {
+	start: number
+	loader?: number
+	render?: number
+}
+
+/** Completed request timing data used for headers and diagnostic logs. */
+export type Result = Timing & {
+	total: number
+	status: number
+	bytes: number
+	cache?: string
+}
+
+/** Starts request timing only when `AJO_TIMING` enables diagnostics. */
+export const start = (): Timing | undefined =>
+	timed() ? { start: performance.now() } : undefined
+
+/** Measures monotonic elapsed milliseconds rounded to one decimal place. */
+export const elapsed = (start: number) => round(performance.now() - start)
+
+/** Completes started timing state with the response outcome. */
+export const finish = (
+	timing: Timing,
+	result: Omit<Result, keyof Timing | 'total'>,
+): Result => ({
+	...timing,
+	...result,
+	total: elapsed(timing.start),
+})
+
+/** Formats server phase durations for the standard `Server-Timing` header. */
+export const header = (result: Result) => [
+	`total;dur=${result.total}`,
+	result.loader !== undefined && `loader;dur=${result.loader}`,
+	result.render !== undefined && `render;dur=${result.render}`,
+].filter(Boolean).join(', ')
+
+/** Writes one compact request timing record to the process log. */
+export const log = (label: string, result: Result) => {
+	const cache = result.cache ? ` ${result.cache}` : ''
+	const loader = result.loader === undefined ? '-' : `${result.loader}ms`
+	const render = result.render === undefined ? '-' : `${result.render}ms`
+	console.log(`[ajo] ${label} ${result.status}${cache} total=${result.total}ms loader=${loader} render=${render} bytes=${result.bytes}`)
+}
