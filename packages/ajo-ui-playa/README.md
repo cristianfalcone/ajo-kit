@@ -48,13 +48,12 @@ import 'virtual:uno.css'
 `ajo-kit` can load the stylesheet before hydration:
 
 ```ts
-import { kit, jsx } from 'ajo-kit/vite'
+import { kit } from 'ajo-kit/vite'
 import { defineConfig } from 'vite'
 import unocss from 'unocss/vite'
 
 export default defineConfig({
   plugins: [...kit({ css: ['virtual:uno.css'] }), unocss()],
-  esbuild: jsx,
 })
 ```
 

@@ -5,9 +5,8 @@ import * as http from 'node:http'
 import * as vite from 'vite'
 import { attach, reader, request, type Handler } from './http'
 import { compile } from './template'
-import { descriptor, engine, type Descriptor, type DescriptorInput, type GraphIssue } from './vite'
+import { appEngine, descriptor, engine } from './build'
 import { migrationModules } from './migrate'
-import { discover } from './discover'
 
 export { compile } from './template'
 
@@ -96,193 +95,31 @@ export async function dev(options: Options = {}) {
 	app.use((req, res) => inner(req, res))
 
 	const route = /(handler|wares|page|layout)\.[jt]sx?$/
-	const reload = async (file: string) => {
+	// Edited pages and layouts hot-swap in the browser; only added or removed routes reload it.
+	const reload = (event: 'add' | 'change' | 'unlink') => async (file: string) => {
 		if (!route.test(file)) return
 		try {
 			const { create } = await server.ssrLoadModule('ajo-kit/server')
 			inner = handler(await create(template))
 			console.log('\x1b[32m✓\x1b[0m Server routes reloaded')
-			if (/(page|layout)\.[jt]sx?$/.test(file)) server.ws.send({ type: 'full-reload', path: '*' })
+			if (event !== 'change' && /(page|layout)\.[jt]sx?$/.test(file)) server.ws.send({ type: 'full-reload', path: '*' })
 		} catch (error) {
 			console.error('\x1b[31m✗\x1b[0m Failed to reload routes:')
 			console.error(error)
 		}
 	}
 
-	server.watcher.on('change', reload)
-	server.watcher.on('add', reload)
-	server.watcher.on('unlink', reload)
+	for (const event of ['add', 'change', 'unlink'] as const) server.watcher.on(event, reload(event))
 
 	return app
 }
 
-/** Engine staging information returned by a build. */
-export interface EngineOutput {
-	descriptor: Descriptor
-	findings: GraphIssue[]
-	staging: string
-}
-
-/**
- * The `package.json#kit.engine` authority block. Everything is optional and
- * defaults to empty authority; the engine build validates fail-closed
- * (duplicates, invalid env names, non-absolute or non-normalized POSIX
- * paths all fail the build naming the offender) and seals the result into
- * the artifact descriptor — env names append after the kit's base lists,
- * roots/pipes become the runtime:fs / runtime:ipc authority.
- */
-export type AppEngineConfig = {
-	env?: { required?: string[]; optional?: string[] }
-	fs?: { roots: string[] }
-	ipc?: { pipes: string[] }
-}
-
-const object = (value: unknown, name: string): Record<string, unknown> => {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new Error(`${name} must be an object`)
-	}
-	return value as Record<string, unknown>
-}
-
-const keys = (value: Record<string, unknown>, allowed: readonly string[], name: string) => {
-	for (const key of Object.keys(value)) {
-		if (!allowed.includes(key)) throw new Error(`${name} has unknown key "${key}"`)
-	}
-}
-
-const list = (value: unknown, name: string): string[] => {
-	if (!Array.isArray(value)) throw new Error(`${name} must be an array`)
-	return value.map((item, index) => {
-		if (typeof item !== 'string' || !item.length) {
-			throw new Error(`${name}[${index}] must be a non-empty string`)
-		}
-		return item
-	})
-}
-
-const parseEngine = (value: unknown): AppEngineConfig => {
-	if (value === undefined) return {}
-
-	const engine = object(value, 'package.json#kit.engine')
-	keys(engine, ['env', 'fs', 'ipc'], 'package.json#kit.engine')
-	const config: AppEngineConfig = {}
-
-	if ('env' in engine) {
-		const env = object(engine.env, 'package.json#kit.engine.env')
-		keys(env, ['required', 'optional'], 'package.json#kit.engine.env')
-		config.env = {
-			...('required' in env && { required: list(env.required, 'package.json#kit.engine.env.required') }),
-			...('optional' in env && { optional: list(env.optional, 'package.json#kit.engine.env.optional') }),
-		}
-	}
-
-	if ('fs' in engine) {
-		const fs = object(engine.fs, 'package.json#kit.engine.fs')
-		keys(fs, ['roots'], 'package.json#kit.engine.fs')
-		config.fs = { roots: list(fs.roots, 'package.json#kit.engine.fs.roots') }
-	}
-
-	if ('ipc' in engine) {
-		const ipc = object(engine.ipc, 'package.json#kit.engine.ipc')
-		keys(ipc, ['pipes'], 'package.json#kit.engine.ipc')
-		config.ipc = { pipes: list(ipc.pipes, 'package.json#kit.engine.ipc.pipes') }
-	}
-
-	return config
-}
-
-const appEngine = async (root: string): Promise<AppEngineConfig> => {
-	const manifest = JSON.parse(await fs.readFile(join(root, 'package.json'), 'utf8')) as unknown
-	const kit = manifest && typeof manifest === 'object' && !Array.isArray(manifest)
-		? (manifest as Record<string, unknown>).kit
-		: undefined
-	const engine = kit && typeof kit === 'object' && !Array.isArray(kit)
-		? (kit as Record<string, unknown>).engine
-		: undefined
-	const config = parseEngine(engine)
-	const contributions = [config]
-	const source = { modules: ['server/entry.js'], migrations: [], data: false, net: false }
-	descriptor({ ...source, ...config })
-
-	for (const plugin of discover(root).sort((left, right) => left.name.localeCompare(right.name))) {
-		if (plugin.engine === undefined) continue
-		try {
-			const contribution = parseEngine(plugin.engine)
-			descriptor({ ...source, ...contribution })
-			contributions.push(contribution)
-		} catch (error) {
-			throw new Error(`${plugin.name}: ${error instanceof Error ? error.message : String(error)}`)
-		}
-	}
-
-	if (contributions.length === 1) return config
-	const required = new Set(contributions.flatMap(item => item.env?.required ?? []))
-	return {
-		env: {
-			required: [...required],
-			optional: [...new Set(contributions.flatMap(item => item.env?.optional ?? []))]
-				.filter(name => !required.has(name)),
-		},
-		fs: { roots: [...new Set(contributions.flatMap(item => item.fs?.roots ?? []))] },
-		ipc: { pipes: [...new Set(contributions.flatMap(item => item.ipc?.pipes ?? []))] },
-	}
-}
-
-const modules = async (root: string, directory = 'server'): Promise<string[]> => {
-	const path = join(root, directory)
-	const entries = await fs.readdir(path, { withFileTypes: true })
-	const files = await Promise.all(entries.map(entry => {
-		const relative = `${directory}/${entry.name}`
-		return entry.isDirectory() ? modules(root, relative) : Promise.resolve(entry.name.endsWith('.js') ? [relative] : [])
-	}))
-	return files.flat().sort()
-}
-
-const assertIntl = async (root: string, files: string[]) => {
-	const allowed = new Set(['DateTimeFormat', 'RelativeTimeFormat'])
-	const violations: string[] = []
-	const sources = await Promise.all(files.map(async file => ({
-		file,
-		source: await fs.readFile(join(root, file), 'utf8'),
-	})))
-
-	for (const { file, source } of sources) {
-		if (source.includes('navigator.language')) violations.push(`${file}: navigator.language`)
-		for (const match of source.matchAll(/\bIntl\.([A-Za-z_$][\w$]*)\b/g)) {
-			if (!allowed.has(match[1])) violations.push(`${file}: Intl.${match[1]}`)
-		}
-	}
-
-	if (violations.length) throw new Error(`Engine server Intl profile violation:\n${violations.join('\n')}`)
-}
-
-const writeDescriptor = async (
-	root: string,
-	input: Omit<DescriptorInput, 'modules' | 'env' | 'fs' | 'ipc'>,
-	config: AppEngineConfig,
-): Promise<Descriptor> => {
-	const files = await modules(root)
-	await assertIntl(root, files)
-	const value = descriptor({ ...input, ...config, modules: files })
-	await fs.writeFile(join(root, 'compiler.json'), JSON.stringify(value, null, '\t') + '\n')
-	return value
-}
-
-/** Validates a staging tree and writes its exact compiler schema-1 descriptor. */
-export async function emitDescriptor(
-	root: string,
-	input: Omit<DescriptorInput, 'modules' | 'env' | 'fs' | 'ipc'>,
-	app = process.cwd(),
-): Promise<Descriptor> {
-	return writeDescriptor(root, input, await appEngine(app))
-}
-
 /** Builds the client and closed server graph into .ajo and emits its descriptor. */
-export async function build(): Promise<EngineOutput> {
+export async function build(): Promise<void> {
 	const root = process.cwd()
-	const config = await appEngine(root)
-	const origins = [...(config.env?.required ?? []), ...(config.env?.optional ?? [])].includes('AJO_ORIGINS_FILE')
-		&& (config.fs?.roots ?? []).includes('/ajo/origin')
+	const authority = await appEngine(root)
+	const origins = [...authority.env.required, ...authority.env.optional].includes('AJO_ORIGINS_FILE')
+		&& authority.fs.roots.includes('/ajo/origin')
 	const staging = join(root, '.ajo')
 	await fs.rm(staging, { force: true, recursive: true })
 
@@ -298,10 +135,9 @@ export async function build(): Promise<EngineOutput> {
 		name,
 		file: await fs.realpath(file),
 	})))
-	const database = migrations.length > 0
-	const target = engine({ template, migrations, database, origins })
+	const target = engine({ template, migrations, database: migrations.length > 0, origins })
 	// A real file: Rolldown resolves entries natively and never consults
-	// plugin hooks for a virtual entry id. .mjs keeps it out of modules().
+	// plugin hooks for a virtual entry id.
 	const generated = join(staging, 'entry.gen.mjs')
 	await fs.writeFile(generated, target.code)
 
@@ -316,20 +152,9 @@ export async function build(): Promise<EngineOutput> {
 	})
 	await fs.rm(generated, { force: true })
 
-	const emitted = await modules(staging)
-	if (emitted.join('\n') !== target.result.files.join('\n')) {
-		throw new Error('Engine server staging files differ from the audited Vite graph')
-	}
-
-	return {
-		descriptor: await writeDescriptor(staging, {
-			migrations: target.result.migrations,
-			data: target.result.database,
-			net: target.result.net,
-		}, config),
-		findings: target.result.findings,
-		staging,
-	}
+	const { files, migrations: emitted, database } = target.result
+	const value = descriptor({ ...authority, modules: files, migrations: emitted, data: database })
+	await fs.writeFile(join(staging, 'compiler.json'), JSON.stringify(value, null, '\t') + '\n')
 }
 
 /** Starts a Node dev/test app, incrementing the port unless strict is set. */

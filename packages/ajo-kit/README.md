@@ -33,11 +33,10 @@ stripping for CLI operations and use erasable TypeScript syntax.
 
 ```ts
 import { defineConfig } from 'vite'
-import { kit, jsx } from 'ajo-kit/vite'
+import { kit } from 'ajo-kit/vite'
 
 export default defineConfig({
   plugins: [...kit()],
-  esbuild: jsx,
 })
 ```
 
@@ -117,6 +116,10 @@ compiled migration registry, transformed client, and `compiler.json` descriptor 
 it seals that staging tree into `dist/ajo`. Every build rejects Node builtins and
 other imports that violate the engine's closed module graph.
 
+The engine's `Intl` offers only `DateTimeFormat` and `RelativeTimeFormat`, and
+there is no `navigator`. The build does not check for other uses; they fail when
+the server code runs on the engine.
+
 Apps that store SQLite databases on disk must declare their runtime data directory in `package.json`:
 
 ```json
@@ -132,6 +135,21 @@ Apps that store SQLite databases on disk must declare their runtime data directo
 Create that writable directory and run the engine with `AJO_DATA=/ajo/data`.
 The data path must be inside a declared filesystem root; setting `AJO_DATA`
 alone does not grant access. Use a relative `DATABASE_PATH` within that directory.
+
+Server code that calls `fetch` needs network access, declared the same way:
+
+```json
+{
+  "kit": {
+    "engine": {
+      "net": true
+    }
+  }
+}
+```
+
+`net: true` grants the engine's `runtime:net`. `ajo-kit-mail` declares it for
+its HTTP transport, so Apps that depend on it get it without their own flag.
 
 ## Routing
 
@@ -394,7 +412,7 @@ This enables:
 - CLI command extension via `register(cli)`
 - engine descriptor configuration through `kit.engine`
 
-A plugin's `kit.engine` block uses the same `env`, `fs` and `ipc` shape as the
+A plugin's `kit.engine` block uses the same `env`, `fs`, `ipc` and `net` shape as the
 App's block. Builds include installed plugins from dependencies and
 devDependencies, validate each declaration, and combine their requirements
 with the App's. Shared entries appear once; a variable required by any
@@ -419,7 +437,7 @@ the same directory mount.
 | `ajo-kit/client` | Client boot and `action()` |
 | `ajo-kit/validate` | Valibot helpers and `parse()` |
 | `ajo-kit/database` | SQLite, Kysely, and database lifecycle |
-| `ajo-kit/vite` | Vite plugin, JSX config, and defaults |
+| `ajo-kit/vite` | Vite plugin and its options |
 | `ajo-kit/node` | Programmatic Node host utilities for development, engine builds, and tests |
 
 ## Core API
@@ -505,7 +523,7 @@ type Head = {
 ## Vite API
 
 ```ts
-import { jsx, kit } from 'ajo-kit/vite'
+import { kit } from 'ajo-kit/vite'
 import type { Options } from 'ajo-kit/vite'
 import { defineConfig } from 'vite'
 
@@ -516,17 +534,15 @@ const options: Options = {
 
 export default defineConfig({
   plugins: [...kit(options)],
-  esbuild: jsx,
 })
 ```
 
 `kit()` configures routes, handlers, the `/src/client` alias, server-only guards, HMR, CSS
-entries, and the engine SSR graph. Custom `guard` patterns extend the default client
-graph protection.
+entries, and the engine SSR graph, and keeps the client entry out of dependency
+pre-bundling. Custom `guard` patterns extend the default client graph protection.
 
-`css` entries load before application hydration. `jsx` configures Ajo's
-automatic JSX runtime. The exported `defaults` object contains the database,
-migrations, and seeds paths used by the CLI.
+`css` entries load before application hydration. JSX compiles through the
+`tsconfig.json` settings above.
 
 ## Node Host API
 
@@ -542,8 +558,8 @@ await dev(options)
 ```
 
 `dev()` exposes the Vite development shell, and `build()` stages the engine
-artifact inputs while returning the descriptor and graph findings. `compile()`
-fills `<!-- ssr:name -->` HTML slots. `listen()` starts Node-hosted development
-or test applications and can require a strict port. The `default` condition
+artifact inputs and descriptor in `.ajo/`. `compile()` fills `<!-- ssr:name -->`
+HTML slots. `listen()` starts Node-hosted development or test applications and
+can require a strict port. The `default` condition
 faces for `ajo-kit/platform` and `ajo-kit/database` are likewise dev-time Node
 shims for Vite, Vitest, and CLI operations; they are not production runtimes.

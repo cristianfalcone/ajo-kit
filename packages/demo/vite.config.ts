@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite'
-import { kit, jsx } from 'ajo-kit/vite'
+import { kit } from 'ajo-kit/vite'
 import unocss from 'unocss/vite'
 import { fixture } from './tests/e2e/fixture-plugin'
 
@@ -9,5 +9,4 @@ export default defineConfig({
 		...kit({ css: ['virtual:uno.css'], guard: [/\/src\/data\//] }),
 		unocss(),
 	],
-	esbuild: jsx,
 })

@@ -8,7 +8,10 @@
     "README.md"
   ],
   "kit": {
-    "serverOnly": true
+    "serverOnly": true,
+    "engine": {
+      "net": true
+    }
   },
   "scripts": {
     "build": "pnpm -w exec tsx scripts/package-build.ts ajo-kit-mail",

@@ -6,8 +6,13 @@ import * as url from 'node:url'
 import { spawn } from 'node:child_process'
 import { mkdir, rm } from 'node:fs/promises'
 import { dev, build, listen } from 'ajo-kit/node'
-import { defaults } from 'ajo-kit/vite'
 import { discover } from '../src/discover.ts'
+
+const defaults = {
+	database: './database.sqlite',
+	migrations: 'db/migrations',
+	seeds: 'db/seeds',
+}
 
 // Status markers:
 

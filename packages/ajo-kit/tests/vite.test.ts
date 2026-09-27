@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { descriptor, engine, kit } from '../src/vite'
+import { descriptor, engine } from '../src/build'
+import { kit } from '../src/vite'
 
 describe('ajo-kit vite plugin', () => {
 	test('native addons are not rewritten to build-machine paths', () => {
@@ -13,6 +14,25 @@ describe('ajo-kit vite plugin', () => {
 		const config = (plugin.config as () => { resolve: { alias: unknown } })()
 
 		expect(config.resolve.alias).toEqual([{ find: '/src/client', replacement: 'ajo-kit/client' }])
+	})
+
+	test('the client entry stays out of dependency pre-bundling', () => {
+		const plugin = kit().find(plugin => plugin.name === 'ajo-kit')!
+		const config = (plugin.config as () => { optimizeDeps: unknown })()
+
+		expect(config.optimizeDeps).toEqual({ exclude: ['ajo-kit/client'] })
+	})
+
+	test('css entries load before the kit client entry only, from the workspace or npm', () => {
+		const plugin = kit({ css: ['virtual:uno.css'] }).find(plugin => plugin.name === 'ajo-kit')!
+		const transform = plugin.transform as (code: string, id: string) => string | undefined
+
+		for (const id of ['/app/node_modules/ajo-kit/dist/client.js?v=1a2b', '/repo/packages/ajo-kit/src/client.tsx']) {
+			expect(transform('boot()', id)).toBe("import 'virtual:uno.css'\nboot()")
+		}
+		for (const id of ['/app/node_modules/ajo-kit/dist/platform.client.js?v=1a2b', '/app/node_modules/ajo-kit-auth/dist/ability.client.js']) {
+			expect(transform('boot()', id)).toBeUndefined()
+		}
 	})
 
 	test('custom guard patterns are added to defaults', async () => {
@@ -58,6 +78,27 @@ describe('ajo-kit vite plugin', () => {
 		transform('export async function bootstrap() {}', '/project/src/wares.ts')
 
 		expect(target.result.database).toBe(true)
+	})
+
+	test('only a static or dynamic importer of the database face besides the engine entry declares database use', () => {
+		const run = (importers: string[], dynamicImporters: string[] = []) => {
+			const target = engine({ template: '', migrations: [], database: false })
+			const chunk = { type: 'chunk', fileName: 'entry.js', moduleIds: [], code: target.code.split('\n').find(line => line.includes('JSON.parse'))! }
+			const context = {
+				getModuleIds: () => ['/app/node_modules/ajo-kit/dist/database.ajo.js'].values(),
+				getModuleInfo: () => ({ importers, dynamicImporters }),
+			}
+			;(target.plugin.generateBundle as (...args: unknown[]) => void).call(context, {}, { 'entry.js': chunk })
+			return { database: target.result.database, code: chunk.code }
+		}
+
+		expect(run(['/app/node_modules/ajo-kit/dist/engine.js'])).toEqual({
+			database: false,
+			code: `const options = JSON.parse('{"database":false}')`,
+		})
+		expect(run(['/app/node_modules/ajo-kit/dist/engine.js', '/app/src/notes/handler.ts']).database).toBe(true)
+		expect(run(['/app/node_modules/ajo-kit/dist/engine.js'], ['/app/src/notes/handler.ts']).database).toBe(true)
+		expect(run([], ['/app/node_modules/ajo-kit/dist/engine.js']).database).toBe(false)
 	})
 
 	test('app authority follows the descriptor ordering contract', () => {
