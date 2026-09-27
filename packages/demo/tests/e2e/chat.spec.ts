@@ -90,9 +90,7 @@ test('chat room sends a message and streams it to another active participant', a
 		await client.waitForTimeout(200)
 		expect(await live.getAttribute('class')).not.toContain('bg-warning')
 
-		// Alternating-runs regression: reply and follow up so the timeline has
-		// consecutive same-day runs per sender, then assert every rendered
-		// message is unique (duplicate sibling keys once collapsed runs).
+		// Alternating senders on one day form separate runs; each message renders once.
 		const reply = `E2E alternating reply ${Date.now()}`
 		await client.getByPlaceholder('Type a message...').fill(reply)
 		await client.getByRole('button', { name: /^Send$/ }).click()

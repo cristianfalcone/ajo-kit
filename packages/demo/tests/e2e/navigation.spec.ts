@@ -1,6 +1,5 @@
 import { expect, test, type Page } from './test'
-
-const ready = async (page: Page) => page.waitForFunction(() => document.documentElement.dataset.ajoReady === "true")
+import { ready } from './helpers'
 
 const route = '/__e2e/navigation/one'
 

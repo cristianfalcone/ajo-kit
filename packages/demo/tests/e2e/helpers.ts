@@ -1,11 +1,5 @@
+import { get, type ClientRequest, type IncomingMessage } from 'node:http'
 import { expect, type APIRequestContext, type Page } from '@playwright/test'
-import type {
-	CountQuery,
-	FixtureClient,
-	InvitationInput,
-	MakeUserInput,
-	Signup,
-} from './fixture-client'
 
 export const admin = {
 	email: 'cristian@example.com',
@@ -59,25 +53,108 @@ export async function goto(page: Page, url: string) {
 	await ready(page)
 }
 
-export const make = (fixture: FixtureClient, input: MakeUserInput) => fixture.makeUser(input)
+/** Whether a Vary header lists the token. */
+export const vary = (value: string | undefined, token: string) =>
+	value?.toLowerCase().split(',').map(part => part.trim()).includes(token.toLowerCase())
 
-export const reset = async (fixture: FixtureClient, user: number, token: string, expiry?: string) => {
-	await fixture.putReset({ user, token, ...(expiry && { expiry }) })
+export type Stream = {
+	req: ClientRequest
+	res: IncomingMessage
+	messages: string[]
+	waitForMessage: (timeout?: number) => Promise<string>
+	waitForClose: (timeout?: number) => Promise<void>
+	close: () => void
 }
 
-export const invite = (fixture: FixtureClient, input: InvitationInput) => fixture.putInvitation(input)
+const wait = <T,>(promise: Promise<T>, timeout: number, message: string) =>
+	new Promise<T>((resolve, reject) => {
+		const timer = setTimeout(() => reject(new Error(message)), timeout)
+		promise.then(
+			value => {
+				clearTimeout(timer)
+				resolve(value)
+			},
+			error => {
+				clearTimeout(timer)
+				reject(error)
+			}
+		)
+	})
 
-export const setSignup = async (fixture: FixtureClient, signup: Signup) => {
-	await fixture.setRegistration(signup)
-}
+/** Opens an SSE stream on a route and collects the data of each event. */
+export const open = (base: string, path: string, cookie = '') =>
+	new Promise<Stream>((resolve, reject) => {
+		let settled = false
+		const req = get(new URL(path, base), {
+			headers: {
+				Accept: 'text/event-stream',
+				...(cookie && { Cookie: cookie }),
+			}
+		}, res => {
+			const messages: string[] = []
+			const waiters: Array<(message: string) => void> = []
+			let buffer = ''
+			let ended = false
+			let release!: () => void
+			const closed = new Promise<void>(resolve => { release = resolve })
 
-export const getSignup = (fixture: FixtureClient) => fixture.getRegistration()
+			const done = () => {
+				if (ended) return
+				ended = true
+				release()
+			}
 
-type CountArguments = CountQuery extends infer Query
-	? Query extends CountQuery
-		? [table: Query['table'], where: Query['where'], value: Query['value']]
-		: never
-	: never
+			res.setEncoding('utf8')
+			res.on('data', chunk => {
+				buffer += chunk
 
-export const count = (fixture: FixtureClient, ...[table, where, value]: CountArguments) =>
-	fixture.count({ table, where, value } as CountQuery)
+				for (let index = buffer.indexOf('\n\n'); index >= 0; index = buffer.indexOf('\n\n')) {
+					const raw = buffer.slice(0, index)
+					buffer = buffer.slice(index + 2)
+					const data = raw
+						.split('\n')
+						.filter(line => line.startsWith('data:'))
+						.map(line => line.slice(5).trimStart())
+						.join('\n')
+
+					if (!data) continue
+
+					messages.push(data)
+					const waiter = waiters.shift()
+					waiter?.(data)
+				}
+			})
+			res.on('end', done)
+			res.on('close', done)
+
+			settled = true
+			resolve({
+				req,
+				res,
+				messages,
+				waitForMessage: (timeout = 5_000) => {
+					if (messages.length > 0) return Promise.resolve(messages[0])
+					return wait(new Promise<string>(resolve => waiters.push(resolve)), timeout, 'Timed out waiting for SSE message')
+				},
+				waitForClose: (timeout = 5_000) =>
+					wait(closed, timeout, 'Timed out waiting for SSE close'),
+				close: () => {
+					req.destroy()
+					res.destroy()
+				},
+			})
+		})
+
+		req.setTimeout(5_000, () => {
+			if (settled) return
+			settled = true
+			req.destroy()
+			reject(new Error('Timed out opening SSE stream'))
+		})
+		req.on('error', error => {
+			if (!settled) {
+				settled = true
+				reject(error)
+			}
+		})
+	})

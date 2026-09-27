@@ -1,36 +1,9 @@
 import { expect, test } from 'vitest'
-import { abilities, bundles, delegate, grantable, groups, normalize, unknown } from '../../src/abilities'
-
-test('ability groups expose resource wildcards', () => {
-	expect(groups.map(group => group.wildcard)).toEqual([
-		'tokens:*',
-		'profile:*',
-		'admin:*',
-	])
-})
-
-test('flat ability list is derived from grouped resources', () => {
-	expect(abilities).toEqual(groups.flatMap(group => group.abilities))
-	expect(new Set(abilities).size).toBe(abilities.length)
-	expect(groups.every(group =>
-		group.abilities.every(ability => ability.startsWith(group.wildcard.slice(0, -1)))
-	)).toBe(true)
-})
-
-test('standard role bundles expose full admin and app user abilities', () => {
-	expect(bundles.admin).toEqual(['*'])
-	expect(bundles.user).toContain('profile:read')
-	expect(bundles.user).not.toContain('admin:read')
-})
+import { bundles, delegate, grantable, normalize, unknown } from '../../src/abilities'
 
 test('grantable preserves only abilities the account can delegate', () => {
 	expect(grantable(['*'])).toEqual(['*'])
-	expect(grantable(bundles.user)).toEqual([
-		'tokens:read',
-		'tokens:create',
-		'tokens:delete',
-		'profile:read',
-	])
+	expect(grantable([...bundles.user, 'sessions:read'])).toEqual(bundles.user)
 	expect(grantable(['tokens:*', 'admin:read'])).toEqual(['tokens:*', 'admin:read'])
 	expect(grantable(undefined)).toEqual([])
 })

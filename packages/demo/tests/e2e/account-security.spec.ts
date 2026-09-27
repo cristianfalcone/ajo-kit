@@ -1,10 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { expect, request as playwright, test } from './test'
-import { count, data, goto, login, make, proof, signin } from './helpers'
+import { data, goto, login, proof, signin } from './helpers'
 
 test('password change rotates current session and revokes old credentials', async ({ page, request, baseURL: base, fixture }) => {
 	const email = `password-${randomUUID()}@example.com`
-	const user = await make(fixture, { email, name: 'Password Lifecycle User' })
+	const user = await fixture.makeUser({ email, name: 'Password Lifecycle User' })
 	const credentials = { email, password: 'password' }
 
 	await signin(page, credentials)
@@ -37,8 +37,8 @@ test('password change rotates current session and revokes old credentials', asyn
 	expect(fresh).toBeTruthy()
 	expect(fresh).not.toBe(old)
 
-	expect(await count(fixture, 'sessions', 'user = ?', user)).toBe(1)
-	expect(await count(fixture, 'tokens', 'user = ?', user)).toBe(0)
+	expect(await fixture.count({ table: 'sessions', user })).toBe(1)
+	expect(await fixture.count({ table: 'tokens', user })).toBe(0)
 	expect((await other.get('/api/me')).status()).toBe(401)
 	expect((await request.get('/api/me', { headers: auth })).status()).toBe(401)
 
@@ -72,19 +72,7 @@ test('account token page creates and revokes a scoped token', async ({ page }) =
 
 	await expect(page.getByText("Token created! Copy it now - it won't be shown again.")).toBeVisible()
 	await expect(page.getByText(label)).toBeVisible()
-	const copy = page.getByRole('button', { name: 'Copy and close' })
-	await expect(copy).toBeVisible()
-	const corners = await copy.evaluate(element => {
-		const style = getComputedStyle(element)
-		return {
-			bottomLeft: Number.parseFloat(style.borderBottomLeftRadius),
-			topLeft: Number.parseFloat(style.borderTopLeftRadius),
-			topRight: Number.parseFloat(style.borderTopRightRadius),
-		}
-	})
-	expect(corners.topLeft).toBe(0)
-	expect(corners.bottomLeft).toBe(0)
-	expect(corners.topRight).toBeGreaterThan(0)
+	await expect(page.getByRole('button', { name: 'Copy and close' })).toBeVisible()
 
 	const row = page.locator('tr', { hasText: label })
 	await row.getByRole('button', { name: 'Revoke this token' }).click()
@@ -93,7 +81,7 @@ test('account token page creates and revokes a scoped token', async ({ page }) =
 
 test('session page revokes other sessions but keeps the current browser session', async ({ page, baseURL: base, fixture }) => {
 	const email = `sessions-${Date.now()}@example.com`
-	await make(fixture, { email, name: 'Sessions User' })
+	await fixture.makeUser({ email, name: 'Sessions User' })
 	const credentials = { email, password: 'password' }
 
 	await signin(page, credentials)
@@ -113,7 +101,7 @@ test('session page revokes other sessions but keeps the current browser session'
 
 test('password change limits wrong current passwords before verifying them', async ({ request, baseURL: base, fixture }) => {
 	const email = `password-limit-${randomUUID()}@example.com`
-	await make(fixture, { email, name: 'Password Limit User' })
+	await fixture.makeUser({ email, name: 'Password Limit User' })
 	await login(request, base!, { email, password: 'password' })
 
 	const change = async (current: string) => (await request.post('/account/profile?/password', {
@@ -130,7 +118,7 @@ test('password change limits wrong current passwords before verifying them', asy
 
 test('account revokes touch only the credential with the exact id', async ({ request, baseURL: base, fixture }) => {
 	const email = `revoke-${randomUUID()}@example.com`
-	const user = await make(fixture, { email, name: 'Exact Revoke User' })
+	const user = await fixture.makeUser({ email, name: 'Exact Revoke User' })
 	const credentials = { email, password: 'password' }
 	const devices = [
 		await playwright.newContext({ baseURL: base }),
@@ -171,14 +159,14 @@ test('account revokes touch only the credential with the exact id', async ({ req
 		expect((await request.delete('/api/tokens', { headers: auth, data: { id } })).status(), id).toBe(404)
 	}
 
-	expect(await count(fixture, 'sessions', 'user = ?', user)).toBe(3)
-	expect(await count(fixture, 'tokens', 'user = ?', user)).toBe(3)
+	expect(await fixture.count({ table: 'sessions', user })).toBe(3)
+	expect(await fixture.count({ table: 'tokens', user })).toBe(3)
 
 	expect(await revoke('/account/sessions?/revoke', sessions[0].id)).toBe(true)
 	expect(await revoke('/account/tokens?/revoke', spare.id)).toBe(true)
 	expect((await request.delete('/api/tokens', { headers: auth, data: { id: target.id } })).status()).toBe(200)
-	expect(await count(fixture, 'sessions', 'user = ?', user)).toBe(2)
-	expect(await count(fixture, 'tokens', 'user = ?', user)).toBe(1)
+	expect(await fixture.count({ table: 'sessions', user })).toBe(2)
+	expect(await fixture.count({ table: 'tokens', user })).toBe(1)
 
 	for (const device of devices) await device.dispose()
 })

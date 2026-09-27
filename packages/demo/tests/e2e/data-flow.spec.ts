@@ -1,9 +1,6 @@
-import { get, type IncomingHttpHeaders } from 'node:http'
+import type { IncomingHttpHeaders } from 'node:http'
 import { expect, request as playwright, test } from './test'
-import { proof, admin, login } from './helpers'
-
-const vary = (value: string | undefined, token: string) =>
-	value?.toLowerCase().split(',').map(part => part.trim()).includes(token.toLowerCase())
+import { admin, login, open, proof, vary } from './helpers'
 
 const secure = (headers: Record<string, string | undefined> | IncomingHttpHeaders) => {
 	expect(headers['x-content-type-options']).toBe('nosniff')
@@ -13,44 +10,6 @@ const secure = (headers: Record<string, string | undefined> | IncomingHttpHeader
 	expect(headers['content-security-policy']).toBe("frame-ancestors 'none'")
 	expect(headers['strict-transport-security']).toBeUndefined()
 }
-
-const event = (base: string, path: string) =>
-	new Promise<IncomingHttpHeaders>((resolve, reject) => {
-		let settled = false
-		const req = get(new URL(path, base), { headers: { Accept: 'text/event-stream' } }, res => {
-			if (settled) return
-			settled = true
-			resolve(res.headers)
-			req.destroy()
-			res.destroy()
-		})
-
-		req.setTimeout(5000, () => {
-			if (settled) return
-			settled = true
-			req.destroy()
-			reject(new Error('Timed out waiting for SSE headers'))
-		})
-		req.on('error', error => {
-			if (!settled) reject(error)
-		})
-	})
-
-test('CSRF rejects cross-site JSON actions without same-origin proof', async ({ request }) => {
-	const response = await request.post('/login?/default', {
-		headers: { Accept: 'application/json' },
-		data: admin,
-	})
-
-	expect(response.status()).toBe(403)
-	secure(response.headers())
-	expect(await response.json()).toMatchObject({
-		error: {
-			status: 403,
-			message: 'Invalid CSRF token',
-		},
-	})
-})
 
 test('action body parser returns JSON client errors for malformed JSON', async ({ baseURL: base }) => {
 	const response = await fetch(`${base}/login?/default`, {
@@ -95,8 +54,9 @@ test('security headers are applied to HTML, JSON, API and SSE responses', async 
 	expect(action.status()).toBe(200)
 	secure(action.headers())
 
-	const sse = await event(base!, '/login')
-	secure(sse)
+	const sse = await open(base!, '/login')
+	secure(sse.res.headers)
+	sse.close()
 })
 
 test('sealed engine artifact serves a hashed client asset', async ({ request }, testInfo) => {

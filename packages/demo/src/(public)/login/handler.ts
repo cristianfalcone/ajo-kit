@@ -8,7 +8,7 @@ import { Denied, Failure, ip } from 'ajo-kit'
 
 const checkbox = pipe(unknown(), transform(v => v === 'true' || v === true))
 
-// Dummy hash para prevenir timing attacks (ejecutar verify aunque usuario no exista)
+// Unknown emails still verify against this hash, so a login takes the same time whether the account exists.
 const DUMMY_HASH = await auth.password.hash('dummy-password-for-timing-attack-prevention')
 
 const Login = object({

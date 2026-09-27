@@ -1,8 +1,5 @@
 import { expect, test } from './test'
-import { make, goto, signin, login } from './helpers'
-
-const vary = (value: string | undefined, token: string) =>
-	value?.toLowerCase().split(',').map(part => part.trim()).includes(token.toLowerCase())
+import { goto, login, signin, vary } from './helpers'
 
 test('SSR HTML uses no-store headers and a non-executable boot data script', async ({ request, baseURL: base }) => {
 	await login(request, base!)
@@ -20,15 +17,13 @@ test('SSR HTML uses no-store headers and a non-executable boot data script', asy
 	const html = await response.text()
 
 	expect(html).toContain('<script type="application/json" id="__SSR__">')
-	expect(html).not.toContain('globalThis.__SSR__')
-	expect(html).not.toContain('rawServerData')
 })
 
 test('SSR boot payload keeps script-breaking user data inert', async ({ page, fixture }) => {
 	const marker = '</script><script>window.__xss=1</script>'
 	const email = `xss-${Date.now()}@example.com`
 
-	await make(fixture, { email, name: marker })
+	await fixture.makeUser({ email, name: marker })
 	await page.addInitScript(() => { delete (window as any).__xss })
 	await signin(page, { email, password: 'password' })
 

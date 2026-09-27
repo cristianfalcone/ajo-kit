@@ -1,9 +1,9 @@
 import { expect, test } from './test'
-import { goto, make, signin } from './helpers'
+import { goto, signin } from './helpers'
 
 test('dashboard, theme toggle and profile actions reflect account state', async ({ page, fixture }) => {
 	const email = `profile-admin-${Date.now()}@example.com`
-	await make(fixture, { email, name: 'Profile Admin', role: 'admin' })
+	await fixture.makeUser({ email, name: 'Profile Admin', role: 'admin' })
 
 	await signin(page, { email, password: 'password' })
 

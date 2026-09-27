@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { expect, request as playwright, test } from './test'
 import type { APIRequestContext } from '@playwright/test'
 import type { FixtureClient } from './fixture-client'
-import { count, data, goto, login, make, proof, signin } from './helpers'
+import { data, goto, login, proof, signin } from './helpers'
 
 test('admin pages expose bounded lists, pagination and admin-only actions', async ({ page }) => {
 	await signin(page)
@@ -35,7 +35,7 @@ type Row = { id: string; email: string }
 /** Signs a fresh user in on two devices and mints two API tokens for it. */
 async function target(fixture: FixtureClient, request: APIRequestContext, base: string) {
 	const email = `target-${randomUUID()}@example.com`
-	const user = await make(fixture, { email, name: 'Revocation Target' })
+	const user = await fixture.makeUser({ email, name: 'Revocation Target' })
 	const credentials = { email, password: 'password' }
 	const devices = [
 		await playwright.newContext({ baseURL: base }),
@@ -59,7 +59,7 @@ test('a read-only admin renders admin pages but cannot revoke credentials', asyn
 	const { email, user, devices } = await target(fixture, request, base!)
 	const support = `support-${randomUUID()}@example.com`
 
-	await make(fixture, { email: support, role: 'support' })
+	await fixture.makeUser({ email: support, role: 'support' })
 	await login(request, base!, { email: support, password: 'password' })
 
 	for (const path of ['/admin', '/admin/users', '/admin/sessions', '/admin/tokens', '/admin/registration']) {
@@ -77,8 +77,8 @@ test('a read-only admin renders admin pages but cannot revoke credentials', asyn
 		expect((await request.post(path, { headers: proof(base!), data: body })).status(), path).toBe(403)
 	}
 
-	expect(await count(fixture, 'sessions', 'user = ?', user)).toBe(2)
-	expect(await count(fixture, 'tokens', 'user = ?', user)).toBe(2)
+	expect(await fixture.count({ table: 'sessions', user })).toBe(2)
+	expect(await fixture.count({ table: 'tokens', user })).toBe(2)
 
 	for (const device of devices) await device.dispose()
 })
@@ -111,8 +111,8 @@ test('admin revokes touch only the credential with the exact id', async ({ reque
 
 	expect(await revoke('/admin/sessions?/revoke', sessions[0].id)).toBe(true)
 	expect(await revoke('/admin/tokens?/default', tokens[0].id)).toBe(true)
-	expect(await count(fixture, 'sessions', 'user = ?', user)).toBe(1)
-	expect(await count(fixture, 'tokens', 'user = ?', user)).toBe(1)
+	expect(await fixture.count({ table: 'sessions', user })).toBe(1)
+	expect(await fixture.count({ table: 'tokens', user })).toBe(1)
 
 	for (const device of devices) await device.dispose()
 })

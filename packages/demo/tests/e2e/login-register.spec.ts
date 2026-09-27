@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { count, goto } from './helpers'
+import { goto } from './helpers'
 
 test('login form rejects invalid credentials and accepts a valid account', async ({ page }) => {
 	await goto(page, '/login')
@@ -31,5 +31,5 @@ test('registration creates a non-admin account and signs it in', async ({ page, 
 	await expect(page.getByRole('heading', { name: 'Welcome back, User' })).toBeVisible()
 	await expect(page.getByText(email).first()).toBeVisible()
 	await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0)
-	expect(await count(fixture, 'users', 'email = ?', email)).toBe(1)
+	expect(await fixture.count({ table: 'users', email })).toBe(1)
 })

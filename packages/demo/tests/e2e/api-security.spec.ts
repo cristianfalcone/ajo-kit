@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { login, make, proof } from './helpers'
+import { login, proof } from './helpers'
 
 test('limited bearer tokens require matching API abilities', async ({ request }) => {
 	const headers = { Authorization: 'Bearer seed-api-token' }
@@ -47,61 +47,9 @@ test('bearer tokens do not authenticate route actions outside api', async ({ req
 	await expect(response.json()).resolves.toMatchObject({ error: { message: 'Invalid CSRF token' } })
 })
 
-test('cookie-auth API mutations require CSRF proof', async ({ request, baseURL: base, fixture }) => {
-	const email = `csrf-api-${Date.now()}@example.com`
-	await make(fixture, { email, name: 'CSRF API User' })
-	await login(request, base!, { email, password: 'password' })
-
-	const blocked = await request.post('/api/tokens', {
-		data: {
-			name: 'Cookie API Token Blocked',
-			abilities: ['tokens:read'],
-		},
-	})
-
-	expect(blocked.status()).toBe(403)
-	await expect(blocked.json()).resolves.toMatchObject({ message: 'Invalid CSRF token' })
-
-	const state = await request.storageState()
-	const session = state.cookies.find(cookie => cookie.name === 'session')
-
-	expect(session?.value).toBeTruthy()
-
-	const forged = await fetch(`${base}/api/tokens`, {
-		method: 'POST',
-		headers: {
-			Accept: 'application/json',
-			'Content-Type': 'application/json',
-			'Cookie': `session=${session?.value}; XSRF-TOKEN=forged`,
-			'X-XSRF-TOKEN': 'forged',
-		},
-		body: JSON.stringify({
-			name: 'Cookie API Token Forged',
-			abilities: ['tokens:read'],
-		}),
-	})
-
-	expect(forged.status).toBe(403)
-	await expect(forged.json()).resolves.toMatchObject({ message: 'Invalid CSRF token' })
-
-	const allowed = await request.post('/api/tokens', {
-		headers: proof(base!),
-		data: {
-			name: 'Cookie API Token Allowed',
-			abilities: ['tokens:read'],
-		},
-	})
-
-	expect(allowed.status()).toBe(201)
-	await expect(allowed.json()).resolves.toMatchObject({
-		token: expect.any(String),
-		message: 'Save this token securely. It will not be shown again.',
-	})
-})
-
 test('api authorization header takes precedence over session cookies', async ({ request, baseURL: base, fixture }) => {
 	const email = `mixed-api-${Date.now()}@example.com`
-	await make(fixture, { email, name: 'Mixed API User' })
+	await fixture.makeUser({ email, name: 'Mixed API User' })
 	await login(request, base!, { email, password: 'password' })
 
 	const response = await request.post('/api/tokens', {

@@ -132,12 +132,9 @@ pnpm add -D --save-exact ajo-engine@0.1.0 ajo-engine-compiler@0.1.0
 pnpm artifact
 ```
 
-Both packages contain direct native executables, their bytecode PIN, checksums
-and license notices. Installation runs no compilation or download hook. The
-static compiler runs on the verified musl and glibc Linux x64 environments;
-see the packages' READMEs for the tested matrix. Other operating systems and
-CPU architectures are not supported for sealing/running. Use the same package
-version for both tools and keep the lockfile from this installation.
+The [ajo-engine](https://www.npmjs.com/package/ajo-engine) README covers the
+supported platforms and what the pair contains. Use the same version for both
+tools and keep the lockfile from this installation.
 
 This writes `dist/ajo`. The production artifact requires `/ajo/data` in its
 filesystem authority. Create that writable directory **inside your disposable
@@ -169,20 +166,8 @@ pnpm kit deploy --help
 The container preserves the runtime's ISC and third-party notices under
 `/usr/share/licenses/ajo-engine`. Keep those files with any redistributed image.
 
-Before a first deployment, the operator creates the App and its environment on
-ajo-server: persistent data mount, public origin/domain and runtime secrets above.
-The deploy credential grants only that App's `apps:deploy` ability. Store its
-one-time token in a mode-0600 file outside the build context. From a named Git
-branch, with Podman available, build the sealed artifact first and deploy:
-
-```sh
-pnpm run deploy https://panel.example.com --token /private/path/app-token --name my-notes
-```
-
-`kit deploy` builds/saves the Containerfile and waits for the host receipt. It
-does not build the JavaScript first, create the App, configure domains or set
-secrets. `main` selects production, `staging` selects staging, and other named
-branches select private previews. Use the App name covered by the credential;
-the package name `ajo-kit-template` is only the default. Keep a recorded deployment ID
-if observation is interrupted and resume through the CLI. Deployments and cloud
+`pnpm run deploy` runs `kit deploy` from
+[ajo-kit-server](https://www.npmjs.com/package/ajo-kit-server), whose README covers
+the App and credential an operator prepares on ajo-server, the command and how
+the Git branch selects production, staging or a preview. Deployments and cloud
 configuration are operator actions; setup and tests do neither.

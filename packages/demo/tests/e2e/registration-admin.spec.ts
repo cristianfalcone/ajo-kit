@@ -1,12 +1,12 @@
 import { expect, request as playwright, test } from './test'
-import { count, getSignup, goto, login, member, proof, setSignup, signin } from './helpers'
+import { goto, login, member, proof, signin } from './helpers'
 
 test('admin manages registration policy and invitations', async ({ page, browser, baseURL: base, fixture }) => {
 	const email = `admin-invite-${Date.now()}@example.com`
 	const guest = await browser.newContext({ baseURL: base })
 	const tab = await guest.newPage()
 
-	await setSignup(fixture, 'open')
+	await fixture.setRegistration('open')
 
 	try {
 		await signin(page)
@@ -14,7 +14,7 @@ test('admin manages registration policy and invitations', async ({ page, browser
 		await expect(page.getByRole('heading', { name: 'Registration' })).toBeVisible()
 
 		await page.getByRole('button', { name: 'Invite only' }).click()
-		await expect.poll(() => getSignup(fixture)).toBe('invite')
+		await expect.poll(() => fixture.getRegistration()).toBe('invite')
 
 		await goto(tab, '/login')
 		await expect(tab.getByRole('link', { name: 'Sign up' })).toHaveCount(0)
@@ -26,21 +26,21 @@ test('admin manages registration policy and invitations', async ({ page, browser
 		await page.locator('input[name="name"]').fill('Admin Invited User')
 		await page.getByRole('button', { name: 'Send Invitation' }).click()
 
-		await expect.poll(() => count(fixture, 'invites', 'email = ?', email)).toBe(1)
+		await expect.poll(() => fixture.count({ table: 'invites', email })).toBe(1)
 		await expect(page.getByText(email)).toBeVisible()
 
 		const row = page.locator('tr', { hasText: email })
 		await row.getByRole('button', { name: 'Revoke invitation' }).click()
-		await expect.poll(() => count(fixture, 'invites', 'email = ? and revoked is not null', email)).toBe(1)
+		await expect.poll(() => fixture.count({ table: 'invites', email, revoked: true })).toBe(1)
 		await expect(row).toHaveCount(0)
 
 		await page.getByRole('button', { name: 'Open' }).click()
-		await expect.poll(() => getSignup(fixture)).toBe('open')
+		await expect.poll(() => fixture.getRegistration()).toBe('open')
 
 		await goto(tab, '/login')
 		await expect(tab.getByRole('link', { name: 'Sign up' })).toBeVisible()
 	} finally {
-		await setSignup(fixture, 'open')
+		await fixture.setRegistration('open')
 		await guest.close()
 	}
 })

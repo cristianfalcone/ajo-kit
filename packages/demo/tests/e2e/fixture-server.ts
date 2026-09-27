@@ -5,14 +5,7 @@ import { env, randomBase64Url, sha256Hex, timingSafeEqual } from 'ajo-kit/platfo
 import { send } from 'ajo-kit/server'
 import { bundles } from '/src/abilities'
 import { db } from '/src/data'
-import type {
-	CountQuery,
-	FixtureOperation,
-	InvitationInput,
-	MakeUserInput,
-	ResetInput,
-	Signup,
-} from './fixture-client'
+import type { CountQuery, FixtureOperation, InvitationInput, MakeUserInput, ResetInput, Signup } from './fixture-client'
 
 const limit = 32
 const mail: Sealed[] = []
@@ -25,136 +18,6 @@ configure({
 		if (mail.length > limit) mail.splice(0, mail.length - limit)
 	},
 })
-
-const invalid = (): never => { throw new Failure(400, 'Invalid fixture request') }
-const object = (value: unknown): Record<string, unknown> => {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return invalid()
-	return value as Record<string, unknown>
-}
-const shape = (value: unknown, allowed: readonly string[]) => {
-	const input = object(value)
-	if (Object.keys(input).some(key => !allowed.includes(key))) return invalid()
-	return input
-}
-const text = (input: Record<string, unknown>, key: string, empty = false) => {
-	const value = input[key]
-	if (typeof value !== 'string' || (!empty && !value) || value.length > 10_000) return invalid()
-	return value
-}
-const flag = (input: Record<string, unknown>, key: string) => {
-	const value = input[key]
-	if (value === undefined) return undefined
-	if (typeof value !== 'boolean') return invalid()
-	return value
-}
-const id = (value: unknown) => {
-	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) return invalid()
-	return value
-}
-const expiry = (value: string | undefined) => {
-	if (value !== undefined && !Number.isFinite(Date.parse(value))) return invalid()
-	return value
-}
-
-const makeInput = (value: unknown): MakeUserInput => {
-	const input = shape(value, ['email', 'password', 'name', 'role', 'verified'])
-	const role = input.role
-	if (role !== undefined && role !== 'admin' && role !== 'support' && role !== 'user') return invalid()
-
-	return {
-		email: text(input, 'email')!,
-		...(input.password !== undefined && { password: text(input, 'password')! }),
-		...(input.name !== undefined && { name: text(input, 'name', true)! }),
-		...(role !== undefined && { role }),
-		...(input.verified !== undefined && { verified: flag(input, 'verified')! }),
-	}
-}
-
-const resetInput = (value: unknown): ResetInput => {
-	const input = shape(value, ['user', 'token', 'expiry'])
-	const until = expiry(input.expiry === undefined ? undefined : text(input, 'expiry'))
-	return {
-		user: id(input.user),
-		token: text(input, 'token')!,
-		...(until && { expiry: until }),
-	}
-}
-
-const invitationInput = (value: unknown): InvitationInput => {
-	const input = shape(value, ['email', 'name', 'token', 'expiry', 'revoked', 'accepted'])
-	const until = expiry(input.expiry === undefined ? undefined : text(input, 'expiry'))
-	return {
-		email: text(input, 'email')!,
-		...(input.name !== undefined && { name: text(input, 'name', true)! }),
-		...(input.token !== undefined && { token: text(input, 'token')! }),
-		...(until && { expiry: until }),
-		...(input.revoked !== undefined && { revoked: flag(input, 'revoked')! }),
-		...(input.accepted !== undefined && { accepted: flag(input, 'accepted')! }),
-	}
-}
-
-const signup = (value: unknown): Signup => {
-	if (value !== 'open' && value !== 'invite') return invalid()
-	return value
-}
-
-const countInput = (value: unknown): CountQuery => {
-	const input = shape(value, ['table', 'where', 'value'])
-	const table = input.table
-	const where = input.where
-	const valueOf = input.value
-	const allowed =
-		(table === 'users' && typeof valueOf === 'string' &&
-			(where === 'email = ?' || where === 'email = ? and verified is not null')) ||
-		((table === 'sessions' || table === 'tokens' || table === 'resets') &&
-			where === 'user = ?' && typeof valueOf === 'number' && Number.isSafeInteger(valueOf) && valueOf > 0) ||
-		(table === 'invites' && typeof valueOf === 'string' && [
-			'email = ?',
-			'email = ? and accepted is not null',
-			'email = ? and revoked is not null',
-			'email = ? and accepted is null and revoked is null',
-		].includes(where as string))
-
-	if (!allowed) return invalid()
-	return input as unknown as CountQuery
-}
-
-const operation = (value: unknown): FixtureOperation => {
-	const input = object(value)
-	if (typeof input.op !== 'string') return invalid()
-
-	switch (input.op) {
-		case 'seed':
-		case 'getRegistration':
-		case 'mailClear':
-			if (Object.keys(input).length !== 1) return invalid()
-			return { op: input.op }
-		case 'makeUser':
-			if (Object.keys(input).length !== 2) return invalid()
-			return { op: input.op, input: makeInput(input.input) }
-		case 'putReset':
-			if (Object.keys(input).length !== 2) return invalid()
-			return { op: input.op, input: resetInput(input.input) }
-		case 'putInvitation':
-			if (Object.keys(input).length !== 2) return invalid()
-			return { op: input.op, input: invitationInput(input.input) }
-		case 'setRegistration':
-			if (Object.keys(input).length !== 2) return invalid()
-			return { op: input.op, signup: signup(input.signup) }
-		case 'count':
-			if (Object.keys(input).length !== 2) return invalid()
-			return { op: input.op, query: countInput(input.query) }
-		case 'verificationPath':
-			if (Object.keys(input).length !== 2) return invalid()
-			return { op: input.op, user: id(input.user) }
-		case 'mailLast': {
-			const value = shape(input, ['op', 'to'])
-			return { op: input.op, ...(value.to !== undefined && { to: text(value, 'to')! }) }
-		}
-		default:
-			return invalid()
-	}
-}
 
 const authorized = (req: Request) => {
 	const expected = env('AJO_E2E_CONTROL')
@@ -322,33 +185,28 @@ const getRegistration = async () => {
 	return row.signup
 }
 
-const count = async (query: CountQuery): Promise<number> => {
-	let result: { count: number | bigint | string | null }
+const total = async (query: { executeTakeFirstOrThrow(): Promise<{ count: number | bigint | string }> }) =>
+	Number((await query.executeTakeFirstOrThrow()).count)
 
-	if (query.table === 'users') {
-		let request = db().selectFrom('users').select(db().fn.countAll().as('count')).where('email', '=', query.value)
-		if (query.where.endsWith('verified is not null')) request = request.where('verified', 'is not', null)
-		result = await request.executeTakeFirstOrThrow()
-	} else if (query.table === 'sessions') {
-		result = await db().selectFrom('sessions').select(db().fn.countAll().as('count'))
-			.where('user', '=', query.value).executeTakeFirstOrThrow()
-	} else if (query.table === 'tokens') {
-		result = await db().selectFrom('tokens').select(db().fn.countAll().as('count'))
-			.where('user', '=', query.value).executeTakeFirstOrThrow()
-	} else if (query.table === 'resets') {
-		result = await db().selectFrom('resets').select(db().fn.countAll().as('count'))
-			.where('user', '=', query.value).executeTakeFirstOrThrow()
-	} else {
-		let request = db().selectFrom('invites').select(db().fn.countAll().as('count'))
-			.where('email', '=', String(query.value))
-		if (query.where.includes('accepted is not null')) request = request.where('accepted', 'is not', null)
-		if (query.where.includes('accepted is null')) request = request.where('accepted', 'is', null)
-		if (query.where.includes('revoked is not null')) request = request.where('revoked', 'is not', null)
-		if (query.where.includes('revoked is null')) request = request.where('revoked', 'is', null)
-		result = await request.executeTakeFirstOrThrow()
+const count = ({ table, user, email, accepted, revoked, verified }: CountQuery) => {
+	const all = db().fn.countAll().as('count')
+	const set = (value: boolean) => value ? 'is not' : 'is'
+
+	switch (table) {
+		case 'users':
+			return total(db().selectFrom('users').select(all).where('email', '=', email!)
+				.$if(verified !== undefined, query => query.where('verified', set(verified!), null)))
+		case 'sessions':
+			return total(db().selectFrom('sessions').select(all).where('user', '=', user!))
+		case 'tokens':
+			return total(db().selectFrom('tokens').select(all).where('user', '=', user!))
+		case 'resets':
+			return total(db().selectFrom('resets').select(all).where('user', '=', user!))
+		case 'invites':
+			return total(db().selectFrom('invites').select(all).where('email', '=', email!)
+				.$if(accepted !== undefined, query => query.where('accepted', set(accepted!), null))
+				.$if(revoked !== undefined, query => query.where('revoked', set(revoked!), null)))
 	}
-
-	return Number(result.count)
 }
 
 const dispatch = async (input: FixtureOperation) => {
@@ -397,6 +255,6 @@ const dispatch = async (input: FixtureOperation) => {
 export default {
 	async post(req: Request, res: Response) {
 		if (!authorized(req)) throw new Failure(404, 'Not found')
-		send(res, 200, await dispatch(operation(req.body)))
+		send(res, 200, await dispatch(req.body as FixtureOperation))
 	},
 }

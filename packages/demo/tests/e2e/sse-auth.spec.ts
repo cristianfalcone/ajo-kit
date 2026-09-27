@@ -1,111 +1,9 @@
 import { createHash } from 'node:crypto'
-import { get, type ClientRequest, type IncomingMessage } from 'node:http'
 import { expect, request, test } from './test'
-import { proof, admin as creds, make, login } from './helpers'
-
-type Stream = {
-	req: ClientRequest
-	res: IncomingMessage
-	messages: string[]
-	waitForMessage: (timeout?: number) => Promise<string>
-	waitForClose: (timeout?: number) => Promise<void>
-	close: () => void
-}
-
-const wait = <T,>(promise: Promise<T>, timeout: number, message: string) =>
-	new Promise<T>((resolve, reject) => {
-		const timer = setTimeout(() => reject(new Error(message)), timeout)
-		promise.then(
-			value => {
-				clearTimeout(timer)
-				resolve(value)
-			},
-			error => {
-				clearTimeout(timer)
-				reject(error)
-			}
-		)
-	})
+import { proof, admin as creds, login, open, type Stream } from './helpers'
 
 const cookie = (state: { cookies: Array<{ name: string; value: string }> }) =>
 	state.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
-
-const open = (base: string, path: string, cookie: string) =>
-	new Promise<Stream>((resolve, reject) => {
-		let settled = false
-		const req = get(new URL(path, base), {
-			headers: {
-				Accept: 'text/event-stream',
-				Cookie: cookie,
-			}
-		}, res => {
-			const messages: string[] = []
-			const waiters: Array<(message: string) => void> = []
-			let buffer = ''
-			let ended = false
-			let release!: () => void
-			const closed = new Promise<void>(resolve => { release = resolve })
-
-			const done = () => {
-				if (ended) return
-				ended = true
-				release()
-			}
-
-			res.setEncoding('utf8')
-			res.on('data', chunk => {
-				buffer += chunk
-
-				for (let index = buffer.indexOf('\n\n'); index >= 0; index = buffer.indexOf('\n\n')) {
-					const raw = buffer.slice(0, index)
-					buffer = buffer.slice(index + 2)
-					const data = raw
-						.split('\n')
-						.filter(line => line.startsWith('data:'))
-						.map(line => line.slice(5).trimStart())
-						.join('\n')
-
-					if (!data) continue
-
-					messages.push(data)
-					const waiter = waiters.shift()
-					waiter?.(data)
-				}
-			})
-			res.on('end', done)
-			res.on('close', done)
-
-			settled = true
-			resolve({
-				req,
-				res,
-				messages,
-				waitForMessage: (timeout = 5_000) => {
-					if (messages.length > 0) return Promise.resolve(messages[0])
-					return wait(new Promise<string>(resolve => waiters.push(resolve)), timeout, 'Timed out waiting for SSE message')
-				},
-				waitForClose: (timeout = 5_000) =>
-					wait(closed, timeout, 'Timed out waiting for SSE close'),
-				close: () => {
-					req.destroy()
-					res.destroy()
-				},
-			})
-		})
-
-		req.setTimeout(5_000, () => {
-			if (settled) return
-			settled = true
-			req.destroy()
-			reject(new Error('Timed out opening SSE stream'))
-		})
-		req.on('error', error => {
-			if (!settled) {
-				settled = true
-				reject(error)
-			}
-		})
-	})
 
 const hash = (plain: string) => createHash('sha256').update(plain).digest('hex')
 
@@ -136,7 +34,7 @@ test('SSE updates private routes while the session remains valid', async ({ base
 test('SSE closes without revalidating private data after its session is revoked', async ({ baseURL: base, fixture }) => {
 	const email = `sse-revoke-${Date.now()}@example.com`
 	const credentials = { email, password: 'password' }
-	await make(fixture, { email, name: 'SSE Revoked User' })
+	await fixture.makeUser({ email, name: 'SSE Revoked User' })
 
 	const root = await request.newContext({ baseURL: base })
 	const client = await request.newContext({ baseURL: base })
@@ -163,9 +61,8 @@ test('SSE closes without revalidating private data after its session is revoked'
 		await expect(revoke.json()).resolves.toMatchObject({ revoked: true })
 
 		await stream.waitForClose()
-		// The dead credential announces itself before the close — one expired
-		// frame with an empty body — and nothing else may travel: a
-		// revalidated payload would carry data and a hash, which `{}` cannot.
+		// A revoked session gets one expired frame with an empty body, then the close.
+		// A revalidated payload would carry data and a hash, which `{}` cannot.
 		expect(stream.messages).toEqual(['{}'])
 	} finally {
 		stream?.close()

@@ -1,19 +1,9 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig as config } from '@playwright/test'
+import base from './playwright.config'
 
-export default defineConfig({
-	testDir: './tests/e2e',
-	globalSetup: './tests/e2e/global-setup.ts',
-	timeout: 30_000,
-	expect: { timeout: 5_000 },
-	workers: 1,
-	use: { trace: 'on-first-retry' },
-	projects: [
-		{
-			name: 'ajo',
-			use: {
-				...devices['Desktop Chrome'],
-				baseURL: 'http://127.0.0.1:8080',
-			},
-		},
-	],
+export default config({
+	...base,
+	use: { ...base.use, baseURL: 'http://127.0.0.1:8080' },
+	projects: [{ ...base.projects![0], name: 'ajo' }],
+	webServer: undefined,
 })

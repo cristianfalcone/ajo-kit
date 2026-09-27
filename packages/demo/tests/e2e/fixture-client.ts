@@ -23,18 +23,15 @@ export interface InvitationInput {
 	accepted?: boolean
 }
 
-export type CountQuery =
-	| { table: 'users'; where: 'email = ?' | 'email = ? and verified is not null'; value: string }
-	| { table: 'sessions' | 'tokens' | 'resets'; where: 'user = ?'; value: number }
-	| {
-		table: 'invites'
-		where:
-			| 'email = ?'
-			| 'email = ? and accepted is not null'
-			| 'email = ? and revoked is not null'
-			| 'email = ? and accepted is null and revoked is null'
-		value: string
-	}
+/** Counts rows of one table by owner or email; each flag filters on its timestamp being set or not. */
+export interface CountQuery {
+	table: 'users' | 'sessions' | 'tokens' | 'resets' | 'invites'
+	user?: number
+	email?: string
+	accepted?: boolean
+	revoked?: boolean
+	verified?: boolean
+}
 
 export interface FixtureMail {
 	to: string

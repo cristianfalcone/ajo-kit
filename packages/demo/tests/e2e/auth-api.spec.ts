@@ -1,5 +1,4 @@
 import { expect, test } from './test'
-import { make } from './helpers'
 
 test('bearer API covers login, me, token create/list/delete and logout', async ({ request }) => {
 	const res = await request.post('/api/login', {
@@ -92,7 +91,7 @@ test('bearer API covers login, me, token create/list/delete and logout', async (
 
 test('api login token is bounded by non-admin account abilities', async ({ request, fixture }) => {
 	const email = `api-member-${Date.now()}@example.com`
-	await make(fixture, { email, name: 'API Member' })
+	await fixture.makeUser({ email, name: 'API Member' })
 
 	const res = await request.post('/api/login', {
 		data: {
