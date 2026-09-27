@@ -1,7 +1,8 @@
-import { readFile, readdir } from 'node:fs/promises'
-import { isAbsolute, resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
+import { dirname, isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import ts from 'typescript'
 import { build } from 'vite'
 
 type Manifest = {
@@ -11,8 +12,7 @@ type Manifest = {
 }
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
-const compiler = ts.parseJsonConfigFileContent(
-	ts.readConfigFile(resolve(root, 'tsconfig.json'), ts.sys.readFile).config, ts.sys, root).options
+const tsc = resolve(dirname(createRequire(import.meta.url).resolve('typescript/package.json')), 'bin/tsc')
 
 const external = (id: string) =>
 	id.startsWith('node:') ||
@@ -23,31 +23,27 @@ const external = (id: string) =>
 // name the runtime file so NodeNext consumers resolve them.
 const relativeModule = /((?:from|import)\s*(?:\(\s*)?)(['"])(\.\.?\/[^'"]+)\2/g
 
-const declarations = (name: string, directory: string, sources: string[]) => {
-	const program = ts.createProgram({
-		rootNames: sources,
-		options: {
-			...compiler,
-			declaration: true,
-			emitDeclarationOnly: true,
-			noEmit: false,
-			outDir: resolve(directory, 'dist'),
-			rootDir: resolve(directory, 'src'),
-		},
-	})
-	const emitted = program.emit(undefined, (file, contents, byteOrderMark) =>
-		ts.sys.writeFile(file, contents.replace(relativeModule, '$1$2$3.js$2'), byteOrderMark))
-	const diagnostics = [
-		...ts.getPreEmitDiagnostics(program),
-		...emitted.diagnostics,
-	].filter(diagnostic => diagnostic.category === ts.DiagnosticCategory.Error)
-	if (!diagnostics.length) return
-
-	throw new Error(name + ' declaration build failed\n' + ts.formatDiagnosticsWithColorAndContext(diagnostics, {
-		getCanonicalFileName: file => file,
-		getCurrentDirectory: () => root,
-		getNewLine: () => '\n',
+// Declarations come from the tsc CLI over the root options: TypeScript 7
+// ships no JavaScript compiler API.
+const declarations = async (directory: string, sources: string[]) => {
+	const outDir = resolve(directory, 'dist')
+	const project = resolve(directory, 'tsconfig.declarations.json')
+	await writeFile(project, JSON.stringify({
+		extends: resolve(root, 'tsconfig.json'),
+		compilerOptions: { declaration: true, emitDeclarationOnly: true, noEmit: false, outDir, rootDir: resolve(directory, 'src') },
+		files: sources,
+		include: [],
 	}))
+	try {
+		execFileSync(process.execPath, [tsc, '-p', project], { stdio: 'inherit' })
+	} finally {
+		await rm(project)
+	}
+	for (const file of await readdir(outDir, { recursive: true })) {
+		if (!file.endsWith('.d.ts')) continue
+		const path = resolve(outDir, file)
+		await writeFile(path, (await readFile(path, 'utf8')).replace(relativeModule, '$1$2$3.js$2'))
+	}
 }
 
 for (const name of process.argv.slice(2)) {
@@ -106,7 +102,7 @@ for (const name of process.argv.slice(2)) {
 			target: 'esnext',
 		},
 	})
-	declarations(name, directory, [
+	await declarations(directory, [
 		...Object.values(manifest.exports).map(entry => source(entry.types)),
 		...imports.map(conditions => source(conditions.types)),
 		...(name === 'ajo-kit' ? [source('src/runtime.d.ts')] : []),

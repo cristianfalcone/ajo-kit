@@ -43,7 +43,7 @@ test('the manifest declares only direct runtime ownership and the Ajo host contr
 	expect(metadata.sideEffects).toBe(false)
 	expect(metadata.dependencies).toEqual({
 		'@floating-ui/dom': '1.8.0',
-		'@tanstack/virtual-core': '3.17.4',
+		'@tanstack/virtual-core': '3.17.11',
 		'ajo-cloves': 'workspace:^',
 	})
 	expect(metadata.peerDependencies).toEqual({ ajo: '^0.1.35' })

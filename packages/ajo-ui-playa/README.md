@@ -6,10 +6,10 @@ Themed Ajo component library and UnoCSS preset.
 
 ```bash
 pnpm add ajo ajo-ui-playa
-pnpm add -D unocss@66.7.2
+pnpm add -D unocss@66.10.5
 ```
 
-`ajo-ui-playa` requires `ajo ^0.1.35` and `unocss 66.7.2`.
+`ajo-ui-playa` requires `ajo ^0.1.35` and `unocss 66.10.5`.
 
 ## UnoCSS Setup
 

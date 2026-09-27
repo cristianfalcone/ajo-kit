@@ -4,13 +4,13 @@ autoInstallPeers: false
 allowBuilds:
   argon2: true
   better-sqlite3: true
+  better-sqlite3@13.0.3: false
   esbuild: true
 minimumReleaseAgeExclude:
   - ajo-kit@0.3.2
   - ajo-kit-auth@0.6.1
   - ajo-kit-server@0.1.1
   - ajo@0.1.35
-  - '@tanstack/virtual-core@3.17.4'
   - ajo-kit-mail@0.3.0
   - ajo-cloves@0.1.2
   - ajo-ui@0.1.2

@@ -272,21 +272,21 @@
     }
   },
   "dependencies": {
-    "@iconify-json/lucide": "1.2.113",
+    "@iconify-json/lucide": "1.2.136",
     "ajo-ui": "workspace:^"
   },
   "peerDependencies": {
     "ajo": "^0.1.35",
-    "unocss": "66.7.2"
+    "unocss": "66.10.5"
   },
   "devDependencies": {
     "ajo": "0.1.35",
     "ajo-cloves": "workspace:*",
-    "playwright": "1.61.0",
+    "playwright": "1.63.0",
     "sade": "1.8.1",
-    "tsx": "4.22.4",
-    "unocss": "66.7.2",
-    "vite": "8.0.16"
+    "tsx": "4.23.15",
+    "unocss": "66.10.5",
+    "vite": "8.3.1"
   },
   "engines": {
     "node": ">=22.18.0"

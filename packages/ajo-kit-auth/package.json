@@ -41,7 +41,7 @@
     }
   },
   "dependencies": {
-    "argon2": "^0.44.0"
+    "argon2": "0.44.0"
   },
   "devDependencies": {
     "ajo-kit": "workspace:^"

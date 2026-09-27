@@ -38,13 +38,12 @@
     }
   },
   "devDependencies": {
-    "@types/nodemailer": "^7.0.0",
     "ajo-kit": "workspace:^",
-    "nodemailer": "^7.0.0"
+    "nodemailer": "10.0.10"
   },
   "peerDependencies": {
     "ajo-kit": "workspace:^",
-    "nodemailer": "^7.0.0"
+    "nodemailer": "^10.0.10"
   },
   "peerDependenciesMeta": {
     "nodemailer": {

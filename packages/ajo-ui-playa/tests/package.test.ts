@@ -85,11 +85,11 @@ test('families export named components without defaults', async () => {
 test('the manifest keeps build-time peers and runtime ownership explicit', () => {
 	expect(metadata.sideEffects).toBe(false)
 	expect(metadata.dependencies).toEqual({
-		'@iconify-json/lucide': '1.2.113',
+		'@iconify-json/lucide': '1.2.136',
 		'ajo-ui': 'workspace:^',
 	})
 	expect(metadata.peerDependencies).toEqual({
 		ajo: '^0.1.35',
-		unocss: '66.7.2',
+		unocss: '66.10.5',
 	})
 })

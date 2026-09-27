@@ -174,7 +174,7 @@ const startRegistry = async (directory: string, port: number) => {
 		'',
 	].join('\n'))
 
-	const child = spawn(process.execPath, [require.resolve('verdaccio/bin/verdaccio'), '--config', config], {
+	const child = spawn(process.execPath, [join(dirname(require.resolve('verdaccio/package.json')), 'bin/verdaccio'), '--config', config], {
 		cwd: directory,
 		env: { ...process.env, NO_COLOR: '1' },
 		stdio: ['ignore', 'pipe', 'pipe'],
@@ -274,7 +274,7 @@ const project = async (directory: string, registry: string, sources: Record<stri
 	await write(join(directory, 'pnpm-workspace.yaml'), [
 		'allowBuilds:',
 		'  argon2: true',
-		'  better-sqlite3: true',
+		'  better-sqlite3: false',
 		'  esbuild: true',
 		'minimumReleaseAgeExclude:',
 		...packages.map(({ name, version }) => `  - ${name}@${version}`),
@@ -544,7 +544,7 @@ const main = async () => {
 		assert.equal(manifest('ajo-kit-mail').peerDependencies?.['ajo-kit'], `^${versions['ajo-kit']}`)
 		// nodemailer is smtp-only: it stays an optional peer, or every http and
 		// capture consumer under strict peers is forced to install it.
-		assert.equal(manifest('ajo-kit-mail').peerDependencies?.nodemailer, '^7.0.0')
+		assert.equal(manifest('ajo-kit-mail').peerDependencies?.nodemailer, '^10.0.10')
 		assert.equal(manifest('ajo-kit-mail').peerDependenciesMeta?.nodemailer?.optional, true)
 		assert.equal(manifest('ajo-ui').dependencies?.['ajo-cloves'], `^${versions['ajo-cloves']}`)
 		assert.equal(manifest('ajo-ui-playa').dependencies?.['ajo-ui'], `^${versions['ajo-ui']}`)

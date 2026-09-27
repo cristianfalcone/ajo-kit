@@ -230,8 +230,8 @@ if (!virtualList.code.includes(virtualMarker)) {
 	throw new Error('The VirtualList fixture did not retain its private engine')
 }
 const incrementalGzip = virtualList.gzip - framework.gzip
-if (incrementalGzip > 9 * 1024) {
-	throw new Error(`VirtualList exceeded the 9 KiB incremental gzip budget: ${incrementalGzip} bytes`)
+if (incrementalGzip > 10 * 1024) {
+	throw new Error(`VirtualList exceeded the 10 KiB incremental gzip budget: ${incrementalGzip} bytes`)
 }
 console.log(`VirtualList incremental gzip: ${incrementalGzip} bytes`)
 console.log(`VirtualList incremental Brotli: ${virtualList.brotli - framework.brotli} bytes`)

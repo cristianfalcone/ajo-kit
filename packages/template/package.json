@@ -38,13 +38,13 @@
     "ajo-ui-playa": "0.1.2"
   },
   "devDependencies": {
-    "@playwright/test": "1.61.0",
-    "@types/node": "25.9.3",
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.6.3",
     "ajo-kit-server": "0.1.1",
     "typescript": "6.0.3",
     "unocss": "66.7.2",
-    "vite": "8.0.16",
-    "vitest": "4.1.9"
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
   },
   "engines": {
     "node": ">=22.18.0"

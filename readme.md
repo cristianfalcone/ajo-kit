@@ -62,7 +62,7 @@ state contracts, styling hooks, localization, and component utilities.
 
 ```bash
 pnpm add ajo ajo-ui-playa
-pnpm add -D unocss@66.7.2
+pnpm add -D unocss@66.10.5
 ```
 
 See the [`ajo-ui-playa` guide](packages/ajo-ui-playa/README.md) for UnoCSS
