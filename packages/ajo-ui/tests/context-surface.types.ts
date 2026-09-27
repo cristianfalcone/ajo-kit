@@ -55,6 +55,7 @@ export const leakedFieldReset = fieldValue.reset
 // @ts-expect-error The invalid state comes from Field args only.
 export const leakedFieldSync = fieldValue.sync
 
+export const carouselScrollTo: (index: number) => void = carouselValue.scrollTo
 // @ts-expect-error Viewport registration is private to Carousel parts.
 export const leakedCarouselRegistrar = carouselValue.setViewport
 // @ts-expect-error DOM registration is private to MessageScroller parts.
@@ -62,6 +63,8 @@ export const leakedMessageScrollerRegistrar = messageScrollerValue.setViewport
 
 // @ts-expect-error CarouselPartsContext is module-private.
 export const leakedCarouselPartsContext = carousel.CarouselPartsContext
+// @ts-expect-error CarouselContext is the one Carousel controller; there is no separate API.
+export type LeakedCarouselApi = import('ajo-ui/carousel').CarouselApi
 // @ts-expect-error The full ChartContext is module-private.
 export const leakedChartContext = chart.ChartContext
 // @ts-expect-error MessageScrollerPartsContext is module-private.

@@ -4,13 +4,13 @@ import type { Meta, Story } from './app'
 import { Card, CardContent } from 'ajo-ui-playa/card'
 import {
 	Carousel,
-	type CarouselApi,
 	CarouselContext,
 	CarouselContent,
 	CarouselItem,
 	CarouselNext,
 	CarouselPrevious,
 } from 'ajo-ui-playa/carousel'
+import { DirectionProvider } from 'ajo-ui-playa/direction'
 
 export default {
 	title: 'UI/Carousel',
@@ -43,40 +43,28 @@ const Slide = ({ value, vertical = false }: { value: number; vertical?: boolean 
 	</div>
 )
 
-const ApiDemo: Stateful = function* () {
-	let api: CarouselApi | undefined
-	let current = 0
-	let count = 0
+const Readout = () => {
+	const carousel = CarouselContext()
 
-	const sync = () => this.next(() => {
-		current = api ? api.selectedScrollSnap() + 1 : 0
-		count = api?.scrollSnapList().length ?? 0
-	})
+	return (
+		<p data-carousel-readout="true" class="absolute inset-x-0 -bottom-8 text-center text-sm text-muted-foreground">
+			Slide {carousel ? carousel.selected + 1 : 0} of {carousel?.count ?? 0}
+		</p>
+	)
+}
 
-	const setApi = (next: CarouselApi) => {
-		api = next
-		next.on('select', sync)
-		next.on('reInit', sync)
-		queueMicrotask(sync)
-	}
+const First = () => {
+	const carousel = CarouselContext()
 
-	while (true) yield (
-		<div class="grid gap-4">
-			<Carousel opts={{ loop: true }} setApi={setApi} class="w-full max-w-xs">
-				<CarouselContent>
-					{[1, 2, 3].map(value => (
-						<CarouselItem key={value}>
-							<Slide value={value} />
-						</CarouselItem>
-					))}
-				</CarouselContent>
-				<CarouselPrevious />
-				<CarouselNext />
-			</Carousel>
-			<p data-carousel-readout="true" class="text-center text-sm text-muted-foreground">
-				Slide {current} of {count}
-			</p>
-		</div>
+	return (
+		<button
+			class="absolute inset-x-0 -top-8 text-sm underline"
+			data-carousel-first
+			set:onclick={() => carousel?.scrollTo(0)}
+			type="button"
+		>
+			First slide
+		</button>
 	)
 }
 
@@ -108,7 +96,7 @@ const RenderBudgetDemo: Stateful = function* () {
 			>
 				Toggle loop
 			</button>
-			<Carousel class="w-full max-w-xs" opts={{ loop }}>
+			<Carousel class="w-full max-w-xs" loop={loop}>
 				<CarouselContent>
 					<CarouselItem><Slide value={1} /></CarouselItem>
 					<CarouselItem><Slide value={2} /></CarouselItem>
@@ -245,19 +233,33 @@ export const Vertical: Story = {
 	},
 }
 
-export const LoopingApi: Story = {
-	name: 'Looping API',
-	render: () => <ApiDemo />,
+export const Looping: Story = {
+	render: () => (
+		<Carousel loop class="my-8 w-full max-w-xs">
+			<CarouselContent>
+				{[1, 2, 3].map(value => (
+					<CarouselItem key={value}>
+						<Slide value={value} />
+					</CarouselItem>
+				))}
+			</CarouselContent>
+			<CarouselPrevious />
+			<CarouselNext />
+			<First />
+			<Readout />
+		</Carousel>
+	),
 	play: async ({ canvas }) => {
 		await nextFrame()
 		await wait(80)
 
 		const readout = canvas.querySelector<HTMLElement>('[data-carousel-readout]')
 		const previous = canvas.querySelector<HTMLButtonElement>('[data-slot="carousel-previous"]')
-		if (!readout || !previous) throw new Error('Carousel API story was not rendered')
+		const first = canvas.querySelector<HTMLButtonElement>('[data-carousel-first]')
+		if (!readout || !previous || !first) throw new Error('Looping carousel story was not rendered')
 
 		if (readout.textContent?.trim() !== 'Slide 1 of 3' || previous.disabled) {
-			throw new Error('Carousel API did not expose initial loop state')
+			throw new Error('Carousel context did not expose initial loop state')
 		}
 
 		previous.click()
@@ -266,6 +268,73 @@ export const LoopingApi: Story = {
 		if (readout.textContent?.trim() !== 'Slide 3 of 3') {
 			throw new Error('Looping carousel did not wrap to the last slide')
 		}
+
+		first.click()
+		await wait(250)
+
+		if (readout.textContent?.trim() !== 'Slide 1 of 3') {
+			throw new Error('Carousel context scrollTo did not reach the first slide')
+		}
+	},
+}
+
+export const RightToLeft: Story = {
+	name: 'Right to Left',
+	render: () => (
+		<DirectionProvider dir="rtl">
+			<Carousel class="mb-8 w-full max-w-xs">
+				<CarouselContent>
+					{numbers.map(value => (
+						<CarouselItem key={value}>
+							<Slide value={value} />
+						</CarouselItem>
+					))}
+				</CarouselContent>
+				<CarouselPrevious />
+				<CarouselNext />
+				<Readout />
+			</Carousel>
+		</DirectionProvider>
+	),
+	play: async ({ canvas }) => {
+		await nextFrame()
+		await wait(50)
+
+		const root = canvas.querySelector<HTMLElement>('[data-slot="carousel"]')
+		const track = canvas.querySelector<HTMLElement>('[data-slot="carousel-track"]')
+		const previous = canvas.querySelector<HTMLButtonElement>('[data-slot="carousel-previous"]')
+		const next = canvas.querySelector<HTMLButtonElement>('[data-slot="carousel-next"]')
+		const readout = canvas.querySelector<HTMLElement>('[data-carousel-readout]')
+		if (!root || !track || !previous || !next || !readout) throw new Error('RTL carousel was not rendered')
+
+		const slide = () => readout.textContent?.trim()
+		const key = async (name: string) => {
+			root.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: name }))
+			await wait(250)
+		}
+
+		if (root.getAttribute('dir') !== 'rtl') throw new Error('Carousel did not inherit rtl from DirectionProvider')
+		if (slide() !== 'Slide 1 of 5' || !previous.disabled || next.disabled) {
+			throw new Error('RTL carousel did not start on the first slide')
+		}
+		if (previous.getBoundingClientRect().left <= next.getBoundingClientRect().left) {
+			throw new Error('RTL carousel did not place previous on the inline start side')
+		}
+		if (getComputedStyle(previous.querySelector('[aria-hidden]')!).rotate !== '180deg') {
+			throw new Error('RTL carousel did not flip the previous arrow')
+		}
+
+		await key('ArrowLeft')
+		if (track.scrollLeft >= 0 || slide() !== 'Slide 2 of 5' || previous.disabled) {
+			throw new Error('ArrowLeft did not advance the RTL carousel')
+		}
+
+		next.click()
+		await wait(250)
+		if (slide() !== 'Slide 3 of 5') throw new Error('RTL next button did not select the centered slide')
+
+		await key('ArrowRight')
+		if (slide() !== 'Slide 2 of 5') throw new Error('ArrowRight did not go back in the RTL carousel')
 	},
 }
 
@@ -285,12 +354,16 @@ export const RenderBudget: Story = {
 			throw new Error('Carousel render-budget fixture was not rendered')
 		}
 
+		// Each slide is one track wide; `position` is the slide scrolled into view.
 		let position = 0
-		Object.defineProperty(track, 'clientWidth', { configurable: true, value: 100 })
-		Object.defineProperty(track, 'scrollLeft', { configurable: true, get: () => position })
 		items.forEach((item, index) => {
-			Object.defineProperty(item, 'offsetLeft', { configurable: true, value: index * 100 })
-			Object.defineProperty(item, 'offsetWidth', { configurable: true, value: 100 })
+			Object.defineProperty(item, 'getBoundingClientRect', {
+				configurable: true,
+				value: () => {
+					const view = track.getBoundingClientRect()
+					return new DOMRect(view.left + (index - position) * view.width, view.top, view.width, view.height)
+				},
+			})
 		})
 
 		const probe = () => {
@@ -313,7 +386,7 @@ export const RenderBudget: Story = {
 			throw new Error('Same-slide scroll re-rendered the Carousel subtree')
 		}
 
-		position = 100
+		position = 1
 		await flushScroll()
 		if (
 			Number(probe().dataset.carouselRenderCount) !== baseline + 1
