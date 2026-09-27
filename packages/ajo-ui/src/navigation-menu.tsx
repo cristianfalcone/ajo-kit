@@ -251,9 +251,9 @@ const NavigationMenuItemRoot: Stateful<NavigationMenuItemArgs, 'li'> = function*
 	})
 
 	// Open cause decides what a trigger press does to an open panel: only a
-	// hover-opened panel holds through the press that follows (the
-	// hover→click race, the recorded deviation); a press- or keyboard-opened
-	// panel closes.
+	// hover-opened panel holds through the press that follows, so hovering
+	// then clicking a trigger keeps its panel open; a press- or
+	// keyboard-opened panel closes.
 	let cause: 'hover' | 'press' | '' = ''
 
 	const registerTriggerHover = (hovering: boolean, event: Event) => {
@@ -384,8 +384,7 @@ const NavigationMenuTrigger: Stateless<NavigationMenuTriggerArgs> = ({
 				callHandler(onClick, event)
 				if (event.defaultPrevented || disabledFlag) return
 				// Clicking a closed trigger opens immediately; a hover-opened
-				// panel holds through its first click (the hover→click race);
-				// any other open panel closes.
+				// panel holds through its first click; any other open panel closes.
 				item?.clickTrigger(event)
 			}}
 			set:onfocus={(event: FocusEvent) => {
@@ -495,8 +494,7 @@ const NavigationMenuLink: Stateless<NavigationMenuLinkArgs> = ({
 	)
 }
 
-// NavigationMenu uses per-item anchored panels. Its themed surface lives on
-// NavigationMenuContent; there is no shared Viewport or Indicator contract.
+// Each NavigationMenuContent is its own anchored panel and themed surface.
 
 export {
 	NavigationMenu,

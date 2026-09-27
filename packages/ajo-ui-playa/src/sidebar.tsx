@@ -192,9 +192,7 @@ const SidebarFooter: Stateless<SidebarFooterArgs> = ({ class: classes, ...attrs 
 	<BaseSidebarFooter {...attrs} class={clsx('flex flex-col gap-2 p-2', classes)} />
 )
 
-// Composes Separator so the horizontal rule keeps its h-px (lost in the old
-// hand copy, which left the themed separator invisible).
-/** Themed divider between sidebar regions. */
+/** Themed divider between sidebar regions; Separator supplies its 1px rule. */
 const SidebarSeparator: Stateless<SidebarSeparatorArgs> = ({ class: classes, ...attrs }) => (
 	<Separator {...attrs} class={clsx('mx-2 w-auto', classes)} />
 )

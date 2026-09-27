@@ -269,7 +269,7 @@ const Sidebar: Stateless<SidebarArgs> = ({
 				open={ctx.openMobile}
 				side={side}
 				// Keeps the Drawer/Dialog wrapper divs out of the provider's flow so
-				// the closed drawer occupies no space (the old <dialog> was UA-hidden).
+				// the closed drawer occupies no space.
 				style="position:fixed"
 			>
 				<DrawerContent

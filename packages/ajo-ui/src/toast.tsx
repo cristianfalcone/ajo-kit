@@ -506,8 +506,8 @@ const Toaster: Stateful<ToasterArgs> = function* () {
 	// from the accessibility tree. The outlet carries `skip`, so the dialog's
 	// own tree never reconciles the portal DOM. The root viewports meanwhile
 	// stay shown-but-empty, keeping their polite live regions alive for the
-	// next root-rendered toast. Modals without an outlet (raw dialogs) keep
-	// the old visible-but-inert behavior.
+	// next root-rendered toast. Under a modal without an outlet (a raw
+	// dialog) the root toasts stay visible but inert.
 	const portalOutlet = (dialog: HTMLDialogElement) =>
 		Array.from(dialog.querySelectorAll<HTMLElement>('[data-slot="dialog-portal"]'))
 			.find(element => element.closest('dialog') === dialog) ?? null

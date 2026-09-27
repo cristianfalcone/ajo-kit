@@ -68,8 +68,10 @@ import type { FixedArgs, OmitArg } from 'ajo-ui/utils'
 | `bool` | Parses boolean-ish attribute input (`true`, `''`, `'true'`) |
 | `stlx` | Joins declaration strings and property objects into an inline style |
 
-Popup families export `PopupPlacement` and `PopupPosition` next to the
-components that take `placement` and `gap`.
+The types of the `placement` and `gap` args, `PopupPlacement` and
+`PopupPosition`, come from `ajo-ui/popover`, `ajo-ui/tooltip`, `ajo-ui/menu`,
+`ajo-ui/menubar`, `ajo-ui/navigation-menu`, `ajo-ui/select` and
+`ajo-ui/input-date`.
 
 ## Fields
 
@@ -85,9 +87,26 @@ passed to a control win over the field's. Custom controls spread
 ## Styling
 
 Components render semantic elements, ARIA attributes, `data-slot` markers, and
-state attributes. Apply visual styles through `class`, family class maps such
-as the `classNames` of Calendar, DataTable and the InputDate family, and state
-attributes (Calendar stamps day state on its day button).
+state attributes, and no visual styles. One rule themes them:
+
+- Every part takes `class` for the element it renders.
+- Nodes a caller does not compose, such as `[data-slot="command-input-icon"]`
+  or `[data-slot="menu-item-indicator"]`, are styled through their `data-slot`
+  and state attributes.
+- Calendar, the InputDate family and DataTable render parts of other families,
+  so each also takes one `classNames` map keyed by part name. Calendar day
+  state is on its day button as `data-*` attributes.
+
+The native-input controls also take class args for their inner nodes, which
+carry `data-slot` too: `inputClass` on Checkbox, Switch, RadioGroupItem,
+Slider and InputOTP; `indicatorClass` on Checkbox and RadioGroupItem;
+`thumbClass` on Switch and Slider; `trackClass` and `rangeClass` on Slider;
+`caretClass` and `caretMarkClass` on InputOTPSlot. `mobileClass` replaces
+`class` on Sidebar's mobile drawer panel.
+
+A theme rule keyed on a state attribute, such as `[data-side="right"]`, is
+more specific than a plain class on the same element. Override it under the
+same selector.
 
 Boolean state attributes use `data-x="true"` when active. Common
 `data-state` values include `open`, `closed`, `checked`, `unchecked`,
@@ -127,5 +146,4 @@ render the same text.
 `DirectionProvider` supplies the default text direction. Components with
 horizontal keyboard navigation also accept a `dir` override.
 
-Component-family subpaths and root imports are side-effect-free and
-tree-shakeable.
+Component-family subpaths are side-effect-free and tree-shakeable.
