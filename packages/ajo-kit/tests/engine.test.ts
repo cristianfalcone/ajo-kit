@@ -205,7 +205,7 @@ describe('ajo engine bootstrap', () => {
 		expect(response.headers).toMatchObject({
 			'cache-control': 'max-age=60',
 			'x-content-type-options': 'nosniff',
-			'strict-transport-security': 'max-age=31536000; includeSubDomains',
+			'strict-transport-security': 'max-age=31536000',
 		})
 		expect(response.headers).not.toHaveProperty('x-ajo-origins')
 		expect((await state.receive!(raw('other.test'))).status).toBe(421)

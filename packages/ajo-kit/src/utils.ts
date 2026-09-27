@@ -390,7 +390,7 @@ export const security = () => ({
 	'Referrer-Policy': 'strict-origin-when-cross-origin',
 	'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
 	'Content-Security-Policy': "frame-ancestors 'none'",
-	...(https() && { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' }),
+	...(https() && { 'Strict-Transport-Security': 'max-age=31536000' }),
 })
 
 /** Writes headers, optionally preserving values already set downstream. */

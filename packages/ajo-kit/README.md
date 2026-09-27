@@ -384,6 +384,11 @@ refuses to start without it and answers `421` to a request whose `Host` does
 not match it. When the host supplies the managed origins manifest through
 `AJO_ORIGINS_FILE`, only the Hosts listed in that manifest are admitted.
 
+In production with an `https` `APP_URL`, every response, static assets
+included, carries `Strict-Transport-Security: max-age=31536000`. The header
+omits `includeSubDomains`, so visiting one App never forces HTTPS on its
+subdomains before their own certificates exist; each App sends its own header.
+
 `db()` connects on first use to `DATABASE_PATH`, or `./database.sqlite` when it
 is unset, so Apps call `connect(path)` only to choose another path. The Ajo
 engine accepts `:memory:` or a file path, which it joins beneath the runtime
