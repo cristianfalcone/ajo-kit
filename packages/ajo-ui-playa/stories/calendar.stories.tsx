@@ -706,23 +706,36 @@ export const LocaleRtl: Story = {
 		month: { description: 'Initial visible month (ISO date)' },
 		weekStartsOn: { control: 'select', options: [0, 1, 2, 3, 4, 5, 6] },
 	},
+	// The direction comes from the page, as a document-level `dir` would give it.
 	render: args => (
-		<Calendar
-			mode="single"
-			defaultMonth={parse(args.month)}
-			locale={args.locale}
-			dir={args.dir}
-			weekStartsOn={args.weekStartsOn}
-			class="rounded-lg edge shadow-xs"
-		/>
+		<div dir={args.dir}>
+			<Calendar
+				mode="single"
+				defaultMonth={parse(args.month)}
+				locale={args.locale}
+				showWeekNumber
+				weekStartsOn={args.weekStartsOn}
+				class="rounded-lg edge shadow-xs"
+			/>
+		</div>
 	),
 	play: async ({ canvas }) => {
 		const calendar = canvas.querySelector<HTMLElement>('[data-slot="calendar"]')
-		if (calendar?.getAttribute('dir') !== 'rtl') {
-			throw new Error('Calendar did not preserve RTL direction')
+		if (!calendar || calendar.hasAttribute('dir') || getComputedStyle(calendar).direction !== 'rtl') {
+			throw new Error('Calendar did not inherit the page direction')
 		}
 		if (!day(canvas, '2026-07-01').textContent?.trim()) {
 			throw new Error('Calendar localized day did not render')
+		}
+
+		const x = (element: Element) => element.getBoundingClientRect().x
+		if (x(day(canvas, '2026-07-16')) >= x(day(canvas, '2026-07-15'))) {
+			throw new Error('Calendar RTL day grid did not run from right to left')
+		}
+		const week = day(canvas, '2026-07-15').closest('[data-slot="calendar-week"]')
+		const number = week?.querySelector('[data-slot="calendar-week-number"]')
+		if (!week || !number || Array.from(week.querySelectorAll('[data-slot="calendar-day"]'), x).some(left => left >= x(number))) {
+			throw new Error('Calendar RTL week numbers did not sit at the inline start')
 		}
 
 		const start = day(canvas, '2026-07-15')

@@ -544,9 +544,15 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 	}
 
 	const nav = roving(this, {
-		items: () => segmentsOf(),
+		// Arrows move on screen, not in the DOM: a mixed-bidi value (an Arabic
+		// time, a Latin range on a right-to-left page) orders them differently.
+		// The sort is stable, so without layout the DOM order stands. It assumes
+		// one line: a theme that wraps the group gets arrows along each left edge.
+		items: () => segmentsOf()
+			.map(item => ({ item, left: item.getBoundingClientRect().left }))
+			.sort((a, b) => a.left - b.left)
+			.map(({ item }) => item),
 		orientation: () => 'horizontal',
-		dir: () => domReady && getComputedStyle(this).direction === 'rtl' ? 'rtl' : 'ltr',
 		loop: () => false,
 		onMove: target => target.focus(),
 	})
@@ -808,6 +814,9 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 				'data-readonly': flag(readOnly),
 				'data-side': side,
 				'data-slot': 'input-date-field',
+				// The locale's direction, not the page's: "9:30 AM" stays LTR in a
+				// right-to-left page, and an Arabic date keeps its day on the right.
+				dir: fields[side].dir,
 				role: 'group',
 			}
 			if (isRange) {
@@ -854,7 +863,14 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 				id: segmentId,
 				role: ios ? 'textbox' : 'spinbutton',
 				spellcheck: 'false',
-				style: 'caret-color:transparent',
+				// Numeric units are LTR embeds: a filled "9:30" is one number run, but
+				// an empty "––" is neutral and a Latin "yyyy" strong LTR, which would
+				// move an Arabic unit across its neighbours. An isolate or a dir reads
+				// "30:9"; the locale's marks and the RLM that derive() puts on a spaced
+				// literal keep the embeds in the group's order.
+				style: unit !== 'dayPeriod'
+					? 'caret-color:transparent;direction:ltr;unicode-bidi:embed'
+					: 'caret-color:transparent',
 				tabindex: disabled ? undefined : '0',
 			}
 			if (!ios) {
@@ -938,8 +954,9 @@ const InputDateRoot: Stateful<InputDateRootArgs> = function* (initial) {
 }
 
 
-// The default composition: the segment control, an addon with the clear
-// button and any calendar trigger, then any calendar popover.
+// The default composition: the segment control (a range runs from the page's
+// inline start), an addon with the clear button and any calendar trigger, then
+// any calendar popover.
 const defaults = ({ classNames, clearable, range }: FamilyArgs, trigger?: Children, content?: Children) => (
 	<>
 		<div class={classNames?.control} data-slot="input-date-control">
@@ -1025,16 +1042,18 @@ const InputDateField: Stateless<InputDateFieldArgs> = ({ class: classes, label, 
 
 	return (
 		<div {...attrs} {...ctx.groupAttrs(current, label)} class={classes} ref={ref}>
+			{/* Inline spans, so the browser's bidi algorithm orders the value as
+			    it does the formatted string ("ص 9:30" in an Arabic group). */}
 			{ctx.field(current).segments.map((segment, index) => segment.editable ? (
 				// Keyed by unit type: a locale flip reorders through ajo's
-				// focus-preserving keyed path instead of repurposing the focused div.
-				<div key={segment.type} {...ctx.segmentAttrs(current, segment, label)} class={ctx.classNames?.segment}>
+				// focus-preserving keyed path instead of repurposing the focused span.
+				<span key={segment.type} {...ctx.segmentAttrs(current, segment, label)} class={ctx.classNames?.segment}>
 					{ctx.segmentText(current, segment)}
-				</div>
+				</span>
 			) : (
-				<div aria-hidden="true" class={ctx.classNames?.literal} data-slot="input-date-literal" key={`literal-${index}`}>
+				<span aria-hidden="true" class={ctx.classNames?.literal} data-slot="input-date-literal" key={`literal-${index}`}>
 					{segment.text}
-				</div>
+				</span>
 			))}
 		</div>
 	)

@@ -1,7 +1,6 @@
 import type { Stateless } from 'ajo'
 import { clx } from 'ajo-ui/utils'
 import {
-	DirectionContext,
 	DirectionProvider as BaseDirectionProvider,
 	type DirectionProviderArgs as BaseDirectionProviderArgs,
 } from 'ajo-ui/direction'
@@ -12,7 +11,7 @@ export type DirectionProviderArgs = BaseDirectionProviderArgs & {
 	class?: string
 }
 
-/** Provider that sets Ajo direction context and an inherited HTML `dir` attribute. */
+/** Provider that sets an inherited HTML `dir` attribute on its subtree. */
 const DirectionProvider: Stateless<DirectionProviderArgs> = ({
 	children,
 	class: classes,
@@ -26,4 +25,4 @@ const DirectionProvider: Stateless<DirectionProviderArgs> = ({
 	</BaseDirectionProvider>
 )
 
-export { DirectionContext, DirectionProvider }
+export { DirectionProvider }

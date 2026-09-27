@@ -111,6 +111,14 @@ describe('derivation', () => {
 	test('datetime composes date and time segments', () => {
 		expect(shape('datetime', 'en-US').units).toEqual(['month', 'day', 'year', 'hour', 'minute', 'dayPeriod'])
 	})
+
+	test('a right-to-left group ends its spaced literals in an RLM; a left-to-right one keeps them verbatim', () => {
+		const spaced = (locale: string) => shape('datetime', locale).segments.filter(s => !s.editable && /\s/.test(s.text)).map(s => s.text)
+		const ar = spaced('ar')
+		expect(ar.length).toBeGreaterThan(0)
+		for (const text of ar) expect(text.endsWith('\u200f')).toBe(true)
+		for (const text of spaced('en-US')) expect(text).not.toContain('\u200f')
+	})
 })
 
 describe('ISO parse/serialize', () => {

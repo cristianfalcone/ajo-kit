@@ -1,10 +1,9 @@
 import type { Children, IntrinsicElements, Stateful, Stateless } from 'ajo'
 import { controlled, dom, remember } from 'ajo-cloves'
 import { calendarDate, compile, compiler, dayValue, exactUtcDate, partsOf, resolveLocale, weekday, type Availability, type AvailabilityMatcher, type CalendarMatcher } from './availability'
-import { DirectionContext } from './direction'
 import { daysInMonth } from './segments'
 import type { FixedArgs, OmitArg } from './utils'
-import { rootAttrs } from './shared'
+import { direction, rootAttrs } from './shared'
 
 export type { AvailabilityMatcher, CalendarMatcher, TimeWindow } from './availability'
 
@@ -638,7 +637,7 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 
 	const onCellKeydown = (event: KeyboardEvent) => {
 		if (event.key !== 'Escape' || viewRank[currentView] <= viewRank[minimumView(currentArgs.minView)]) {
-			const move = gridMove(event, currentArgs.dir === 'rtl')
+			const move = gridMove(event, direction(this) === 'rtl')
 			if (!move) return
 			event.preventDefault()
 			onMove(move, event)
@@ -739,19 +738,19 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 		const canNextView = currentView === 'day'
 			? canNavigateTo(addMonths(visible, count), args)
 			: canNavigateTo({ day: 1, month: 1, year: (currentView === 'month' ? visible.year : page[11]!) + 1 }, args)
-		const navigateView = (direction: -1 | 1, event: Event) => {
+		const navigateView = (step: -1 | 1, event: Event) => {
 			if (currentView === 'day') {
-				moveMonth(addMonths(visible, direction < 0 ? -1 : count), args, event)
+				moveMonth(addMonths(visible, step < 0 ? -1 : count), args, event)
 				return
 			}
 			// A partial edge page pages to its nearest navigable year.
-			const target = visible.year + direction * (currentView === 'month' ? 1 : 12)
+			const target = visible.year + step * (currentView === 'month' ? 1 : 12)
 			const year = Math.min(bound(args.endMonth, args.timeZone)?.year ?? target, Math.max(bound(args.startMonth, args.timeZone)?.year ?? target, target))
 			const month = navigableMonth(year, args)
 			if (month) moveMonth(month, args, event)
 		}
-		const navButton = (direction: -1 | 1) => {
-			const previous = direction < 0
+		const navButton = (step: -1 | 1) => {
+			const previous = step < 0
 			const enabled = previous ? canPreviousView : canNextView
 			const slot = previous ? 'previous' : 'next'
 			const label = previous ? args.previousMonthLabel : args.nextMonthLabel
@@ -765,7 +764,7 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 					data-slot={`calendar-${slot}`}
 					disabled={!enabled}
 					type="button"
-					set:onclick={(event: Event) => navigateView(direction, event)}
+					set:onclick={(event: Event) => navigateView(step, event)}
 				>
 					{(previous ? args.previousIcon : args.nextIcon) ?? (
 						<span aria-hidden="true" class={args.classNames?.nav_icon} data-slot={`calendar-${slot}-icon`} />
@@ -922,22 +921,16 @@ const CalendarRoot: Stateful<CalendarArgs> = function* ({
 }
 
 /** Unstyled calendar with single, multiple, and range selection. */
-const Calendar: Stateless<CalendarArgs> = ({ dir, ...args }) => {
-	const resolvedDir = (dir as 'ltr' | 'rtl' | undefined) ?? DirectionContext()
-
-	return (
-		<CalendarRoot
-			{...rootAttrs(args, [
-				'allowNonContiguous', 'classNames', 'defaultMonth', 'defaultSelected', 'defaultView', 'disabled', 'endMonth', 'formatters',
-				'locale', 'minView', 'mode', 'modifiers', 'month', 'nextIcon', 'nextMonthLabel', 'numberOfMonths', 'onMonthChange', 'onSelect',
-				'onViewChange', 'previousIcon', 'previousMonthLabel', 'renderDay', 'required', 'selected', 'showWeekNumber', 'startMonth',
-				'timeZone', 'unavailable', 'view', 'weekStartsOn',
-			])}
-			dir={resolvedDir}
-			attr:data-slot="calendar"
-			attr:dir={resolvedDir}
-		/>
-	)
-}
+const Calendar: Stateless<CalendarArgs> = args => (
+	<CalendarRoot
+		{...rootAttrs(args, [
+			'allowNonContiguous', 'classNames', 'defaultMonth', 'defaultSelected', 'defaultView', 'disabled', 'endMonth', 'formatters',
+			'locale', 'minView', 'mode', 'modifiers', 'month', 'nextIcon', 'nextMonthLabel', 'numberOfMonths', 'onMonthChange', 'onSelect',
+			'onViewChange', 'previousIcon', 'previousMonthLabel', 'renderDay', 'required', 'selected', 'showWeekNumber', 'startMonth',
+			'timeZone', 'unavailable', 'view', 'weekStartsOn',
+		])}
+		attr:data-slot="calendar"
+	/>
+)
 
 export { Calendar }

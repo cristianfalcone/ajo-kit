@@ -1,9 +1,9 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, clamp, listen, resize, scrolling } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { type Direction, DirectionContext } from './direction'
+import type { Direction } from './direction'
 import type { OmitArg } from './utils'
-import { rootAttrs } from './shared'
+import { direction, rootAttrs } from './shared'
 
 /** Layout axis used by a Carousel. */
 export type CarouselOrientation =
@@ -12,7 +12,7 @@ export type CarouselOrientation =
 
 /** Arguments for the Carousel root. */
 export type CarouselArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'dir'> & {
-	/** Text direction for horizontal navigation. Defaults to the nearest DirectionProvider. */
+	/** Text direction written on the root; without it the root follows its inherited `dir` (a DirectionProvider's or the document's). */
 	dir?: Direction
 	/** Loop previous and next navigation at the ends. */
 	loop?: boolean
@@ -45,7 +45,7 @@ type CarouselPartsContextValue = {
 	setViewport: (element: HTMLElement | null) => void
 }
 
-type CarouselRootArgs = CarouselArgs & Required<Pick<CarouselArgs, 'dir' | 'loop' | 'orientation'>>
+type CarouselRootArgs = CarouselArgs & Required<Pick<CarouselArgs, 'loop' | 'orientation'>>
 
 /** Read the observable state and controls inherited from the nearest Carousel. */
 export const CarouselContext = context<CarouselContextValue | null>(null)
@@ -65,7 +65,6 @@ const carouselParts = () => {
 
 const CarouselRoot: Stateful<CarouselRootArgs> = function* () {
 	let viewport: HTMLElement | null = null
-	let dir: Direction = 'ltr'
 	let horizontal = true
 	let loop = false
 	let selected = 0
@@ -160,15 +159,14 @@ const CarouselRoot: Stateful<CarouselRootArgs> = function* () {
 	listen(this, 'keydown', (event: KeyboardEvent) => {
 		const [back, forward] = !horizontal
 			? ['ArrowUp', 'ArrowDown']
-			: dir === 'rtl' ? ['ArrowRight', 'ArrowLeft'] : ['ArrowLeft', 'ArrowRight']
+			: direction(this) === 'rtl' ? ['ArrowRight', 'ArrowLeft'] : ['ArrowLeft', 'ArrowRight']
 		if (event.key !== back && event.key !== forward) return
 		event.preventDefault()
 		if (event.key === back) scrollPrev()
 		else scrollNext()
 	})
 
-	for (const { children, dir: nextDir, loop: nextLoop, orientation } of this) {
-		dir = nextDir
+	for (const { children, loop: nextLoop, orientation } of this) {
 		horizontal = orientation === 'horizontal'
 		loop = nextLoop
 		syncScrollability()
@@ -194,28 +192,21 @@ const CarouselRoot: Stateful<CarouselRootArgs> = function* () {
 
 /** Unstyled native scroll-snap carousel root. */
 const Carousel: Stateless<CarouselArgs> = ({
-	dir,
 	loop = false,
 	orientation = 'horizontal',
 	role = 'region',
 	...args
-}) => {
-	const resolvedDir = dir ?? DirectionContext()
-
-	return (
-		<CarouselRoot
-			{...rootAttrs(args)}
-			dir={resolvedDir}
-			loop={loop}
-			orientation={orientation}
-			attr:aria-roledescription="carousel"
-			attr:data-axis={orientation === 'horizontal' ? 'x' : 'y'}
-			attr:data-slot="carousel"
-			attr:dir={resolvedDir}
-			attr:role={role}
-		/>
-	)
-}
+}) => (
+	<CarouselRoot
+		{...rootAttrs(args)}
+		loop={loop}
+		orientation={orientation}
+		attr:aria-roledescription="carousel"
+		attr:data-axis={orientation === 'horizontal' ? 'x' : 'y'}
+		attr:data-slot="carousel"
+		attr:role={role}
+	/>
+)
 
 /** Unstyled scroll viewport and track for carousel slides. */
 const CarouselContent: Stateless<CarouselContentArgs> = ({

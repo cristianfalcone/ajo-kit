@@ -65,9 +65,9 @@ test('SSR renders the machine-locale-independent en-US segment shape', () => {
 	const html = ssr(jsx(InputDate, { name: 'dob' }))
 
 	expect([...html.matchAll(/data-segment="(\w+)"/g)].map(match => match[1])).toEqual(['month', 'day', 'year'])
-	expect(html).toContain('>mm</div>')
-	expect(html).toContain('>dd</div>')
-	expect(html).toContain('>yyyy</div>')
+	expect(html).toContain('>mm</span>')
+	expect(html).toContain('>dd</span>')
+	expect(html).toContain('>yyyy</span>')
 	expect(html).toContain('name="dob"')
 })
 
@@ -75,5 +75,5 @@ test('SSR renders the explicit locale arg shape', () => {
 	const html = ssr(jsx(InputDate, { locale: 'es-AR', name: 'nacimiento' }))
 
 	expect([...html.matchAll(/data-segment="(\w+)"/g)].map(match => match[1])).toEqual(['day', 'month', 'year'])
-	expect(html).toContain('>aaaa</div>')
+	expect(html).toContain('>aaaa</span>')
 })

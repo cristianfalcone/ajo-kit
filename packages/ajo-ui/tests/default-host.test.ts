@@ -1,13 +1,9 @@
 // @vitest-environment happy-dom
-import { render, type Stateless } from 'ajo'
+import { render } from 'ajo'
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, expect, test } from 'vitest'
-import { DirectionContext, DirectionProvider } from '../src/direction'
-
-const DirectionReadout: Stateless = () => jsx('output', {
-	'data-direction': DirectionContext(),
-})
+import { DirectionProvider } from '../src/direction'
 
 afterEach(() => {
 	render(null, document.body)
@@ -21,7 +17,7 @@ test('default-host roots render the Ajo div host in the DOM', () => {
 
 test('default-host roots render the Ajo div host in SSR', () => {
 	const html = ssr(jsx(DirectionProvider, {
-		children: jsx(DirectionReadout, {}),
+		children: jsx('output', {}),
 		class: 'scope',
 		dir: 'rtl',
 		id: 'direction-scope',
@@ -33,5 +29,5 @@ test('default-host roots render the Ajo div host in SSR', () => {
 	expect(html).toContain('id="direction-scope"')
 	expect(html).toContain('data-slot="direction-provider"')
 	expect(html).toContain('dir="rtl"')
-	expect(html).toContain('<output data-direction="rtl"></output>')
+	expect(html).toContain('<output></output>')
 })

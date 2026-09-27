@@ -1,9 +1,8 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, controlled, dom, id, indicator, listen, overflow, roving } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { DirectionContext } from './direction'
 import type { FixedArgs, OmitArg } from './utils'
-import { rootAttrs } from './shared'
+import { direction, rootAttrs } from './shared'
 
 /** Layout and keyboard-navigation axis of a tab list. */
 export type TabsOrientation = 'horizontal' | 'vertical'
@@ -20,7 +19,7 @@ export type TabsArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'defaultVa
 	onValueChange?: (value: string, event?: Event) => void
 	/** Tab activation mode. Automatic follows focus; manual waits for Enter/Space or click. */
 	activationMode?: TabsActivationMode
-	/** Text direction for horizontal arrow-key navigation. Defaults to the nearest DirectionProvider. */
+	/** Text direction written on the root; without it the root follows its inherited `dir` (a DirectionProvider's or the document's). */
 	dir?: 'ltr' | 'rtl'
 	/** Allow arrow-key focus to wrap at the ends. */
 	loop?: boolean
@@ -45,7 +44,7 @@ export type TabsContentArgs = WithChildren<IntrinsicElements['div'] & {
 	forceMount?: boolean
 }>
 
-type TabsRootArgs = TabsArgs & Required<Pick<TabsArgs, 'activationMode' | 'dir' | 'loop' | 'orientation'>>
+type TabsRootArgs = TabsArgs & Required<Pick<TabsArgs, 'activationMode' | 'loop' | 'orientation'>>
 
 type TabsContextValue = {
 	activationMode: TabsActivationMode
@@ -68,7 +67,6 @@ const tabs = (root: HTMLElement) =>
 const TabsRoot: Stateful<TabsRootArgs> = function* ({ defaultValue, value }) {
 	const rootId = id('tabs')
 	let activationMode: TabsActivationMode = 'automatic'
-	let dir: 'ltr' | 'rtl' = 'ltr'
 	let loop = true
 	let onValueChange: TabsRootArgs['onValueChange']
 	let orientation: TabsOrientation = 'horizontal'
@@ -95,7 +93,7 @@ const TabsRoot: Stateful<TabsRootArgs> = function* ({ defaultValue, value }) {
 	const nav = roving(this, {
 		items: () => tabs(this),
 		orientation: () => orientation,
-		dir: () => dir,
+		dir: () => direction(this),
 		loop: () => loop,
 		// In automatic mode the trigger's focus handler selects it.
 		onMove: target => {
@@ -127,7 +125,6 @@ const TabsRoot: Stateful<TabsRootArgs> = function* ({ defaultValue, value }) {
 
 	for (const args of this) {
 		activationMode = args.activationMode
-		dir = args.dir
 		loop = args.loop
 		onValueChange = args.onValueChange
 		orientation = args.orientation
@@ -153,26 +150,19 @@ const TabsRoot: Stateful<TabsRootArgs> = function* ({ defaultValue, value }) {
 /** Unstyled root provider for tab state. */
 const Tabs: Stateless<TabsArgs> = ({
 	activationMode = 'automatic',
-	dir,
 	loop = true,
 	orientation = 'horizontal',
 	...args
-}) => {
-	const resolvedDir = dir ?? DirectionContext()
-
-	return (
-		<TabsRoot
-			{...rootAttrs(args, ['defaultValue', 'onValueChange', 'value'])}
-			activationMode={activationMode}
-			dir={resolvedDir}
-			loop={loop}
-			orientation={orientation}
-			attr:data-orientation={orientation}
-			attr:data-slot="tabs"
-			attr:dir={resolvedDir}
-		/>
-	)
-}
+}) => (
+	<TabsRoot
+		{...rootAttrs(args, ['defaultValue', 'onValueChange', 'value'])}
+		activationMode={activationMode}
+		loop={loop}
+		orientation={orientation}
+		attr:data-orientation={orientation}
+		attr:data-slot="tabs"
+	/>
+)
 
 /** Unstyled container for tab triggers. */
 const TabsList: Stateless<TabsListArgs> = ({

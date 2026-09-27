@@ -2,7 +2,6 @@ declare const carousel: typeof import('ajo-ui/carousel')
 declare const chart: typeof import('ajo-ui/chart')
 declare const checkbox: typeof import('ajo-ui/checkbox-group')
 declare const collapsible: typeof import('ajo-ui/collapsible')
-declare const direction: typeof import('ajo-ui/direction')
 declare const field: typeof import('ajo-ui/field')
 declare const menu: typeof import('ajo-ui/menu')
 declare const messageScroller: typeof import('ajo-ui/message-scroller')
@@ -18,8 +17,6 @@ export const subpathChartIdContext = chart.ChartIdContext
 
 export const subpathCollapsibleContext = collapsible.CollapsibleContext
 export type SubpathCollapsibleContextValue = import('ajo-ui/collapsible').CollapsibleContextValue
-
-export const subpathDirectionContext = direction.DirectionContext
 
 export const subpathFieldContext = field.FieldContext
 export type SubpathFieldContextValue = import('ajo-ui/field').FieldContextValue

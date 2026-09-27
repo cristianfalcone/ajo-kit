@@ -286,7 +286,7 @@ export const InheritedRTL: Story = {
 		const overview = tab(canvas, 'overview')
 		const analytics = tab(canvas, 'analytics')
 		if (!root || !overview || !analytics) throw new Error('Inherited RTL tabs did not render expected parts')
-		if (root.dir !== 'rtl') throw new Error('Themed Tabs did not inherit RTL from DirectionProvider')
+		if (root.hasAttribute('dir') || getComputedStyle(root).direction !== 'rtl') throw new Error('Themed Tabs did not inherit RTL from DirectionProvider')
 
 		analytics.focus()
 		analytics.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))

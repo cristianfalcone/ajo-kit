@@ -1,6 +1,7 @@
 // Pure segment engine of the InputDate family: Intl derivation, strict ISO parsing, typing, stepping and validation.
 
 import { clamp, remember } from 'ajo-cloves'
+import type { Direction } from './direction'
 
 // Types:
 
@@ -51,6 +52,8 @@ export type Derivation = {
 	/** Localized long month names, January first; empty for time fields. */
 	monthNames: string[]
 	withSeconds: boolean
+	/** Reading direction of the locale's pattern: 'rtl' when it carries right-to-left content. */
+	dir: Direction
 }
 
 export type DeriveOptions = {
@@ -115,6 +118,11 @@ const VOCABULARY: Record<string, [string, string, string]> = {
 
 const TIME_PLACEHOLDER = '––'
 
+// Strong right-to-left content in a formatted pattern: an RLM or ALM mark, a
+// letter of a right-to-left script, or any N'Ko or Adlam character. Arabic-script
+// digits are weak, so Persian dates ("۱۴۰۵/۴/۲۰") still read left to right.
+const RTL = /[\u200f\u061c\p{Script=Nko}\p{Script=Adlam}]|(?=[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Samaritan}\p{Script=Mandaic}\p{Script=Hanifi_Rohingya}])\p{L}/u
+
 const boundsOf = (unit: SegmentUnit, hourCycle: HourCycle): [number, number] => {
 	switch (unit) {
 		case 'year': return [1, 9999]
@@ -151,8 +159,10 @@ export const derive = (opts: DeriveOptions): Derivation => {
 	const placeholderOf = (unit: SegmentUnit) =>
 		unit === 'year' ? vocabulary[0] : unit === 'month' ? vocabulary[1] : unit === 'day' ? vocabulary[2] : TIME_PLACEHOLDER
 
+	const parts = new Intl.DateTimeFormat(locale, format).formatToParts(PROBE)
+	const dir: Direction = RTL.test(parts.map(part => part.value).join('')) ? 'rtl' : 'ltr'
 	const segments: Segment[] = []
-	for (const part of new Intl.DateTimeFormat(locale, format).formatToParts(PROBE)) {
+	for (const part of parts) {
 		if ((EDITABLE as readonly string[]).includes(part.type)) {
 			const unit = part.type as SegmentUnit
 			const [min, max] = boundsOf(unit, hourCycle)
@@ -168,7 +178,11 @@ export const derive = (opts: DeriveOptions): Derivation => {
 			})
 		} else {
 			// Passthrough: unmapped part types (era, yearName, …) render verbatim.
-			segments.push({ type: 'literal', text: part.value, editable: false, placeholder: '', min: 0, max: 0, digits: 0, width: part.value.length })
+			// In a right-to-left group, a spaced literal (the date and time joiner,
+			// the space before the day period) ends in an RLM: a strong R between
+			// the LTR-embedded units, so an empty year never joins the hour's run.
+			const text = dir === 'rtl' && /\s/.test(part.value) ? `${part.value}\u200f` : part.value
+			segments.push({ type: 'literal', text, editable: false, placeholder: '', min: 0, max: 0, digits: 0, width: part.value.length })
 		}
 	}
 
@@ -195,6 +209,7 @@ export const derive = (opts: DeriveOptions): Derivation => {
 		periods,
 		monthNames,
 		withSeconds,
+		dir,
 	}
 }
 
@@ -537,6 +552,8 @@ export type FieldView = {
 	readonly hourCycle: HourCycle
 	readonly periods: [string, string]
 	readonly monthNames: string[]
+	/** Reading direction of the locale's pattern, for the segment group's `dir`. */
+	readonly dir: Direction
 	/** Per-render reconcile: re-derives on option changes, adopts external values only. */
 	sync(value: string | null | undefined, opts?: FieldOptions): void
 	/** Display text for one unit: typing buffer, else the padded value, else '' (placeholder). */
@@ -707,6 +724,7 @@ export const field = (options: FieldOptions): FieldView => {
 		get hourCycle() { return derivation.hourCycle },
 		get periods() { return derivation.periods },
 		get monthNames() { return derivation.monthNames },
+		get dir() { return derivation.dir },
 
 		sync(value, next) {
 			const target = next ?? opts

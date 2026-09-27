@@ -19,6 +19,7 @@ import { Menu, MenuContent, MenuItem, MenuSub, MenuSubContent, MenuSubTrigger, M
 import { Menubar, MenubarMenu, MenubarTrigger } from '../src/menubar'
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuList, NavigationMenuTrigger } from '../src/navigation-menu'
 import { nativePopoverHarness } from './native-popover-harness'
+import './user-agent-dir'
 
 const popovers = nativePopoverHarness()
 const nativeOffsetParent = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetParent')
@@ -145,6 +146,9 @@ test('an RTL submenu opens with ArrowLeft and closes with ArrowRight', async () 
 
 	key(trigger, 'ArrowLeft')
 	await vi.waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'))
+	// It opens toward the inline end, the side ArrowLeft points to.
+	const sub = must('[data-menu-sub-content="true"]')
+	await vi.waitFor(() => expect(floating.computePosition).toHaveBeenCalledWith(trigger, sub, expect.objectContaining({ placement: 'left-start' })))
 
 	key(must('[data-menu-sub-content="true"] [data-item="menu"]'), 'ArrowRight')
 	await vi.waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('false'))

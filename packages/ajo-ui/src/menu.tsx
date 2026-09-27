@@ -1,7 +1,6 @@
 import type { Children, IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, controlled, listen } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { DirectionContext } from './direction'
 import {
 	cluster,
 	focusEdge,
@@ -15,7 +14,7 @@ import {
 	type MenuContextValue,
 } from './menu-cluster'
 import { contentAttrs, popup, type PopupPosition, popupStyle, type PopupView, triggerAttrs } from './popup'
-import { activate, flag, rootAttrs, text } from './shared'
+import { activate, direction, flag, rootAttrs, text } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
@@ -466,7 +465,6 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 	let menu: MenuContextValue | null = null
 	let onOpenChange: MenuSubArgs['onOpenChange']
 	const parentCluster = parent?.cluster ?? null
-	let dir: 'ltr' | 'rtl' = 'ltr'
 	let unregister: (() => void) | undefined
 	let branch: MenuBranch
 	let submenu: PopupView<HTMLElement, HTMLDivElement>
@@ -526,8 +524,9 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 		const target = event.target as HTMLElement | null
 		if (!target?.closest('[data-menu-sub-trigger="true"],[data-menu-sub-content="true"]')) return
 		// The inline-end arrow opens, the inline-start arrow closes.
-		const enter = dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight'
-		const leave = dir === 'rtl' ? 'ArrowRight' : 'ArrowLeft'
+		const rtl = direction(this) === 'rtl'
+		const enter = rtl ? 'ArrowLeft' : 'ArrowRight'
+		const leave = rtl ? 'ArrowRight' : 'ArrowLeft'
 		if (event.key === enter && target.matches('[data-menu-sub-trigger="true"]')) {
 			event.preventDefault()
 			setOpen(true, event, true)
@@ -541,7 +540,6 @@ const MenuSubRoot: Stateful<MenuSubArgs> = function* ({ defaultOpen, open }) {
 
 	for (const args of this) {
 		menu = MenuContext()
-		dir = DirectionContext()
 		onOpenChange = args.onOpenChange
 		const parentOpen = parent?.open() ?? menu?.open ?? true
 		if (!parentOpen) {

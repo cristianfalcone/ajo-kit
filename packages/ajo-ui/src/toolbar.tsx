@@ -2,15 +2,14 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import type { OmitArg } from './utils'
 import { dom, listen, roving } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { DirectionContext } from './direction'
-import { rootAttrs } from './shared'
+import { direction, rootAttrs } from './shared'
 
 /** Layout and keyboard-navigation axis of a toolbar. */
 export type ToolbarOrientation = 'horizontal' | 'vertical'
 
 /** Props for a toolbar with roving focus among descendant controls. */
 export type ToolbarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'dir'> & {
-	/** Text direction for horizontal arrow-key navigation. Defaults to the nearest DirectionProvider. */
+	/** Text direction written on the root; without it the root follows its inherited `dir` (a DirectionProvider's or the document's). */
 	dir?: 'ltr' | 'rtl'
 	/** Allow arrow-key focus to wrap at the ends. */
 	loop?: boolean
@@ -21,7 +20,7 @@ export type ToolbarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'dir'> 
 /** Props for a separator whose orientation follows the parent toolbar. */
 export type ToolbarSeparatorArgs = IntrinsicElements['div']
 
-type ToolbarRootArgs = ToolbarArgs & Required<Pick<ToolbarArgs, 'dir' | 'loop' | 'orientation'>>
+type ToolbarRootArgs = ToolbarArgs & Required<Pick<ToolbarArgs, 'loop' | 'orientation'>>
 
 type ToolbarContextValue = {
 	orientation: ToolbarOrientation
@@ -66,13 +65,12 @@ const caretEscapes = (target: HTMLElement, event: KeyboardEvent) => {
 	if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return false
 	const caret = target.selectionStart
 	if (caret == null || caret !== target.selectionEnd) return false
-	const rtl = getComputedStyle(target).direction === 'rtl'
+	const rtl = direction(target) === 'rtl'
 	return (event.key === 'ArrowLeft') !== rtl ? caret === 0 : caret === target.value.length
 }
 
 const ToolbarRoot: Stateful<ToolbarRootArgs> = function* () {
 	let active: HTMLElement | null = null
-	let dir: 'ltr' | 'rtl' = 'ltr'
 	let loop = true
 	let orientation: ToolbarOrientation = 'horizontal'
 	let queued = false
@@ -105,7 +103,7 @@ const ToolbarRoot: Stateful<ToolbarRootArgs> = function* () {
 	const nav = roving(this, {
 		items: () => controls(this),
 		orientation: () => orientation,
-		dir: () => dir,
+		dir: () => direction(this),
 		loop: () => loop,
 		onMove: target => target.focus(),
 	})
@@ -146,7 +144,6 @@ const ToolbarRoot: Stateful<ToolbarRootArgs> = function* () {
 	}
 
 	for (const args of this) {
-		dir = args.dir
 		loop = args.loop
 		orientation = args.orientation
 
@@ -161,28 +158,21 @@ const ToolbarRoot: Stateful<ToolbarRootArgs> = function* () {
 /** Unstyled toolbar: arbitrary controls behind a single tab stop with dir-aware arrow-key roving (APG toolbar pattern). Button, ToggleGroup, Select, and Input compose inside; nested ToggleGroup items join the toolbar roving. */
 const Toolbar: Stateless<ToolbarArgs> = ({
 	'data-slot': slot = 'toolbar',
-	dir,
 	loop = true,
 	orientation = 'horizontal',
 	role = 'toolbar',
 	...args
-}) => {
-	const resolvedDir = dir ?? DirectionContext()
-
-	return (
-		<ToolbarRoot
-			{...rootAttrs(args)}
-			dir={resolvedDir}
-			loop={loop}
-			orientation={orientation}
-			attr:aria-orientation={orientation}
-			attr:data-orientation={orientation}
-			attr:data-slot={slot}
-			attr:dir={resolvedDir}
-			attr:role={role}
-		/>
-	)
-}
+}) => (
+	<ToolbarRoot
+		{...rootAttrs(args)}
+		loop={loop}
+		orientation={orientation}
+		attr:aria-orientation={orientation}
+		attr:data-orientation={orientation}
+		attr:data-slot={slot}
+		attr:role={role}
+	/>
+)
 
 /** Unstyled separator between toolbar groups, oriented across the toolbar axis. */
 const ToolbarSeparator: Stateless<ToolbarSeparatorArgs> = ({

@@ -40,7 +40,9 @@ export type InputDateTimeArgs<Range extends boolean = false> = OmitArg<BaseInput
 	calendar?: boolean | InputDateCalendarArgs
 } & FixedArgs<'classNames'>
 
-const fieldBase = 'flex items-center'
+// Segments stay inline (never flex items or inline-blocks) so bidi reorders
+// them like text: an Arabic time reads "ص 9:30", not "ص 30:9".
+const fieldBase = 'whitespace-nowrap'
 const addonButtonBase = clx(buttonVariants({ size: 'none', variant: 'muted-ghost' }), 'size-6 rounded-[calc(var(--radius)-5px)]')
 // No w-72/p-4 here: clx does not resolve conflicting utilities, so the
 // calendar-sized content declares its own w-auto/p-0 without a competitor.
@@ -54,7 +56,7 @@ const classNames: Record<InputDateClassName, string> = {
 	control: 'flex h-full min-w-0 flex-1 cursor-text items-center overflow-hidden px-3 py-1 text-base whitespace-nowrap md:text-sm',
 	field: fieldBase,
 	literal: 'whitespace-pre text-muted-foreground',
-	segment: 'rounded-sm px-0.5 tabular-nums outline-none focus:bg-accent focus:text-accent-foreground data-[placeholder=true]:text-muted-foreground [&:not([data-segment=dayPeriod])]:[direction:ltr] [&:not([data-segment=dayPeriod])]:[unicode-bidi:embed]',
+	segment: 'rounded-sm px-0.5 py-0.5 tabular-nums outline-none focus:bg-accent focus:text-accent-foreground data-[placeholder=true]:text-muted-foreground',
 	separator: 'px-1 text-muted-foreground',
 	trigger: addonButtonBase,
 	trigger_icon: 'i-lucide-calendar pointer-events-none size-4',

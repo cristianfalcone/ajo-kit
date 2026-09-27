@@ -347,7 +347,7 @@ test('SSR InputDate segments are hydration-safe spinbuttons, never editable befo
 
 test('SSR empty segment labels have family-wide defaults and overrides', () => {
 	const valueText = (html: string, segment: string) =>
-		html.match(new RegExp(`<div\\b[^>]*data-segment="${segment}"[^>]*>`))?.[0].match(/aria-valuetext="([^"]*)"/)?.[1]
+		html.match(new RegExp(`<span\\b[^>]*data-segment="${segment}"[^>]*>`))?.[0].match(/aria-valuetext="([^"]*)"/)?.[1]
 	const date = ssr(jsx(InputDate, { emptyLabel: 'No date' }))
 	const time = ssr(jsx(InputTime, { emptyLabel: 'No time', hourCycle: 12, locale: 'en-US' }))
 	const dateTime = ssr(jsx(InputDateTime, { emptyLabel: 'No date and time' }))

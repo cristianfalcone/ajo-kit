@@ -1,4 +1,5 @@
 import { callHandler } from 'ajo-cloves'
+import type { Direction } from './direction'
 
 /** Marks a boolean state attr: 'true' when set, absent otherwise. */
 export const flag = (value: unknown) => value ? 'true' : undefined
@@ -10,6 +11,14 @@ export const text = (value: unknown): string => {
 	if (Array.isArray(value)) return value.map(text).join('')
 	return ''
 }
+
+/**
+ * Resolved reading direction of an element: its computed `direction`, which
+ * follows the inherited `dir` (including `auto`) and CSS alike. Read at event
+ * time, so a document-level `dir` works without a provider and SSR needs no guess.
+ */
+export const direction = (element: Element): Direction =>
+	element.ownerDocument.defaultView?.getComputedStyle(element).direction === 'rtl' ? 'rtl' : 'ltr'
 
 /** Copies a multi-value array while coercing each present value to a string. */
 export const strings = (value: unknown): string[] =>

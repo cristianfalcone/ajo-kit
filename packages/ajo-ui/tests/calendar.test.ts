@@ -4,6 +4,7 @@ import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, expect, test, vi } from 'vitest'
 import { Calendar, type CalendarView } from '../src/calendar'
+import './user-agent-dir'
 
 const dayButton = (html: string, day: string) =>
 	html.match(new RegExp(`<button(?=[^>]*data-day="${day}")[^>]*>`))?.[0] ?? ''

@@ -2,11 +2,11 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, callRef, id, listen } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { bar } from './bar'
-import { type Direction, DirectionContext } from './direction'
+import type { Direction } from './direction'
 import { MenuTrigger, type MenuTriggerArgs } from './menu'
 import { MenuRoot } from './menu-cluster'
 import type { PopupPosition } from './popup'
-import { rootAttrs, text } from './shared'
+import { direction, rootAttrs, text } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
@@ -20,7 +20,7 @@ export type MenubarArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'dir' |
 	disabled?: boolean
 	/** Wrap arrow-key navigation at the ends. */
 	loop?: boolean
-	/** Text direction for horizontal arrow-key navigation. Defaults to the nearest DirectionProvider. */
+	/** Text direction written on the root; without it the root follows its inherited `dir` (a DirectionProvider's or the document's). */
 	dir?: Direction
 	/** Called whenever the open top-level menu changes. Empty string means closed. */
 	onValueChange?: (value: string, event?: Event) => void
@@ -68,7 +68,6 @@ const MenubarMenuContext = context<MenubarMenuContextValue | null>(null)
 
 const MenubarRoot: Stateful<MenubarArgs> = function* ({ defaultValue, value }) {
 	const triggers = new Map<string, HTMLButtonElement>()
-	let dir: Direction = 'ltr'
 	let disabled = false
 	let loop = true
 	let onValueChange: MenubarArgs['onValueChange']
@@ -76,7 +75,7 @@ const MenubarRoot: Stateful<MenubarArgs> = function* ({ defaultValue, value }) {
 
 	const state = bar(this, {
 		selector: '[data-menubar-trigger="true"]',
-		dir: () => dir,
+		dir: () => direction(this),
 		initialValue: String(value ?? defaultValue ?? ''),
 		disabled: () => disabled,
 		loop: () => loop,
@@ -128,7 +127,7 @@ const MenubarRoot: Stateful<MenubarArgs> = function* ({ defaultValue, value }) {
 		// top-level menu with its first item focused (APG). Submenu-owned
 		// arrows stay with the submenu machinery: the inline-end arrow enters
 		// a submenu from its trigger, the inline-start arrow closes one.
-		const forward = dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight'
+		const forward = direction(this) === 'rtl' ? 'ArrowLeft' : 'ArrowRight'
 		if (state.value && (event.key === 'ArrowLeft' || event.key === 'ArrowRight') && target?.closest('[data-menu-content="true"]')) {
 			if (event.key === forward && target.closest('[data-menu-sub-trigger="true"]')) return
 			if (target.closest('[data-menu-sub-content="true"]')) return
@@ -145,13 +144,11 @@ const MenubarRoot: Stateful<MenubarArgs> = function* ({ defaultValue, value }) {
 	})
 
 	for (const args of this) {
-		dir = args.dir ?? 'ltr'
 		disabled = Boolean(args.disabled)
 		loop = args.loop !== false
 		onValueChange = args.onValueChange
 		state.sync(args.value != null ? String(args.value ?? '') : undefined)
 
-		DirectionContext(dir)
 		MenubarContext({
 			close: state.close,
 			disabled,
@@ -171,13 +168,11 @@ const MenubarRoot: Stateful<MenubarArgs> = function* ({ defaultValue, value }) {
 }
 
 /** Persistent horizontal menu bar. */
-const Menubar: Stateless<MenubarArgs> = ({ dir, ...args }) => (
+const Menubar: Stateless<MenubarArgs> = args => (
 	<MenubarRoot
 		{...rootAttrs(args, ['defaultValue', 'disabled', 'gap', 'loop', 'onValueChange', 'placement', 'value'])}
-		dir={dir ?? DirectionContext()}
 		attr:aria-orientation="horizontal"
 		attr:data-slot="menubar"
-		attr:dir={dir}
 		attr:role="menubar"
 	/>
 )

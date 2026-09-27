@@ -69,7 +69,7 @@ test('an unavailable calendar day remains selectable and commits an invalid endp
 
 test('range field segments have unique control identities', () => {
 	const html = ssr(jsx(InputDate, { range: true }))
-	const segments = Array.from(html.matchAll(/<div\b[^>]*data-segment="[^"]+"[^>]*>/g), match => match[0])
+	const segments = Array.from(html.matchAll(/<span\b[^>]*data-segment="[^"]+"[^>]*>/g), match => match[0])
 	const ids = segments.map(tag => tag.match(/\bid="([^"]+)"/)?.[1]).filter(Boolean)
 
 	expect(segments.length).toBeGreaterThan(4)

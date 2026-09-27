@@ -73,7 +73,7 @@ test('a datetime field with a calendar renders one editor: one set of hour and m
 		defaultValue: '2026-07-10T12:30',
 		hourCycle: 24,
 	}))
-	const tags = Array.from(html.matchAll(/<div\b[^>]*data-segment="[^"]+"[^>]*>/g), match => match[0])
+	const tags = Array.from(html.matchAll(/<span\b[^>]*data-segment="[^"]+"[^>]*>/g), match => match[0])
 	const ids = tags.map(tag => tag.match(/\bid="([^"]+)"/)?.[1]).filter(Boolean)
 
 	expect(tags.filter(tag => tag.includes('data-segment="hour"'))).toHaveLength(1)

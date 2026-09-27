@@ -2,6 +2,7 @@
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
 import { frame, press } from './play'
+import { DirectionProvider } from 'ajo-ui-playa/direction'
 import { Field, FieldLabel } from 'ajo-ui-playa/field'
 import { InputDateTime } from 'ajo-ui-playa/input-date'
 
@@ -246,6 +247,126 @@ export const Range: Story<typeof InputDateTime> = {
 			throw new Error(`Second pick must complete the range, got from "${val(from)}" to "${val(to)}"`)
 		}
 		if (getComputedStyle(content(canvas)).display !== 'none') throw new Error('Completing the range must close the popover')
+	},
+}
+
+const stay = { from: '2026-07-20T15:00', to: '2026-07-25T15:00' }
+
+export const RightToLeft: Story<typeof InputDateTime> = {
+	name: 'Right to Left',
+	parameters: {
+		docs: { description: 'A right-to-left page at phone width: each group reads in its locale\'s direction (English stays "3:00 PM", Arabic keeps the day on the right) and a long range keeps its start in view.' },
+		viewport: { height: 900, width: 390 },
+	},
+	render: () => (
+		<DirectionProvider dir="rtl">
+			<div class="grid w-[358px] grid-cols-[minmax(0,1fr)] gap-4">
+				<Field data-story-field="en">
+					<FieldLabel>Stay</FieldLabel>
+					<InputDateTime<true> range locale="en-US" defaultValue={stay} />
+				</Field>
+				<Field data-story-field="ar">
+					<FieldLabel>الإقامة</FieldLabel>
+					<InputDateTime<true> range locale="ar" defaultValue={stay} />
+				</Field>
+			</div>
+		</DirectionProvider>
+	),
+	play: async ({ canvas }) => {
+		const box = (element: Element) => element.getBoundingClientRect()
+		const orderOf = (group: Element) => Array.from(group.querySelectorAll<HTMLElement>('[data-segment]'))
+			.map(item => ({ left: box(item).left, unit: item.dataset.segment }))
+			.sort((a, b) => a.left - b.left).map(item => item.unit).join(' ')
+		const reading = {
+			ar: 'dayPeriod hour minute year month day',
+			en: 'month day year hour minute dayPeriod',
+		}
+		for (const [name, dir] of [['en', 'ltr'], ['ar', 'rtl']] as const) {
+			const scope = canvas.querySelector(`[data-story-field="${name}"]`)
+			const control = scope?.querySelector('[data-slot="input-date-control"]')
+			const from = scope?.querySelector('[data-slot="input-date-field"][data-side="from"]')
+			if (!control || !from) throw new Error(`The ${name} range was not rendered`)
+			if (from.getAttribute('dir') !== dir) throw new Error(`The ${name} group must read ${dir}, got ${from.getAttribute('dir')}`)
+
+			// Overflow goes to the inline end: the start date is never clipped.
+			const edges = box(control)
+			for (const item of from.querySelectorAll('[data-segment]')) {
+				const { left, right } = box(item)
+				if (left < edges.left - 0.5 || right > edges.right + 0.5) {
+					throw new Error(`The ${name} start ${(item as HTMLElement).dataset.segment} is clipped outside the control`)
+				}
+			}
+
+			// On screen, left to right, the group reads like its formatted
+			// string: Arabic puts the day on the right and keeps "3:00" whole.
+			const order = orderOf(from)
+			const expected = reading[name]
+			if (order !== expected) throw new Error(`The ${name} start must read ${expected} from the left, got ${order}`)
+		}
+
+		// Arrows move on screen, across groups: walking left from the rightmost
+		// segment, every step lands on the nearest segment to its left.
+		for (const name of ['ar', 'en']) {
+			const control = canvas.querySelector(`[data-story-field="${name}"] [data-slot="input-date-control"]`)
+			if (!control) throw new Error(`The ${name} control was not rendered`)
+			const items = () => Array.from(control.querySelectorAll<HTMLElement>('[data-segment]'))
+			const sides = new Set<string>()
+			let current = items().reduce((right, item) => box(item).left > box(right).left ? item : right)
+			current.focus()
+			while (true) {
+				sides.add(current.dataset.side ?? '')
+				const edge = box(current).left
+				const next = items().filter(item => box(item).left < edge).sort((a, b) => box(b).left - box(a).left)[0]
+				press(current, 'ArrowLeft')
+				await frame()
+				if (document.activeElement !== (next ?? current)) {
+					throw new Error(`ArrowLeft from the ${name} ${current.dataset.side} ${current.dataset.segment} must reach ${next ? `the ${next.dataset.side} ${next.dataset.segment}` : 'nothing'}`)
+				}
+				if (!next) break
+				current = next
+			}
+			if (!sides.has('from') || !sides.has('to')) throw new Error(`ArrowLeft must walk both ${name} groups`)
+			control.scrollLeft = 0
+		}
+
+		// A neutral or Latin placeholder must not move an Arabic unit across
+		// its neighbours: the group reads the same in every fill state.
+		const from = canvas.querySelector<HTMLElement>('[data-story-field="ar"] [data-slot="input-date-field"][data-side="from"]')
+		if (!from) throw new Error('The Arabic start group was not rendered')
+		const hour = segment(from, 'hour')
+		const minute = segment(from, 'minute')
+		const filled = text(from)
+		const still = (state: string) => {
+			const order = orderOf(from)
+			if (order !== reading.ar) throw new Error(`The Arabic start must read ${reading.ar} from the left when ${state}, got ${order}`)
+		}
+		const clear = async (target: HTMLElement) => {
+			for (let tries = 0; target.dataset.placeholder !== 'true'; tries++) {
+				if (tries > 3) throw new Error(`The Arabic ${target.dataset.segment} did not clear`)
+				await step(target, 'Backspace')
+			}
+		}
+		still('filled')
+		await clear(minute)
+		still('its minute is empty')
+		await clear(hour)
+		still('both are empty')
+		await typeKeys(hour, '3')
+		still('half typed')
+		await typeKeys(minute, '00')
+		await blur()
+		still('its time is refilled')
+		await clear(segment(from, 'year'))
+		still('its year is empty')
+		const period = text(segment(from, 'dayPeriod'))
+		for (const unit of ['month', 'day', 'dayPeriod', 'hour', 'minute']) await clear(segment(from, unit))
+		still('every unit is empty')
+		for (const [unit, keys] of [['year', '2026'], ['month', '7'], ['day', '20'], ['hour', '3'], ['minute', '00'], ['dayPeriod', period]]) {
+			await typeKeys(segment(from, unit), keys)
+		}
+		await blur()
+		if (text(from) !== filled) throw new Error(`The Arabic start did not refill: ${text(from)}`)
+		still('refilled')
 	},
 }
 

@@ -1,8 +1,8 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { listen, roving, selection } from 'ajo-cloves'
 import { context } from 'ajo/context'
-import { type Direction, DirectionContext } from './direction'
-import { flag, rootAttrs } from './shared'
+import type { Direction } from './direction'
+import { direction, flag, rootAttrs } from './shared'
 import type { FixedArgs, OmitArg } from './utils'
 import { Toggle, type ToggleArgs } from './toggle'
 
@@ -12,7 +12,7 @@ export type ToggleGroupType = 'multiple' | 'single'
 export type ToggleGroupOrientation = 'horizontal' | 'vertical'
 
 type ToggleGroupSharedArgs = WithChildren<OmitArg<IntrinsicElements['div'], 'defaultValue' | 'dir' | 'type' | 'value'> & {
-	/** Text direction for horizontal arrow-key navigation. Defaults to the nearest DirectionProvider. */
+	/** Text direction written on the root; without it the root follows its inherited `dir` (a DirectionProvider's or the document's). */
 	dir?: Direction
 	/** Disable every item in the group. */
 	disabled?: boolean
@@ -62,7 +62,7 @@ export type ToggleGroupContextValue = {
 	type: ToggleGroupType
 }
 
-type ToggleGroupRootArgs = ToggleGroupArgs & Required<Pick<ToggleGroupSharedArgs, 'dir' | 'orientation'>>
+type ToggleGroupRootArgs = ToggleGroupArgs & Required<Pick<ToggleGroupSharedArgs, 'orientation'>>
 
 /** Composition context exposing ToggleGroup state to descendant items. */
 export const ToggleGroupContext = context<ToggleGroupContextValue | null>(null)
@@ -78,7 +78,6 @@ const focusableItems = (root: HTMLElement) =>
 		.filter(button => !button.disabled)
 
 const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue, type: initialType = 'single' }) {
-	let dir: Direction = 'ltr'
 	let disabled = false
 	let loop = true
 	let onValueChange: ToggleGroupRootArgs['onValueChange']
@@ -107,7 +106,7 @@ const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue
 	const nav = roving(this, {
 		items: () => focusableItems(this),
 		orientation: () => orientation,
-		dir: () => dir,
+		dir: () => direction(this),
 		loop: () => loop,
 		onMove: target => target.focus(),
 	})
@@ -126,7 +125,6 @@ const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue
 
 	for (const args of this) {
 		type = args.type ?? 'single'
-		dir = args.dir
 		orientation = args.orientation
 		disabled = Boolean(args.disabled)
 		loop = args.loop !== false
@@ -148,7 +146,6 @@ const ToggleGroupRoot: Stateful<ToggleGroupRootArgs> = function* ({ defaultValue
 
 /** Unstyled toggle group with selection state and roving keyboard focus. */
 const ToggleGroup: Stateless<ToggleGroupArgs> = ({
-	dir,
 	orientation = 'horizontal',
 	role = 'group',
 	...args
@@ -158,13 +155,11 @@ const ToggleGroup: Stateless<ToggleGroupArgs> = ({
 	return (
 		<ToggleGroupRoot
 			{...rootAttrs(args, ['defaultValue', 'disabled', 'loop', 'onValueChange', 'type', 'value'])}
-			dir={dir ?? DirectionContext()}
 			orientation={orientation}
 			attr:aria-disabled={disabled}
 			attr:data-disabled={disabled}
 			attr:data-orientation={orientation}
 			attr:data-slot="toggle-group"
-			attr:dir={dir}
 			attr:role={role}
 		/>
 	)

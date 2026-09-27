@@ -2,9 +2,9 @@ import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
 import { callHandler, id, listen } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { bar } from './bar'
-import { type Direction, DirectionContext } from './direction'
+import type { Direction } from './direction'
 import { contentAttrs, popup, type PopupPosition, type PopupView, triggerAttrs } from './popup'
-import { rootAttrs, text } from './shared'
+import { direction, rootAttrs, text } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
@@ -21,7 +21,7 @@ export type NavigationMenuArgs = WithChildren<OmitArg<IntrinsicElements['nav'], 
 	openDelay?: number
 	/** Hover-intent delay before a panel closes after the pointer leaves, in milliseconds. */
 	closeDelay?: number
-	/** Text direction for horizontal arrow-key navigation. Defaults to the nearest DirectionProvider. */
+	/** Text direction written on the root; without it the root follows its inherited `dir` (a DirectionProvider's or the document's). */
 	dir?: Direction
 	/** Called whenever the open item value changes. */
 	onValueChange?: (value: NavigationMenuValue, event?: Event) => void
@@ -110,13 +110,12 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 
 const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ defaultValue, value }) {
 	let closeDelay = 300
-	let dir: Direction = 'ltr'
 	let onValueChange: NavigationMenuArgs['onValueChange']
 	let openDelay = 200
 
 	const state = bar(this, {
 		selector: '[data-navigation-menu-trigger="true"]',
-		dir: () => dir,
+		dir: () => direction(this),
 		initialValue: String(value ?? defaultValue ?? ''),
 		onValueChange: (next, event) => onValueChange?.(next, event),
 	})
@@ -179,7 +178,6 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 
 	for (const args of this) {
 		closeDelay = args.closeDelay ?? 300
-		dir = args.dir ?? 'ltr'
 		onValueChange = args.onValueChange
 		openDelay = args.openDelay ?? 200
 		state.sync(args.value != null ? String(args.value ?? '') : undefined)
@@ -206,12 +204,10 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 NavigationMenuRoot.is = 'nav'
 
 /** Unstyled root landmark and state provider for a navigation menu. */
-const NavigationMenu: Stateless<NavigationMenuArgs> = ({ dir, ...args }) => (
+const NavigationMenu: Stateless<NavigationMenuArgs> = args => (
 	<NavigationMenuRoot
 		{...rootAttrs(args, ['closeDelay', 'defaultValue', 'gap', 'onValueChange', 'openDelay', 'placement', 'value'])}
-		dir={dir ?? DirectionContext()}
 		attr:data-slot="navigation-menu"
-		attr:dir={dir}
 	/>
 )
 

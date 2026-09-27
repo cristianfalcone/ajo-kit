@@ -312,7 +312,7 @@ export const RightToLeft: Story = {
 			await wait(250)
 		}
 
-		if (root.getAttribute('dir') !== 'rtl') throw new Error('Carousel did not inherit rtl from DirectionProvider')
+		if (root.hasAttribute('dir') || getComputedStyle(root).direction !== 'rtl') throw new Error('Carousel did not inherit rtl from DirectionProvider')
 		if (slide() !== 'Slide 1 of 5' || !previous.disabled || next.disabled) {
 			throw new Error('RTL carousel did not start on the first slide')
 		}

@@ -4,6 +4,7 @@ import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, expect, test } from 'vitest'
 import { DirectionProvider } from '../src/direction'
 import { ToggleGroup, ToggleGroupItem } from '../src/toggle-group'
+import './user-agent-dir'
 
 const group = (args: Record<string, unknown> = {}) => jsx(ToggleGroup, {
 	...args,

@@ -146,7 +146,17 @@ Calendar and the InputDate family take a BCP 47 `locale`. Without one they use
 `<html lang>`, then `en-US`, never the machine locale, so server and browser
 render the same text.
 
-`DirectionProvider` supplies the default text direction. Components with
-horizontal keyboard navigation also accept a `dir` override.
+Direction-aware components read their element's resolved direction when a
+key arrives, so a document-level `dir` works alone and `DirectionProvider`
+only writes `dir` on a subtree. They write `dir` on their root only when given
+an explicit `dir` override. Each date and time segment group takes its
+locale's direction: `9:30 AM` stays left to right on a right-to-left page, and
+an Arabic date keeps its day on the right. Segments are inline spans, so a
+theme that keeps them inline gets the browser's bidi order. Every numeric
+segment is a left-to-right embed (`direction: ltr` with `unicode-bidi: embed`,
+inline), and in a right-to-left group a literal with a space (the date and time
+joiner) ends in a right-to-left mark, so an Arabic or Persian value keeps one
+on-screen order while its units fill or empty. Arrow keys move between
+segments in on-screen order.
 
 Component-family subpaths are side-effect-free and tree-shakeable.

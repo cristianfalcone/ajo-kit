@@ -5,7 +5,7 @@ import { FieldContext } from './field'
 import { InputGroup, InputGroupAddon, InputGroupButton } from './input-group'
 import { collection, matchesTokens, resolveFilter, resultCount } from './collection'
 import { contentAttrs, popup, type PopupPosition, type PopupView, triggerAttrs } from './popup'
-import { activate, flag, rootAttrs, text } from './shared'
+import { activate, direction, flag, rootAttrs, text } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
 export type { PopupPlacement, PopupPosition } from './popup'
 
@@ -453,13 +453,11 @@ const SelectRoot: Stateful<SelectArgs<boolean>> = function* ({
 
 	const chipsOf = () => Array.from(this.querySelectorAll<HTMLElement>('[data-slot="select-chip"]'))
 
-	const rtl = () => ownerDocument?.defaultView?.getComputedStyle(this).direction === 'rtl'
-
 	// Chip roving: real focus between chips and the input, wrapping past both ends.
 	const chipNav = roving(this, {
 		items: () => input ? [...chipsOf(), input] : chipsOf(),
 		orientation: () => 'horizontal',
-		dir: () => rtl() ? 'rtl' : 'ltr',
+		dir: () => direction(this),
 		loop: () => true,
 		onMove: target => target.focus(),
 	})
@@ -576,7 +574,7 @@ const SelectRoot: Stateful<SelectArgs<boolean>> = function* ({
 				remove(selected[selected.length - 1], event)
 				return
 			}
-			if (event.key === (rtl() ? 'ArrowRight' : 'ArrowLeft') && input.selectionStart === 0 && chipsOf().length) {
+			if (event.key === (direction(this) === 'rtl' ? 'ArrowRight' : 'ArrowLeft') && input.selectionStart === 0 && chipsOf().length) {
 				chipNav.handle(event)
 			}
 			return

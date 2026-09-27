@@ -17,6 +17,7 @@ import {
 import type { Host } from 'ajo'
 import { dom } from 'ajo-cloves'
 import type { PopupPlacement } from './popup'
+import { direction } from './shared'
 
 export type PositionProfile =
 	| 'popover'
@@ -92,6 +93,14 @@ const policies: Record<PositionProfile, Policy> = {
 	navigation: { placement: 'bottom', gap: 8, padding: 8, size: 'both', hidden: true },
 	context: { placement: 'bottom-start', gap: 2, padding: 4, size: 'both', hidden: true },
 	menubar: { placement: 'bottom-start', gap: 8, padding: 4, size: 'both', hidden: true, crossAxis: -4 },
+}
+
+// A submenu opens toward the inline end, so a right-to-left menu mirrors it.
+const rtlSubmenu: Policy = { ...policies.submenu, placement: 'left-start', fallbackPlacements: ['right-start'] }
+
+const policyFor = (profile: PositionProfile, reference: PositionReference) => {
+	const element = dom(reference) ? reference : reference.contextElement
+	return profile === 'submenu' && element && direction(element) === 'rtl' ? rtlSubmenu : policies[profile]
 }
 
 const inactive = (): PositionView => ({
@@ -204,7 +213,7 @@ const resetFloating = (floating: HTMLElement) => {
 
 const origin = (target: HTMLElement, side: string, align: string) => {
 	const horizontal = side === 'top' || side === 'bottom'
-	const rtl = horizontal && target.ownerDocument.defaultView?.getComputedStyle(target).direction === 'rtl'
+	const rtl = horizontal && direction(target) === 'rtl'
 	const cross = align === 'center' ? '50%'
 		: align === 'start' ? rtl ? '100%' : '0%'
 			: rtl ? '0%' : '100%'
@@ -218,7 +227,6 @@ const origin = (target: HTMLElement, side: string, align: string) => {
 export const position = (host: Host, options: PositionOptions): PositionView => {
 	if (!dom(host) || !host.ownerDocument.defaultView) return inactive()
 
-	const policy = policies[options.profile]
 	let active = false
 	let cleanup: (() => void) | undefined
 	let current: PositionElements | undefined
@@ -309,6 +317,7 @@ export const position = (host: Host, options: PositionOptions): PositionView => 
 	const calculate = async (scope: number, request: number) => {
 		const elements = current
 		if (!elements?.reference || !elements.floating) return false
+		const policy = policyFor(options.profile, elements.reference)
 		const preferred = options.placement?.() ?? policy.placement
 		const placement = preferred === 'auto' ? policy.placement : preferred
 		try {
