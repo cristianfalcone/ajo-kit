@@ -1,7 +1,6 @@
 import type { ActionContext, Request, Response } from 'ajo-kit'
 import { db, trimmed } from '/src/data'
 import { sql } from 'ajo-kit/database'
-import { Missing } from 'ajo-kit'
 import { integer, maxLength, minLength, minValue, number, object, parse, picklist, pipe } from 'ajo-kit/validate'
 
 const Send = object({ text: pipe(trimmed, minLength(1, 'Message cannot be empty'), maxLength(4000)) })
@@ -88,15 +87,13 @@ export async function page(req: Request) {
 	const room = Number(req.params.id)
 	const user = req.user!.id
 
-	req.track?.([`chat:${room}`, `user:${user}`])
+	req.track?.(`chat:${room}`)
 
 	const chat = await db()
 		.selectFrom('chats')
 		.where('id', '=', room)
 		.select(['id', 'name'])
-		.executeTakeFirst()
-
-	if (!chat) throw new Missing('Chat not found')
+		.executeTakeFirstOrThrow()
 
 	const [participants, messages, meta] = await Promise.all([
 		db()
@@ -163,7 +160,6 @@ export const actions = {
 
 		action.emit([
 			`chat:${room}`,
-			...result.participants.map(p => `chats:${p.user}`),
 			...result.participants.map(p => `user:${p.user}`),
 		])
 
@@ -197,7 +193,7 @@ export const actions = {
 			.where('user', '=', user)
 			.execute()
 
-		action.emit([`user:${user}`, `chats:${user}`])
+		action.emit(`user:${user}`)
 
 		return { ok: true }
 	}

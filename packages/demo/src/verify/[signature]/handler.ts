@@ -10,7 +10,7 @@ export async function page(req: Request) {
 		return { error: 'Invalid or expired verification link' }
 	}
 
-	emit([`profile:${user}`, `dashboard:${user}`, `user:${user}`, 'admin:users'])
+	emit([`user:${user}`, 'admin:users'])
 
-	return { redirect: '/dashboard', verified: true }
+	return { verified: true }
 }

@@ -49,7 +49,7 @@ export const actions = {
 
 		const agent = req.headers['user-agent']
 		const token = await auth.session.create(user.id, input.remember, addr, agent)
-		action.emit([`sessions:${user.id}`, `dashboard:${user.id}`, `user:${user.id}`, 'admin:sessions', 'admin:stats'])
+		action.emit([`user:${user.id}`, 'admin:sessions', 'admin:stats'])
 
 		auth.cookie.write(res, token, input.remember)
 
@@ -93,7 +93,7 @@ export default {
 			input.device_name || 'API Client',
 			abilities
 		)
-		emit([`tokens:${user.id}`, `dashboard:${user.id}`, `user:${user.id}`, 'admin:tokens', 'admin:stats'])
+		emit([`user:${user.id}`, 'admin:tokens', 'admin:stats'])
 
 		send(res, 200, {
 			token,

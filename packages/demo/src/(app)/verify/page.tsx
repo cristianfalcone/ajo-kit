@@ -4,11 +4,10 @@ import { action } from 'ajo-kit/client'
 import { Alert, AlertDescription } from 'ajo-ui-playa/alert'
 import { Button } from 'ajo-ui-playa/button'
 import { Card, CardContent } from 'ajo-ui-playa/card'
-import type { VerificationResult } from '/src/verification'
 
 const Verify: Stateful<PageArgs> = function* () {
 
-	const form = action<VerificationResult>()
+	const form = action<{ sent: true }>()
 
 	while (true) yield (
 		<section class="flex min-h-[calc(100vh-10rem)] items-start justify-center py-8">

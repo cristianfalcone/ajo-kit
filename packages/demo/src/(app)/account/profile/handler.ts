@@ -1,28 +1,14 @@
 import * as auth from 'ajo-kit-auth'
 import type { ActionContext, Parent, Request, Response } from 'ajo-kit'
-import { object, string, optional, pipe, forward, partialCheck, parse } from 'ajo-kit/validate'
-import { db, password as passwordField, trimmed } from '/src/data'
+import { object, string, optional, parse } from 'ajo-kit/validate'
+import { confirmed, db, trimmed } from '/src/data'
 import { Denied, Failure, ip } from 'ajo-kit'
 
 const UpdateName = object({
 	name: optional(trimmed, ''),
 })
 
-const UpdatePassword = pipe(
-	object({
-		current: string(),
-		password: passwordField,
-		confirm: string(),
-	}),
-	forward(
-		partialCheck(
-			[['password'], ['confirm']],
-			input => input.password === input.confirm,
-			'Passwords must match'
-		),
-		['confirm']
-	)
-)
+const UpdatePassword = confirmed({ current: string() })
 
 type Shell = {
 	user: {
@@ -32,9 +18,7 @@ type Shell = {
 	}
 }
 
-export async function page(req: Request, parent: Parent) {
-	req.track?.([`profile:${req.user!.id}`, `user:${req.user!.id}`])
-
+export async function page(_req: Request, parent: Parent) {
 	const { user } = await parent() as Shell
 
 	return {
@@ -57,7 +41,7 @@ export const actions = {
 			.set({ name: input.name, updated: new Date().toISOString() })
 			.where('id', '=', req.user!.id)
 			.execute()
-		action.emit([`profile:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:users'])
+		action.emit([`user:${req.user!.id}`, 'admin:users'])
 
 		return { success: true, name: input.name }
 	},
@@ -99,10 +83,6 @@ export const actions = {
 		auth.confirm.clearUser(id)
 		auth.cookie.write(res, await auth.session.create(id, false, ip(req), req.headers['user-agent']))
 		action.emit([
-			`profile:${id}`,
-			`sessions:${id}`,
-			`tokens:${id}`,
-			`dashboard:${id}`,
 			`user:${id}`,
 			'admin:sessions',
 			'admin:tokens',

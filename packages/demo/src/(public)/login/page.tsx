@@ -6,7 +6,7 @@ import { CardContent, CardDescription, CardFooter, CardHeader } from 'ajo-ui-pla
 import { Checkbox } from 'ajo-ui-playa/checkbox'
 import { Field, FieldError, FieldLabel } from 'ajo-ui-playa/field'
 import { Input } from 'ajo-ui-playa/input'
-import type { Signup } from '/src/data/registration'
+import type { Signup } from '/src/data/types'
 
 type Result = { redirect: string }
 type Data = { signup: Signup }

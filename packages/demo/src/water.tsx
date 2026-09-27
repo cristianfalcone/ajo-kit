@@ -1,11 +1,6 @@
 import type { Stateful } from 'ajo'
 import { media, resize, timer } from 'ajo-cloves'
 
-export type WaterArgs = {
-	/** Master effect opacity. */
-	strength?: number
-}
-
 // Fixed square simulation grid, viewport-independent (the canonical size in
 // the Evan Wallace / jquery.ripples lineage). The square maps over the
 // viewport by its longest side so ripples stay circular.
@@ -85,9 +80,8 @@ const hex = (styles: CSSStyleDeclaration, name: string): [number, number, number
 }
 
 /** Subtle WebGL water behind the page: a real wave simulation stirred by press-and-drag, clicks, and occasional random drips, tinted by the active theme. */
-const Water: Stateful<WaterArgs> = function* (args) {
+const Water: Stateful = function* () {
 
-	let strength = args.strength ?? 0.1
 	let started = false
 	let sized: HTMLCanvasElement | undefined
 	let power = () => {}
@@ -345,7 +339,7 @@ const Water: Stateful<WaterArgs> = function* (args) {
 			gl.useProgram(render)
 			gl.bindTexture(gl.TEXTURE_2D, fields ? fields[read].tex : still)
 			gl.uniform1f(uTime, clock(now))
-			gl.uniform1f(uAlpha, strength)
+			gl.uniform1f(uAlpha, 0.1)
 			gl.uniform1f(uUvScale, 1 / longest)
 			gl.uniform2f(uUvOffset, 0.5 - canvas.width / 2 / longest, 0.5 - canvas.height / 2 / longest)
 			gl.drawArrays(gl.TRIANGLES, 0, 3)
@@ -378,8 +372,7 @@ const Water: Stateful<WaterArgs> = function* (args) {
 	// media re-renders on a reduced-motion change; the loop powers the scene to match.
 	let reduced = motion.matches
 
-	for (args of this) {
-		strength = args.strength ?? 0.1
+	while (true) {
 		if (reduced !== motion.matches) {
 			reduced = motion.matches
 			power()

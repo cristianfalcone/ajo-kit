@@ -1,5 +1,5 @@
 import { Failure, Forbidden, Missing, ip, origin, type ActionContext, type Request, type Response } from 'ajo-kit'
-import { authorize, confirm, cookie, limit, session, verify } from 'ajo-kit-auth'
+import { confirm, cookie, limit, session, verify } from 'ajo-kit-auth'
 import { deliver } from 'ajo-kit-mail'
 import { number, object, parse } from 'ajo-kit/validate'
 import { db } from '../database'
@@ -12,7 +12,6 @@ const notes = (user: number) => db().selectFrom('notes').select(['id', 'text', '
 	.where('user', '=', user).orderBy('id', 'desc').limit(50).execute()
 
 export async function page(req: Request) {
-	authorize(req)
 	const { id, name, email, verified } = req.user!
 	req.track?.([`notes:${id}`, `mail:${id}`])
 	return {
@@ -25,16 +24,13 @@ export async function page(req: Request) {
 
 export const actions = {
 	add: async (req: Request, _res: Response, action: ActionContext) => {
-		authorize(req)
 		const input = parse(Note, req.body)
 		await db().insertInto('notes').values({ user: req.user!.id, text: input.text }).execute()
 		action.emit(`notes:${req.user!.id}`)
 		return { message: 'Note added' }
 	},
 	remove: async (req: Request, _res: Response, action: ActionContext) => {
-		authorize(req)
 		const { id } = parse(Identity, req.body)
-		if (!Number.isSafeInteger(id) || id < 1) throw new Missing('Note not found')
 		const deleted = await db().deleteFrom('notes').where('id', '=', id)
 			.where('user', '=', req.user!.id).returning('id').executeTakeFirst()
 		if (!deleted) throw new Missing('Note not found')
@@ -42,7 +38,6 @@ export const actions = {
 		return { message: 'Note removed' }
 	},
 	verify: async (req: Request, _res: Response, action: ActionContext) => {
-		authorize(req)
 		const { id, email, verified } = req.user!
 		if (verified !== null) return { message: 'Your email is already verified.' }
 		const recipient = `verify:email:${email}`
@@ -63,7 +58,6 @@ export const actions = {
 		return { message: mailbox ? 'Verification captured below. Open its link to continue.' : 'Check your email for the verification link.' }
 	},
 	email: async (req: Request, _res: Response, action: ActionContext) => {
-		authorize(req)
 		const { id, email, verified } = req.user!
 		if (verified === null) throw new Forbidden('Verify your email before sending notes.')
 		const key = `mail:${id}`
@@ -80,7 +74,6 @@ export const actions = {
 		return { message: mailbox ? 'Message captured below. No email was sent.' : 'Your notes were sent.' }
 	},
 	logout: async (req: Request, res: Response, action: ActionContext) => {
-		authorize(req)
 		const token = cookie.read(req)
 		if (token) await session.remove(token)
 		confirm.clear(req)

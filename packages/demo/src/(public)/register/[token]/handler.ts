@@ -1,24 +1,10 @@
 import * as auth from 'ajo-kit-auth'
 import type { ActionContext, Request, Response } from 'ajo-kit'
 import { Failure, ip } from 'ajo-kit'
-import { object, optional, string, forward, partialCheck, pipe, parse } from 'ajo-kit/validate'
-import { db, password, trimmed } from '/src/data'
+import { optional, parse } from 'ajo-kit/validate'
+import { confirmed, db, trimmed } from '/src/data'
 
-const Accept = pipe(
-	object({
-		password,
-		confirm: string(),
-		name: optional(trimmed, ''),
-	}),
-	forward(
-		partialCheck(
-			[['password'], ['confirm']],
-			input => input.password === input.confirm,
-			'Passwords do not match'
-		),
-		['confirm']
-	)
-)
+const Accept = confirmed({ name: optional(trimmed, '') })
 
 export async function page(req: Request) {
 	const invite = await auth.invite.get(req.params.token)
@@ -59,8 +45,6 @@ export const actions = {
 		const session = await auth.session.create(id, false, ip(req), agent)
 
 		action.emit([
-			`sessions:${id}`,
-			`dashboard:${id}`,
 			`user:${id}`,
 			'admin:sessions',
 			'admin:users',

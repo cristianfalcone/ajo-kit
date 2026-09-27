@@ -6,8 +6,6 @@ import { db } from '/src/data'
 const Revoke = object({ id: string() })
 
 export async function page(req: Request) {
-	req.track?.([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`])
-
 	await auth.session.prune()
 
 	const cookie = auth.cookie.read(req)
@@ -51,7 +49,7 @@ export const actions = {
 		if (revoked.numDeletedRows === 0n) return { revoked: false }
 
 		auth.confirm.clearSession(req.user!.id, input.id)
-		action.emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
+		action.emit([`user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: true }
 	},
@@ -70,7 +68,7 @@ export const actions = {
 			.returning('id')
 			.execute()
 		for (const session of revoked) auth.confirm.clearSession(req.user!.id, session.id)
-		action.emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
+		action.emit([`user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 
 		return { revoked: revoked.length }
 	}

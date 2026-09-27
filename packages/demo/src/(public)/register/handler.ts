@@ -1,27 +1,12 @@
 import * as auth from 'ajo-kit-auth'
 import type { ActionContext, Request, Response } from 'ajo-kit'
 import { Failure, Forbidden, ip, origin } from 'ajo-kit'
-import { object, optional, string, forward, partialCheck, pipe, parse } from 'ajo-kit/validate'
+import { optional, parse } from 'ajo-kit/validate'
 import { deliver } from 'ajo-kit-mail'
-import { db, email, password, trimmed } from '/src/data'
+import { confirmed, db, email, trimmed } from '/src/data'
 import * as registration from '/src/data/registration'
 
-const Signup = pipe(
-	object({
-		email,
-		password,
-		confirm: string(),
-		name: optional(trimmed, ''),
-	}),
-	forward(
-		partialCheck(
-			[['password'], ['confirm']],
-			input => input.password === input.confirm,
-			'Passwords do not match'
-		),
-		['confirm']
-	)
-)
+const Signup = confirmed({ email, name: optional(trimmed, '') })
 
 export async function page(req: Request) {
 	req.track?.('registration:policy')
@@ -93,8 +78,6 @@ export const actions = {
 		const agent = req.headers['user-agent']
 		const token = await auth.session.create(id, false, ip(req), agent)
 		action.emit([
-			`sessions:${id}`,
-			`dashboard:${id}`,
 			`user:${id}`,
 			'admin:sessions',
 			'admin:users',

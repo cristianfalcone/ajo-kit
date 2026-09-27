@@ -1,56 +1,20 @@
-import { db as base } from 'ajo-kit/database'
-import type { DB, Signup } from './types'
+import { db } from '.'
+import type { Signup } from './types'
 
-export type { Signup }
+/** Returns the signup mode from the migrated singleton row; a missing row throws instead of opening signup. */
+export const policy = async (): Promise<Signup> => (await db()
+	.selectFrom('registration')
+	.select('signup')
+	.where('id', '=', 1)
+	.executeTakeFirstOrThrow()).signup
 
-const singleton = 1
-
-const db = () => base<DB>()
-const stamp = (time = Date.now()) => new Date(time).toISOString()
-
-function signup(value: string): Signup {
-	if (value === 'open' || value === 'invite') return value
-
-	throw new Error(`Invalid registration signup mode: ${value}`)
-}
-
-/** Returns the durable signup mode, initializing the singleton policy row when needed. */
-export async function policy(): Promise<Signup> {
-	const row = await db()
-		.selectFrom('registration')
-		.select('signup')
-		.where('id', '=', singleton)
-		.executeTakeFirst()
-
-	if (row) return signup(row.signup)
+/** Persists the signup mode and records the admin who changed it. */
+export async function set(signup: Signup, updater: number): Promise<void> {
+	const updated = new Date().toISOString()
 
 	await db()
 		.insertInto('registration')
-		.values({ id: singleton, signup: 'open', updated: null, updater: null })
-		.onConflict(oc => oc.column('id').doNothing())
-		.execute()
-
-	const saved = await db()
-		.selectFrom('registration')
-		.select('signup')
-		.where('id', '=', singleton)
-		.executeTakeFirst()
-
-	return saved ? signup(saved.signup) : 'open'
-}
-
-/** Persists the singleton signup mode and records the admin who changed it. */
-export async function set(value: Signup, user: number): Promise<void> {
-	const next = signup(value)
-	const now = stamp()
-
-	await db()
-		.insertInto('registration')
-		.values({ id: singleton, signup: next, updated: now, updater: user })
-		.onConflict(oc => oc.column('id').doUpdateSet({
-			signup: next,
-			updated: now,
-			updater: user,
-		}))
+		.values({ id: 1, signup, updated, updater })
+		.onConflict(oc => oc.column('id').doUpdateSet({ signup, updated, updater }))
 		.execute()
 }

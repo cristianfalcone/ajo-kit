@@ -9,15 +9,13 @@ type Shell = {
 		email: string
 		verified: string | null
 		created: string
-		roles?: string[]
+		roles: string[]
 		abilities?: string[]
 	}
 	unread: number
 }
 
 export async function page(req: Request, parent: Parent) {
-	req.track?.([`dashboard:${req.user!.id}`, `user:${req.user!.id}`])
-
 	const { user: account, unread } = await parent() as Shell
 	const user = account.id
 	const cookie = auth.cookie.read(req)
@@ -50,7 +48,7 @@ export async function page(req: Request, parent: Parent) {
 	])
 
 	return {
-		user: { ...account, roles: account.roles ?? [] },
+		user: account,
 		stats: {
 			sessions: Number(sessions.count),
 			tokens: Number(tokens.count),

@@ -54,7 +54,7 @@ export const actions = {
 		if (!session) return { revoked: false }
 
 		auth.confirm.clearSession(session.user, session.id)
-		action.emit(['admin:sessions', 'admin:stats', `sessions:${session.user}`, `dashboard:${session.user}`, `user:${session.user}`])
+		action.emit(['admin:sessions', 'admin:stats', `user:${session.user}`])
 
 		return { revoked: true }
 	},
@@ -69,7 +69,7 @@ export const actions = {
 			.returning('id')
 			.execute()
 		for (const session of revoked) auth.confirm.clearSession(input.user, session.id)
-		action.emit(['admin:sessions', 'admin:stats', `sessions:${input.user}`, `dashboard:${input.user}`, `user:${input.user}`])
+		action.emit(['admin:sessions', 'admin:stats', `user:${input.user}`])
 
 		return { revoked: revoked.length }
 	}

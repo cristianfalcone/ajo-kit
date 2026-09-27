@@ -217,13 +217,12 @@ test('emitted action topics make stale route versions miss early 304', async ({ 
 	})
 
 	expect(revoke.status()).toBe(200)
-	expect(await revoke.json()).toMatchObject({
+	expect(await revoke.json()).toEqual({
 		revoked: true,
-		topics: expect.arrayContaining(['admin:sessions', 'admin:stats', 'sessions:1', 'user:1']),
+		topics: ['admin:sessions', 'admin:stats', 'user:1'],
 		versions: {
 			'admin:sessions': expect.any(Number),
 			'admin:stats': expect.any(Number),
-			'sessions:1': expect.any(Number),
 			'user:1': expect.any(Number),
 		},
 	})

@@ -6,7 +6,6 @@ import { CardContent, CardFooter, CardHeader } from 'ajo-ui-playa/card'
 interface Data {
 	error?: string
 	verified?: boolean
-	redirect?: string
 }
 
 const VerifyResult: Stateful<PageArgs<Data>> = function* (args) {

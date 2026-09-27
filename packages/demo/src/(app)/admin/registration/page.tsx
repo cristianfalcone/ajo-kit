@@ -10,7 +10,7 @@ import { Input } from 'ajo-ui-playa/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'ajo-ui-playa/table'
 import { toast } from 'ajo-ui-playa/toast'
 import { ToggleGroup, ToggleGroupItem } from 'ajo-ui-playa/toggle-group'
-import type { Signup } from '/src/data/registration'
+import type { Signup } from '/src/data/types'
 import { IconAction } from '/src/view'
 import type { Info } from '/src/data/pagination'
 import PageControls from '../pagination'
@@ -22,24 +22,12 @@ type Invitation = {
 	inviterName: string | null
 	inviterEmail: string | null
 	expiry: string
-	status: 'pending'
 }
 
 type Data = { signup: Signup; invitations: Invitation[]; page: Info }
 type ModeResult = { saved: boolean }
 type InviteResult = { invited: boolean }
 type RevokeResult = { revoked: boolean }
-
-const statusChip = {
-	pending: {
-		variant: 'warning',
-		class: undefined,
-	},
-} as const
-
-const statusText = {
-	pending: 'Pending',
-} as const
 
 const Registration: Stateful<PageArgs<Data>> = function* (args) {
 	const mode = action<ModeResult>('mode')
@@ -172,28 +160,22 @@ const Registration: Stateful<PageArgs<Data>> = function* (args) {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{invitations.map(row => {
-											const chip = statusChip[row.status]
-
-											return (
-												<TableRow key={row.id}>
-													<TableCell>
-														<div class="font-medium">{row.email ?? 'Open invitation'}</div>
-														{row.name && <div class="text-muted-foreground">{row.name}</div>}
-													</TableCell>
-													<TableCell>
-														<Chip variant={chip.variant} class={chip.class}>
-															{statusText[row.status]}
-														</Chip>
-													</TableCell>
-													<TableCell>{row.inviterName || row.inviterEmail || 'Unknown'}</TableCell>
-													<TableCell class="text-muted-foreground">{date(row.expiry)}</TableCell>
-													<TableCell class="text-right">
-														<IconAction action={revoke} name="id" value={row.id} label="Revoke invitation" icon="i-lucide-trash-2" />
-													</TableCell>
-												</TableRow>
-											)
-										})}
+										{invitations.map(row => (
+											<TableRow key={row.id}>
+												<TableCell>
+													<div class="font-medium">{row.email ?? 'Open invitation'}</div>
+													{row.name && <div class="text-muted-foreground">{row.name}</div>}
+												</TableCell>
+												<TableCell>
+													<Chip variant="warning">Pending</Chip>
+												</TableCell>
+												<TableCell>{row.inviterName || row.inviterEmail || 'Unknown'}</TableCell>
+												<TableCell class="text-muted-foreground">{date(row.expiry)}</TableCell>
+												<TableCell class="text-right">
+													<IconAction action={revoke} name="id" value={row.id} label="Revoke invitation" icon="i-lucide-trash-2" />
+												</TableCell>
+											</TableRow>
+										))}
 									</TableBody>
 								</Table>
 								{args.data?.page && <PageControls page={args.data.page} count={invitations.length} label="invitations" />}

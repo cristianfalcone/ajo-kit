@@ -11,6 +11,18 @@ test('verification signature marks an unverified account as verified', async ({ 
 	expect(await count(fixture, 'users', 'email = ? and verified is not null', email)).toBe(1)
 })
 
+test('a signed-in user opening the verification link is verified', async ({ page, fixture }) => {
+	const email = `verify-signed-in-${Date.now()}@example.com`
+	const user = await make(fixture, { email, name: 'Signed In Verify User', verified: false })
+
+	await signin(page, { email, password: 'password' })
+	await page.goto(await fixture.verificationPath(user))
+
+	await expect(page).toHaveURL(/\/verify\/[^/]+$/)
+	await expect(page.getByText('Your email has been verified!')).toBeVisible()
+	expect(await count(fixture, 'users', 'email = ? and verified is not null', email)).toBe(1)
+})
+
 test('authenticated users can request a new verification email until verified', async ({ page, fixture }) => {
 	const email = `resend-${Date.now()}@example.com`
 	await make(fixture, { email, name: 'Resend Verify User', verified: false })

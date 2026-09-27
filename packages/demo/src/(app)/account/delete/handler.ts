@@ -29,9 +29,6 @@ export const actions = {
 			'admin:tokens',
 			'admin:stats',
 			`user:${req.user!.id}`,
-			`dashboard:${req.user!.id}`,
-			`sessions:${req.user!.id}`,
-			`tokens:${req.user!.id}`,
 		])
 
 		auth.cookie.clear(res)

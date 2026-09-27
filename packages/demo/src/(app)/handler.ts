@@ -9,14 +9,14 @@ export async function layout(req: Request) {
 
 	const match = req.path.match(/^\/account\/chats\/(\d+)/)
 	const activeChatId = match ? Number(match[1]) : undefined
-	const user = await db()
+	const { created } = await db()
 		.selectFrom('users')
-		.select(['id', 'name', 'email', 'verified', 'created'])
+		.select('created')
 		.where('id', '=', req.user.id)
-		.executeTakeFirst()
+		.executeTakeFirstOrThrow()
 
 	return {
-		user: { ...req.user, ...user, roles: req.user.roles ?? [] },
+		user: { ...req.user, created },
 		unread: await unread(req.user.id, activeChatId),
 	}
 }
@@ -26,7 +26,7 @@ export const actions = {
 		const token = auth.cookie.read(req)
 		if (token) {
 			await auth.session.remove(token)
-			action.emit([`sessions:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
+			action.emit([`user:${req.user!.id}`, 'admin:sessions', 'admin:stats'])
 		}
 		auth.confirm.clear(req)
 		auth.cookie.clear(res)

@@ -40,7 +40,7 @@ const Layout: Stateful<LayoutArgs> = function* (args) {
 		const mode = current()
 
 		apply(mode)
-		ThemeContext({ mode, set, cycle })
+		ThemeContext({ mode, cycle })
 
 		if (args.loading) {
 			yield (
@@ -103,7 +103,7 @@ const RouteLoading = ({ label = 'Loading' }: { label?: string }) => (
 	</div>
 )
 
-export const Failure = ({ error }: { error: { message: string; status?: number; stack?: string } }) => {
+const Failure = ({ error }: { error: { message: string; status?: number; stack?: string } }) => {
 
 	const isNotFound = error.status === 404
 

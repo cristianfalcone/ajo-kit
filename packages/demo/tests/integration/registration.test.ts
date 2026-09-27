@@ -64,6 +64,13 @@ describe('registration database helpers', () => {
 		})
 	})
 
+	test('policy fails closed without the migrated row', async () => {
+		await db<any>().deleteFrom('registration').execute()
+
+		await expect(registration.policy()).rejects.toThrow()
+		expect(await db<any>().selectFrom('registration').selectAll().execute()).toEqual([])
+	})
+
 	test('create stores a token hash and returns only the plaintext token', async () => {
 		const plain = await invite.create({
 			role: 'user',

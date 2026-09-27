@@ -2,26 +2,20 @@ import * as auth from 'ajo-kit-auth'
 import type { ActionContext, Request, Response } from 'ajo-kit'
 import { Failure, origin } from 'ajo-kit'
 import { deliver } from 'ajo-kit-mail'
-import { object, optional, string, parse } from 'ajo-kit/validate'
+import { object, optional, picklist, string, parse } from 'ajo-kit/validate'
 import { db, email, trimmed } from '/src/data'
 import { info, paginate, rows as trim } from '/src/data/pagination'
 import * as registration from '/src/data/registration'
-import type { Signup } from '/src/data/registration'
 
-const Mode = object({ signup: string() })
+const Mode = object({ signup: picklist(['open', 'invite']) })
 const Invite = object({ email, name: optional(trimmed, '') })
 const Revoke = object({ id: string() })
-
-const signup = (value: string): Signup => {
-	if (value === 'open' || value === 'invite') return value
-
-	throw new Failure(400, 'Invalid signup mode')
-}
 
 export async function page(req: Request) {
 	req.track?.('admin:registration')
 
 	const pagination = paginate(req, 20, 50)
+	// auth lists every pending invitation; the page slices it until auth offers a bounded list.
 	const listed = await auth.invite.list()
 	const invitations = listed.slice(pagination.offset, pagination.offset + pagination.size + 1)
 	const ids = [...new Set(invitations.flatMap(row => row.inviter === null ? [] : [row.inviter]))]
@@ -38,7 +32,6 @@ export async function page(req: Request) {
 			...row,
 			inviterName: row.inviter === null ? null : inviters.get(row.inviter)?.name ?? null,
 			inviterEmail: row.inviter === null ? null : inviters.get(row.inviter)?.email ?? null,
-			status: 'pending' as const,
 		})),
 		page: info(req, pagination, invitations),
 	}
@@ -48,7 +41,7 @@ export const actions = {
 
 	mode: async (req: Request, _res: Response, action: ActionContext) => {
 		const input = parse(Mode, req.body)
-		await registration.set(signup(input.signup), req.user!.id)
+		await registration.set(input.signup, req.user!.id)
 		action.emit(['admin:registration', 'registration:policy'])
 
 		return { saved: true }

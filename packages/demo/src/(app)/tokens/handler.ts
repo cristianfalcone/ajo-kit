@@ -3,7 +3,8 @@ import type { Request, Response } from 'ajo-kit'
 import { send, emit } from 'ajo-kit/server'
 import { object, string, array, optional, parse } from 'ajo-kit/validate'
 import { Missing, Failure, Forbidden } from 'ajo-kit'
-import { delegate, grantable, normalize, unknown as invalid } from '/src/abilities'
+import { listed, requested } from '/src/data/tokens'
+import { grantable } from '/src/abilities'
 
 const Create = object({
 	name: string(),
@@ -12,71 +13,40 @@ const Create = object({
 
 const Revoke = object({ id: string() })
 
-const requested = (abilities: string[], grants: string[]) => {
-	const requested = normalize(abilities)
-	const bad = invalid(requested)
-
-	if (bad.length > 0) {
-		throw new Failure(400, `Unknown abilities: ${bad.join(', ')}`)
-	}
-
-	return delegate(abilities, grants)
-}
-
 export default {
 
 	async get(req: Request, res: Response) {
 
 		auth.authorize(req, 'tokens:read')
 
-		const tokens = await auth.token.list(req.user!.id)
-
-		const listed = tokens.map(t => ({
-			id: t.id,
-			name: t.name,
-			abilities: JSON.parse(t.abilities),
-			last_used: t.last,
-			expires_at: t.expiry,
-			created: t.created
-		}))
-
-		send(res, 200, { tokens: listed })
+		send(res, 200, { tokens: await listed(req.user!.id) })
 	},
 
 	async post(req: Request, res: Response) {
 
 		auth.authorize(req, 'tokens:create')
 
-		const key = `token:${req.user!.id}`
+		const user = req.user!.id
 
-		if (!auth.limit.hit(key)) {
+		if (!auth.limit.hit(`token:${user}`)) {
 			throw new Failure(429, 'Too many token creation attempts. Try again later.')
 		}
 
 		const input = parse(Create, req.body)
-		const grants = grantable(req.user!.abilities)
-		const abilities = requested(input.abilities, grants)
-
-		if (!auth.all(grants, abilities)) {
-			throw new Forbidden('Requested abilities exceed account abilities')
-		}
+		const abilities = requested(input.abilities, grantable(req.user!.abilities))
 
 		if (req.token && !auth.all(req.token.abilities, abilities)) {
 			throw new Forbidden('Requested abilities exceed bearer token abilities')
 		}
 
-		const token = await auth.token.create(
-			req.user!.id,
-			input.name,
-			abilities
-		)
-		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
+		const token = await auth.token.create(user, input.name, abilities)
+		emit([`user:${user}`, 'admin:tokens', 'admin:stats'])
 
-		const expires_at = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+		const expiry = (await auth.token.list(user)).find(row => row.id === auth.session.hash(token))?.expiry
 
 		send(res, 201, {
 			token,
-			expires_at,
+			expiry,
 			message: 'Save this token securely. It will not be shown again.'
 		})
 	},
@@ -89,7 +59,7 @@ export default {
 
 		if (!await auth.token.revoke(req.user!.id, input.id)) throw new Missing('Token not found')
 
-		emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
+		emit([`user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 
 		send(res, 200, { message: 'Token revoked' })
 	}

@@ -9,15 +9,15 @@ export default {
 
 		auth.authorize(req, 'profile:read')
 
-		const extra = await db()
+		const { created } = await db()
 			.selectFrom('users')
-			.select(['verified', 'created'])
+			.select('created')
 			.where('id', '=', req.user!.id)
-			.executeTakeFirst()
+			.executeTakeFirstOrThrow()
 
 		send(res, 200, {
 			...req.user,
-			...extra,
+			created,
 			abilities: req.token?.abilities || null
 		})
 	}

@@ -9,7 +9,7 @@ export default {
 		auth.authorize(req, 'tokens:delete')
 
 		if (req.token && await auth.token.revoke(req.user!.id, req.token.id)) {
-			emit([`tokens:${req.user!.id}`, `dashboard:${req.user!.id}`, `user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
+			emit([`user:${req.user!.id}`, 'admin:tokens', 'admin:stats'])
 		}
 
 		auth.confirm.clear(req)

@@ -1,23 +1,10 @@
 import * as auth from 'ajo-kit-auth'
 import type { ActionContext, Request, Response } from 'ajo-kit'
-import { object, string, pipe, forward, partialCheck, parse } from 'ajo-kit/validate'
-import { password } from '/src/data'
+import { parse } from 'ajo-kit/validate'
+import { confirmed } from '/src/data'
 import { Failure } from 'ajo-kit'
 
-const Reset = pipe(
-	object({
-		password,
-		confirm: string(),
-	}),
-	forward(
-		partialCheck(
-			[['password'], ['confirm']],
-			input => input.password === input.confirm,
-			'Passwords must match'
-		),
-		['confirm']
-	)
-)
+const Reset = confirmed({})
 
 export async function page(req: Request) {
 	const token = req.params.token
@@ -40,10 +27,6 @@ export const actions = {
 		if (user === null) throw new Failure(400, 'Invalid or expired reset link')
 
 		action.emit([
-			`profile:${user}`,
-			`sessions:${user}`,
-			`tokens:${user}`,
-			`dashboard:${user}`,
 			`user:${user}`,
 			'admin:sessions',
 			'admin:tokens',

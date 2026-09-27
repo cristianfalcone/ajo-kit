@@ -49,7 +49,7 @@ export const actions = {
 
 		if (!token || !await auth.token.revoke(token.user, token.id)) return { revoked: false }
 
-		action.emit(['admin:tokens', 'admin:stats', `tokens:${token.user}`, `dashboard:${token.user}`, `user:${token.user}`])
+		action.emit(['admin:tokens', 'admin:stats', `user:${token.user}`])
 
 		return { revoked: true }
 	}
