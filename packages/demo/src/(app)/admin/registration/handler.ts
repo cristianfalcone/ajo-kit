@@ -1,7 +1,7 @@
 import * as auth from 'ajo-kit-auth'
 import type { ActionContext, Request, Response } from 'ajo-kit'
 import { Failure, origin } from 'ajo-kit'
-import { send } from 'ajo-kit/mail'
+import { deliver } from 'ajo-kit-mail'
 import { object, optional, string, parse } from 'ajo-kit/validate'
 import { db, email, trimmed } from '/src/data'
 import { info, paginate, rows as trim } from '/src/data/pagination'
@@ -76,11 +76,12 @@ export const actions = {
 			? user.name
 			: 'An administrator'
 
-		await send({
+		const outcome = await deliver({
 			to: input.email,
 			subject: 'You are invited to Ajo Kit',
 			text: `${name} invited you to create an account at ${base}.\n\nAccept the invitation: ${link}\n\nThis invitation expires in 7 days. If you were not expecting this email, you can ignore it.`,
 		})
+		if (!outcome.ok) throw outcome.error
 
 		action.emit('admin:registration')
 

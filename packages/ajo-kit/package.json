@@ -54,10 +54,6 @@
       "types": "./src/vite.ts",
       "default": "./src/vite.ts"
     },
-    "./mail": {
-      "types": "./src/mail/index.ts",
-      "default": "./src/mail/index.ts"
-    },
     "./database": {
       "types": "./src/database.ts",
       "ajo": "./src/database.ajo.ts",

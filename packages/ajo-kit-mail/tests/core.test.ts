@@ -249,7 +249,7 @@ describe('ajo-kit-mail runtime outcomes', () => {
 		expect(log).toHaveBeenCalledWith('[mail] refused: no-transport')
 	})
 
-	test('send throws typed failures and adapts configured delivery into the ajo-kit seam', async () => {
+	test('deliver resolves the message id or carries the typed failure', async () => {
 		const core = await fresh()
 		const { capture } = await import('../src/capture')
 		const mailbox = capture()
@@ -259,19 +259,12 @@ describe('ajo-kit-mail runtime outcomes', () => {
 			transport: mailbox,
 		})
 
-		const id = await core.send(message())
-		expect(id).toBe(mailbox.last()?.id)
-
-		const seam = await import('ajo-kit/mail')
-		await seam.send({
-			to: 'second@example.com',
-			subject: 'Welcome',
-			text: 'Hello',
-		})
-		expect(mailbox.last()?.to.address).toBe('second@example.com')
+		const sent = await core.deliver(message())
+		expect(sent).toEqual({ ok: true, id: mailbox.last()?.id, transport: 'capture' })
 
 		mailbox.fail('rejected')
-		await expect(core.send(message())).rejects.toMatchObject({
+		const outcome = await core.deliver(message())
+		expect(outcome.ok || outcome.error).toMatchObject({
 			name: 'Undelivered',
 			code: 'rejected',
 			retryable: false,

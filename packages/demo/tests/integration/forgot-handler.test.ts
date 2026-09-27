@@ -25,7 +25,7 @@ afterEach(async () => {
 test('forgot answers known and unknown emails alike while delivery fails or hangs', async () => {
 	const { db } = await import('/src/data')
 	const auth = await import('ajo-kit-auth')
-	const mail = await import('ajo-kit/mail')
+	const mail = await import('ajo-kit-mail')
 	const { actions } = await import('../../src/(public)/forgot/handler')
 
 	auth.configure(() => db())
@@ -44,13 +44,13 @@ test('forgot answers known and unknown emails alike while delivery fails or hang
 	const expected = { message: 'If that email exists, we sent a reset link.' }
 
 	const failing = vi.fn(async () => { throw new Error('transport down') })
-	mail.configure(failing)
+	mail.configure({ from: 'no-reply@example.com', transport: failing })
 	expect(await answers()).toEqual([expected, expected])
 	expect(failing).toHaveBeenCalledTimes(1)
 	await vi.waitFor(() => expect(error).toHaveBeenCalledWith('Password reset mail failed', expect.any(Error)))
 
 	const hanging = vi.fn(() => new Promise<void>(() => {}))
-	mail.configure(hanging)
+	mail.configure({ from: 'no-reply@example.com', transport: hanging })
 	expect(await answers()).toEqual([expected, expected])
 	expect(hanging).toHaveBeenCalledTimes(1)
 })

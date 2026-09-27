@@ -27,6 +27,7 @@
     "ajo-cloves": "workspace:*",
     "ajo-kit": "workspace:*",
     "ajo-kit-auth": "workspace:*",
+    "ajo-kit-mail": "workspace:*",
     "ajo-ui-playa": "workspace:*",
     "clsx": "2.1.1"
   },

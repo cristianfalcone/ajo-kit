@@ -1,7 +1,7 @@
 import * as auth from 'ajo-kit-auth'
 import type { Request } from 'ajo-kit'
 import { Failure, origin } from 'ajo-kit'
-import { send as mail } from 'ajo-kit/mail'
+import { deliver } from 'ajo-kit-mail'
 import { db } from '/src/data'
 
 export type VerificationResult = { sent: true }
@@ -26,11 +26,12 @@ export async function resend(req: Request): Promise<VerificationResult> {
 	const base = origin(req)
 	const link = auth.verify.url(user.id, user.email, base)
 
-	await mail({
+	const outcome = await deliver({
 		to: user.email,
 		subject: 'Verify your email',
 		text: `Click here to verify your email: ${link}\n\nThis link expires in 24 hours.`,
 	})
+	if (!outcome.ok) throw outcome.error
 
 	return { sent: true }
 }

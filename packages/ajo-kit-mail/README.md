@@ -9,8 +9,6 @@ Includes:
 - transports: SMTP (mandatory verified TLS), JSON HTTP providers, in-memory capture
 - sanitized failures: classified codes and retry verdicts, never provider prose
 - credential-free delivery events for observability
-- integration with `ajo-kit`'s mail seam, so existing `send()` call sites gain
-  validation without being edited
 
 ## Install
 
@@ -29,9 +27,7 @@ pnpm add nodemailer # only when using smtp()
 
 ## Setup
 
-Configure a transport once during app boot. `configure()` also adapts the
-package into `ajo-kit`'s mail seam, so code importing `send` from
-`ajo-kit/mail` delivers through it with validation and a deadline.
+Configure a transport once during app boot:
 
 ```ts
 import { configure } from 'ajo-kit-mail'
@@ -44,17 +40,17 @@ configure({
 ```
 
 Development uses `capture()`; `configure()` refuses dev transports when
-`NODE_ENV` is `production`.
+`NODE_ENV` is `production`. Without a configured transport, every delivery is
+refused with `no-transport`.
 
 ## Sending
 
+`deliver()` is the one way to send. It never throws: it resolves to an
+`Outcome`, with the message `id` when `ok` is true and a typed `error` otherwise.
+
 ```ts
-import { deliver, send } from 'ajo-kit-mail'
+import { deliver } from 'ajo-kit-mail'
 
-// Resolves to the message id, throws Refused or Undelivered.
-await send({ to: 'user@example.com', subject: 'Reset', text: body })
-
-// Never throws: a discriminated Outcome for code that branches on failure.
 const outcome = await deliver({
 	to: { address: 'user@example.com', name: 'User' },
 	subject: 'Reset your password',
@@ -65,6 +61,13 @@ const outcome = await deliver({
 })
 
 if (!outcome.ok && outcome.kind === 'undelivered' && outcome.retryable) retry()
+```
+
+Code that should fail the request when mail fails throws the typed error:
+
+```ts
+const outcome = await deliver({ to: 'user@example.com', subject: 'Reset', text: body })
+if (!outcome.ok) throw outcome.error
 ```
 
 A message has exactly one recipient — credential mail must not fan out. The
@@ -117,7 +120,7 @@ import { capture } from 'ajo-kit-mail/capture'
 const mailbox = capture()
 configure({ transport: mailbox, from: 'noreply@example.com' })
 
-await send({ to: 'user@example.com', subject: 'Reset', text: `Open ${url}` })
+await deliver({ to: 'user@example.com', subject: 'Reset', text: `Open ${url}` })
 mailbox.link(/\/reset\//)          // first matching URL in the last body
 mailbox.fail('throttled', 2)       // drive the failure paths deterministically
 ```

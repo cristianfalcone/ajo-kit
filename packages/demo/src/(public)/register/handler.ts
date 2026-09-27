@@ -2,7 +2,7 @@ import * as auth from 'ajo-kit-auth'
 import type { ActionContext, Request, Response } from 'ajo-kit'
 import { Failure, Forbidden, ip, origin } from 'ajo-kit'
 import { object, optional, string, forward, partialCheck, pipe, parse } from 'ajo-kit/validate'
-import { send } from 'ajo-kit/mail'
+import { deliver } from 'ajo-kit-mail'
 import { db, email, password, trimmed } from '/src/data'
 import * as registration from '/src/data/registration'
 
@@ -83,11 +83,12 @@ export const actions = {
 
 		const link = auth.verify.url(id, input.email, base)
 
-		await send({
+		const outcome = await deliver({
 			to: input.email,
 			subject: 'Verify your email',
 			text: `Welcome! Click here to verify your email: ${link}\n\nThis link expires in 24 hours.`,
 		})
+		if (!outcome.ok) throw outcome.error
 
 		const agent = req.headers['user-agent']
 		const token = await auth.session.create(id, false, ip(req), agent)

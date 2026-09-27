@@ -428,7 +428,6 @@ artifact directly on the engine, provide the same directory mount.
 | `ajo-kit/client` | Client boot and `action()` |
 | `ajo-kit/validate` | Valibot helpers and `parse()` |
 | `ajo-kit/database` | SQLite, Kysely, and database lifecycle |
-| `ajo-kit/mail` | Configurable mail transport |
 | `ajo-kit/vite` | Vite plugin, JSX config, and defaults |
 | `ajo-kit/node` | Programmatic Node host utilities for development, engine builds, and tests |
 
@@ -511,29 +510,6 @@ type Head = {
   link?: { rel: string; href: string; [key: string]: string | undefined }[]
 }
 ```
-
-## Mail
-
-```ts
-import { configure, send } from 'ajo-kit/mail'
-import type { Mail, Transport } from 'ajo-kit/mail'
-
-const deliver: Transport = async mail => {
-  // Send mail with the application's provider.
-}
-
-configure(deliver)
-
-await send({
-  to: 'person@example.com',
-  subject: 'Welcome',
-  text: 'Welcome to the app.',
-})
-```
-
-`configure()` registers a `Transport` function. Without one, `send()` throws an
-actionable error in production. In other environments the default transport
-logs only the recipient and subject, never the message body.
 
 ## Vite API
 

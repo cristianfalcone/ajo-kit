@@ -1,7 +1,7 @@
 import * as auth from 'ajo-kit-auth'
 import type { Request } from 'ajo-kit'
 import { object, parse } from 'ajo-kit/validate'
-import { send } from 'ajo-kit/mail'
+import { deliver } from 'ajo-kit-mail'
 import { db, email } from '/src/data'
 import { Failure, ip, origin } from 'ajo-kit'
 
@@ -32,11 +32,13 @@ export const actions = {
 			const url = `${base}/reset/${token}`
 
 			// Delivery stays off the response path so known and unknown emails answer alike.
-			send({
+			deliver({
 				to: user.email,
 				subject: 'Reset your password',
 				text: `Click here to reset your password: ${url}\n\nThis link expires in 1 hour.`,
-			}).catch(error => console.error('Password reset mail failed', error))
+			}).then(outcome => {
+				if (!outcome.ok) console.error('Password reset mail failed', outcome.error)
+			})
 		}
 
 		return { message: 'If that email exists, we sent a reset link.' }

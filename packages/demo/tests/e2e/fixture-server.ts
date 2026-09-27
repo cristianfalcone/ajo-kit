@@ -1,6 +1,6 @@
 import * as auth from 'ajo-kit-auth'
 import { Failure, type Request, type Response } from 'ajo-kit'
-import { configure, type Mail } from 'ajo-kit/mail'
+import { configure, type Sealed } from 'ajo-kit-mail'
 import { env, randomBase64Url, sha256Hex, timingSafeEqual } from 'ajo-kit/platform'
 import { send } from 'ajo-kit/server'
 import { bundles } from '/src/abilities'
@@ -15,11 +15,15 @@ import type {
 } from './fixture-client'
 
 const limit = 32
-const mail: Mail[] = []
+const mail: Sealed[] = []
 
-configure(async message => {
-	mail.push({ ...message })
-	if (mail.length > limit) mail.splice(0, mail.length - limit)
+// A plain transport, not a dev one, so the production acceptance build accepts it too.
+configure({
+	from: 'fixture@example.com',
+	transport: async message => {
+		mail.push(message)
+		if (mail.length > limit) mail.splice(0, mail.length - limit)
+	},
 })
 
 const invalid = (): never => { throw new Failure(400, 'Invalid fixture request') }
@@ -381,9 +385,11 @@ const dispatch = async (input: FixtureOperation) => {
 		}
 		case 'mailLast': {
 			const found = input.to
-				? mail.findLast(message => message.to === input.to)
+				? mail.findLast(message => message.to.address === input.to)
 				: mail.at(-1)
-			return { mail: found ? { ...found } : null }
+			if (!found) return { mail: null }
+			const { to, subject, text, html } = found
+			return { mail: { to: to.address, subject, text, ...(html !== undefined && { html }) } }
 		}
 	}
 }

@@ -1,4 +1,3 @@
-import { configure as seam } from 'ajo-kit/mail'
 import { env } from 'ajo-kit/platform'
 import {
 	Refused,
@@ -297,8 +296,7 @@ const execute = async (message: Message): Promise<Outcome> => {
 }
 
 /**
- * Installs the transport process-wide and adapts it into ajo-kit's mail seam, so
- * existing send() call sites gain validation and a deadline without being edited.
+ * Installs the transport process-wide.
  * Pure assignment: no socket, no pool, no timer, safe to re-run on every dev reload.
  */
 export function configure(options: Options): void {
@@ -329,7 +327,6 @@ export function configure(options: Options): void {
 		}
 
 		configuration = current
-		seam(async mail => { await send(mail) })
 	} catch (error) {
 		if (error instanceof Refused) throw error
 		throw new Refused('invalid-config')
@@ -343,13 +340,6 @@ export async function deliver(message: Message): Promise<Outcome> {
 	} catch (error) {
 		return undelivered(error)
 	}
-}
-
-/** Delivers once and resolves to the message id or throws Refused or Undelivered. */
-export async function send(message: Message): Promise<string> {
-	const outcome = await deliver(message)
-	if (!outcome.ok) throw outcome.error
-	return outcome.id
 }
 
 /** Runs the transport's optional credential check. Opens a connection only when called. */

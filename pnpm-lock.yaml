@@ -170,6 +170,9 @@ importers:
       ajo-kit-auth:
         specifier: workspace:*
         version: link:../ajo-kit-auth
+      ajo-kit-mail:
+        specifier: workspace:*
+        version: link:../ajo-kit-mail
       ajo-ui-playa:
         specifier: workspace:*
         version: link:../ajo-ui-playa

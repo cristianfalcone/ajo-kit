@@ -37,7 +37,7 @@ pnpm add ajo-kit-mail
 ```
 
 See the [`ajo-kit` guide](packages/ajo-kit/README.md) for the application setup,
-routing, CLI, server APIs, persistence, validation, mail, and live updates.
+routing, CLI, server APIs, persistence, validation, and live updates.
 
 ### Reusable Component Behaviors
 
