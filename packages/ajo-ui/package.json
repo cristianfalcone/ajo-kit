@@ -12,7 +12,8 @@
     "build": "pnpm -w exec tsx scripts/package-build.ts ajo-ui",
     "prepack": "pnpm run build",
     "test": "pnpm -w exec vitest run packages/ajo-ui/tests",
-    "test:bundle": "pnpm -w exec tsx packages/ajo-ui/tests/bundle.ts"
+    "test:bundle": "pnpm -w exec tsx packages/ajo-ui/tests/bundle.ts",
+    "test:perf:data-table": "pnpm -w exec node --expose-gc --import tsx packages/ajo-ui/tests/data-table-performance.ts"
   },
   "exports": {
     "./utils": {

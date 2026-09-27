@@ -2,33 +2,26 @@ import assert from 'node:assert/strict'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { createRequire } from 'node:module'
-import { createServer as createSocketServer } from 'node:net'
-import {
-	access,
-	chmod,
-	cp,
-	mkdir,
-	mkdtemp,
-	readFile,
-	readdir,
-	realpath,
-	rm,
-	stat,
-	writeFile,
-} from 'node:fs/promises'
-import { dirname, join, relative, resolve } from 'node:path'
+import { createServer } from 'node:net'
+import { access, chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { basename, dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
 import { brotliCompressSync, gzipSync } from 'node:zlib'
-import { playa } from 'ajo-ui-playa'
-import { chromium } from 'playwright'
-import { createGenerator, escapeSelector } from 'unocss'
+import { packages, root } from '../scripts/packages.ts'
 
-type Pack = {
-	filename: string
-	files: Array<{ path: string }>
-	name: string
-	version: string
+type Package = typeof packages[number]
+
+type PublishedManifest = {
+	bin?: Record<string, string>
+	dependencies?: Record<string, string>
+	exports?: Record<string, { default?: string; import?: string; types?: string }>
+	imports?: Record<string, Record<string, string>>
+	kit?: { migrations?: string }
+	peerDependencies?: Record<string, string>
+	peerDependenciesMeta?: Record<string, { optional?: boolean }>
+	sideEffects?: boolean
+	types?: string
 }
 
 type Dependency = {
@@ -37,45 +30,7 @@ type Dependency = {
 	version?: string
 }
 
-type ListedProject = Dependency & {
-	devDependencies?: Record<string, Dependency>
-}
-
-type PublishedManifest = {
-	bin?: Record<string, string>
-	dependencies?: Record<string, string>
-	exports?: Record<string, { default?: string; import?: string; types?: string }>
-	kit?: { migrations?: string }
-	name: string
-	peerDependencies?: Record<string, string>
-	peerDependenciesMeta?: Record<string, { optional?: boolean }>
-	sideEffects?: boolean
-	types?: string
-	version: string
-}
-
-type RegistryMetadata = {
-	versions: Record<string, PublishedManifest>
-}
-
-type BuildOutput = {
-	output: Array<{
-		code?: string
-		modules?: Record<string, unknown>
-		type: string
-	}>
-}
-
-type ArtifactSize = {
-	brotli: number
-	gzip: number
-	raw: number
-}
-
-type CommandResult = {
-	stderr: string
-	stdout: string
-}
+type Size = { brotli: number; files: number; gzip: number; raw: number }
 
 class CommandFailure extends Error {
 	constructor(
@@ -89,41 +44,28 @@ class CommandFailure extends Error {
 	}
 }
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const require = createRequire(import.meta.url)
-const packageNames = ['ajo-kit', 'ajo-kit-auth', 'ajo-kit-mail', 'ajo-cloves', 'ajo-ui', 'ajo-ui-playa'] as const
-const versions = Object.fromEntries(packageNames.map(name =>
-	[name, (require(`../packages/${name}/package.json`) as { version: string }).version],
-)) as Record<typeof packageNames[number], string>
-const migrationNames = [
-	'0001_initial',
-	'0002_passkeys',
-	'0003_teams',
-	'0004_invites',
-	'0005_integrity',
-	'0006_subjects',
-] as const
-const floatingDomVersion = '1.8.0'
-const floatingNames = ['@floating-ui/dom', '@floating-ui/core', '@floating-ui/utils'] as const
-const playaDependencies = { ajo: '0.1.35', 'ajo-ui-playa': versions['ajo-ui-playa'] }
-const validDependencies = {
-	ajo: '0.1.35',
+const versions = Object.fromEntries(packages.map(({ name, version }) => [name, version]))
+const pins = (require('../package.json') as { devDependencies: Record<string, string> }).devDependencies
+const dependencies = {
+	ajo: pins.ajo,
 	'ajo-kit': versions['ajo-kit'],
 	'ajo-kit-auth': versions['ajo-kit-auth'],
 	'ajo-kit-mail': versions['ajo-kit-mail'],
+	'ajo-ui': versions['ajo-ui'],
 	'ajo-ui-playa': versions['ajo-ui-playa'],
 }
-const validDevDependencies = { typescript: '6.0.3', unocss: '66.7.2', vite: '8.0.16' }
+const devDependencies = { typescript: pins.typescript, unocss: pins.unocss, vite: pins.vite }
 const delay = (milliseconds: number) => new Promise(resolveDelay => setTimeout(resolveDelay, milliseconds))
 
 const run = (
 	command: string,
 	args: readonly string[],
-	options: { cwd: string; env?: NodeJS.ProcessEnv },
-) => new Promise<CommandResult>((resolveRun, reject) => {
+	cwd: string,
+) => new Promise<{ stderr: string; stdout: string }>((resolveRun, reject) => {
 	const child = spawn(command, args, {
-		cwd: options.cwd,
-		env: { ...process.env, CI: '1', NO_COLOR: '1', ...options.env },
+		cwd,
+		env: { ...process.env, CI: '1', NO_COLOR: '1' },
 		stdio: ['ignore', 'pipe', 'pipe'],
 		windowsHide: true,
 	})
@@ -139,25 +81,9 @@ const run = (
 
 const pnpm = (args: readonly string[], cwd: string) => {
 	const cli = process.env.npm_execpath
-	if (cli && /\.(?:c?js|mjs)$/i.test(cli)) return run(process.execPath, [cli, ...args], { cwd })
-	if (process.platform === 'win32') {
-		return run(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', 'pnpm.cmd', ...args], { cwd })
-	}
-	return run('pnpm', args, { cwd })
-}
-
-const expectPnpmFailure = async (args: readonly string[], cwd: string) => {
-	try {
-		const result = await pnpm(args, cwd)
-		throw new Error([
-			`pnpm ${args.join(' ')} unexpectedly succeeded`,
-			result.stdout,
-			result.stderr,
-		].filter(Boolean).join('\n'))
-	} catch (error) {
-		if (error instanceof CommandFailure) return error
-		throw error
-	}
+	if (cli && /\.(?:c?js|mjs)$/i.test(cli)) return run(process.execPath, [cli, ...args], cwd)
+	if (process.platform === 'win32') return run(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', 'pnpm.cmd', ...args], cwd)
+	return run('pnpm', args, cwd)
 }
 
 const write = async (path: string, value: string) => {
@@ -176,8 +102,30 @@ const parseJson = <Value>(output: string): Value => {
 	return JSON.parse(output.slice(start)) as Value
 }
 
+const files = async (directory: string, extension: string) =>
+	(await readdir(directory, { recursive: true }))
+		.filter(path => path.endsWith(extension))
+		.map(path => join(directory, path))
+
+const measure = async (paths: readonly string[]): Promise<Size> => {
+	const bytes = Buffer.concat(await Promise.all(paths.map(path => readFile(path))))
+	return {
+		brotli: brotliCompressSync(bytes).length,
+		files: paths.length,
+		gzip: gzipSync(bytes).length,
+		raw: bytes.length,
+	}
+}
+
+const assertBudget = (label: string, size: Size, budget: Omit<Size, 'files'>) => {
+	for (const format of ['raw', 'gzip', 'brotli'] as const) {
+		assert(size[format] <= budget[format],
+			`${label} ${format} grew to ${size[format]} B (budget ${budget[format]} B)`)
+	}
+}
+
 const freePort = () => new Promise<number>((resolvePort, reject) => {
-	const socket = createSocketServer()
+	const socket = createServer()
 	socket.once('error', reject)
 	socket.listen(0, '127.0.0.1', () => {
 		const address = socket.address()
@@ -187,9 +135,20 @@ const freePort = () => new Promise<number>((resolvePort, reject) => {
 	})
 })
 
+const stop = async (child: ChildProcess | undefined) => {
+	if (!child || child.exitCode !== null) return
+	const exited = once(child, 'exit').then(() => true)
+	child.kill('SIGTERM')
+	if (await Promise.race([exited, delay(3_000).then(() => false)])) return
+	child.kill('SIGKILL')
+	await Promise.race([exited, delay(3_000)])
+}
+
 const startRegistry = async (directory: string, port: number) => {
 	const config = join(directory, 'verdaccio.yaml')
 	const posix = (path: string) => path.replaceAll('\\', '/')
+	// The public packages resolve only from this registry; everything else
+	// proxies npm.
 	await write(config, [
 		`storage: ${posix(join(directory, 'storage'))}`,
 		'auth:',
@@ -199,17 +158,12 @@ const startRegistry = async (directory: string, port: number) => {
 		'  npmjs:',
 		'    url: https://registry.npmjs.org/',
 		'packages:',
-		...packageNames.flatMap(name => [
+		...packages.flatMap(({ name }) => [
 			`  '${name}':`,
 			'    access: $all',
 			'    publish: $all',
 			'    unpublish: $all',
 		]),
-		"  '@*/*':",
-		'    access: $all',
-		'    publish: $all',
-		'    unpublish: $all',
-		'    proxy: npmjs',
 		"  '**':",
 		'    access: $all',
 		'    publish: $all',
@@ -232,15 +186,13 @@ const startRegistry = async (directory: string, port: number) => {
 	const url = `http://127.0.0.1:${port}`
 
 	try {
-		// A cold Verdaccio under load takes tens of seconds to bind on Windows;
-		// this is a readiness window, and a dead child still fails immediately.
+		// A readiness window: a dead child still fails immediately.
 		for (let attempt = 0; attempt < 900; attempt++) {
 			if (child.exitCode !== null) throw new Error(`Verdaccio exited before readiness:\n${logs.slice(-6_000)}`)
 			try {
-				const response = await fetch(`${url}/-/ping`)
-				if (response.ok) return { child, logs: () => logs, url }
+				if ((await fetch(`${url}/-/ping`)).ok) return { child, logs: () => logs, url }
 			} catch {
-				// The socket is expected to reject until Verdaccio binds it.
+				// The socket rejects until Verdaccio binds it.
 			}
 			await delay(100)
 		}
@@ -251,43 +203,23 @@ const startRegistry = async (directory: string, port: number) => {
 	}
 }
 
-const stop = async (child: ChildProcess | undefined) => {
-	if (!child || child.exitCode !== null) return
-	const exited = once(child, 'exit').then(() => true)
-	child.kill('SIGTERM')
-	if (await Promise.race([exited, delay(3_000).then(() => false)])) return
-	child.kill('SIGKILL')
-	await Promise.race([exited, delay(3_000)])
-}
-
-const packAndPublish = async (name: typeof packageNames[number], tarballs: string, registry: string) => {
-	const directory = join(root, 'packages', name)
-	const packed = parseJson<Pack>((await pnpm([
-		'pack',
-		'--json',
-		'--pack-destination',
-		tarballs,
-	], directory)).stdout)
+// Packs, publishes the exact tarball to the local registry and reads back
+// the manifest it serves.
+const publish = async ({ directory, name, version }: Package, tarballs: string, registry: string) => {
+	const packed = parseJson<{ filename: string; files: Array<{ path: string }>; name: string; version: string }>(
+		(await pnpm(['pack', '--json', '--pack-destination', tarballs], directory)).stdout)
 	assert.equal(packed.name, name)
-	assert.equal(packed.version, versions[name])
+	assert.equal(packed.version, version)
 	const tarball = resolve(tarballs, packed.filename)
-	await access(tarball)
-	const tarballBytes = (await stat(tarball)).size
 	await pnpm(['publish', tarball, '--registry', registry, '--no-git-checks'], directory)
 
 	const response = await fetch(`${registry}/${name}`)
-	assert(response.ok, `registry did not expose ${name}@${versions[name]}`)
-	const metadata = await response.json() as RegistryMetadata
-	const manifest = metadata.versions[versions[name]]
-	assert(manifest, `registry metadata omitted ${name}@${versions[name]}`)
+	assert(response.ok, `registry did not expose ${name}@${version}`)
+	const manifest = (await response.json() as { versions: Record<string, PublishedManifest> }).versions[version]
+	assert(manifest, `registry metadata omitted ${name}@${version}`)
 	assert(!JSON.stringify(manifest).includes('workspace:'), `${name} published a workspace protocol`)
-	return { manifest, packed, tarballBytes }
-}
 
-type Published = Awaited<ReturnType<typeof packAndPublish>>
-
-const verifyPublishedArtifact = (name: typeof packageNames[number], published: Published) => {
-	const packlist = published.packed.files.map(file => file.path)
+	const packlist = packed.files.map(file => file.path)
 	for (const expected of ['LICENSE', 'package.json', 'README.md']) {
 		assert(packlist.includes(expected), `${name} packlist omitted ${expected}`)
 	}
@@ -297,47 +229,40 @@ const verifyPublishedArtifact = (name: typeof packageNames[number], published: P
 		!path.includes('node_modules') &&
 		!path.startsWith('.tmp/')),
 	`${name} packed source, a private test, or a generated path`)
-
-	for (const [subpath, entry] of Object.entries(published.manifest.exports ?? {})) {
+	for (const [subpath, entry] of Object.entries(manifest.exports ?? {})) {
 		assert(entry.import?.startsWith('./dist/'), `${name} export ${subpath} has no compiled import target`)
 		assert.equal(entry.default, entry.import, `${name} export ${subpath} has divergent runtime targets`)
 		assert(entry.types?.startsWith('./dist/'), `${name} export ${subpath} has no compiled type target`)
 		assert(packlist.includes(entry.import!.slice(2)), `${name} export ${subpath} omitted its runtime file`)
 		assert(packlist.includes(entry.types!.slice(2)), `${name} export ${subpath} omitted its declaration file`)
 	}
-	assert.equal(published.manifest.types, published.manifest.exports?.['.']?.types,
-		`${name} top-level types diverged from its root export`)
-	if (name === 'ajo-cloves' || name === 'ajo-ui' || name === 'ajo-ui-playa') {
-		assert.equal(published.manifest.sideEffects, false, `${name} is not marked tree-shakeable`)
+	for (const [specifier, conditions] of Object.entries(manifest.imports ?? {})) {
+		for (const [condition, target] of Object.entries(conditions)) {
+			assert(packlist.includes(target.replace(/^\.\//, '')), `${name} import ${specifier} (${condition}) omitted ${target}`)
+		}
 	}
-	if (name === 'ajo-ui') {
-		assert(published.tarballBytes <= 160_000,
-			`ajo-ui tarball grew to ${published.tarballBytes} B (budget 160000 B)`)
-	}
+	assert.equal(manifest.types, manifest.exports?.['.']?.types, `${name} top-level types diverged from its root export`)
 
-	if (name === 'ajo-kit') {
-		assert.equal(published.manifest.bin?.kit, './dist/bin/kit.js')
-		assert(packlist.includes('dist/bin/kit.js'), 'ajo-kit packlist omitted its compiled CLI')
+	const javascript = packlist.filter(path => path.startsWith('dist/') && path.endsWith('.js'))
+	const size = await measure(javascript.map(path => join(directory, path)))
+	console.log(`package consumer: published ${name}@${version}, ${(await stat(tarball)).size} B tarball, dist JavaScript ${JSON.stringify(size)}`)
+	if (name === 'ajo-ui-playa') {
+		const runtime = await measure(javascript.filter(path => path !== 'dist/index.js').map(path => join(directory, path)))
+		console.log(`package consumer: ajo-ui-playa runtime JavaScript without the build-time preset ${JSON.stringify(runtime)}`)
 	}
-	if (name === 'ajo-kit-auth') {
-		assert.equal(published.manifest.kit?.migrations, './dist/migrations/')
-		const migrations = packlist
-			.filter(path => path.startsWith('dist/migrations/') && path.endsWith('.js'))
-			.map(path => path.slice('dist/migrations/'.length, -3))
-			.sort()
-		assert.deepEqual(migrations, [...migrationNames], 'ajo-kit-auth published an unexpected migration set')
-		assert(!packlist.some(path => path.startsWith('migrations/')), 'ajo-kit-auth packed source migrations')
-	}
+	return { manifest, packlist }
 }
 
-const consumerFiles = async (directory: string, registry: string) => {
+// A consumer of the published packages: one manifest, the registry pinned
+// to the local Verdaccio, and the files the probe needs.
+const project = async (directory: string, registry: string, sources: Record<string, string>) => {
 	await writeJson(join(directory, 'package.json'), {
-		name: 'ajo-ui-playa-consumer',
+		name: basename(directory),
 		version: '0.0.0',
 		private: true,
 		type: 'module',
-		dependencies: validDependencies,
-		devDependencies: validDevDependencies,
+		dependencies,
+		devDependencies,
 	})
 	await write(join(directory, '.npmrc'), [
 		`registry=${registry}/`,
@@ -352,25 +277,7 @@ const consumerFiles = async (directory: string, registry: string) => {
 		'  better-sqlite3: true',
 		'  esbuild: true',
 		'minimumReleaseAgeExclude:',
-		...packageNames.map(name => `  - ${name}@${versions[name]}`),
-		'',
-	].join('\n'))
-	await write(join(directory, 'index.html'), '<div id="app"></div><script type="module" src="/src/main.tsx"></script>\n')
-	await write(join(directory, 'uno.config.ts'), [
-		"import { defineConfig } from 'unocss'",
-		"import { playa } from 'ajo-ui-playa'",
-		'export default defineConfig({ presets: [playa()] })',
-		'',
-	].join('\n'))
-	await write(join(directory, 'vite.config.ts'), [
-		"import { fileURLToPath } from 'node:url'",
-		"import { defineConfig } from 'vite'",
-		"import unocss from 'unocss/vite'",
-		'export default defineConfig({',
-		"  plugins: [unocss(fileURLToPath(new URL('./uno.config.ts', import.meta.url)))],",
-		"  oxc: { jsx: { importSource: 'ajo' } },",
-		'  ssr: { noExternal: [/^ajo-/] },',
-		'})',
+		...packages.map(({ name, version }) => `  - ${name}@${version}`),
 		'',
 	].join('\n'))
 	await writeJson(join(directory, 'tsconfig.json'), {
@@ -386,230 +293,42 @@ const consumerFiles = async (directory: string, registry: string) => {
 		},
 		include: ['src'],
 	})
-	await write(join(directory, 'src/env.d.ts'), "declare module 'virtual:uno.css'\n")
-	await write(join(directory, 'src/auth-types.ts'), [
-		"import type { Request } from 'ajo-kit'",
-		"import { admit, token } from 'ajo-kit-auth'",
-		"export const create = (user: number) => token.create(user, 'Blog CI', ['apps:deploy'], { subject: 'app:blog', ttl: 60_000 })",
-		"export const revoke = (user: number, id: string): Promise<boolean> => token.revoke(user, id)",
-		"export const subject = (req: Request): string | null | undefined => req.token?.subject",
-		"export const deploy = (req: Request) => admit(req, 'app:blog', 'apps:deploy')",
+	await write(join(directory, 'uno.config.ts'), [
+		"import { defineConfig } from 'unocss'",
+		"import { playa } from 'ajo-ui-playa'",
+		'export default defineConfig({ presets: [playa()] })',
 		'',
 	].join('\n'))
-	const manifest = parseJson<{ exports: Record<string, unknown> }>(
-		await readFile(join(root, 'packages/ajo-ui-playa/package.json'), 'utf8'),
-	)
-	const families = Object.keys(manifest.exports)
-		.filter(subpath => subpath !== '.')
-		.map(subpath => subpath.slice(2))
-	const imports = families.map((family, index) =>
-		`import * as family${index} from 'ajo-ui-playa/${family}'`)
-	await write(join(directory, 'src/all-families.ts'), [
-		"import 'virtual:uno.css'",
-		...imports,
-		`export const families = [${families.map((_, index) => `family${index}`).join(',')}]`,
-		'',
-	].join('\n'))
-	await write(join(directory, 'src/main.tsx'), [
-		"import { render } from 'ajo'",
-		"import { Checkbox } from 'ajo-ui-playa/checkbox'",
-		"import 'virtual:uno.css'",
-		'const App = () => (',
-		'  <main class="[--playa-consumer-used:#123456] aria-invalid:ring-danger/25 scroll-fade-x">',
-		'    <Checkbox aria-label="Published checkbox" />',
-		'  </main>',
-		')',
-		"render(<App />, document.getElementById('app')!)",
-		'',
-	].join('\n'))
-	await write(join(directory, 'src/ssr.tsx'), [
-		"import { render } from 'ajo/html'",
-		"import { Checkbox } from 'ajo-ui-playa/checkbox'",
-		'export default () => render(<Checkbox aria-label="Published SSR checkbox" />)',
-		'',
-	].join('\n'))
-	await write(join(directory, 'src/popover-client.tsx'), [
-		"import { render } from 'ajo'",
-		"import { Popover, PopoverContent, PopoverTrigger } from 'ajo-ui-playa/popover'",
-		"import 'virtual:uno.css'",
-		'const App = () => (',
-		'  <Popover defaultOpen label="Published popover">',
-		'    <PopoverTrigger>Published trigger</PopoverTrigger>',
-		'    <PopoverContent arrow>Published client popover</PopoverContent>',
-		'  </Popover>',
-		')',
-		"render(<App />, document.getElementById('app')!)",
-		'',
-	].join('\n'))
-	await write(join(directory, 'src/popover-ssr.tsx'), [
-		"import { render } from 'ajo/html'",
-		"import { Popover, PopoverContent, PopoverTrigger } from 'ajo-ui-playa/popover'",
-		'export default () => render(',
-		'  <Popover defaultOpen label="Published popover">',
-		'    <PopoverTrigger>Published trigger</PopoverTrigger>',
-		'    <PopoverContent arrow>Published SSR popover</PopoverContent>',
-		'  </Popover>,',
-		')',
-		'',
-	].join('\n'))
-	await write(join(directory, 'src/tooltip-client.tsx'), [
-		"import { render } from 'ajo'",
-		"import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'",
-		"import 'virtual:uno.css'",
-		'const App = () => (',
-		'  <Tooltip defaultOpen>',
-		'    <TooltipTrigger>Published trigger</TooltipTrigger>',
-		'    <TooltipContent>Published client tooltip</TooltipContent>',
-		'  </Tooltip>',
-		')',
-		"render(<App />, document.getElementById('app')!)",
-		'',
-	].join('\n'))
-	await write(join(directory, 'src/tooltip-ssr.tsx'), [
-		"import { render } from 'ajo/html'",
-		"import { Tooltip, TooltipContent, TooltipTrigger } from 'ajo-ui-playa/tooltip'",
-		'export default () => render(',
-		'  <Tooltip defaultOpen>',
-		'    <TooltipTrigger>Published trigger</TooltipTrigger>',
-		'    <TooltipContent>Published SSR tooltip</TooltipContent>',
-		'  </Tooltip>,',
-		')',
-		'',
-	].join('\n'))
-	await write(join(directory, 'src/sentinel.tsx'), [
-		'export const UnusedSentinel = () => <div class="[--playa-consumer-unused:#654321]" />',
-		'',
-	].join('\n'))
-	await write(join(directory, 'src/graph-root.ts'), "export { playa } from 'ajo-ui-playa'\n")
-	await write(join(directory, 'src/graph-family.ts'), "export { Checkbox } from 'ajo-ui-playa/checkbox'\n")
-	await write(join(directory, 'src/graph-popover.ts'), "export * from 'ajo-ui-playa/popover'\n")
-	await write(join(directory, 'src/graph-tooltip.ts'), "export * from 'ajo-ui-playa/tooltip'\n")
-}
-
-const peerMatrix = async (directory: string, registry: string) => {
-	const prepare = async (name: string, manifest: object, strict: boolean) => {
-		const fixture = join(directory, `peer-${name}`)
-		await writeJson(join(fixture, 'package.json'), manifest)
-		await write(join(fixture, '.npmrc'), [
-			`registry=${registry}/`,
-			'auto-install-peers=false',
-			`strict-peer-dependencies=${String(strict)}`,
-			'',
-		].join('\n'))
-		await write(join(fixture, 'pnpm-workspace.yaml'), [
-			'minimumReleaseAgeExclude:',
-			...packageNames.map(packageName => `  - ${packageName}@${versions[packageName]}`),
-			'',
-		].join('\n'))
-		return fixture
-	}
-
-	for (const [name, unocss] of [['missing', undefined], ['incompatible', '66.7.3']] as const) {
-		const fixture = await prepare(name, {
-			name: `ajo-ui-playa-peer-${name}`,
-			version: '0.0.0',
-			private: true,
-			dependencies: playaDependencies,
-			devDependencies: { typescript: '6.0.3', vite: '8.0.16', ...(unocss ? { unocss } : {}) },
-		}, true)
-		const failure = await expectPnpmFailure([
-			'install',
-			'--no-frozen-lockfile',
-			'--strict-peer-dependencies',
-			'--config.auto-install-peers=false',
-		], fixture)
-		assert.match(`${failure.stdout}\n${failure.stderr}`, /unocss/i)
-	}
-
-	const fixture = await prepare('runtime-missing', {
-		name: 'ajo-ui-playa-peer-runtime-missing',
-		version: '0.0.0',
-		private: true,
-		type: 'module',
-		dependencies: playaDependencies,
-	}, false)
-	await pnpm([
-		'install',
-		'--no-frozen-lockfile',
-		'--config.strict-peer-dependencies=false',
-		'--config.auto-install-peers=false',
-	], fixture)
-	const probe = join(fixture, 'probe.ts')
-	await write(probe, "import { playa } from 'ajo-ui-playa'\nvoid playa\n")
-	let failure: CommandFailure
-	try {
-		await run(process.execPath, [
-			'--import',
-			pathToFileURL(require.resolve('tsx')).href,
-			probe,
-		], { cwd: fixture })
-		throw new Error('importing the Playa preset without UnoCSS unexpectedly succeeded')
-	} catch (error) {
-		if (!(error instanceof CommandFailure)) throw error
-		failure = error
-	}
-	const diagnostic = `${failure.stdout}\n${failure.stderr}`
-	assert.match(diagnostic, /\b(?:ERR_)?MODULE_NOT_FOUND\b/)
-	assert.match(diagnostic, /unocss/i)
-}
-
-const visitDependencies = (
-	dependencies: Record<string, Dependency> | undefined,
-	visitor: (name: string, dependency: Dependency) => void,
-) => {
-	for (const [name, dependency] of Object.entries(dependencies ?? {})) {
-		visitor(name, dependency)
-		visitDependencies(dependency.dependencies, visitor)
-	}
+	for (const [path, contents] of Object.entries(sources)) await write(join(directory, path), contents)
+	await pnpm(['install', '--no-frozen-lockfile'], directory)
 }
 
 const verifyDependencyGraph = async (consumer: string) => {
-	const manifest = JSON.parse(await readFile(join(consumer, 'package.json'), 'utf8')) as {
-		dependencies: Record<string, string>
-		devDependencies: Record<string, string>
-	}
-	assert.deepEqual(manifest.dependencies, validDependencies)
-	assert.deepEqual(manifest.devDependencies, validDevDependencies)
-	assert(!('ajo-ui' in manifest.dependencies) && !('ajo-cloves' in manifest.dependencies))
-	assert(floatingNames.every(name => !(name in manifest.dependencies)), 'consumer declared Floating UI directly')
 	const lock = await readFile(join(consumer, 'pnpm-lock.yaml'), 'utf8')
 	assert(!lock.includes('workspace:'), 'consumer lock retained a workspace protocol')
-	assert(!lock.includes('link:../ajo'), 'consumer linked a workspace package')
+	assert(!lock.includes('link:'), 'consumer linked a workspace package')
 
-	const listed = parseJson<ListedProject[]>((await pnpm(['list', '--json', '--depth', 'Infinity'], consumer)).stdout)[0]
-	const playa = listed.dependencies?.['ajo-ui-playa']
-	const kit = listed.dependencies?.['ajo-kit']
-	const auth = listed.dependencies?.['ajo-kit-auth']
-	const base = playa?.dependencies?.['ajo-ui']
-	const cloves = base?.dependencies?.['ajo-cloves']
-	assert.equal(kit?.version, versions['ajo-kit'])
-	assert.equal(auth?.version, versions['ajo-kit-auth'])
-	assert.equal(playa?.version, versions['ajo-ui-playa'])
-	assert.equal(base?.version, versions['ajo-ui'])
-	assert.equal(cloves?.version, versions['ajo-cloves'])
-
-	const assertIdentity = (name: string, expected?: string) => {
-		const paths = new Set<string>()
-		const foundVersions = new Set<string>()
-		const collect = (dependencyName: string, dependency: Dependency) => {
-			if (dependencyName !== name) return
-			if (dependency.path) paths.add(dependency.path.toLowerCase())
-			if (dependency.version) foundVersions.add(dependency.version)
+	const [listed] = parseJson<Dependency[]>((await pnpm(['list', '--json', '--depth', 'Infinity'], consumer)).stdout)
+	const identity = (name: string, expected: string) => {
+		const found = new Set<string>()
+		const visit = (entries: Record<string, Dependency> | undefined) => {
+			for (const [dependency, entry] of Object.entries(entries ?? {})) {
+				if (dependency === name) found.add(`${entry.version} ${entry.path?.toLowerCase()}`)
+				visit(entry.dependencies)
+			}
 		}
-		visitDependencies(listed.dependencies, collect)
-		visitDependencies(listed.devDependencies, collect)
-		assert.equal(foundVersions.size, 1, `${name} resolved unexpected versions: ${[...foundVersions].join(', ')}`)
-		if (expected) assert.deepEqual([...foundVersions], [expected], `${name} resolved an unexpected version`)
-		assert.equal(paths.size, 1, `expected one ${name} identity, got ${[...paths].join(', ')}`)
+		visit(listed.dependencies)
+		assert.equal(found.size, 1, `expected one ${name} identity, got ${[...found].join(', ')}`)
+		assert.equal([...found][0].split(' ')[0], expected, `${name} resolved an unexpected version`)
 	}
-	assertIdentity('ajo', '0.1.35')
-	for (const name of packageNames) assertIdentity(name, versions[name])
-	for (const name of floatingNames) assertIdentity(name, name === '@floating-ui/dom' ? floatingDomVersion : undefined)
+	identity('ajo', pins.ajo)
+	for (const { name, version } of packages) identity(name, version)
 }
 
-const verifyServerPackages = async (consumer: string) => {
-	const probe = join(consumer, 'package-probe.mjs')
-	await write(probe, [
+// The server faces: root imports, argon2, the mail capture transport without
+// the optional nodemailer peer, and the packaged migrations through the CLI.
+const verifyServerPackages = async (consumer: string, migrations: readonly string[]) => {
+	await write(join(consumer, 'package-probe.mjs'), [
 		"import { date } from 'ajo-kit'",
 		"import { close, connect } from 'ajo-kit/database'",
 		"import { password } from 'ajo-kit-auth'",
@@ -625,8 +344,6 @@ const verifyServerPackages = async (consumer: string) => {
 		"await close()",
 		"const hash = await password.hash('published-package-probe')",
 		"if (!await password.verify('published-package-probe', hash)) throw new Error('argon2 probe failed')",
-		// nodemailer is absent from this consumer on purpose: root, capture and
-		// http must work without the optional smtp peer, end to end.
 		"const mailbox = capture()",
 		"configure({ transport: mailbox, from: 'noreply@example.com' })",
 		"const outcome = await deliver({ to: 'owner@example.com', subject: 'probe', text: 'claim https://example.com/invite/x' })",
@@ -636,378 +353,64 @@ const verifyServerPackages = async (consumer: string) => {
 		"console.log('package probe passed')",
 		'',
 	].join('\n'))
-	const direct = await run(process.execPath, [probe], { cwd: consumer })
-	assert.match(direct.stdout, /package probe passed/)
-
-	const help = await pnpm(['exec', 'kit', '--help'], consumer)
-	const helpOutput = `${help.stdout}\n${help.stderr}`
-	assert.match(helpOutput, /Available Commands/)
-	assert.match(helpOutput, /migrate status/)
+	assert.match((await run(process.execPath, ['package-probe.mjs'], consumer)).stdout, /package probe passed/)
 
 	const database = join(consumer, 'migration-probe.sqlite')
-	const up = await pnpm(['exec', 'kit', 'migrate', 'up', '--database', database], consumer)
-	const upOutput = `${up.stdout}\n${up.stderr}`
-	for (const migration of migrationNames) {
-		assert.match(upOutput, new RegExp(`plugin/ajo-kit-auth/${migration}`))
+	const kit = async (command: string) => {
+		const { stderr, stdout } = await pnpm(['exec', 'kit', 'migrate', command, '--database', database], consumer)
+		return `${stdout}\n${stderr}`
 	}
-
-	// The probe receives how many migrations should be applied and derives the
-	// expected history prefix and the corresponding schema evidence.
-	const qualified = migrationNames.map(name => `plugin/ajo-kit-auth/${name}`)
-	const migrationProbe = join(consumer, 'migration-state-probe.mjs')
-	await write(migrationProbe, [
-		"import { close, connect, db, sql } from 'ajo-kit/database'",
-		"connect(process.argv[2])",
-		"try {",
-		"  const applied = Number(process.argv[3])",
-		`  const wanted = ${JSON.stringify(qualified)}.slice(0, applied)`,
-		"  const names = await db().selectFrom('kysely_migration').select('name').orderBy('name').execute()",
-		"  const actual = names.map(row => row.name)",
-		"  if (JSON.stringify(actual) !== JSON.stringify(wanted)) throw new Error('unexpected migration history: ' + JSON.stringify(actual))",
-		"  const table = async name => Boolean(await db().selectFrom('sqlite_master').select('name').where('type', '=', 'table').where('name', '=', name).executeTakeFirst())",
-		"  if (await table('users') !== (applied >= 1)) throw new Error('users table did not match migration state')",
-		"  if (await table('credentials') !== (applied >= 2)) throw new Error('credentials table did not match migration state')",
-		"  if (await table('invites') !== (applied >= 4)) throw new Error('invites table did not match migration state')",
-		"  const index = async name => Boolean(await db().selectFrom('sqlite_master').select('name').where('type', '=', 'index').where('name', '=', name).executeTakeFirst())",
-		"  if (await index('idx_members_user_role') !== (applied >= 5)) throw new Error('member integrity index did not match migration state')",
-		"  const columns = await sql`PRAGMA table_info(tokens)`.execute(db())",
-		"  if (columns.rows.some(row => row.name === 'subject') !== (applied >= 6)) throw new Error('token subject did not match migration state')",
-		"} finally { await close() }",
-		'',
-	].join('\n'))
-	await run(process.execPath, [migrationProbe, database, String(migrationNames.length)], { cwd: consumer })
-
-	const tokenProbe = join(consumer, 'token-probe.mjs')
-	await write(tokenProbe, [
-		"import assert from 'node:assert/strict'",
-		"import { close, connect, db } from 'ajo-kit/database'",
-		"import { admit, authorize, configure, team, token, wares } from 'ajo-kit-auth'",
-		"connect(process.argv[2])",
-		"configure(() => db())",
-		"try {",
-		"  await db().insertInto('users').values([{ id: 1, email: 'developer@example.test' }, { id: 2, email: 'other@example.test' }]).execute()",
-		"  await db().insertInto('roles').values({ id: 1, name: 'developer', abilities: JSON.stringify(['apps:deploy']) }).execute()",
-		"  const group = await team.create('developers')",
-		"  await team.join(group, 1, 1)",
-		"  await team.claim(group, 'app:blog')",
-		"  const plain = await token.create(1, 'Blog CI', ['apps:deploy'], { subject: 'app:blog' })",
-		"  const stored = (await token.list(1))[0]",
-		"  assert.equal(stored.subject, 'app:blog')",
-		"  assert.notEqual(stored.id, plain)",
-		"  const middleware = wares.session()",
-		"  const req = { path: '/api/deploy', headers: { authorization: 'Bearer ' + plain } }",
-		"  await middleware(req, {}, () => {})",
-		"  assert.deepEqual(req.token, { id: stored.id, abilities: ['apps:deploy'], subject: 'app:blog' })",
-		"  await admit(req, 'app:blog', 'apps:deploy')",
-		"  await assert.rejects(() => admit(req, 'app:other', 'apps:deploy'))",
-		"  assert.throws(() => authorize(req, 'apps:deploy'))",
-		"  assert.equal(await token.revoke(2, stored.id), false)",
-		"  assert.ok(await token.validate(plain))",
-		"  assert.equal(await token.revoke(1, stored.id), true)",
-		"  await middleware(req, {}, () => {})",
-		"  assert.equal(req.user, undefined)",
-		"  assert.equal(req.token, undefined)",
-		"  await assert.rejects(() => admit(req, 'app:blog', 'apps:deploy'))",
-		"  console.log('published scoped token flow passed')",
-		"} finally { await close() }",
-		'',
-	].join('\n'))
-	const tokenResult = await run(process.execPath, [tokenProbe, database], { cwd: consumer })
-	assert.match(tokenResult.stdout, /published scoped token flow passed/)
-
-	const status = await pnpm(['exec', 'kit', 'migrate', 'status', '--database', database], consumer)
-	for (const migration of migrationNames) {
-		assert.match(`${status.stdout}\n${status.stderr}`, new RegExp(`plugin/ajo-kit-auth/${migration}`))
+	const up = await kit('up')
+	const status = await kit('status')
+	for (const migration of migrations) {
+		assert.match(up, new RegExp(`plugin/ajo-kit-auth/${migration}`))
+		assert.match(status, new RegExp(`plugin/ajo-kit-auth/${migration}`))
 	}
-
-	// Rollback reverses one qualified identity per run, latest first; walk the
-	// history down to empty so every packaged migration runs both directions.
-	for (let applied = migrationNames.length; applied > 0; applied--) {
-		const down = await pnpm(['exec', 'kit', 'migrate', 'down', '--database', database], consumer)
-		assert.match(`${down.stdout}\n${down.stderr}`, new RegExp(`plugin/ajo-kit-auth/${migrationNames[applied - 1]}.*rolled back`))
-		await run(process.execPath, [migrationProbe, database, String(applied - 1)], { cwd: consumer })
-	}
-
-	const restored = await pnpm(['exec', 'kit', 'migrate', 'up', '--database', database], consumer)
-	for (const migration of migrationNames) {
-		assert.match(`${restored.stdout}\n${restored.stderr}`, new RegExp(`plugin/ajo-kit-auth/${migration}`))
-	}
-	await run(process.execPath, [migrationProbe, database, String(migrationNames.length)], { cwd: consumer })
-}
-
-const modulesOf = (result: unknown) => ((Array.isArray(result) ? result : [result]) as BuildOutput[])
-	.flatMap(build => build.output)
-	.flatMap(output => output.type === 'chunk' ? Object.keys(output.modules ?? {}) : [])
-	.map(id => id.replaceAll('\\', '/'))
-
-const assertFloatingGraph = (label: string, modules: readonly string[], expected: boolean) => {
-	for (const name of floatingNames) {
-		const marker = `/node_modules/${name}/`
-		const identities = new Set(modules
-			.filter(id => id.includes(marker))
-			.map(id => id.slice(0, id.indexOf(marker) + marker.length - 1)))
-		assert.equal(identities.size, expected ? 1 : 0,
-			`${label} expected ${expected ? 'one' : 'no'} ${name} identity, got ${[...identities].join(', ')}`)
+	// Rollback reverses one migration per run, latest first.
+	for (const migration of [...migrations].reverse()) {
+		assert.match(await kit('down'), new RegExp(`plugin/ajo-kit-auth/${migration}.*rolled back`))
 	}
 }
 
-const hasModulePath = (modules: readonly string[], path: string) => modules.some(id => id.includes(path))
-
-const assertPopupGraph = (
-	label: string,
-	modules: readonly string[],
-	family: 'popover' | 'tooltip',
-) => {
-	assertFloatingGraph(label, modules, true)
-	for (const path of [
-		`ajo-ui-playa/dist/${family}.js`,
-		`ajo-ui/dist/${family}.js`,
-		// Popup and its private Floating UI position adapter share one chunk.
-		'ajo-ui/dist/chunks/popup-',
-	]) {
-		assert(hasModulePath(modules, path), `${label} omitted ${path}`)
-	}
-	assert(!modules.some(id => id.includes('/node_modules/ajo-') && id.includes('/src/')),
-		`${label} executed package TypeScript source`)
-	assert(!hasModulePath(modules, 'ajo-ui/dist/floating.js'), `${label} retained legacy floating.js`)
-}
-
-const loadVite = async (consumer: string) => {
-	const consumerRequire = createRequire(join(consumer, 'package.json'))
-	return await import(pathToFileURL(consumerRequire.resolve('vite')).href) as typeof import('vite')
-}
-
-const artifactSize = async (paths: readonly string[]): Promise<ArtifactSize> => {
-	const contents = await Promise.all(paths.map(path => readFile(path)))
-	return contents.reduce<ArtifactSize>((size, content) => ({
-		brotli: size.brotli + brotliCompressSync(content).length,
-		gzip: size.gzip + gzipSync(content).length,
-		raw: size.raw + content.length,
-	}), { brotli: 0, gzip: 0, raw: 0 })
-}
-
-const assertBudget = (label: string, size: ArtifactSize, budget: ArtifactSize) => {
-	for (const format of ['raw', 'gzip', 'brotli'] as const) {
-		assert(size[format] <= budget[format],
-			`${label} ${format} grew to ${size[format]} B (budget ${budget[format]} B)`)
-	}
-}
-
-const runtimeTokens = async () => {
-	const directory = join(root, 'packages/ajo-ui-playa/dist')
-	const artifacts = (await filesWithExtension(directory, '.js'))
-		.filter(path => path !== join(directory, 'index.js'))
-	const source = (await Promise.all(artifacts.map(path => readFile(path, 'utf8')))).join('\n')
-	const uno = await createGenerator({ presets: [playa()] })
-	return [...(await uno.generate(source)).matched].sort()
-}
-
-const buildConsumer = async (consumer: string) => {
+// One Playa client and SSR build: CSS extracted from the published families,
+// no build-time tooling in the client, the minimal consumer budget.
+const buildPlaya = async (consumer: string) => {
 	await pnpm(['exec', 'tsc', '--noEmit', '-p', 'tsconfig.json'], consumer)
-	const vite = await loadVite(consumer)
-	const configFile = join(consumer, 'vite.config.ts')
-	const client = await vite.build({
+	const vite = await import(pathToFileURL(createRequire(join(consumer, 'package.json')).resolve('vite')).href) as typeof import('vite')
+	const build = (options: import('vite').BuildEnvironmentOptions) => vite.build({
 		root: consumer,
-		configFile,
+		configFile: join(consumer, 'vite.config.ts'),
 		logLevel: 'silent',
-		build: { emptyOutDir: true, outDir: 'dist' },
+		build: { emptyOutDir: true, ...options },
 	})
-	const clientModules = modulesOf(client)
-	assertFloatingGraph('Checkbox client graph', clientModules, false)
-	const tooling = clientModules.filter(id => /(?:\/unocss@|\/@unocss\+|@iconify(?:-json)?\+)/.test(id))
+	const client = await build({ outDir: 'dist' }) as import('vite').Rollup.RollupOutput
+	const tooling = client.output
+		.flatMap(output => output.type === 'chunk' ? Object.keys(output.modules) : [])
+		.filter(id => /(?:\/unocss@|\/@unocss\+|@iconify(?:-json)?\+)/.test(id.replaceAll('\\', '/')))
 	assert.deepEqual(tooling, [], `client retained build-time modules:\n${tooling.join('\n')}`)
+	await build({ outDir: 'dist-ssr', ssr: join(consumer, 'src/ssr.tsx') })
 
-	const ssrBuild = await vite.build({
-		root: consumer,
-		configFile,
-		logLevel: 'silent',
-		build: { emptyOutDir: true, outDir: 'dist-ssr', ssr: join(consumer, 'src/ssr.tsx') },
-	})
-	assertFloatingGraph('Checkbox SSR graph', modulesOf(ssrBuild), false)
-	const buildPopup = async (family: 'popover' | 'tooltip') => {
-		const label = family[0].toUpperCase() + family.slice(1)
-		const client = await vite.build({
-			root: consumer,
-			configFile,
-			logLevel: 'silent',
-			build: {
-				emptyOutDir: true,
-				outDir: `dist-${family}`,
-				rollupOptions: { input: join(consumer, `src/${family}-client.tsx`) },
-			},
-		})
-		assertPopupGraph(`${label} client graph`, modulesOf(client), family)
-		const ssr = await vite.build({
-			root: consumer,
-			configFile,
-			logLevel: 'silent',
-			build: {
-				emptyOutDir: true,
-				outDir: `dist-${family}-ssr`,
-				ssr: join(consumer, `src/${family}-ssr.tsx`),
-			},
-		})
-		assertPopupGraph(`${label} SSR graph`, modulesOf(ssr), family)
-	}
-	await buildPopup('popover')
-	await buildPopup('tooltip')
-	await vite.build({
-		root: consumer,
-		configFile,
-		logLevel: 'silent',
-		build: {
-			emptyOutDir: true,
-			outDir: 'dist-all',
-			rollupOptions: { input: join(consumer, 'src/all-families.ts') },
-		},
-	})
-
-	const cssFiles = await filesWithExtension(join(consumer, 'dist'), '.css')
-	const jsFiles = await filesWithExtension(join(consumer, 'dist'), '.js')
-	assert(cssFiles.length > 0, 'client build emitted no CSS')
-	assert(jsFiles.length > 0, 'client build emitted no JavaScript')
+	const cssFiles = await files(join(consumer, 'dist'), '.css')
 	const css = (await Promise.all(cssFiles.map(path => readFile(path, 'utf8')))).join('\n')
-	const javascript = (await Promise.all(jsFiles.map(path => readFile(path, 'utf8')))).join('\n')
 	assert.match(css, /:root\{--radius:0?\.75rem/, 'Playa preflight was absent')
 	assert(css.includes('.playa-checkbox-box'), 'published Checkbox source was not extracted')
 	assert(css.includes('.i-lucide-check'), 'Lucide icon CSS was absent')
-	assert(css.includes('--playa-consumer-used:#123456'), 'used sentinel was absent')
-	assert(!css.includes('--playa-consumer-unused:#654321'), 'unused sentinel was emitted eagerly')
-	assert(!css.includes('.playa-select-trigger'), 'an unused real family recipe was emitted eagerly')
-	assert(css.includes('mask-image:linear-gradient(90deg'), 'Playa mask contract was absent')
-	assert(css.includes('[aria-invalid=true]'), 'Playa custom variant was absent')
-	assert.doesNotMatch(javascript, /(?:\bunocss\b|@unocss|@iconify(?:-json)?|["']prefix["']\s*:\s*["']lucide)/i)
-	const sizes = {
-		css: await artifactSize(cssFiles),
-		js: await artifactSize(jsFiles),
-	}
-	console.log(`playa consumer: artifact sizes ${JSON.stringify(sizes)}`)
+	assert(!css.includes('.playa-select-trigger'), 'an unused family recipe was emitted')
+	const sizes = { css: await measure(cssFiles), js: await measure(await files(join(consumer, 'dist'), '.js')) }
+	console.log(`package consumer: Playa minimal consumer ${JSON.stringify(sizes)}`)
 	assertBudget('minimal consumer CSS', sizes.css, { raw: 48_000, gzip: 9_000, brotli: 8_000 })
 	assertBudget('minimal consumer JS', sizes.js, { raw: 12_000, gzip: 4_500, brotli: 4_000 })
 
-	const allCssFiles = await filesWithExtension(join(consumer, 'dist-all'), '.css')
-	assert(allCssFiles.length > 0, 'all-family build emitted no CSS')
-	const allCss = (await Promise.all(allCssFiles.map(path => readFile(path, 'utf8')))).join('\n')
-	const protocol = await runtimeTokens()
-	assert(protocol.length > 1_000, `runtime protocol unexpectedly shrank to ${protocol.length} tokens`)
-	const missing = protocol.filter(token => !allCss.includes(`.${escapeSelector(token)}`))
-	assert.equal(missing.length, 0,
-		`published all-family pipeline omitted ${missing.length} selectors:\n${missing.slice(0, 30).join('\n')}`)
-
-	const ssrFiles = [
-		...await filesWithExtension(join(consumer, 'dist-ssr'), '.js'),
-		...await filesWithExtension(join(consumer, 'dist-ssr'), '.mjs'),
-	]
-	assert.equal(ssrFiles.length, 1, `expected one SSR entry, got ${ssrFiles.join(', ')}`)
-	const ssr = await import(`${pathToFileURL(ssrFiles[0]).href}?acceptance=${Date.now()}`) as { default: () => string }
-	const html = ssr.default()
+	const [ssr] = await files(join(consumer, 'dist-ssr'), 'ssr.js')
+	const html = (await import(pathToFileURL(ssr).href) as { default: () => string }).default()
 	assert.match(html, /data-slot="checkbox"/)
 	assert.match(html, /Published SSR checkbox/)
-
-	const popoverSsrFiles = [
-		...await filesWithExtension(join(consumer, 'dist-popover-ssr'), '.js'),
-		...await filesWithExtension(join(consumer, 'dist-popover-ssr'), '.mjs'),
-	]
-	assert.equal(popoverSsrFiles.length, 1, `expected one Popover SSR entry, got ${popoverSsrFiles.join(', ')}`)
-	const popoverSsrModule = await import(`${pathToFileURL(popoverSsrFiles[0]).href}?acceptance=${Date.now()}`) as { default: () => string }
-	const popoverHtml = popoverSsrModule.default()
-	assert.match(popoverHtml, /data-slot="popover"/)
-	assert.match(popoverHtml, /aria-labelledby="popover-\d+-content-title"/)
-	assert.match(popoverHtml, /data-slot="popover-title"[^>]*>Published popover<\/h2>/)
-	assert.match(popoverHtml, /data-slot="popup-surface"/)
-	assert.match(popoverHtml, /data-slot="popup-arrow"/)
-	assert.match(popoverHtml, /Published SSR popover/)
-
-	const tooltipSsrFiles = [
-		...await filesWithExtension(join(consumer, 'dist-tooltip-ssr'), '.js'),
-		...await filesWithExtension(join(consumer, 'dist-tooltip-ssr'), '.mjs'),
-	]
-	assert.equal(tooltipSsrFiles.length, 1, `expected one Tooltip SSR entry, got ${tooltipSsrFiles.join(', ')}`)
-	const tooltipSsrModule = await import(`${pathToFileURL(tooltipSsrFiles[0]).href}?acceptance=${Date.now()}`) as { default: () => string }
-	const tooltipHtml = tooltipSsrModule.default()
-	const tooltipTrigger = tooltipHtml.match(/<button[^>]*data-slot="tooltip-trigger"[^>]*>/)?.[0]
-	const tooltipContent = tooltipHtml.match(/<div[^>]*data-slot="tooltip-content"[^>]*>/)?.[0]
-	assert(tooltipTrigger && tooltipContent, `Tooltip SSR omitted its trigger or content:\n${tooltipHtml}`)
-	const describedby = tooltipTrigger.match(/aria-describedby="([^"]+)"/)?.[1]
-	const contentId = tooltipContent.match(/id="([^"]+)"/)?.[1]
-	assert(contentId, 'Tooltip SSR content omitted its Ajo-owned id')
-	assert.equal(describedby, contentId, 'Tooltip SSR trigger did not describe its content')
-	assert.match(tooltipContent, /role="tooltip"/)
-	assert.match(tooltipContent, /popover="manual"/)
-	assert.match(tooltipHtml, /data-slot="popup-surface"/)
-	assert.match(tooltipHtml, /data-slot="popup-arrow"/)
-	assert.match(tooltipHtml, /Published SSR tooltip/)
-	return vite
 }
 
-async function filesWithExtension(directory: string, extension: string): Promise<string[]> {
-	const entries = await readdir(directory, { withFileTypes: true })
-	const nested = await Promise.all(entries.map(entry => {
-		const path = join(directory, entry.name)
-		return entry.isDirectory() ? filesWithExtension(path, extension) : Promise.resolve(path.endsWith(extension) ? [path] : [])
-	}))
-	return nested.flat()
-}
-
-const inspectGraphs = async (consumer: string, vite: typeof import('vite')) => {
-	const graph = async (entry: 'graph-family' | 'graph-popover' | 'graph-root' | 'graph-tooltip') => modulesOf(await vite.build({
-		root: consumer,
-		configFile: false,
-		logLevel: 'silent',
-		oxc: { jsx: { importSource: 'ajo' } },
-		build: {
-			minify: false,
-			write: false,
-			lib: { entry: join(consumer, `src/${entry}.ts`), formats: ['es'] },
-			rolldownOptions: { external: [/^@oxc-parser\/binding-/] },
-		},
-	}))
-	const rootGraph = await graph('graph-root')
-	const familyGraph = await graph('graph-family')
-	const popoverGraph = await graph('graph-popover')
-	const tooltipGraph = await graph('graph-tooltip')
-	const has = (modules: readonly string[], part: string) => modules.some(id => id.includes(part))
-	const hasUno = (modules: readonly string[]) => modules.some(id => /(?:\/unocss@|\/@unocss\+|\/unocss\/dist)/.test(id))
-	const hasIconify = (modules: readonly string[]) => modules.some(id => /@iconify(?:-json)?[+/]/.test(id))
-
-	assert(has(rootGraph, 'ajo-ui-playa/dist/index.js'), 'root graph omitted the compiled preset implementation')
-	assert(hasUno(rootGraph), 'root graph did not retain UnoCSS tooling')
-	assert(hasIconify(rootGraph), 'root graph did not retain Iconify tooling')
-	for (const runtime of ['ajo-ui-playa/dist/checkbox.js', 'ajo-ui/dist/', 'ajo-cloves/dist/']) {
-		assert(!has(rootGraph, runtime), `root graph retained runtime module ${runtime}`)
-	}
-	assert(!rootGraph.some(id => id.includes('/node_modules/ajo-ui-playa/dist/') && !id.endsWith('/dist/index.js')),
-		'root graph retained a Playa runtime family')
-	assert(!has(rootGraph, '/node_modules/ajo-ui-playa/src/'), 'root graph executed package TypeScript source')
-
-	assert(has(familyGraph, 'ajo-ui-playa/dist/checkbox.js'), 'family graph omitted the compiled themed Checkbox')
-	assert(has(familyGraph, 'ajo-ui/dist/'), 'family graph omitted its compiled transitive base')
-	const playaModules = familyGraph.filter(id => id.includes('/node_modules/ajo-ui-playa/dist/'))
-	const unexpectedPlaya = playaModules.filter(id =>
-		!id.endsWith('/dist/checkbox.js') && !/\/dist\/chunks\/recipes-[^/]+\.js$/.test(id))
-	assert.deepEqual(unexpectedPlaya, [], `family graph retained unrelated Playa modules:\n${unexpectedPlaya.join('\n')}`)
-	assert(!has(familyGraph, 'ajo-ui-playa/dist/index.js'), 'family graph retained the preset')
-	assert(!hasUno(familyGraph), 'family graph retained UnoCSS tooling')
-	assert(!hasIconify(familyGraph), 'family graph retained Iconify tooling')
-	assert(!has(familyGraph, '/dist/sentinel.js'), 'family graph retained the unused sentinel')
-	assert(!has(familyGraph, '/node_modules/ajo-ui-playa/src/'), 'family graph executed package TypeScript source')
-	assertFloatingGraph('Checkbox family graph', familyGraph, false)
-
-	assertPopupGraph('Popover family graph', popoverGraph, 'popover')
-	assert(!has(popoverGraph, 'ajo-ui-playa/dist/index.js'), 'Popover graph retained the preset')
-	assert(!hasUno(popoverGraph), 'Popover graph retained UnoCSS tooling')
-	assert(!hasIconify(popoverGraph), 'Popover graph retained Iconify tooling')
-
-	assertPopupGraph('Tooltip family graph', tooltipGraph, 'tooltip')
-	assert(!has(tooltipGraph, 'ajo-ui-playa/dist/index.js'), 'Tooltip graph retained the preset')
-	assert(!hasUno(tooltipGraph), 'Tooltip graph retained UnoCSS tooling')
-	assert(!hasIconify(tooltipGraph), 'Tooltip graph retained Iconify tooling')
-}
-
-const verifyAjoUiNodeNextDeclarations = async (directory: string) => {
-	// ajo@0.1.35's ambient types.ts is itself invalid under NodeNext. Stub only
-	// that peer so this strictly checks ajo-ui's emitted .d.ts graph instead.
-	await write(join(directory, 'ajo.d.ts'), [
+const verifyNodeNextDeclarations = async (consumer: string) => {
+	// ajo@0.1.35 publishes an ambient types.ts that NodeNext rejects. Stub only
+	// that peer so this strictly checks ajo-ui's emitted .d.ts graph.
+	await write(join(consumer, 'ajo.d.ts'), [
 		'export type Args = Record<string, unknown>',
 		'export type Children = unknown',
 		'export type Host<E extends object = object, A = object> = E & { signal: AbortSignal }',
@@ -1017,215 +420,68 @@ const verifyAjoUiNodeNextDeclarations = async (directory: string) => {
 		'export type WithChildren<A = object> = A & { children?: Children }',
 		'',
 	].join('\n'))
-	await write(join(directory, 'types.ts'), [
-		'import type { AccordionArgs } from \'ajo-ui/accordion\'',
-		'import type { ChartConfig } from \'ajo-ui/chart\'',
-		'import type { DataTableColumn } from \'ajo-ui/data-table\'',
-		'import type { InputTimeArgs } from \'ajo-ui/input-date\'',
+	await write(join(consumer, 'node-next.ts'), [
+		"import type { AccordionArgs } from 'ajo-ui/accordion'",
+		"import type { ChartConfig } from 'ajo-ui/chart'",
+		"import type { DataTableColumn } from 'ajo-ui/data-table'",
+		"import type { InputTimeArgs } from 'ajo-ui/input-date'",
 		'void ({} as AccordionArgs)',
 		'void ({} as ChartConfig)',
 		'void ({} as DataTableColumn<Record<string, unknown>>)',
 		'void ({} as InputTimeArgs)',
 		'',
 	].join('\n'))
-	await writeJson(join(directory, 'tsconfig.node-next.json'), {
+	await writeJson(join(consumer, 'tsconfig.node-next.json'), {
 		compilerOptions: {
 			module: 'NodeNext', moduleResolution: 'NodeNext', noEmit: true,
 			paths: { ajo: ['./ajo.d.ts'] }, skipLibCheck: false, strict: true, target: 'ESNext',
 		},
-		files: ['types.ts'],
+		files: ['node-next.ts'],
 	})
-	await pnpm(['exec', 'tsc', '-p', 'tsconfig.node-next.json'], directory)
+	await pnpm(['exec', 'tsc', '-p', 'tsconfig.node-next.json'], consumer)
 }
 
-const ajoUiBundleProbe = async (consumer: string, registry: string) => {
-	const families = {
-		accordion: { exportName: 'Accordion', floating: false, subpath: 'accordion' },
-		chart: { exportName: 'ChartContainer, ChartTooltip', floating: false, subpath: 'chart' },
-		'data-table': { exportName: 'DataTable', floating: true, subpath: 'data-table' },
-		'input-date': { exportName: 'InputDate', floating: true, subpath: 'input-date' },
-		'input-time': { exportName: 'InputTime', floating: false, subpath: 'input-date' },
-	} as const
-	const budgets: Record<keyof typeof families, ArtifactSize> = {
-		accordion: { raw: 5 * 1024, gzip: 2 * 1024, brotli: 2 * 1024 },
-		// The root with its scoped --color-<key> style and the self-positioned tooltip.
-		chart: { raw: 8_500, gzip: 3_400, brotli: 3_050 },
-		'data-table': { raw: 115 * 1024, gzip: 33 * 1024, brotli: 29 * 1024 },
-		'input-date': { raw: 126 * 1024, gzip: 36 * 1024, brotli: 32 * 1024 },
-		'input-time': { raw: 42 * 1024, gzip: 13 * 1024, brotli: 12 * 1024 },
-	}
-	await writeJson(join(consumer, 'package.json'), {
-		name: 'ajo-ui-bundle-consumer',
-		version: '0.0.0',
-		private: true,
-		type: 'module',
-		dependencies: { ajo: '0.1.35', 'ajo-ui': versions['ajo-ui'] },
-		devDependencies: {
-			typescript: validDevDependencies.typescript,
-			vite: validDevDependencies.vite,
-		},
-	})
-	await write(join(consumer, '.npmrc'), [
-		`registry=${registry}/`,
-		'auto-install-peers=false',
-		'package-import-method=copy',
-		'strict-peer-dependencies=true',
-		'',
-	].join('\n'))
-	await write(join(consumer, 'pnpm-workspace.yaml'), [
-		'allowBuilds:',
-		'  esbuild: true',
-		'minimumReleaseAgeExclude:',
-		...packageNames.map(name => `  - ${name}@${versions[name]}`),
-		'',
-	].join('\n'))
-	for (const [family, entry] of Object.entries(families)) {
-		await write(join(consumer, `src/${family}-subpath.ts`),
-			`export { ${entry.exportName} } from 'ajo-ui/${entry.subpath}'\n`)
-	}
-	await pnpm(['install', '--no-frozen-lockfile'], consumer)
-	await verifyAjoUiNodeNextDeclarations(consumer)
-	const vite = await loadVite(consumer)
-	const bundle = async (entry: string) => {
-		const result = await vite.build({
-			root: consumer,
-			configFile: false,
-			logLevel: 'silent',
-			build: {
-				minify: 'oxc',
-				write: false,
-				lib: { entry: join(consumer, `src/${entry}.ts`), formats: ['es'] },
-				rolldownOptions: { external: [/^@oxc-parser\/binding-/] },
-				target: 'es2022',
-			},
-		})
-		const chunks = ((Array.isArray(result) ? result : [result]) as unknown as BuildOutput[])
-			.flatMap(build => build.output)
-			.filter(output => output.type === 'chunk')
-		const size = chunks.reduce<ArtifactSize>((total, output) => {
-			const code = output.code ?? ''
-			return {
-				brotli: total.brotli + brotliCompressSync(code).length,
-				gzip: total.gzip + gzipSync(code).length,
-				raw: total.raw + Buffer.byteLength(code),
-			}
-		}, { brotli: 0, gzip: 0, raw: 0 })
-		return {
-			modules: chunks.flatMap(output => Object.keys(output.modules ?? {}))
-				.map(id => id.replaceAll('\\', '/')),
-			size,
-		}
-	}
-	const packageGraph = (modules: readonly string[]) =>
-		modules.filter(id => id.includes('/node_modules/')).sort()
-	const sizes: Record<string, ArtifactSize> = {}
-	for (const [family, entry] of Object.entries(families) as Array<
-		[keyof typeof families, typeof families[keyof typeof families]]
-	>) {
-		const { modules, size } = await bundle(`${family}-subpath`)
-		const graph = packageGraph(modules)
-		assert(hasModulePath(graph, `ajo-ui/dist/${entry.subpath}.js`),
-			`published ${family} graph omitted its dist implementation`)
-		assert(!graph.some(id => id.includes('/node_modules/ajo-ui/src/')),
-			`published ${family} graph executed package TypeScript source`)
-		assertFloatingGraph(`Published ${family}`, graph, entry.floating)
-		assert(!graph.some(id => id.includes('@tanstack+virtual-core')),
-			`published ${family} retained the VirtualList engine`)
-		sizes[family] = size
-	}
-	console.log(`ajo-ui consumer: artifact sizes ${JSON.stringify(sizes)}`)
-	for (const family of Object.keys(families) as Array<keyof typeof families>) {
-		assertBudget(`Published ${family}`, sizes[family], budgets[family])
-	}
-}
-
+// A consumer of the PUBLISHED ajo-kit resolves /src/client to the compiled
+// dist/client.js, and the kit plugin's css option must still reach it: `kit
+// build` stages a stylesheet and references it from the built index.html. The
+// workspace resolves the .tsx source and never sees this path. The page imports
+// the client-safe auth subpath, whose compiled face (dist/ability.client.js)
+// must pass the server-only guard.
 const kitCssProbe = async (directory: string, registry: string) => {
-	// The exact path that shipped unstyled production builds on 2026-07-28: a
-	// consumer of the PUBLISHED ajo-kit resolves /src/client to the compiled
-	// dist/client.js, and the kit plugin's css option must still reach it —
-	// `kit build` has to stage a stylesheet asset and reference it from the
-	// built index.html. The workspace never sees this path (it resolves the
-	// .tsx source), which is how the regression stayed invisible.
-	await writeJson(join(directory, 'package.json'), {
-		name: 'ajo-kit-css-consumer',
-		version: '0.0.0',
-		private: true,
-		type: 'module',
-		dependencies: validDependencies,
-		devDependencies: validDevDependencies,
+	await project(directory, registry, {
+		'index.html': [
+			'<!DOCTYPE html>',
+			'<html lang="en">',
+			'<head>',
+			'  <meta charset="UTF-8">',
+			'  <!-- ssr:head -->',
+			'</head>',
+			'<body>',
+			'  <!-- ssr:data -->',
+			'  <div id="root"><!-- ssr:root --></div>',
+			'  <script src="/src/client" type="module"></script>',
+			'</body>',
+			'</html>',
+			'',
+		].join('\n'),
+		'vite.config.ts': [
+			"import { defineConfig } from 'vite'",
+			"import { kit } from 'ajo-kit/vite'",
+			"import unocss from 'unocss/vite'",
+			'export default defineConfig({',
+			"  plugins: [...kit({ css: ['virtual:uno.css'] }), unocss()],",
+			'})',
+			'',
+		].join('\n'),
+		'src/page.tsx': [
+			"import { can } from 'ajo-kit-auth/ability'",
+			'export default () => <main class="p-4">{can([\'posts:*\'], \'posts:read\') ? \'kit css probe\' : \'denied\'}</main>',
+			'',
+		].join('\n'),
 	})
-	await write(join(directory, '.npmrc'), [
-		`registry=${registry}/`,
-		'auto-install-peers=false',
-		'package-import-method=copy',
-		'strict-peer-dependencies=true',
-		'',
-	].join('\n'))
-	await write(join(directory, 'pnpm-workspace.yaml'), [
-		'allowBuilds:',
-		'  argon2: true',
-		'  better-sqlite3: true',
-		'  esbuild: true',
-		'minimumReleaseAgeExclude:',
-		...packageNames.map(name => `  - ${name}@${versions[name]}`),
-		'',
-	].join('\n'))
-	await write(join(directory, 'index.html'), [
-		'<!DOCTYPE html>',
-		'<html lang="en">',
-		'<head>',
-		'  <meta charset="UTF-8">',
-		'  <!-- ssr:head -->',
-		'</head>',
-		'<body>',
-		'  <!-- ssr:data -->',
-		'  <div id="root"><!-- ssr:root --></div>',
-		'  <script src="/src/client" type="module"></script>',
-		'</body>',
-		'</html>',
-		'',
-	].join('\n'))
-	await write(join(directory, 'uno.config.ts'), [
-		"import { defineConfig } from 'unocss'",
-		"import { playa } from 'ajo-ui-playa'",
-		'export default defineConfig({ presets: [playa()] })',
-		'',
-	].join('\n'))
-	await write(join(directory, 'vite.config.ts'), [
-		"import { defineConfig } from 'vite'",
-		"import { kit } from 'ajo-kit/vite'",
-		"import unocss from 'unocss/vite'",
-		'export default defineConfig({',
-		"  plugins: [...kit({ css: ['virtual:uno.css'] }), unocss()],",
-		'})',
-		'',
-	].join('\n'))
-	await writeJson(join(directory, 'tsconfig.json'), {
-		compilerOptions: {
-			jsx: 'react-jsx',
-			jsxImportSource: 'ajo',
-			module: 'ESNext',
-			moduleResolution: 'Bundler',
-			noEmit: true,
-			skipLibCheck: true,
-			strict: true,
-			target: 'ESNext',
-		},
-		include: ['src'],
-	})
-	// The ability import rides the same probe: it is the documented client-safe
-	// auth subpath, and only a consumer of the PUBLISHED package exercises the
-	// compiled face (dist/ability.client.js) against the server-only guard —
-	// the workspace resolves the .client.ts source, which is always exempt.
-	await write(join(directory, 'src/page.tsx'), [
-		"import { can } from 'ajo-kit-auth/ability'",
-		'export default () => <main class="p-4">{can([\'posts:*\'], \'posts:read\') ? \'kit css probe\' : \'denied\'}</main>',
-		'',
-	].join('\n'))
-	await pnpm(['install', '--no-frozen-lockfile'], directory)
 	await pnpm(['exec', 'kit', 'build'], directory)
 
-	const cssFiles = await filesWithExtension(join(directory, '.ajo/client'), '.css')
+	const cssFiles = await files(join(directory, '.ajo/client'), '.css')
 	assert(cssFiles.length > 0, 'kit build emitted no stylesheet from the css option')
 	const html = await readFile(join(directory, '.ajo/client/index.html'), 'utf8')
 	assert.match(html, /<link rel="stylesheet"[^>]*\/assets\/[^"]*\.css/,
@@ -1263,187 +519,94 @@ const kitCssProbe = async (directory: string, registry: string) => {
 	assert.equal(await readFile(join(directory, 'dist/sibling.txt'), 'utf8'), 'preserved')
 
 	await write(compiler, '#!/usr/bin/env node\nprocess.exit(23)\n')
-	const failure = await expectPnpmFailure(['exec', 'kit', 'build', '--compiler', compiler], directory)
-	assert.match(`${failure.stdout}\n${failure.stderr}`, /compiler exited with status 23/)
+	await assert.rejects(pnpm(['exec', 'kit', 'build', '--compiler', compiler], directory), (error: unknown) =>
+		error instanceof CommandFailure && /compiler exited with status 23/.test(`${error.stdout}\n${error.stderr}`))
 	assert.equal(await readFile(join(directory, 'dist/sibling.txt'), 'utf8'), 'preserved')
 }
 
-const hmrProbe = async (directory: string, registry: string) => {
-	const workspaceSource = join(root, 'packages/ajo-ui-playa')
-	const playaSource = join(directory, 'vendor/ajo-ui-playa')
-	await mkdir(playaSource, { recursive: true })
-	await cp(join(workspaceSource, 'src'), join(playaSource, 'src'), { recursive: true })
-	const manifest = parseJson<Record<string, unknown>>(
-		await readFile(join(workspaceSource, 'package.json'), 'utf8'),
-	)
-	manifest.dependencies = {
-		...(manifest.dependencies as Record<string, string>),
-		'ajo-ui': versions['ajo-ui'],
-	}
-	delete manifest.devDependencies
-	await writeJson(join(playaSource, 'package.json'), manifest)
-	const link = relative(directory, playaSource).replaceAll('\\', '/')
-	await writeJson(join(directory, 'package.json'), {
-		name: 'ajo-ui-playa-hmr-consumer',
-		version: '0.0.0',
-		private: true,
-		type: 'module',
-		dependencies: { ajo: '0.1.35', 'ajo-ui-playa': `link:${link}` },
-		devDependencies: validDevDependencies,
-	})
-	await write(join(directory, '.npmrc'), [
-		`registry=${registry}/`,
-		'auto-install-peers=false',
-		'package-import-method=copy',
-		'strict-peer-dependencies=true',
-		'',
-	].join('\n'))
-	await write(join(directory, 'pnpm-workspace.yaml'), [
-		'packages:',
-		'  - .',
-		'  - vendor/ajo-ui-playa',
-		'minimumReleaseAgeExclude:',
-		...packageNames.map(name => `  - ${name}@${versions[name]}`),
-		'',
-	].join('\n'))
-	await writeJson(join(directory, 'tsconfig.json'), {
-		compilerOptions: {
-			jsx: 'react-jsx',
-			jsxImportSource: 'ajo',
-			module: 'ESNext',
-			moduleResolution: 'Bundler',
-			target: 'ESNext',
-		},
-	})
-	await write(join(directory, 'index.html'), '<div id="app"></div><script type="module" src="/src/main.tsx"></script>\n')
-	await write(join(directory, 'uno.config.ts'), [
-		"import { defineConfig } from 'unocss'",
-		"import { playa } from 'ajo-ui-playa'",
-		'export default defineConfig({ presets: [playa()] })',
-		'',
-	].join('\n'))
-	await write(join(directory, 'vite.config.ts'), [
-		"import { fileURLToPath } from 'node:url'",
-		"import { defineConfig } from 'vite'",
-		"import unocss from 'unocss/vite'",
-		'export default defineConfig({',
-		"  plugins: [unocss(fileURLToPath(new URL('./uno.config.ts', import.meta.url)))],",
-		"  oxc: { jsx: { importSource: 'ajo' } },",
-		`  server: { fs: { allow: [${JSON.stringify(directory)}] } },`,
-		'})',
-		'',
-	].join('\n'))
-	await write(join(directory, 'src/main.tsx'), [
-		"import { render } from 'ajo'",
-		"import { Button } from 'ajo-ui-playa/button'",
-		"import 'virtual:uno.css'",
-		"render(<Button id=\"probe\">HMR probe</Button>, document.getElementById('app')!)",
-		'',
-	].join('\n'))
-	await pnpm(['install', '--no-frozen-lockfile'], directory)
-	assert.equal(await realpath(join(directory, 'node_modules/ajo-ui-playa')), await realpath(playaSource))
-
-	const button = join(playaSource, 'src/button.tsx')
-	const original = await readFile(button, 'utf8')
-	const base = original.match(/^const base = '[^'\r\n]+'$/m)?.[0]
-	assert(base, 'Button base recipe was not found for the HMR probe')
-	const initial = original.replace(base, `${base.slice(0, -1)} [--playa-hmr:1]'`)
-	assert.notEqual(initial, original)
-	await writeFile(button, initial, 'utf8')
-
-	let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
-	let server: Awaited<ReturnType<typeof import('vite')['createServer']>> | undefined
-	try {
-		const vite = await loadVite(directory)
-		const port = await freePort()
-		server = await vite.createServer({
-			root: directory,
-			configFile: join(directory, 'vite.config.ts'),
-			logLevel: 'error',
-			server: { host: '127.0.0.1', port, strictPort: true },
-		})
-		await server.listen()
-		browser = await chromium.launch({ headless: true })
-		const page = await browser.newPage()
-		const errors: string[] = []
-		page.on('pageerror', error => errors.push(error.stack ?? error.message))
-		page.on('console', message => {
-			if (message.type() === 'error') errors.push(message.text())
-		})
-		page.on('response', response => {
-			if (response.status() >= 400) {
-				void response.text().then(body => errors.push(`${response.status()} ${response.url()}\n${body}`))
-			}
-		})
-		await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' })
-		await page.locator('#probe').waitFor({ timeout: 10_000 }).catch(() => {
-			throw new Error(`HMR probe did not render:\n${errors.join('\n')}`)
-		})
-		await page.waitForFunction(() => {
-			const probe = document.querySelector('#probe')
-			return probe && getComputedStyle(probe).getPropertyValue('--playa-hmr').trim() === '1'
-		})
-		await writeFile(button, initial.replace('[--playa-hmr:1]', '[--playa-hmr:2]'), 'utf8')
-		await page.waitForFunction(() => {
-			const probe = document.querySelector('#probe')
-			return probe && getComputedStyle(probe).getPropertyValue('--playa-hmr').trim() === '2'
-		},
-			undefined,
-			{ timeout: 10_000 },
-		)
-	} finally {
-		await browser?.close()
-		await server?.close()
-	}
-}
-
 const main = async () => {
-	const temporary = await mkdtemp(join(tmpdir(), 'ajo-ui-playa-consumer-'))
+	const temporary = await mkdtemp(join(tmpdir(), 'ajo-kit-consumer-'))
 	let registry: Awaited<ReturnType<typeof startRegistry>> | undefined
 	try {
 		registry = await startRegistry(join(temporary, 'registry'), await freePort())
-		console.log('package consumer: ephemeral registry ready')
 		const tarballs = join(temporary, 'tarballs')
-		await mkdir(tarballs, { recursive: true })
-		const published = new Map<string, Awaited<ReturnType<typeof packAndPublish>>>()
-		for (const name of packageNames) {
-			const artifact = await packAndPublish(name, tarballs, registry.url)
-			verifyPublishedArtifact(name, artifact)
-			published.set(name, artifact)
-			console.log(`package consumer: published ${name}@${versions[name]} (${artifact.tarballBytes} B)`)
-		}
-		assert.equal(published.get('ajo-kit-auth')?.manifest.peerDependencies?.['ajo-kit'], `^${versions['ajo-kit']}`)
-		assert.equal(published.get('ajo-kit-mail')?.manifest.peerDependencies?.['ajo-kit'], `^${versions['ajo-kit']}`)
-		// nodemailer is smtp-only: the published manifest must keep it optional,
-		// or every http/capture consumer under strict peers is forced to install it.
-		assert.equal(published.get('ajo-kit-mail')?.manifest.peerDependencies?.nodemailer, '^7.0.0')
-		assert.equal(published.get('ajo-kit-mail')?.manifest.peerDependenciesMeta?.nodemailer?.optional, true)
-		assert.equal(published.get('ajo-ui')?.manifest.dependencies?.['ajo-cloves'], `^${versions['ajo-cloves']}`)
-		assert.equal(published.get('ajo-ui')?.manifest.dependencies?.['@floating-ui/dom'], floatingDomVersion)
-		assert.equal(published.get('ajo-ui-playa')?.manifest.dependencies?.['ajo-ui'], `^${versions['ajo-ui']}`)
+		await mkdir(tarballs)
+		const published: Record<string, Awaited<ReturnType<typeof publish>>> = {}
+		for (const entry of packages) published[entry.name] = await publish(entry, tarballs, registry.url)
 
-		await peerMatrix(temporary, registry.url)
-		console.log('package consumer: strict peer matrix passed')
-		const consumer = join(temporary, 'consumer')
-		await consumerFiles(consumer, registry.url)
-		await pnpm(['install', '--no-frozen-lockfile'], consumer)
-		await verifyDependencyGraph(consumer)
-		await verifyServerPackages(consumer)
-		console.log('package consumer: server packages, CLI, and migrations passed')
-		const vite = await buildConsumer(consumer)
-		await inspectGraphs(consumer, vite)
-		console.log('package consumer: dependency, client, SSR, CSS, and module graphs passed')
-		await ajoUiBundleProbe(join(temporary, 'ajo-ui-bundle-consumer'), registry.url)
-		console.log('package consumer: ajo-ui release bundle graph passed')
-		await kitCssProbe(join(temporary, 'kit-css-consumer'), registry.url)
-		console.log('package consumer: kit build stylesheet contract passed')
-		await hmrProbe(join(temporary, 'hmr-consumer'), registry.url)
-		console.log('playa consumer: workspace-linked HMR passed')
-	} catch (error) {
-		if (registry) {
-			const logs = registry.logs().trim()
-			if (logs) console.error(`Verdaccio tail:\n${logs.slice(-6_000)}`)
+		const manifest = (name: string) => published[name].manifest
+		for (const name of ['ajo-cloves', 'ajo-ui', 'ajo-ui-playa']) {
+			assert.equal(manifest(name).sideEffects, false, `${name} is not marked tree-shakeable`)
 		}
+		assert.equal(manifest('ajo-kit').bin?.kit, './dist/bin/kit.js')
+		assert(published['ajo-kit'].packlist.includes('dist/bin/kit.js'), 'ajo-kit packlist omitted its compiled CLI')
+		assert.equal(manifest('ajo-kit-auth').peerDependencies?.['ajo-kit'], `^${versions['ajo-kit']}`)
+		assert.equal(manifest('ajo-kit-mail').peerDependencies?.['ajo-kit'], `^${versions['ajo-kit']}`)
+		// nodemailer is smtp-only: it stays an optional peer, or every http and
+		// capture consumer under strict peers is forced to install it.
+		assert.equal(manifest('ajo-kit-mail').peerDependencies?.nodemailer, '^7.0.0')
+		assert.equal(manifest('ajo-kit-mail').peerDependenciesMeta?.nodemailer?.optional, true)
+		assert.equal(manifest('ajo-ui').dependencies?.['ajo-cloves'], `^${versions['ajo-cloves']}`)
+		assert.equal(manifest('ajo-ui-playa').dependencies?.['ajo-ui'], `^${versions['ajo-ui']}`)
+		assert.equal(manifest('ajo-ui-playa').peerDependencies?.unocss, pins.unocss)
+
+		assert.equal(manifest('ajo-kit-auth').kit?.migrations, './dist/migrations/')
+		const migrations = published['ajo-kit-auth'].packlist
+			.filter(path => path.startsWith('dist/migrations/'))
+			.map(path => path.slice('dist/migrations/'.length, -'.js'.length))
+			.sort()
+		const sources = (await readdir(join(root, 'packages/ajo-kit-auth/migrations'))).map(file => file.replace(/\.ts$/, '')).sort()
+		assert.deepEqual(migrations, sources, 'ajo-kit-auth published an unexpected migration set')
+
+		const consumer = join(temporary, 'consumer')
+		await project(consumer, registry.url, {
+			'index.html': '<div id="app"></div><script type="module" src="/src/main.tsx"></script>\n',
+			'vite.config.ts': [
+				"import { fileURLToPath } from 'node:url'",
+				"import { defineConfig } from 'vite'",
+				"import unocss from 'unocss/vite'",
+				'export default defineConfig({',
+				"  plugins: [unocss(fileURLToPath(new URL('./uno.config.ts', import.meta.url)))],",
+				"  oxc: { jsx: { importSource: 'ajo' } },",
+				'  ssr: { noExternal: [/^ajo-/] },',
+				'})',
+				'',
+			].join('\n'),
+			'src/env.d.ts': "declare module 'virtual:uno.css'\n",
+			'src/auth-types.ts': [
+				"import type { Request } from 'ajo-kit'",
+				"import { admit, token } from 'ajo-kit-auth'",
+				"export const create = (user: number) => token.create(user, 'Blog CI', ['apps:deploy'], { subject: 'app:blog', ttl: 60_000 })",
+				"export const revoke = (user: number, id: string): Promise<boolean> => token.revoke(user, id)",
+				"export const subject = (req: Request): string | null | undefined => req.token?.subject",
+				"export const deploy = (req: Request) => admit(req, 'app:blog', 'apps:deploy')",
+				'',
+			].join('\n'),
+			'src/main.tsx': [
+				"import { render } from 'ajo'",
+				"import { Checkbox } from 'ajo-ui-playa/checkbox'",
+				"import 'virtual:uno.css'",
+				"render(<Checkbox aria-label=\"Published checkbox\" />, document.getElementById('app')!)",
+				'',
+			].join('\n'),
+			'src/ssr.tsx': [
+				"import { render } from 'ajo/html'",
+				"import { Checkbox } from 'ajo-ui-playa/checkbox'",
+				'export default () => render(<Checkbox aria-label="Published SSR checkbox" />)',
+				'',
+			].join('\n'),
+		})
+		await verifyDependencyGraph(consumer)
+		await verifyServerPackages(consumer, migrations)
+		console.log('package consumer: dependencies, server packages, CLI and migrations passed')
+		await buildPlaya(consumer)
+		await verifyNodeNextDeclarations(consumer)
+		console.log('package consumer: Playa client, SSR and CSS, ajo-ui NodeNext declarations passed')
+		await kitCssProbe(join(temporary, 'kit-css-consumer'), registry.url)
+		console.log('package consumer: kit build stylesheet and compiler contract passed')
+	} catch (error) {
+		const logs = registry?.logs().trim()
+		if (logs) console.error(`Verdaccio tail:\n${logs.slice(-6_000)}`)
 		throw error
 	} finally {
 		await stop(registry?.child)

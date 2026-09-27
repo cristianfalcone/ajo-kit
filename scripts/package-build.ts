@@ -1,63 +1,27 @@
-import { access, readFile, readdir } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { build } from 'vite'
 
-type Export = {
-	ajo?: string
-	browser?: string
-	default: string
-	types: string
-}
-
 type Manifest = {
-	exports: Record<string, Export>
+	exports: Record<string, { ajo?: string; browser?: string; default: string; types: string }>
 	imports?: Record<string, Record<string, string>>
 	kit?: { migrations?: string }
-	name: string
 }
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
-const config = ts.readConfigFile(resolve(root, 'tsconfig.json'), ts.sys.readFile)
-if (config.error) {
-	throw new Error(ts.formatDiagnostics([config.error], {
-		getCanonicalFileName: file => file,
-		getCurrentDirectory: () => root,
-		getNewLine: () => '\n',
-	}))
-}
-const compiler = ts.parseJsonConfigFileContent(config.config, ts.sys, root).options
-const packages = [
-	'ajo-kit',
-	'ajo-kit-auth',
-	'ajo-kit-mail',
-	'ajo-cloves',
-	'ajo-ui',
-	'ajo-ui-playa',
-] as const
-
-type Package = typeof packages[number]
-
-const requested = process.argv.slice(2)
-const selected = requested.length ? requested : packages
+const compiler = ts.parseJsonConfigFileContent(
+	ts.readConfigFile(resolve(root, 'tsconfig.json'), ts.sys.readFile).config, ts.sys, root).options
 
 const external = (id: string) =>
 	id.startsWith('node:') ||
 	id.startsWith('virtual:') ||
 	(!id.startsWith('.') && !id.startsWith('\0') && !isAbsolute(id))
 
-const declaration = (source: string) =>
-	source.replace(/^\.\/src\//, '').replace(/\.[jt]sx?$/, '.d.ts')
-
+// Sources import relative modules without an extension; emitted declarations
+// name the runtime file so NodeNext consumers resolve them.
 const relativeModule = /((?:from|import)\s*(?:\(\s*)?)(['"])(\.\.?\/[^'"]+)\2/g
-const runtimeModule = (source: string) => {
-	if (/\.mts$/.test(source)) return source.replace(/\.mts$/, '.mjs')
-	if (/\.cts$/.test(source)) return source.replace(/\.cts$/, '.cjs')
-	if (/\.tsx?$/.test(source)) return source.replace(/\.tsx?$/, '.js')
-	if (/\.(?:[cm]?js|json|node|css)$/.test(source)) return source
-	return source + '.js'
-}
 
 const declarations = (name: string, directory: string, sources: string[]) => {
 	const program = ts.createProgram({
@@ -71,13 +35,8 @@ const declarations = (name: string, directory: string, sources: string[]) => {
 			rootDir: resolve(directory, 'src'),
 		},
 	})
-	const emitted = program.emit(undefined, (file, contents, byteOrderMark) => {
-		const output = file.endsWith('.d.ts')
-			? contents.replace(relativeModule, (_match, prefix: string, quote: string, source: string) =>
-				prefix + quote + runtimeModule(source) + quote)
-			: contents
-		ts.sys.writeFile(file, output, byteOrderMark)
-	})
+	const emitted = program.emit(undefined, (file, contents, byteOrderMark) =>
+		ts.sys.writeFile(file, contents.replace(relativeModule, '$1$2$3.js$2'), byteOrderMark))
 	const diagnostics = [
 		...ts.getPreEmitDiagnostics(program),
 		...emitted.diagnostics,
@@ -91,60 +50,34 @@ const declarations = (name: string, directory: string, sources: string[]) => {
 	}))
 }
 
-for (const name of selected) {
-	if (!packages.includes(name as Package)) throw new Error(`Unknown public package: ${name}`)
-
+for (const name of process.argv.slice(2)) {
 	const directory = resolve(root, 'packages', name)
 	const manifest = JSON.parse(await readFile(resolve(directory, 'package.json'), 'utf8')) as Manifest
-	if (manifest.name !== name) throw new Error(`Package path/name mismatch: ${name} / ${manifest.name}`)
+	const source = (path: string) => resolve(directory, path)
 
-	const exports = Object.entries(manifest.exports)
-	const entries = Object.fromEntries(exports.map(([subpath, entry]) => {
-		if (!entry.types.startsWith('./src/')) {
-			throw new Error(`${name} export ${subpath} has no source types entry`)
-		}
-		if (!entry.default.startsWith('./src/')) {
-			throw new Error(`${name} export ${subpath} has no source default entry`)
-		}
-		// A *.client.* source keeps its marker in the compiled name: the marker
-		// is what exempts client-safe modules from the server-only guard, and
-		// the published dist face must satisfy the same contract as src.
+	// One pass per export, under the same `base` names .pnpmfile.cjs writes
+	// into the packed manifest. A *.client.* source keeps its marker in the
+	// compiled name, which exempts the published face from the server-only guard.
+	const entries: Record<string, string> = {}
+	for (const [subpath, entry] of Object.entries(manifest.exports)) {
 		const base = subpath === '.' ? 'index' : subpath.slice(2)
-		return [/\.client\.[jt]sx?$/.test(entry.default) ? `${base}.client` : base, resolve(directory, entry.default)]
-	}))
-	for (const [subpath, entry] of exports) {
-		if (!entry.ajo) continue
-		if (!entry.ajo.startsWith('./src/')) {
-			throw new Error(`${name} export ${subpath} has no source ajo entry`)
-		}
-		const base = subpath === '.' ? 'index' : subpath.slice(2)
-		entries[`${base}.ajo`] = resolve(directory, entry.ajo)
-	}
-	for (const [subpath, entry] of exports) {
-		if (!entry.browser) continue
-		if (!entry.browser.startsWith('./src/')) {
-			throw new Error(`${name} export ${subpath} has no source browser entry`)
-		}
-		const base = subpath === '.' ? 'index' : subpath.slice(2)
-		entries[`${base}.client`] = resolve(directory, entry.browser)
+		entries[/\.client\.[jt]sx?$/.test(entry.default) ? `${base}.client` : base] = source(entry.default)
+		if (entry.ajo) entries[`${base}.ajo`] = source(entry.ajo)
+		if (entry.browser) entries[`${base}.client`] = source(entry.browser)
 	}
 	// Private `#` imports stay external and resolve against the packed manifest,
 	// so each conditional target ships under its source name.
 	const imports = Object.values(manifest.imports ?? {})
 	for (const conditions of imports) {
-		for (const [condition, source] of Object.entries(conditions)) {
-			if (condition === 'types') continue
-			entries[source.replace(/^\.\/src\//, '').replace(/\.[jt]sx?$/, '')] = resolve(directory, source)
+		for (const [condition, path] of Object.entries(conditions)) {
+			if (condition !== 'types') entries[path.replace(/^\.\/src\//, '').replace(/\.[jt]sx?$/, '')] = source(path)
 		}
 	}
-	if (name === 'ajo-kit') entries['bin/kit'] = resolve(directory, 'bin/kit.ts')
+	if (name === 'ajo-kit') entries['bin/kit'] = source('bin/kit.ts')
 	if (manifest.kit?.migrations) {
-		const migrationDirectory = resolve(directory, manifest.kit.migrations)
-		const migrations = (await readdir(migrationDirectory, { withFileTypes: true }))
-			.filter(entry => entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts'))
-		if (!migrations.length) throw new Error(`${name} declares migrations but has none`)
-		for (const migration of migrations) {
-			entries[`migrations/${migration.name.slice(0, -3)}`] = resolve(migrationDirectory, migration.name)
+		const migrations = source(manifest.kit.migrations)
+		for (const migration of await readdir(migrations)) {
+			entries[`migrations/${migration.replace(/\.ts$/, '')}`] = resolve(migrations, migration)
 		}
 	}
 
@@ -174,13 +107,8 @@ for (const name of selected) {
 		},
 	})
 	declarations(name, directory, [
-		...exports.map(([, entry]) => resolve(directory, entry.types)),
-		...imports.map(conditions => resolve(directory, conditions.types)),
-		...(name === 'ajo-kit' ? [resolve(directory, 'src/runtime.d.ts')] : []),
+		...Object.values(manifest.exports).map(entry => source(entry.types)),
+		...imports.map(conditions => source(conditions.types)),
+		...(name === 'ajo-kit' ? [source('src/runtime.d.ts')] : []),
 	])
-	await Promise.all([...exports.map(([, entry]) => entry.types), ...imports.map(conditions => conditions.types)].map(types =>
-		access(resolve(directory, 'dist', declaration(types)))))
-
-	await Promise.all(Object.keys(entries).map(entry =>
-		access(resolve(directory, 'dist', `${entry}.js`))))
 }

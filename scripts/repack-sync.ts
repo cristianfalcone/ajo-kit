@@ -6,10 +6,8 @@ import { spawn } from 'node:child_process'
 import { access, copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { packages, root } from './packages.ts'
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
-const packages = ['ajo-kit', 'ajo-kit-auth', 'ajo-kit-mail', 'ajo-cloves', 'ajo-ui', 'ajo-ui-playa'] as const
 const override = /^(\s+['"]?)([A-Za-z0-9@/._-]+?)(['"]?):\s*file:\.tarballs\/.+\.tgz\s*$/
 
 const destination = process.argv[2]
@@ -31,12 +29,7 @@ const run = (command: string, args: readonly string[], cwd: string) => new Promi
 		: fail(new Error(`${command} ${args.join(' ')} failed with exit code ${String(code)}`)))
 })
 
-const versions = new Map<string, string>()
-for (const name of packages) {
-	const manifest = JSON.parse(await readFile(join(root, 'packages', name, 'package.json'), 'utf8')) as { name: string; version: string }
-	if (manifest.name !== name) throw new Error(`Package path/name mismatch: ${name} / ${manifest.name}`)
-	versions.set(name, manifest.version)
-}
+const versions = new Map(packages.map(({ name, version }) => [name, version]))
 
 const lines = (await readFile(workspace, 'utf8')).split('\n')
 const selected: string[] = []
