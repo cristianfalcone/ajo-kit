@@ -7,9 +7,9 @@ import { appEngine, descriptor, graph } from '../src/build'
 import { discover } from '../src/discover'
 import { build } from '../src/node'
 
-type Emitted = Pick<Parameters<typeof descriptor>[0], 'modules' | 'migrations' | 'data'>
+type Emitted = Pick<Parameters<typeof descriptor>[0], 'modules' | 'data'>
 
-const emit = async (app: string, input: Emitted = { modules: ['server/entry.js'], migrations: [], data: false }) =>
+const emit = async (app: string, input: Emitted = { modules: ['server/entry.js'], data: false }) =>
 	descriptor({ ...input, ...await appEngine(app) })
 
 const fixture = async (engine?: unknown) => {
@@ -40,11 +40,10 @@ const rejects = async (engine: unknown, message: string) => {
 
 describe('ajo engine build contract', () => {
 	test('assembles the exact compiler descriptor shape from an emitted graph', async () => {
-		const app = await fixture({ net: true })
+		const app = await fixture({ net: true, env: { optional: ['AJO_ORIGINS_FILE'] } })
 		try {
 			const value = await emit(app, {
 				modules: ['server/migrations/0001.js', 'server/entry.js', 'server/chunks/route.js'],
-				migrations: [{ name: 'project/0001_initial', module: 'server/migrations/0001.js' }],
 				data: true,
 			})
 
@@ -53,11 +52,7 @@ describe('ajo engine build contract', () => {
 				entry: 'server/entry.js',
 				modules: ['server/entry.js', 'server/chunks/route.js', 'server/migrations/0001.js'],
 				client: 'client',
-				migrations: [{ name: 'project/0001_initial', module: 'server/migrations/0001.js' }],
-				env: {
-					required: ['NODE_ENV', 'APP_URL'],
-					optional: ['DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT'],
-				},
+				env: { required: ['NODE_ENV', 'APP_URL'] },
 				data: { required: true },
 				fs: { roots: [] },
 				ipc: { pipes: [] },
@@ -114,10 +109,7 @@ describe('ajo engine build contract', () => {
 		try {
 			const value = await emit(app)
 			expect({ env: value.env, fs: value.fs, ipc: value.ipc }).toEqual({
-				env: {
-					required: ['NODE_ENV', 'APP_URL'],
-					optional: ['DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT', ...optional],
-				},
+				env: { required: ['NODE_ENV', 'APP_URL'] },
 				fs: { roots },
 				ipc: { pipes },
 			})
@@ -133,9 +125,10 @@ describe('ajo engine build contract', () => {
 				env: { optional: ['AJO_ORIGINS_FILE'] },
 				fs: { roots: ['/ajo/origin'] },
 			})
-			const value = await emit(app)
-			expect(value.env.optional).toContain('AJO_ORIGINS_FILE')
-			expect(value.fs.roots).toEqual(['/ajo/data', '/ajo/origin'])
+			const authority = await appEngine(app)
+			expect(authority.env.optional).toEqual(['AJO_ORIGINS_FILE'])
+			expect(authority.fs.roots).toEqual(['/ajo/data', '/ajo/origin'])
+			expect((await emit(app)).fs.roots).toEqual(['/ajo/data', '/ajo/origin'])
 		} finally {
 			await rm(app, { force: true, recursive: true })
 		}
@@ -193,7 +186,6 @@ describe('ajo engine build contract', () => {
 			await install(app, 'ajo-example')
 			expect(await emit(app)).toEqual(before)
 			expect(before.fs.roots).toEqual([])
-			expect(before.env.optional).not.toContain('AJO_ORIGINS_FILE')
 		} finally {
 			await rm(app, { force: true, recursive: true })
 		}
@@ -206,7 +198,6 @@ describe('ajo engine build contract', () => {
 			await install(app, 'ajo-kit-auth', auth.kit.engine)
 			const value = await emit(app)
 			expect(value.env.required).toEqual(['NODE_ENV', 'APP_URL', 'APP_SECRET'])
-			expect(value.env.optional).not.toContain('APP_SECRET')
 		} finally {
 			await rm(app, { force: true, recursive: true })
 		}
@@ -228,11 +219,10 @@ describe('ajo engine build contract', () => {
 				env: { required: ['A_REQUIRED'], optional: ['APP_OPTIONAL', 'SHARED'] },
 				fs: { roots: ['/ajo/origin'] },
 			})
+			const authority = await appEngine(app)
+			expect(authority.env.optional.toSorted()).toEqual(['APP_OPTIONAL', 'Z_OPTIONAL'])
 			const value = await emit(app)
 			expect(value.env.required).toEqual(['NODE_ENV', 'APP_URL', 'A_REQUIRED', 'SHARED'])
-			expect(value.env.optional).toEqual([
-				'DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT', 'APP_OPTIONAL', 'Z_OPTIONAL',
-			])
 			expect(value.fs.roots).toEqual(['/ajo/data', '/ajo/origin'])
 			expect(value.ipc.pipes).toEqual(['/ajo/shared', '/ajo/zeta'])
 		} finally {
@@ -349,13 +339,14 @@ describe('ajo engine build contract', () => {
 		]).map(finding => finding.type)).toEqual(['node', 'node'])
 	})
 
-	test('builds an App whose server code mentions navigator.language and Intl.NumberFormat in strings', async () => {
+	test('builds an App whose migrations stay in the bundled registry and whose strings mention navigator.language', async () => {
 		const kit = fileURLToPath(new URL('..', import.meta.url))
 		const app = await mkdtemp(join(tmpdir(), 'ajo-build-'))
 		const cwd = process.cwd()
 		try {
 			await mkdir(join(app, 'src'))
 			await mkdir(join(app, 'node_modules'))
+			await mkdir(join(app, 'db/migrations'), { recursive: true })
 			await Promise.all([
 				symlink(kit, join(app, 'node_modules/ajo-kit'), 'dir'),
 				writeFile(join(app, 'package.json'), JSON.stringify({ type: 'module', kit: { engine: { net: true } } })),
@@ -364,17 +355,26 @@ describe('ajo engine build contract', () => {
 				writeFile(join(app, 'index.html'), '<!doctype html><html><head><!-- ssr:head --></head><body><!-- ssr:data --><div id="root"><!-- ssr:root --></div><script src="/src/client" type="module"></script></body></html>'),
 				writeFile(join(app, 'src/page.ts'), "export default function Page() { return 'Reads navigator.language and Intl.NumberFormat only in prose' }\n"),
 				writeFile(join(app, 'src/handler.ts'), "import { db } from 'ajo-kit/database'\nexport const GET = () => db()\n"),
+				writeFile(join(app, 'db/migrations/0001_notes.js'), 'export const up = async () => {}\nexport const down = async () => {}\n'),
 			])
 
 			process.chdir(app)
 			await build()
 
 			const value = JSON.parse(await readFile(join(app, '.ajo/compiler.json'), 'utf8'))
-			expect(value).toMatchObject({ data: { required: true }, capabilities: ['runtime:net'], migrations: [] })
+			expect(Object.keys(value)).toEqual(['schema', 'entry', 'modules', 'client', 'env', 'data', 'fs', 'ipc', 'capabilities'])
+			expect(value).toMatchObject({ env: { required: ['NODE_ENV', 'APP_URL'] }, data: { required: true }, capabilities: ['runtime:net'] })
+			expect(Object.keys(value.env)).toEqual(['required'])
 			expect(value.modules[0]).toBe('server/entry.js')
 			await Promise.all(value.modules.map((module: string) => access(join(app, '.ajo', module))))
 			const code = await Promise.all(value.modules.map((module: string) => readFile(join(app, '.ajo', module), 'utf8')))
 			expect(code.join('\n')).toContain('navigator.language and Intl.NumberFormat')
+
+			// The generated entry imports the migration module and registers it under its qualified name.
+			const migration = value.modules.find((module: string) => module.startsWith('server/migrations/'))
+			expect(migration).toBeDefined()
+			expect(code[0]).toContain(`./${migration.slice('server/'.length)}`)
+			expect(code[0]).toContain('"project/0001_notes"')
 		} finally {
 			process.chdir(cwd)
 			await rm(app, { force: true, recursive: true })

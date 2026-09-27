@@ -31,8 +31,7 @@ interface Descriptor {
 	entry: 'server/entry.js'
 	modules: string[]
 	client: 'client'
-	migrations: { name: string; module: string }[]
-	env: { required: string[]; optional: string[] }
+	env: { required: string[] }
 	data: { required: boolean }
 	fs: { roots: string[] }
 	ipc: { pipes: string[] }
@@ -109,23 +108,18 @@ export async function appEngine(root: string): Promise<Authority> {
 	}
 }
 
-/** Assembles the compiler's exact schema-1 descriptor from validated authority and one emitted graph. */
-export function descriptor(input: Authority & {
-	modules: readonly string[]
-	migrations: readonly { name: string; module: string }[]
-	data: boolean
-}): Descriptor {
+/**
+ * Assembles the compiler's exact schema-1 descriptor from validated authority and one emitted graph.
+ * Optional variables stay a build input: the engine reads any variable, so only required ones are declared.
+ */
+export function descriptor(input: Authority & { modules: readonly string[]; data: boolean }): Descriptor {
 	const entry = 'server/entry.js'
 	return {
 		schema: 1,
 		entry,
 		modules: [entry, ...input.modules.filter(module => module !== entry).toSorted()],
 		client: 'client',
-		migrations: input.migrations.toSorted((left, right) => left.name.localeCompare(right.name)),
-		env: {
-			required: [...base.required, ...input.env.required.toSorted()],
-			optional: [...base.optional, ...input.env.optional.toSorted()],
-		},
+		env: { required: [...base.required, ...input.env.required.toSorted()] },
 		data: { required: input.data },
 		fs: { roots: input.fs.roots.toSorted() },
 		ipc: { pipes: input.ipc.pipes.toSorted() },
@@ -216,7 +210,7 @@ export function engine(options: {
 	/** Passes runtime:fs readText only for Apps declaring the origin manifest's environment and filesystem root. */
 	origins?: boolean
 }) {
-	const result = { database: options.database, files: [] as string[], migrations: [] as { name: string; module: string }[] }
+	const result = { database: options.database, files: [] as string[] }
 	const migrations = options.migrations.map(migration => ({ ...migration, file: clean(migration.file) }))
 	const migration = new Map(migrations.map((item, index) => [item.file, `migration-${String(index + 1).padStart(4, '0')}`]))
 
@@ -279,10 +273,6 @@ export function engine(options: {
 			for (const chunk of chunks) chunk.code = chunk.code.replaceAll(marker, String(result.database))
 
 			result.files = chunks.map(chunk => `server/${normalizePath(chunk.fileName)}`)
-			result.migrations = migrations.map(item => ({
-				name: item.name,
-				module: `server/${normalizePath(chunks.find(output => output.moduleIds.some(id => clean(id) === item.file))!.fileName)}`,
-			}))
 
 			const found = chunks.flatMap(chunk => records(parseAst(chunk.code), `server/${normalizePath(chunk.fileName)}`))
 			for (const output of Object.values(bundle)) {

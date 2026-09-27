@@ -1,10 +1,10 @@
-import { strictUtf8Decode } from './bytes'
 import { base64UrlDecode, base64UrlEncode, hmacSha256Hex, timingSafeEqual } from 'ajo-kit/platform'
 import * as secret from './secret'
 import { db } from './store'
 
 const hours = 24
 const hex = /^[0-9a-f]+$/i
+const utf8 = new TextDecoder('utf-8', { fatal: true })
 const ascii = (value: string) => Uint8Array.from(value, character => character.charCodeAt(0))
 const normalize = (email: string) => email.trim().toLowerCase()
 
@@ -30,7 +30,7 @@ export async function validate(signature: string): Promise<number | null> {
 
 	try {
 
-		const decoded = strictUtf8Decode(base64UrlDecode(signature))
+		const decoded = utf8.decode(base64UrlDecode(signature))
 		const [user, expiry, bound, sig, extra] = decoded.split(':')
 		const id = Number(user)
 		const deadline = Number(expiry)
@@ -46,7 +46,7 @@ export async function validate(signature: string): Promise<number | null> {
 
 		if (!timingSafeEqual(actual, wanted) || !bound) return null
 
-		const email = normalize(strictUtf8Decode(base64UrlDecode(bound)))
+		const email = normalize(utf8.decode(base64UrlDecode(bound)))
 
 		return db().transaction().execute(async trx => {
 			const account = await trx

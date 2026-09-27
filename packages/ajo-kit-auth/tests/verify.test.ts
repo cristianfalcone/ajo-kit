@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { db } from 'ajo-kit/database'
 import { sign, url, validate } from '../src/verify'
@@ -66,6 +67,17 @@ describe('ajo-kit-auth email verification', () => {
 			email: 'changed@example.test',
 			verified: null,
 		})
+	})
+
+	test('a signed link whose bound email is ill-formed UTF-8 verifies nobody', async () => {
+		// A replacing decoder would read these bytes as this address.
+		await db<any>().updateTable('users').set({ email: '\ufffd\ufffd\ufffd' }).where('id', '=', 42).execute()
+		const data = `42:${Date.now() + 60_000}:${Buffer.from([0xed, 0xa0, 0x80]).toString('base64url')}`
+		const sig = createHmac('sha256', 'slice-nine-vector-secret').update(data).digest('hex')
+
+		await expect(validate(Buffer.from(`${data}:${sig}`).toString('base64url'))).resolves.toBeNull()
+		await expect(db<any>().selectFrom('users').select('verified').where('id', '=', 42)
+			.executeTakeFirstOrThrow()).resolves.toEqual({ verified: null })
 	})
 
 	test('an already verified matching account succeeds without another write', async () => {

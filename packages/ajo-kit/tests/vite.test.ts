@@ -104,7 +104,6 @@ describe('ajo-kit vite plugin', () => {
 	test('app authority follows the descriptor ordering contract', () => {
 		const value = descriptor({
 			modules: ['server/entry.js'],
-			migrations: [],
 			data: false,
 			net: false,
 			env: {
@@ -116,10 +115,7 @@ describe('ajo-kit vite plugin', () => {
 		})
 
 		expect({ env: value.env, fs: value.fs, ipc: value.ipc }).toEqual({
-			env: {
-				required: ['NODE_ENV', 'APP_URL', 'A_REQUIRED', 'Z_REQUIRED'],
-				optional: ['DATABASE_PATH', 'TRUST_PROXY', 'AJO_TIMING', 'HOST', 'PORT', 'A_OPTIONAL', 'Z_OPTIONAL'],
-			},
+			env: { required: ['NODE_ENV', 'APP_URL', 'A_REQUIRED', 'Z_REQUIRED'] },
 			fs: { roots: ['/', '/ajo/data', '/proc'] },
 			ipc: { pipes: ['/ajo/ops/a', '/ajo/ops/z'] },
 		})

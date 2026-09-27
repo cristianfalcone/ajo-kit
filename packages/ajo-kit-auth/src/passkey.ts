@@ -7,7 +7,6 @@
 // `password.verify` ends, and the caller goes on to `session.create` and
 // `cookie.write` as it always did.
 
-import { strictUtf8Decode } from './bytes'
 import {
 	base64UrlDecode,
 	base64UrlEncode,
@@ -69,8 +68,10 @@ const bytes = (value: unknown, what: string) => {
 	catch { throw new Malformed(`${what} is not base64url`) }
 }
 
+const utf8 = new TextDecoder('utf-8', { fatal: true })
+
 const storedKey = (value: string): Key => {
-	try { return JSON.parse(strictUtf8Decode(base64UrlDecode(value))) as Key }
+	try { return JSON.parse(utf8.decode(base64UrlDecode(value))) as Key }
 	catch { throw new Malformed('stored credential public key is malformed') }
 }
 

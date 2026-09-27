@@ -447,7 +447,8 @@ A plugin's `kit.engine` block uses the same `env`, `fs`, `ipc` and `net` shape a
 App's block. Builds include installed plugins from dependencies and
 devDependencies, validate each declaration, and combine their requirements
 with the App's. Shared entries appear once; a variable required by any
-contributor is required in the final descriptor. Entries remain sorted, and
+contributor is required in the final descriptor, which lists only required
+variables (optional ones are build inputs). Entries remain sorted, and
 malformed or duplicate entries within one declaration fail the build with the
 plugin's name.
 

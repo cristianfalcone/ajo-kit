@@ -140,8 +140,8 @@ export async function build(): Promise<void> {
 	})
 	await fs.rm(generated, { force: true })
 
-	const { files, migrations: emitted, database } = target.result
-	const value = descriptor({ ...authority, modules: files, migrations: emitted, data: database })
+	const { files, database } = target.result
+	const value = descriptor({ ...authority, modules: files, data: database })
 	await fs.writeFile(join(staging, 'compiler.json'), JSON.stringify(value, null, '\t') + '\n')
 }
 

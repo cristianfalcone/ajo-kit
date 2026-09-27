@@ -601,12 +601,36 @@ describe('what a credential may not become', () => {
 			.rejects.toThrow(/usable public key/)
 	})
 
-	test('client data containing invalid UTF-8 is refused', async () => {
+	// Each case would parse, with U+FFFD in place of the bytes, under a replacing decoder.
+	test('ill-formed UTF-8 in client data, CBOR text or a stored key is refused', async () => {
+		const surrogate = Buffer.from([0xed, 0xa0, 0x80])
+
 		await expect(passkey.register(1, {
 			id: 'credential',
-			clientDataJSON: url(Buffer.from([0xed, 0xa0, 0x80])),
+			clientDataJSON: url(Buffer.concat([Buffer.from('{"type":"'), surrogate, Buffer.from('"}')])),
 			attestationObject: '',
 		})).rejects.toThrow(/not valid JSON/)
+
+		const signer = p256()
+		const options = await passkey.registration({ id: 1, name: 'owner@example.test' })
+		await expect(passkey.register(1, {
+			id: url(signer.id),
+			clientDataJSON: url(clientData('webauthn.create', options.challenge)),
+			attestationObject: url(cbor.map([
+				['fmt', Buffer.concat([header(3, surrogate.length), surrogate])],
+				['attStmt', cbor.empty()],
+				['authData', cbor.bytes(authData({ flags: flags.present | flags.verified | flags.attested, signer }))],
+			])),
+		})).rejects.toThrow(/cbor text is not valid utf-8/)
+
+		await enroll(signer)
+		const row = await db<any>().selectFrom('credentials').select('key').executeTakeFirstOrThrow()
+		const key = Buffer.from(row.key, 'base64url')
+		const at = key.indexOf('P-256') + 5
+		await db<any>().updateTable('credentials').set({ key: url(Buffer.concat([key.subarray(0, at), surrogate, key.subarray(at)])) }).execute()
+
+		const challenge = await authenticationChallenge()
+		await expect(passkey.authenticate(assertion(signer, challenge))).rejects.toThrow(/stored credential public key is malformed/)
 	})
 
 	// Backup eligibility is fixed for a credential's life. Gaining it means

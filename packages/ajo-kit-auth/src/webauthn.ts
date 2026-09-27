@@ -10,7 +10,6 @@
 // The moment real attestation is needed — enterprise policy, TPM formats —
 // this is the wrong file and @simplewebauthn/server is the right dependency.
 
-import { concatBytes, strictUtf8Decode } from './bytes'
 import {
 	base64UrlEncode,
 	sha256Hex,
@@ -39,6 +38,8 @@ class Malformed extends Error {}
 
 /** Fails the ceremony with a reason that never quotes attacker-supplied bytes. */
 const fail = (reason: string): never => { throw new Malformed(reason) }
+
+const utf8 = new TextDecoder('utf-8', { fatal: true })
 
 // CBOR, the subset RFC 8949 lets an authenticator use: unsigned and negative
 // integers, byte and text strings, arrays, and maps. Indefinite lengths, tags,
@@ -89,7 +90,7 @@ const value = (cursor: Cursor, level = 0): Cbor => {
 		const slice = cursor.bytes.subarray(cursor.at, cursor.at + length)
 		cursor.at += length
 		if (major === 2) return slice
-		try { return strictUtf8Decode(slice) }
+		try { return utf8.decode(slice) }
 		catch { return fail('cbor text is not valid utf-8') }
 	}
 
@@ -294,7 +295,10 @@ export const signature = (
 			!algorithms.includes(stored.alg)
 		) return false
 
-		const signed = concatBytes(data, digest(client))
+		const hash = digest(client)
+		const signed = new Uint8Array(data.length + hash.length)
+		signed.set(data)
+		signed.set(hash, data.length)
 		return verifySignature(stored.key, signed, sig)
 	} catch {
 		return false
@@ -314,7 +318,7 @@ export type Client = { type: string; challenge: string; origin: string; crossOri
 /** Parses clientDataJSON, refusing anything that is not the expected object. */
 export const client = (bytes: Uint8Array): Client => {
 	let parsed: unknown
-	try { parsed = JSON.parse(strictUtf8Decode(bytes)) }
+	try { parsed = JSON.parse(utf8.decode(bytes)) }
 	catch { return fail('client data is not valid JSON') }
 
 	const data = parsed as Client
