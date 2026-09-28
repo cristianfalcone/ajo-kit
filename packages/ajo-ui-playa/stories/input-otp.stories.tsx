@@ -5,6 +5,7 @@ import { frame } from './play'
 import {
 	Field,
 	FieldDescription,
+	FieldError,
 	FieldLabel,
 } from 'ajo-ui-playa/field'
 import {
@@ -34,6 +35,37 @@ const slotValue = (canvas: HTMLElement) =>
 	Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="input-otp-slot"]'))
 		.map(slot => slot.textContent?.trim() ?? '')
 		.join('')
+
+const token = (name: string) => {
+	const probe = document.createElement('span')
+	probe.style.color = `var(${name})`
+	document.body.append(probe)
+	const value = getComputedStyle(probe).color
+	probe.remove()
+	return value
+}
+
+const slots = (canvas: HTMLElement) => Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="input-otp-slot"]'))
+
+// At rest no slot is outlined and no caret shows.
+const assertRest = (canvas: HTMLElement) => {
+	if (slots(canvas).some(slot => getComputedStyle(slot).outlineStyle !== 'none')) {
+		throw new Error('Input OTP slots must show no ring before the input has focus')
+	}
+	if (Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="input-otp-caret"]')).some(caret => getComputedStyle(caret).display !== 'none')) {
+		throw new Error('Input OTP must hide its caret before the input has focus')
+	}
+}
+
+// With the input focused, the slot that takes the next digit carries the one ring.
+const assertActiveRing = async (canvas: HTMLElement, colour: string) => {
+	input(canvas).focus()
+	await frame()
+	const ringed = slots(canvas).filter(slot => getComputedStyle(slot).outlineStyle !== 'none')
+	if (ringed.length !== 1 || ringed[0].dataset.active !== 'true' || getComputedStyle(ringed[0]).outlineColor !== token(colour)) {
+		throw new Error(`Focused Input OTP must ring only its active slot in ${colour}`)
+	}
+}
 
 const write = async (canvas: HTMLElement, value: string) => {
 	const control = input(canvas)
@@ -104,6 +136,10 @@ export const Basic: Story = {
 		if (!control.classList.contains('otp-input-contract') || control.classList.contains('otp-root-contract')) {
 			throw new Error('Input OTP inputClass did not belong exclusively to the hidden input')
 		}
+		assertRest(canvas)
+		await assertActiveRing(canvas, '--ring')
+		const caret = canvas.querySelector<HTMLElement>('[data-slot="input-otp-caret"]')
+		if (!caret || getComputedStyle(caret).display === 'none') throw new Error('Focused Input OTP must show its caret')
 		await write(canvas, '123456')
 		if (slotValue(canvas) !== '123456') {
 			throw new Error('Input OTP did not mirror typed digits into visible slots')
@@ -169,24 +205,35 @@ export const Completion: Story = {
 	},
 }
 
+// The field marks the hidden input invalid, and the group shows it: the
+// boundary, and the ring while focused, turn danger.
 export const Invalid: Story = {
 	render: () => (
-		<InputOTP maxLength={6} value="000000" pattern={REGEXP_ONLY_DIGITS}>
-			<InputOTPGroup>
-				<InputOTPSlot index={0} aria-invalid="true" />
-				<InputOTPSlot index={1} aria-invalid="true" />
-				<InputOTPSlot index={2} aria-invalid="true" />
-				<InputOTPSlot index={3} aria-invalid="true" />
-				<InputOTPSlot index={4} aria-invalid="true" />
-				<InputOTPSlot index={5} aria-invalid="true" />
-			</InputOTPGroup>
-		</InputOTP>
+		<Field invalid class="max-w-sm">
+			<FieldLabel>Verification code</FieldLabel>
+			<InputOTP maxLength={6} defaultValue="281904" pattern={REGEXP_ONLY_DIGITS}>
+				<InputOTPGroup>
+					<InputOTPSlot index={0} />
+					<InputOTPSlot index={1} />
+					<InputOTPSlot index={2} />
+					<InputOTPSlot index={3} />
+					<InputOTPSlot index={4} />
+					<InputOTPSlot index={5} />
+				</InputOTPGroup>
+			</InputOTP>
+			<FieldError>This code has expired. Send a new one.</FieldError>
+		</Field>
 	),
 	play: async ({ canvas }) => {
-		const invalid = canvas.querySelectorAll('[data-slot="input-otp-slot"][aria-invalid="true"]')
-		if (invalid.length !== 6 || slotValue(canvas) !== '000000') {
-			throw new Error('Invalid Input OTP slots were not rendered')
+		const group = canvas.querySelector<HTMLElement>('[data-slot="input-otp-group"]')
+		if (input(canvas).getAttribute('aria-invalid') !== 'true' || !group || slotValue(canvas) !== '281904') {
+			throw new Error('Invalid Input OTP must mark its input invalid through the field')
 		}
+		if (!getComputedStyle(group).boxShadow.includes(token('--danger'))) {
+			throw new Error('Invalid Input OTP must turn its boundary danger')
+		}
+		assertRest(canvas)
+		await assertActiveRing(canvas, '--danger')
 	},
 }
 

@@ -78,11 +78,11 @@ export const Text: Story = {
 					<InputGroupText>{suffix}</InputGroupText>
 				</InputGroupAddon>
 			</InputGroup>
-			<InputGroup {...args}>
+			<InputGroup {...args} dir="ltr">
 				<InputGroupAddon>
 					<InputGroupText>https://</InputGroupText>
 				</InputGroupAddon>
-				<InputGroupInput placeholder="example.com" disabled={args.disabled} />
+				<InputGroupInput placeholder="example" disabled={args.disabled} />
 				<InputGroupAddon align="inline-end">
 					<InputGroupText>.com</InputGroupText>
 				</InputGroupAddon>
@@ -126,7 +126,7 @@ export const Button: Story = {
 		button: 'Search',
 	},
 	render: ({ button, placeholder, prefix, ...args }) => (
-		<InputGroup {...args} class="max-w-sm">
+		<InputGroup {...args} class="max-w-sm" dir="ltr">
 			<InputGroupAddon>
 				<InputGroupText>{prefix}</InputGroupText>
 			</InputGroupAddon>
@@ -138,35 +138,72 @@ export const Button: Story = {
 	),
 	play: async ({ canvas }) => {
 		const button = canvas.querySelector<HTMLButtonElement>('[data-slot="input-group-button"]')
-		if (!button || button.type !== 'button' || button.getAttribute('data-size') !== 'xs') {
+		if (!button || button.type !== 'button' || button.getAttribute('data-size') !== 'default') {
 			throw new Error('Input group button was not rendered with defaults')
+		}
+	},
+}
+
+// Each size is the control height of the same size; the addons and buttons
+// follow the group, a button sitting 4 px inside its edge.
+export const Sizes: Story = {
+	render: args => (
+		<div class="grid w-full max-w-sm gap-4">
+			{(['sm', 'default', 'lg'] as const).map(size => (
+				<InputGroup key={size} {...args} size={size}>
+					<InputGroupInput placeholder="shop.example.com" aria-label={`Domain, ${size}`} disabled={args.disabled} />
+					<InputGroupAddon>
+						<span aria-hidden="true" class="i-lucide-globe size-4" />
+					</InputGroupAddon>
+					<InputGroupAddon align="inline-end">
+						<InputGroupButton>Check</InputGroupButton>
+					</InputGroupAddon>
+				</InputGroup>
+			))}
+		</div>
+	),
+	play: async ({ canvas }) => {
+		await frame()
+		const groups = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="input-group"]'))
+		const sizes = groups.map(group => {
+			const box = group.getBoundingClientRect()
+			const button = group.querySelector<HTMLElement>('[data-slot="input-group-button"]')!.getBoundingClientRect()
+			return [box.height, button.height, Math.round(box.right - button.right)].join('/')
+		})
+		if (sizes.join(' ') !== '32/24/4 36/28/4 40/32/4') {
+			throw new Error(`Groups, their buttons and the inset must be 32/24/4, 36/28/4 and 40/32/4 px, got ${sizes.join(', ')}`)
+		}
+		const input = groups[1].querySelector<HTMLElement>('[data-slot="input-group-control"]')!
+		const addon = groups[1].querySelector<HTMLElement>('[data-slot="input-group-addon"]')!
+		if (getComputedStyle(addon).fontSize !== getComputedStyle(input).fontSize) {
+			throw new Error('Input group addons must take the group\'s text size')
 		}
 	},
 }
 
 export const Textarea: Story = {
 	args: {
-		placeholder: 'Ask, Search or Chat...',
+		placeholder: 'Ask, search or chat...',
 		file: 'script.js',
 		status: 'Line 1, Column 1',
 	},
 	render: ({ file, placeholder, status, ...args }) => (
 		<InputGroup {...args} class="max-w-md">
-			<InputGroupTextarea placeholder={placeholder} class="min-h-[160px]" disabled={args.disabled} />
+			<InputGroupTextarea placeholder={placeholder} class="min-h-40" disabled={args.disabled} />
 			<InputGroupAddon align="block-start" class="border-b">
 				<InputGroupText class="font-mono font-medium">
 					<span aria-hidden="true" class="i-lucide-file-code size-4" />
 					{file}
 				</InputGroupText>
-				<InputGroupButton class="ml-auto" size="icon-xs" aria-label="Copy">
-					<span aria-hidden="true" class="i-lucide-copy size-3" />
+				<InputGroupButton class="ms-auto" size="icon" aria-label="Copy">
+					<span aria-hidden="true" class="i-lucide-copy size-4" />
 				</InputGroupButton>
 			</InputGroupAddon>
 			<InputGroupAddon align="block-end" class="border-t">
 				<InputGroupText>{status}</InputGroupText>
-				<InputGroupButton size="sm" class="ml-auto" variant="default">
+				<InputGroupButton class="ms-auto" variant="default">
 					Run
-					<span aria-hidden="true" class="i-lucide-corner-down-left size-4" />
+					<span aria-hidden="true" class="i-lucide-corner-down-left size-4 rtl:-scale-x-100" />
 				</InputGroupButton>
 			</InputGroupAddon>
 		</InputGroup>

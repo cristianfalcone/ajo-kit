@@ -1,13 +1,13 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import { frame, assertFieldControl } from './play'
+import { assertFieldControl, frame, until } from './play'
 import {
 	Field,
 	FieldDescription,
 	FieldError,
 	FieldLabel,
 } from 'ajo-ui-playa/field'
-import { Input } from 'ajo-ui-playa/input'
+import { Input, InputFile } from 'ajo-ui-playa/input'
 
 export default {
 	title: 'UI/Input',
@@ -18,7 +18,7 @@ export default {
 		disabled: false,
 	},
 	argTypes: {
-		type: { control: 'select', options: ['text', 'email', 'password', 'file'] },
+		type: { control: 'select', options: ['text', 'email', 'password'] },
 		placeholder: { control: 'text' },
 		disabled: { control: 'boolean' },
 	},
@@ -28,6 +28,23 @@ export default {
 } satisfies Meta<typeof Input>
 
 export const Basic: Story<typeof Input> = {}
+
+// Each size is the height of the Button of the same size, so a row of
+// controls lines up.
+export const Sizes: Story<typeof Input> = {
+	render: args => (
+		<div class="grid w-full max-w-sm gap-4">
+			{(['sm', 'default', 'lg'] as const).map(size => (
+				<Input key={size} {...args} size={size} aria-label={`Domain, ${size}`} placeholder="shop.example.com" />
+			))}
+		</div>
+	),
+	play: async ({ canvas }) => {
+		await frame()
+		const heights = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="input"]'), input => input.getBoundingClientRect().height)
+		if (heights.join() !== '32,36,40') throw new Error(`Input sizes must be 32, 36 and 40 px, got ${heights.join(', ')}`)
+	},
+}
 
 export const WithLabel: Story<typeof Input> = {
 	args: {
@@ -63,9 +80,10 @@ export const Invalid: Story<typeof Input> = {
 	args: {
 		id: 'invalid-email',
 		type: 'email',
-		placeholder: 'bad-email',
+		placeholder: 'you@example.com',
+		value: 'ada@example',
 		label: 'Email',
-		error: 'Enter a valid email address.',
+		error: 'Enter an email address like ada@example.com.',
 	},
 	render: ({ error, label, ...args }) => (
 		<Field invalid class="max-w-sm">
@@ -118,16 +136,37 @@ export const Disabled: Story<typeof Input> = {
 	),
 }
 
-export const File: Story<typeof Input> = {
+// The field speaks the page's language, never the browser's: the button and
+// the placeholder come from the caller, and a chosen file shows its name.
+export const File: Story<typeof InputFile> = {
 	args: {
 		id: 'picture',
-		type: 'file',
-		label: 'Picture',
+		label: 'Profile picture',
+		button: 'Choose picture',
+		placeholder: 'No picture chosen',
 	},
-	render: ({ label, ...args }) => (
-		<Field disabled={Boolean(args.disabled)} class="max-w-sm">
-			<FieldLabel for={args.id}>{label}</FieldLabel>
-			<Input {...args} />
-		</Field>
+	render: ({ button, label, ...args }) => (
+		<form class="max-w-sm">
+			<Field disabled={Boolean(args.disabled)}>
+				<FieldLabel for={args.id}>{label}</FieldLabel>
+				<InputFile {...args} accept="image/*">{button}</InputFile>
+			</Field>
+		</form>
 	),
+	play: async ({ canvas }) => {
+		const field = canvas.querySelector<HTMLElement>('[data-slot="input-file"]')
+		const control = canvas.querySelector<HTMLInputElement>('input[type="file"]')
+		const value = () => canvas.querySelector('[data-slot="input-file-value"]')?.textContent
+		if (!field || !control || control.id !== 'picture') throw new Error('InputFile did not render its labelled file input')
+		if (field.querySelector('[data-slot="input-file-button"]')?.textContent !== 'Choose picture' || value() !== 'No picture chosen') {
+			throw new Error('InputFile must show the caller\'s button label and placeholder')
+		}
+		const files = new DataTransfer()
+		files.items.add(new window.File(['avatar'], 'avatar.png', { type: 'image/png' }))
+		control.files = files.files
+		control.dispatchEvent(new Event('change', { bubbles: true }))
+		await until(() => value() === 'avatar.png', 'InputFile did not show the chosen file name')
+		control.form?.reset()
+		await until(() => value() === 'No picture chosen', 'InputFile did not return to its placeholder on reset')
+	},
 }

@@ -39,6 +39,29 @@ const fieldRow = [
   `${row}>[data-orientation=horizontal]{grid-row:2}}`,
 ].join('')
 
+// A composed field (an input group, a file input) shows the states of the
+// control inside it, as playa-focus and playa-invalid show a single one: its
+// boundary turns danger while that control is invalid, and it takes the one
+// focus ring while that control has focus: an input, a textarea or a date
+// segment, never a button inside, which keeps its own ring. An OTP rings the
+// slot that takes the next digit, and only while its input has focus, which
+// is also the only time its caret shows; its hidden input carries the
+// invalid state, which turns the group's boundary and that ring danger.
+const ring = 'outline:var(--focus-width) solid var(--ring)'
+const invalid = ':has([data-slot][aria-invalid=true])'
+const within = '.playa-field-within:has(>:is(input,textarea):focus-visible,[data-segment]:focus-visible)'
+const fieldWithin = [
+  `.playa-field-within${invalid}{--un-inset-ring-color:var(--danger)}`,
+  `${within}{${ring}}`,
+  `${within}${invalid}{outline-color:var(--danger)}`,
+].join('')
+const otp = [
+  `.playa-otp:has(>input:focus-visible) [data-active=true]{z-index:1;${ring};outline-offset:calc(var(--focus-width)/-2)}`,
+  '.playa-otp:has(>input[aria-invalid=true]) [data-slot=input-otp-group]{--un-inset-ring-color:var(--danger)}',
+  '.playa-otp:has(>input[aria-invalid=true]:focus-visible) [data-active=true]{outline-color:var(--danger)}',
+  '.playa-otp:not(:has(>input:focus)) [data-slot=input-otp-caret]{display:none}',
+].join('')
+
 /** Shortcuts and rules of Field, Input, Textarea, InputGroup, InputOTP and Label. */
 export const fields: Preset = {
   name: 'ajo-ui-playa-fields',
@@ -46,5 +69,7 @@ export const fields: Preset = {
   rules: [
     ['playa-field-zones', [fieldZones], { layer: 'preflights' }],
     ['playa-field-row', [fieldRow], { layer: 'preflights' }],
+    ['playa-field-within', [fieldWithin], { layer: 'preflights' }],
+    ['playa-otp', [otp], { layer: 'preflights' }],
   ],
 }

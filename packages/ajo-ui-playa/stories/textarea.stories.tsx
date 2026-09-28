@@ -14,7 +14,7 @@ export default {
 	title: 'UI/Textarea',
 	component: Textarea,
 	args: {
-		placeholder: 'Type your message here.',
+		placeholder: 'What changed in this release',
 		disabled: false,
 		rows: 4,
 	},
@@ -32,10 +32,10 @@ export const Basic: Story<typeof Textarea> = {}
 
 export const WithField: Story<typeof Textarea> = {
 	args: {
-		id: 'message',
-		placeholder: 'Share the details that matter.',
-		label: 'Message',
-		description: 'Enter your message below.',
+		id: 'release-notes',
+		placeholder: 'What changed in this release',
+		label: 'Release notes',
+		description: 'Shown on the release page and in the update email.',
 	},
 	render: ({ description, label, ...args }) => (
 		<Field disabled={Boolean(args.disabled)} class="max-w-md">
@@ -64,14 +64,15 @@ export const Disabled: Story<typeof Textarea> = {
 export const Invalid: Story<typeof Textarea> = {
 	args: {
 		id: 'invalid-message',
-		placeholder: 'Too short.',
-		label: 'Message',
-		error: 'Please enter a valid message.',
+		placeholder: 'What changed in this release',
+		label: 'Release notes',
+		value: 'Fixes',
+		error: 'Write at least 20 characters.',
 	},
-	render: ({ error, label, ...args }) => (
+	render: ({ error, label, value, ...args }) => (
 		<Field invalid class="max-w-md">
 			<FieldLabel for={args.id}>{label}</FieldLabel>
-			<Textarea {...args} aria-invalid="true" />
+			<Textarea {...args} aria-invalid="true">{value}</Textarea>
 			<FieldError>{error}</FieldError>
 		</Field>
 	),
@@ -82,15 +83,15 @@ export const FieldWiring: Story<typeof Textarea> = {
 		<div class="grid w-full max-w-md gap-6">
 			<Field name="textarea-auto-wire" invalid data-story-field="auto">
 				<FieldLabel>Message</FieldLabel>
-				<Textarea placeholder="Too short." />
+				<Textarea placeholder="What changed in this release" />
 				<FieldDescription>Share the details that matter.</FieldDescription>
-				<FieldError>Please enter a valid message.</FieldError>
+				<FieldError>Write at least 20 characters.</FieldError>
 			</Field>
 			<Field name="textarea-manual-wire" invalid data-story-field="manual">
 				<FieldLabel for="manual-textarea-control">Manual message</FieldLabel>
 				<Textarea id="manual-textarea-control" placeholder="Manual details." />
 				<FieldDescription>Manual textarea keeps its caller id.</FieldDescription>
-				<FieldError>Please enter a valid manual message.</FieldError>
+				<FieldError>Write at least 20 characters in the manual message.</FieldError>
 			</Field>
 		</div>
 	),
@@ -104,13 +105,13 @@ export const FieldWiring: Story<typeof Textarea> = {
 
 export const WithButton: Story<typeof Textarea> = {
 	args: {
-		id: 'send-message',
-		placeholder: 'Send message',
-		button: 'Send message',
+		id: 'release-draft',
+		placeholder: 'What changed in this release',
+		button: 'Publish release notes',
 	},
 	render: ({ button, ...args }) => (
 		<div class="grid w-full max-w-md gap-2">
-			<Textarea {...args} />
+			<Textarea {...args} aria-label="Release notes" />
 			<Button type="button" class="justify-self-start" disabled={Boolean(args.disabled)}>{button}</Button>
 		</div>
 	),

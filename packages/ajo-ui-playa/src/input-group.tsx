@@ -16,16 +16,16 @@ import {
 import { clx, type FixedArgs, type OmitArg } from 'ajo-ui/utils'
 import { buttonVariants } from './button'
 import type { ButtonVariant } from './button'
+import type { InputSize } from './input'
 import { inputGroupAddon, inputGroupAddonAlign, inputGroupVariants } from './internal/input-group'
 export type { InputGroupAddonAlign } from 'ajo-ui/input-group'
 
-export type InputGroupButtonSize =
-	| 'icon-sm'
-	| 'icon-xs'
-	| 'sm'
-	| 'xs'
+/** Shape of an InputGroup button; its height follows the group's size. */
+export type InputGroupButtonSize = 'default' | 'icon'
 
 export type InputGroupArgs = BaseInputGroupArgs & {
+	/** Control height of the group, which its addons and buttons follow. */
+	size?: InputSize
 	/** Additional UnoCSS classes. */
 	class?: string
 }
@@ -36,7 +36,7 @@ export type InputGroupAddonArgs = BaseInputGroupAddonArgs & {
 }
 
 export type InputGroupButtonArgs = OmitArg<BaseInputGroupButtonArgs, 'data-size'> & FixedArgs<'data-size'> & {
-	/** Button size inside input groups. */
+	/** Text button or square icon button. */
 	size?: InputGroupButtonSize
 	/** Button variant. */
 	variant?: ButtonVariant
@@ -61,20 +61,22 @@ export type InputGroupTextareaArgs = BaseInputGroupTextareaArgs & {
 
 // Single owner of h/px/gap/rounded/svg sizing: buttonVariants emits no
 // geometry at size:'none', so each recipe here must stay complete (clx
-// cannot resolve conflicting utilities).
+// cannot resolve conflicting utilities). A button is 8px shorter than its
+// group, so it sits 4px inside the boundary with a concentric corner, and
+// takes the group's text size below sm.
 const buttonSizeClasses: Record<InputGroupButtonSize, string> = {
-	'icon-sm': 'size-8 gap-2 rounded-md p-0 has-[>svg]:p-0 [&_svg:not([class*=size-])]:size-4',
-	'icon-xs': 'size-6 gap-2 rounded-[calc(var(--radius)-5px)] p-0 has-[>svg]:p-0 [&_svg:not([class*=size-])]:size-3',
-	sm: 'h-8 gap-1.5 rounded-md px-2.5 has-[>svg]:px-2.5 [&_svg:not([class*=size-])]:size-4',
-	xs: 'h-6 gap-1 rounded-[calc(var(--radius)-5px)] px-2 text-xs has-[>svg]:px-2 [&>svg:not([class*=size-])]:size-3.5',
+	default: 'h-7 gap-1 rounded-sm px-3 max-sm:text-base group-data-[size=sm]/input-group:h-6 group-data-[size=lg]/input-group:h-8 [&_svg:not([class*=size-])]:size-4',
+	icon: 'size-7 rounded-sm max-sm:text-base group-data-[size=sm]/input-group:size-6 group-data-[size=lg]/input-group:size-8 [&_svg:not([class*=size-])]:size-4',
 }
-const inputBase = 'flex h-9 min-w-0 flex-1 rounded-none border-0 bg-transparent px-3 py-1 text-base shadow-none transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:ring-0 aria-invalid:ring-0'
-const textBase = 'flex items-center gap-2 text-sm text-muted-foreground [&_svg]:pointer-events-none [&_svg:not([class*=size-])]:size-4'
-const textareaBase = 'flex min-h-16 min-w-0 flex-1 resize-none rounded-none border-0 bg-transparent px-3 py-3 text-base shadow-none transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm aria-invalid:ring-0'
+// The control stretches across the group's height, or its width when
+// stacked addons turn the group into a column, and inherits its text size.
+const inputBase = 'flex min-w-0 flex-1 self-stretch bg-transparent px-3 py-1 outline-none playa-disabled selection:bg-primary selection:text-primary-foreground'
+const textBase = 'flex items-center gap-2 [&_svg]:pointer-events-none [&_svg:not([class*=size-])]:size-4'
+const textareaBase = 'flex min-h-16 min-w-0 flex-1 self-stretch resize-none bg-transparent px-3 py-3 outline-none playa-disabled selection:bg-primary selection:text-primary-foreground'
 
 /** Root wrapper for grouped inputs and addons. */
-const InputGroup: Stateless<InputGroupArgs> = ({ class: classes, ...attrs }) => (
-	<BaseInputGroup {...attrs} class={inputGroupVariants({ class: classes })} />
+const InputGroup: Stateless<InputGroupArgs> = ({ class: classes, size = 'default', ...attrs }) => (
+	<BaseInputGroup {...attrs} class={inputGroupVariants({ class: classes })} data-size={size} />
 )
 
 /** Addon area for icons, text, buttons, or helper content. */
@@ -83,7 +85,7 @@ const InputGroupAddon: Stateless<InputGroupAddonArgs> = ({ align = 'inline-start
 )
 
 /** Button sized for InputGroup addons. */
-const InputGroupButton: Stateless<InputGroupButtonArgs> = ({ class: classes, size = 'xs', variant = 'ghost', ...attrs }) => (
+const InputGroupButton: Stateless<InputGroupButtonArgs> = ({ class: classes, size = 'default', variant = 'ghost', ...attrs }) => (
 	<BaseInputGroupButton
 		{...attrs}
 		class={clx(buttonVariants({ size: 'none', variant }), buttonSizeClasses[size], classes)}

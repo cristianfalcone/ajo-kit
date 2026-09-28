@@ -985,10 +985,10 @@ export const GroupsFiltered: Story<typeof Select> = {
 		if (widthClasses.join(' ') !== 'w-[22rem]') {
 			throw new Error(`SelectInput caller must own the only width utility, got ${widthClasses.join(' ')}`)
 		}
-		const idleShadow = getComputedStyle(inputGroup).boxShadow
+		const idleRing = getComputedStyle(inputGroup).outline
 		input.focus()
 		await frame(2)
-		if (getComputedStyle(inputGroup).boxShadow === idleShadow) {
+		if (getComputedStyle(inputGroup).outline === idleRing) {
 			throw new Error('SelectInput focus did not activate the shared input-group ring')
 		}
 

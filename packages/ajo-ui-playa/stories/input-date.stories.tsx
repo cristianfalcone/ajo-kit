@@ -1035,11 +1035,11 @@ export const DisabledReadOnly: Story<typeof InputDate> = {
 		const pinnedMonth = segment(pinned, 'month')
 		ensure(pinnedMonth.getAttribute('aria-readonly') === 'true', 'readOnly segments must carry aria-readonly')
 		ensure(pinnedMonth.getAttribute('tabindex') === '0', 'readOnly segments must stay focusable')
-		const idleShadow = getComputedStyle(pinnedRoot).boxShadow
+		const idleRing = getComputedStyle(pinnedRoot).outline
 		pinnedMonth.focus()
 		await frame(2)
 		ensure(document.activeElement === pinnedMonth, 'readOnly segments must accept focus')
-		ensure(getComputedStyle(pinnedRoot).boxShadow !== idleShadow, 'Focused InputDate segment must activate the shared input-group ring')
+		ensure(getComputedStyle(pinnedRoot).outline !== idleRing, 'Focused InputDate segment must activate the shared input-group ring')
 		await type(pinnedMonth, '9')
 		ensure(pinnedMonth.textContent === '5', 'readOnly must ignore typing')
 		await step(pinnedMonth, 'ArrowUp')
