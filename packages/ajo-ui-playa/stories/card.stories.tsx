@@ -220,7 +220,7 @@ export const EdgeToEdge: Story<typeof Card> = {
 				{content}
 			</CardContent>
 			<CardFooter class="justify-end gap-2">
-				<Button variant="outline">Cancel</Button>
+				<Button variant="secondary">Cancel</Button>
 				<Button>Delete versions</Button>
 			</CardFooter>
 		</Card>

@@ -631,6 +631,12 @@ async function visit(
 	return { checks, errors, page }
 }
 
+/** Grows the viewport to the whole screen, so a capture shows all of it, open layers included. */
+async function fit(page: Page, variant: Variant) {
+	const height = await page.locator('[data-story-root]').first().evaluate(node => Math.ceil(node.scrollHeight))
+	await page.setViewportSize({ width: variant.width, height: Math.max(900, height) })
+}
+
 /** Violations axe-core rates serious or critical, one line per rule and element. */
 async function audit(page: Page) {
 	await page.addScriptTag({ path: axe })
@@ -744,8 +750,7 @@ async function screens(options: Options) {
 					try {
 						if (errors.length) return fail('play', variant.name, errors)
 						for (const { check, lines } of checks) fail(check, variant.name, lines)
-						const height = await page.locator('[data-story-root]').first().evaluate(node => Math.ceil(node.scrollHeight))
-						await page.setViewportSize({ width: variant.width, height: Math.max(900, height) })
+						await fit(page, variant)
 						await capture(page, `${story.id}.${variant.name}.png`)
 						await guard('row', variant.name, () => assert(page, (play, root) =>
 							root.querySelector('[data-slot="field-row"]') && play.assertRowAligned(root)))
@@ -778,6 +783,7 @@ async function screens(options: Options) {
 								fail('play', label, errors)
 								continue
 							}
+							await fit(page, variant)
 							await open(page, layer.layer, layer.trigger)
 							await capture(page, `${story.id}--${layer.layer}.${variant.name}.png`)
 							await guard('axe', label, () => audit(page))

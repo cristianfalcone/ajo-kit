@@ -4,7 +4,10 @@ import type { Preset } from 'unocss'
 const marks = [
   '[data-slot=chart] [data-slot=chart-bar] rect[data-chart-index],[data-slot=chart] [data-slot=chart-pie] path[data-chart-index]{transition:opacity 150ms ease,stroke-width 150ms ease}[data-slot=chart] [data-slot=chart-line] circle[data-chart-index],[data-slot=chart] [data-slot=chart-area] circle[data-chart-index]{transition:opacity 150ms ease,stroke-width 150ms ease,r 150ms ease}[data-slot=chart]:has([data-active]) [data-slot=chart-bar] rect[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-pie] path[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-line] circle[data-chart-index]:not([data-active]),[data-slot=chart]:has([data-active]) [data-slot=chart-area] circle[data-chart-index]:not([data-active]){opacity:.45}[data-slot=chart] [data-active]{opacity:1}[data-slot=chart] circle[data-active]{r:5.6px}',
   '[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=positive]{clip-path:inset(0 round 4px 4px 0 0) fill-box}[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=negative]{clip-path:inset(0 round 0 0 4px 4px) fill-box}',
-  '@media (prefers-reduced-motion:no-preference){@keyframes chart-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes chart-undash{to{stroke-dasharray:initial}}@keyframes chart-grow{from{transform:scaleY(0)}}@keyframes chart-settle{from{opacity:0;transform:translateY(4px)}}@keyframes chart-pop{from{opacity:0;transform:scale(0)}}[data-slot=chart] [data-slot=chart-bar] rect[data-chart-series]{transform-box:fill-box;transform-origin:bottom center;animation:chart-grow 450ms cubic-bezier(0.22,1,0.36,1) both;animation-delay:calc(var(--chart-index,0) * 30ms);transition:x 300ms ease-out,y 300ms ease-out,width 300ms ease-out,height 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease}[data-slot=chart] [data-slot=chart-line] path[fill=none],[data-slot=chart] [data-slot=chart-area] path[fill=none]{stroke-dasharray:1;animation:chart-draw 600ms ease-out both,chart-undash 1ms 600ms step-end forwards;transition:d 300ms ease-out}[data-slot=chart] [data-slot=chart-fill]>path{transform-box:fill-box;animation:chart-settle 500ms ease-out both;transition:d 300ms ease-out}[data-slot=chart] [data-slot=chart-line] circle[data-chart-index],[data-slot=chart] [data-slot=chart-area] circle[data-chart-index]{transform-box:fill-box;transform-origin:center;animation:chart-pop 300ms ease-out both;animation-delay:calc(200ms + var(--chart-index,0) * 20ms);transition:cx 300ms ease-out,cy 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease,r 150ms ease}[data-slot=chart] [data-slot=chart-pie] path[data-chart-index]{transform-box:view-box;transform-origin:center;animation:chart-pop 400ms ease-out both;animation-delay:calc(var(--chart-index,0) * 60ms);transition:d 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease}}',
+  '@media (prefers-reduced-motion:no-preference){@keyframes chart-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes chart-undash{to{stroke-dasharray:initial}}@keyframes chart-grow{from{transform:scaleY(0)}}@keyframes chart-settle{from{opacity:0;transform:translateY(4px)}}@keyframes chart-pop{from{opacity:0;transform:scale(0)}}[data-slot=chart] [data-slot=chart-bar] rect[data-chart-series]{transform-box:fill-box;transform-origin:bottom center;animation:chart-grow 450ms cubic-bezier(0.22,1,0.36,1) both;animation-delay:calc(var(--chart-index,0) * 30ms)}[data-slot=chart] [data-slot=chart-line] path[fill=none],[data-slot=chart] [data-slot=chart-area] path[fill=none]{stroke-dasharray:1;animation:chart-draw 600ms ease-out both,chart-undash 1ms 600ms step-end forwards}[data-slot=chart] [data-slot=chart-fill]>path{transform-box:fill-box;animation:chart-settle 500ms ease-out both}[data-slot=chart] [data-slot=chart-line] circle[data-chart-index],[data-slot=chart] [data-slot=chart-area] circle[data-chart-index]{transform-box:fill-box;transform-origin:center;animation:chart-pop 300ms ease-out both;animation-delay:calc(200ms + var(--chart-index,0) * 20ms)}[data-slot=chart] [data-slot=chart-pie] path[data-chart-index]{transform-box:view-box;transform-origin:center;animation:chart-pop 400ms ease-out both;animation-delay:calc(var(--chart-index,0) * 60ms)}'
+    // Marks move to new data only once the plot drew at its measured size, so
+    // nothing slides from the default size on load.
+    + '[data-slot=chart][data-measured] [data-slot=chart-bar] rect[data-chart-series]{transition:x 300ms ease-out,y 300ms ease-out,width 300ms ease-out,height 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease}[data-slot=chart][data-measured] [data-slot=chart-line] path[fill=none],[data-slot=chart][data-measured] [data-slot=chart-area] path[fill=none],[data-slot=chart][data-measured] [data-slot=chart-fill]>path{transition:d 300ms ease-out}[data-slot=chart][data-measured] [data-slot=chart-line] circle[data-chart-index],[data-slot=chart][data-measured] [data-slot=chart-area] circle[data-chart-index]{transition:cx 300ms ease-out,cy 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease,r 150ms ease}[data-slot=chart][data-measured] [data-slot=chart-pie] path[data-chart-index]{transition:d 300ms ease-out,opacity 150ms ease,stroke-width 150ms ease}}',
   '@media (prefers-reduced-motion:no-preference){[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=negative]{transform-origin:top center}[data-slot=chart] [data-slot=chart-bar] rect[data-chart-sign=zero]{transform-origin:center}}',
   '@media (prefers-reduced-motion:no-preference){[data-slot=chart] [data-slot=chart-tooltip][data-positioned=true]{transition:transform 200ms ease-out}}',
 ].join('')
@@ -20,6 +23,19 @@ const focus = [
   '.playa-data-table :where([data-slot=data-table-container]:has(>[data-slot=table]:focus-visible)){outline:var(--focus-width) solid var(--ring);outline-offset:calc(var(--focus-width)/-2)}',
 ].join('')
 
+// A wide table fades the edge it scrolls toward inside its frame: a sticky
+// band of the card colour over the cells, so the border, the corners and the
+// focus ring stay whole (a mask would fade them too). The table and the bands
+// share the one grid cell; the bands stick to the scroller's ends.
+const table = ':is([data-slot=table-container],[data-slot=data-table-container])'
+const edges = [
+  `${table}>*{grid-area:1/1}`,
+  `${table}[data-overflow-x]{-webkit-mask-image:none;mask-image:none}`,
+  `${table}:is([data-overflow-x=start],[data-overflow-x=both])::before,${table}:is([data-overflow-x=end],[data-overflow-x=both])::after{content:"";position:sticky;z-index:1;grid-area:1/1;width:1rem;pointer-events:none}`,
+  `${table}::before{justify-self:start;inset-inline-start:0;background:linear-gradient(to var(--fade-x,right),var(--card),transparent)}`,
+  `${table}::after{justify-self:end;inset-inline-end:0;background:linear-gradient(to var(--fade-x,right),transparent,var(--card))}`,
+].join('')
+
 /** Shortcuts and rules of Table, DataTable, Pagination, VirtualList and Chart. */
 export const data: Preset = {
   name: 'ajo-ui-playa-data',
@@ -29,12 +45,13 @@ export const data: Preset = {
   rules: [
     ['playa-chart-marks', [marks], { layer: 'preflights' }],
     ['playa-data-table-focus', [focus], { layer: 'preflights' }],
+    ['playa-table-edges', [edges], { layer: 'preflights' }],
   ],
   shortcuts: {
     // Enamel: the flat card fill inside a real border. A border paints
     // outside the padding box the rows scroll in, so no opaque row fill
     // covers it.
-    'playa-table-container': 'relative w-full overflow-x-auto rounded-lg border bg-card text-card-foreground',
+    'playa-table-container': 'playa-table-edges relative grid w-full overflow-x-auto rounded-lg border bg-card text-card-foreground',
     // One slot recipe owns the whole table family. The manual Table wrapper
     // and the DataTable root both carry `playa-table`, so header/cell
     // geometry, typography, and row states have a single source and render
@@ -69,6 +86,13 @@ export const data: Preset = {
       // Alignment is logical, so a column keeps its side mirrored; numbers sit
       // at the end with tabular figures.
       '[&_:where([data-align=center])]:text-center [&_:where([data-align=right])]:text-end [&_:where([data-align=right])]:tabular-nums',
+    ].join(' '),
+    // A DataTable menu picks several values (facets, visible columns), so each
+    // row shows a checkbox, empty until chosen: the input boundary, then the
+    // ink with the check in the page colour, as a Checkbox draws it.
+    'playa-data-table-choice': [
+      'playa-menu-choice-row *:data-[slot=menu-item-indicator]:playa-menu-indicator *:data-[slot=menu-item-indicator]:rounded-xs *:data-[slot=menu-item-indicator]:edge-input *:data-[slot=menu-item-indicator]:[outline:1px_solid_transparent] *:data-[slot=menu-item-indicator]:[outline-offset:-1px]',
+      '[&[data-checked=true]>[data-slot=menu-item-indicator]]:bg-foreground **:data-[slot=menu-item-indicator-icon]:i-lucide-check **:data-[slot=menu-item-indicator-icon]:size-3.5 **:data-[slot=menu-item-indicator-icon]:text-background **:data-[slot=menu-item-indicator-icon]:playa-choice-glyph',
     ].join(' '),
     // Chart paints the base parts by data-slot and state attributes: SVG
     // strokes and fills, the tooltip rows by indicator shape and nesting, and

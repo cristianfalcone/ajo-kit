@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { frame } from './play'
+import { frame, until } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import {
 	ChartArea,
@@ -417,6 +417,8 @@ export const FloatingGeometry: Story = {
 				series={['desktop']}
 				label="Floating tooltip geometry contract"
 				class="rounded-lg glass edge p-4 shadow-xs"
+				width={640}
+				height={240}
 			>
 				<ChartBar />
 				<ChartTooltip />
@@ -702,7 +704,9 @@ export const Area: Story = {
 		}
 		await frame(16)
 		const end = tooltip.getBoundingClientRect()
-		if (rectDistance(start, end) < 100) throw new Error('Area tooltip did not retarget to a distant datum')
+		// Three points apart; at phone width the tooltip flips to the far point's
+		// left, so it travels less than the points do, but still visibly.
+		if (rectDistance(start, end) < 8) throw new Error('Area tooltip did not retarget to a distant datum')
 		expectTooltip(canvas, 'May')
 		if (!reducedMotion() && !samples.some(sample => rectDistance(start, sample) > 2 && rectDistance(end, sample) > 2)) {
 			throw new Error('Area tooltip jumped directly to the next datum; no intermediate position was painted')
@@ -812,6 +816,8 @@ export const DataUpdateTransitions: Story = {
 			throw new Error('Chart color selector did not use its generated identity')
 		}
 
+		// Marks move between data only once the plot drew at its measured size.
+		await until(() => chart!.hasAttribute('data-measured'), 'The chart was never stamped as measured')
 		expectTransitionProperties(rect, ['x', 'y', 'width', 'height'])
 		const before = {
 			height: rect.getAttribute('height'),

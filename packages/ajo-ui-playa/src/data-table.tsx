@@ -6,7 +6,7 @@ import {
 } from 'ajo-ui/data-table'
 import { clx } from 'ajo-ui/utils'
 import { checkboxIndicator, checkboxState, choiceInput } from './internal/choice'
-import { menuCheckIndicator, menuContent } from './internal/menu'
+import { menuContent } from './internal/menu'
 export type { DataTableArgs, DataTableColumn } from 'ajo-ui/data-table'
 
 // Rows per page stays a native select, so DataTable never loads the Select
@@ -18,7 +18,8 @@ const pageSize = 'h-control-sm cursor-pointer appearance-none playa-field ps-3 p
  * Playa-styled DataTable; state, semantics, and structure remain base-owned.
  * `playa-table` is the same slot recipe the manual Table wrapper carries, so
  * both surfaces share one source for table geometry, typography, and states.
- * Its menus, checkboxes and page-size select take the standalone recipes.
+ * Its checkboxes and page-size select take the standalone recipes, and its
+ * menus the menu surface with a checkbox on every row.
  */
 const DataTable = <T extends DataTableData, Key extends DataTableKey = DataTableKey>({
 	class: classes,
@@ -34,9 +35,7 @@ const DataTable = <T extends DataTableData, Key extends DataTableKey = DataTable
 			checkbox_input: clx(choiceInput, classNames?.checkbox_input),
 			menu: clx('playa-menu-root', classNames?.menu),
 			menu_content: clx(menuContent, classNames?.menu_content),
-			menu_item: clx('playa-menu-choice-row', menuCheckIndicator, classNames?.menu_item),
-			menu_label: clx('playa-menu-label', classNames?.menu_label),
-			menu_separator: clx('playa-menu-separator', classNames?.menu_separator),
+			menu_item: clx('playa-data-table-choice', classNames?.menu_item),
 			page_size: clx(pageSize, classNames?.page_size),
 		}}
 	/>

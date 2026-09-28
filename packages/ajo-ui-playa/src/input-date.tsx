@@ -40,8 +40,8 @@ export type InputDateTimeArgs<Range extends boolean = false> = OmitArg<BaseInput
 	calendar?: boolean | InputDateCalendarArgs
 } & FixedArgs<'classNames'>
 
-// Segments stay inline (never flex items or inline-blocks) so bidi reorders
-// them like text: an Arabic time reads "ص 9:30", not "ص 30:9".
+// Segments are never flex items, so bidi orders them like text: an Arabic
+// time reads "ص 9:30", not "ص 30:9".
 const fieldBase = 'whitespace-nowrap'
 // A hand-composed field and trigger sit straight in the group, so they take
 // the control's inset, text size and end gap themselves.
@@ -60,9 +60,13 @@ const classNames: Record<InputDateClassName, string> = {
 	control: 'flex h-full min-w-0 flex-1 cursor-text items-center overflow-hidden px-3 text-base whitespace-nowrap sm:text-sm',
 	field: fieldBase,
 	literal: 'whitespace-pre text-muted-foreground',
-	// The focused segment's tint reaches 2 px past its digits as a spread, so it
-	// takes no room. Forced colours drop both, so there the focus is an outline.
-	segment: 'rounded-xs tabular-nums outline-none focus:bg-accent focus:text-accent-foreground focus:shadow-[0_0_0_2px_var(--accent)] forced-colors:focus:[outline:var(--focus-width)_solid_Highlight] data-[placeholder=true]:text-faint-foreground',
+	// A segment is a 24 px target at least (WCAG 2.5.8), its digits centred:
+	// a block in the line, which bidi orders as one neutral unit, so a
+	// right-to-left group keeps its time units inline, where "9:30" stays one
+	// number run. The focused segment's tint reaches 2 px past it as a spread,
+	// so it takes no room. Forced colours drop both, so there the focus is an
+	// outline.
+	segment: 'inline-block min-w-6 rounded-xs text-center leading-6 tabular-nums outline-none [[dir=rtl]>&:not([data-segment=day],[data-segment=month],[data-segment=year])]:inline focus:bg-accent focus:text-accent-foreground focus:shadow-[0_0_0_2px_var(--accent)] forced-colors:focus:[outline:var(--focus-width)_solid_Highlight] data-[placeholder=true]:text-faint-foreground',
 	separator: 'px-1 text-muted-foreground',
 	trigger: addonButtonBase,
 	trigger_icon: 'i-lucide-calendar pointer-events-none size-4',

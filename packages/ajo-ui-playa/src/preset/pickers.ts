@@ -12,10 +12,11 @@ export const pickers: Preset = {
     // motion none runs; the [data-state] match outranks the state's animate-in.
     'playa-select-content': 'isolate z-50 m-0 [&:popover-open]:flex max-h-[max(96px,var(--available-height,24rem))] min-w-[var(--reference-width,8rem)] flex-col overflow-hidden rounded-md glass-overlay edge shadow-lg outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-98 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-98 [animation-timing-function:var(--ease)] motion-reduce:[&[data-state]]:animate-none',
     'playa-select-list': 'overflow-y-auto overflow-x-hidden overscroll-contain min-h-0 scroll-py-1 p-1 [[data-slot=select-content][data-empty]_&]:p-0',
-    // Rows sit on the 4 px grid, 32 px tall. The highlight is the gold tint;
+    // Rows sit on the 4 px grid, 32 px tall, in the trigger's text size (16 px
+    // below sm, 14 px from sm). The highlight is the gold tint;
     // the chosen row keeps a lighter one and its check at the start, where
     // labels and the create row line their text up with the options.
-    'playa-select-row': 'relative flex min-h-8 w-full cursor-default items-center gap-2 rounded-sm py-1 pe-2 ps-8 text-sm outline-none select-none data-[highlighted=true]:bg-accent data-[highlighted=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-[var(--disabled-opacity)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground',
+    'playa-select-row': 'relative flex min-h-8 w-full cursor-default items-center gap-2 rounded-sm py-1 pe-2 ps-8 text-base sm:text-sm outline-none select-none data-[highlighted=true]:bg-accent data-[highlighted=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-[var(--disabled-opacity)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4 [&_svg:not([class*=text-])]:text-muted-foreground',
     'playa-select-item': 'playa-select-row [&[data-selected=true]:not([data-highlighted])]:bg-accent/40 *:data-[slot=select-item-indicator]:playa-select-indicator **:data-[slot=select-item-indicator-icon]:playa-select-indicator-icon',
     'playa-select-create': 'playa-select-row text-muted-foreground data-[highlighted=true]:text-accent-foreground',
     'playa-select-indicator': 'pointer-events-none absolute start-2 flex size-4 items-center justify-center data-[selected=false]:invisible',

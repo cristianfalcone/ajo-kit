@@ -37,7 +37,8 @@ const palette = [
 	'var(--chart-5)',
 ]
 
-const svgBase = 'h-full min-h-[180px] w-full overflow-visible'
+// The plot fills what the legend leaves of the container's height.
+const svgBase = 'min-h-0 w-full flex-1 overflow-visible'
 // The tooltip is dense data, so it sits on the navy carpet; the legend starts where the plot does.
 const tooltipBase = 'pointer-events-none absolute z-20 min-w-32 rounded-lg navy px-3 py-2 text-xs shadow-lg'
 const legendBase = 'flex flex-wrap items-center gap-4 text-xs text-muted-foreground'

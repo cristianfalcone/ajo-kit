@@ -125,8 +125,6 @@ export default {
 export const Blank: Story = {
 	parameters: {
 		layers: { environment: '#app-environment' },
-		known: [
-		],
 	},
 	play: async ({ canvas, setArg }) => {
 		// Two errors appear, one where help already is: no control may move.
@@ -140,11 +138,6 @@ export const Blank: Story = {
 }
 
 export const Invalid: Story = {
-	parameters: {
-		known: [
-			{ check: 'target-size', slice: 'p5-kit-13', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['span[data-slot=input-date-segment]'] },
-		],
-	},
 	args: { filled: true, invalid: true },
 	play: ({ canvas }) => {
 		const name = canvas.querySelector<HTMLInputElement>('input[name="name"]')
@@ -158,11 +151,6 @@ export const Invalid: Story = {
 // The form's task by keyboard: the name and domain are filled, a memory limit is
 // chosen from its Select with the arrow keys and Enter, and the form is submitted.
 export const Submitting: Story = {
-	parameters: {
-		known: [
-			{ check: 'target-size', slice: 'p5-kit-13', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['span[data-slot=input-date-segment]'] },
-		],
-	},
 	args: { filled: true },
 	play: async ({ canvas }) => {
 		const memory = canvas.querySelector<HTMLButtonElement>('#app-memory')

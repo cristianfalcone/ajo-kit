@@ -281,6 +281,7 @@
     "@fontsource-variable/fraunces": "5.3.0",
     "@fontsource-variable/jetbrains-mono": "5.3.0",
     "@iconify-json/lucide": "1.2.136",
+    "ajo-cloves": "workspace:^",
     "ajo-ui": "workspace:^"
   },
   "peerDependencies": {
@@ -294,7 +295,6 @@
   },
   "devDependencies": {
     "ajo": "0.2.0",
-    "ajo-cloves": "workspace:*",
     "axe-core": "4.13.0",
     "playwright": "1.63.0",
     "sade": "1.8.1",

@@ -132,6 +132,19 @@ describe('playa preset', () => {
 		expect(css).toContain('@property --navy{syntax:\'<color>\';inherits:true;')
 	})
 
+	it('rings a navy island in the page\'s ring and what sits inside it in the island\'s', async () => {
+		const uno = await createGenerator({ presets: [playa()] })
+		const { css } = await uno.generate('navy playa-focus')
+
+		// The island's own ring sits on the page, so it reads the ring resolved on the root.
+		expect(css).toContain('@property --page-ring{syntax:\'<color>\';inherits:true;')
+		expect(css).toContain('--page-ring:var(--ring);')
+		expect(css).toContain('.navy.navy:focus-visible{outline-color:var(--page-ring);}')
+		// Controls inside the island keep --ring, which follows its dark scheme.
+		expect(css).toContain('--ring:light-dark(#6c5430,#e4d1b1);')
+		expect(css).not.toContain('@property --ring')
+	})
+
 	it('themes base-owned inner nodes through their slots and state attributes', async () => {
 		const uno = await createGenerator({ presets: [playa()] })
 		const { css } = await uno.generate('playa-select-item playa-select-input playa-toaster')

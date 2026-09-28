@@ -1,5 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
+import { until } from './play'
 import {
 	Table,
 	TableBody,
@@ -216,5 +217,11 @@ export const Wide: Story<typeof Table> = {
 		if (container.scrollWidth <= container.clientWidth) {
 			throw new Error('Wide table should overflow inside the responsive container')
 		}
+		// The side with more to see fades inside the frame: a band over the cells,
+		// never a mask, which would fade the border, the corners and the ring too.
+		await until(() => container.getAttribute('data-overflow-x') === 'end', 'A wide table at rest does not stamp its end as overflowing')
+		if (getComputedStyle(container).maskImage !== 'none') throw new Error('The table frame is masked')
+		if (getComputedStyle(container, '::after').content === 'none') throw new Error('The overflowing end shows no fade')
+		if (getComputedStyle(container, '::before').content !== 'none') throw new Error('The start fades while the table rests at its start')
 	},
 }

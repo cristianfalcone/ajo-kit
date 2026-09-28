@@ -66,7 +66,8 @@ const Dashboard = () => (
 			</AlertAction>
 		</Alert>
 
-		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+		{/* Two metrics a row on a phone, so the four fit on one screen. */}
+		<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
 			{metrics().map(metric => (
 				<Card key={metric.label} size="sm">
 					<CardHeader>
@@ -128,11 +129,4 @@ export default {
 	render: () => <Dashboard />,
 } satisfies Meta
 
-export const Default: Story = {
-	parameters: {
-		known: [
-			{ check: 'focus', slice: 'p5-kit-19', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['pre "'] },
-			{ check: 'target-size', slice: 'p5-kit-17', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['circle "'] },
-		],
-	},
-}
+export const Default: Story = {}

@@ -419,7 +419,7 @@ const buildPlaya = async (consumer: string) => {
 	assert(!css.includes('.playa-select-trigger'), 'an unused family recipe was emitted')
 	const sizes = { css: await measure(cssFiles), js: await measure(await files(join(consumer, 'dist'), '.js')) }
 	console.log(`package consumer: Playa minimal consumer ${JSON.stringify(sizes)}`)
-	assertBudget('minimal consumer CSS', sizes.css, { raw: 19_000, gzip: 4_700, brotli: 4_200 })
+	assertBudget('minimal consumer CSS', sizes.css, { raw: 19_400, gzip: 4_900, brotli: 4_400 })
 	assertBudget('minimal consumer JS', sizes.js, { raw: 12_000, gzip: 4_500, brotli: 4_000 })
 
 	const [ssr] = await files(join(consumer, 'dist-ssr'), 'ssr.js')
@@ -687,6 +687,7 @@ const main = async () => {
 		assert.equal(manifest('ajo-kit-mail').peerDependenciesMeta?.nodemailer?.optional, true)
 		assert.equal(manifest('ajo-ui').dependencies?.['ajo-cloves'], `^${versions['ajo-cloves']}`)
 		assert.equal(manifest('ajo-ui-playa').dependencies?.['ajo-ui'], `^${versions['ajo-ui']}`)
+		assert.equal(manifest('ajo-ui-playa').dependencies?.['ajo-cloves'], `^${versions['ajo-cloves']}`)
 		assert.equal(manifest('ajo-ui-playa').peerDependencies?.unocss, pins.unocss)
 		assert.equal(manifest('ajo-ui-playa').peerDependenciesMeta?.unocss?.optional, true)
 

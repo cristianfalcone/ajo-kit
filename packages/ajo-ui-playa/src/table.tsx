@@ -1,5 +1,6 @@
-import type { IntrinsicElements, Stateless, WithChildren } from 'ajo'
-import { part } from 'ajo-ui/utils'
+import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
+import { overflow } from 'ajo-cloves'
+import { part, type OmitArg } from 'ajo-ui/utils'
 
 export type TableArgs = WithChildren<IntrinsicElements['table'] & { class?: string }>
 export type TableHeaderArgs = WithChildren<IntrinsicElements['thead'] & { class?: string }>
@@ -10,6 +11,21 @@ export type TableHeadArgs = WithChildren<IntrinsicElements['th'] & { class?: str
 export type TableCellArgs = WithChildren<IntrinsicElements['td'] & { class?: string }>
 export type TableCaptionArgs = WithChildren<IntrinsicElements['caption'] & { class?: string }>
 
+// The runtime routes `ref` and `set:*` on a stateful component to its host,
+// so the table's own `ref` travels as `tableRef`.
+type TableRootArgs = OmitArg<TableArgs, 'ref'> & { tableRef?: TableArgs['ref'] }
+
+// The wrapper scrolls a wide table and stamps the edges it overflows toward
+// (data-overflow-x), so the theme fades the side there is more to see.
+const TableRoot: Stateful<TableRootArgs> = function* () {
+	const edges = overflow(this, { target: () => this })
+
+	for (const { tableRef, ...attrs } of this) {
+		edges.sync()
+		yield <table {...attrs} data-slot="table" ref={tableRef} />
+	}
+}
+
 /**
  * Responsive wrapper and native table element. The wrapper carries the shared
  * `playa-table` slot recipe, so every part below is styled through its
@@ -17,20 +33,20 @@ export type TableCaptionArgs = WithChildren<IntrinsicElements['caption'] & { cla
  * table makes the wrapper its scroll region: a keyboard stop that carries the
  * name, so it is announced once.
  */
-const Table: Stateless<TableArgs> = ({ 'aria-label': label, 'aria-labelledby': labelledby, ...attrs }) => {
+const Table: Stateless<TableArgs> = ({ 'aria-label': label, 'aria-labelledby': labelledby, ref, ...attrs }) => {
 	const named = !!(label || labelledby)
 
 	return (
-		<div
-			aria-label={label}
-			aria-labelledby={labelledby}
-			class="playa-table-container playa-table playa-focus [--focus-offset:calc(var(--focus-width)/-2)]"
-			data-slot="table-container"
-			role={named ? 'region' : undefined}
-			tabindex={named ? 0 : undefined}
-		>
-			<table {...attrs} data-slot="table" />
-		</div>
+		<TableRoot
+			{...attrs}
+			tableRef={ref}
+			attr:aria-label={label}
+			attr:aria-labelledby={labelledby}
+			attr:class="playa-table-container playa-table playa-focus [--focus-offset:calc(var(--focus-width)/-2)]"
+			attr:data-slot="table-container"
+			attr:role={named ? 'region' : undefined}
+			attr:tabindex={named ? 0 : undefined}
+		/>
 	)
 }
 

@@ -1,7 +1,7 @@
 import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
 import { expect, test } from 'vitest'
-import { ChartArea, ChartBar, ChartContainer } from '../src/chart'
+import { ChartArea, ChartBar, ChartContainer, ChartPie } from '../src/chart'
 
 const plot = (args: Record<string, unknown>) => ssr(jsx(ChartContainer, {
 	children: jsx(ChartBar, args),
@@ -76,4 +76,39 @@ test('Chart paints the largest area first, so a series below another keeps its o
 		.toEqual(['data-chart-series="total"', 'data-chart-series="errors"'])
 	expect(fills([{ hour: '03:00', errors: 8, total: 2 }, { hour: '04:00', errors: 9, total: 3 }]))
 		.toEqual(['data-chart-series="errors"', 'data-chart-series="total"'])
+})
+
+test('Chart x axis keeps the first and last labels and thins the ones between to fit', () => {
+	const labels = (width: number) => group(ssr(jsx(ChartContainer, {
+		children: jsx(ChartArea, { grid: false }),
+		config: { api: { label: 'API' } },
+		data: Array.from({ length: 12 }, (_, index) => ({ api: index, hour: `${String(index + 3).padStart(2, '0')}:00` })),
+		palette: ['navy'],
+		width,
+		xKey: 'hour',
+	})), 'chart-axis')?.match(/>\d\d:00</g)
+
+	// 12 labels of 5 characters need 43 units each; the plot is 584 units wide at 640, 302 at
+	// 358 (every second label) and 184 at 240 (every third, the last clear of the tenth).
+	expect(labels(640)).toHaveLength(12)
+	expect(labels(358)).toEqual(['>03:00<', '>05:00<', '>07:00<', '>09:00<', '>11:00<', '>14:00<'])
+	expect(labels(240)).toEqual(['>03:00<', '>06:00<', '>09:00<', '>14:00<'])
+})
+
+test('ChartPie keeps a ring on a plot too small for its inner radius', () => {
+	const arcs = (size: number) => ssr(jsx(ChartContainer, {
+		children: jsx(ChartPie, { innerRadius: 58 }),
+		config: { visitors: { label: 'Visitors' } },
+		data: [{ browser: 'Chrome', visitors: 1 }, { browser: 'Safari', visitors: 1 }],
+		height: size,
+		palette: ['blue', 'green'],
+		type: 'pie',
+		width: size,
+		xKey: 'browser',
+	})).match(/A ([\d.]+) \1/g)
+
+	// The radius is half the plot less 12: 108 at 240, which fits the 58 hole; 43 at 110, where
+	// the hole takes 60% of it.
+	expect(arcs(240)).toEqual(['A 108 108', 'A 58 58', 'A 108 108', 'A 58 58'])
+	expect(arcs(110)).toEqual(['A 43 43', 'A 25.8 25.8', 'A 43 43', 'A 25.8 25.8'])
 })

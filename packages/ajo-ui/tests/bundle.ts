@@ -216,7 +216,8 @@ const positionedFamilyBudgets = [
 	['InputDate', inputDateDirect, 32 * 1024, 29 * 1024],
 	['InputDateTime', inputDateTimeDirect, 32 * 1024, 29 * 1024],
 	['NavigationMenu', navigationMenuDirect, 17 * 1024, 16 * 1024],
-	['Chart', chartDirect, 6 * 1024, 5 * 1024],
+	// A plot measures its laid-out size and stamps when it has drawn at it.
+	['Chart', chartDirect, 6 * 1024, 5.5 * 1024],
 ] as const
 for (const [family, result, gzipBudget, brotliBudget] of positionedFamilyBudgets) {
 	const gzip = result.gzip - framework.gzip

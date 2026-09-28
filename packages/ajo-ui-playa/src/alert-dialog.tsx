@@ -138,12 +138,12 @@ const AlertDialogAction: Stateless<AlertDialogActionArgs> = ({
 	</BaseDialogClose>
 )
 
-/** Cancel button. Closes unless its click handler prevents default. */
+/** Cancel button, the secondary action every Playa dialog and form pairs with its primary. Closes unless its click handler prevents default. */
 const AlertDialogCancel: Stateless<AlertDialogCancelArgs> = ({
 	children,
 	class: classes,
 	size = 'default',
-	variant = 'outline',
+	variant = 'secondary',
 	...attrs
 }) => (
 	<BaseDialogClose

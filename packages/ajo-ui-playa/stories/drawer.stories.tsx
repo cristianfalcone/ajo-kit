@@ -230,7 +230,7 @@ const ProfileContent = ({ description, title }: Args) => (
 		</DrawerHeader>
 		<ProfileFields />
 		<DrawerFooter>
-			<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
+			<DialogClose class={buttonVariants({ variant: 'secondary' })}>Cancel</DialogClose>
 			<Button type="submit">Save changes</Button>
 		</DrawerFooter>
 		<DialogClose />

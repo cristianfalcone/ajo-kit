@@ -8,15 +8,12 @@ needs. Each one runs in five variants (light and dark at 1280 px, light and dark
 | Screen | Stories | Layers |
 |---|---|---|
 | `Screens/Form` | Blank, Invalid, Submitting | `environment` (Blank) |
-| `Screens/Settings` | Ink, Plate | `delete-host` (Ink) |
+| `Screens/Settings` | Default | `delete-host` |
 | `Screens/Table` | Default, Filtered, Loading, No Results | `row-actions`, `filter`, `columns` (Default) |
 | `Screens/Dialog` | Default, Server Error | `add-domain` (a drawer at 390 px), `remove-domain` |
 | `Screens/Dashboard` | Default | none |
 | `Screens/States` | No Apps, No Results, Failed, Denied, Loading | none |
 | `Screens/Navigation` | Default | `command`, `user-menu` (1280 px), `sidebar` (390 px) |
-
-Settings has a `gold` arg: `ink` fills an "on" switch, checkbox or radio with the text
-colour, `plate` puts the gold plate on each. Both are captured so they can be compared.
 
 ## Running
 
@@ -26,9 +23,9 @@ pnpm stories:test:screens                      # every screen, five variants, al
 pnpm stories:test:screens --match screens-form # one screen
 ```
 
-Captures land in `.tmp/screens/<run>/` with a `summary.json`. The run fails on a check
-or a play, never on pixels; it lists captures that differ from the reviewed references in
-`stories/visual/`.
+Captures land in `.tmp/screens/<run>/` with a `summary.json`, each at the screen's full
+height, open layers included. The run fails on a check or a play, never on pixels; it
+lists captures that differ from the reviewed references in `stories/visual/`.
 
 ## Writing a screen
 
@@ -88,8 +85,7 @@ in one: typing into a text field (the play sets the value and fires `input`), th
 implicit submission of Enter in a field (`requestSubmit()`), Tab, Enter or Space on a
 native button, checkbox or switch, and Escape on a native dialog (the play fires
 `cancel`). Dialog is all native, so its play opens it with `click()`. Giving plays
-trusted keys through the runner's keyboard is p5-kit-19's, so that every screen then
-completes its task by keyboard alone.
+trusted keys through the runner's keyboard is still open (see "Open items" below).
 
 ## Not captured yet, or listed loosely
 
@@ -97,18 +93,46 @@ completes its task by keyboard alone.
   it; a pending state is captured once Button takes `loading` (p5-kit-10) and the modal
   lane reworks the dialog (p5-kit-15).
 - Table's frosted header when scrolled: no story scrolls the table (p5-kit-17).
-- Navigation's sidebar ends with the page content, not the viewport: SidebarProvider
-  takes its content's height (p5-kit-18).
-- Form's "Start on boot" switch sits in its control row beside "First deploy", but its
-  checked track is still champagne with a dark thumb, and in RTL the thumb leaves the
-  track (p5-kit-12).
 - Table Loading holds each row's top and height, but the columns move 4 to 14 px
   sideways when the data lands: the skeleton widths drive the table's automatic layout,
   and `assertHeld` compares only top and height (p5-kit-17, DataTable's loading state).
-- Dashboard's chart: the tooltip stays open after keyboard focus leaves the chart (the
-  runner measures reflow once the resize has settled, where it fits); at 1280 px the
-  y-axis labels hang about 13 px before the section's start edge; in RTL the axis stays
-  on the left and its lowest label covers the first data point (p5-kit-17).
+
+## Open items
+
+What the screen pass (p5-kit-19) left open, each with its owner. An item closes when its
+owner lands it or Cristian drops it.
+
+- **Date segment spacing (Cristian).** Segments are 24 px wide (`min-w-6`) with centred
+  digits, so the date reads "10 / 5 /2026" and its first digit sits about 5 px past the
+  text of every other control in a form column; in a right-to-left group the time units
+  stay inline and lose the 24 px. Two ways out, his to choose before the Form reference
+  is accepted: (a) keep `min-w-6`, zero-pad day and month, give every segment and
+  separator the same inset and pull the control's start padding in by it; (b) keep the
+  digits tight ("10/5/2026", on the column) and give each segment a centred 24 px hit
+  box as a `::before`, which also covers inline time segments in RTL.
+- **Plays that press real keys (the W4 pass).** The runner gives plays the page's trusted
+  keyboard, so Dialog's play finishes its task by keyboard (Tab, Enter on native
+  buttons, Escape on the native dialog).
+- **InputDate on `popupMotion` (the pickers lane in W4).** InputDate is the last user of
+  `internal/recipes.tsx` `popupAnimation` and `popupSlide`; moving it onto
+  `internal/popup.tsx` `popupMotion` deletes both and their `slide-in-from-left/right`
+  entries in the direction allowlist.
+- **`--tooltip` and `--shadow-lg-filter` tokens (the floating lane in W4).** A registered
+  `--tooltip` colour replaces `light-dark(var(--navy),var(--popover))` in
+  `preset/floating.ts`, and a `--shadow-lg-filter` next to `--shadow-lg` replaces the
+  tooltip's hand-written `drop-shadow` pair.
+- **NavigationMenu (the navigation lane in W4).** The open trigger and the current link
+  wear the same gold tint side by side; the proposal is the raised fill for the open
+  trigger and gold for the current item, as in the Sidebar (Cristian's eye). Its list
+  below `sm` fades both ends statically (`scroll-fade-x`) and indents its first item
+  16 px; an `overflow()` stamp on the list in ajo-ui, as Tabs has, fades only the side
+  with more to see.
+
+Closed by the screen pass: `--glass-overlay` is 75 % (70 % let a Select's help line ghost
+through at 390 px; 75 % sits in the direction mock's 74 to 76 % and at the floating
+layers' bound, above which a gold row or a danger stripe under a menu stops tinting it),
+and `--border-on-accent` has no user left (no
+family draws a border on the accent tint), so there is nothing to tune.
 
 ## Checklist
 

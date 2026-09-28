@@ -2,7 +2,7 @@
 import { render } from 'ajo'
 import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { ChartBar, ChartContainer, ChartLegend, ChartPie, ChartTooltip, ChartTooltipContent } from '../src/chart'
+import { ChartArea, ChartBar, ChartContainer, ChartLegend, ChartPie, ChartTooltip, ChartTooltipContent } from '../src/chart'
 
 let resized: (() => void) | undefined
 
@@ -176,4 +176,103 @@ test('ChartPie activates slices from its SVG by focus and pointer position', () 
 	// Outside the radius clears the active slice.
 	svg.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 239, clientY: 1 }))
 	expect(tooltip()).toBeNull()
+})
+
+test('Chart marks share one Tab stop that arrow keys move along a series, across series and to the ends', async () => {
+	render(jsx(ChartContainer, {
+		children: jsx(ChartArea, {}),
+		config: { api: { label: 'API' }, web: { label: 'Web' } },
+		data: [{ hour: '03:00', api: 8, web: 6 }, { hour: '04:00', api: 7, web: 5 }, { hour: '05:00', api: 9, web: 4 }],
+		palette: ['navy', 'bronze'],
+		xKey: 'hour',
+	}), document.body)
+	const mark = (series: number, row: number) => document.querySelector<SVGElement>(`[data-chart-mark="${series}:${row}"]`)!
+	const stops = () => [...document.querySelectorAll('[data-chart-index][tabindex="0"]')].map(item => item.getAttribute('data-chart-mark'))
+	const press = async (key: string) => {
+		const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key })
+		document.activeElement!.dispatchEvent(event)
+		expect(event.defaultPrevented).toBe(true)
+		await Promise.resolve()
+	}
+
+	expect(document.querySelectorAll('[data-chart-index]')).toHaveLength(6)
+	expect(stops()).toEqual(['0:0'])
+	mark(0, 0).focus()
+	await press('ArrowRight')
+	expect(document.activeElement).toBe(mark(0, 1))
+	await press('ArrowDown')
+	expect(document.activeElement).toBe(mark(1, 1))
+	await press('End')
+	expect(document.activeElement).toBe(mark(1, 2))
+	await press('ArrowRight')
+	expect(document.activeElement).toBe(mark(1, 2))
+	await press('Home')
+	await press('ArrowUp')
+	expect(document.activeElement).toBe(mark(0, 0))
+	await press('ArrowDown')
+	await vi.waitFor(() => expect(stops()).toEqual(['1:0']))
+})
+
+test('ChartPie walks its slices with every arrow key', async () => {
+	render(jsx(ChartContainer, {
+		children: jsx(ChartPie, {}),
+		config: { visitors: { label: 'Visitors' } },
+		data: [{ browser: 'Chrome', visitors: 1 }, { browser: 'Safari', visitors: 1 }, { browser: 'Edge', visitors: 2 }],
+		palette: ['blue', 'green', 'red'],
+		type: 'pie',
+		xKey: 'browser',
+	}), document.body)
+	const slice = (index: number) => document.querySelector<SVGElement>(`[data-chart-index="${index}"]`)!
+
+	slice(0).focus()
+	slice(0).dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
+	expect(document.activeElement).toBe(slice(1))
+	slice(1).dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowRight' }))
+	expect(document.activeElement).toBe(slice(2))
+	slice(2).dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowUp' }))
+	expect(document.activeElement).toBe(slice(1))
+})
+
+test('Chart without a size draws at its plot\'s laid-out size, redrawing only once no tooltip is open', async () => {
+	const { mark, root } = bars([jsx(ChartBar, {}), jsx(ChartTooltip, {})])
+	const view = () => document.querySelector('svg')!.getAttribute('viewBox')
+	const size = (width: number, height: number) => {
+		Object.defineProperties(document.querySelector('svg')!, {
+			clientHeight: { configurable: true, value: height },
+			clientWidth: { configurable: true, value: width },
+		})
+		resized!()
+	}
+	expect(view()).toBe('0 0 640 240')
+	expect(root.hasAttribute('data-measured')).toBe(false)
+
+	size(358, 150)
+	await vi.waitFor(() => expect(view()).toBe('0 0 358 150'))
+	expect(root.hasAttribute('data-measured')).toBe(true)
+
+	mark!.focus()
+	expect(document.querySelector('[data-slot="chart-tooltip"]')).not.toBeNull()
+	size(300, 180)
+	await new Promise(resolve => setTimeout(resolve, 50))
+	expect(view()).toBe('0 0 358 150')
+
+	mark!.blur()
+	await vi.waitFor(() => expect(view()).toBe('0 0 300 180'))
+})
+
+test('Chart keeps a given width or height and measures only the other', async () => {
+	render(jsx(ChartContainer, {
+		children: jsx(ChartBar, {}),
+		config: { sales: { label: 'Sales' } },
+		data: [{ month: 'Jan', sales: 10 }],
+		height: 200,
+		palette: ['blue'],
+		xKey: 'month',
+	}), document.body)
+	Object.defineProperties(document.querySelector('svg')!, {
+		clientHeight: { configurable: true, value: 150 },
+		clientWidth: { configurable: true, value: 358 },
+	})
+	resized!()
+	await vi.waitFor(() => expect(document.querySelector('svg')!.getAttribute('viewBox')).toBe('0 0 358 200'))
 })

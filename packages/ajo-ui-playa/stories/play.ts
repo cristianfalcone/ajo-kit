@@ -409,28 +409,60 @@ export const assertForcedBoundaries = (root: HTMLElement) => {
 	if (lines.length) throw new CheckError('forced-colors', lines)
 }
 
+/** The colour `value` (a CSS colour, custom properties included) resolves to inside `element`. */
+const resolve = (element: HTMLElement, value: string) => {
+	const probe = document.createElement('span')
+	probe.style.color = value
+	element.append(probe)
+	const color = rgba(getComputedStyle(probe).color)
+	probe.remove()
+	return color
+}
+
+const same = (a: Rgba, b: Rgba) => a.slice(0, 3).every((channel, index) => Math.abs(channel - b[index]) <= 2)
+
 /**
- * Asserts D28's ink on a choice control that is on: its `fill` is 3:1
- * against the surface behind it, its `mark` (glyph or thumb) is the page
- * colour, one mark for every on control, and 3:1 against the fill, and the
- * fill is darker than the plate (`--primary`), so on a dark page an "on"
- * control never outshines the one primary action.
+ * Asserts D28's ink on a choice control that is on: its `fill` is the text
+ * colour (navy ink by day, ivory at night) at 3:1 against the surface behind
+ * it, and its `mark` (glyph or thumb) is the page colour, one mark for every
+ * on control, at 3:1 against the fill.
  */
 export const assertInk = (fill: HTMLElement, mark: HTMLElement) => {
 	const behind = surface(fill.parentElement)
 	const ink = over(rgba(getComputedStyle(fill).backgroundColor), behind)
 	const glyph = over(rgba(getComputedStyle(mark).backgroundColor), ink)
-	const plate = rgba(getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())
-	const probe = document.createElement('span')
-	probe.style.color = 'var(--background)'
-	fill.append(probe)
-	const page = rgba(getComputedStyle(probe).color)
-	probe.remove()
 	const name = describe(fill)
-	if (glyph.slice(0, 3).some((channel, index) => Math.abs(channel - page[index]) > 2)) throw new Error(`${name} mark is not the page colour`)
+	if (!same(ink, resolve(fill, 'var(--foreground)'))) throw new Error(`${name} fill is not the text colour`)
+	if (!same(glyph, resolve(fill, 'var(--background)'))) throw new Error(`${name} mark is not the page colour`)
 	if (contrast(ink, behind) < 3) throw new Error(`${name} fill is ${contrast(ink, behind).toFixed(2)}:1 against its surface, under 3:1`)
 	if (contrast(glyph, ink) < 3) throw new Error(`${name} mark is ${contrast(glyph, ink).toFixed(2)}:1 against its fill, under 3:1`)
-	if (luminance(ink) >= luminance(plate)) throw new Error(`${name} fill is as bright as the plate or brighter`)
+}
+
+/**
+ * Asserts D28 on every switch in `root`: each one that is on wears the ink
+ * (`assertInk`), and brightness means on, so the thumb of every switch that
+ * is off stands out from the surface behind it less than the fill of any
+ * switch that is on. Forced colours paint the system's colours instead,
+ * which `assertForcedBoundaries` checks.
+ */
+export const assertSwitches = (root: HTMLElement) => {
+	if (matchMedia('(forced-colors: active)').matches) return
+	const parts = [...root.querySelectorAll<HTMLElement>('[data-slot=switch]')].map(part => ({
+		input: part.querySelector('input')!,
+		part,
+		thumb: part.querySelector<HTMLElement>('[data-slot=switch-thumb]')!,
+	}))
+	const standout = (element: HTMLElement, part: HTMLElement) => {
+		const behind = surface(part.parentElement)
+		return contrast(over(rgba(getComputedStyle(element).backgroundColor), behind), behind)
+	}
+	const on = parts.filter(({ input }) => input.checked)
+	const off = parts.filter(({ input }) => !input.checked)
+	if (!on.length || !off.length) throw new Error('The screen needs a switch on and a switch off')
+	for (const { part, thumb } of on) assertInk(part, thumb)
+	const dimmest = Math.min(...on.map(({ part }) => standout(part, part)))
+	const brightest = Math.max(...off.map(({ part, thumb }) => standout(thumb, part)))
+	if (brightest >= dimmest) throw new Error(`An off switch thumb stands out at ${brightest.toFixed(2)}:1, as much as an on switch (${dimmest.toFixed(2)}:1)`)
 }
 
 const moving = /^(?:transform|translate|scale|rotate)$/

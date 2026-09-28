@@ -1,5 +1,5 @@
 /** Indeterminate fill; the checked fill and the invalid boundary are the box's. */
-export const checkboxState = 'has-[:enabled:indeterminate]:bg-ink'
+export const checkboxState = 'has-[:enabled:indeterminate]:bg-foreground'
 
 // The box fill lands first, then the glyph (a check, or a minus when
 // indeterminate) pops with a springy overshoot. Unchecking collapses

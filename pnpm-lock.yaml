@@ -127,6 +127,9 @@ importers:
       '@iconify-json/lucide':
         specifier: 1.2.136
         version: 1.2.136
+      ajo-cloves:
+        specifier: workspace:^
+        version: link:../ajo-cloves
       ajo-ui:
         specifier: workspace:^
         version: link:../ajo-ui
@@ -134,9 +137,6 @@ importers:
       ajo:
         specifier: 0.2.0
         version: 0.2.0
-      ajo-cloves:
-        specifier: workspace:*
-        version: link:../ajo-cloves
       axe-core:
         specifier: 4.13.0
         version: 4.13.0

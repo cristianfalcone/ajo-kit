@@ -222,7 +222,7 @@ export const Sections: Story<typeof Field> = {
 			</Field>
 			<div class="flex gap-2">
 				<Button type="button">Submit</Button>
-				<Button type="button" variant="outline">Cancel</Button>
+				<Button type="button" variant="secondary">Cancel</Button>
 			</div>
 		</FieldGroup>
 	),

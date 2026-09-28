@@ -1,5 +1,5 @@
 import type { Children, IntrinsicElements, Stateful } from 'ajo'
-import { announce, dom, listen, timer } from 'ajo-cloves'
+import { announce, dom, listen, overflow, timer } from 'ajo-cloves'
 import { Checkbox } from './checkbox'
 import { defaultResultsLabel } from './collection'
 import {
@@ -11,8 +11,6 @@ import {
 	Menu,
 	MenuCheckboxItem,
 	MenuContent,
-	MenuLabel,
-	MenuSeparator,
 	MenuTrigger,
 } from './menu'
 import { Toolbar } from './toolbar'
@@ -108,8 +106,6 @@ type DataTableClassName =
 	| 'menu'
 	| 'menu_content'
 	| 'menu_item'
-	| 'menu_label'
-	| 'menu_separator'
 	| 'page_size'
 
 type DataTableLabels = {
@@ -249,6 +245,10 @@ const findCoordinate = (host: HTMLElement, target: FocusTarget) => {
 const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* () {
 	const model = createDataTableModel<any, DataTableKey>(this)
 	let table: HTMLTableElement | null = null
+	// The container stamps its overflowing edges (data-overflow-x), so a theme
+	// can fade the side a wide table scrolls toward.
+	let container: HTMLElement | null = null
+	const edges = overflow(this, { target: () => container })
 	// Data column widths from the last rows shown, held while a result is empty so the columns stay put.
 	let held: Map<string, number> | undefined
 	const measure = () => table?.querySelector('[data-row-id]')
@@ -371,8 +371,6 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 											) : null}
 										</MenuTrigger>
 										<MenuContent class={classNames.menu_content} data-slot="data-table-facet-content">
-											<MenuLabel class={classNames.menu_label}>{facet.label}</MenuLabel>
-											<MenuSeparator class={classNames.menu_separator} />
 											{facet.options.map(option => (
 												<MenuCheckboxItem
 													key={option.value}
@@ -415,8 +413,6 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 									<span aria-hidden="true" data-slot="data-table-columns-icon" />
 								</MenuTrigger>
 								<MenuContent class={classNames.menu_content} data-slot="data-table-columns-content">
-									<MenuLabel class={classNames.menu_label}>{labels.columns}</MenuLabel>
-									<MenuSeparator class={classNames.menu_separator} />
 									{view.columns.filter(column => column.column.hideable !== false).map(column => (
 										<MenuCheckboxItem
 											key={column.id}
@@ -435,7 +431,13 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 					</Toolbar>
 				) : null}
 
-				<div data-slot="data-table-container">
+				<div
+					data-slot="data-table-container"
+					ref={element => {
+						container = element
+						edges.sync()
+					}}
+				>
 					<table
 						aria-label={args.label}
 						data-slot="table"

@@ -79,9 +79,9 @@ export type ChartContainerArgs = WithChildren<OmitArg<IntrinsicElements['div'], 
 	label?: string
 	/** Accessible long description for the chart image. */
 	description?: string
-	/** SVG coordinate width used by native chart primitives. */
+	/** SVG coordinate width used by native chart primitives. Defaults to the plot's laid-out width, so marks and labels draw at their CSS size. */
 	width?: number
-	/** SVG coordinate height used by native chart primitives. */
+	/** SVG coordinate height used by native chart primitives. Defaults to the plot's laid-out height, like `width`. */
 	height?: number
 	/** SVG plot margins. */
 	margin?: Partial<ChartMargin>
@@ -103,7 +103,7 @@ export type ChartPlotArgs = OmitArg<IntrinsicElements['svg'], 'children'> & {
 
 /** Arguments for a native pie or donut plot. */
 export type ChartPieArgs = ChartPlotArgs & {
-	/** Inner radius for donut charts, in SVG user units. */
+	/** Inner radius for donut charts, in SVG user units; at most 60% of the radius, so a small plot keeps its ring. */
 	innerRadius?: number
 }
 
@@ -154,6 +154,9 @@ type ChartState = {
 	root: Element | null
 	series: Series[]
 	setActive: (active: ChartActive, plot: SVGSVGElement) => void
+	/** The mark that takes the plot's one Tab stop, as `series:row` indexes; arrows move it. */
+	stop: string
+	setStop: (stop: string) => void
 	type: ChartType
 	width: number
 	xKey?: string
@@ -168,6 +171,10 @@ const DEFAULT_MARGIN: ChartMargin = { bottom: 32, left: 40, right: 16, top: 16 }
 const DEFAULT_WIDTH = 640
 const DEFAULT_HEIGHT = 240
 const TOOLTIP_GAP = 12
+// Room a category label takes per character (about 12 px text) and between
+// labels, in SVG units: the x axis shows every label that fits.
+const LABEL_CHAR = 7
+const LABEL_GAP = 8
 
 const safeKey = /^[\w-]+$/
 const unsafeColor = /[;{}<>\\]/
@@ -306,10 +313,30 @@ const svgPoint = (svg: SVGSVGElement, clientX: number, clientY: number) => {
 	}
 }
 
-/** Index and plot of a focused mark. SVG has no `onfocusin` property, so marks share one focus handler. */
-const focused = (event: FocusEvent) => {
+/** Index and plot of a focused mark, which takes the plot's Tab stop. SVG has no `onfocusin` property, so marks share one focus handler. */
+const focused = (chart: ChartState, event: FocusEvent) => {
 	const mark = event.currentTarget as SVGElement
+	chart.setStop(mark.getAttribute('data-chart-mark')!)
 	return [Number(mark.getAttribute('data-chart-index')), mark.ownerSVGElement!] as const
+}
+
+// Arrow moves as [series, row] steps; Home and End go to the ends of the row.
+const steps: Record<string, [number, number]> = { ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], End: [0, Infinity], Home: [0, -Infinity] }
+
+/**
+ * Arrow keys move focus between a plot's marks, which share one Tab stop:
+ * left and right along a series (the plot keeps its physical axes), up and
+ * down across series at the same row, Home and End to the ends. A pie is one
+ * series, so every arrow walks its slices.
+ */
+const moved = (chart: ChartState, pie: boolean) => (event: KeyboardEvent) => {
+	const step = steps[event.key]
+	if (!step) return
+	event.preventDefault()
+	const [series, index] = (event.target as Element).getAttribute('data-chart-mark')!.split(':').map(Number) as [number, number]
+	const row = (by: number) => clamp(index + by, 0, chart.data.length - 1)
+	const mark = pie ? `0:${row(step[0] + step[1])}` : `${clamp(series + step[0], 0, chart.series.length - 1)}:${row(step[1])}`
+	;(event.currentTarget as SVGSVGElement).querySelector<SVGElement>(`[data-chart-mark="${mark}"]`)?.focus()
 }
 
 /**
@@ -386,13 +413,39 @@ const ChartContainerRoot: Stateful<ChartContainerArgs> = function* () {
 	const root = dom(this) ? this : null
 	let active: ChartActive | null = null
 	let plot: SVGSVGElement | null = null
+	let stop: string | undefined
+	// Without a `width` or `height`, a plot takes its laid-out size (the
+	// container's before one renders), so it draws at CSS size whatever the
+	// container's aspect. A resize under an open tooltip waits for it to
+	// close, so the tooltip never points at coordinates the plot has redrawn.
+	let measured: { height: number; width: number } | undefined
+	let latest: typeof measured
+	const size = resize(this, {
+		target: () => root,
+		onResize: element => {
+			const { clientHeight: height, clientWidth: width } = element.querySelector('svg[role=group]') ?? element
+			if (width && height) latest = { height, width }
+			if (!active && latest !== measured) this.next(() => measured = latest)
+			// Stamped after the measured drawing is styled (the layout read flushes
+			// it), so a theme can move marks between data changes without sliding
+			// them from the default size on load.
+			element.getBoundingClientRect()
+			element.toggleAttribute('data-measured', true)
+		},
+	})
 
 	const setActive = (next: ChartActive, svg: SVGSVGElement) => this.next(() => {
 		active = next
 		plot = svg
 	})
 	const clearActive = () => {
-		if (active) this.next(() => active = plot = null)
+		if (active) this.next(() => {
+			active = plot = null
+			measured = latest
+		})
+	}
+	const setStop = (next: string) => {
+		if (next !== stop) this.next(() => stop = next)
 	}
 	// Checked once the render that removed a plot settles.
 	const release = () => queueMicrotask(() => {
@@ -400,12 +453,16 @@ const ChartContainerRoot: Stateful<ChartContainerArgs> = function* () {
 	})
 
 	for (const args of this) {
+		size.sync()
 		// Percent-encoded down to [\w%-], so the id is a CSS identifier once `%` is escaped.
 		const chartId = args.id
 			? `chart-${encodeURIComponent(String(args.id)).replace(/[^\w%-]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)}`
 			: fallbackId
 		const css = colorStyle(chartId, args.config)
 		const data = args.data ?? []
+		const series = seriesEntries(args.config, args.series, data, args.xKey, args.palette)
+		// The stop falls back to the first mark when its series or row is gone.
+		const [stopSeries, stopRow] = (stop ?? '').split(':').map(Number) as [number, number]
 		const chart: ChartState = {
 			active,
 			clearActive,
@@ -414,7 +471,7 @@ const ChartContainerRoot: Stateful<ChartContainerArgs> = function* () {
 			description: args.description,
 			formatLabel: args.formatLabel ?? defaultFormatLabel,
 			formatValue: args.formatValue ?? defaultFormatValue,
-			height: args.height ?? DEFAULT_HEIGHT,
+			height: args.height ?? measured?.height ?? DEFAULT_HEIGHT,
 			id: chartId,
 			label: args.label,
 			margin: { ...DEFAULT_MARGIN, ...args.margin },
@@ -422,10 +479,12 @@ const ChartContainerRoot: Stateful<ChartContainerArgs> = function* () {
 			plot,
 			release,
 			root,
-			series: seriesEntries(args.config, args.series, data, args.xKey, args.palette),
+			series,
 			setActive,
+			setStop,
+			stop: stopSeries < series.length && stopRow < data.length ? stop! : '0:0',
 			type: args.type ?? 'bar',
-			width: args.width ?? DEFAULT_WIDTH,
+			width: args.width ?? measured?.width ?? DEFAULT_WIDTH,
 			xKey: args.xKey,
 		}
 
@@ -477,13 +536,20 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 		'aria-label': `${text(labelFor(chart, row, index))} ${text(entry.label)} ${chart.formatValue(value, entry.key, row, index)}`,
 		'data-active': chart.active?.index === index ? 'true' : undefined,
 		'data-chart-index': index,
+		'data-chart-mark': `${chart.series.indexOf(entry)}:${index}`,
 		focusable: 'true',
 		role: 'img',
 		style: `--chart-index:${index}`,
-		tabindex: '0',
+		tabindex: chart.stop === `${chart.series.indexOf(entry)}:${index}` ? '0' : '-1',
 		'set:onblur': blurred(chart),
 		'set:onfocus': focus,
 	})
+	// Category labels that fit: the first, every `every`th after it, and the
+	// last when it clears the one before.
+	const labels = chart.data.map((row, index) => text(labelFor(chart, row, index)).slice(0, 12))
+	const every = Math.ceil((Math.max(...labels.map(label => label.length)) * LABEL_CHAR + LABEL_GAP) / ((type === 'bar' ? groupWidth : xStep) || Infinity)) || 1
+	const last = labels.length - 1
+	const shown = (index: number) => !index || (index === last ? last >= every : index % every === 0 && last - index >= every)
 
 	const activate = (index: number, svg: SVGSVGElement) => {
 		if (showing(chart, index, svg, seriesKeys)) return
@@ -510,13 +576,14 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 		activate(index, svg)
 	}
 
-	const focus = (event: FocusEvent) => activate(...focused(event))
+	const focus = (event: FocusEvent) => activate(...focused(chart, event))
 
 	return (
 		<svg
 			{...attrs}
 			{...plotAttrs(chart, `chart-${type}`, ref)}
 			viewBox={`0 0 ${chart.width} ${chart.height}`}
+			set:onkeydown={moved(chart, false)}
 			set:onpointermove={pointerMove}
 		>
 			{plotTitle(chart)}
@@ -534,9 +601,9 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 							{chart.formatValue(tick, '', {}, 0)}
 						</text>
 					))}
-					{chart.data.map((row, index) => (
+					{labels.map((label, index) => !shown(index) ? null : (
 						<text key={`x-${index}`} x={rowCenter(index)} y={chart.height - 8} fill="currentColor" style="text-anchor:middle">
-							{text(labelFor(chart, row, index)).slice(0, 12)}
+							{label}
 						</text>
 					))}
 				</g>
@@ -607,7 +674,7 @@ const ChartArea: Stateless<ChartPlotArgs> = attrs => <ChartPlot {...attrs} type=
 
 /** Unstyled SVG pie/donut chart primitive for use inside ChartContainer. */
 const ChartPie: Stateless<ChartPieArgs> = ({
-	innerRadius = 0,
+	innerRadius: hole = 0,
 	ref,
 	...attrs
 }) => {
@@ -620,6 +687,7 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 	const size = Math.min(chart.width, chart.height)
 	const center = size / 2
 	const radius = center - 12
+	const innerRadius = Math.min(hole, radius * 0.6)
 	let start = -Math.PI / 2
 	const slices = values.map((value, index) => {
 		const end = start + (value / total) * Math.PI * 2
@@ -642,7 +710,7 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 		}, svg)
 	}
 
-	const focus = (event: FocusEvent) => activate(...focused(event))
+	const focus = (event: FocusEvent) => activate(...focused(chart, event))
 
 	const pointerMove = (event: PointerEvent) => {
 		const svg = event.currentTarget as SVGSVGElement
@@ -661,6 +729,7 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 			{...attrs}
 			{...plotAttrs(chart, 'chart-pie', ref)}
 			viewBox={`0 0 ${size} ${size}`}
+			set:onkeydown={moved(chart, true)}
 			set:onpointermove={pointerMove}
 		>
 			{plotTitle(chart)}
@@ -671,12 +740,13 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 					d={slicePath(center, radius, innerRadius, slice.start, slice.end)}
 					data-active={chart.active?.index === index ? 'true' : undefined}
 					data-chart-index={index}
+					data-chart-mark={`0:${index}`}
 					fill={slice.color}
 					focusable="true"
 					role="img"
 					style={`--chart-index:${index}`}
 					stroke-width="2"
-					tabindex="0"
+					tabindex={chart.stop === `0:${index}` ? '0' : '-1'}
 					set:onblur={blurred(chart)}
 					set:onfocus={focus}
 				/>

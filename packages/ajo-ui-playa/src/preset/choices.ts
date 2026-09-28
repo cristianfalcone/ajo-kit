@@ -27,14 +27,10 @@ export const choices: Preset = {
   name: 'ajo-ui-playa-choices',
   theme: {
     colors: {
-      // D28: an "on" control takes the ink, the text colour, with its mark
-      // (glyph or thumb) in the page colour. At night the ivory is dimmed
-      // only as far as keeps it under the plate (luminance 0.385 against
-      // 0.479), so a page of switches never outshines the one primary action:
-      // 6.3:1 on its lightest surface (muted), 7.9:1 under the mark.
-      ink: 'light-dark(var(--foreground),color-mix(in srgb,var(--foreground) 70%,var(--background)))',
-      // An off switch's thumb and the slider's thumbs: ivory in both themes.
-      ivory: 'light-dark(var(--popover),var(--foreground))',
+      // The thumb of an off switch and the slider's: ivory by day; at night
+      // the muted text colour, so an off switch stays quiet and only the ivory
+      // ink of an on control is bright (D28).
+      thumb: 'light-dark(var(--popover),var(--muted-foreground))',
     },
   },
   rules: [
@@ -53,19 +49,20 @@ export const choices: Preset = {
   ],
   shortcuts: {
     // The 16 px box of a checkbox, and with rounded-full of a radio: the input
-    // boundary (D23), the ink when on and its glyph in the page colour. Invalid
-    // turns only the boundary; disabled keeps it and mutes the fill instead of
-    // fading, so it stays visible. Beside a label and its help it centres on
-    // the label's line.
-    'playa-checkbox-box': 'relative inline-flex size-4 rounded-xs shrink-0 items-center justify-center edge-input bg-transparent text-background transition-[background-color,box-shadow] duration-150 motion-reduce:transition-none playa-choice-focus [[data-slot=field]:has(>[data-slot=field-content])>&]:translate-y-0.5 has-[:enabled:checked]:bg-ink has-[[aria-invalid=true]]:inset-ring-danger has-[:disabled]:bg-muted has-[:disabled]:text-faint-foreground forced-colors:text-[CanvasText]',
+    // boundary (D23), the ink (D28: the text colour, navy by day and ivory at
+    // night) when on and its glyph in the page colour. Invalid turns only the
+    // boundary; disabled keeps it and mutes the fill instead of fading, so it
+    // stays visible. Beside a label and its help it centres on the label's
+    // line.
+    'playa-checkbox-box': 'relative inline-flex size-4 rounded-xs shrink-0 items-center justify-center edge-input bg-transparent text-background transition-[background-color,box-shadow] duration-150 motion-reduce:transition-none playa-choice-focus [[data-slot=field]:has(>[data-slot=field-content])>&]:translate-y-0.5 has-[:enabled:checked]:bg-foreground has-[[aria-invalid=true]]:inset-ring-danger has-[:disabled]:bg-muted has-[:disabled]:text-faint-foreground forced-colors:text-[CanvasText]',
     // The glyph in a box (a dot, or an icon whose mask fills with the current
     // colour) paints in the box's colour. Forced colours paint fills as the
     // page, so there the glyph keeps its fill in the text colour, whatever
     // colour a caller gives the box; the box passes it on to an icon that
     // inherits its colour (the indeterminate minus).
     'playa-choice-glyph': 'pointer-events-none bg-current forced-colors:forced-color-adjust-none forced-colors:text-[CanvasText]',
-    // Ivory with the input boundary and a small drop; an on switch paints it
-    // in the page colour, the mark of every on control.
-    'playa-thumb': 'pointer-events-none rounded-full bg-ivory shadow-xs ring-1 ring-input forced-colors:forced-color-adjust-none forced-colors:bg-[CanvasText]',
+    // The thumb colour with the input boundary and a small drop; an on switch
+    // paints it in the page colour, the mark of every on control.
+    'playa-thumb': 'pointer-events-none rounded-full bg-thumb shadow-xs ring-1 ring-input forced-colors:forced-color-adjust-none forced-colors:bg-[CanvasText]',
   },
 }

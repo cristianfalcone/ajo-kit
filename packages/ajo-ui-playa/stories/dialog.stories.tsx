@@ -49,7 +49,7 @@ const DemoForm = ({ description, title }: Args) => (
 			</Field>
 		</FieldGroup>
 		<DialogFooter>
-			<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
+			<DialogClose class={buttonVariants({ variant: 'secondary' })}>Cancel</DialogClose>
 			<Button type="submit">Save changes</Button>
 		</DialogFooter>
 	</>
@@ -70,7 +70,7 @@ const ControlledExample: Stateful<Args> = function* () {
 						<DialogDescription>{description}</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
+						<DialogClose class={buttonVariants({ variant: 'secondary' })}>Cancel</DialogClose>
 						<Button type="button" set:onclick={() => setOpen(false)}>Pause deploys</Button>
 					</DialogFooter>
 					<DialogClose />
@@ -195,7 +195,7 @@ export const Invite: Story<typeof Dialog> = {
 					<Input type="email" placeholder="name@example.com" />
 				</Field>
 				<DialogFooter>
-					<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
+					<DialogClose class={buttonVariants({ variant: 'secondary' })}>Cancel</DialogClose>
 					<Button type="button">Send invite</Button>
 				</DialogFooter>
 				<DialogClose />
@@ -278,7 +278,7 @@ export const NoDefaultCloseButton: Story<typeof Dialog> = {
 					<DialogDescription>{description}</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
-					<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
+					<DialogClose class={buttonVariants({ variant: 'secondary' })}>Cancel</DialogClose>
 					<Button type="button">Rotate token</Button>
 				</DialogFooter>
 			</DialogContent>

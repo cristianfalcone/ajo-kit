@@ -16,7 +16,7 @@ import { Chip } from 'ajo-ui-playa/chip'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from 'ajo-ui-playa/command'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from 'ajo-ui-playa/item'
 import { Kbd } from 'ajo-ui-playa/kbd'
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from 'ajo-ui-playa/menu'
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from 'ajo-ui-playa/menu'
 import {
 	Sidebar,
 	SidebarContent,
@@ -159,9 +159,8 @@ const Shell = () => (
 								</span>
 								<span aria-hidden="true" class="i-lucide-chevrons-up-down ms-auto" />
 							</MenuTrigger>
-							<MenuContent>
-								<MenuLabel><bdi>ada@example.com</bdi></MenuLabel>
-								<MenuSeparator />
+							{/* As wide as its trigger, which already names the account. */}
+							<MenuContent class="w-[var(--reference-width)]">
 								<MenuItem>{t('Profile', 'الملف الشخصي')}</MenuItem>
 								<MenuItem>{t('Access tokens', 'رموز الوصول')}</MenuItem>
 								<MenuSeparator />
@@ -230,12 +229,6 @@ export default {
 const selected = (dialog: HTMLElement) => dialog.querySelector('[data-slot="command-item"][aria-selected="true"]')
 
 export const Default: Story = {
-	parameters: {
-		known: [
-			{ check: 'focus', slice: 'p5-kit-18', variants: ['light-1280', 'rtl-light-1280'], targets: ['a[data-slot=sidebar-menu-button]', 'button[data-slot=sidebar-menu-button]'] },
-			{ check: 'forced-colors', slice: 'p5-kit-18', variants: ['light-1280'], targets: ['a[data-slot=sidebar-menu-button]', 'button[data-slot=sidebar-menu-button]'] },
-		],
-	},
 	// The shell by keyboard: Ctrl K opens the command search, the arrows move through it and
 	// Enter runs an item; the user menu opens with Enter, takes the arrows and closes with Escape.
 	play: async ({ canvas }) => {
@@ -246,6 +239,9 @@ export const Default: Story = {
 		press(search, 'k', { ctrlKey: true })
 		await until(() => dialog.open && dialog.contains(document.activeElement), 'Ctrl K did not open the command search with focus in it')
 		const input = document.activeElement as HTMLElement
+		// The list shows a half row at its end and fades it, so it reads as going on.
+		const list = dialog.querySelector<HTMLElement>('[data-slot="command-list"]')
+		await until(() => list?.getAttribute('data-overflow-y') === 'end', 'The command list does not mark the end it scrolls toward')
 		const first = selected(dialog)
 		press(input, 'ArrowDown')
 		await until(() => !!selected(dialog) && selected(dialog) !== first, 'ArrowDown did not move through the command search')

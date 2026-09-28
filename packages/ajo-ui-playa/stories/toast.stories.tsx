@@ -152,7 +152,7 @@ const AboveModalDemo: Stateful = function* () {
 						<DialogDescription>Memory and CPU for billing-api. Toasts fired here stay above the dialog.</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
+						<DialogClose class={buttonVariants({ variant: 'secondary' })}>Cancel</DialogClose>
 						<Button type="button" set:onclick={inside}>Save limits</Button>
 					</DialogFooter>
 					<DialogClose />

@@ -35,15 +35,17 @@ const focusRing = 'var(--focus-width) solid var(--ring)'
 const straddle = '[--focus-offset:calc(var(--focus-width)/-2)]'
 
 // Edge fades for scroll-fade-x and the [data-overflow-*] stamps: one gradient per faded edge set.
+// The stamps are logical, so a right-to-left scroller fades toward the left.
 const fadeStops = {
   start: 'transparent,black 1rem',
   end: 'black calc(100% - 1rem),transparent',
   both: 'transparent,black 1rem,black calc(100% - 1rem),transparent',
 }
-const fade = (side: 'bottom' | 'right', edges: keyof typeof fadeStops) => `linear-gradient(to ${side},${fadeStops[edges]})`
-const overflowFades = ([['x', 'right'], ['y', 'bottom']] as const).flatMap(([axis, side]) =>
+const fade = (side: string, edges: keyof typeof fadeStops) => `linear-gradient(to ${side},${fadeStops[edges]})`
+const overflowFades = ([['x', 'var(--fade-x,right)'], ['y', 'bottom']] as const).flatMap(([axis, side]) =>
   (['start', 'end', 'both'] as const).map(edges =>
-    `[data-overflow-${axis}=${edges}]{-webkit-mask-image:${fade(side, edges)};mask-image:${fade(side, edges)}}`)).join('')
+    `[data-overflow-${axis}=${edges}]{-webkit-mask-image:${fade(side, edges)};mask-image:${fade(side, edges)}}`)).join('') +
+  '[data-overflow-x]:dir(rtl){--fade-x:left}'
 
 /**
  * Returns Playa's complete build-time UnoCSS preset.
@@ -133,6 +135,11 @@ export const playa = definePreset(() => ({
       { outline: '1px solid transparent', 'outline-offset': 'var(--focus-offset)' },
       { [symbols.selector]: selector => `${selector}:focus-visible`, outline: focusRing, 'outline-offset': 'var(--focus-offset)' },
       { [symbols.selector]: selector => `${selector}[aria-invalid="true"]:focus-visible`, 'outline-color': 'var(--danger)' },
+    ]],
+    // A navy island's own ring sits outside it, on the page, so it takes the
+    // page's ring; the doubled selector outranks playa-focus and the preflight.
+    ['navy-ring', [
+      { [symbols.selector]: selector => `${selector}${selector}:focus-visible`, 'outline-color': 'var(--page-ring)' },
     ]],
     ['scrollbar-gutter-stable', { 'scrollbar-gutter': 'stable' }],
     ['scrollbar-none', { 'scrollbar-width': 'none' }],
@@ -236,7 +243,7 @@ export const playa = definePreset(() => ({
     // stays solid or tint-only: glass never stacks on glass.
     glass: 'bg-card/60 text-card-foreground backdrop-blur-md backdrop-saturate-150',
     // The carpet under code, logs and dense data: tokens inside resolve dark.
-    navy: [{ 'background-color': 'var(--navy)', color: 'var(--foreground)', 'color-scheme': 'dark' }, 'edge'],
+    navy: [{ 'background-color': 'var(--navy)', color: 'var(--foreground)', 'color-scheme': 'dark' }, 'edge', 'navy-ring'],
     // Behind modal layers: a tinted, blurred page.
     scrim: 'backdrop:bg-[var(--scrim)] backdrop:[backdrop-filter:var(--scrim-filter)]',
     // Designed states, one each. Invalid turns the boundary to the danger hue

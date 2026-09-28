@@ -63,18 +63,23 @@ const dialogBase = clx(
 )
 // The search row is as tall as the dialog's close button is deep (top-4 plus
 // size-8), so the close sits centred on it, and the row keeps the close's
-// inline end free, so neither the icon nor typed text runs under it.
-const dialogCommandBase = '**:data-[slot=command-input-wrapper]:h-16 **:data-[slot=command-input-wrapper]:pe-12 [&_[data-slot=command-input-wrapper]_svg]:size-5 [&_[data-slot=command-input]]:h-full [&_[data-slot=command-item]]:px-2 [&_[data-slot=command-item]]:py-3 [&_[data-slot=command-item]_svg]:size-5'
+// inline end free, so neither the icon nor typed text runs under it. Items
+// keep the menu row, so every list of choices shares one height.
+const dialogCommandBase = '**:data-[slot=command-input-wrapper]:h-16 **:data-[slot=command-input-wrapper]:pe-12 [&_[data-slot=command-input-wrapper]_svg]:size-5 [&_[data-slot=command-input]]:h-full'
 // Control text is Input's: 16 px below sm, so a phone does not zoom, and 14 px
 // from sm. Escape clears the search, so the browser's own blue clear button goes.
 const inputBase = 'flex h-control w-full rounded-md bg-transparent text-base outline-none disabled:cursor-not-allowed disabled:opacity-[var(--disabled-opacity)] sm:text-sm [&::-webkit-search-cancel-button]:appearance-none'
 // The input's wrapper and search icon, and a group's heading, are base-owned
-// nodes themed through their slots from the Command root.
+// nodes themed through their slots from the Command root; a heading looks
+// like a menu's group label (playa-menu-label).
 const slotBase = [
 	'[&_:where([data-slot=command-input-wrapper])]:flex [&_:where([data-slot=command-input-wrapper])]:h-control [&_:where([data-slot=command-input-wrapper])]:items-center [&_:where([data-slot=command-input-wrapper])]:gap-2 [&_:where([data-slot=command-input-wrapper])]:border-b [&_:where([data-slot=command-input-wrapper])]:px-3',
 	'[&_:where([data-slot=command-input-icon])]:i-lucide-search [&_:where([data-slot=command-input-icon])]:size-4 [&_:where([data-slot=command-input-icon])]:shrink-0 [&_:where([data-slot=command-input-icon])]:opacity-50',
-	'[&_:where([data-slot=command-group-heading])]:px-2 [&_:where([data-slot=command-group-heading])]:pt-2 [&_:where([data-slot=command-group-heading])]:pb-1 [&_:where([data-slot=command-group-heading])]:text-xs [&_:where([data-slot=command-group-heading])]:font-medium [&_:where([data-slot=command-group-heading])]:text-muted-foreground',
+	'[&_:where([data-slot=command-group-heading])]:px-2 [&_:where([data-slot=command-group-heading])]:py-1 [&_:where([data-slot=command-group-heading])]:text-xs [&_:where([data-slot=command-group-heading])]:font-medium [&_:where([data-slot=command-group-heading])]:text-faint-foreground',
 ].join(' ')
+// The list sits on the row grid: a group's padding and heading take 28 px and
+// every row (or group break) 32, so 300 px shows eight rows and half of the
+// next, which the overflow stamp fades to say the list goes on.
 const listBase = clx(scrollAreaVariants({ axis: 'y' }), 'max-h-[300px] scroll-py-1')
 // Shares the menu row token: command speaks the same data-highlighted/
 // data-disabled vocabulary; the token's focus/inset/danger selectors never

@@ -1,5 +1,5 @@
 import type { IntrinsicElements, Stateful, Stateless, WithChildren } from 'ajo'
-import { announce, callHandler, controlled, dom, id, listen, roving } from 'ajo-cloves'
+import { announce, callHandler, controlled, dom, id, listen, overflow, roving } from 'ajo-cloves'
 import { context } from 'ajo/context'
 import { activate, flag, rootAttrs, text } from './shared'
 import { part, type FixedArgs, type OmitArg } from './utils'
@@ -260,22 +260,28 @@ const CommandInput: Stateless<CommandInputArgs> = ({
 	)
 }
 
-/** Scrollable list for command options. */
-const CommandList: Stateless<CommandListArgs> = ({ children, class: classes, ...attrs }) => {
-	const command = CommandContext()
+// The list stamps the edges it overflows toward (data-overflow-y), so a
+// theme can fade the side a long list scrolls to.
+const CommandListRoot: Stateful<WithChildren> = function* () {
+	const edges = overflow(this, { target: () => this })
 
-	return (
-		<div
-			{...attrs}
-			class={classes}
-			data-slot="command-list"
-			id={command?.listId}
-			role="listbox"
-		>
-			{children}
-		</div>
-	)
+	for (const { children } of this) {
+		edges.sync()
+		yield <>{children}</>
+	}
 }
+
+/** Scrollable list for command options. */
+const CommandList: Stateless<CommandListArgs> = ({ children, ...attrs }) => (
+	<CommandListRoot
+		{...rootAttrs(attrs)}
+		attr:data-slot="command-list"
+		attr:id={CommandContext()?.listId}
+		attr:role="listbox"
+	>
+		{children}
+	</CommandListRoot>
+)
 
 /** Empty state shown when filtering hides every command item. */
 const CommandEmpty = part<CommandEmptyArgs>('div', 'command-empty')

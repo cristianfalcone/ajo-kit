@@ -69,7 +69,7 @@ const AddDomain: Stateful<{ error: boolean; layout: 'dialog' | 'drawer' }, 'form
 					{failed && <FieldError>{t('Its A record does not point to 203.0.113.24 yet.', 'سجل A الخاص به لا يشير إلى 203.0.113.24 بعد.')}</FieldError>}
 				</Field>
 				<Footer>
-					<DialogClose class={buttonVariants({ variant: 'outline' })}>{t('Cancel', 'إلغاء')}</DialogClose>
+					<DialogClose class={buttonVariants({ variant: 'secondary' })}>{t('Cancel', 'إلغاء')}</DialogClose>
 					{/* Composed by hand until Button takes `loading` (p5-kit-10). */}
 					<Button type="submit" aria-busy={pending ? 'true' : undefined} aria-disabled={pending ? 'true' : undefined}>
 						{pending && <Spinner />}
@@ -143,7 +143,8 @@ const Domains = ({ error }: Args) => (
 				{domains().map(domain => (
 					<TableRow key={domain.name}>
 						<TableCell>
-							<div class="flex flex-col">
+							{/* items-start keeps the Latin name at the cell's start in either direction. */}
+							<div class="flex flex-col items-start">
 								<bdi class="font-medium">{domain.name}</bdi>
 								<span class="text-muted-foreground">{domain.detail}</span>
 							</div>

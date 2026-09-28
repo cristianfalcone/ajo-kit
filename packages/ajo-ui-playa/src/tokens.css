@@ -7,11 +7,20 @@
  */
 
 /* Registered so light-dark() resolves once on the root: a navy island sets
-   its own color-scheme to dark and must still paint the page's carpet. */
+   its own color-scheme to dark and must still paint the page's carpet, and
+   its own focus ring, which sits outside it on the page, in the page's ring
+   (--page-ring). Controls inside the island keep --ring, which follows the
+   island's scheme. */
 @property --navy {
   syntax: '<color>';
   inherits: true;
   initial-value: #1b2130;
+}
+
+@property --page-ring {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #6c5430;
 }
 
 :root {
@@ -57,10 +66,11 @@
   --muted-foreground: light-dark(#45506a, #adaaa5);
   /* Placeholders, timestamps and meta: steps back without leaving AA; never body text. */
   --faint-foreground: light-dark(#5a6078, #9a9894);
-  /* Highlight and selection: a gold tint. The dark one is a solid colour,
-     champagne's hue at the night's lightness (oklch 0.30 0.045 82), so it
-     reads as gold on the night instead of a grey-brown alpha. */
-  --accent: light-dark(rgb(154 122 69 / 0.14), #392b11);
+  /* Highlight and selection: a gold tint. By day a translucent champagne
+     with enough chroma to read as gold on ivory (oklch 0.91 0.042 on the
+     page), not beige; at night a solid colour, champagne's hue at the
+     night's lightness (oklch 0.30 0.045 82), instead of a grey-brown alpha. */
+  --accent: light-dark(rgb(224 180 90 / 0.25), #392b11);
   --accent-foreground: var(--foreground);
   --link: light-dark(#2f4370, #e6d3b0);
   --danger: light-dark(#a8423d, #ec928b);
@@ -81,11 +91,14 @@
   --input: light-dark(rgb(27 35 53 / 0.5), #6e6b68);
   /* Focus: bronze on ivory, champagne on the night. */
   --ring: light-dark(#6c5430, #e4d1b1);
-  --chart-1: light-dark(#2f4370, #a9c1dd);
-  --chart-2: light-dark(#9a7a45, #d9c39c);
-  --chart-3: light-dark(#3a6e46, #7fb58f);
-  --chart-4: light-dark(#9a4f0f, #e39a5a);
-  --chart-5: light-dark(#a8423d, #ec928b);
+  --page-ring: var(--ring);
+  /* Chart series from the palette: the ink, gold (bronze at night, apart
+     from the ivory ink), then the status hues. No blue at night. */
+  --chart-1: var(--foreground);
+  --chart-2: light-dark(var(--gold-4), var(--gold-5));
+  --chart-3: var(--success);
+  --chart-4: var(--warning);
+  --chart-5: var(--danger);
 
   /* Elevation: surfaces rest flat; floating layers take a soft layered drop
      with no tight contact line, which would read as a lip under their edge. */
@@ -95,11 +108,14 @@
   --shadow-xl: 0 1px 2px var(--shadow-color), 0 24px 56px -20px var(--shadow-color);
 
   /* Frost for bars and floating layers, thin enough that what lies under a
-     layer tints it; a blurred scrim behind modal ones. */
+     layer tints it; a floating layer is a little denser, so text under a
+     menu or a select stays a tint instead of a ghost. A blurred scrim sits
+     behind modal ones, a warm umber from the ivory's hue by day so the page
+     dims without turning grey. */
   --glass-filter: blur(18px) saturate(1.3);
   --glass-chrome: color-mix(in oklab, var(--background) 72%, transparent);
-  --glass-overlay: color-mix(in oklab, var(--popover) 70%, transparent);
-  --scrim: light-dark(rgb(27 35 53 / 0.35), rgb(0 0 0 / 0.55));
+  --glass-overlay: color-mix(in oklab, var(--popover) 75%, transparent);
+  --scrim: light-dark(rgb(58 47 31 / 0.28), rgb(0 0 0 / 0.55));
   --scrim-filter: blur(4px);
 
   /* The carpet under code, logs and tooltips: navy on ivory, the deepest neutral at night. */

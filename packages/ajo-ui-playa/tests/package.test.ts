@@ -92,6 +92,7 @@ test('the manifest keeps build-time peers and runtime ownership explicit', () =>
 		'@fontsource-variable/fraunces': '5.3.0',
 		'@fontsource-variable/jetbrains-mono': '5.3.0',
 		'@iconify-json/lucide': '1.2.136',
+		'ajo-cloves': 'workspace:^',
 		'ajo-ui': 'workspace:^',
 	})
 	expect(metadata.peerDependencies).toEqual({

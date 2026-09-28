@@ -1,5 +1,6 @@
 /** @jsxImportSource ajo */
-import type { Known, Meta, Story } from '../app'
+import type { Meta, Story } from '../app'
+import { assertInk, assertSwitches } from '../play'
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -20,23 +21,6 @@ import { Select, SelectContent, SelectItem, SelectList, SelectTrigger, SelectVal
 import { Switch } from 'ajo-ui-playa/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'ajo-ui-playa/tabs'
 import { Page, Section, t } from './page'
-
-/** What fills an "on" choice control: `ink` (the text colour, navy by day and ivory at night) is the chosen fill; `plate` puts the gold plate on each, kept to compare. */
-type Gold = 'ink' | 'plate'
-
-// Both keep the switch thumb one colour, the raised surface with the input
-// boundary, and let the track carry the state; they differ only in what fills
-// an "on" control. The families draw neither yet, so the screen paints them
-// here from the tokens; p5-kit-12 draws the chosen ink fill and this thumb, and
-// the plate stays only as the comparison.
-const on = (gold: Gold) => `[data-gold=${gold}] :is([data-slot=switch]:has(:checked),.playa-checkbox-box:has(:checked),[data-slot=radio-group-item]:has(:checked))`
-const d28 = [
-	'[data-gold] [data-slot=switch]>[data-slot=switch-thumb][aria-hidden]{background:var(--secondary);box-shadow:0 0 0 1px var(--input),var(--shadow-xs)}',
-	`${on('plate')}{background-color:var(--primary);background-image:var(--brush),var(--gilt-plate);background-blend-mode:soft-light,normal;color:var(--primary-foreground)}`,
-	// The plate's edge and shadow take the box-shadow the focus ring also draws with, so they rest only while unfocused.
-	`${on('plate')}:not(:has(:focus-visible)){box-shadow:var(--gilt-plate-edge),var(--gilt-plate-shadow)}`,
-	`${on('ink')}{background:var(--foreground);color:var(--background)}`,
-].join('')
 
 const notices = (): [string, string, string, boolean][] => [
 	['deploy-finished', t('Deploy finished', 'اكتمل النشر'), t('When a new version starts serving.', 'عندما يبدأ إصدار جديد في الخدمة.'), true],
@@ -168,10 +152,9 @@ const General = () => (
 	</div>
 )
 
-const Settings = ({ gold }: { gold: Gold }) => (
+const Settings = () => (
 	<Page title={t('Settings', 'الإعدادات')} lead={t('Your account and how this host reaches you.', 'حسابك وكيف يتواصل معك هذا المضيف.')}>
-		<style>{d28}</style>
-		<Tabs defaultValue="general" class="flex max-w-[48rem] flex-col gap-8" data-gold={gold}>
+		<Tabs defaultValue="general" class="flex max-w-[48rem] flex-col gap-8">
 			<TabsList>
 				<TabsTrigger value="general">{t('General', 'عام')}</TabsTrigger>
 				<TabsTrigger value="tokens">{t('Access tokens', 'رموز الوصول')}</TabsTrigger>
@@ -192,10 +175,6 @@ const Settings = ({ gold }: { gold: Gold }) => (
 
 export default {
 	title: 'Screens/Settings',
-	args: { gold: 'ink' },
-	argTypes: {
-		gold: { control: 'select', options: ['ink', 'plate'], description: 'What fills an "on" control: ink (the chosen fill) or the gold plate on each, to compare.' },
-	},
 	parameters: {
 		docs: { description: 'Account and host settings: section rhythm, gold kept scarce on a page of switches, horizontal fields at control height, a destructive action that does not flood the page red.' },
 		layers: {
@@ -203,25 +182,21 @@ export default {
 		},
 		layout: 'fullscreen',
 	},
-	render: args => <Settings gold={args.gold as Gold} />,
+	render: () => <Settings />,
 } satisfies Meta
 
-// Ink and Plate share every known failure.
-const known: Known[] = [
-	{ check: 'focus', slice: 'p5-kit-18', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['button[data-slot=tabs-trigger]'] },
-	{ check: 'focus', slice: 'p5-kit-18', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['div[data-slot=tabs-content]'] },
-	{ check: 'forced-colors', slice: 'p5-kit-18', variants: ['light-1280'], targets: ['button[data-slot=tabs-trigger]', 'div[data-slot=tabs-content]'] },
-]
-
-export const Ink: Story = {
-	parameters: { known },
-}
-
-// The same page with the plate on every "on" control, to compare with ink; its layers show nothing new.
-export const Plate: Story = {
-	args: { gold: 'plate' },
-	parameters: {
-		known,
-		layers: {},
+// A page of switches keeps gold scarce (D28): an on switch wears the ink,
+// and an off one stays quieter than any on one in either theme; the checked
+// checkbox and the selected radio wear the same ink with the page-coloured mark.
+export const Default: Story = {
+	play: ({ canvas }) => {
+		assertSwitches(canvas)
+		if (matchMedia('(forced-colors: active)').matches) return
+		for (const [slot, name] of [['checkbox', 'checkbox'], ['radio-group-item', 'radio-group']]) {
+			const part = canvas.querySelector<HTMLElement>(`[data-slot=${slot}]:has(:checked)`)
+			const mark = part?.querySelector<HTMLElement>(`[data-slot=${name}-indicator]`)
+			if (!part || !mark) throw new Error(`Settings shows no checked ${name}`)
+			assertInk(part, mark)
+		}
 	},
 }

@@ -77,8 +77,6 @@ const pairs: Pair[] = [
 	// The filled destructive action carries white text in both schemes.
 	...on(4.5, ['danger-fill-foreground'], [[{ token: 'danger-fill' }]]),
 	...on(3, ['input', 'ring', 'gold-4'], surfaces.map(token => [{ token }])),
-	// The focus halo the families still paint (ring-ring/50).
-	...on(3, ['ring'], surfaces.map(token => [{ token }]), 0.5),
 	// Hairlines are decorative, so no WCAG floor applies; they stay visible,
 	// over the accent tint too, where hovered and selected rows sit.
 	...on(1.25, ['border'], [...surfaces.map(token => [{ token }]), ...tinted]),
@@ -86,13 +84,7 @@ const pairs: Pair[] = [
 
 // Pairs that fail today, each with the slice that fixes it. The list can only
 // shrink: a listed pair that passes fails this test until it is removed.
-const failing: Record<string, string> = {
-	// A painted alpha p5-kit-02 does not reach: the halo goes as the W3
-	// lanes empty the focus-halo list in rules.test.ts.
-	'light ring 50% on background': 'W3 lanes, focus-halo list',
-	'light ring 50% on card': 'W3 lanes, focus-halo list',
-	'light ring 50% on popover': 'W3 lanes, focus-halo list',
-}
+const failing: Record<string, string> = {}
 
 const layer = ({ token, alpha }: Layer) => alpha === undefined ? token : `${token} ${alpha * 100}%`
 const name = (scheme: string, pair: Pair) =>

@@ -13,8 +13,8 @@ export type SliderArgs = OmitArg<
 > & FixedArgs<'inputClass' | 'rangeClass' | 'thumbClass' | 'trackClass'> & { class?: string }
 
 // The track is a neutral groove and the range the ink (D28); the thumb is
-// ivory like an off switch's (it is not a state mark), and only the focused
-// one wears the ring.
+// an off switch's (it is not a state mark), and only the focused one wears
+// the ring.
 const rootBase = 'playa-slider group/slider relative flex touch-none cursor-pointer select-none items-center outline-none'
 const rootOrientation: Record<SliderOrientation, string> = {
 	horizontal: 'h-5 w-full',
@@ -25,7 +25,7 @@ const trackOrientation: Record<SliderOrientation, string> = {
 	horizontal: 'h-1.5 w-full',
 	vertical: 'h-full w-1.5',
 }
-const rangeBase = 'absolute bg-ink forced-colors:forced-color-adjust-none forced-colors:bg-[CanvasText]'
+const rangeBase = 'absolute bg-foreground forced-colors:forced-color-adjust-none forced-colors:bg-[CanvasText]'
 const rangeOrientation: Record<SliderOrientation, string> = {
 	horizontal: 'h-full',
 	vertical: 'w-full',
