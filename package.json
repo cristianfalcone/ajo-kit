@@ -9,7 +9,7 @@
     "stories:test": "pnpm --filter ajo-ui-playa stories:test",
     "stories:test:visual": "pnpm --filter ajo-ui-playa stories:test:visual",
     "build": "pnpm --filter ajo-kit-demo build",
-    "typecheck": "tsc --noEmit && pnpm --filter ajo-kit-demo typecheck && pnpm --filter ajo-kit-template typecheck",
+    "typecheck": "tsc --noEmit && pnpm --filter ajo-kit-demo typecheck",
     "test:consumer:packages": "tsx tests/package-consumer.ts",
     "repack:sync": "tsx scripts/repack-sync.ts",
     "release:verify": "pnpm typecheck && pnpm test:unit && pnpm test:consumer:packages",

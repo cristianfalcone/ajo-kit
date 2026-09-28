@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url'
 import { build } from 'vite'
 
 type Manifest = {
-	exports: Record<string, { ajo?: string; browser?: string; default: string; types: string }>
+	bin?: Record<string, string>
+	exports?: Record<string, { ajo?: string; browser?: string; default: string; types: string }>
 	imports?: Record<string, Record<string, string>>
 	kit?: { migrations?: string }
 }
@@ -55,7 +56,7 @@ for (const name of process.argv.slice(2)) {
 	// into the packed manifest. A *.client.* source keeps its marker in the
 	// compiled name, which exempts the published face from the server-only guard.
 	const entries: Record<string, string> = {}
-	for (const [subpath, entry] of Object.entries(manifest.exports)) {
+	for (const [subpath, entry] of Object.entries(manifest.exports ?? {})) {
 		const base = subpath === '.' ? 'index' : subpath.slice(2)
 		entries[/\.client\.[jt]sx?$/.test(entry.default) ? `${base}.client` : base] = source(entry.default)
 		if (entry.ajo) entries[`${base}.ajo`] = source(entry.ajo)
@@ -69,7 +70,8 @@ for (const name of process.argv.slice(2)) {
 			if (condition !== 'types') entries[path.replace(/^\.\/src\//, '').replace(/\.[jt]sx?$/, '')] = source(path)
 		}
 	}
-	if (name === 'ajo-kit') entries['bin/kit'] = source('bin/kit.ts')
+	// Each bin compiles to the name .pnpmfile.cjs points the packed bin at.
+	for (const path of Object.values(manifest.bin ?? {})) entries[path.replace(/^\.\/(?:src\/)?/, '').replace(/\.ts$/, '')] = source(path)
 	if (manifest.kit?.migrations) {
 		const migrations = source(manifest.kit.migrations)
 		for (const migration of await readdir(migrations)) {
@@ -102,8 +104,10 @@ for (const name of process.argv.slice(2)) {
 			target: 'esnext',
 		},
 	})
-	await declarations(directory, [
-		...Object.values(manifest.exports).map(entry => source(entry.types)),
+	// A package without exports, such as a bin-only one, has no declarations.
+	const exports = Object.values(manifest.exports ?? {})
+	if (exports.length) await declarations(directory, [
+		...exports.map(entry => source(entry.types)),
 		...imports.map(conditions => source(conditions.types)),
 		...(name === 'ajo-kit' ? [source('src/runtime.d.ts')] : []),
 	])

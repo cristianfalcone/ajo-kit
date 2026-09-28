@@ -10,7 +10,7 @@ import { promisify } from 'node:util'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const kit = join(root, 'node_modules/.bin/kit')
 
-export async function start(selected?: number, overrides: Record<string, string | undefined> = {}) {
+export async function start(selected?: number, overrides: Record<string, string> = {}) {
 	const directory = await mkdtemp(join(tmpdir(), 'ajo-notes-test-'))
 	let port = selected
 	if (!port) {

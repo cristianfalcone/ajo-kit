@@ -16,9 +16,9 @@ export default config({
 	},
 	test: {
 		environment: 'node',
-		// Library packages only. Apps (demo, template) run their own suites
+		// Library packages and create-ajo. Apps (demo, the starter) run their own suites
 		// with their own configs.
-		include: ['packages/ajo-*/tests/**/*.test.ts'],
+		include: ['packages/{ajo-*,create-ajo}/tests/**/*.test.ts'],
 		restoreMocks: true,
 	}
 })

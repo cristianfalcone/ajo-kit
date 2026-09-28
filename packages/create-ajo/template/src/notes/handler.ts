@@ -44,7 +44,7 @@ export const actions = {
 		if (refusal) throw new Failure(409, refusal)
 		const recipient = `verify:email:${email}`
 		const address = `verify:ip:${ip(req)}`
-		if (!limit.hit(recipient, 1, 3_600_000) || !limit.hit(address, 5, 3_600_000)) {
+		if (!(limit.hit(recipient, 1, 3_600_000) && limit.hit(address, 5, 3_600_000))) {
 			throw new Failure(429, 'Verification is limited to one message per address per hour. Try again later.')
 		}
 		const result = await deliver({

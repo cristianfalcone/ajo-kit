@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { spawn, type ChildProcess } from 'node:child_process'
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
@@ -15,6 +15,7 @@ type Package = typeof packages[number]
 type PublishedManifest = {
 	bin?: Record<string, string>
 	dependencies?: Record<string, string>
+	dist: { integrity: string }
 	exports?: Record<string, { default?: string; import?: string; types?: string }>
 	imports?: Record<string, Record<string, string>>
 	kit?: { migrations?: string }
@@ -62,10 +63,11 @@ const run = (
 	command: string,
 	args: readonly string[],
 	cwd: string,
+	env: Record<string, string> = {},
 ) => new Promise<{ stderr: string; stdout: string }>((resolveRun, reject) => {
 	const child = spawn(command, args, {
 		cwd,
-		env: { ...process.env, CI: '1', NO_COLOR: '1' },
+		env: { ...process.env, CI: '1', NO_COLOR: '1', ...env },
 		stdio: ['ignore', 'pipe', 'pipe'],
 		windowsHide: true,
 	})
@@ -79,11 +81,11 @@ const run = (
 		: reject(new CommandFailure([command, ...args].join(' '), code, stderr, stdout)))
 })
 
-const pnpm = (args: readonly string[], cwd: string) => {
+const pnpm = (args: readonly string[], cwd: string, env?: Record<string, string>) => {
 	const cli = process.env.npm_execpath
-	if (cli && /\.(?:c?js|mjs)$/i.test(cli)) return run(process.execPath, [cli, ...args], cwd)
-	if (process.platform === 'win32') return run(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', 'pnpm.cmd', ...args], cwd)
-	return run('pnpm', args, cwd)
+	if (cli && /\.(?:c?js|mjs)$/i.test(cli)) return run(process.execPath, [cli, ...args], cwd, env)
+	if (process.platform === 'win32') return run(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', 'pnpm.cmd', ...args], cwd, env)
+	return run('pnpm', args, cwd, env)
 }
 
 const write = async (path: string, value: string) => {
@@ -322,7 +324,8 @@ const verifyDependencyGraph = async (consumer: string) => {
 		assert.equal([...found][0].split(' ')[0], expected, `${name} resolved an unexpected version`)
 	}
 	identity('ajo', pins.ajo)
-	for (const { name, version } of packages) identity(name, version)
+	// create-ajo creates a project; nothing depends on it.
+	for (const { name, version } of packages) if (name !== 'create-ajo') identity(name, version)
 }
 
 // The server faces: root imports, argon2, the mail capture transport without
@@ -525,6 +528,50 @@ const kitCssProbe = async (directory: string, registry: string) => {
 	assert.equal(await readFile(join(directory, 'dist/sibling.txt'), 'utf8'), 'preserved')
 }
 
+// create-ajo ships the tracked starter, pinned to this release set, and
+// `pnpm create ajo <dir> --json` passes --json through to it. The starter
+// installs from the local registry with pnpm's default release-age policy
+// and passes its own type check and unit tests against the published set.
+const createProbe = async (directory: string, registry: string, published: Record<string, Awaited<ReturnType<typeof publish>>>) => {
+	const { manifest, packlist } = published['create-ajo']
+	assert.deepEqual(manifest.bin, { 'create-ajo': './dist/index.js' })
+	assert(packlist.includes('dist/index.js'), 'create-ajo packlist omitted its compiled bin')
+	const starter = join(root, 'packages/create-ajo/template')
+	const tracked = execFileSync('git', ['ls-files', '-z', '.'], { cwd: starter, encoding: 'utf8' }).split('\0').filter(Boolean)
+	assert.deepEqual(packlist.filter(path => path.startsWith('template/')).map(path => path.slice('template/'.length)).sort(), tracked.sort(),
+		'create-ajo did not pack exactly the tracked starter')
+
+	const pinned = JSON.parse(await readFile(join(starter, 'package.json'), 'utf8')) as { dependencies: Record<string, string> }
+	const excluded = await readFile(join(starter, 'pnpm-workspace.yaml'), 'utf8')
+	for (const { name, version } of packages.filter(({ name }) => name !== 'create-ajo')) {
+		if (name in pinned.dependencies) assert.equal(pinned.dependencies[name], version, `the starter pins ${name} outside this release`)
+		assert(excluded.includes(`  - ${name}@${version}\n`), `the starter does not exempt ${name}@${version} from the release age`)
+	}
+
+	await mkdir(directory)
+	await write(join(directory, 'pnpm-workspace.yaml'), `minimumReleaseAgeExclude:\n  - create-ajo@${versions['create-ajo']}\n`)
+	// The starter installs as its own project, so the registry reaches it through the environment.
+	const created = await pnpm(['create', 'ajo', 'notes', '--json'], directory, {
+		pnpm_config_registry: `${registry}/`,
+		XDG_CACHE_HOME: join(directory, '.cache'),
+	})
+	assert.deepEqual(JSON.parse(created.stdout), {
+		ok: true, result: { directory: 'notes', name: 'notes' }, next: 'cd notes && pnpm kit dev',
+	})
+	const project = join(directory, 'notes')
+	assert.equal(JSON.parse(await readFile(join(project, 'package.json'), 'utf8')).name, 'notes')
+	await access(join(project, '.git/HEAD'))
+	await access(join(project, '.gitignore'))
+	assert.equal((await stat(join(project, '.env'))).mode & 0o777, 0o600)
+	await access(join(project, 'database.sqlite'))
+	const lock = await readFile(join(project, 'pnpm-lock.yaml'), 'utf8')
+	for (const name of Object.keys(pinned.dependencies).filter(name => name in published)) {
+		assert(lock.includes(published[name].manifest.dist.integrity), `the starter did not install the published ${name}`)
+	}
+	await pnpm(['typecheck'], project)
+	await pnpm(['test'], project)
+}
+
 const main = async () => {
 	const temporary = await mkdtemp(join(tmpdir(), 'ajo-kit-consumer-'))
 	let registry: Awaited<ReturnType<typeof startRegistry>> | undefined
@@ -605,6 +652,8 @@ const main = async () => {
 		console.log('package consumer: Playa client, SSR and CSS, ajo-ui NodeNext declarations passed')
 		await kitCssProbe(join(temporary, 'kit-css-consumer'), registry.url)
 		console.log('package consumer: kit build stylesheet and sealing contract passed')
+		await createProbe(join(temporary, 'create-consumer'), registry.url, published)
+		console.log('package consumer: pnpm create ajo, the starter install, type check and tests passed')
 	} catch (error) {
 		const logs = registry?.logs().trim()
 		if (logs) console.error(`Verdaccio tail:\n${logs.slice(-6_000)}`)

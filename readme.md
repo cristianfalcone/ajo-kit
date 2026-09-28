@@ -17,6 +17,7 @@ component library.
 | [`ajo-cloves`](packages/ajo-cloves/README.md) | Reusable stateful behaviors and lifecycle utilities for Ajo components |
 | [`ajo-ui`](packages/ajo-ui/README.md) | Unstyled accessible component families for Ajo |
 | [`ajo-ui-playa`](packages/ajo-ui-playa/README.md) | Themed Ajo components and an UnoCSS preset |
+| [`create-ajo`](packages/create-ajo/README.md) | `pnpm create ajo <dir>`: a new App from the starter |
 
 ## Install
 
@@ -68,13 +69,19 @@ pnpm add -D unocss@66.10.5
 See the [`ajo-ui-playa` guide](packages/ajo-ui-playa/README.md) for UnoCSS
 setup, themed component imports, and the complete family catalog.
 
-## Standalone Starter
+## Starter
 
-Copy [`packages/template`](packages/template/README.md) into a new project for a
-small private notebook with registration, sessions and CSRF, SQLite migrations,
-owner-scoped notes, live updates, verified email and Playa. Its own lockfile uses
-published packages; the guide covers local setup, tests, the native npm toolchain
-and a scratch container for deployment through `ajo-kit-server`.
+```bash
+pnpm create ajo notes
+cd notes
+pnpm kit dev
+```
+
+[`create-ajo`](packages/create-ajo/README.md) copies the
+[starter](packages/create-ajo/template/README.md), installs it and prepares its
+database: a small private notebook with registration, sessions and CSRF, SQLite
+migrations, owner-scoped notes, live updates, verified email and Playa, pinned
+to the packages of its release.
 
 ## Example Application
 

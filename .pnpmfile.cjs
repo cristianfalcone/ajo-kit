@@ -4,7 +4,7 @@ module.exports = {
 			// The public packages are the manifests that are not private.
 			if (manifest.private) return manifest
 
-			manifest.exports = Object.fromEntries(Object.entries(manifest.exports).map(([subpath, entry]) => {
+			if (manifest.exports) manifest.exports = Object.fromEntries(Object.entries(manifest.exports).map(([subpath, entry]) => {
 				// The same `base` names scripts/package-build.ts compiles; client-safe
 				// *.client.* sources keep their marker so the server-only guard
 				// exempts the published face too.
@@ -27,8 +27,12 @@ module.exports = {
 					source.replace(/^\.\/src\//, './dist/').replace(/\.[jt]sx?$/, condition === 'types' ? '.d.ts' : '.js'),
 				])),
 			]))
-			if (manifest.exports['.']) manifest.types = manifest.exports['.'].types
-			if (manifest.name === 'ajo-kit') manifest.bin = { kit: './dist/bin/kit.js' }
+			if (manifest.exports?.['.']) manifest.types = manifest.exports['.'].types
+			// The same names scripts/package-build.ts compiles each bin to.
+			if (manifest.bin) manifest.bin = Object.fromEntries(Object.entries(manifest.bin).map(([command, path]) => [
+				command,
+				path.replace(/^\.\/(?:src\/)?/, './dist/').replace(/\.ts$/, '.js'),
+			]))
 			if (manifest.kit?.migrations) {
 				manifest.kit = { ...manifest.kit, migrations: './dist/migrations/' }
 			}

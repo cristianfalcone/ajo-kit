@@ -31,7 +31,9 @@
     "packages/ajo-*/tests/**/*.ts",
     "packages/ajo-*/tests/**/*.tsx",
     "packages/ajo-*/stories/**/*.ts",
-    "packages/ajo-*/stories/**/*.tsx"
+    "packages/ajo-*/stories/**/*.tsx",
+    "packages/create-ajo/src/**/*.ts",
+    "packages/create-ajo/tests/**/*.ts"
   ],
-  "exclude": ["packages/demo", "packages/template", "**/dist", "**/node_modules"]
+  "exclude": ["packages/demo", "packages/create-ajo/template", "**/dist", "**/node_modules"]
 }

@@ -3,23 +3,14 @@ packages:
 autoInstallPeers: false
 allowBuilds:
   argon2: true
-  better-sqlite3: true
   better-sqlite3@13.0.3: false
   esbuild: true
 minimumReleaseAgeExclude:
   - ajo@0.2.0
-  - ajo-kit@0.4.0
-  - ajo-kit-auth@0.7.0
-  - ajo-kit-mail@0.4.0
-  - ajo-kit-server@0.2.0
-  - ajo-cloves@0.2.0
-  - ajo-ui@0.2.0
-  - ajo-ui-playa@0.2.0
   - ajo-engine@0.2.0
   - ajo-engine-compiler@0.2.0
 versioning:
   ignore:
     - ajo-kit-demo
-    - ajo-kit-template
   changelog:
     storage: repository

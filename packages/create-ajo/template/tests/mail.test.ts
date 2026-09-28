@@ -40,7 +40,8 @@ test('production mail needs every MAIL_* value and an HTTPS provider', async () 
 })
 
 test('with mail off, the notes page shows the refusal and verify and email answer 409 before any limit', async () => {
-	const app = await start(undefined, { NODE_ENV: 'production', MAIL_FROM: undefined, MAIL_URL: undefined, MAIL_TOKEN: undefined })
+	// Empty, not unset: kit dev loads the project's .env, which never overrides a set variable.
+	const app = await start(undefined, { NODE_ENV: 'production', MAIL_FROM: '', MAIL_URL: '', MAIL_TOKEN: '' })
 	try {
 		const request = (path: string, cookie?: string, body?: unknown, accept = 'application/json') => fetch(`${app.url}${path}`, {
 			method: body === undefined ? 'GET' : 'POST',

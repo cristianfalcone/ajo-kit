@@ -4,7 +4,7 @@ settings:
   autoInstallPeers: false
   excludeLinksFromLockfile: false
 
-pnpmfileChecksum: sha256-x7PD9X4l5oajkpTubgptRYk1YkhJ45Ctcxxa7oZwdHY=
+pnpmfileChecksum: sha256-whYnH51ONKyGGXZc4bPwT3VMKbqZcZZwWmuPAkQtE8A=
 
 importers:
 
@@ -141,6 +141,8 @@ importers:
         specifier: 8.3.1
         version: 8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)
 
+  packages/create-ajo: {}
+
   packages/demo:
     dependencies:
       ajo:
@@ -180,53 +182,6 @@ importers:
       tsx:
         specifier: 4.23.15
         version: 4.23.15
-      typescript:
-        specifier: 6.0.3
-        version: 6.0.3
-      unocss:
-        specifier: 66.10.5
-        version: 66.10.5(cac@7.0.0)(rolldown@1.2.11)(srvx@1.0.5)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
-      vite:
-        specifier: 8.3.1
-        version: 8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)
-      vitest:
-        specifier: 5.0.2
-        version: 5.0.2(@types/node@26.6.3)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
-    optionalDependencies:
-      ajo-engine:
-        specifier: 0.2.0
-        version: 0.2.0
-      ajo-engine-compiler:
-        specifier: 0.2.0
-        version: 0.2.0
-
-  packages/template:
-    dependencies:
-      ajo:
-        specifier: 0.2.0
-        version: 0.2.0
-      ajo-kit:
-        specifier: 0.4.0
-        version: 0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
-      ajo-kit-auth:
-        specifier: 0.7.0
-        version: 0.7.0(ajo-kit@0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))
-      ajo-kit-mail:
-        specifier: 0.4.0
-        version: 0.4.0(ajo-kit@0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))(nodemailer@10.0.10)
-      ajo-ui-playa:
-        specifier: 0.2.0
-        version: 0.2.0(ajo@0.2.0)(unocss@66.10.5(cac@7.0.0)(rolldown@1.2.11)(srvx@1.0.5)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))
-    devDependencies:
-      '@playwright/test':
-        specifier: 1.63.0
-        version: 1.63.0
-      '@types/node':
-        specifier: 26.6.3
-        version: 26.6.3
-      ajo-kit-server:
-        specifier: 0.2.0
-        version: 0.2.0(ajo-kit@0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -923,12 +878,6 @@ packages:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
     engines: {node: '>= 6.0.0'}
 
-  ajo-cloves@0.2.0:
-    resolution: {integrity: sha512-tD/B8jfdipQZUO0kiJcbp8Au44ygfAVbPGkJv9YlVLSYfo6Qp+FoUK1/5jMKyaGPua+M0/MH5hXQndxxdpTxhg==}
-    engines: {node: '>=22.18.0'}
-    peerDependencies:
-      ajo: ^0.2.0
-
   ajo-engine-compiler@0.2.0:
     resolution: {integrity: sha512-5tLXy4qGckwGgGWD4uTucf94qX4CJPE4X2U2l9WQmmBZiXnArCrEK2ETQFvXPftlQ6ZZm+NkFu8Og1JhTTpkrw==}
     cpu: [x64]
@@ -940,49 +889,6 @@ packages:
     cpu: [x64]
     os: [linux]
     hasBin: true
-
-  ajo-kit-auth@0.7.0:
-    resolution: {integrity: sha512-F4Uxy9zi1aQsAvKJhU2M2XY/o3sZVHb4DER+G1FDxSRHAzc4Exmjpp4+U8EfLp7auopUJzO2ncX8pJj1sbmpHA==}
-    engines: {node: '>=22.18.0'}
-    peerDependencies:
-      ajo-kit: ^0.4.0
-
-  ajo-kit-mail@0.4.0:
-    resolution: {integrity: sha512-24+gpgw0srEloHFHs/ptopAvfVj7jNAa9x+SFO3nvnkrMH25VytrsAAv+1931nCNibLpvIQiydJujL2d0ayBEw==}
-    engines: {node: '>=22.18.0'}
-    peerDependencies:
-      ajo-kit: ^0.4.0
-      nodemailer: ^10.0.10
-    peerDependenciesMeta:
-      nodemailer:
-        optional: true
-
-  ajo-kit-server@0.2.0:
-    resolution: {integrity: sha512-x6euLM5fafZhau81hUi0vRR1P7Bk2J8s5d21Oc01CJRpzL7qzuXz8cvcGLmYT95mh18DI5rFdO4lKQFY5KcQKg==}
-    engines: {node: '>=22.18.0'}
-    peerDependencies:
-      ajo-kit: ^0.4.0
-
-  ajo-kit@0.4.0:
-    resolution: {integrity: sha512-iWJMX/m+4ny3UQcVEmogBJCmeuA1sSGq9VAYwrqaDa7SM9ROBnet1SaQDg5NazUgLBPSGcAW/Cj0hp6pd1LJzA==}
-    engines: {node: '>=22.18.0'}
-    hasBin: true
-    peerDependencies:
-      ajo: ^0.2.0
-      vite: ^8.3.1
-
-  ajo-ui-playa@0.2.0:
-    resolution: {integrity: sha512-2EjCoWKtBGe4wT7zg5/lO7onPYUYAqvm20BzaLGq+655w/S5h6AQOspjLROKbg9FjUsQ9cH3jTAHhRSJ3/hw7Q==}
-    engines: {node: '>=22.18.0'}
-    peerDependencies:
-      ajo: ^0.2.0
-      unocss: 66.10.5
-
-  ajo-ui@0.2.0:
-    resolution: {integrity: sha512-B4NSd86c/bO5Ip+x9FvExnwzftBdnXLEUBXFndlThS1FoSnTj5rpLB3Uz40td2Nk6B2vI0r0A6H/nmUP4CPraQ==}
-    engines: {node: '>=22.18.0'}
-    peerDependencies:
-      ajo: ^0.2.0
 
   ajo@0.2.0:
     resolution: {integrity: sha512-f9berynUedfSVXPRyEs+ymlSx6mN3KE1OvXHC8INCBcIfvDELB/iVl7pqa9AY5sFh8rnU/Sb38GSgVY/JJ285w==}
@@ -3225,57 +3131,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  ajo-cloves@0.2.0(ajo@0.2.0):
-    dependencies:
-      ajo: 0.2.0
-
   ajo-engine-compiler@0.2.0:
     optional: true
 
   ajo-engine@0.2.0:
     optional: true
-
-  ajo-kit-auth@0.7.0(ajo-kit@0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))):
-    dependencies:
-      ajo-kit: 0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
-      argon2: 0.44.0
-
-  ajo-kit-mail@0.4.0(ajo-kit@0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))(nodemailer@10.0.10):
-    dependencies:
-      ajo-kit: 0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
-    optionalDependencies:
-      nodemailer: 10.0.10
-
-  ajo-kit-server@0.2.0(ajo-kit@0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))):
-    dependencies:
-      ajo-kit: 0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
-
-  ajo-kit@0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)):
-    dependencies:
-      ajo: 0.2.0
-      better-sqlite3: 13.0.3
-      dotenv: 18.0.4
-      kysely: 0.29.6
-      navaid: 1.2.0
-      sade: 1.8.1
-      valibot: 1.5.0(typescript@6.0.3)
-      vite: 8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)
-    transitivePeerDependencies:
-      - typescript
-
-  ajo-ui-playa@0.2.0(ajo@0.2.0)(unocss@66.10.5(cac@7.0.0)(rolldown@1.2.11)(srvx@1.0.5)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))):
-    dependencies:
-      '@iconify-json/lucide': 1.2.136
-      ajo: 0.2.0
-      ajo-ui: 0.2.0(ajo@0.2.0)
-      unocss: 66.10.5(cac@7.0.0)(rolldown@1.2.11)(srvx@1.0.5)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
-
-  ajo-ui@0.2.0(ajo@0.2.0):
-    dependencies:
-      '@floating-ui/dom': 1.8.0
-      '@tanstack/virtual-core': 3.17.11
-      ajo: 0.2.0
-      ajo-cloves: 0.2.0(ajo@0.2.0)
 
   ajo@0.2.0: {}
 

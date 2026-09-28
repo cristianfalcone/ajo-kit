@@ -12,9 +12,7 @@ export const actions = {
 		const input = parse(Login, req.body)
 		const address = `login:ip:${ip(req)}`
 		const key = `login:${ip(req)}:${input.email}`
-		if (!limit.hit(address, 20) || !limit.hit(key)) {
-			throw new Failure(429, 'Too many attempts. Try again in a minute.')
-		}
+		if (!(limit.hit(address, 20) && limit.hit(key))) throw new Failure(429, 'Too many attempts. Try again in a minute.')
 		const user = await db().selectFrom('users').select(['id', 'password'])
 			.where('email', '=', input.email).executeTakeFirst()
 		const valid = await password.verify(input.password, user?.password ?? dummy)
