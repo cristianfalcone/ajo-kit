@@ -12,8 +12,6 @@ import { playa } from 'ajo-ui-playa'
 const offScaleAllowed: Record<string, string> = {
 	'avatar.tsx': '-space-x-1.5',
 	'carousel.tsx': '-ms-4 -mt-4',
-	'preset/floating.ts': '-mx-1 py-1.5',
-	'tooltip.tsx': 'py-1.5',
 }
 
 // Physical sides where a logical utility exists (ps, me, start, end,
@@ -22,8 +20,6 @@ const physicalAllowed: Record<string, string> = {
 	// Drawer's `side` names a physical edge.
 	'drawer.tsx': 'border-l border-r left-0 left-auto right-0 right-auto',
 	'internal/recipes.tsx': 'slide-in-from-left-2 slide-in-from-right-2',
-	'navigation-menu.tsx': 'ml-1',
-	'preset/floating.ts': 'left-2 ml-auto pl-8 pr-2',
 	'sidebar.tsx': 'border-l border-r left-0 right-0',
 	'tabs.tsx': 'left-0',
 }
@@ -31,7 +27,6 @@ const physicalAllowed: Record<string, string> = {
 // Focus halos: a translucent ring-shadow beside or instead of the one focus
 // ring, which forced colours drop and which misses 3:1 in the light theme.
 const haloAllowed: Record<string, string> = {
-	'navigation-menu.tsx': 'ring-3 ring-ring/50',
 }
 
 const scale = new Set(['0', '1', '2', '3', '4', '6', '8', '12', 'auto'])

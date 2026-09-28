@@ -37,7 +37,7 @@ const DemoMenu = () => (
 			Open
 		</MenuTrigger>
 		<MenuContent class="w-56" style="min-width:12rem">
-			<MenuLabel>My Account</MenuLabel>
+			<MenuLabel>My account</MenuLabel>
 			<MenuGroup>
 				<MenuItem textValue="Profile">
 					<span class="i-lucide-user size-4" />
@@ -152,7 +152,7 @@ const RadioExample: Stateful = function* () {
 					Panel position
 				</MenuTrigger>
 				<MenuContent class="w-56">
-					<MenuLabel>Panel Position</MenuLabel>
+					<MenuLabel>Panel position</MenuLabel>
 					<MenuSeparator />
 					<MenuRadioGroup value={position} onValueChange={setPosition}>
 						<MenuRadioItem value="top">Top</MenuRadioItem>
@@ -293,7 +293,7 @@ export const Submenu: Story = {
 						<MenuItem>Email</MenuItem>
 						<MenuItem>Message</MenuItem>
 						<MenuSeparator />
-						<MenuItem>More...</MenuItem>
+						<MenuItem>More options</MenuItem>
 					</MenuSubContent>
 				</MenuSub>
 				<MenuSeparator />
@@ -308,6 +308,8 @@ export const Submenu: Story = {
 		const email = canvas.querySelector<HTMLElement>('[data-slot="menu-sub-content"] [data-label="Email"]')
 		const newTeam = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="New team"]')
 		if (!trigger || !subTrigger || !subContent || !email || !newTeam) throw new Error('Submenu trigger, content, or item was not rendered')
+		// The submenu opens toward the inline end: ArrowLeft under RTL.
+		const forward = document.documentElement.dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight'
 
 		trigger.focus()
 		trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
@@ -320,11 +322,11 @@ export const Submenu: Story = {
 			throw new Error('ArrowDown did not move focus to the submenu trigger')
 		}
 
-		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: forward, bubbles: true }))
 		await frame()
 
 		if (subTrigger.getAttribute('aria-expanded') !== 'true' || !subContent.matches(':popover-open')) {
-			throw new Error('ArrowRight did not open the submenu')
+			throw new Error(`${forward} did not open the submenu`)
 		}
 
 		const content = canvas.querySelector<HTMLElement>('[data-slot="menu-content"]')
@@ -355,10 +357,10 @@ export const Submenu: Story = {
 		await frame(2)
 		if (document.activeElement !== subTrigger) throw new Error('ArrowDown did not move focus to the submenu trigger')
 
-		press(subTrigger, 'ArrowRight')
+		press(subTrigger, forward)
 		await frame(2)
 		if (subTrigger.getAttribute('aria-expanded') !== 'true' || !subContent.matches(':popover-open')) {
-			throw new Error('ArrowRight did not reopen the submenu for the Escape walk')
+			throw new Error(`${forward} did not reopen the submenu for the Escape walk`)
 		}
 
 		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }))

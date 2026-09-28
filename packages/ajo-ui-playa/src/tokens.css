@@ -87,16 +87,18 @@
   --chart-4: light-dark(#9a4f0f, #e39a5a);
   --chart-5: light-dark(#a8423d, #ec928b);
 
-  /* Elevation: surfaces rest flat; floating layers take a soft layered drop. */
+  /* Elevation: surfaces rest flat; floating layers take a soft layered drop
+     with no tight contact line, which would read as a lip under their edge. */
   --shadow-color: light-dark(rgb(40 46 66 / 0.14), rgb(0 0 0 / 0.5));
   --shadow-xs: 0 1px 2px var(--shadow-color);
-  --shadow-lg: 0 1px 2px var(--shadow-color), 0 12px 32px -12px var(--shadow-color);
+  --shadow-lg: 0 4px 12px -4px var(--shadow-color), 0 16px 40px -12px var(--shadow-color);
   --shadow-xl: 0 1px 2px var(--shadow-color), 0 24px 56px -20px var(--shadow-color);
 
-  /* Frost for bars and floating layers; a blurred scrim behind modal ones. */
+  /* Frost for bars and floating layers, thin enough that what lies under a
+     layer tints it; a blurred scrim behind modal ones. */
   --glass-filter: blur(18px) saturate(1.3);
   --glass-chrome: color-mix(in oklab, var(--background) 72%, transparent);
-  --glass-overlay: color-mix(in oklab, var(--popover) 82%, transparent);
+  --glass-overlay: color-mix(in oklab, var(--popover) 70%, transparent);
   --scrim: light-dark(rgb(27 35 53 / 0.35), rgb(0 0 0 / 0.55));
   --scrim-filter: blur(4px);
 

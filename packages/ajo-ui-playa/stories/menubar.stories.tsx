@@ -32,14 +32,14 @@ const AppMenubar = ({ onSelect }: { onSelect?: (action: string) => (event: Event
 			<MenubarTrigger id="file-menubar-trigger">File</MenubarTrigger>
 			<MenubarContent class="w-56">
 				<MenuGroup>
-					<MenuItem textValue="New Tab" onSelect={onSelect?.('new-tab')}>
+					<MenuItem textValue="New tab" onSelect={onSelect?.('new-tab')}>
 						<span class="i-lucide-file-plus size-4" />
-						New Tab
+						New tab
 						<MenuShortcut>Ctrl+T</MenuShortcut>
 					</MenuItem>
-					<MenuItem textValue="New Window" onSelect={onSelect?.('new-window')}>
+					<MenuItem textValue="New window" onSelect={onSelect?.('new-window')}>
 						<span class="i-lucide-app-window size-4" />
-						New Window
+						New window
 					</MenuItem>
 				</MenuGroup>
 				<MenuSeparator />
@@ -132,7 +132,7 @@ const RadioExample: Stateful = function* () {
 				<MenubarMenu value="profiles">
 					<MenubarTrigger id="radio-menubar-trigger">Profiles</MenubarTrigger>
 					<MenubarContent class="w-56">
-						<MenuLabel inset>Switch Profile</MenuLabel>
+						<MenuLabel inset>Switch profile</MenuLabel>
 						<MenuSeparator />
 						<MenuRadioGroup value={profile} onValueChange={setProfile}>
 							<MenuRadioItem value="personal">Personal</MenuRadioItem>
@@ -175,9 +175,9 @@ export const Basic: Story<typeof Menubar> = {
 		trigger.click()
 		await frame(2)
 
-		const item = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="New Tab"]')
+		const item = canvas.querySelector<HTMLElement>('[data-slot="menu-item"][data-label="New tab"]')
 		const content = canvas.querySelector<HTMLElement>('[data-slot="menubar-content"]')
-		if (!item || !content) throw new Error('Menubar content or New Tab item was not rendered')
+		if (!item || !content) throw new Error('Menubar content or New tab item was not rendered')
 		if (trigger.getAttribute('aria-expanded') !== 'true' || !content.matches(':popover-open')) {
 			throw new Error('Menubar did not open File menu from trigger click')
 		}
@@ -291,7 +291,7 @@ export const KeyboardPrecommitTransfer: Story<typeof Menubar> = {
 		const edit = canvas.querySelector<HTMLButtonElement>('#edit-menubar-trigger')
 		const view = canvas.querySelector<HTMLButtonElement>('#view-menubar-trigger')
 		const undo = canvas.querySelector<HTMLElement>('[data-label="Undo"]')
-		const firstFileItem = canvas.querySelector<HTMLElement>('[data-label="New Tab"]')
+		const firstFileItem = canvas.querySelector<HTMLElement>('[data-label="New tab"]')
 		const fileContent = firstFileItem?.closest<HTMLElement>('[data-slot="menubar-content"]')
 		if (!file || !edit || !view || !undo || !firstFileItem || !fileContent) {
 			throw new Error('Keyboard precommit transfer fixture was not rendered')
@@ -497,11 +497,11 @@ export const NestedOwnership: Story<typeof Menubar> = {
 					<MenuItem>Outer action</MenuItem>
 					<Menubar aria-label="Inner menu">
 						<MenubarMenu value="inner-one">
-							<MenubarTrigger id="inner-one-trigger">Inner One</MenubarTrigger>
+							<MenubarTrigger id="inner-one-trigger">Inner one</MenubarTrigger>
 							<MenubarContent><MenuItem>Inner first</MenuItem></MenubarContent>
 						</MenubarMenu>
 						<MenubarMenu value="inner-two">
-							<MenubarTrigger id="inner-two-trigger">Inner Two</MenubarTrigger>
+							<MenubarTrigger id="inner-two-trigger">Inner two</MenubarTrigger>
 							<MenubarContent><MenuItem>Inner second</MenuItem></MenubarContent>
 						</MenubarMenu>
 					</Menubar>
@@ -664,7 +664,7 @@ export const Submenu: Story = {
 			<MenubarMenu value="file">
 				<MenubarTrigger id="submenu-menubar-trigger">File</MenubarTrigger>
 				<MenubarContent class="w-56">
-					<MenuItem>New File</MenuItem>
+					<MenuItem>New file</MenuItem>
 					<MenuSub>
 						<MenuSubTrigger textValue="Export">Export</MenuSubTrigger>
 						<MenuSubContent>
@@ -675,7 +675,7 @@ export const Submenu: Story = {
 						</MenuSubContent>
 					</MenuSub>
 					<MenuSeparator />
-					<MenuItem variant="danger">Delete Project</MenuItem>
+					<MenuItem variant="danger">Delete project</MenuItem>
 				</MenubarContent>
 			</MenubarMenu>
 			<MenubarMenu value="edit">
@@ -698,22 +698,24 @@ export const Submenu: Story = {
 		const subContent = canvas.querySelector<HTMLElement>('[data-slot="menu-sub-content"]')
 		const pdf = subContent?.querySelector<HTMLElement>('[data-label="PDF"]')
 		if (!subTrigger || !subContent || !pdf) throw new Error('Menubar submenu trigger, content, or item was not rendered')
+		// The submenu opens toward the inline end: ArrowLeft under RTL.
+		const forward = document.documentElement.dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight'
 
-		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowRight' }))
+		subTrigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: forward }))
 		await frame(2)
 
 		if (subTrigger.getAttribute('aria-expanded') !== 'true' || !subContent.matches(':popover-open')) {
-			throw new Error('ArrowRight did not open the menubar submenu')
+			throw new Error(`${forward} did not open the menubar submenu`)
 		}
 		await until(() => document.activeElement === pdf, 'Menubar submenu did not focus its first item')
-		press(pdf, 'ArrowRight')
+		press(pdf, forward)
 		await frame(2)
 
 		if (trigger.getAttribute('aria-expanded') !== 'true' || edit.getAttribute('aria-expanded') !== 'false') {
-			throw new Error('ArrowRight in submenu content switched the outer Menubar')
+			throw new Error(`${forward} in submenu content switched the outer Menubar`)
 		}
 		if (document.activeElement !== pdf) {
-			throw new Error('ArrowRight on a submenu leaf escaped its submenu')
+			throw new Error(`${forward} on a submenu leaf escaped its submenu`)
 		}
 	},
 }
@@ -726,11 +728,11 @@ export const WithIcons: Story = {
 				<MenubarContent class="w-56">
 					<MenuItem>
 						<span class="i-lucide-file size-4" />
-						New File
+						New file
 					</MenuItem>
 					<MenuItem>
 						<span class="i-lucide-folder-open size-4" />
-						Open Folder
+						Open folder
 					</MenuItem>
 					<MenuSeparator />
 					<MenuItem variant="danger">

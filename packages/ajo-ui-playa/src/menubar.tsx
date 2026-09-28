@@ -9,8 +9,8 @@ import {
 import type { MenubarArgs, MenubarMenuArgs, MenubarTriggerArgs } from 'ajo-ui/menubar'
 export type { MenubarArgs, MenubarMenuArgs, MenubarTriggerArgs, PopupPlacement, PopupPosition } from 'ajo-ui/menubar'
 
-const base = 'flex h-9 items-center gap-1 rounded-md glass-chrome edge p-1'
-const triggerBase = 'flex items-center rounded-sm px-2 py-1 text-sm font-medium outline-none select-none focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
+const base = 'flex h-control items-center gap-1 rounded-md glass-chrome edge p-1'
+const triggerBase = 'flex items-center rounded-sm px-2 py-1 text-sm font-medium select-none hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground playa-focus playa-disabled'
 
 /** Persistent horizontal menu bar; compose the Playa Menu parts inside its menus. */
 const Menubar: Stateless<MenubarArgs> = ({ class: classes, ...attrs }) => (
@@ -29,7 +29,7 @@ const MenubarTrigger: Stateless<MenubarTriggerArgs> = ({ class: classes, ...attr
 
 /** Menu surface for a top-level Menubar menu, wider than a plain MenuContent. */
 const MenubarContent: Stateless<MenuContentArgs> = ({ class: classes, ...attrs }) => (
-	<MenuContent {...attrs} class={clx('playa-menu-content scrollbar-soft min-w-[12rem]', classes)} data-slot="menubar-content" />
+	<MenuContent {...attrs} class={clx('playa-menu-content scrollbar-soft min-w-48', classes)} data-slot="menubar-content" />
 )
 
 export { Menubar, MenubarContent, MenubarMenu, MenubarTrigger }

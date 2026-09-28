@@ -207,18 +207,21 @@ describe('playa preset', () => {
 		const uno = await createGenerator({ presets: [playa()] })
 		const { css } = await uno.generate('playa-popup-content')
 		const surface = '.playa-popup-content>[data-slot=popup-surface]'
-		const nearRadius = 'min(var(--popup-radius),max(0px,calc(var(--popup-arrow-center) - 7px)))'
-		const farRadius = 'min(var(--popup-radius),max(0px,calc(100% - var(--popup-arrow-center) - 7px)))'
+		const arrowed = '.playa-popup-content[data-arrow=true]'
 
-		expect(css).toContain(`${surface}{position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit}`)
-		expect(css).toContain('@supports (clip-path:shape(from 0 0,line to 100% 0,close)){')
-		for (const side of ['top', 'bottom', 'left', 'right'])
-			expect(css).toContain(`[data-arrow=true][data-side=${side}]>[data-slot=popup-surface]`)
-		expect(css).toContain('var(--popup-arrow-center)')
-		expect(css).toContain(nearRadius)
-		expect(css).toContain(farRadius)
-		expect(css).toContain('.playa-popover-content>[data-slot=popup-surface]{background-color:var(--glass-overlay);-webkit-backdrop-filter:var(--glass-filter)')
-		expect(css).toContain('.playa-tooltip-content>[data-slot=popup-surface]{background-color:var(--navy)')
+		expect(css).toContain(`${surface}{position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;--popup-inset:0px;box-shadow:inset 0 0 0 1px var(--border)}`)
+		expect(css).toContain('@supports (clip-path:shape(evenodd from 0 0,close,move to 0 0,close)){')
+		// One path per axis, cut by the surface and mirrored toward the other side.
+		expect(css).toContain(`${arrowed}:is([data-side=top],[data-side=bottom])>[data-slot=popup-surface],${arrowed}:is([data-side=top],[data-side=bottom])>[data-slot=popup-surface]::before{--popup-path:`)
+		expect(css).toContain(`${arrowed}:is([data-side=left],[data-side=right])>[data-slot=popup-surface],${arrowed}:is([data-side=left],[data-side=right])>[data-slot=popup-surface]::before{--popup-path:`)
+		expect(css).toContain(`${arrowed}>[data-slot=popup-surface]{border-radius:0;box-shadow:none;clip-path:shape(from var(--popup-path))}`)
+		expect(css).toContain(`${arrowed}[data-side=bottom]>[data-slot=popup-surface]{top:-7px;scale:1 -1}`)
+		expect(css).toContain(`${arrowed}[data-side=right]>[data-slot=popup-surface]{left:-7px;scale:-1 1}`)
+		expect(css).toContain('--popup-near:min(var(--popup-radius),max(0px,calc(var(--popup-arrow-center) - 7px)))')
+		expect(css).toContain('--popup-far:min(var(--popup-radius),max(0px,calc(100% - var(--popup-arrow-center) - 7px)))')
+		// The edge is the same path 1 px in, cut out of the surface's box.
+		expect(css).toContain(`${arrowed}>[data-slot=popup-surface]::before{content:"";position:absolute;inset:0;--popup-inset:1px;background-color:var(--border);clip-path:shape(evenodd from 0 0,hline to 100%,vline to 100%,hline to 0,close,move to var(--popup-path))}`)
+		expect(css).toContain('.playa-popover-content>[data-slot=popup-surface]{background-color:var(--glass-overlay);-webkit-backdrop-filter:var(--glass-filter);backdrop-filter:var(--glass-filter);box-shadow:inset 0 0 0 1px var(--border),var(--shadow-lg)}')
 		// Without backdrop-filter the solid popover fill must follow, and so outrank, the frost.
 		const fallback = css.indexOf('{.playa-popover-content>[data-slot=popup-surface]{background-color:var(--popover)}}')
 		expect(fallback).toBeGreaterThan(css.indexOf('.playa-popover-content>[data-slot=popup-surface]{background-color:var(--glass-overlay)'))

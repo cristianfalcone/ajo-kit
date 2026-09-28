@@ -37,8 +37,7 @@ export type { MenuArgs, MenuCheckboxItemArgs, MenuContentArgs, MenuGroupArgs, Me
 export type { PopupPlacement, PopupPosition } from 'ajo-ui/menu'
 
 const rootBase = 'playa-menu-root'
-// The radio indicator and the submenu chevron are base-owned nodes, themed by slot.
-const radioIndicator = '*:data-[slot=menu-item-indicator]:playa-menu-indicator **:data-[slot=menu-item-indicator-icon]:playa-menu-radio-icon'
+// The submenu chevron is a base-owned node, themed by slot.
 const subTriggerIcon = '*:data-[slot=menu-sub-trigger-icon]:playa-menu-sub-trigger-icon'
 
 /** Root provider for a menu. */
@@ -66,9 +65,9 @@ const MenuCheckboxItem: Stateless<MenuCheckboxItemArgs> = ({ class: classes, ...
 	<BaseMenuCheckboxItem {...attrs} class={clx('playa-menu-choice-row', menuCheckIndicator, classes)} />
 )
 
-/** Radio item inside a menu radio group. */
+/** Radio item inside a menu radio group; the chosen item shows the same check. */
 const MenuRadioItem: Stateless<MenuRadioItemArgs> = ({ class: classes, value, ...attrs }) => (
-	<BaseMenuRadioItem {...attrs} class={clx('playa-menu-choice-row', radioIndicator, classes)} value={String(value)} />
+	<BaseMenuRadioItem {...attrs} class={clx('playa-menu-choice-row', menuCheckIndicator, classes)} value={String(value)} />
 )
 
 /** Visual separator between menu groups. */
@@ -76,7 +75,7 @@ const MenuSeparator: Stateless<MenuSeparatorArgs> = ({ class: classes, ...attrs 
 	<BaseMenuSeparator {...attrs} class={clx('playa-menu-separator', classes)} />
 )
 
-/** Right-aligned shortcut hint inside a menu item. */
+/** Shortcut hint at the end of a menu item. */
 const MenuShortcut: Stateless<MenuShortcutArgs> = ({ class: classes, ...attrs }) => (
 	<BaseMenuShortcut {...attrs} class={clx('playa-menu-shortcut', classes)} />
 )

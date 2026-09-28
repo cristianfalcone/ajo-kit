@@ -339,8 +339,8 @@ export const Basic: Story<typeof Select> = {
 		if (content.dataset.placement !== 'bottom-start') {
 			throw new Error(`Select default placement was ${content.dataset.placement ?? 'missing'}`)
 		}
-		if (Math.abs(contentRect.top - triggerRect.bottom - 6) > 2 || Math.abs(contentRect.left - triggerRect.left) > 2) {
-			throw new Error('Select default profile did not commit bottom-start geometry with a 6px gap')
+		if (Math.abs(contentRect.top - triggerRect.bottom - 8) > 1 || Math.abs(contentRect.left - triggerRect.left) > 2) {
+			throw new Error('Select default profile did not commit bottom-start geometry with an 8px gap')
 		}
 		if (Math.abs(parseFloat(content.style.getPropertyValue('--reference-width')) - triggerRect.width) > 1) {
 			throw new Error('Select did not expose its trigger reference width')

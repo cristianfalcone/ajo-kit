@@ -156,6 +156,27 @@ test('menubar profile keeps its shared gap and private cross-axis correction', a
 	view.stop()
 })
 
+test('select and date popups keep 8 px from their field, on the 4 px grid', async () => {
+	for (const profile of ['select', 'date'] as const) {
+		floating.computePosition.mockClear()
+		const reference = document.createElement('button')
+		const target = document.createElement('div')
+		document.body.append(reference, target)
+		const { element } = host()
+		const view = position(element, {
+			profile,
+			elements: () => ({ arrow: null, floating: target, reference }),
+		})
+
+		expect(await view.start()).toBe(true)
+		const options = floating.computePosition.mock.calls[0]?.[2] as {
+			middleware?: Array<{ name: string, options?: { mainAxis?: number } }>
+		}
+		expect(options.middleware?.find(item => item.name === 'offset')?.options?.mainAxis, profile).toBe(8)
+		view.stop()
+	}
+})
+
 test('automatic placement and preferred placement select mutually exclusive collision middleware', async () => {
 	const reference = document.createElement('button')
 	const target = document.createElement('div')

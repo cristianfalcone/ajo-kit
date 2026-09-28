@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { wait, until } from './play'
+import { frame, wait, until } from './play'
 import {
 	NavigationMenu,
 	NavigationMenuContent,
@@ -64,7 +64,7 @@ const RichMenu = ({ closeDelay, gap, openDelay, placement, value }: {
 	value?: string
 }) => (
 	<NavigationMenu closeDelay={closeDelay} gap={gap} openDelay={openDelay} placement={placement} value={value}>
-		<NavigationMenuList class="flex-wrap">
+		<NavigationMenuList>
 			<NavigationMenuItem value="home">
 				<NavigationMenuTrigger>Home</NavigationMenuTrigger>
 				<NavigationMenuContent>
@@ -72,9 +72,9 @@ const RichMenu = ({ closeDelay, gap, openDelay, placement, value }: {
 						<li class="row-span-3">
 							<NavigationMenuLink
 								href="/"
-								class="flex h-full min-h-36 w-full flex-col justify-end rounded-md bg-linear-to-b from-muted/60 to-muted p-5 no-underline"
+								class="flex h-full w-full flex-col justify-end rounded-md bg-muted p-4 no-underline"
 							>
-								<div class="mb-2 text-lg font-medium">Ajo Kit</div>
+								<div class="mb-2 text-base font-medium">Ajo Kit</div>
 								<p class="text-sm leading-tight text-muted-foreground">
 									Native Ajo components with Ajo Kit composition.
 								</p>
@@ -120,7 +120,7 @@ const RichMenu = ({ closeDelay, gap, openDelay, placement, value }: {
 							</NavigationMenuLink>
 							<NavigationMenuLink href="/todo" class="flex-row items-center gap-2">
 								<span class="i-lucide-circle" />
-								To Do
+								To do
 							</NavigationMenuLink>
 							<NavigationMenuLink href="/done" class="flex-row items-center gap-2">
 								<span class="i-lucide-circle-check" />
@@ -203,6 +203,67 @@ export const Default: Story<typeof NavigationMenu> = {
 		if (!canvas.querySelector('[data-slot="navigation-menu-link"][aria-current="page"]')) {
 			throw new Error('Active navigation link did not expose aria-current')
 		}
+	},
+}
+
+export const Narrow: Story<typeof NavigationMenu> = {
+	parameters: {
+		docs: { description: 'At phone width the list stays on one row and scrolls inline, so an open panel never covers a trigger.' },
+		viewport: { height: 844, width: 390 },
+	},
+	render: () => (
+		<div class="min-h-[420px]">
+			<RichMenu />
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const list = canvas.querySelector<HTMLElement>('[data-slot="navigation-menu-list"]')
+		const home = trigger(canvas, 'Home')
+		if (!list || !home) throw new Error('Navigation menu list or Home trigger was not rendered')
+
+		const items = Array.from(list.querySelectorAll<HTMLElement>('[data-slot="navigation-menu-item"]'))
+		const tops = new Set(items.map(item => Math.round(item.getBoundingClientRect().top)))
+		if (tops.size !== 1) throw new Error(`Navigation items wrapped onto ${tops.size} rows`)
+		if (list.scrollWidth <= list.clientWidth) throw new Error('The story no longer overflows its list at 390 px')
+
+		home.click()
+		await until(() => openContent(canvas)?.id === home.getAttribute('aria-controls'), 'Home content open')
+		const panel = openContent(canvas)?.getBoundingClientRect()
+		if (!panel) throw new Error('Home content did not open')
+		const controls = Array.from(list.querySelectorAll<HTMLElement>('[data-slot="navigation-menu-trigger"],[data-slot="navigation-menu-link"]'))
+			.filter(control => !control.closest('[data-slot="navigation-menu-content"]'))
+		if (controls.length !== 4) throw new Error(`Expected 4 list controls, found ${controls.length}`)
+		for (const control of controls) {
+			const rect = control.getBoundingClientRect()
+			const covered = rect.left < panel.right && rect.right > panel.left && rect.top < panel.bottom && rect.bottom > panel.top
+			if (covered) throw new Error(`The open panel covers "${control.textContent?.trim()}"`)
+		}
+
+		// A trigger the scroller only partly shows scrolls fully clear of the
+		// 16 px fade when it takes focus, so its focus ring is never cut. The
+		// scroll offset snaps to whole pixels, hence 15 px.
+		const status = trigger(canvas, 'Status')
+		if (!status) throw new Error('Status trigger was not rendered')
+		status.focus()
+		await frame(2)
+		const bounds = list.getBoundingClientRect()
+		const rect = status.getBoundingClientRect()
+		if (rect.left < bounds.left + 15 || rect.right > bounds.right - 15) {
+			throw new Error(`Focused "Status" at ${rect.left} to ${rect.right} is not clear of the list's fade (${bounds.left + 16} to ${bounds.right - 16})`)
+		}
+
+		// A press on the partly shown trigger does not scroll the list, so the
+		// release lands on the trigger and the click opens it.
+		status.blur()
+		list.scrollLeft = 0
+		await frame(2)
+		status.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+		status.focus()
+		await frame(2)
+		if (list.scrollLeft !== 0) throw new Error(`A press on "Status" scrolled the list by ${list.scrollLeft} px`)
+		status.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
+		status.click()
+		await until(() => openContent(canvas)?.id === status.getAttribute('aria-controls'), 'Status content open after a press')
 	},
 }
 

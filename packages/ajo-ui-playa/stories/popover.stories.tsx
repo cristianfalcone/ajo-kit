@@ -323,7 +323,7 @@ export const Basic: Story<typeof Popover> = {
 	render: args => (
 		<Popover label={args.title} description={args.description} placement={args.placement}>
 			<PopoverTrigger class={triggerClass} id="basic-popover-trigger">
-				Open Popover
+				Open popover
 			</PopoverTrigger>
 			<PopoverContent />
 		</Popover>
@@ -472,18 +472,18 @@ export const WithForm: Story<typeof Popover> = {
 	render: () => (
 		<Popover label="Dimensions form" description="Set the dimensions for the layer." placement="bottom-start">
 			<PopoverTrigger class={triggerClass} id="form-popover-trigger">
-				Open Popover
+				Open popover
 			</PopoverTrigger>
 			<PopoverContent class="w-64">
 				<FieldGroup class="mt-4 gap-4">
 					<Field orientation="horizontal">
-						<FieldLabel for="popover-width" class="w-1/2">
+						<FieldLabel for="popover-width" class="min-w-16">
 							Width
 						</FieldLabel>
 						<Input id="popover-width" set:value="100%" />
 					</Field>
 					<Field orientation="horizontal">
-						<FieldLabel for="popover-height" class="w-1/2">
+						<FieldLabel for="popover-height" class="min-w-16">
 							Height
 						</FieldLabel>
 						<Input id="popover-height" set:value="25px" />
@@ -560,7 +560,7 @@ export const HoverSides: Story<typeof Popover> = {
 					</PopoverTrigger>
 					<PopoverContent class={hoverContentClass} data-test={`hover-popover-${side}-content`}>
 						<div class="flex flex-col gap-1">
-							<h4 class="font-medium">Hover Popover</h4>
+							<h4 class="font-medium">Hover popover</h4>
 							<p class="text-sm">This hover popover appears on the {side} side of the trigger.</p>
 						</div>
 					</PopoverContent>

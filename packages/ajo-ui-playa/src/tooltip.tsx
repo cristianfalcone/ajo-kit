@@ -9,7 +9,7 @@ import {
 	type TooltipProviderArgs,
 } from 'ajo-ui/tooltip'
 import { stlx } from 'ajo-ui/utils'
-import { popupAnimation, popupSlide } from './internal/recipes'
+import { popupMotion } from './internal/popup'
 export { TooltipTrigger } from 'ajo-ui/tooltip'
 export type { PopupPlacement, PopupPosition, TooltipArgs, TooltipProviderArgs, TooltipTriggerArgs } from 'ajo-ui/tooltip'
 
@@ -19,7 +19,7 @@ export type TooltipContentArgs = OmitArg<BaseTooltipContentArgs, 'class'> & {
 }
 
 const rootBase = 'inline-block'
-const contentBase = 'playa-tooltip-content z-50 w-fit max-w-xs [--popup-radius:var(--radius)] rounded-[var(--popup-radius)] px-3 py-1.5 text-balance text-xs outline-none'
+const contentBase = 'playa-tooltip-content z-50 w-fit max-w-xs px-3 py-1 text-balance text-sm'
 
 /** Shared defaults for descendant Tooltip components. */
 const TooltipProvider: Stateless<TooltipProviderArgs> = ({ class: classes, style, ...attrs }) => (
@@ -39,7 +39,7 @@ const Tooltip: Stateless<TooltipArgs> = ({ class: classes, ...attrs }) => (
 const TooltipContent: Stateless<TooltipContentArgs> = ({ class: classes, ...attrs }) => (
 	<BaseTooltipContent
 		{...attrs}
-		class={clx('playa-popup-content', contentBase, popupAnimation, popupSlide, classes)}
+		class={clx('playa-popup-content', contentBase, popupMotion, classes)}
 	/>
 )
 

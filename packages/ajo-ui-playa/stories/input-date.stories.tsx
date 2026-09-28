@@ -204,7 +204,7 @@ export const WithCalendar: Story<typeof InputDate> = {
 		const resolvedGap = panel.dataset.side === 'bottom'
 			? panelRect.top - referenceRect.bottom
 			: referenceRect.top - panelRect.bottom
-		ensure(Math.abs(resolvedGap - 6) < 2, `Default date gap must resolve to 6px, got ${resolvedGap}`)
+		ensure(Math.abs(resolvedGap - 8) < 2, `Default date gap must resolve to 8px, got ${resolvedGap}`)
 
 		const days = Array.from(panel.querySelectorAll<HTMLButtonElement>('[data-slot="calendar-day-button"]:not(:disabled)'))
 		const day = days.slice(1).find(day => !day.hasAttribute('data-today'))

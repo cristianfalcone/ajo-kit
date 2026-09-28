@@ -88,8 +88,10 @@ const policies: Record<PositionProfile, Policy> = {
 	tooltip: { placement: 'top', gap: 8, padding: 8, inline: true, size: 'width', hidden: true, fallbackAxisSideDirection: 'start' },
 	menu: { placement: 'bottom-start', gap: 4, padding: 4, size: 'both', hidden: true },
 	submenu: { placement: 'right-start', gap: 4, padding: 4, size: 'both', hidden: true, fallbackPlacements: ['left-start'] },
-	select: { placement: 'bottom-start', gap: 6, padding: 8, size: 'both', hidden: true },
-	date: { placement: 'bottom-start', gap: 6, padding: 8, size: 'both', hidden: true },
+	// A field's popup keeps 8 px, on the 4 px grid of its rows and padding, so
+	// its edge meets a boundary below it or clears it, never a pixel or two short.
+	select: { placement: 'bottom-start', gap: 8, padding: 8, size: 'both', hidden: true },
+	date: { placement: 'bottom-start', gap: 8, padding: 8, size: 'both', hidden: true },
 	navigation: { placement: 'bottom', gap: 8, padding: 8, size: 'both', hidden: true },
 	context: { placement: 'bottom-start', gap: 2, padding: 4, size: 'both', hidden: true },
 	menubar: { placement: 'bottom-start', gap: 8, padding: 4, size: 'both', hidden: true, crossAxis: -4 },

@@ -176,6 +176,28 @@ const NavigationMenuRoot: Stateful<NavigationMenuArgs, 'nav'> = function* ({ def
 		state.close(event)
 	})
 
+	// A list trigger or link a theme's inline scroller only partly shows
+	// scrolls fully into view on keyboard focus: browsers scroll only a fully
+	// hidden one, which would leave the focus ring cut. No-op while the list
+	// fits. Focus from a press does not scroll: moving the trigger between
+	// press and release would send the click elsewhere. A tap focuses after
+	// pointerup, so the flag clears on the focus, the click or a cancel.
+	let pressed = false
+	const release = () => {
+		pressed = false
+	}
+	listen(this, 'pointerdown', () => {
+		pressed = true
+	})
+	listen(this, 'pointercancel', release)
+	listen(this, 'click', release)
+	listen(this, 'focusin', (event: FocusEvent) => {
+		const target = event.target as HTMLElement
+		if (pressed) return release()
+		if (target.closest('[data-slot="navigation-menu-content"]')) return
+		target.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+	})
+
 	for (const args of this) {
 		closeDelay = args.closeDelay ?? 300
 		onValueChange = args.onValueChange
