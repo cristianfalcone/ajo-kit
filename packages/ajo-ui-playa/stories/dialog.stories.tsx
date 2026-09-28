@@ -13,8 +13,8 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from 'ajo-ui-playa/dialog'
+import { Field, FieldGroup, FieldLabel } from 'ajo-ui-playa/field'
 import { Input } from 'ajo-ui-playa/input'
-import { Label } from 'ajo-ui-playa/label'
 
 export default {
 	title: 'UI/Dialog',
@@ -22,9 +22,9 @@ export default {
 	args: {
 		defaultOpen: false,
 		modal: true,
-		trigger: 'Open Dialog',
+		trigger: 'Edit profile',
 		title: 'Edit profile',
-		description: "Make changes to your profile here. Click save when you're done.",
+		description: 'Your name and email show on the deploys you make.',
 	},
 	parameters: {
 		docs: { description: 'Native HTMLDialogElement dialog with Ajo Kit composition, accessible title/description, Escape handling, and controlled/uncontrolled state.' },
@@ -38,16 +38,16 @@ const DemoForm = ({ description, title }: Args) => (
 			<DialogTitle>{title}</DialogTitle>
 			<DialogDescription>{description}</DialogDescription>
 		</DialogHeader>
-		<div class="grid gap-4">
-			<div class="grid gap-3">
-				<Label for="dialog-name">Name</Label>
-				<Input id="dialog-name" name="name" value="Pedro Duarte" />
-			</div>
-			<div class="grid gap-3">
-				<Label for="dialog-username">Username</Label>
-				<Input id="dialog-username" name="username" value="@peduarte" />
-			</div>
-		</div>
+		<FieldGroup>
+			<Field name="dialog-name">
+				<FieldLabel>Name</FieldLabel>
+				<Input name="name" value="Ana Ferreira" />
+			</Field>
+			<Field name="dialog-email">
+				<FieldLabel>Email</FieldLabel>
+				<Input name="email" type="email" value="ana@example.com" />
+			</Field>
+		</FieldGroup>
 		<DialogFooter>
 			<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
 			<Button type="submit">Save changes</Button>
@@ -70,8 +70,8 @@ const ControlledExample: Stateful<Args> = function* () {
 						<DialogDescription>{description}</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<Button type="button" set:onclick={() => setOpen(false)}>Done</Button>
-						<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
+						<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
+						<Button type="button" set:onclick={() => setOpen(false)}>Pause deploys</Button>
 					</DialogFooter>
 					<DialogClose />
 				</DialogContent>
@@ -86,8 +86,8 @@ export const Basic: Story<typeof Dialog> = {
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
 				{trigger}
 			</DialogTrigger>
-			<DialogContent class="sm:max-w-[425px]">
-				<form class="grid gap-4">
+			<DialogContent>
+				<form class="contents">
 					<DemoForm title={title} description={description} />
 				</form>
 				<DialogClose />
@@ -120,8 +120,9 @@ export const Basic: Story<typeof Dialog> = {
 		const animation = getComputedStyle(dialog)
 		const screenshot = new URLSearchParams(location.search).get('screenshot') === '1'
 		const duration = screenshot ? 0.000001 : 0.2
-		if (animation.animationName !== 'enter' || Math.abs(Number.parseFloat(animation.animationDuration) - duration) > 1e-9) {
-			throw new Error(`Dialog animation was ${animation.animationName} ${animation.animationDuration}; expected enter ${duration}s`)
+		const name = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'playa-modal-fade' : 'enter'
+		if (animation.animationName !== name || Math.abs(Number.parseFloat(animation.animationDuration) - duration) > 1e-9) {
+			throw new Error(`Dialog animation was ${animation.animationName} ${animation.animationDuration}; expected ${name} ${duration}s`)
 		}
 
 		await Promise.all(dialog.getAnimations().map(animation => animation.finished.catch(() => undefined)))
@@ -150,6 +151,20 @@ export const Basic: Story<typeof Dialog> = {
 			throw new Error('Dialog close button was not visible or clickable')
 		}
 
+		// The corner X sits on the title line, and the header's text stops short of it.
+		const header = canvas.querySelector<HTMLElement>('[data-slot="dialog-header"]')
+		const titleRect = canvas.querySelector('[data-slot="dialog-title"]')?.getBoundingClientRect()
+		if (!header || !titleRect) throw new Error('Dialog header or title was not rendered')
+		if (Math.abs(closeRect.top + closeRect.height / 2 - (titleRect.top + titleRect.height / 2)) > 1) {
+			throw new Error(`Dialog close is centred at ${closeRect.top + closeRect.height / 2}, off the title line at ${titleRect.top + titleRect.height / 2}`)
+		}
+		const headerRect = header.getBoundingClientRect()
+		const room = Number.parseFloat(getComputedStyle(header).paddingInlineEnd)
+		const clear = getComputedStyle(header).direction === 'rtl'
+			? closeRect.right <= headerRect.left + room
+			: headerRect.right - room <= closeRect.left
+		if (!clear) throw new Error('Dialog header text runs under the corner close')
+
 		close.click()
 		await frame(2)
 
@@ -161,9 +176,9 @@ export const Basic: Story<typeof Dialog> = {
 
 export const Invite: Story<typeof Dialog> = {
 	args: {
-		trigger: 'Invite collaborators',
-		title: 'Invite collaborators',
-		description: 'Share access with teammates who should review this workspace.',
+		trigger: 'Invite people',
+		title: 'Invite people',
+		description: 'They get an email with a link to join this host.',
 	},
 	render: ({ description, title, trigger, ...args }) => (
 		<Dialog {...args}>
@@ -175,13 +190,13 @@ export const Invite: Story<typeof Dialog> = {
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription>{description}</DialogDescription>
 				</DialogHeader>
-				<div class="grid gap-3">
-					<Label for="dialog-email">Email</Label>
-					<Input id="dialog-email" type="email" placeholder="name@example.com" />
-				</div>
+				<Field name="dialog-invite">
+					<FieldLabel>Email</FieldLabel>
+					<Input type="email" placeholder="name@example.com" />
+				</Field>
 				<DialogFooter>
+					<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
 					<Button type="button">Send invite</Button>
-					<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
 				</DialogFooter>
 				<DialogClose />
 			</DialogContent>
@@ -211,9 +226,9 @@ export const Invite: Story<typeof Dialog> = {
 
 export const Controlled: Story<typeof Dialog> = {
 	args: {
-		trigger: 'Open controlled dialog',
-		title: 'Controlled dialog',
-		description: 'The parent component owns the open state and reacts to dialog close events.',
+		trigger: 'Pause deploys',
+		title: 'Pause deploys',
+		description: 'New pushes wait in the queue until you resume deploys.',
 	},
 	argTypes: {
 		defaultOpen: { control: false },
@@ -248,9 +263,9 @@ export const Controlled: Story<typeof Dialog> = {
 
 export const NoDefaultCloseButton: Story<typeof Dialog> = {
 	args: {
-		trigger: 'Open custom close dialog',
-		title: 'Custom footer close',
-		description: 'No top-right close is composed; the footer action closes the dialog.',
+		trigger: 'Rotate token',
+		title: 'Rotate token',
+		description: 'The current token stops working as soon as the new one is created.',
 	},
 	render: ({ description, title, trigger, ...args }) => (
 		<Dialog {...args}>
@@ -263,8 +278,8 @@ export const NoDefaultCloseButton: Story<typeof Dialog> = {
 					<DialogDescription>{description}</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
-					<Button type="button">Confirm</Button>
-					<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
+					<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
+					<Button type="button">Rotate token</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
@@ -295,9 +310,9 @@ export const NoDefaultCloseButton: Story<typeof Dialog> = {
 
 export const PreventEscape: Story<typeof Dialog> = {
 	args: {
-		trigger: 'Open guarded dialog',
-		title: 'Unsaved changes',
-		description: 'Escape is prevented so the dialog can require an explicit action.',
+		trigger: 'Close settings',
+		title: 'Discard changes?',
+		description: 'The app settings have changes you have not saved. Escape keeps this open until you choose.',
 	},
 	render: ({ description, title, trigger, ...args }) => (
 		<Dialog {...args}>
@@ -314,9 +329,9 @@ export const PreventEscape: Story<typeof Dialog> = {
 					<DialogDescription>{description}</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
-					<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
+					<DialogClose class={buttonVariants({ variant: 'outline' })}>Keep editing</DialogClose>
+					<DialogClose class={buttonVariants({ variant: 'danger' })}>Discard changes</DialogClose>
 				</DialogFooter>
-				<DialogClose />
 			</DialogContent>
 		</Dialog>
 	),

@@ -138,9 +138,11 @@ describe('playa preset', () => {
 
 		expect(css).toContain('.playa-select-item > *[data-selected=false][data-slot=select-item-indicator]{visibility:hidden;}')
 		expect(css).toContain('.playa-select-input:has([data-slot=select-clear]) [data-slot=select-input-trigger]{display:none;}')
-		expect(css).toContain('.playa-toaster>:where([data-slot=toast][data-variant=danger]){color:')
-		expect(css).toContain('.playa-toaster[data-rich-colors]>:where([data-slot=toast][data-variant=info]){color:')
-		expect(css).toContain('[data-rich-colors]>[data-slot=toast][data-variant=info]{background-color:')
+		expect(css).toContain(':where([data-slot=toast]){pointer-events:auto;')
+		expect(css).toContain(':where([data-rich-colors]>[data-slot=toast][data-variant=info]){--toast-tint:var(--info)}')
+		// An error toast is tinted with or without richColors.
+		expect(css).toContain(':where([data-slot=toast][data-variant=danger]){--toast-tint:var(--danger)}')
+		expect(css).toContain(':where([data-slot=toast][data-variant=danger],[data-rich-colors]>[data-slot=toast]:not([data-variant=default])){background-color:color-mix(')
 	})
 
 	it('emits family part rules and keyframes only with their class, the rules before every utility', async () => {
@@ -159,7 +161,7 @@ describe('playa preset', () => {
 			.generate('playa-chart playa-toaster playa-drawer playa-popup-content playa-button-group playa-progress shimmer h-9')
 		const first = (text: string) => css.indexOf(text)
 		expect(css).toContain('@keyframes chart-grow{from{transform:scaleY(0)}}')
-		expect(css).toContain('[data-slot=toast]{position:absolute;left:1rem;right:1rem;')
+		expect(css).toContain('[data-slot=toast]{position:absolute;inset-inline:1rem;')
 		expect(css).toContain('[data-slot=drawer-content][data-side=bottom]:not([open]){transform:translateY(100%)}')
 		expect(css).toContain('.playa-button-group.playa-button-group>:active{scale:none}')
 		expect(css).toContain('.playa-progress[data-state=indeterminate]>[data-slot=progress-indicator]{animation:progress-slide 1.4s ease-in-out infinite}@keyframes progress-slide{')

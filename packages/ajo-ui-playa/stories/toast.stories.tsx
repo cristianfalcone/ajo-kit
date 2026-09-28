@@ -42,13 +42,13 @@ function assertCloseVisible(close: HTMLButtonElement | null): asserts close is H
 const DefaultDemo: Stateful = function* () {
 	toast.dismiss()
 
-	const show = () => toast('Event has been created.', {
-		description: 'Sunday, December 03, 2023 at 9:00 AM',
+	const show = () => toast('Domain added', {
+		description: 'app.example.com now reaches billing-api.',
 	})
 
 	while (true) yield (
 		<div class="flex min-h-48 items-center justify-center">
-			<Button variant="outline" set:onclick={show}>Show Toast</Button>
+			<Button variant="outline" set:onclick={show}>Add domain</Button>
 			<Toaster duration={3000} />
 		</div>
 	)
@@ -58,21 +58,21 @@ const StackedDemo: Stateful = function* () {
 	toast.dismiss()
 
 	const show = () => {
-		toast('Copy Page', { description: 'Copied to clipboard.', duration: 0 })
-		toast('Invite sent', { description: 'Ana can now access this workspace.', duration: 0 })
-		toast('Event has been created', {
+		toast('Token copied', { description: 'Paste it where your deploy script reads it.', duration: 0 })
+		toast('Invite sent', { description: 'Ana gets an email with a link to join this host.', duration: 0 })
+		toast('Secret removed', {
 			action: {
 				label: 'Undo',
-				onClick: () => toast.success('Event restored'),
+				onClick: () => toast.success('Secret restored'),
 			},
-			description: 'Sunday, December 03, 2023 at 9:00 AM',
+			description: 'DATABASE_URL no longer reaches billing-api.',
 			duration: 0,
 		})
 	}
 
 	while (true) yield (
 		<div class="flex min-h-48 items-center justify-center">
-			<Button variant="outline" set:onclick={show}>Show Stack</Button>
+			<Button variant="outline" set:onclick={show}>Show stack</Button>
 			<Toaster duration={0} />
 		</div>
 	)
@@ -83,12 +83,12 @@ const TypesDemo: Stateful = function* () {
 
 	while (true) yield (
 		<div class="flex min-h-48 flex-wrap items-center justify-center gap-2">
-			<Button variant="outline" set:onclick={() => toast('Event has been created')}>Default</Button>
-			<Button variant="outline" set:onclick={() => toast.success('Event has been created')}>Success</Button>
-			<Button variant="outline" set:onclick={() => toast.info('Be there 10 minutes before the event')}>Info</Button>
-			<Button variant="outline" set:onclick={() => toast.warning('Event start time cannot be earlier than 8am')}>Warning</Button>
-			<Button variant="outline" set:onclick={() => toast.error('Event has not been created')}>Error</Button>
-			<Button variant="outline" set:onclick={() => toast.loading('Saving event')}>Loading</Button>
+			<Button variant="outline" set:onclick={() => toast('Deploy started')}>Default</Button>
+			<Button variant="outline" set:onclick={() => toast.success('App deployed')}>Success</Button>
+			<Button variant="outline" set:onclick={() => toast.info('Backups run at 02:00 every night')}>Info</Button>
+			<Button variant="outline" set:onclick={() => toast.warning('Disk is 85% full. Remove old versions to free space.')}>Warning</Button>
+			<Button variant="outline" set:onclick={() => toast.error('Deploy failed. Check the build log for the first error.')}>Error</Button>
+			<Button variant="outline" set:onclick={() => toast.loading('Deploying billing-api')}>Loading</Button>
 			<Toaster richColors duration={3000} />
 		</div>
 	)
@@ -97,17 +97,17 @@ const TypesDemo: Stateful = function* () {
 const ActionDemo: Stateful = function* () {
 	toast.dismiss()
 
-	const show = () => toast('Event has been created', {
+	const show = () => toast('Secret removed', {
 		action: {
 			label: 'Undo',
-			onClick: () => toast.success('Undo applied'),
+			onClick: () => toast.success('Secret restored'),
 		},
-		description: 'Sunday, December 03, 2023 at 9:00 AM',
+		description: 'DATABASE_URL no longer reaches billing-api.',
 	})
 
 	while (true) yield (
 		<div class="flex min-h-48 items-center justify-center">
-			<Button set:onclick={show}>Show Action Toast</Button>
+			<Button set:onclick={show}>Remove secret</Button>
 			<Toaster duration={3000} />
 		</div>
 	)
@@ -118,18 +118,18 @@ const PromiseDemo: Stateful = function* () {
 
 	const show = () => {
 		void toast.promise(
-			() => new Promise<{ name: string }>(resolve => setTimeout(() => resolve({ name: 'Event' }), 30)),
+			() => new Promise<{ name: string }>(resolve => setTimeout(() => resolve({ name: 'billing-api' }), 30)),
 			{
-				error: 'Error',
-				loading: 'Loading...',
-				success: (data: { name: string }) => `${data.name} has been created`,
+				error: 'Deploy failed',
+				loading: 'Deploying billing-api',
+				success: (data: { name: string }) => `${data.name} deployed`,
 			},
 		)
 	}
 
 	while (true) yield (
 		<div class="flex min-h-48 items-center justify-center">
-			<Button variant="outline" set:onclick={show}>Promise</Button>
+			<Button variant="outline" set:onclick={show}>Deploy</Button>
 			<Toaster duration={3000} />
 		</div>
 	)
@@ -138,22 +138,22 @@ const PromiseDemo: Stateful = function* () {
 const AboveModalDemo: Stateful = function* () {
 	toast.dismiss()
 
-	const early = () => toast('Deploy queued', { description: 'Fired before the modal opened.', duration: 0 })
-	const inside = () => toast('Saved from the modal', { description: 'Fired while the dialog is open.', duration: 0 })
+	const early = () => toast('Deploy queued', { description: 'billing-api starts after the current build.', duration: 0 })
+	const inside = () => toast('Limits saved', { description: 'They apply on the next deploy.', duration: 0 })
 
 	while (true) yield (
 		<div class="flex min-h-48 items-center justify-center gap-2">
-			<Button variant="outline" set:onclick={early}>Toast First</Button>
+			<Button variant="outline" set:onclick={early}>Queue deploy</Button>
 			<Dialog>
-				<DialogTrigger class={buttonVariants({ variant: 'outline' })}>Open Dialog</DialogTrigger>
+				<DialogTrigger class={buttonVariants({ variant: 'outline' })}>Edit limits</DialogTrigger>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>Modal dialog</DialogTitle>
-						<DialogDescription>Toasts fired around this modal must stay above it in the top layer.</DialogDescription>
+						<DialogTitle>Edit limits</DialogTitle>
+						<DialogDescription>Memory and CPU for billing-api. Toasts fired here stay above the dialog.</DialogDescription>
 					</DialogHeader>
-					<Button type="button" variant="outline" set:onclick={inside}>Toast From Dialog</Button>
 					<DialogFooter>
-						<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
+						<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
+						<Button type="button" set:onclick={inside}>Save limits</Button>
 					</DialogFooter>
 					<DialogClose />
 				</DialogContent>
@@ -166,11 +166,11 @@ const AboveModalDemo: Stateful = function* () {
 const PositionDemo: Stateful = function* () {
 	toast.dismiss()
 
-	const show = () => toast('Event has been created', { position: 'top-center' })
+	const show = () => toast('Settings saved', { position: 'top-center' })
 
 	while (true) yield (
 		<div class="flex min-h-48 items-center justify-center">
-			<Button variant="outline" set:onclick={show}>Top Center</Button>
+			<Button variant="outline" set:onclick={show}>Top center</Button>
 			<Toaster />
 		</div>
 	)
@@ -179,11 +179,11 @@ const PositionDemo: Stateful = function* () {
 const HoverPauseDemo: Stateful = function* () {
 	toast.dismiss()
 
-	const anchor = () => toast('Sticky while hovered', { duration: 0 })
+	const anchor = () => toast('Build started', { duration: 0 })
 
 	while (true) yield (
 		<div class="flex min-h-48 items-center justify-center">
-			<Button variant="outline" set:onclick={anchor}>Anchor Toast</Button>
+			<Button variant="outline" set:onclick={anchor}>Start build</Button>
 			<Toaster />
 		</div>
 	)
@@ -192,7 +192,7 @@ const HoverPauseDemo: Stateful = function* () {
 export const Default: Story = {
 	render: () => <DefaultDemo />,
 	play: async ({ canvas }) => {
-		const button = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Show Toast'))
+		const button = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Add domain'))
 		if (!button) throw new Error('Toast default trigger was not rendered')
 
 		// The viewports are permanent polite live regions: shown even while
@@ -215,7 +215,7 @@ export const Default: Story = {
 
 		const root = canvas.querySelector<HTMLElement>('[data-slot="toaster"]')
 		const toastNode = canvas.querySelector<HTMLElement>('[data-slot="toast"]')
-		if (!root || !toastNode || !canvas.textContent?.includes('Event has been created.')) {
+		if (!root || !toastNode || !canvas.textContent?.includes('Domain added')) {
 			throw new Error('Toast default toast was not rendered')
 		}
 		if (root.hasAttribute('data-theme') || root.hasAttribute('data-position')) {
@@ -238,7 +238,7 @@ export const Default: Story = {
 export const Stacked: Story = {
 	render: () => <StackedDemo />,
 	play: async ({ canvas }) => {
-		const button = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Show Stack'))
+		const button = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Show stack'))
 		if (!button) throw new Error('Toast stacked trigger was not rendered')
 
 		button.click()
@@ -326,7 +326,7 @@ export const Types: Story = {
 
 		success.click()
 		await frame()
-		if (!canvas.querySelector('[data-slot="toast-icon"]') || !canvas.textContent?.includes('Event has been created')) {
+		if (!canvas.querySelector('[data-slot="toast-icon"]') || !canvas.textContent?.includes('App deployed')) {
 			throw new Error('Toast success toast did not render with an icon')
 		}
 
@@ -334,7 +334,7 @@ export const Types: Story = {
 		await frame()
 		const alert = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="toast"]'))
 			.find(node => node.getAttribute('role') === 'alert')
-		if (!alert || !canvas.textContent?.includes('Event has not been created')) {
+		if (!alert || !canvas.textContent?.includes('Deploy failed')) {
 			throw new Error('Toast error toast should use alert semantics')
 		}
 	},
@@ -343,7 +343,7 @@ export const Types: Story = {
 export const WithAction: Story = {
 	render: () => <ActionDemo />,
 	play: async ({ canvas }) => {
-		const button = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Show Action Toast'))
+		const button = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Remove secret'))
 		if (!button) throw new Error('Toast action trigger was not rendered')
 
 		button.click()
@@ -352,10 +352,22 @@ export const WithAction: Story = {
 		const action = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Undo'))
 		if (!action) throw new Error('Toast action was not rendered')
 
+		// Keyboard focus shows the one ring: --focus-width of --ring.
+		action.focus({ focusVisible: true })
+		const probe = document.createElement('span')
+		probe.style.color = 'var(--ring)'
+		canvas.append(probe)
+		const ring = getComputedStyle(probe).color
+		probe.remove()
+		const { outlineColor, outlineStyle, outlineWidth } = getComputedStyle(action)
+		if (!action.matches(':focus-visible') || outlineStyle !== 'solid' || outlineWidth !== '2px' || outlineColor !== ring) {
+			throw new Error(`Focused toast action shows ${outlineStyle} ${outlineWidth} ${outlineColor}; expected solid 2px ${ring}`)
+		}
+
 		action.click()
 		await frame()
 
-		if (!canvas.textContent?.includes('Undo applied')) {
+		if (!canvas.textContent?.includes('Secret restored')) {
 			throw new Error('Toast action callback did not run')
 		}
 	},
@@ -365,17 +377,17 @@ export const PromiseToast: Story = {
 	name: 'Promise',
 	render: () => <PromiseDemo />,
 	play: async ({ canvas }) => {
-		const button = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Promise'))
+		const button = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Deploy'))
 		if (!button) throw new Error('Toast promise trigger was not rendered')
 
 		button.click()
 		await frame()
-		if (!canvas.textContent?.includes('Loading...')) {
+		if (!canvas.textContent?.includes('Deploying billing-api')) {
 			throw new Error('Toast promise did not render loading state')
 		}
 
 		await wait(80)
-		if (!canvas.textContent?.includes('Event has been created')) {
+		if (!canvas.textContent?.includes('billing-api deployed')) {
 			throw new Error('Toast promise did not update to success state')
 		}
 	},
@@ -384,7 +396,7 @@ export const PromiseToast: Story = {
 export const AboveModal: Story = {
 	render: () => <AboveModalDemo />,
 	play: async ({ canvas }) => {
-		const first = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Toast First'))
+		const first = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Queue deploy'))
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="dialog-trigger"]')
 		const dialog = canvas.querySelector<HTMLDialogElement>('[data-slot="dialog-content"]')
 		if (!first || !trigger || !dialog) throw new Error('Toast above-modal controls were not rendered')
@@ -415,7 +427,7 @@ export const AboveModal: Story = {
 		// While the modal is open the toasts re-home INTO the dialog subtree —
 		// everything outside a modal is inert regardless of top-layer order,
 		// so only there can they stay interactive and announced.
-		const inside = Array.from(dialog.querySelectorAll('button')).find(node => node.textContent?.includes('Toast From Dialog'))
+		const inside = Array.from(dialog.querySelectorAll('button')).find(node => node.textContent?.includes('Save limits'))
 		if (!inside) throw new Error('Toast above-modal dialog button was not rendered')
 
 		inside.click()
@@ -426,7 +438,7 @@ export const AboveModal: Story = {
 		}
 
 		const portalToasts = () => Array.from(dialog.querySelectorAll<HTMLElement>('[data-slot="toast"]'))
-		const toastNode = portalToasts().find(node => node.textContent?.includes('Saved from the modal'))
+		const toastNode = portalToasts().find(node => node.textContent?.includes('Limits saved'))
 		if (!toastNode) throw new Error('Toast fired during a modal should render inside the dialog subtree')
 		if (!portalToasts().some(node => node.textContent?.includes('Deploy queued'))) {
 			throw new Error('Toasts fired before the modal should re-home into the open dialog')
@@ -452,7 +464,7 @@ export const AboveModal: Story = {
 		close.click()
 		await wait(300)
 		if (!dialog.open) throw new Error('Dismissing a toast must not close the modal dialog')
-		if (portalToasts().some(node => node.textContent?.includes('Saved from the modal'))) {
+		if (portalToasts().some(node => node.textContent?.includes('Limits saved'))) {
 			throw new Error('Toast was not dismissed from inside the modal')
 		}
 
@@ -480,14 +492,14 @@ export const AboveModal: Story = {
 export const HoverPause: Story = {
 	render: () => <HoverPauseDemo />,
 	play: async ({ canvas }) => {
-		const anchor = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Anchor Toast'))
+		const anchor = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Start build'))
 		if (!anchor) throw new Error('Toast hover-pause trigger was not rendered')
 
 		anchor.click()
 		await frame()
 
 		const viewport = canvas.querySelector<HTMLElement>('[data-slot="toast-viewport"][data-position="bottom-right"]')
-		if (!viewport || !canvas.textContent?.includes('Sticky while hovered')) {
+		if (!viewport || !canvas.textContent?.includes('Build started')) {
 			throw new Error('Toast hover-pause anchor toast was not rendered')
 		}
 
@@ -498,16 +510,16 @@ export const HoverPause: Story = {
 		// A toast fired WHILE hovering must freeze with the rest of the stack:
 		// pointerenter cannot re-fire under a stationary pointer, so the render
 		// loop re-pauses the stack instead.
-		toast('Fired under the pointer', { duration: 120 })
+		toast('Build finished', { duration: 120 })
 		await wait(400)
-		if (!canvas.textContent?.includes('Fired under the pointer')) {
+		if (!canvas.textContent?.includes('Build finished')) {
 			throw new Error('Toast fired while hovering was not pause-protected')
 		}
 
 		// Leaving the stack resumes its timer and it dismisses normally.
 		viewport.dispatchEvent(new PointerEvent('pointerleave'))
 		await wait(600)
-		if (canvas.textContent?.includes('Fired under the pointer')) {
+		if (canvas.textContent?.includes('Build finished')) {
 			throw new Error('Toast did not resume its timer after the pointer left')
 		}
 
@@ -518,14 +530,14 @@ export const HoverPause: Story = {
 export const Position: Story = {
 	render: () => <PositionDemo />,
 	play: async ({ canvas }) => {
-		const button = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Top Center'))
+		const button = Array.from(canvas.querySelectorAll('button')).find(node => node.textContent?.includes('Top center'))
 		if (!button) throw new Error('Toast position trigger was not rendered')
 
 		button.click()
 		await frame()
 
 		const viewport = canvas.querySelector<HTMLElement>('[data-slot="toast-viewport"][data-position="top-center"]')
-		if (!viewport || !viewport.textContent?.includes('Event has been created')) {
+		if (!viewport || !viewport.textContent?.includes('Settings saved')) {
 			throw new Error('Toast did not render the toast in the requested position viewport')
 		}
 

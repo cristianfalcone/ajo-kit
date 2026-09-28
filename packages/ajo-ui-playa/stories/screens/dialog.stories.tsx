@@ -182,12 +182,6 @@ export default {
 } satisfies Meta
 
 export const Default: Story = {
-	parameters: {
-		known: [
-			{ check: 'motion', slice: 'p5-kit-15', variants: ['light-1280 remove-domain'], targets: ['dialog[data-slot=alert-dialog-content]'] },
-			{ check: 'motion', slice: 'p5-kit-15', variants: ['light-1280 add-domain'], targets: ['dialog[data-slot=dialog-content]'] },
-		],
-	},
 	// Enter on the trigger and Escape in the dialog are native, which a play's untrusted keys
 	// cannot do: it clicks the trigger and fires the cancel event Escape fires (README, Keyboard).
 	play: async ({ canvas, setArg }) => {
@@ -214,9 +208,6 @@ export const Default: Story = {
 export const ServerError: Story = {
 	args: { error: true },
 	parameters: {
-		known: [
-			{ check: 'motion', slice: 'p5-kit-15', variants: ['light-1280 add-domain'], targets: ['dialog[data-slot=dialog-content]'] },
-		],
 		layers: { 'add-domain': '[data-screen-layer="add-domain"]' },
 	},
 }

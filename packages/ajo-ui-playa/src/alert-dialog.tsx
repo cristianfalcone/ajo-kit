@@ -4,9 +4,6 @@ import { buttonVariants, type ButtonSize, type ButtonVariant } from './button'
 import {
 	Dialog as BaseDialog,
 	DialogClose as BaseDialogClose,
-	DialogFooter as BaseDialogFooter,
-	DialogHeader as BaseDialogHeader,
-	DialogTitle as BaseDialogTitle,
 	DialogTrigger as BaseDialogTrigger,
 	type DialogArgs as BaseDialogArgs,
 	type DialogCloseArgs as BaseDialogCloseArgs,
@@ -16,7 +13,7 @@ import {
 	type DialogTitleArgs as BaseDialogTitleArgs,
 	type DialogTriggerArgs as BaseDialogTriggerArgs,
 } from 'ajo-ui/dialog'
-import { DialogContent, DialogDescription } from './dialog'
+import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './dialog'
 
 export type AlertDialogSize = 'default' | 'sm'
 
@@ -64,11 +61,11 @@ export type AlertDialogCancelArgs = BaseDialogCloseArgs & {
 	size?: ButtonSize
 }
 
-const contentBase = 'data-[size=sm]:max-w-xs sm:data-[size=default]:max-w-lg'
-const headerBase = 'grid grid-rows-[auto_1fr] place-items-center text-center has-data-[slot=alert-dialog-media]:grid-rows-[auto_auto_1fr] has-data-[slot=alert-dialog-media]:gap-x-6 sm:[[data-slot=alert-dialog-content][data-size=default]_&]:place-items-start sm:[[data-slot=alert-dialog-content][data-size=default]_&]:text-left sm:[[data-slot=alert-dialog-content][data-size=default]_&:has([data-slot=alert-dialog-media])]:grid-rows-[auto_1fr]'
-const footerBase = 'flex flex-col-reverse gap-2 [[data-slot=alert-dialog-content][data-size=sm]_&]:grid [[data-slot=alert-dialog-content][data-size=sm]_&]:grid-cols-2 sm:flex-row sm:justify-end'
-const titleBase = 'text-lg font-semibold sm:[[data-slot=alert-dialog-content][data-size=default]:has([data-slot=alert-dialog-media])_&]:col-start-2'
-const mediaBase = 'mb-2 inline-flex size-16 items-center justify-center rounded-md bg-muted sm:[[data-slot=alert-dialog-content][data-size=default]_&]:row-span-2 [&>svg:not([class*=size-])]:size-8'
+// Dialog's header and footer, so every modal keeps one alignment and one
+// button order; the small size shares its row between the two actions.
+const contentBase = 'data-[size=sm]:w-80'
+const footerBase = '[[data-slot=alert-dialog-content][data-size=sm]_&]:*:flex-1'
+const mediaBase = 'mb-2 inline-flex size-10 items-center justify-center self-start rounded-full bg-muted [&>svg:not([class*=size-])]:size-5'
 
 /** Root provider for a modal alert dialog that requires a user response. */
 const AlertDialog: Stateless<AlertDialogArgs> = attrs => (
@@ -98,18 +95,18 @@ const AlertDialogContent: Stateless<AlertDialogContentArgs> = ({
 )
 
 /** Header area for alert dialog title, description, and optional media. */
-const AlertDialogHeader: Stateless<AlertDialogHeaderArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogHeader {...attrs} class={clx(headerBase, classes)} data-slot="alert-dialog-header" />
+const AlertDialogHeader: Stateless<AlertDialogHeaderArgs> = attrs => (
+	<DialogHeader {...attrs} data-slot="alert-dialog-header" />
 )
 
 /** Footer area for alert dialog cancel and action buttons. */
 const AlertDialogFooter: Stateless<AlertDialogFooterArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogFooter {...attrs} class={clx(footerBase, classes)} data-slot="alert-dialog-footer" />
+	<DialogFooter {...attrs} class={clx(footerBase, classes)} data-slot="alert-dialog-footer" />
 )
 
 /** Accessible title for AlertDialogContent. */
-const AlertDialogTitle: Stateless<AlertDialogTitleArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogTitle {...attrs} class={clx(titleBase, classes)} data-slot="alert-dialog-title" />
+const AlertDialogTitle: Stateless<AlertDialogTitleArgs> = attrs => (
+	<DialogTitle {...attrs} data-slot="alert-dialog-title" />
 )
 
 /** Accessible description for AlertDialogContent. */

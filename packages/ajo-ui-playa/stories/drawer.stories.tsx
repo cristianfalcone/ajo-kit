@@ -13,8 +13,8 @@ import {
 	DrawerTitle,
 	type DrawerSide,
 } from 'ajo-ui-playa/drawer'
+import { Field, FieldGroup, FieldLabel } from 'ajo-ui-playa/field'
 import { Input } from 'ajo-ui-playa/input'
-import { Label } from 'ajo-ui-playa/label'
 
 export default {
 	title: 'UI/Drawer',
@@ -23,9 +23,9 @@ export default {
 		defaultOpen: false,
 		modal: true,
 		side: 'right',
-		trigger: 'Open',
+		trigger: 'Edit profile',
 		title: 'Edit profile',
-		description: "Make changes to your profile here. Click save when you're done.",
+		description: 'Your name and email show on the deploys you make.',
 	},
 	argTypes: {
 		side: { control: 'select', options: ['top', 'right', 'bottom', 'left'] },
@@ -66,6 +66,26 @@ const assertCloseButton = (drawer: HTMLDialogElement) => {
 	}
 
 	return close
+}
+
+// The corner X sits on the header's title line, at the end of the header
+// (the end of a sheet's column), and the header's text stops short of it.
+const assertCloseAtHeader = (drawer: HTMLDialogElement, side: DrawerSide) => {
+	const close = closeButton(drawer).getBoundingClientRect()
+	const header = drawer.querySelector<HTMLElement>('[data-slot="drawer-header"]')
+	const title = drawer.querySelector('[data-slot="drawer-title"]')?.getBoundingClientRect()
+	if (!header || !title) throw new Error(`Drawer side ${side} header or title was not rendered`)
+	const rect = header.getBoundingClientRect()
+	const room = Number.parseFloat(getComputedStyle(header).paddingInlineEnd)
+	const rtl = getComputedStyle(header).direction === 'rtl'
+	const inset = rtl ? close.left - rect.left : rect.right - close.right
+	if (inset < 0 || inset > 16) throw new Error(`Drawer side ${side} close sits ${inset}px from its header's end; expected 0 to 16`)
+	if (rtl ? close.right > rect.left + room : rect.right - room > close.left) {
+		throw new Error(`Drawer side ${side} header text runs under the corner close`)
+	}
+	if (Math.abs(close.top + close.height / 2 - (title.top + title.height / 2)) > 1) {
+		throw new Error(`Drawer side ${side} close is off its title line`)
+	}
 }
 
 const assertTransition = (drawer: HTMLDialogElement) => {
@@ -148,6 +168,13 @@ const assertSide = (drawer: HTMLDialogElement, side: DrawerSide) => {
 	if (side === 'bottom' && (Math.abs(rect.bottom - height) > tolerance || rect.height >= height * 0.9)) {
 		throw new Error('Bottom drawer was not anchored to the bottom edge with content height')
 	}
+
+	// A sheet across the viewport keeps its parts to the 40rem form measure.
+	const measure = 40 * Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+	const parts = Array.from(drawer.querySelectorAll<HTMLElement>('[data-slot=drawer-header], [data-slot=drawer-footer]'))
+	if ((side === 'top' || side === 'bottom') && parts.some(part => part.getBoundingClientRect().width > measure + tolerance)) {
+		throw new Error(`${side} drawer spread its header or footer past the form measure`)
+	}
 }
 
 const drag = (handle: HTMLElement, fromY: number, toY: number) => {
@@ -183,16 +210,16 @@ const drag = (handle: HTMLElement, fromY: number, toY: number) => {
 }
 
 const ProfileFields = () => (
-	<div class="grid flex-1 auto-rows-min gap-6 px-4">
-		<div class="grid gap-3">
-			<Label for="drawer-demo-name">Name</Label>
-			<Input id="drawer-demo-name" value="Pedro Duarte" />
-		</div>
-		<div class="grid gap-3">
-			<Label for="drawer-demo-username">Username</Label>
-			<Input id="drawer-demo-username" value="@peduarte" />
-		</div>
-	</div>
+	<FieldGroup class="px-4">
+		<Field name="drawer-name">
+			<FieldLabel>Name</FieldLabel>
+			<Input value="Ana Ferreira" />
+		</Field>
+		<Field name="drawer-email">
+			<FieldLabel>Email</FieldLabel>
+			<Input type="email" value="ana@example.com" />
+		</Field>
+	</FieldGroup>
 )
 
 const ProfileContent = ({ description, title }: Args) => (
@@ -203,8 +230,8 @@ const ProfileContent = ({ description, title }: Args) => (
 		</DrawerHeader>
 		<ProfileFields />
 		<DrawerFooter>
+			<DialogClose class={buttonVariants({ variant: 'outline' })}>Cancel</DialogClose>
 			<Button type="submit">Save changes</Button>
-			<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
 		</DrawerFooter>
 		<DialogClose />
 	</DrawerContent>
@@ -213,18 +240,17 @@ const ProfileContent = ({ description, title }: Args) => (
 const NavigationContent = () => (
 	<>
 		<DrawerHeader>
-			<DrawerTitle>Navigation</DrawerTitle>
-			<DrawerDescription>Choose where this drawer should appear.</DrawerDescription>
+			<DrawerTitle>billing-api</DrawerTitle>
+			<DrawerDescription>Go to a part of this app.</DrawerDescription>
 		</DrawerHeader>
 		<div class="grid gap-2 px-4 pb-4">
-			<a class="rounded-md edge p-3 text-sm" href="#overview">Overview</a>
-			<a class="rounded-md edge p-3 text-sm" href="#settings">Settings</a>
-			<a class="rounded-md edge p-3 text-sm" href="#members">Members</a>
+			<a class="rounded-md edge p-3 text-sm" href="#versions">Versions</a>
+			<a class="rounded-md edge p-3 text-sm" href="#domains">Domains</a>
+			<a class="rounded-md edge p-3 text-sm" href="#secrets">Secrets</a>
 		</div>
 		<DrawerFooter>
 			<DialogClose class={buttonVariants({ variant: 'outline' })}>Close</DialogClose>
 		</DrawerFooter>
-		<DialogClose />
 	</>
 )
 
@@ -325,6 +351,7 @@ export const Sides: Story<typeof Drawer> = {
 			assertVisualChrome(drawer, side)
 			await settle(drawer)
 			assertSide(drawer, side)
+			assertCloseAtHeader(drawer, side)
 
 			const close = assertCloseButton(drawer)
 			close.click()
@@ -335,7 +362,7 @@ export const Sides: Story<typeof Drawer> = {
 
 export const Controlled: Story<typeof Drawer> = {
 	args: {
-		trigger: 'Open controlled drawer',
+		trigger: 'Edit profile',
 	},
 	argTypes: {
 		defaultOpen: { control: false },
@@ -372,7 +399,7 @@ export const NoCloseButton: Story<typeof Drawer> = {
 	args: {
 		trigger: 'Open notifications',
 		title: 'Notifications',
-		description: 'Review updates from this workspace.',
+		description: 'What changed on this host today.',
 	},
 	render: ({ description, side, title, trigger, ...args }) => (
 		<Drawer {...args} side={side}>
@@ -385,8 +412,8 @@ export const NoCloseButton: Story<typeof Drawer> = {
 					<DrawerDescription>{description}</DrawerDescription>
 				</DrawerHeader>
 				<div class="grid gap-3 px-4">
-					<p class="rounded-md edge bg-muted p-3 text-sm">Build finished successfully.</p>
-					<p class="rounded-md edge bg-muted p-3 text-sm">Two people requested access.</p>
+					<p class="rounded-md edge bg-muted p-3 text-sm">billing-api version 42 is live.</p>
+					<p class="rounded-md edge bg-muted p-3 text-sm">Two people asked to join this host.</p>
 				</div>
 				<DrawerFooter>
 					<DialogClose class={buttonVariants({ variant: 'outline' })}>Done</DialogClose>
@@ -422,7 +449,7 @@ export const NoHandleByDefault: Story<typeof Drawer> = {
 	render: () => (
 		<Drawer>
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
-				Open default drawer
+				Open app menu
 			</DialogTrigger>
 			<DrawerContent>
 				<NavigationContent />
@@ -447,8 +474,9 @@ export const NoHandleByDefault: Story<typeof Drawer> = {
 			throw new Error('Drawer rendered a drag handle after opening without handle=true')
 		}
 
-		const close = closeButton(drawer)
-		close.click()
+		const closes = drawer.querySelectorAll<HTMLButtonElement>('[data-slot="dialog-close"]')
+		if (closes.length !== 1) throw new Error(`Navigation drawer rendered ${closes.length} close controls; expected one`)
+		closes[0]?.click()
 		await frame(2)
 
 		if (drawer.open) throw new Error('Default Drawer did not close after smoke')
@@ -459,7 +487,7 @@ export const DragHandle: Story<typeof Drawer> = {
 	render: () => (
 		<Drawer side="bottom">
 			<DialogTrigger class={buttonVariants({ variant: 'outline' })}>
-				Open draggable drawer
+				Open app menu
 			</DialogTrigger>
 			<DrawerContent handle>
 				<NavigationContent />

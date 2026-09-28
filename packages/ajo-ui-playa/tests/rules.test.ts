@@ -13,11 +13,9 @@ const offScaleAllowed: Record<string, string> = {
 	'avatar.tsx': '-space-x-1.5',
 	'carousel.tsx': '-ms-4 -mt-4',
 	'chart.tsx': 'gap-1.5 px-2.5 py-1.5',
-	'drawer.tsx': 'mb-24 mt-24',
 	'pagination.tsx': 'pl-2.5 pr-2.5 px-2.5',
 	'preset/data.ts': '-mx-2 gap-1.5 my-0.5 px-1.5 py-0.5',
 	'preset/floating.ts': '-mx-1 py-1.5',
-	'preset/modal.ts': 'pr-10',
 	'switch.tsx': 'px-px',
 	'tooltip.tsx': 'py-1.5',
 }
@@ -25,15 +23,13 @@ const offScaleAllowed: Record<string, string> = {
 // Physical sides where a logical utility exists (ps, me, start, end,
 // text-start, rounded-s, border-e...). Centring with left-1/2 is not one.
 const physicalAllowed: Record<string, string> = {
-	'alert-dialog.tsx': 'text-left',
-	'dialog.tsx': 'right-4 text-left',
-	'drawer.tsx': 'border-l border-r left-0 left-auto right-0 right-auto text-left',
+	// Drawer's `side` names a physical edge.
+	'drawer.tsx': 'border-l border-r left-0 left-auto right-0 right-auto',
 	'internal/recipes.tsx': 'slide-in-from-left-2 slide-in-from-right-2',
 	'navigation-menu.tsx': 'ml-1',
 	'pagination.tsx': 'pl-2.5 pr-2.5',
 	'preset/data.ts': 'pr-0 text-left text-right',
 	'preset/floating.ts': 'left-2 ml-auto pl-8 pr-2',
-	'preset/modal.ts': 'pr-10 right-2',
 	'sidebar.tsx': 'border-l border-r left-0 right-0',
 	'tabs.tsx': 'left-0',
 }
@@ -41,11 +37,9 @@ const physicalAllowed: Record<string, string> = {
 // Focus halos: a translucent ring-shadow beside or instead of the one focus
 // ring, which forced colours drop and which misses 3:1 in the light theme.
 const haloAllowed: Record<string, string> = {
-	'dialog.tsx': 'ring-ring/50',
 	'navigation-menu.tsx': 'ring-3 ring-ring/50',
 	'preset/choices.ts': 'ring-3 ring-danger/20 ring-ring/50',
 	'preset/data.ts': 'ring-3 ring-ring/25 ring-ring/50',
-	'preset/modal.ts': 'ring-3 ring-ring/50',
 	'radio-group.tsx': 'ring-3 ring-danger/20 ring-ring/50',
 	'slider.tsx': 'ring-3 ring-4 ring-ring/50',
 	'switch.tsx': 'ring-3 ring-ring/50',

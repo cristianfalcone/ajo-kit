@@ -22,11 +22,11 @@ export default {
 	args: {
 		defaultOpen: false,
 		size: 'default',
-		trigger: 'Show Dialog',
-		title: 'Are you absolutely sure?',
-		description: 'This action cannot be undone. This will permanently delete your account and remove your data from our servers.',
+		trigger: 'Restart app',
+		title: 'Restart billing-api?',
+		description: 'Requests wait a few seconds while the app starts again.',
 		cancel: 'Cancel',
-		action: 'Continue',
+		action: 'Restart app',
 	},
 	argTypes: {
 		size: { control: 'select', options: ['default', 'sm'] },
@@ -80,7 +80,7 @@ const DangerExample: Stateful<Args> = function* () {
 				<AlertDialogContent size={size}>
 					<AlertDialogHeader>
 						<AlertDialogMedia class="text-danger">
-							<span class="i-lucide-trash-2 size-8" />
+							<span class="i-lucide-trash-2 size-5" />
 						</AlertDialogMedia>
 						<AlertDialogTitle>{title}</AlertDialogTitle>
 						<AlertDialogDescription>{description}</AlertDialogDescription>
@@ -193,10 +193,10 @@ export const Basic: Story<typeof AlertDialog> = {
 export const SmallWithMedia: Story<typeof AlertDialog> = {
 	args: {
 		size: 'sm',
-		trigger: 'Share project',
-		title: 'Share project?',
-		description: 'Anyone with access can duplicate this workspace.',
-		action: 'Share',
+		trigger: 'Publish version',
+		title: 'Publish version 42?',
+		description: 'Every visitor gets the new version at once.',
+		action: 'Publish',
 	},
 	render: ({ action, cancel, description, size, title, trigger, ...args }) => (
 		<AlertDialog {...args}>
@@ -206,7 +206,7 @@ export const SmallWithMedia: Story<typeof AlertDialog> = {
 			<AlertDialogContent size={size}>
 				<AlertDialogHeader>
 					<AlertDialogMedia>
-						<span class="i-lucide-alert-triangle size-8" />
+						<span class="i-lucide-rocket size-5" />
 					</AlertDialogMedia>
 					<AlertDialogTitle>{title}</AlertDialogTitle>
 					<AlertDialogDescription>{description}</AlertDialogDescription>
@@ -245,7 +245,7 @@ export const SmallWithMedia: Story<typeof AlertDialog> = {
 
 export const Controlled: Story<typeof AlertDialog> = {
 	args: {
-		trigger: 'Open controlled alert',
+		trigger: 'Restart app',
 	},
 	argTypes: {
 		defaultOpen: { control: false },
@@ -280,11 +280,10 @@ export const Controlled: Story<typeof AlertDialog> = {
 
 export const Danger: Story<typeof AlertDialog> = {
 	args: {
-		trigger: 'Delete chat',
-		title: 'Delete chat?',
-		description: 'This removes the conversation for every participant and cannot be undone.',
-		cancel: 'Keep chat',
-		action: 'Delete',
+		trigger: 'Delete app',
+		title: 'Delete billing-api?',
+		description: 'Its versions, logs and secrets are removed for good.',
+		action: 'Delete app',
 	},
 	render: args => <DangerExample {...args} />,
 	play: async ({ canvas }) => {

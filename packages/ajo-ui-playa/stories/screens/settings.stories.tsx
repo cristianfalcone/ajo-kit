@@ -206,7 +206,7 @@ export default {
 	render: args => <Settings gold={args.gold as Gold} />,
 } satisfies Meta
 
-// Ink and Plate share every failure but the open layer, which only Ink declares.
+// Ink and Plate share every known failure.
 const known: Known[] = [
 	{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=checkbox-input]', 'input[data-slot=radio-group-input]', 'input[data-slot=switch-input]'] },
 	{ check: 'focus', slice: 'p5-kit-18', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['button[data-slot=tabs-trigger]'] },
@@ -216,12 +216,7 @@ const known: Known[] = [
 ]
 
 export const Ink: Story = {
-	parameters: {
-		known: [
-			...known,
-			{ check: 'motion', slice: 'p5-kit-15', variants: ['light-1280 delete-host'], targets: ['dialog[data-slot=alert-dialog-content]'] },
-		],
-	},
+	parameters: { known },
 }
 
 // The same page with the plate on every "on" control, to compare with ink; its layers show nothing new.

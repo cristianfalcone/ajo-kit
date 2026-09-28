@@ -234,7 +234,6 @@ export const Default: Story = {
 		known: [
 			{ check: 'focus', slice: 'p5-kit-18', variants: ['light-1280', 'rtl-light-1280'], targets: ['a[data-slot=sidebar-menu-button]', 'button[data-slot=sidebar-menu-button]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-18', variants: ['light-1280'], targets: ['a[data-slot=sidebar-menu-button]', 'button[data-slot=sidebar-menu-button]'] },
-			{ check: 'motion', slice: 'p5-kit-15', variants: ['light-1280 command'], targets: ['dialog[data-slot=command-dialog]'] },
 		],
 	},
 	// The shell by keyboard: Ctrl K opens the command search, the arrows move through it and

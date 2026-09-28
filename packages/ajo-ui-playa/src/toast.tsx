@@ -10,7 +10,7 @@ export type { ToastKind, ToastOptions, ToastPosition, ToastPromiseMessages } fro
 
 /** Props for the themed Toaster. */
 export type ToasterArgs = Pick<BaseToasterArgs, 'class' | 'closeButton' | 'duration' | 'expand' | 'hotkey' | 'icons' | 'label' | 'limit' | 'pauseOnWindowBlur' | 'position'> & {
-	/** Apply kind-colored toast surfaces to success, info and warning toasts. */
+	/** Tint success, info and warning toasts by kind too; error toasts are always tinted. */
 	richColors?: boolean
 }
 

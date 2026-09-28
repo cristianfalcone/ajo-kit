@@ -39,9 +39,14 @@ const contentBase = clx(
 	modalSurface,
 	modalCentered,
 	modalEnter,
-	'grid w-full max-w-[calc(100%-2rem)] gap-4 rounded-xl edge p-6 sm:max-w-lg',
+	'grid w-full max-w-[calc(100%-2rem)] gap-6 rounded-xl edge p-6 sm:max-w-lg',
 )
-const closeBase = 'absolute right-4 top-4 inline-flex size-8 items-center justify-center rounded-full opacity-70 outline-none transition-[background-color,opacity] hover:bg-accent hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4'
+const closeBase = 'playa-modal-close absolute inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground playa-focus playa-disabled [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4'
+// Header, body and footer share the start edge at every width and in either
+// direction; the actions keep one order, Cancel and then the primary at the
+// end, sharing the row on a phone and wrapping in that order when they must.
+const header = 'flex flex-col gap-2 text-start'
+const footer = 'flex flex-wrap justify-end gap-2 max-sm:*:flex-1'
 
 /** Root provider for a dialog. */
 const Dialog: Stateless<DialogArgs> = ({ class: classes, ...attrs }) => (
@@ -64,22 +69,22 @@ const DialogClose: Stateless<DialogCloseArgs> = ({ children, class: classes, ...
 
 /** Header area for dialog title and description. */
 const DialogHeader: Stateless<DialogHeaderArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogHeader {...attrs} class={clx('flex flex-col gap-2 text-center sm:text-left', classes)} />
+	<BaseDialogHeader {...attrs} class={clx(header, classes)} />
 )
 
 /** Footer area for dialog actions. */
 const DialogFooter: Stateless<DialogFooterArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogFooter {...attrs} class={clx('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', classes)} />
+	<BaseDialogFooter {...attrs} class={clx(footer, classes)} />
 )
 
 /** Accessible title for DialogContent. */
 const DialogTitle: Stateless<DialogTitleArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogTitle {...attrs} class={clx('text-lg font-semibold leading-none', classes)} />
+	<BaseDialogTitle {...attrs} class={clx('text-base font-medium', classes)} />
 )
 
 /** Accessible description for DialogContent. */
 const DialogDescription: Stateless<DialogDescriptionArgs> = ({ class: classes, ...attrs }) => (
-	<BaseDialogDescription {...attrs} class={clx('text-sm text-muted-foreground', classes)} />
+	<BaseDialogDescription {...attrs} class={clx('text-sm text-muted-foreground text-pretty', classes)} />
 )
 
 export {
