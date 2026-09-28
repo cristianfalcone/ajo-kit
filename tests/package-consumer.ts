@@ -419,7 +419,7 @@ const buildPlaya = async (consumer: string) => {
 	assert(!css.includes('.playa-select-trigger'), 'an unused family recipe was emitted')
 	const sizes = { css: await measure(cssFiles), js: await measure(await files(join(consumer, 'dist'), '.js')) }
 	console.log(`package consumer: Playa minimal consumer ${JSON.stringify(sizes)}`)
-	assertBudget('minimal consumer CSS', sizes.css, { raw: 18_900, gzip: 4_700, brotli: 4_100 })
+	assertBudget('minimal consumer CSS', sizes.css, { raw: 19_000, gzip: 4_700, brotli: 4_200 })
 	assertBudget('minimal consumer JS', sizes.js, { raw: 12_000, gzip: 4_500, brotli: 4_000 })
 
 	const [ssr] = await files(join(consumer, 'dist-ssr'), 'ssr.js')

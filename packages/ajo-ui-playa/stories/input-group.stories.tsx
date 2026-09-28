@@ -179,7 +179,9 @@ export const Textarea: Story = {
 			throw new Error('Input group textarea layout was not rendered')
 		}
 		const run = blockEnd.querySelector<HTMLButtonElement>('[data-slot="input-group-button"]')
-		if (!run || getComputedStyle(run).boxShadow !== 'none') {
+		// Only inset layers may remain (the plate's own edge): nothing cast outside it.
+		const cast = run && getComputedStyle(run).boxShadow.split(/,(?![^(]*\))/).filter(layer => !layer.includes('inset') && !/^\s*rgba\(0, 0, 0, 0\)/.test(layer) && layer.trim() !== 'none')
+		if (!run || cast?.length) {
 			throw new Error('Input group button did not opt out of its standalone variant shadow')
 		}
 	},

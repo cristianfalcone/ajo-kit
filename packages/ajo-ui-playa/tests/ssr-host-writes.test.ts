@@ -54,9 +54,9 @@ test('ToggleGroup items take the group size and variant, and spacing 0 seams the
 	}))
 	const item = (value: string) => html.match(new RegExp(`<button\\b[^>]*value="${value}"[^>]*>`))?.[0] ?? ''
 
-	expect(item('left')).toMatch(/class="(?=[^"]*\bh-10\b)(?=[^"]*\bedge\b)/)
-	expect(item('right')).toMatch(/class="(?=[^"]*\bh-8\b)(?=[^"]*\bedge\b)/)
-	expect(html).toMatch(/<div class="contents [^"]*:not\(:first-child\)\]:rounded-l-none[^"]*"><button\b/)
-	expect(html).not.toContain('first:rounded-l-md')
-	expect(html).toContain('--toggle-group-gap:0rem')
+	expect(item('left')).toMatch(/class="(?=[^"]*\bh-control-lg\b)(?=[^"]*\bedge\b)/)
+	expect(item('right')).toMatch(/class="(?=[^"]*\bh-control-sm\b)(?=[^"]*\bedge\b)/)
+	expect(html).toMatch(/<div class="contents [^"]*:not\(:first-child\)\]:rounded-s-none[^"]*"><button\b/)
+	expect(html).not.toContain('first:rounded-s-md')
+	expect(html).toContain('gap:0rem')
 })

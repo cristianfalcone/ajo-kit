@@ -38,12 +38,12 @@ export type ToggleGroupItemArgs = BaseToggleGroupItemArgs & ItemTheme & {
 	class?: string
 }
 
-const rootBase = 'group/toggle-group flex w-fit items-center rounded-md gap-[var(--toggle-group-gap)]'
+const rootBase = 'group/toggle-group flex w-fit items-center rounded-md'
 const rootOrientation = {
 	horizontal: 'flex-row',
 	vertical: 'flex-col',
 }
-const itemBase = 'w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10'
+const itemBase = 'shrink-0 focus:z-10 focus-visible:z-10'
 
 const ItemThemeContext = context<ItemTheme>({})
 
@@ -72,7 +72,7 @@ const ToggleGroup: Stateless<ToggleGroupArgs> = ({
 		{...attrs as BaseToggleGroupArgs}
 		class={clx(rootBase, rootOrientation[orientation], classes)}
 		orientation={orientation}
-		style={stlx(style, { '--toggle-group-gap': `${spacing * 0.25}rem` })}
+		style={stlx(style, { gap: `${spacing * 0.25}rem` })}
 	>
 		<Items attr:class={clx('contents', spacing === 0 && segmentSeams[orientation])} size={size} variant={variant}>
 			{children}

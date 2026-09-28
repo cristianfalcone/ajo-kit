@@ -1,5 +1,5 @@
 /** @jsxImportSource ajo */
-import type { Meta, Story } from './app'
+import type { Meta, PlayContext, Story } from './app'
 import { frame, press } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import { Input } from 'ajo-ui-playa/input'
@@ -12,10 +12,12 @@ export default {
 	args: {
 		orientation: 'horizontal',
 		loop: true,
+		size: 'sm',
 	},
 	argTypes: {
 		orientation: { control: 'radio', options: ['horizontal', 'vertical'] },
 		loop: { control: 'boolean' },
+		size: { control: 'select', options: ['sm', 'default', 'lg'] },
 	},
 	parameters: {
 		docs: { description: 'APG toolbar: arbitrary controls (buttons, toggle groups, inputs) behind a single tab stop with arrow-key roving.' },
@@ -32,6 +34,24 @@ const toolbarOf = (canvas: HTMLElement) => {
 const buttonsOf = (toolbar: HTMLElement) =>
 	Array.from(toolbar.querySelectorAll<HTMLButtonElement>('button'))
 
+// The toolbar passes one height to every control in its row.
+const assertOneHeight = (toolbar: HTMLElement) => {
+	const heights = new Set(Array.from(toolbar.querySelectorAll<HTMLElement>('button, input, summary'))
+		.filter(control => control.offsetParent)
+		.map(control => control.getBoundingClientRect().height))
+	if (heights.size !== 1) throw new Error(`Toolbar controls have mixed heights: ${[...heights].join(', ')}`)
+}
+
+// A play leaves nothing focused, so a capture shows the toolbar at rest, also
+// when a play stops early (its arrow keys assume a left-to-right row).
+const atRest = (play: (context: PlayContext) => Promise<void>) => async (context: PlayContext) => {
+	try {
+		await play(context)
+	} finally {
+		(document.activeElement as HTMLElement | null)?.blur()
+	}
+}
+
 // Reads tabIndex through a call so TS narrowing from earlier literal checks
 // does not survive focus() mutations it cannot see.
 const stop = (element: HTMLElement) => element.tabIndex
@@ -39,14 +59,14 @@ const stop = (element: HTMLElement) => element.tabIndex
 export const Basic: Story<typeof Toolbar> = {
 	render: args => (
 		<Toolbar {...args} aria-label="Text formatting">
-			<Button size="sm" variant="ghost">Bold</Button>
-			<Button size="sm" variant="ghost">Italic</Button>
+			<Button variant="ghost">Bold</Button>
+			<Button variant="ghost">Italic</Button>
 			<ToolbarSeparator />
-			<Button size="sm" variant="ghost">Undo</Button>
-			<Button size="sm" variant="ghost">Redo</Button>
+			<Button variant="ghost">Undo</Button>
+			<Button variant="ghost">Redo</Button>
 		</Toolbar>
 	),
-	play: async ({ canvas }) => {
+	play: atRest(async ({ canvas }) => {
 		await frame()
 		const toolbar = toolbarOf(canvas)
 		if (toolbar.getAttribute('role') !== 'toolbar') throw new Error('Toolbar root is missing role="toolbar"')
@@ -57,6 +77,7 @@ export const Basic: Story<typeof Toolbar> = {
 		if (separator?.getAttribute('role') !== 'separator') throw new Error('ToolbarSeparator is missing role="separator"')
 		if (separator.getAttribute('aria-orientation') !== 'vertical') throw new Error('Horizontal toolbar separator should be aria-orientation vertical')
 
+		assertOneHeight(toolbar)
 		const buttons = buttonsOf(toolbar)
 		if (buttons.length !== 4) throw new Error('Basic toolbar did not render four controls')
 		if (buttons[0].tabIndex !== 0) throw new Error('First control is not the initial tab stop')
@@ -76,25 +97,26 @@ export const Basic: Story<typeof Toolbar> = {
 		await frame()
 		if (document.activeElement !== buttons[0]) throw new Error('Home did not move focus to the first control')
 		if (buttons.filter(button => button.tabIndex === 0).length !== 1) throw new Error('Toolbar lost its single tab stop after roving')
-	},
+	}),
 }
 
 export const WithToggleGroup: Story<typeof Toolbar> = {
 	render: args => (
 		<Toolbar {...args} aria-label="Editor">
-			<Button size="sm" variant="ghost">Undo</Button>
+			<Button variant="ghost">Undo</Button>
 			<ToolbarSeparator />
 			<ToggleGroup type="multiple" aria-label="Formatting">
 				<ToggleGroupItem value="bold" aria-label="Bold">B</ToggleGroupItem>
 				<ToggleGroupItem value="italic" aria-label="Italic">I</ToggleGroupItem>
 			</ToggleGroup>
 			<ToolbarSeparator />
-			<Button size="sm" variant="ghost">Redo</Button>
+			<Button variant="ghost">Redo</Button>
 		</Toolbar>
 	),
-	play: async ({ canvas }) => {
+	play: atRest(async ({ canvas }) => {
 		await frame()
 		const toolbar = toolbarOf(canvas)
+		assertOneHeight(toolbar)
 		const [undo, bold, italic, redo] = buttonsOf(toolbar)
 		if (!undo || !bold || !italic || !redo) throw new Error('Toolbar with toggle group did not render four controls')
 		if (bold.dataset.slot !== 'toggle-group-item') throw new Error('Toggle group items did not render inside the toolbar')
@@ -119,20 +141,21 @@ export const WithToggleGroup: Story<typeof Toolbar> = {
 		press(redo, 'ArrowLeft')
 		await frame()
 		if (document.activeElement !== italic) throw new Error('ArrowLeft did not traverse back into the toggle group')
-	},
+	}),
 }
 
 export const WithInput: Story<typeof Toolbar> = {
 	render: args => (
 		<Toolbar {...args} aria-label="Search controls">
-			<Button size="sm" variant="ghost">Back</Button>
-			<Input aria-label="Search" class="h-8 w-40" value="hello" />
-			<Button size="sm" variant="ghost">Go</Button>
+			<Button variant="ghost">Back</Button>
+			<Input aria-label="Search" class="w-40" value="hello" />
+			<Button variant="ghost">Go</Button>
 		</Toolbar>
 	),
-	play: async ({ canvas }) => {
+	play: atRest(async ({ canvas }) => {
 		await frame()
 		const toolbar = toolbarOf(canvas)
+		assertOneHeight(toolbar)
 		const [back, go] = buttonsOf(toolbar)
 		const input = toolbar.querySelector<HTMLInputElement>('input')
 		if (!back || !go || !input) throw new Error('Toolbar with input did not render its controls')
@@ -154,28 +177,30 @@ export const WithInput: Story<typeof Toolbar> = {
 		press(go, 'ArrowLeft')
 		await frame()
 		if (document.activeElement !== input) throw new Error('ArrowLeft from a button did not rove back onto the input')
-	},
+	}),
 }
 
 export const WithSummary: Story<typeof Toolbar> = {
 	render: args => (
 		<Toolbar {...args} aria-label="Filters">
-			<Button size="sm" variant="ghost">Reset</Button>
+			<Button variant="ghost">Reset</Button>
 			<details>
 				<summary>Status</summary>
 				<div class="p-2">
-					<Button size="sm" variant="ghost">Active</Button>
+					<Button variant="ghost">Active</Button>
 				</div>
 			</details>
-			<Button size="sm" variant="ghost">Apply</Button>
+			<Button variant="ghost">Apply</Button>
 		</Toolbar>
 	),
-	play: async ({ canvas }) => {
+	play: atRest(async ({ canvas }) => {
 		await frame()
 		const toolbar = toolbarOf(canvas)
 		const details = toolbar.querySelector<HTMLDetailsElement>('details')
 		const summary = toolbar.querySelector<HTMLElement>('summary')
 		if (!details || !summary) throw new Error('Toolbar details facet did not render')
+		assertOneHeight(toolbar)
+		if (getComputedStyle(summary, '::after').maskImage === 'none') throw new Error('The summary shows no chevron')
 
 		const [reset, active, apply] = buttonsOf(toolbar)
 		if (!reset || !active || !apply) throw new Error('Toolbar details facet story did not render its controls')
@@ -203,15 +228,16 @@ export const WithSummary: Story<typeof Toolbar> = {
 		press(summary, 'ArrowRight')
 		await frame()
 		if (document.activeElement !== active) throw new Error('Open details content did not join the toolbar row')
-	},
+		details.open = false
+	}),
 }
 
 export const WithDialogLayer: Story<typeof Toolbar> = {
 	render: args => (
 		<Toolbar {...args} aria-label="Compose">
-			<Button size="sm" variant="ghost">Bold</Button>
-			<Button size="sm" variant="ghost">Italic</Button>
-			<dialog open style="position:static">
+			<Button variant="ghost">Bold</Button>
+			<Button variant="ghost">Italic</Button>
+			<dialog open class="m-0 border-0 bg-transparent p-0 text-inherit" style="position:static">
 				<ToggleGroup type="single" defaultValue="left" aria-label="Alignment">
 					<ToggleGroupItem value="left" aria-label="Align left">L</ToggleGroupItem>
 					<ToggleGroupItem value="right" aria-label="Align right">R</ToggleGroupItem>
@@ -219,7 +245,7 @@ export const WithDialogLayer: Story<typeof Toolbar> = {
 			</dialog>
 		</Toolbar>
 	),
-	play: async ({ canvas }) => {
+	play: atRest(async ({ canvas }) => {
 		await frame()
 		const toolbar = toolbarOf(canvas)
 		const dialog = toolbar.querySelector<HTMLDialogElement>('dialog')
@@ -252,7 +278,7 @@ export const WithDialogLayer: Story<typeof Toolbar> = {
 		press(left, 'ArrowRight')
 		await frame()
 		if (document.activeElement !== right) throw new Error('ToggleGroup inside a dialog layer lost its own roving')
-	},
+	}),
 }
 
 export const Vertical: Story<typeof Toolbar> = {
@@ -261,13 +287,13 @@ export const Vertical: Story<typeof Toolbar> = {
 	},
 	render: args => (
 		<Toolbar {...args} aria-label="Layers">
-			<Button size="sm" variant="ghost">Move up</Button>
-			<Button size="sm" variant="ghost">Move down</Button>
+			<Button variant="ghost">Move up</Button>
+			<Button variant="ghost">Move down</Button>
 			<ToolbarSeparator />
-			<Button size="sm" variant="ghost">Delete</Button>
+			<Button variant="ghost">Delete</Button>
 		</Toolbar>
 	),
-	play: async ({ canvas }) => {
+	play: atRest(async ({ canvas }) => {
 		await frame()
 		const toolbar = toolbarOf(canvas)
 		if (toolbar.getAttribute('aria-orientation') !== 'vertical') throw new Error('Vertical toolbar did not expose aria-orientation')
@@ -285,5 +311,5 @@ export const Vertical: Story<typeof Toolbar> = {
 		press(down, 'ArrowRight')
 		await frame()
 		if (document.activeElement !== down) throw new Error('Horizontal arrows should not rove in a vertical toolbar')
-	},
+	}),
 }

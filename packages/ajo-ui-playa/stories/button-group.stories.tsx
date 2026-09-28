@@ -13,9 +13,11 @@ export default {
 	component: ButtonGroup,
 	args: {
 		orientation: 'horizontal',
+		size: 'default',
 	},
 	argTypes: {
 		orientation: { control: 'radio', options: ['horizontal', 'vertical'] },
+		size: { control: 'select', options: ['sm', 'default', 'lg'] },
 	},
 	parameters: {
 		docs: { description: 'Grouped controls with horizontal/vertical orientation, separators, and text segments.' },
@@ -62,11 +64,12 @@ export const Vertical: Story = {
 }
 
 export const WithSeparator: Story = {
-	render: () => (
-		<ButtonGroup>
-			<Button variant="secondary" size="sm">Copy</Button>
+	args: { size: 'sm' },
+	render: args => (
+		<ButtonGroup {...args}>
+			<Button variant="secondary">Copy</Button>
 			<ButtonGroupSeparator />
-			<Button variant="secondary" size="sm">Paste</Button>
+			<Button variant="secondary">Paste</Button>
 		</ButtonGroup>
 	),
 	play: async ({ canvas }) => {
@@ -74,6 +77,12 @@ export const WithSeparator: Story = {
 		if (!separator || separator.getAttribute('aria-hidden') !== 'true' || separator.getAttribute('data-orientation') !== 'vertical') {
 			throw new Error('Button group separator was not rendered')
 		}
+		// The separator is the seam: the member before it keeps its start
+		// hairline and drops its end one, or the seam would be two lines.
+		const style = getComputedStyle(separator.previousElementSibling!)
+		const [start, end] = style.direction === 'rtl' ? ['-1px', '1px'] : ['1px', '-1px']
+		const side = (x: string) => new RegExp(`\\) ${x} 0px 0px 0px inset`).test(style.boxShadow)
+		if (!side(start) || side(end)) throw new Error(`Member before the separator draws a double seam: ${style.boxShadow}`)
 	},
 }
 
@@ -84,7 +93,7 @@ export const WithInput: Story = {
 				<span aria-hidden="true" class="i-lucide-search size-4" />
 				Search
 			</ButtonGroupText>
-			<Input id="button-group-search" placeholder="Search..." />
+			<Input id="button-group-search" placeholder="Search messages" />
 			<Button variant="outline">Submit</Button>
 		</ButtonGroup>
 	),
@@ -102,7 +111,7 @@ export const Nested: Story = {
 		<ButtonGroup aria-label="Toolbar">
 			<ButtonGroup>
 				<Button variant="outline" size="icon" aria-label="Back">
-					<span aria-hidden="true" class="i-lucide-arrow-left size-4" />
+					<span aria-hidden="true" class="i-lucide-arrow-left size-4 rtl:-scale-x-100" />
 				</Button>
 			</ButtonGroup>
 			<ButtonGroup>
@@ -112,7 +121,7 @@ export const Nested: Story = {
 			<ButtonGroup>
 				<Button variant="outline">Snooze</Button>
 				<Button variant="outline" size="icon" aria-label="More">
-					<span aria-hidden="true" class="i-lucide-more-horizontal size-4" />
+					<span aria-hidden="true" class="i-lucide-ellipsis size-4" />
 				</Button>
 			</ButtonGroup>
 		</ButtonGroup>
@@ -121,6 +130,38 @@ export const Nested: Story = {
 		const groups = canvas.querySelectorAll('[data-slot="button-group"]')
 		if (groups.length !== 4) {
 			throw new Error('Nested button groups were not rendered')
+		}
+	},
+}
+
+// One size for the whole row: the text, the input and both buttons take the
+// group's height, the icon button stays square.
+export const Sizes: Story = {
+	argTypes: {
+		size: { control: false },
+	},
+	render: args => (
+		<div class="grid gap-4">
+			{(['sm', 'default', 'lg'] as const).map(size => (
+				<ButtonGroup key={size} {...args} size={size} aria-label={`Search, ${size}`} data-story-size={size}>
+					<ButtonGroupText>Domain</ButtonGroupText>
+					<Input aria-label="Domain" placeholder="shop.example.com" />
+					<Button variant="outline">Add domain</Button>
+					<Button variant="outline" size="icon" aria-label="More">
+						<span aria-hidden="true" class="i-lucide-ellipsis" />
+					</Button>
+				</ButtonGroup>
+			))}
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const expected = { sm: 32, default: 36, lg: 40 }
+		for (const [size, height] of Object.entries(expected)) {
+			const group = canvas.querySelector<HTMLElement>(`[data-story-size="${size}"]`)!
+			const boxes = Array.from(group.children, child => child.getBoundingClientRect())
+			if (boxes.some(box => box.height !== height)) throw new Error(`${size} group children are ${boxes.map(box => box.height).join(', ')} px tall, not ${height}`)
+			const icon = boxes.at(-1)!
+			if (icon.width !== height) throw new Error(`${size} icon button is ${icon.width} px wide, not square`)
 		}
 	},
 }

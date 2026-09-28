@@ -53,6 +53,10 @@ export const Basic: Story<typeof ToggleGroup> = {
 	play: async ({ canvas }) => {
 		const italic = canvas.querySelector<HTMLButtonElement>('button[aria-label="Toggle italic"]')
 		if (!italic) throw new Error('Basic toggle group item was not rendered')
+		// The toggle size owns the item geometry: an icon item is square at the control height.
+		for (const item of canvas.querySelectorAll<HTMLElement>('[data-slot="toggle-group-item"]')) {
+			if (item.offsetWidth !== item.offsetHeight) throw new Error(`An icon item is ${item.offsetWidth} by ${item.offsetHeight}, not square`)
+		}
 		if (italic.getAttribute('aria-pressed') !== 'false') {
 			throw new Error('Basic uncontrolled group rendered the wrong initial pressed state')
 		}
@@ -103,6 +107,11 @@ export const Sizes: Story<typeof ToggleGroup> = {
 			<ToggleGroup {...args} type="single" size="sm" defaultValue="top" aria-label="Small position">
 				<ToggleGroupItem value="top">Top</ToggleGroupItem>
 				<ToggleGroupItem value="bottom">Bottom</ToggleGroupItem>
+			</ToggleGroup>
+			<ToggleGroup {...args} type="single" size="default" defaultValue="center" aria-label="Default alignment">
+				<ToggleGroupItem value="start">Start</ToggleGroupItem>
+				<ToggleGroupItem value="center">Center</ToggleGroupItem>
+				<ToggleGroupItem value="end">End</ToggleGroupItem>
 			</ToggleGroup>
 			<ToggleGroup {...args} type="single" size="lg" defaultValue="left" aria-label="Large position">
 				<ToggleGroupItem value="left">Left</ToggleGroupItem>

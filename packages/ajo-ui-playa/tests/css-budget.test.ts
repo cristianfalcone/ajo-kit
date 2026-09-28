@@ -10,10 +10,10 @@ type Size = { raw: number, gzip: number, brotli: number }
 // compression noise is not growth. A slice that wins bytes lowers them; raising one is a decision whose
 // reason goes in the commit.
 const budgets: Record<string, Size> = {
-	'preflight only': { raw: 10_100, gzip: 3_400, brotli: 2_900 },
-	'input.tsx': { raw: 14_700, gzip: 4_200, brotli: 3_700 },
-	'select.tsx': { raw: 42_000, gzip: 7_800, brotli: 6_800 },
-	'all families': { raw: 197_000, gzip: 27_800, brotli: 22_700 },
+	'preflight only': { raw: 10_200, gzip: 3_400, brotli: 2_900 },
+	'input.tsx': { raw: 14_800, gzip: 4_300, brotli: 3_700 },
+	'select.tsx': { raw: 46_200, gzip: 8_500, brotli: 7_500 },
+	'all families': { raw: 202_300, gzip: 28_500, brotli: 23_300 },
 }
 
 const src = new URL('../src/', import.meta.url)

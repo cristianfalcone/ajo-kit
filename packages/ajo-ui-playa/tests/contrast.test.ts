@@ -76,6 +76,8 @@ const pairs: Pair[] = [
 	...statuses.flatMap(status => [1, 0.85].flatMap(alpha => on(4.5, [status],
 		['background', 'card'].map(token => [{ token }, { token: status, alpha: 0.1 }]), alpha === 1 ? undefined : alpha))),
 	...['primary', 'secondary', ...statuses].flatMap(fill => on(4.5, [`${fill}-foreground`], [[{ token: fill }]])),
+	// The filled destructive action carries white text in both schemes.
+	...on(4.5, ['danger-fill-foreground'], [[{ token: 'danger-fill' }]]),
 	...on(3, ['input', 'ring', 'gold-4', 'primary'], surfaces.map(token => [{ token }])),
 	// The focus halo the families still paint (ring-ring/50).
 	...on(3, ['ring'], surfaces.map(token => [{ token }]), 0.5),

@@ -65,6 +65,10 @@
   --link: light-dark(#2f4370, #e6d3b0);
   --danger: light-dark(#a8423d, #ec928b);
   --danger-foreground: light-dark(#fbf7f1, #11100e);
+  /* A filled destructive action. At night the danger text hue is too light
+     to carry white, so the fill is its own, deeper role. */
+  --danger-fill: light-dark(#a8423d, #b4514c);
+  --danger-fill-foreground: #fff;
   --success: light-dark(#3a6e46, #7fb58f);
   --success-foreground: light-dark(#fbf7f1, #11100e);
   --warning: light-dark(#9a4f0f, #e39a5a);

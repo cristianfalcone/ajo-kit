@@ -24,7 +24,7 @@ const Spinner: Stateless<SpinnerArgs> = ({
 		>
 			<span
 				aria-hidden="true"
-				class="block size-full animate-spin rounded-full border-2 border-current border-r-transparent border-t-transparent motion-reduce:animate-none [animation-duration:900ms]"
+				class="block size-full animate-spin rounded-full border-2 border-current border-e-transparent border-t-transparent motion-reduce:animate-none [animation-duration:900ms]"
 				data-slot="spinner-ring"
 			/>
 			{decorative ? null : <span class="sr-only">{label}</span>}

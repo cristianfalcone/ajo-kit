@@ -300,6 +300,8 @@ export const playa = definePreset(() => ({
       'gold-text': 'var(--gold-text)',
       danger: 'var(--danger)',
       'danger-foreground': 'var(--danger-foreground)',
+      'danger-fill': 'var(--danger-fill)',
+      'danger-fill-foreground': 'var(--danger-fill-foreground)',
       success: 'var(--success)',
       'success-foreground': 'var(--success-foreground)',
       warning: 'var(--warning)',
