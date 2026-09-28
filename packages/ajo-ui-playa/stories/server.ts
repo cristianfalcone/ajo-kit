@@ -754,7 +754,14 @@ async function screens(options: Options) {
 						await guard('focus', variant.name, () => tab(page))
 						if (variant.width < 1280) {
 							await page.setViewportSize({ width: 320, height: 900 })
-							await guard('reflow', variant.name, () => assert(page, (play, root) => play.assertReflow(root)))
+							// Measure the settled page, not the resize in flight: after a ResizeObserver tick,
+							// the frame a clove coalesces its work into (the chart tooltip the Tab walk
+							// leaves open moves there) and one more.
+							await guard('reflow', variant.name, () => assert(page, async (play, root) => {
+								await new Promise(resolve => new ResizeObserver((_, observer) => resolve(observer.disconnect())).observe(root))
+								await play.frame(2)
+								play.assertReflow(root)
+							}))
 						}
 						fail('play', variant.name, errors)
 					} finally {
