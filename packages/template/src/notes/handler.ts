@@ -3,7 +3,7 @@ import { confirm, cookie, limit, session, verify } from 'ajo-kit-auth'
 import { deliver } from 'ajo-kit-mail'
 import { number, object, parse } from 'ajo-kit/validate'
 import { db } from '../database'
-import { mailbox } from '../mail'
+import { mailbox, refusal } from '../mail'
 import { text } from '../validation'
 
 const Note = object({ text })
@@ -19,6 +19,7 @@ export async function page(req: Request) {
 		notes: await notes(id),
 		mail: mailbox?.messages.filter(message => message.to.address === email)
 			.map(({ id, kind, subject, text }) => ({ id, subject, text, link: kind === 'verify' ? text.match(/https?:\/\/\S+/)?.[0] : undefined })).reverse() ?? null,
+		refusal,
 	}
 }
 
@@ -40,6 +41,7 @@ export const actions = {
 	verify: async (req: Request, _res: Response, action: ActionContext) => {
 		const { id, email, verified } = req.user!
 		if (verified !== null) return { message: 'Your email is already verified.' }
+		if (refusal) throw new Failure(409, refusal)
 		const recipient = `verify:email:${email}`
 		const address = `verify:ip:${ip(req)}`
 		if (!limit.hit(recipient, 1, 3_600_000) || !limit.hit(address, 5, 3_600_000)) {
@@ -57,6 +59,7 @@ export const actions = {
 	},
 	email: async (req: Request, _res: Response, action: ActionContext) => {
 		const { id, email, verified } = req.user!
+		if (refusal) throw new Failure(409, refusal)
 		if (verified === null) throw new Forbidden('Verify your email before sending notes.')
 		const key = `mail:${id}`
 		if (!limit.hit(key, 1)) throw new Failure(429, 'Wait a minute before sending again.')

@@ -9,6 +9,7 @@ type Data = {
 	user: { name: string; email: string; verified: boolean }
 	notes: Note[]
 	mail: { id: string; subject: string; text: string; link?: string }[] | null
+	refusal: string | null
 }
 
 const Notes: Stateful<PageArgs<Data>> = function* () {
@@ -54,15 +55,17 @@ const Notes: Stateful<PageArgs<Data>> = function* () {
 								<Button type="button" variant="ghost" disabled={remove.loading} aria-label={`Delete note: ${note.text}`} set:onclick={() => remove.invoke({ id: note.id })}>Delete</Button>
 							</li>)}
 						</ul> : <p class="text-muted-foreground">No notes yet. Add your first thought above.</p>}
-						{!data.user.verified && <form class="space-y-2" method="post" action="?/verify" set:onsubmit={verify.submit}>
-							<p class="text-sm">Verify your email before sending your notes.</p>
-							<Button type="submit" variant="outline" disabled={verify.loading}>{verify.loading ? 'Sending…' : 'Send verification email'}</Button>
-							{verify.data && <p class="text-sm" role="status">{verify.data.message}</p>}
-						</form>}
-						<form class="space-y-2" method="post" action="?/email" set:onsubmit={email.submit}>
-							<Button type="submit" variant="outline" disabled={email.loading || !data.user.verified}>{email.loading ? 'Sending…' : 'Email my notes'}</Button>
-							{email.data && <p class="text-sm" role="status">{email.data.message}</p>}
-						</form>
+						{data.refusal ? <p class="text-sm text-muted-foreground" role="status">{data.refusal}</p> : <>
+							{!data.user.verified && <form class="space-y-2" method="post" action="?/verify" set:onsubmit={verify.submit}>
+								<p class="text-sm">Verify your email before sending your notes.</p>
+								<Button type="submit" variant="outline" disabled={verify.loading}>{verify.loading ? 'Sending…' : 'Send verification email'}</Button>
+								{verify.data && <p class="text-sm" role="status">{verify.data.message}</p>}
+							</form>}
+							<form class="space-y-2" method="post" action="?/email" set:onsubmit={email.submit}>
+								<Button type="submit" variant="outline" disabled={email.loading || !data.user.verified}>{email.loading ? 'Sending…' : 'Email my notes'}</Button>
+								{email.data && <p class="text-sm" role="status">{email.data.message}</p>}
+							</form>
+						</>}
 					</CardContent>
 				</Card>
 				{data.mail !== null && <Card>

@@ -45,6 +45,13 @@ importers:
       vitest:
         specifier: 5.0.2
         version: 5.0.2(@types/node@26.6.3)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0))
+    optionalDependencies:
+      ajo-engine:
+        specifier: 0.2.0
+        version: 0.2.0
+      ajo-engine-compiler:
+        specifier: 0.2.0
+        version: 0.2.0
 
 packages:
 
@@ -443,6 +450,18 @@ packages:
     engines: {node: '>=22.18.0'}
     peerDependencies:
       ajo: ^0.2.0
+
+  ajo-engine-compiler@0.2.0:
+    resolution: {integrity: sha512-5tLXy4qGckwGgGWD4uTucf94qX4CJPE4X2U2l9WQmmBZiXnArCrEK2ETQFvXPftlQ6ZZm+NkFu8Og1JhTTpkrw==}
+    cpu: [x64]
+    os: [linux]
+    hasBin: true
+
+  ajo-engine@0.2.0:
+    resolution: {integrity: sha512-nr71yVCDTwwH9qYaBP6P7XQoGLApbAONOq9jLpDDyfuxlPdAYl+UPt3cIoERj4BHmpWfR/g0wTgT/N9I3bIq7g==}
+    cpu: [x64]
+    os: [linux]
+    hasBin: true
 
   ajo-kit-auth@0.7.0:
     resolution: {integrity: sha512-F4Uxy9zi1aQsAvKJhU2M2XY/o3sZVHb4DER+G1FDxSRHAzc4Exmjpp4+U8EfLp7auopUJzO2ncX8pJj1sbmpHA==}
@@ -1351,6 +1370,12 @@ snapshots:
   ajo-cloves@0.2.0(ajo@0.2.0):
     dependencies:
       ajo: 0.2.0
+
+  ajo-engine-compiler@0.2.0:
+    optional: true
+
+  ajo-engine@0.2.0:
+    optional: true
 
   ajo-kit-auth@0.7.0(ajo-kit@0.4.0(ajo@0.2.0)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0))):
     dependencies:

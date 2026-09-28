@@ -3,6 +3,9 @@ import { spawnSync } from 'node:child_process'
 import { loadEnvFile } from 'node:process'
 import { writeFileSync } from 'node:fs'
 
+// Prepares a new project for local development, once, from its directory:
+// a private .env with a random APP_SECRET, then the auth and project migrations.
+
 try {
 	writeFileSync('.env', [
 		'APP_URL=http://localhost:5173',
@@ -18,6 +21,6 @@ try {
 }
 
 loadEnvFile('.env')
-const migration = spawnSync('kit', ['migrate', 'up', '--database', process.env.DATABASE_PATH ?? './database.sqlite'], { stdio: 'inherit' })
+const migration = spawnSync('pnpm', ['exec', 'kit', 'migrate', 'up', '--database', process.env.DATABASE_PATH ?? './database.sqlite'], { stdio: 'inherit' })
 if (migration.error) throw migration.error
 process.exitCode = migration.status ?? 1

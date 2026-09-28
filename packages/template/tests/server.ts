@@ -10,7 +10,7 @@ import { promisify } from 'node:util'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const kit = join(root, 'node_modules/.bin/kit')
 
-export async function start(selected?: number) {
+export async function start(selected?: number, overrides: Record<string, string | undefined> = {}) {
 	const directory = await mkdtemp(join(tmpdir(), 'ajo-notes-test-'))
 	let port = selected
 	if (!port) {
@@ -28,6 +28,7 @@ export async function start(selected?: number) {
 		APP_URL: url,
 		APP_SECRET: 'local-test-only-notes-secret-000000000000000000',
 		DATABASE_PATH: join(directory, 'notes.sqlite'),
+		...overrides,
 	}
 	try {
 		await promisify(execFile)(kit, ['migrate', 'up', '--database', env.DATABASE_PATH], {

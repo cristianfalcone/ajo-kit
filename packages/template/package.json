@@ -10,7 +10,7 @@
         ]
       },
       "env": {
-        "required": [
+        "optional": [
           "MAIL_FROM",
           "MAIL_URL",
           "MAIL_TOKEN"
@@ -19,16 +19,11 @@
     }
   },
   "scripts": {
-    "kit": "kit",
-    "setup": "node scripts/setup.mjs",
     "dev": "kit dev",
     "build": "kit build",
-    "artifact": "kit build --compiler ajo-engine-compiler",
-    "start": "ajo-engine dist/ajo",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "deploy": "kit deploy"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "ajo": "0.2.0",
@@ -45,6 +40,10 @@
     "unocss": "66.10.5",
     "vite": "8.3.1",
     "vitest": "5.0.2"
+  },
+  "optionalDependencies": {
+    "ajo-engine": "0.2.0",
+    "ajo-engine-compiler": "0.2.0"
   },
   "engines": {
     "node": ">=22.18.0"
