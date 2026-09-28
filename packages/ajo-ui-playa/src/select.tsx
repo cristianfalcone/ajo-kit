@@ -44,8 +44,8 @@ export { SelectGroup, SelectValue } from 'ajo-ui/select'
 export type { PopupPlacement, PopupPosition } from 'ajo-ui/select'
 
 export type { SelectArgs, SelectChipArgs, SelectChipsArgs, SelectChipsInputArgs, SelectClearArgs, SelectContentArgs, SelectCreateArgs, SelectEmptyArgs, SelectFilter, SelectGroupArgs, SelectInputArgs, SelectItemArgs, SelectLabelArgs, SelectListArgs, SelectSeparatorArgs, SelectStatusArgs, SelectValueArgs }
-/** Visual size of the Playa select trigger. */
-export type SelectSize = 'default' | 'sm'
+/** Control height of the Playa select trigger, the scale Button and Toggle use. */
+export type SelectSize = 'default' | 'lg' | 'sm'
 export type SelectTriggerArgs = OmitArg<BaseSelectTriggerArgs, 'size'> & {
 	/** Trigger height, stamped as `data-size`. */
 	size?: SelectSize
@@ -56,7 +56,7 @@ const clearBase = clx(
 	'size-6 rounded-[calc(var(--radius)-5px)] [&_svg:not([class*=size-])]:size-4',
 	'*:data-[slot=select-clear-icon]:i-lucide-x *:data-[slot=select-clear-icon]:pointer-events-none *:data-[slot=select-clear-icon]:size-4',
 )
-const chipRemove = '*:data-[slot=select-chip-remove]:-mr-1 *:data-[slot=select-chip-remove]:inline-flex *:data-[slot=select-chip-remove]:size-4 *:data-[slot=select-chip-remove]:shrink-0 *:data-[slot=select-chip-remove]:items-center *:data-[slot=select-chip-remove]:justify-center *:data-[slot=select-chip-remove]:rounded-full *:data-[slot=select-chip-remove]:opacity-50 *:data-[slot=select-chip-remove]:hover:opacity-100 **:data-[slot=select-chip-remove-icon]:i-lucide-x **:data-[slot=select-chip-remove-icon]:pointer-events-none **:data-[slot=select-chip-remove-icon]:size-3'
+const chipRemove = '*:data-[slot=select-chip-remove]:inline-flex *:data-[slot=select-chip-remove]:size-4 *:data-[slot=select-chip-remove]:shrink-0 *:data-[slot=select-chip-remove]:items-center *:data-[slot=select-chip-remove]:justify-center *:data-[slot=select-chip-remove]:rounded-full *:data-[slot=select-chip-remove]:opacity-50 *:data-[slot=select-chip-remove]:hover:opacity-100 **:data-[slot=select-chip-remove-icon]:i-lucide-x **:data-[slot=select-chip-remove-icon]:pointer-events-none **:data-[slot=select-chip-remove-icon]:size-3'
 
 /** Unified select: single, multiple, searchable, editable, chips, and tagging by composition. */
 const Select = <Multiple extends boolean = false>({ class: classes, ...attrs }: SelectArgs<Multiple>) => (
@@ -129,7 +129,7 @@ const SelectChips: Stateless<SelectChipsArgs> = ({ class: classes, ...attrs }) =
 
 /** Selected chip for multiple Select usage; composes the Chip visual language. */
 const SelectChip: Stateless<SelectChipArgs> = ({ class: classes, ...attrs }) => (
-	<BaseSelectChip {...attrs} class={clx(chipVariants({ variant: 'secondary' }), 'has-[button]:pr-1', chipRemove, classes)} />
+	<BaseSelectChip {...attrs} class={clx(chipVariants({ variant: 'secondary' }), 'has-[button]:pe-1', chipRemove, classes)} />
 )
 
 /** Input used inside SelectChips. */

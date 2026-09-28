@@ -63,7 +63,7 @@ const CommandDemo = ({
 	filter?: CommandFilter | null
 	onSelect?: (value: string) => (selected: string, event: Event) => void
 }) => (
-	<Command class="w-[28rem] glass-overlay edge shadow-lg" filter={filter}>
+	<Command class="w-full max-w-[28rem] glass-overlay edge shadow-lg" filter={filter}>
 		<CommandInput placeholder="Type a command or search..." />
 		<CommandList>
 			<CommandEmpty>No results found.</CommandEmpty>
@@ -74,7 +74,7 @@ const CommandDemo = ({
 				</CommandItem>
 				<CommandItem value="search-emoji" keywords={['smile', 'icons']} onSelect={onSelect?.('search-emoji')}>
 					<span class="i-lucide-smile size-4" />
-					Search Emoji
+					Search emoji
 				</CommandItem>
 				<CommandItem value="calculator" keywords={['math']} onSelect={onSelect?.('calculator')}>
 					<span class="i-lucide-calculator size-4" />
@@ -108,9 +108,9 @@ const DialogCommands = () => (
 		<CommandList>
 			<CommandEmpty>No commands found.</CommandEmpty>
 			<CommandGroup heading="Commands">
-				<CommandItem value="open">Open File</CommandItem>
-				<CommandItem value="save">Save File</CommandItem>
-				<CommandItem value="close">Close Window</CommandItem>
+				<CommandItem value="open">Open file</CommandItem>
+				<CommandItem value="save">Save file</CommandItem>
+				<CommandItem value="close">Close window</CommandItem>
 			</CommandGroup>
 		</CommandList>
 	</>
@@ -137,7 +137,7 @@ const EnterGuardExample: Stateful = function* () {
 	while (true) yield (
 		<div class="grid gap-3">
 			<Command
-				class="w-[28rem] glass-overlay edge shadow-lg"
+				class="w-full max-w-[28rem] glass-overlay edge shadow-lg"
 				value="billing"
 				search={search}
 				onSearchChange={setSearch}
@@ -213,7 +213,7 @@ const TriggeredCommandDialogExample = () => (
 			class="max-h-[85vh] w-[min(92vw,32rem)] overflow-hidden p-0"
 			data-slot="command-dialog"
 		>
-			<UiDialogTitle class="sr-only">Command Palette</UiDialogTitle>
+			<UiDialogTitle class="sr-only">Command palette</UiDialogTitle>
 			<UiDialogDescription class="sr-only">Search for a command to run...</UiDialogDescription>
 			<Command>
 				<DialogCommands />
@@ -268,7 +268,7 @@ export const Keyboard: Story<typeof Command> = {
 
 		let highlighted = canvas.querySelector<HTMLElement>('[data-slot="command-item"][data-highlighted="true"]')
 		if (highlighted?.dataset.value !== 'search-emoji') {
-			throw new Error('ArrowDown did not move Command highlight to Search Emoji')
+			throw new Error('ArrowDown did not move Command highlight to Search emoji')
 		}
 
 		input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
@@ -429,6 +429,7 @@ export const Dialog: Story<typeof Command> = {
 		await frame(2)
 
 		if (!dialog.open) throw new Error('CommandDialog did not open from trigger')
+		if (document.activeElement !== input) throw new Error('CommandDialog did not open on its search')
 
 		const style = getComputedStyle(dialog)
 		const screenshot = new URLSearchParams(location.search).get('screenshot') === '1'
@@ -492,6 +493,17 @@ export const Dialog: Story<typeof Command> = {
 		if (closeRect.width < 24 || closeRect.height < 24 || closeIconRect.width < 12 || closeIconRect.height < 12) {
 			throw new Error('CommandDialog close button was not visible or clickable')
 		}
+		// The close sits centred on the search row, clear of its icon and of typed text.
+		const row = dialog.querySelector<HTMLElement>('[data-slot="command-input-wrapper"]')?.getBoundingClientRect()
+		const searchIcon = dialog.querySelector<HTMLElement>('[data-slot="command-input-icon"]')?.getBoundingClientRect()
+		const overlaps = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+		if (!row || !searchIcon) throw new Error('CommandDialog search row or icon was not rendered')
+		if (overlaps(closeRect, searchIcon) || overlaps(closeRect, input.getBoundingClientRect())) {
+			throw new Error('CommandDialog close button overlaps the search')
+		}
+		if (Math.abs(closeRect.top + closeRect.height / 2 - (row.top + row.height / 2)) > 1) {
+			throw new Error('CommandDialog close button is not centred on the search row')
+		}
 		close.click()
 		await frame(2)
 
@@ -523,7 +535,7 @@ export const DialogDefaults: Story<typeof Command> = {
 
 		const title = dialog.ownerDocument.getElementById(dialog.getAttribute('aria-labelledby') ?? '')
 		const description = dialog.ownerDocument.getElementById(dialog.getAttribute('aria-describedby') ?? '')
-		if (title?.textContent !== 'Command Palette') throw new Error('CommandDialog default title changed')
+		if (title?.textContent !== 'Command palette') throw new Error('CommandDialog default title changed')
 		if (description?.textContent !== 'Search for a command to run...') {
 			throw new Error('CommandDialog default description changed')
 		}
@@ -602,7 +614,7 @@ export const DialogTriggerFocusReturn: Story<typeof Command> = {
 
 export const Disabled: Story<typeof Command> = {
 	render: () => (
-		<Command disabled class="w-[28rem] glass-overlay edge shadow-lg">
+		<Command disabled class="w-full max-w-[28rem] glass-overlay edge shadow-lg">
 			<CommandInput />
 			<CommandList>
 				<CommandGroup heading="Disabled">

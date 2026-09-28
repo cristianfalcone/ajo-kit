@@ -110,7 +110,7 @@ const RangeExample: Stateful<RangeArgs> = function* ({ from, month, months, setA
 				class="rounded-lg edge shadow-xs"
 			/>
 			<p class="text-center text-sm text-muted-foreground">
-				Range: {label(selected.from)} - {label(selected.to)}
+				{selected.to ? `Range: ${label(selected.from)} to ${label(selected.to)}` : selected.from ? `Range starts ${label(selected.from)}` : 'No range'}
 			</p>
 		</div>
 	)
@@ -343,6 +343,10 @@ export const MonthPicker: Story = {
 		monthCell(canvas, '2026-02').click()
 		await frame()
 		if (canvas.querySelector('[data-testid="month-selection"]')?.textContent !== 'none') throw new Error('Month picker did not clear to null')
+		// End with a month chosen, so the plate on a period cell shows.
+		monthCell(canvas, '2026-03').click()
+		await frame()
+		if (canvas.querySelector('[data-testid="month-selection"]')?.textContent !== '2026-03-01') throw new Error('Month picker did not pick again after clearing')
 	},
 }
 
@@ -511,8 +515,16 @@ export const Range: Story = {
 		day(canvas, '2026-02-10').click()
 		await frame()
 
-		if (!canvas.textContent?.includes('Range: Feb 10, 2026 - none')) {
+		if (!canvas.textContent?.includes('Range starts Feb 10, 2026')) {
 			throw new Error('Calendar range restart did not update')
+		}
+
+		// End on a whole range: both ends plated, the band between them.
+		day(canvas, '2026-02-14').click()
+		await frame()
+
+		if (!canvas.textContent?.includes('Range: Feb 10, 2026 to Feb 14, 2026')) {
+			throw new Error('Calendar range did not close on its second end')
 		}
 
 		if (!canvas.querySelector('[data-month="2026-01-01"]')) {
@@ -638,7 +650,7 @@ export const DisabledAndModifiers: Story = {
 			defaultMonth={parse(args.month)}
 			disabled={args.weekends ? { dayOfWeek: [0, 6] } : undefined}
 			modifiers={{ booked: dates(args.booked) }}
-			classNames={{ day_button: 'relative data-[modifier-booked=true]:after:absolute data-[modifier-booked=true]:after:bottom-1 data-[modifier-booked=true]:after:size-1 data-[modifier-booked=true]:after:rounded-full data-[modifier-booked=true]:after:bg-danger' }}
+			classNames={{ day_button: 'relative data-[modifier-booked=true]:after:absolute data-[modifier-booked=true]:after:top-1 data-[modifier-booked=true]:after:end-1 data-[modifier-booked=true]:after:size-1 data-[modifier-booked=true]:after:rounded-full data-[modifier-booked=true]:after:bg-danger data-[modifier-booked=true]:after:content-[""]' }}
 			renderDay={(date: Date, modifiers: CalendarModifiers) => (
 				<>
 					{date.getDate()}
@@ -653,8 +665,19 @@ export const DisabledAndModifiers: Story = {
 			throw new Error('Calendar disabled matcher did not disable weekend')
 		}
 		const booked = day(canvas, '2026-07-14')
-		if (booked.dataset.modifierBooked !== 'true' || getComputedStyle(booked, '::after').position !== 'absolute') {
+		// The caller's mark is drawn on ::after, in the top corner clear of today's dot.
+		const mark = getComputedStyle(booked, '::after')
+		if (booked.dataset.modifierBooked !== 'true' || mark.content === 'none' || mark.position !== 'absolute') {
 			throw new Error('Calendar custom modifier was not rendered')
+		}
+		// The caller's cell size wins over Playa's default, so every row is as
+		// tall as a labelled day and each label stays inside its cell.
+		const closed = day(canvas, '2026-07-04')
+		const label = closed.querySelector('span')?.getBoundingClientRect()
+		const cell = closed.getBoundingClientRect()
+		const rows = new Set(Array.from(canvas.querySelectorAll('[data-slot="calendar-week"]'), row => row.getBoundingClientRect().height))
+		if (!label || label.top < cell.top || label.bottom > cell.bottom || rows.size !== 1) {
+			throw new Error('Calendar day labels overflow their cells or change row heights')
 		}
 	},
 }
@@ -726,6 +749,22 @@ export const LocaleRtl: Story = {
 		}
 		if (!day(canvas, '2026-07-01').textContent?.trim()) {
 			throw new Error('Calendar localized day did not render')
+		}
+		// Arabic spells its weekdays out: the columns keep the cell size, each
+		// header fits its column with the narrow name, and the full name stays
+		// for assistive technology.
+		const weekdays = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="calendar-weekday"]'))
+		const cell = parseFloat(getComputedStyle(day(canvas, '2026-07-01')).minWidth)
+		const inked = (header: HTMLElement) => {
+			const range = document.createRange()
+			range.selectNodeContents(header.querySelector('[aria-hidden="true"]') ?? header)
+			return range.getBoundingClientRect().width
+		}
+		if (weekdays.length !== 7 || weekdays.some(header => header.getBoundingClientRect().width > cell + 1 || inked(header) > cell)) {
+			throw new Error('Calendar weekday names widen or overflow their columns')
+		}
+		if (!weekdays[0].textContent?.includes(new Date(2026, 6, 4).toLocaleDateString('ar-SA', { weekday: 'long' }))) {
+			throw new Error('Calendar narrow weekday dropped its full name')
 		}
 
 		const x = (element: Element) => element.getBoundingClientRect().x

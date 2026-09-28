@@ -61,14 +61,19 @@ const dialogBase = clx(
 	modalEnter,
 	'max-h-[85vh] w-[min(92vw,32rem)] overflow-hidden rounded-xl edge p-0',
 )
-const dialogCommandBase = '**:data-[slot=command-input-wrapper]:h-12 [&_[data-slot=command-input-wrapper]_svg]:size-5 [&_[data-slot=command-input]]:h-12 [&_[data-slot=command-item]]:px-2 [&_[data-slot=command-item]]:py-3 [&_[data-slot=command-item]_svg]:size-5'
-const inputBase = 'flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50'
+// The search row is as tall as the dialog's close button is deep (top-4 plus
+// size-8), so the close sits centred on it, and the row keeps the close's
+// inline end free, so neither the icon nor typed text runs under it.
+const dialogCommandBase = '**:data-[slot=command-input-wrapper]:h-16 **:data-[slot=command-input-wrapper]:pe-12 [&_[data-slot=command-input-wrapper]_svg]:size-5 [&_[data-slot=command-input]]:h-full [&_[data-slot=command-item]]:px-2 [&_[data-slot=command-item]]:py-3 [&_[data-slot=command-item]_svg]:size-5'
+// Control text is Input's: 16 px below sm, so a phone does not zoom, and 14 px
+// from sm. Escape clears the search, so the browser's own blue clear button goes.
+const inputBase = 'flex h-control w-full rounded-md bg-transparent text-base outline-none disabled:cursor-not-allowed disabled:opacity-[var(--disabled-opacity)] sm:text-sm [&::-webkit-search-cancel-button]:appearance-none'
 // The input's wrapper and search icon, and a group's heading, are base-owned
 // nodes themed through their slots from the Command root.
 const slotBase = [
-	'[&_:where([data-slot=command-input-wrapper])]:flex [&_:where([data-slot=command-input-wrapper])]:h-9 [&_:where([data-slot=command-input-wrapper])]:items-center [&_:where([data-slot=command-input-wrapper])]:gap-2 [&_:where([data-slot=command-input-wrapper])]:border-b [&_:where([data-slot=command-input-wrapper])]:px-3',
+	'[&_:where([data-slot=command-input-wrapper])]:flex [&_:where([data-slot=command-input-wrapper])]:h-control [&_:where([data-slot=command-input-wrapper])]:items-center [&_:where([data-slot=command-input-wrapper])]:gap-2 [&_:where([data-slot=command-input-wrapper])]:border-b [&_:where([data-slot=command-input-wrapper])]:px-3',
 	'[&_:where([data-slot=command-input-icon])]:i-lucide-search [&_:where([data-slot=command-input-icon])]:size-4 [&_:where([data-slot=command-input-icon])]:shrink-0 [&_:where([data-slot=command-input-icon])]:opacity-50',
-	'[&_:where([data-slot=command-group-heading])]:px-2 [&_:where([data-slot=command-group-heading])]:py-1.5 [&_:where([data-slot=command-group-heading])]:text-xs [&_:where([data-slot=command-group-heading])]:font-medium [&_:where([data-slot=command-group-heading])]:text-muted-foreground',
+	'[&_:where([data-slot=command-group-heading])]:px-2 [&_:where([data-slot=command-group-heading])]:pt-2 [&_:where([data-slot=command-group-heading])]:pb-1 [&_:where([data-slot=command-group-heading])]:text-xs [&_:where([data-slot=command-group-heading])]:font-medium [&_:where([data-slot=command-group-heading])]:text-muted-foreground',
 ].join(' ')
 const listBase = clx(scrollAreaVariants({ axis: 'y' }), 'max-h-[300px] scroll-py-1')
 // Shares the menu row token: command speaks the same data-highlighted/
@@ -89,7 +94,7 @@ const CommandDialog: Stateless<CommandDialogArgs> = ({
 	description = 'Search for a command to run...',
 	onOpenChange,
 	open,
-	title = 'Command Palette',
+	title = 'Command palette',
 	...attrs
 }) => (
 	<Dialog class="contents" defaultOpen={defaultOpen} onOpenChange={onOpenChange} open={open}>
@@ -98,10 +103,11 @@ const CommandDialog: Stateless<CommandDialogArgs> = ({
 				<DialogTitle>{title}</DialogTitle>
 				<DialogDescription>{description}</DialogDescription>
 			</div>
-			<DialogClose aria-label={closeLabel} />
+			{/* The search comes first, so the dialog opens on it, not on its close button. */}
 			<Command class={dialogCommandBase}>
 				{children}
 			</Command>
+			<DialogClose aria-label={closeLabel} />
 		</DialogContent>
 	</Dialog>
 )
@@ -128,7 +134,7 @@ const CommandGroup: Stateless<CommandGroupArgs> = ({ class: classes, ...attrs })
 
 /** Visual separator between command groups. */
 const CommandSeparator: Stateless<CommandSeparatorArgs> = ({ class: classes, ...attrs }) => (
-	<BaseCommandSeparator {...attrs} class={clx('-mx-1 h-px bg-border', classes)} />
+	<BaseCommandSeparator {...attrs} class={clx('h-px bg-border', classes)} />
 )
 
 /** Selectable command option. */

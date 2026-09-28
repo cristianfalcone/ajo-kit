@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { frame, wait, press } from './play'
+import { frame, wait, press, until } from './play'
 import {
 	Field,
 	FieldDescription,
@@ -157,7 +157,7 @@ const ChipsExample: Stateful = function* () {
 	const change = (next: string[]) => this.next(() => value = next)
 
 	while (true) yield (
-		<div class="grid w-[26rem] gap-3">
+		<div class="grid w-full max-w-[26rem] gap-3">
 			<Select multiple value={value} onValueChange={change} autoHighlight>
 				<SelectChips>
 					{value.map(item => (
@@ -244,7 +244,7 @@ const TaggingExample: Stateful = function* () {
 	})
 
 	while (true) yield (
-		<div class="grid w-[26rem] gap-3">
+		<div class="grid w-full max-w-[26rem] gap-3">
 			<Select multiple value={value} onValueChange={change} onCreate={create}>
 				<SelectChips>
 					{value.map(item => (
@@ -569,7 +569,7 @@ export const Invalid: Story<typeof Select> = {
 	args: {
 		description: 'Choose one fruit from the menu.',
 		label: 'Fruit',
-		error: 'Please select a fruit.',
+		error: 'Choose a fruit to continue.',
 	},
 	render: ({ description, error, label, ...args }, { setArg }) => (
 		<Field invalid class="max-w-sm">
@@ -839,9 +839,10 @@ export const MultipleChips: Story<typeof Select> = {
 			throw new Error('Multiple selection did not add Remix')
 		}
 
-		// Chip roving: ArrowLeft from an empty input focuses the last chip.
+		// Chip roving: the arrow toward the chips (left, or right on a
+		// right-to-left page) from an empty input focuses the last chip.
 		input.focus()
-		press(input, 'ArrowLeft')
+		press(input, getComputedStyle(input).direction === 'rtl' ? 'ArrowRight' : 'ArrowLeft')
 		await frame(2)
 
 		const focused = document.activeElement as HTMLElement | null
@@ -865,6 +866,18 @@ export const MultipleChips: Story<typeof Select> = {
 		if (!canvas.textContent?.includes('Selected: none')) {
 			throw new Error('Chip remove did not clear the last value')
 		}
+
+		// End where every variant can be compared: two chips, the popup closed, nothing focused.
+		const chipsInput = () => canvas.querySelector<HTMLInputElement>('[data-slot="select-chips-input"]')!
+		for (const [search, value] of [['next', 'Next.js'], ['rem', 'Remix']]) {
+			await typeInto(chipsInput(), search)
+			canvas.querySelector<HTMLElement>(`[data-slot="select-item"][data-value="${value}"]`)?.click()
+			await frame(2)
+		}
+		press(chipsInput(), 'Escape')
+		chipsInput().blur()
+		await until(() => !content.matches(':popover-open'), 'Escape did not close the chips popup')
+		if (!canvas.textContent?.includes('Selected: Next.js, Remix')) throw new Error('Chips select did not end with two chips')
 	},
 }
 
@@ -1014,7 +1027,7 @@ export const InvalidInput: Story<typeof Select> = {
 				</SelectContent>
 			</Select>
 			<FieldDescription>Choose one framework from the filtered list.</FieldDescription>
-			<FieldError>Please select a framework.</FieldError>
+			<FieldError>Choose a framework to continue.</FieldError>
 		</Field>
 	),
 	play: async ({ canvas }) => {
@@ -1151,7 +1164,7 @@ export const Async: Story<typeof Select> = {
 
 export const FormMultiple: Story<typeof Select> = {
 	render: () => (
-		<form id="select-form" class="grid w-[26rem] gap-3">
+		<form id="select-form" class="grid w-full max-w-[26rem] gap-3">
 			<Select multiple name="stack" defaultValue={['Next.js', 'Astro']}>
 				<SelectChips>
 					<SelectChipsInput placeholder="Add framework..." />

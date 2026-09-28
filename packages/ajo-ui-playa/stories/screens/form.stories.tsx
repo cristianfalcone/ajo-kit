@@ -128,8 +128,6 @@ export const Blank: Story = {
 		known: [
 			{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=switch-input]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=switch-input]'] },
-			{ check: 'forced-colors', slice: 'p5-kit-13', variants: ['light-1280'], targets: ['span[data-slot=input-date-segment]'] },
-			{ check: 'motion', slice: 'p5-kit-13', variants: ['light-1280 environment'], targets: ['div[data-slot=select-content]'] },
 		],
 	},
 	play: async ({ canvas, setArg }) => {
@@ -148,7 +146,6 @@ export const Invalid: Story = {
 		known: [
 			{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=switch-input]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=switch-input]'] },
-			{ check: 'forced-colors', slice: 'p5-kit-13', variants: ['light-1280'], targets: ['span[data-slot=input-date-segment]'] },
 			{ check: 'target-size', slice: 'p5-kit-13', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['span[data-slot=input-date-segment]'] },
 		],
 	},
@@ -169,7 +166,6 @@ export const Submitting: Story = {
 		known: [
 			{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=switch-input]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=switch-input]'] },
-			{ check: 'forced-colors', slice: 'p5-kit-13', variants: ['light-1280'], targets: ['span[data-slot=input-date-segment]'] },
 			{ check: 'target-size', slice: 'p5-kit-13', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['span[data-slot=input-date-segment]'] },
 		],
 	},

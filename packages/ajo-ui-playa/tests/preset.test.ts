@@ -136,7 +136,7 @@ describe('playa preset', () => {
 		const uno = await createGenerator({ presets: [playa()] })
 		const { css } = await uno.generate('playa-select-item playa-select-input playa-toaster')
 
-		expect(css).toContain('.playa-select-item > *[data-selected=true][data-slot=select-item-indicator]{opacity:100%;}')
+		expect(css).toContain('.playa-select-item > *[data-selected=false][data-slot=select-item-indicator]{visibility:hidden;}')
 		expect(css).toContain('.playa-select-input:has([data-slot=select-clear]) [data-slot=select-input-trigger]{display:none;}')
 		expect(css).toContain('.playa-toaster>:where([data-slot=toast][data-variant=danger]){color:')
 		expect(css).toContain('.playa-toaster[data-rich-colors]>:where([data-slot=toast][data-variant=info]){color:')
