@@ -1,8 +1,5 @@
 import type { Middleware } from 'ajo-kit'
-import { configure, wares } from 'ajo-kit-auth'
-import { db } from './database'
+import { wares } from 'ajo-kit-auth'
 import './mail'
-
-configure(() => db())
 
 export default [wares.session(), wares.csrf] satisfies Middleware[]

@@ -1,7 +1,7 @@
 import type { Stateful } from 'ajo'
 import type { PageArgs } from 'ajo-kit'
 import { action } from 'ajo-kit/client'
-import Button from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'ajo-ui-playa/card'
 import type { Note } from '../database'
 

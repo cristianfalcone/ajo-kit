@@ -42,7 +42,7 @@ process runs in production.
 
 | Path | Responsibility |
 |---|---|
-| `src/wares.ts` | Configure auth and mail; run session and CSRF middleware |
+| `src/wares.ts` | Load the mail configuration; run session and CSRF middleware |
 | `src/(account)` | Registration and sign-in forms/actions, guest guard |
 | `src/database.ts` | Typed schema combining auth tables with app-owned notes |
 | `db/migrations/0001_notes.ts` | Notes, owner foreign key and bounded-list index; up/down |
@@ -128,7 +128,7 @@ On a Linux x64 build host, install the matching native npm pair. This is an
 explicit build step so local UI development does not require a Linux-only tool:
 
 ```sh
-pnpm add -D --save-exact ajo-engine@0.1.0 ajo-engine-compiler@0.1.0
+pnpm add -D --save-exact ajo-engine@0.2.0 ajo-engine-compiler@0.2.0
 pnpm artifact
 ```
 

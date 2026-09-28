@@ -42,11 +42,9 @@ export const actions = {
 		if (verified !== null) return { message: 'Your email is already verified.' }
 		const recipient = `verify:email:${email}`
 		const address = `verify:ip:${ip(req)}`
-		if (!limit.check(recipient, 1) || !limit.check(address, 5)) {
+		if (!limit.hit(recipient, 1, 3_600_000) || !limit.hit(address, 5, 3_600_000)) {
 			throw new Failure(429, 'Verification is limited to one message per address per hour. Try again later.')
 		}
-		limit.hit(recipient, 3_600_000)
-		limit.hit(address, 3_600_000)
 		const result = await deliver({
 			to: email,
 			kind: 'verify',
@@ -61,8 +59,7 @@ export const actions = {
 		const { id, email, verified } = req.user!
 		if (verified === null) throw new Forbidden('Verify your email before sending notes.')
 		const key = `mail:${id}`
-		if (!limit.check(key, 1)) throw new Failure(429, 'Wait a minute before sending again.')
-		limit.hit(key)
+		if (!limit.hit(key, 1)) throw new Failure(429, 'Wait a minute before sending again.')
 		const rows = await notes(id)
 		const result = await deliver({
 			to: email,

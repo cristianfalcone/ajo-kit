@@ -21,8 +21,7 @@ const Signup = pipe(
 export const actions = {
 	default: async (req: Request) => {
 		const key = `register:${ip(req)}`
-		if (!limit.check(key)) throw new Failure(429, 'Too many attempts. Try again in a minute.')
-		limit.hit(key)
+		if (!limit.hit(key)) throw new Failure(429, 'Too many attempts. Try again in a minute.')
 		const input = parse(Signup, req.body)
 		const hashed = await secret.hash(input.password)
 		const user = await db().insertInto('users')

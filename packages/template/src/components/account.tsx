@@ -1,6 +1,6 @@
 import type { Stateful } from 'ajo'
 import { action } from 'ajo-kit/client'
-import Button from 'ajo-ui-playa/button'
+import { Button } from 'ajo-ui-playa/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'ajo-ui-playa/card'
 
 const field = 'h-10 w-full rounded-md border bg-transparent px-3 outline-none focus-visible:ring-3 focus-visible:ring-ring/50'

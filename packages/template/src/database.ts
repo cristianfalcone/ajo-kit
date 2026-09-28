@@ -1,5 +1,4 @@
-import { connect, db as database, type Generated, type Selectable } from 'ajo-kit/database'
-import { env } from 'ajo-kit/platform'
+import { db as database, type Generated, type Selectable } from 'ajo-kit/database'
 import type { Auth } from 'ajo-kit-auth'
 
 interface Notes {
@@ -14,7 +13,5 @@ export interface Database extends Auth {
 }
 
 export type Note = Pick<Selectable<Notes>, 'id' | 'text' | 'created'>
-
-connect(env('DATABASE_PATH') ?? './database.sqlite')
 
 export const db = () => database<Database>()
