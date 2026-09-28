@@ -23,8 +23,7 @@ stripping for CLI operations and use erasable TypeScript syntax.
   "type": "module",
   "scripts": {
     "dev": "kit dev",
-    "build": "kit build",
-    "artifact": "kit build --compiler ajo-engine-compiler"
+    "build": "kit build"
   }
 }
 ```
@@ -94,7 +93,7 @@ export default () => (
 
 ```bash
 kit dev [-p 5173]
-kit build [--compiler /path/to/ajo-engine-compiler]
+kit build
 
 kit migrate up [-d ./database.sqlite]
 kit migrate down [-d ./database.sqlite]
@@ -104,17 +103,59 @@ kit migrate create <name>
 kit seed [-d ./database.sqlite]
 ```
 
+Run it as `pnpm kit <command>`. Every command takes `--json` and `--help`, and
+`kit --version` prints the package version.
+
 Defaults:
 
 - database: `./database.sqlite`
 - migrations folder: `db/migrations`
 - seeds folder: `db/seeds`
 
+Commands write their progress and results to stderr as lines marked `✓` (done),
+`✗` (failed) or `○` (a step, or something pending), colored only when stderr is
+a terminal, `NO_COLOR` is unset or empty and `TERM` is not `dumb`. A `next:`
+line says what to do next. With `--json`, stdout carries exactly one JSON
+document:
+
+```json
+{ "ok": true, "result": { "staged": ".ajo", "sealed": true, "artifact": "dist/ajo" }, "next": null }
+{ "ok": false, "error": { "code": "usage", "message": "Unknown command: biuld" }, "next": "pnpm kit --help" }
+```
+
+The exit status is 0 on success and 1 on any failure. The `code` is the stable
+part of a failure:
+
+| Code | When |
+|---|---|
+| `usage` | Unknown command or option, a missing or extra argument, an invalid port |
+| `not_a_project` | The working directory has no `package.json` that depends on `ajo-kit` |
+| `plugin_failed` | A discovered plugin's commands failed to load |
+| `build_failed` | Vite, a `kit.engine` declaration or the closed module graph rejected the build |
+| `seal_failed` | `ajo-engine-compiler` failed |
+| `migrate_failed` | A migration command failed; a failed migration is named in the message |
+| `seed_failed` | A seed failed |
+| `internal` | A bug; stderr carries the stack |
+
+Plugin commands add their own codes. Results: `dev` returns `{ url }`, `build`
+`{ staged, sealed, artifact }`, `migrate up`, `down` and `status` a list of
+`{ name, status }` with `applied`, `rolled_back` or `pending`, `migrate create`
+`{ file }` and `seed` the seeded file names.
+
 `kit build` has one target: the ajo engine. It writes the closed server graph,
 compiled migration registry, transformed client, and `compiler.json` descriptor to
-`.ajo/`. Without `--compiler` it prints the exact compiler command. With `--compiler`,
-it seals that staging tree into `dist/ajo`. Every build rejects Node builtins and
-other imports that violate the engine's closed module graph.
+`.ajo/`, then seals that staging tree into `dist/ajo` with the project's own
+`ajo-engine-compiler`. The compiler and the engine are Linux x64 packages;
+install the pair as exact optional dependencies, which pnpm skips on other
+systems:
+
+```bash
+pnpm add --save-optional --save-exact ajo-engine ajo-engine-compiler
+```
+
+Without the compiler the build still stages `.ajo/`, succeeds and reports
+`sealed: false`. Every build rejects Node builtins and other imports that
+violate the engine's closed module graph.
 
 The engine's `Intl` offers only `DateTimeFormat` and `RelativeTimeFormat`, and
 there is no `navigator`. The build does not check for other uses; they fail when
@@ -448,6 +489,35 @@ This enables:
 - CLI command extension via `register(cli)`
 - engine descriptor configuration through `kit.engine`
 
+The `commands` module exports `register(cli)`, which adds commands with
+`cli.command(usage, command)`. `usage` is the command's words followed by
+`<required>` and `[optional]` arguments; options use the `node:util`
+`parseArgs` types:
+
+```ts
+export function register(cli) {
+  cli.command('greet <name>', {
+    describe: 'Greet someone',
+    options: { loud: { type: 'boolean', describe: 'Shout' } },
+    async action({ args: [name], options, report }) {
+      report(`○ greeting ${name}`)
+      if (name === 'nobody') throw Object.assign(new Error('Nobody to greet'), { code: 'name_invalid', next: 'pnpm kit greet <name>' })
+      return { result: { greeting: options.loud ? `HELLO ${name}` : `hello ${name}` }, next: 'pnpm kit greet someone-else' }
+    },
+  })
+}
+```
+
+An action returns `{ result, next }` or throws an `Error` with a snake_case
+`code` and a `next` step; kit prints both through its output contract, and any
+other error is `internal`. Progress goes through `report(line)`. While a
+command runs, kit sends what it writes through `process.stdout` to stderr, so
+stdout holds only the document; a child process must not inherit stdout. A
+module that fails to load or to register is `plugin_failed`.
+
+In the App's `package.json`, kit reads `kit.engine` and ignores every other
+`kit` key: each belongs to the plugin that declares it.
+
 A plugin's `kit.engine` block uses the same `env`, `fs`, `ipc` and `net` shape as the
 App's block. Builds include installed plugins from dependencies and
 devDependencies, validate each declaration, and combine their requirements
@@ -620,7 +690,8 @@ await listen(await dev(options), 5173, { strict: true })
 
 `dev()` returns a Node request listener that runs Vite's middleware before the
 kit handler, and `build()` stages the engine artifact inputs and descriptor in
-`.ajo/`. `listen()` serves a request listener for Node-hosted development or
-test applications and can require a strict port. The `default` condition
-faces for `ajo-kit/platform` and `ajo-kit/database` are likewise dev-time Node
-shims for Vite, Vitest, and CLI operations; they are not production runtimes.
+`.ajo/`, printing only Vite's warnings and errors. `listen()` serves a request
+listener for Node-hosted development or test applications, resolves the port it
+bound (the next free one unless `strict` is set) and prints nothing. The
+`default` condition faces for `ajo-kit/platform` and `ajo-kit/database` are
+likewise dev-time Node shims for Vite, Vitest, and CLI operations; they are not production runtimes.

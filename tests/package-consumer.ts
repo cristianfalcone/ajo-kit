@@ -469,7 +469,10 @@ const kitCssProbe = async (directory: string, registry: string) => {
 			'',
 		].join('\n'),
 	})
-	await pnpm(['exec', 'kit', 'build'], directory)
+	// Without ajo-engine-compiler installed, the build stages and reports it is not sealed.
+	const staged = await pnpm(['exec', 'kit', 'build', '--json'], directory)
+	assert.deepEqual(JSON.parse(staged.stdout).result, { staged: '.ajo', sealed: false })
+	await assert.rejects(access(join(directory, 'dist')), { code: 'ENOENT' })
 
 	const cssFiles = await files(join(directory, '.ajo/client'), '.css')
 	assert(cssFiles.length > 0, 'kit build emitted no stylesheet from the css option')
@@ -484,7 +487,14 @@ const kitCssProbe = async (directory: string, registry: string) => {
 		return
 	}
 
-	const compiler = join(directory, 'compiler-fixture.mjs')
+	// kit build seals with the project's installed compiler package, as pnpm
+	// installs the real one on Linux x64.
+	const compiler = join(directory, 'node_modules/ajo-engine-compiler/bin/ajo-engine-compiler')
+	await writeJson(join(directory, 'node_modules/ajo-engine-compiler/package.json'), {
+		name: 'ajo-engine-compiler',
+		version: '0.0.0',
+		bin: { 'ajo-engine-compiler': 'bin/ajo-engine-compiler' },
+	})
 	await write(compiler, [
 		'#!/usr/bin/env node',
 		"import assert from 'node:assert/strict'",
@@ -498,19 +508,20 @@ const kitCssProbe = async (directory: string, registry: string) => {
 		'',
 	].join('\n'))
 	await chmod(compiler, 0o755)
-	await assert.rejects(access(join(directory, 'dist')), { code: 'ENOENT' })
-	await pnpm(['exec', 'kit', 'build', '--compiler', compiler], directory)
+	const sealed = await pnpm(['exec', 'kit', 'build', '--json'], directory)
+	assert.deepEqual(JSON.parse(sealed.stdout).result, { staged: '.ajo', sealed: true, artifact: 'dist/ajo' })
 	assert.equal(await readFile(join(directory, 'dist/ajo/fixture.txt'), 'utf8'), 'compiled')
 
 	await write(join(directory, 'dist/sibling.txt'), 'preserved')
 	await write(join(directory, 'dist/ajo/stale.txt'), 'old artifact')
-	await pnpm(['exec', 'kit', 'build', '--compiler', compiler], directory)
+	await pnpm(['exec', 'kit', 'build'], directory)
 	await assert.rejects(access(join(directory, 'dist/ajo/stale.txt')), { code: 'ENOENT' })
 	assert.equal(await readFile(join(directory, 'dist/sibling.txt'), 'utf8'), 'preserved')
 
 	await write(compiler, '#!/usr/bin/env node\nprocess.exit(23)\n')
-	await assert.rejects(pnpm(['exec', 'kit', 'build', '--compiler', compiler], directory), (error: unknown) =>
-		error instanceof CommandFailure && /compiler exited with status 23/.test(`${error.stdout}\n${error.stderr}`))
+	await assert.rejects(pnpm(['exec', 'kit', 'build', '--json'], directory), (error: unknown) =>
+		error instanceof CommandFailure && JSON.parse(error.stdout).error.code === 'seal_failed'
+		&& /ajo-engine-compiler exited with status 23/.test(error.stderr))
 	assert.equal(await readFile(join(directory, 'dist/sibling.txt'), 'utf8'), 'preserved')
 }
 
@@ -593,7 +604,7 @@ const main = async () => {
 		await verifyNodeNextDeclarations(consumer)
 		console.log('package consumer: Playa client, SSR and CSS, ajo-ui NodeNext declarations passed')
 		await kitCssProbe(join(temporary, 'kit-css-consumer'), registry.url)
-		console.log('package consumer: kit build stylesheet and compiler contract passed')
+		console.log('package consumer: kit build stylesheet and sealing contract passed')
 	} catch (error) {
 		const logs = registry?.logs().trim()
 		if (logs) console.error(`Verdaccio tail:\n${logs.slice(-6_000)}`)

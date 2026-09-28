@@ -61,7 +61,6 @@
     "dotenv": "18.0.4",
     "kysely": "0.29.6",
     "navaid": "1.2.0",
-    "sade": "1.8.1",
     "valibot": "1.5.0"
   },
   "peerDependencies": {

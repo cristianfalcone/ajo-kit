@@ -89,10 +89,10 @@ export async function dev(options: Options = {}): Promise<http.RequestListener> 
 		try {
 			const { create } = await server.ssrLoadModule('ajo-kit/server')
 			inner = handler(await create(template))
-			console.log('\x1b[32m✓\x1b[0m Server routes reloaded')
+			console.error('✓ Server routes reloaded')
 			if (event !== 'change' && /(page|layout)\.[jt]sx?$/.test(file)) server.ws.send({ type: 'full-reload', path: '*' })
 		} catch (error) {
-			console.error('\x1b[31m✗\x1b[0m Failed to reload routes:')
+			console.error('✗ Failed to reload routes:')
 			console.error(error)
 		}
 	}
@@ -111,7 +111,11 @@ export async function build(): Promise<void> {
 	const staging = join(root, '.ajo')
 	await fs.rm(staging, { force: true, recursive: true })
 
+	// At the info level Rolldown's native reporter writes progress straight to
+	// stdout, which `kit build --json` keeps for its document. Warnings and
+	// errors still print.
 	await vite.build({
+		logLevel: 'warn',
 		build: {
 			emptyOutDir: true,
 			outDir: '.ajo/client',
@@ -130,6 +134,7 @@ export async function build(): Promise<void> {
 	await fs.writeFile(generated, target.code)
 
 	await vite.build({
+		logLevel: 'warn',
 		plugins: [target.plugin],
 		build: {
 			copyPublicDir: false,
@@ -145,13 +150,10 @@ export async function build(): Promise<void> {
 	await fs.writeFile(join(staging, 'compiler.json'), JSON.stringify(value, null, '\t') + '\n')
 }
 
-/** Serves a Node dev/test request listener, incrementing the port unless strict is set. */
+/** Serves a Node dev/test request listener and resolves its port, the next free one unless strict is set. */
 export const listen = (listener: http.RequestListener, port = 5173, options: { strict?: boolean } = {}): Promise<number> => new Promise((resolve, reject) => {
 	http.createServer(listener)
-		.listen(port, () => {
-			console.log(`Server started at http://localhost:${port}`)
-			resolve(port)
-		})
+		.listen(port, () => resolve(port))
 		.once('error', (error: NodeJS.ErrnoException) =>
 			error.code === 'EADDRINUSE' && !options.strict
 				? resolve(listen(listener, port + 1, options))
