@@ -304,7 +304,7 @@ const Sidebar: Stateless<SidebarArgs> = ({
 	)
 }
 
-/** Unstyled button that toggles the current SidebarProvider. */
+/** Unstyled button that toggles the current SidebarProvider and reports whether the sidebar, or the drawer on a phone, is open. */
 const SidebarTrigger: Stateless<SidebarTriggerArgs> = ({
 	'aria-label': label = 'Toggle Sidebar',
 	children,
@@ -318,6 +318,7 @@ const SidebarTrigger: Stateless<SidebarTriggerArgs> = ({
 	return (
 		<button
 			{...attrs}
+			aria-expanded={String(ctx.isMobile ? ctx.openMobile : ctx.open)}
 			aria-label={label}
 			class={classes}
 			data-slot="sidebar-trigger"

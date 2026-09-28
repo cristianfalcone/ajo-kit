@@ -76,7 +76,7 @@ export const SideNav: Stateless<SideNavArgs> = ({ label, links, children }) => {
 	return (
 		// Static collapsible="none" sidebar: mod+b would toggle invisible state, so disable the shortcut.
 		<SidebarProvider shortcut={false} class="min-h-0 flex-col gap-8 py-8 lg:flex-row">
-			<Sidebar collapsible="none" variant="floating" class="lg:sticky lg:top-20 lg:max-h-[calc(100dvh-7rem)] lg:w-56 lg:self-start">
+			<Sidebar collapsible="none" variant="floating" class="md:w-full lg:sticky lg:top-20 lg:max-h-[calc(100dvh-7rem)] lg:w-56 lg:self-start">
 				<SidebarContent>
 					<SidebarGroup>
 						<SidebarGroupLabel>{label}</SidebarGroupLabel>

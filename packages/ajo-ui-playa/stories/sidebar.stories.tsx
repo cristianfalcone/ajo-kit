@@ -99,7 +99,7 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 					</SidebarMenu>
-					<SidebarInput placeholder="Search..." set:oninput={search} />
+					<SidebarInput placeholder="Search projects" set:oninput={search} />
 				</SidebarHeader>
 				<SidebarContent>
 					<SidebarGroup>
@@ -145,7 +145,7 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 										<CollapsibleTrigger class={sidebarMenuButtonVariants()} data-slot="sidebar-menu-button">
 											<span class="i-lucide-settings" />
 											<span>Settings</span>
-											<span class="i-lucide-chevron-right ml-auto transition-transform group-data-[state=open]/settings:rotate-90" />
+											<span class="i-lucide-chevron-right ms-auto transition-transform rtl:-scale-x-100 group-data-[state=open]/settings:rotate-90 rtl:group-data-[state=open]/settings:-rotate-90" />
 										</CollapsibleTrigger>
 										<CollapsibleContent>
 											<SidebarMenuSub>
@@ -155,7 +155,7 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 													</SidebarMenuSubButton>
 												</SidebarMenuSubItem>
 												<SidebarMenuSubItem>
-													<SidebarMenuSubButton href="/account/sessions" isActive={active === '/account/sessions'} size="sm" set:onclick={select('/account/sessions')}>
+													<SidebarMenuSubButton href="/account/sessions" isActive={active === '/account/sessions'} set:onclick={select('/account/sessions')}>
 														<span>Sessions</span>
 													</SidebarMenuSubButton>
 												</SidebarMenuSubItem>
@@ -190,7 +190,7 @@ const DemoSidebar: Stateful<DemoArgs> = function* () {
 								<MenuTrigger class={sidebarMenuButtonVariants({ size: 'lg' })} data-size="lg" data-slot="sidebar-menu-button">
 									<span class="i-lucide-circle-user" />
 									<span>cristian@example.com</span>
-									<span class="i-lucide-chevrons-up-down ml-auto" />
+									<span class="i-lucide-chevrons-up-down ms-auto" />
 								</MenuTrigger>
 								<MenuContent>
 									<MenuLabel>cristian@example.com</MenuLabel>
@@ -254,15 +254,19 @@ export const Default: Story<typeof Sidebar> = {
 		collapsible: { control: 'select', options: ['icon', 'offcanvas', 'none'] },
 	},
 	render: args => (
-		<SidebarProvider mobileQuery={DESKTOP} class="min-h-[560px]">
+		<SidebarProvider mobileQuery={DESKTOP}>
 			<DemoSidebar side={args.side} variant={args.variant} collapsible={args.collapsible} loading />
-			<SidebarInset class="p-6">
-				<div class="flex items-center gap-2">
+			<SidebarInset>
+				<header class="sticky top-0 z-10 flex items-center gap-2 border-b glass-chrome px-6 py-3">
 					<SidebarTrigger />
-				<h2 class="text-lg font-semibold">Dashboard</h2>
-			</div>
-				<div class="mt-6 rounded-md glass edge shadow-xs p-6">
-					<p class="text-sm text-muted-foreground">Main content stays in the inset.</p>
+					<h2 class="text-xl font-semibold">Dashboard</h2>
+				</header>
+				<div class="grid gap-4 p-6">
+					{['Deploys in the last 24 hours', 'Domains waiting for a certificate', 'People invited this week', 'Tokens that expire this month'].map(title => (
+						<section key={title} class="h-56 rounded-lg panel p-6">
+							<p class="text-sm text-muted-foreground">{title}</p>
+						</section>
+					))}
 				</div>
 			</SidebarInset>
 		</SidebarProvider>
@@ -274,12 +278,23 @@ export const Default: Story<typeof Sidebar> = {
 		if (wrapper.getAttribute('data-mobile') !== 'false') throw new Error('Provider did not stamp the desktop presentation')
 		if (sidebar.getAttribute('data-state') !== 'expanded') throw new Error('Sidebar should default to expanded')
 		expectDesktopWidth(sidebar, 256)
+		// The sidebar runs the viewport height and stays there while the page scrolls.
+		if (Math.abs(sidebar.getBoundingClientRect().height - innerHeight) > 1) throw new Error('Sidebar does not run the viewport height')
+		const scroller = sidebar.closest('main')!
+		scroller.scrollTop = 200
+		if (scroller.scrollTop === 0) throw new Error('The page did not scroll, so sticking was not checked')
+		await frame(2)
+		const top = sidebar.getBoundingClientRect().top
+		scroller.scrollTop = 0
+		if (Math.abs(top - scroller.getBoundingClientRect().top) > 1) throw new Error('Sidebar scrolled away with the page')
 		if (!canvas.querySelector('[data-slot="sidebar-menu-badge"]')) throw new Error('Sidebar badge was not rendered')
 		if (!canvas.querySelector('[aria-current="page"]')) throw new Error('Active sidebar item should expose aria-current')
 
 		const separator = sidebar.querySelector<HTMLElement>('[data-slot="separator"]')
 		if (!separator) throw new Error('SidebarSeparator was not rendered')
 		if (separator.getBoundingClientRect().height < 1) throw new Error('SidebarSeparator is invisible (computed height below 1px)')
+		const [line, box] = [separator.getBoundingClientRect(), sidebar.getBoundingClientRect()]
+		if (line.left < box.left + 7 || line.right > box.right - 8) throw new Error('SidebarSeparator runs past its inset')
 
 		// The loading rows read as skeletons: pulse animation on the row.
 		const skeleton = canvas.querySelector<HTMLElement>('[data-slot="sidebar-menu-skeleton"]')
@@ -295,9 +310,13 @@ export const Default: Story<typeof Sidebar> = {
 		const action = canvas.querySelector<HTMLElement>('[data-slot="sidebar-menu-action"]')
 		const crowded = action?.closest('li')?.querySelector<HTMLElement>('[data-slot="sidebar-menu-button"]')
 		if (!action || !crowded) throw new Error('Sidebar menu action example was not rendered')
-		if (getComputedStyle(crowded).paddingRight !== '32px') {
-			throw new Error('SidebarMenuButton did not reserve pr-8 space for its SidebarMenuAction')
+		if (getComputedStyle(crowded).paddingInlineEnd !== '32px') {
+			throw new Error('SidebarMenuButton did not reserve pe-8 space for its SidebarMenuAction')
 		}
+
+		// Nested items take the size of the items above them.
+		const heights = new Set(Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="sidebar-menu-sub-button"], a[data-slot="sidebar-menu-button"]'), node => node.getBoundingClientRect().height))
+		if (heights.size !== 1) throw new Error(`Sidebar items come in ${heights.size} heights`)
 
 		// Selecting an item moves aria-current without navigating.
 		const dashboard = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="sidebar-menu-button"]'))
@@ -374,9 +393,11 @@ export const Default: Story<typeof Sidebar> = {
 		// Trigger and shortcut still toggle the sidebar.
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="sidebar-trigger"]')
 		if (!trigger) throw new Error('SidebarTrigger was not rendered')
+		if (trigger.getAttribute('aria-expanded') !== 'true') throw new Error('SidebarTrigger does not report the open sidebar')
 		trigger.click()
 		await wait(0)
 		if (sidebar.getAttribute('data-state') !== 'collapsed') throw new Error('SidebarTrigger did not collapse the sidebar')
+		if (trigger.getAttribute('aria-expanded') !== 'false') throw new Error('SidebarTrigger does not report the collapsed sidebar')
 		expectDesktopWidth(sidebar, 48)
 
 		modB()
@@ -595,11 +616,19 @@ export const Mobile: Story<typeof Sidebar> = {
 
 		const trigger = canvas.querySelector<HTMLButtonElement>('[data-slot="sidebar-trigger"]')
 		if (!trigger) throw new Error('SidebarTrigger was not rendered')
+		if (trigger.getAttribute('aria-expanded') !== 'false') throw new Error('SidebarTrigger does not report the closed drawer')
 		trigger.click()
 		await frame(2)
 
 		if (!drawer.open) throw new Error('SidebarTrigger did not open the mobile drawer')
+		if (trigger.getAttribute('aria-expanded') !== 'true') throw new Error('SidebarTrigger does not report the open drawer')
 		if (!drawer.matches(':modal')) throw new Error('Mobile drawer did not open in the modal top layer')
+		// Like the desktop sidebar, the hairline runs only on the inner side,
+		// never along the viewport edges.
+		const edges = getComputedStyle(drawer)
+		if ([edges.borderTopWidth, edges.borderBottomWidth, edges.borderLeftWidth].some(width => width !== '0px') || edges.borderRightWidth !== '1px' || edges.boxShadow.includes('inset')) {
+			throw new Error('Mobile drawer should draw its hairline on its inner side only')
+		}
 
 		const backdrop = getComputedStyle(drawer, '::backdrop').backgroundColor
 		if (!backdrop || backdrop === 'transparent' || backdrop === 'rgba(0, 0, 0, 0)') {

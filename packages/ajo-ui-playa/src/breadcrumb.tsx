@@ -51,24 +51,33 @@ const Breadcrumb: Stateless<BreadcrumbArgs> = ({
 	</nav>
 )
 
+// The trail is inline text. A separator does not wrap, except at the
+// zero-width space that opens it, so a wrapped trail never ends a line on a
+// separator: the separator moves down with the item it leads to.
+
 /** Ordered breadcrumb item list. */
-const BreadcrumbList = part<BreadcrumbListArgs>('ol', 'breadcrumb-list', { class: 'flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground sm:gap-2.5' })
+const BreadcrumbList = part<BreadcrumbListArgs>('ol', 'breadcrumb-list', { class: 'break-words text-sm text-muted-foreground' })
 
 /** Single breadcrumb list item. */
-const BreadcrumbItem = part<BreadcrumbItemArgs>('li', 'breadcrumb-item', { class: 'inline-flex items-center gap-1.5' })
+const BreadcrumbItem = part<BreadcrumbItemArgs>('li', 'breadcrumb-item', { class: 'inline' })
+
+// Links and the page keep a step of padding beside their letters, so the one
+// focus ring, flush outside the box, never touches them. The padding is the
+// gap around each separator, and every fragment of a wrapped title keeps it,
+// so its lines start together.
 
 /** Clickable breadcrumb link. */
-const BreadcrumbLink = part<BreadcrumbLinkArgs>('a', 'breadcrumb-link', { class: 'transition-colors hover:text-foreground' })
+const BreadcrumbLink = part<BreadcrumbLinkArgs>('a', 'breadcrumb-link', { class: 'rounded-xs px-1 box-decoration-clone transition-colors playa-focus hover:text-foreground' })
 
 /** Current page marker inside a breadcrumb. */
 const BreadcrumbPage = part<BreadcrumbPageArgs>('span', 'breadcrumb-page', {
 	'aria-current': 'page',
 	'aria-disabled': 'true',
-	class: 'font-normal text-foreground',
+	class: 'px-1 box-decoration-clone font-normal text-foreground',
 	role: 'link',
 })
 
-/** Decorative separator between breadcrumb items. */
+/** Decorative separator between breadcrumb items; the default chevron points along the reading direction. */
 const BreadcrumbSeparator: Stateless<BreadcrumbSeparatorArgs> = ({
 	children,
 	class: classes,
@@ -77,20 +86,21 @@ const BreadcrumbSeparator: Stateless<BreadcrumbSeparatorArgs> = ({
 	<li
 		{...attrs}
 		aria-hidden="true"
-		class={clx('inline-flex items-center justify-center [&>svg]:size-3.5', classes)}
+		class={clx('inline whitespace-nowrap [&>svg]:size-3.5', classes)}
 		data-slot="breadcrumb-separator"
 		role="presentation"
 	>
-		{emptyChildren(children) ? <span aria-hidden="true" class="i-lucide-chevron-right block size-3.5 shrink-0 text-muted-foreground" /> : children}
+		<span class="whitespace-normal">{'\u200B'}</span>
+		{emptyChildren(children) ? <span aria-hidden="true" class="i-lucide-chevron-right size-3.5 align-middle text-muted-foreground rtl:-scale-x-100" /> : children}
 	</li>
 )
 
-/** Collapsed breadcrumb range indicator, hidden from assistive technology. */
+/** Collapsed breadcrumb range indicator, hidden from assistive technology and sized to its glyph. */
 const BreadcrumbEllipsis: Stateless<BreadcrumbEllipsisArgs> = ({ class: classes, ...attrs }) => (
 	<span
 		{...attrs}
 		aria-hidden="true"
-		class={clx('flex size-9 items-center justify-center', classes)}
+		class={clx('inline-flex size-4 align-middle', classes)}
 		data-slot="breadcrumb-ellipsis"
 		role="presentation"
 	>

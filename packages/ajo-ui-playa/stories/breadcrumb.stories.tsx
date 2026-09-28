@@ -52,7 +52,7 @@ const assertBasicSemantics = (canvas: HTMLElement) => {
 
 const assertVerticalAlignment = (canvas: HTMLElement) => {
 	const visualItems = Array.from(canvas.querySelectorAll<HTMLElement>(
-		'[data-slot="breadcrumb-link"], [data-slot="breadcrumb-page"], [data-slot="breadcrumb-separator"] > :not(.sr-only)',
+		'[data-slot="breadcrumb-link"], [data-slot="breadcrumb-page"], [data-slot="breadcrumb-separator"] > :last-child',
 	))
 
 	if (visualItems.length < 3) throw new Error('Breadcrumb did not render enough visible items to check alignment')
@@ -175,8 +175,8 @@ export const Menu: Story<typeof Breadcrumb> = {
 				</BreadcrumbSeparator>
 				<BreadcrumbItem>
 					<MenuRoot placement="bottom-start">
-						<MenuTrigger class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-							<BreadcrumbEllipsis class="size-4" />
+						<MenuTrigger class="inline-flex rounded-xs px-1 align-middle text-muted-foreground playa-focus hover:text-foreground">
+							<BreadcrumbEllipsis />
 							<span class="sr-only">Toggle menu</span>
 						</MenuTrigger>
 						<MenuContent>
@@ -214,20 +214,83 @@ export const Responsive: Story<typeof Breadcrumb> = {
 		<div class="w-[360px]">
 			<Breadcrumb>
 				<BreadcrumbList>
-					<BreadcrumbItem class="hidden sm:inline-flex">
+					<BreadcrumbItem class="hidden sm:inline">
 						<BreadcrumbLink href="/">Workspace</BreadcrumbLink>
 					</BreadcrumbItem>
-					<BreadcrumbSeparator class="hidden sm:block" />
+					<BreadcrumbSeparator class="hidden sm:inline" />
 					<BreadcrumbItem>
 						<BreadcrumbLink href="/account">Account</BreadcrumbLink>
 					</BreadcrumbItem>
 					<BreadcrumbSeparator />
 					<BreadcrumbItem>
-						<BreadcrumbPage class="line-clamp-1">Security settings and active sessions</BreadcrumbPage>
+						<BreadcrumbPage>Security settings and active sessions</BreadcrumbPage>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
 		</div>
 	),
-	play: async ({ canvas }) => assertBasicSemantics(canvas),
+	play: async ({ canvas }) => {
+		assertBasicSemantics(canvas)
+		// A wrapped title keeps its padding on every line, so its next line
+		// starts where the trail's first text does.
+		const rtl = getComputedStyle(canvas.querySelector('[data-slot="breadcrumb-list"]')!).direction === 'rtl'
+		const starts = (node: Node) => {
+			const range = document.createRange()
+			range.selectNodeContents(node)
+			return Array.from(range.getClientRects(), rect => rtl ? rect.right : rect.left)
+		}
+		const link = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="breadcrumb-link"]')).find(node => node.getClientRects().length)!
+		const lines = starts(canvas.querySelector('[data-slot="breadcrumb-page"]')!)
+		if (lines.length < 2) throw new Error('The page title did not wrap, so the check proves nothing')
+		if (Math.abs(lines.at(-1)! - starts(link)[0]) > 1) throw new Error('The wrapped page title does not line up with the trail')
+	},
+}
+
+// Each separator shares a line with the item it leads to, so a wrapped trail
+// never ends a line on a separator.
+const assertNoDanglingSeparator = (canvas: HTMLElement) => {
+	const separators = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="breadcrumb-separator"]'))
+	const tops = new Set(Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="breadcrumb-item"]'), item => Math.round(item.getBoundingClientRect().top)))
+	if (tops.size < 2) throw new Error('The breadcrumb did not wrap, so the check proves nothing')
+	for (const separator of separators) {
+		const mark = separator.querySelector<HTMLElement>(':scope > :last-child')!.getBoundingClientRect()
+		const next = separator.nextElementSibling!.getBoundingClientRect()
+		if (Math.abs((mark.top + mark.bottom) / 2 - (next.top + next.bottom) / 2) > 2) {
+			throw new Error(`A separator ends a line apart from "${separator.nextElementSibling!.textContent}"`)
+		}
+	}
+}
+
+export const Wrapping: Story<typeof Breadcrumb> = {
+	render: () => (
+		<div class="w-56">
+			<Breadcrumb>
+				<BreadcrumbList>
+					<BreadcrumbItem>
+						<BreadcrumbLink href="/">host-01</BreadcrumbLink>
+					</BreadcrumbItem>
+					<BreadcrumbSeparator />
+					<BreadcrumbItem>
+						<BreadcrumbLink href="/apps">Apps</BreadcrumbLink>
+					</BreadcrumbItem>
+					<BreadcrumbSeparator />
+					<BreadcrumbItem>
+						<BreadcrumbLink href="/apps/shop-api">shop-api</BreadcrumbLink>
+					</BreadcrumbItem>
+					<BreadcrumbSeparator />
+					<BreadcrumbItem>
+						<BreadcrumbLink href="/apps/shop-api/domains">Domains</BreadcrumbLink>
+					</BreadcrumbItem>
+					<BreadcrumbSeparator />
+					<BreadcrumbItem>
+						<BreadcrumbPage>shop.example.com</BreadcrumbPage>
+					</BreadcrumbItem>
+				</BreadcrumbList>
+			</Breadcrumb>
+		</div>
+	),
+	play: async ({ canvas }) => {
+		assertBasicSemantics(canvas)
+		assertNoDanglingSeparator(canvas)
+	},
 }

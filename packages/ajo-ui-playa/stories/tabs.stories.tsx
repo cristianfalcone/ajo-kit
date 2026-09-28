@@ -1,5 +1,5 @@
 /** @jsxImportSource ajo */
-import type { Meta, Story } from './app'
+import type { Meta, PlayContext, Story } from './app'
 import { frame } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import {
@@ -44,6 +44,53 @@ const tab = (canvas: HTMLElement, value: string) =>
 
 const panel = (canvas: HTMLElement, value: string) =>
 	canvas.querySelector<HTMLElement>(`[data-slot="tabs-content"][data-value="${value}"]`)
+
+// The line marker's bar is its content box, one focus width inside the
+// selected tab on every side, so the ring drawn outside a focused tab never
+// touches it. The bar is painted on the side of the tab that faces the panel,
+// in either direction.
+const assertMarkerClearsRing = async (selected: HTMLElement) => {
+	const list = selected.closest<HTMLElement>('[data-slot="tabs-list"]')!
+	await Promise.all(list.getAnimations({ subtree: true }).map(animation => animation.finished))
+	const marker = getComputedStyle(list, '::before')
+	const [x, y] = marker.translate.split(' ').map(Number.parseFloat)
+	const [box, trigger] = [list.getBoundingClientRect(), selected.getBoundingClientRect()]
+	const [left, top] = [box.left - list.scrollLeft + x, box.top - list.scrollTop + y]
+	const [width, height, border] = [marker.width, marker.height, marker.borderLeftWidth].map(Number.parseFloat)
+	const gaps = {
+		start: left + border - trigger.left,
+		end: trigger.right - (left + width - border),
+		top: top + border - trigger.top,
+		bottom: trigger.bottom - (top + height - border),
+	}
+	const ring = Number.parseFloat(getComputedStyle(list).getPropertyValue('--focus-width'))
+	for (const [side, gap] of Object.entries(gaps)) {
+		if (gap < ring - 0.01) throw new Error(`The line marker sits ${gap}px from the tab's ${side}, inside the focus ring`)
+	}
+
+	// The gradient runs toward the side opposite the bar; a negative scale mirrors it.
+	const toward = /linear-gradient\(to (\w+)/.exec(marker.backgroundImage)?.[1]
+	const opposite: Record<string, string> = { left: 'right', right: 'left', top: 'bottom', bottom: 'top' }
+	const mirrored = Number.parseFloat(marker.scale) < 0
+	let edge = toward && opposite[toward]
+	if (!edge) throw new Error(`The line marker paints no bar: ${marker.backgroundImage}`)
+	if (mirrored && (edge === 'left' || edge === 'right')) edge = opposite[edge]
+	const inner = { left: left + border, right: left + width - border, top: top + border, bottom: top + height - border }
+	const middle = [(inner.left + inner.right) / 2, (inner.top + inner.bottom) / 2]
+	const bar = {
+		left: [inner.left + 1, middle[1]],
+		right: [inner.right - 1, middle[1]],
+		top: [middle[0], inner.top + 1],
+		bottom: [middle[0], inner.bottom - 1],
+	}[edge as keyof typeof inner]
+	const tabs = selected.closest<HTMLElement>('[data-slot="tabs"]')!
+	const content = tabs.querySelector<HTMLElement>(`[data-slot="tabs-content"][data-value="${selected.dataset.value}"]`)!.getBoundingClientRect()
+	const target = [content.left + content.width / 2, content.top + content.height / 2]
+	const distance = ([a, b]: number[]) => Math.hypot(a - target[0], b - target[1])
+	if (distance(bar) >= distance([trigger.left + trigger.width / 2, trigger.top + trigger.height / 2])) {
+		throw new Error(`The line bar is on the tab's ${edge}, away from the panel`)
+	}
+}
 
 const AccountPanel = () => (
 	<TabsContent value="account">
@@ -266,6 +313,54 @@ export const Vertical: Story<typeof Tabs> = {
 	},
 }
 
+const VerticalLineTabs = (args: Record<string, unknown>) => (
+	<Tabs {...args} class="w-[560px]">
+		<TabsList variant="line">
+			<TabsTrigger value="account">Account</TabsTrigger>
+			<TabsTrigger value="password">Password</TabsTrigger>
+			<TabsTrigger value="notifications">Notifications</TabsTrigger>
+		</TabsList>
+		<TabsContent value="account" class="rounded-md edge p-4 text-sm">Manage your public profile and username.</TabsContent>
+		<TabsContent value="password" class="rounded-md edge p-4 text-sm">Update the password used for this account.</TabsContent>
+		<TabsContent value="notifications" class="rounded-md edge p-4 text-sm">Choose which product updates should reach your inbox.</TabsContent>
+	</Tabs>
+)
+
+const playVerticalLine = async ({ canvas }: PlayContext) => {
+	const account = tab(canvas, 'account')
+	const password = tab(canvas, 'password')
+	if (!account || !password) throw new Error('Vertical line tabs did not render expected triggers')
+
+	account.focus()
+	account.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+	await frame()
+	if (password.getAttribute('aria-selected') !== 'true') throw new Error('Vertical line tabs did not activate the focused tab')
+	await assertMarkerClearsRing(password)
+}
+
+export const VerticalLine: Story<typeof Tabs> = {
+	args: {
+		defaultValue: 'account',
+		orientation: 'vertical',
+	},
+	render: args => <VerticalLineTabs {...args} />,
+	play: playVerticalLine,
+}
+
+// The list sits on the panel's other side, and the bar still faces the panel.
+export const VerticalLineRTL: Story<typeof Tabs> = {
+	args: {
+		defaultValue: 'account',
+		orientation: 'vertical',
+	},
+	render: args => (
+		<DirectionProvider dir="rtl">
+			<VerticalLineTabs {...args} />
+		</DirectionProvider>
+	),
+	play: playVerticalLine,
+}
+
 export const InheritedRTL: Story = {
 	render: () => (
 		<DirectionProvider dir="rtl">
@@ -396,6 +491,8 @@ export const ManualActivation: Story<typeof Tabs> = {
 		if (analytics.getAttribute('aria-selected') !== 'true' || !panel(canvas, 'analytics')) {
 			throw new Error('Manual tabs did not activate on click')
 		}
+
+		await assertMarkerClearsRing(analytics)
 	},
 }
 

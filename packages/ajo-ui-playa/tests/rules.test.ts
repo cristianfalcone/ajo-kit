@@ -13,7 +13,6 @@ const offScaleAllowed: Record<string, string> = {
 	'alert.tsx': 'gap-y-0.5',
 	'attachment.tsx': 'gap-1.5 mt-0.5 p-1.5 px-1.5 px-2.5 py-1.5',
 	'avatar.tsx': '-space-x-2',
-	'breadcrumb.tsx': 'gap-1.5 gap-2.5',
 	'bubble.tsx': 'px-1.5 px-3.5 py-0.5',
 	'card.tsx': 'gap-[var(--card-spacing)] pb-[var(--card-spacing)] pt-[var(--card-spacing)] px-[var(--card-spacing)] py-[var(--card-spacing)]',
 	'carousel.tsx': '-ms-4 -mt-4',
@@ -26,9 +25,7 @@ const offScaleAllowed: Record<string, string> = {
 	'preset/data.ts': '-mx-2 gap-1.5 my-0.5 px-1.5 py-0.5',
 	'preset/floating.ts': '-mx-1 py-1.5',
 	'preset/modal.ts': 'pr-10',
-	'sidebar.tsx': '-mt-8 mx-3.5 px-2.5 py-0.5',
 	'switch.tsx': 'px-px',
-	'tabs.tsx': 'gap-1.5 p-[3px]',
 	'tooltip.tsx': 'py-1.5',
 	'typography.tsx': 'px-[0.3rem] py-[0.2rem] scroll-m-20',
 }
@@ -53,7 +50,7 @@ const physicalAllowed: Record<string, string> = {
 	'preset/floating.ts': 'left-2 ml-auto pl-8 pr-2',
 	'preset/modal.ts': 'pr-10 right-2',
 	'resizable.tsx': 'left-0',
-	'sidebar.tsx': 'border-l border-r left-0 pr-8 right-0 right-1 right-3 text-left',
+	'sidebar.tsx': 'border-l border-r left-0 right-0',
 	'tabs.tsx': 'left-0',
 	'typography.tsx': 'border-l-2 ml-6 pl-6',
 }
@@ -74,10 +71,8 @@ const haloAllowed: Record<string, string> = {
 	'preset/modal.ts': 'ring-3 ring-ring/50',
 	'radio-group.tsx': 'ring-3 ring-danger/20 ring-ring/50',
 	'resizable.tsx': 'ring-3 ring-ring/50',
-	'sidebar.tsx': 'ring-3 ring-ring/50',
 	'slider.tsx': 'ring-3 ring-4 ring-ring/50',
 	'switch.tsx': 'ring-3 ring-ring/50',
-	'tabs.tsx': 'ring-3 ring-ring/50',
 }
 
 const scale = new Set(['0', '1', '2', '3', '4', '6', '8', '12', 'auto'])

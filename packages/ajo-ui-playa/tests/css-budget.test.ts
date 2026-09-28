@@ -13,7 +13,7 @@ const budgets: Record<string, Size> = {
 	'preflight only': { raw: 10_200, gzip: 3_400, brotli: 2_900 },
 	'input.tsx': { raw: 25_100, gzip: 6_100, brotli: 5_400 },
 	'select.tsx': { raw: 45_400, gzip: 8_500, brotli: 7_500 },
-	'all families': { raw: 201_100, gzip: 28_500, brotli: 23_200 },
+	'all families': { raw: 201_300, gzip: 28_700, brotli: 23_300 },
 }
 
 const src = new URL('../src/', import.meta.url)
