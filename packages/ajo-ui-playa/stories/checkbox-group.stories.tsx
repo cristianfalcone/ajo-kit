@@ -55,6 +55,7 @@ const ToppingOptions = () => (
 )
 
 const toppings = ['cheese', 'mushrooms', 'olives']
+const named = (value: string) => value[0].toUpperCase() + value.slice(1)
 
 const SelectAllExample: Stateful = function* () {
 	let value = ['cheese']
@@ -79,11 +80,11 @@ const SelectAllExample: Stateful = function* () {
 					{toppings.map(topping => (
 						<Field key={topping} orientation="horizontal">
 							<CheckboxGroupItem id={`select-all-${topping}`} value={topping} />
-							<FieldLabel for={`select-all-${topping}`}>{topping}</FieldLabel>
+							<FieldLabel for={`select-all-${topping}`}>{named(topping)}</FieldLabel>
 						</Field>
 					))}
 				</CheckboxGroup>
-				<FieldDescription>Selected: {value.length ? value.join(', ') : 'none'}</FieldDescription>
+				<FieldDescription>Selected: {value.length ? value.map(named).join(', ') : 'none'}</FieldDescription>
 			</FieldSet>
 		)
 	}
@@ -167,9 +168,11 @@ export const Horizontal: Story<typeof CheckboxGroup> = {
 	play: async ({ canvas }) => {
 		const group = canvas.querySelector<HTMLElement>('[data-slot="checkbox-group"]')
 		const layout = group ? getComputedStyle(group) : null
-		if (!group || group.dataset.orientation !== 'horizontal' || layout?.display !== 'flex' || layout.flexWrap !== 'wrap' || layout.gap !== '12px') {
+		if (!group || group.dataset.orientation !== 'horizontal' || layout?.display !== 'flex' || layout.flexWrap !== 'wrap' || layout.columnGap !== '24px' || layout.rowGap !== '12px') {
 			throw new Error('Horizontal CheckboxGroup did not apply the shared orientation recipe')
 		}
+		const tops = new Set(Array.from(group.children, option => Math.round(option.getBoundingClientRect().top)))
+		if (tops.size !== 1) throw new Error('Horizontal CheckboxGroup did not lay its options out in one row')
 	},
 }
 
@@ -207,11 +210,12 @@ export const VisualParity: Story = {
 			if (
 				inputStyle.position !== 'absolute'
 				|| inputStyle.opacity !== '0'
-				|| Math.abs(inputRect.width - rootRect.width) > 1
-				|| Math.abs(inputRect.height - rootRect.height) > 1
+				|| inputRect.width < Math.max(24, rootRect.width) || inputRect.height < 24
+				|| Math.abs(inputRect.left + inputRect.width / 2 - rootRect.left - rootRect.width / 2) > 1
+				|| Math.abs(inputRect.top + inputRect.height / 2 - rootRect.top - rootRect.height / 2) > 1
 				|| document.elementFromPoint(rootRect.left + rootRect.width / 2, rootRect.top + rootRect.height / 2) !== input
 			) {
-				throw new Error('Checkbox visual did not preserve the shared native input overlay')
+				throw new Error('Checkbox input is not a 24 px target centred on its box')
 			}
 			if (getComputedStyle(indicator).opacity !== '1' || glyph(indicator) === 'none') {
 				throw new Error('Checked Checkbox parity indicator did not show its check')

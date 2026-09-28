@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import { frame } from './play'
+import { assertInk, frame, until } from './play'
 import {
 	Field,
 	FieldContent,
@@ -72,16 +72,21 @@ export const Basic: Story<typeof RadioGroup> = {
 		if (
 			inputStyle.position !== 'absolute'
 			|| inputStyle.opacity !== '0'
-			|| Math.abs(inputRect.width - rect.width) > 1
-			|| Math.abs(inputRect.height - rect.height) > 1
+			|| inputRect.width < Math.max(24, rect.width) || inputRect.height < 24
+			|| Math.abs(inputRect.left + inputRect.width / 2 - rect.left - rect.width / 2) > 1
+			|| Math.abs(inputRect.top + inputRect.height / 2 - rect.top - rect.height / 2) > 1
 			|| document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2) !== input
 		) {
-			throw new Error('Radio visual did not expose the shared native input hit target')
+			throw new Error('Radio input is not a 24 px target centred on its item')
 		}
 		input.click()
 		await frame(2)
 		if (!input.checked) throw new Error('Radio native input did not select from its visual hit area')
 		if (previous.checked) throw new Error('Radio group did not uncheck the previous sibling natively')
+		const indicator = root.querySelector<HTMLElement>('[data-slot="radio-group-indicator"]')
+		if (!indicator) throw new Error('Radio item did not render its indicator')
+		await until(() => !root.getAnimations().length, 'Radio item fill did not settle')
+		assertInk(root, indicator)
 		for (const node of [root, input, previousRoot, previous]) {
 			if (node.hasAttribute('data-state') || node.hasAttribute('aria-checked')) {
 				throw new Error('Radio items mirrored native checked state into attributes')
@@ -135,7 +140,7 @@ export const Horizontal: Story<typeof RadioGroup> = {
 	play: async ({ canvas }) => {
 		const group = canvas.querySelector<HTMLElement>('[data-slot="radio-group"]')
 		const layout = group ? getComputedStyle(group) : null
-		if (!group || group.dataset.orientation !== 'horizontal' || layout?.display !== 'flex' || layout.flexWrap !== 'wrap' || layout.gap !== '12px') {
+		if (!group || group.dataset.orientation !== 'horizontal' || layout?.display !== 'flex' || layout.flexWrap !== 'wrap' || layout.columnGap !== '24px' || layout.rowGap !== '12px') {
 			throw new Error('Horizontal RadioGroup did not apply the shared orientation recipe')
 		}
 	},

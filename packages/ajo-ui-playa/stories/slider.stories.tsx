@@ -73,6 +73,22 @@ export const MultipleThumbs: Story<typeof Slider> = {
 	render: (args, { setArg }) => (
 		<Slider {...args} name="distribution" aria-label="Distribution" class="w-72" onValueCommit={next => setArg('defaultValue', next)} />
 	),
+	play: async ({ canvas }) => {
+		const inputs = Array.from(canvas.querySelectorAll<HTMLInputElement>('[data-slot="slider-input"]'))
+		const thumbs = Array.from(canvas.querySelectorAll<HTMLElement>('[data-slot="slider-thumb"]'))
+		if (inputs.length !== 3 || thumbs.length !== 3) throw new Error('Slider thumbs and inputs were not rendered')
+		// The focused input's thumb, and only it, wears the one ring.
+		for (const [index, input] of inputs.entries()) {
+			input.focus({ focusVisible: true } as FocusOptions)
+			await frame()
+			if (!input.matches(':focus-visible')) throw new Error(`Slider input ${index + 1} did not take visible focus`)
+			const ringed = thumbs.map(thumb => getComputedStyle(thumb).outlineWidth === '2px')
+			if (ringed.join() !== thumbs.map((_, other) => other === index).join()) {
+				throw new Error(`Slider input ${index + 1} rings thumbs ${ringed.map(Number).join('')}, not only its own`)
+			}
+		}
+		inputs[2].blur()
+	},
 }
 
 export const Vertical: Story<typeof Slider> = {
@@ -122,6 +138,17 @@ export const Invalid: Story<typeof Slider> = {
 		if (!describedby.includes(description.id) || !describedby.includes(error.id)) {
 			throw new Error('Slider input aria-describedby did not include description and error ids')
 		}
+
+		// The one invalid treatment is the boundary, and the range covers the
+		// groove's, so the thumb carries it at any value.
+		const thumb = canvas.querySelector<HTMLElement>('[data-slot="slider-thumb"]')
+		if (!thumb) throw new Error('Invalid slider did not render its thumb')
+		const probe = document.createElement('span')
+		probe.style.color = 'var(--danger)'
+		canvas.append(probe)
+		const danger = getComputedStyle(probe).color
+		probe.remove()
+		if (!getComputedStyle(thumb).boxShadow.includes(danger)) throw new Error('Invalid slider thumb did not take the danger boundary')
 	},
 }
 

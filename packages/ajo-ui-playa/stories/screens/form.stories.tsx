@@ -126,8 +126,6 @@ export const Blank: Story = {
 	parameters: {
 		layers: { environment: '#app-environment' },
 		known: [
-			{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=switch-input]'] },
-			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=switch-input]'] },
 		],
 	},
 	play: async ({ canvas, setArg }) => {
@@ -144,8 +142,6 @@ export const Blank: Story = {
 export const Invalid: Story = {
 	parameters: {
 		known: [
-			{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=switch-input]'] },
-			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=switch-input]'] },
 			{ check: 'target-size', slice: 'p5-kit-13', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['span[data-slot=input-date-segment]'] },
 		],
 	},
@@ -164,8 +160,6 @@ export const Invalid: Story = {
 export const Submitting: Story = {
 	parameters: {
 		known: [
-			{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=switch-input]'] },
-			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=switch-input]'] },
 			{ check: 'target-size', slice: 'p5-kit-13', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['span[data-slot=input-date-segment]'] },
 		],
 	},

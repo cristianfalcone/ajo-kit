@@ -13,7 +13,6 @@ const offScaleAllowed: Record<string, string> = {
 	'avatar.tsx': '-space-x-1.5',
 	'carousel.tsx': '-ms-4 -mt-4',
 	'preset/floating.ts': '-mx-1 py-1.5',
-	'switch.tsx': 'px-px',
 	'tooltip.tsx': 'py-1.5',
 }
 
@@ -33,10 +32,6 @@ const physicalAllowed: Record<string, string> = {
 // ring, which forced colours drop and which misses 3:1 in the light theme.
 const haloAllowed: Record<string, string> = {
 	'navigation-menu.tsx': 'ring-3 ring-ring/50',
-	'preset/choices.ts': 'ring-3 ring-danger/20 ring-ring/50',
-	'radio-group.tsx': 'ring-3 ring-danger/20 ring-ring/50',
-	'slider.tsx': 'ring-3 ring-4 ring-ring/50',
-	'switch.tsx': 'ring-3 ring-ring/50',
 }
 
 const scale = new Set(['0', '1', '2', '3', '4', '6', '8', '12', 'auto'])

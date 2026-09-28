@@ -379,19 +379,58 @@ const outlined = (element: Element) => {
 	return border || (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0)
 }
 
+const choices = '[data-slot=checkbox], [data-slot=checkbox-group-item], [data-slot=radio-group-item], [data-slot=switch]'
+const marks = '[data-slot=checkbox-indicator], [data-slot=radio-group-indicator], [data-slot=switch-thumb]'
+
 /**
  * Asserts, under forced colours, that every text control, select and
  * combobox in `root`, and the primary button, keeps a boundary the system
  * colours paint: a border or an outline, since forced colours drop the shadows
  * Playa draws boundaries with. A control inside an InputGroup is bounded by
- * the group. Throws a `forced-colors` failure with one line per control.
+ * the group. Checkboxes, radios and switches keep one too, and their state:
+ * the mark of a checked one (a switch's thumb, always) paints at 3:1 against
+ * its part, since forced colours also paint fills as the page. Throws a
+ * `forced-colors` failure with one line per control.
  */
 export const assertForcedBoundaries = (root: HTMLElement) => {
 	if (!matchMedia('(forced-colors: active)').matches) throw new Error('Forced colours are not active')
 	const lines = shown(root)
 		.filter(element => element.matches(bounded) && !outlined(element.closest('[data-slot="input-group"]') ?? element))
 		.map(element => `${describe(element)} has no boundary without shadows`)
+	for (const part of root.querySelectorAll<HTMLElement>(choices)) {
+		const input = part.querySelector('input')
+		const mark = part.querySelector<HTMLElement>(marks)
+		if (!outlined(part)) lines.push(`${describe(part)} has no boundary without shadows`)
+		if (!input || !mark || !(input.checked || input.indeterminate || part.dataset.slot === 'switch')) continue
+		const behind = surface(part)
+		const shows = contrast(over(rgba(getComputedStyle(mark).backgroundColor), behind), behind)
+		if (shows < 3) lines.push(`${describe(part)} shows its checked mark at ${shows.toFixed(2)}:1, under 3:1`)
+	}
 	if (lines.length) throw new CheckError('forced-colors', lines)
+}
+
+/**
+ * Asserts D28's ink on a choice control that is on: its `fill` is 3:1
+ * against the surface behind it, its `mark` (glyph or thumb) is the page
+ * colour, one mark for every on control, and 3:1 against the fill, and the
+ * fill is darker than the plate (`--primary`), so on a dark page an "on"
+ * control never outshines the one primary action.
+ */
+export const assertInk = (fill: HTMLElement, mark: HTMLElement) => {
+	const behind = surface(fill.parentElement)
+	const ink = over(rgba(getComputedStyle(fill).backgroundColor), behind)
+	const glyph = over(rgba(getComputedStyle(mark).backgroundColor), ink)
+	const plate = rgba(getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())
+	const probe = document.createElement('span')
+	probe.style.color = 'var(--background)'
+	fill.append(probe)
+	const page = rgba(getComputedStyle(probe).color)
+	probe.remove()
+	const name = describe(fill)
+	if (glyph.slice(0, 3).some((channel, index) => Math.abs(channel - page[index]) > 2)) throw new Error(`${name} mark is not the page colour`)
+	if (contrast(ink, behind) < 3) throw new Error(`${name} fill is ${contrast(ink, behind).toFixed(2)}:1 against its surface, under 3:1`)
+	if (contrast(glyph, ink) < 3) throw new Error(`${name} mark is ${contrast(glyph, ink).toFixed(2)}:1 against its fill, under 3:1`)
+	if (luminance(ink) >= luminance(plate)) throw new Error(`${name} fill is as bright as the plate or brighter`)
 }
 
 const moving = /^(?:transform|translate|scale|rotate)$/

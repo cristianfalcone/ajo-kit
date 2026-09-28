@@ -76,7 +76,7 @@ const pairs: Pair[] = [
 	...['primary', 'secondary', ...statuses].flatMap(fill => on(4.5, [`${fill}-foreground`], [[{ token: fill }]])),
 	// The filled destructive action carries white text in both schemes.
 	...on(4.5, ['danger-fill-foreground'], [[{ token: 'danger-fill' }]]),
-	...on(3, ['input', 'ring', 'gold-4', 'primary'], surfaces.map(token => [{ token }])),
+	...on(3, ['input', 'ring', 'gold-4'], surfaces.map(token => [{ token }])),
 	// The focus halo the families still paint (ring-ring/50).
 	...on(3, ['ring'], surfaces.map(token => [{ token }]), 0.5),
 	// Hairlines are decorative, so no WCAG floor applies; they stay visible,
@@ -87,11 +87,6 @@ const pairs: Pair[] = [
 // Pairs that fail today, each with the slice that fixes it. The list can only
 // shrink: a listed pair that passes fails this test until it is removed.
 const failing: Record<string, string> = {
-	// The champagne body is a plate on ivory, not a mark: checked controls
-	// take their state colour per D28, which drops or meets this row.
-	'light primary on background': 'p5-kit-12',
-	'light primary on card': 'p5-kit-12',
-	'light primary on popover': 'p5-kit-12',
 	// A painted alpha p5-kit-02 does not reach: the halo goes as the W3
 	// lanes empty the focus-halo list in rules.test.ts.
 	'light ring 50% on background': 'W3 lanes, focus-halo list',

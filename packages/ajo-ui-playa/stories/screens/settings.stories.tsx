@@ -208,10 +208,8 @@ export default {
 
 // Ink and Plate share every known failure.
 const known: Known[] = [
-	{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=checkbox-input]', 'input[data-slot=radio-group-input]', 'input[data-slot=switch-input]'] },
 	{ check: 'focus', slice: 'p5-kit-18', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['button[data-slot=tabs-trigger]'] },
 	{ check: 'focus', slice: 'p5-kit-18', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['div[data-slot=tabs-content]'] },
-	{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=checkbox-input]', 'input[data-slot=radio-group-input]', 'input[data-slot=switch-input]'] },
 	{ check: 'forced-colors', slice: 'p5-kit-18', variants: ['light-1280'], targets: ['button[data-slot=tabs-trigger]', 'div[data-slot=tabs-content]'] },
 ]
 

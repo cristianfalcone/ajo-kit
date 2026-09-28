@@ -267,10 +267,6 @@ export default {
 export const Default: Story = {
 	render: () => <Deployments selected={['v89-9d4a7b6', 'v311-b52f8a3']} />,
 	parameters: {
-		known: [
-			{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=checkbox-input]'] },
-			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=checkbox-input]'] },
-		],
 		layers: {
 			'row-actions': '[data-screen-layer="row-actions"]',
 			filter: '[data-slot="data-table-facet"]',
@@ -280,11 +276,6 @@ export const Default: Story = {
 }
 
 export const Filtered: Story = {
-	parameters: {
-		known: [
-			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=checkbox-input]'] },
-		],
-	},
 	render: () => <Deployments />,
 	// The table's task by keyboard: search, filter by status from its menu, then open a row's actions.
 	play: async ({ canvas }) => {

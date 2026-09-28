@@ -1,6 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
-import { frame } from './play'
+import { assertInk, frame } from './play'
 import { Checkbox } from 'ajo-ui-playa/checkbox'
 import {
 	Field,
@@ -90,6 +90,12 @@ export const WithLabel: Story<typeof Checkbox> = {
 
 export const Checked: Story<typeof Checkbox> = {
 	args: { checked: true },
+	play: async ({ canvas }) => {
+		const root = canvas.querySelector<HTMLElement>('[data-slot="checkbox"]')
+		const indicator = canvas.querySelector<HTMLElement>('[data-slot="checkbox-indicator"]')
+		if (!root || !indicator) throw new Error('Checked checkbox was not rendered')
+		assertInk(root, indicator)
+	},
 }
 
 export const Disabled: Story<typeof Checkbox> = {
@@ -165,13 +171,13 @@ export const InvalidChecked: Story<typeof Checkbox> = {
 		if (!root || !input) throw new Error('Invalid checked checkbox was not rendered')
 		if (!input.checked) throw new Error('Invalid checked checkbox did not render checked')
 
-		const style = getComputedStyle(root)
-		if (!sameColor(style.backgroundColor, token('--danger'))) {
-			throw new Error('Invalid checked checkbox did not use danger background')
-		}
-
-		if (!sameColor(style.color, token('--danger-foreground'))) {
-			throw new Error('Invalid checked checkbox did not use danger foreground')
+		// One invalid treatment: the ink stays and only the boundary turns.
+		const indicator = root.querySelector<HTMLElement>('[data-slot="checkbox-indicator"]')
+		if (!indicator) throw new Error('Invalid checked checkbox did not render its indicator')
+		assertInk(root, indicator)
+		const boundary = getComputedStyle(root).boxShadow.match(/(?:rgba?|color)\([^)]*\)/g) ?? []
+		if (!boundary.some(color => sameColor(color, token('--danger')))) {
+			throw new Error('Invalid checked checkbox did not keep the danger boundary')
 		}
 	},
 }
