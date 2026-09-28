@@ -51,7 +51,7 @@ vi.mock('ajo-kit/database', () => ({
 	}),
 }))
 
-vi.mock('../src/migrate', () => ({
+vi.mock('../src/migrator', () => ({
 	migrator: () => ({
 		migrateToLatest: async () => {
 			state.events.push('migrate')

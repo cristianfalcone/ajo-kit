@@ -7,9 +7,10 @@ import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import type { Kysely } from 'kysely'
+import { runnerImport } from 'vite'
 import { build, dev, listen } from 'ajo-kit/node'
 import { discover } from '../src/discover.ts'
-import type { Migrations } from '../src/migrate.ts'
+import type { Migrations } from '../src/migrator.ts'
 import manifest from '../package.json' with { type: 'json' }
 
 // The runner owns the output contract of every command, plugin commands
@@ -201,7 +202,7 @@ cli.command('migrate up', {
 	async action({ options }) {
 		project()
 		const results = await migrations(options.database as string, 'up', async (db, compiled) => {
-			const { migrator } = await import('../src/migrate.ts')
+			const { migrator } = await import('../src/migrator.ts')
 			const { results, error } = await migrator(db, compiled).migrateToLatest()
 			return settle(results, error)
 		})
@@ -216,7 +217,7 @@ cli.command('migrate down', {
 	async action({ options }) {
 		project()
 		const results = await migrations(options.database as string, 'down', async (db, compiled) => {
-			const { migrator } = await import('../src/migrate.ts')
+			const { migrator } = await import('../src/migrator.ts')
 			const { results, error } = await migrator(db, compiled).migrateDown()
 			return settle(results, error, ' (rolled back)')
 		})
@@ -283,7 +284,9 @@ cli.command('seed', {
 		try {
 			connect(options.database as string)
 			for (const file of files) {
-				const mod = await import(pathToFileURL(join(folder, file)).href)
+				// Vite transforms the TypeScript, as for migrations; runnerImport is marked
+				// experimental in Vite, so re-check it whenever the Vite peer moves.
+				const { module: mod } = await runnerImport<{ seed?: unknown }>(join(folder, file))
 				if (typeof mod.seed !== 'function') continue
 				await mod.seed(db())
 				report(`✓ ${file}`)

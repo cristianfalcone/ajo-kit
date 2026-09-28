@@ -3,7 +3,7 @@ import { files, serve, type Response as RuntimeResponse, type Writer } from 'run
 import { close, db } from 'ajo-kit/database'
 import { normalize, requestOrigin, security, setOriginReader, type Bootstrap } from './utils'
 import { attach, request, type Reply } from './http'
-import { migrator, type Migrations } from './migrate'
+import { migrator, type Migrations } from './migrator'
 import { closeLive, create } from './server'
 import { wares } from 'virtual:ajo/handlers'
 

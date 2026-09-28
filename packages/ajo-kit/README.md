@@ -14,8 +14,9 @@ pnpm add -D vite typescript @types/node
 
 `ajo-kit` requires `ajo ^0.2.0`, `vite ^8.3.1`, and Node 22.18 or newer as
 its development, build, test, and CLI host. Production applications execute
-only on the ajo engine. TypeScript migrations run through Node's built-in type
-stripping for CLI operations and use erasable TypeScript syntax.
+only on the ajo engine. `kit` loads TypeScript migrations and seeds through
+Vite, so it does not need Node's built-in type stripping, which some Linux
+distributions build Node without.
 
 ## Minimal Setup
 
@@ -453,9 +454,10 @@ Each migration provider uses a contiguous sequence beginning at `0001`, so a
 plugin and the app may both define `0001_initial`. Stored identities use
 `plugin/<package>/<name>` and `project/<name>` in one SQLite history and lock.
 
-Every migration exports `up()` and `down()`. Each migration applies on its
-own, since SQLite DDL does not run inside one Kysely transaction: a failure
-leaves the earlier migrations applied. `migrate down` rolls back the
+Every migration is an ES module (`.ts`, `.mts`, `.js` or `.mjs`; a numbered
+CommonJS file is an error) that exports `up()` and `down()`. Each migration
+applies on its own, since SQLite DDL does not run inside one Kysely
+transaction: a failure leaves the earlier migrations applied. `migrate down` rolls back the
 latest executed migration across all providers. `migrate status` rejects
 history entries whose migration is unavailable.
 

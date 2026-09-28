@@ -531,7 +531,8 @@ const kitCssProbe = async (directory: string, registry: string) => {
 // create-ajo ships the tracked starter, pinned to this release set, and
 // `pnpm create ajo <dir> --json` passes --json through to it. The starter
 // installs from the local registry with pnpm's default release-age policy
-// and passes its own type check and unit tests against the published set.
+// and passes its own type check and unit tests against the published set,
+// all on a Node without type stripping, as distributions build it without amaro.
 const createProbe = async (directory: string, registry: string, published: Record<string, Awaited<ReturnType<typeof publish>>>) => {
 	const { manifest, packlist } = published['create-ajo']
 	assert.deepEqual(manifest.bin, { 'create-ajo': './dist/index.js' })
@@ -550,8 +551,10 @@ const createProbe = async (directory: string, registry: string, published: Recor
 
 	await mkdir(directory)
 	await write(join(directory, 'pnpm-workspace.yaml'), `minimumReleaseAgeExclude:\n  - create-ajo@${versions['create-ajo']}\n`)
+	const node = { NODE_OPTIONS: '--no-experimental-strip-types' }
 	// The starter installs as its own project, so the registry reaches it through the environment.
 	const created = await pnpm(['create', 'ajo', 'notes', '--json'], directory, {
+		...node,
 		pnpm_config_registry: `${registry}/`,
 		XDG_CACHE_HOME: join(directory, '.cache'),
 	})
@@ -568,8 +571,8 @@ const createProbe = async (directory: string, registry: string, published: Recor
 	for (const name of Object.keys(pinned.dependencies).filter(name => name in published)) {
 		assert(lock.includes(published[name].manifest.dist.integrity), `the starter did not install the published ${name}`)
 	}
-	await pnpm(['typecheck'], project)
-	await pnpm(['test'], project)
+	await pnpm(['typecheck'], project, node)
+	await pnpm(['test'], project, node)
 }
 
 const main = async () => {

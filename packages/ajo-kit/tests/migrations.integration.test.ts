@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { close, connect, db } from '../src/database.node'
-import { migrationModules, migrationStatus, migrator, type Migrations } from '../src/migrate'
+import { migrationModules, migrationStatus } from '../src/migrate'
+import { migrator, type Migrations } from '../src/migrator'
 
 describe('ajo-kit migrations integration', () => {
 	test('plugin and project own independent sequences', async () => {
@@ -187,6 +188,25 @@ describe('ajo-kit migrations integration', () => {
 
 		try {
 			await expect(migrationModules(root)).rejects.toThrow('project has duplicate migration filenames')
+		} finally {
+			rmSync(root, { recursive: true, force: true })
+		}
+	})
+
+	test('migration loading rejects CommonJS migrations instead of skipping them', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'ajo-kit-migrate-commonjs-'))
+		const app = join(root, 'db/migrations')
+
+		mkdirSync(app, { recursive: true })
+		writeFileSync(join(app, '0001_initial.ts'), 'export async function up() {}\nexport async function down() {}\n')
+		writeFileSync(join(app, '0002_later.cjs'), 'exports.up = async () => {}\nexports.down = async () => {}\n')
+		writeFileSync(join(app, '0003_last.cts'), 'exports.up = async () => {}\nexports.down = async () => {}\n')
+		writeFileSync(join(app, '0001_initial.d.ts'), 'export {}\n')
+
+		try {
+			await expect(migrationModules(root)).rejects.toThrow(
+				'project migrations must be ES modules (.js, .ts, .mjs, .mts): 0002_later.cjs, 0003_last.cts'
+			)
 		} finally {
 			rmSync(root, { recursive: true, force: true })
 		}
