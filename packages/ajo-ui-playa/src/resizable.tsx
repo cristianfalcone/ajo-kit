@@ -30,7 +30,8 @@ export type ResizableHandleArgs = BaseResizableHandleArgs & {
 
 const groupBase = 'flex h-full w-full overflow-hidden'
 const panelBase = 'min-h-0 min-w-0 overflow-hidden'
-const handleBase = 'relative flex touch-none shrink-0 items-center justify-center bg-border outline-none after:absolute after:content-empty focus-visible:ring-3 focus-visible:ring-ring/50'
+// Focused, the line itself takes the ring colour, so the ring around it reads as one bar.
+const handleBase = 'relative flex touch-none shrink-0 items-center justify-center bg-border playa-focus focus-visible:bg-ring after:absolute after:content-empty'
 
 /** Resizable pane group for split layouts. */
 const ResizablePanelGroup: Stateless<ResizablePanelGroupArgs> = ({ class: classes, orientation, ...attrs }) => (
@@ -63,9 +64,9 @@ const ResizableHandle: Stateless<ResizableHandleArgs> = ({
 			class={clx(
 				handleBase,
 				vertical
-					? 'h-px w-full cursor-row-resize after:left-0 after:top-1/2 after:h-6 after:w-full after:-translate-y-1/2'
+					? 'h-px w-full cursor-row-resize after:inset-x-0 after:top-1/2 after:h-6 after:-translate-y-1/2'
 					: 'h-full w-px cursor-col-resize after:inset-y-0 after:left-1/2 after:w-6 after:-translate-x-1/2',
-				disabled && 'pointer-events-none opacity-50',
+				disabled && 'pointer-events-none opacity-[var(--disabled-opacity)]',
 				classes,
 			)}
 			disabled={disabled}

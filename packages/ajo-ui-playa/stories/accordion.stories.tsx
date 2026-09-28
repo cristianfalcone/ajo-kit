@@ -15,13 +15,13 @@ export default {
 	args: {
 		type: 'single',
 		collapsible: true,
-		defaultValue: 'shipping',
+		defaultValue: 'backups',
 		disabled: false,
 	},
 	argTypes: {
 		type: { control: 'radio', options: ['single', 'multiple'] },
 		collapsible: { control: 'boolean' },
-		defaultValue: { control: 'select', options: ['', 'shipping', 'returns', 'support'] },
+		defaultValue: { control: 'select', options: ['', 'backups', 'domains', 'secrets'] },
 		disabled: { control: 'boolean' },
 	},
 	parameters: {
@@ -39,22 +39,22 @@ const trigger = (canvas: HTMLElement, text: string) =>
 
 const FaqItems = () => (
 	<>
-		<AccordionItem value="shipping">
-			<AccordionTrigger>Shipping</AccordionTrigger>
+		<AccordionItem value="backups">
+			<AccordionTrigger>Backups</AccordionTrigger>
 			<AccordionContent>
-				Orders usually ship within two business days.
+				The host saves every app, domain and secret at 03:00 and keeps the last 14 days.
 			</AccordionContent>
 		</AccordionItem>
-		<AccordionItem value="returns">
-			<AccordionTrigger>Returns</AccordionTrigger>
+		<AccordionItem value="domains">
+			<AccordionTrigger>Domains</AccordionTrigger>
 			<AccordionContent>
-				Return unopened items within 30 days for a refund.
+				Point the domain's DNS at the host, then add it to an app to get its certificate.
 			</AccordionContent>
 		</AccordionItem>
-		<AccordionItem value="support">
-			<AccordionTrigger>Support</AccordionTrigger>
+		<AccordionItem value="secrets">
+			<AccordionTrigger>Secrets</AccordionTrigger>
 			<AccordionContent>
-				Support is available on weekdays from 9:00 to 18:00.
+				An app reads its secrets as environment variables. Changing one restarts the app.
 			</AccordionContent>
 		</AccordionItem>
 	</>
@@ -67,27 +67,27 @@ export const Basic: Story<typeof Accordion> = {
 		</Accordion>
 	),
 	play: async ({ canvas }) => {
-		const shipping = item(canvas, 'shipping')
-		const returns = item(canvas, 'returns')
-		const returnsTrigger = trigger(canvas, 'Returns')
-		if (!shipping || !returns || !returnsTrigger) throw new Error('Basic accordion did not render expected items')
-		if (!shipping.open || shipping.dataset.state !== 'open') throw new Error('Default accordion item was not open')
+		const backups = item(canvas, 'backups')
+		const domains = item(canvas, 'domains')
+		const domainsTrigger = trigger(canvas, 'Domains')
+		if (!backups || !domains || !domainsTrigger) throw new Error('Basic accordion did not render expected items')
+		if (!backups.open || backups.dataset.state !== 'open') throw new Error('Default accordion item was not open')
 
-		returnsTrigger.click()
+		domainsTrigger.click()
 		await frame()
 
-		if (shipping.open || !returns.open) throw new Error('Single accordion did not move the open item after click')
-		if (returnsTrigger.getAttribute('aria-expanded') !== 'true') throw new Error('Accordion trigger did not expose expanded state')
+		if (backups.open || !domains.open) throw new Error('Single accordion did not move the open item after click')
+		if (domainsTrigger.getAttribute('aria-expanded') !== 'true') throw new Error('Accordion trigger did not expose expanded state')
 	},
 }
 
 export const Multiple: Story<typeof Accordion> = {
 	args: {
 		type: 'multiple',
-		defaultValue: ['shipping'],
+		defaultValue: ['backups'],
 	},
 	argTypes: {
-		defaultValue: { control: 'multi-select', options: ['shipping', 'returns', 'support'] },
+		defaultValue: { control: 'multi-select', options: ['backups', 'domains', 'secrets'] },
 	},
 	render: args => (
 		<Accordion {...args} class="w-96">
@@ -95,15 +95,15 @@ export const Multiple: Story<typeof Accordion> = {
 		</Accordion>
 	),
 	play: async ({ canvas }) => {
-		const shipping = item(canvas, 'shipping')
-		const returns = item(canvas, 'returns')
-		const returnsTrigger = trigger(canvas, 'Returns')
-		if (!shipping || !returns || !returnsTrigger) throw new Error('Multiple accordion did not render expected items')
+		const backups = item(canvas, 'backups')
+		const domains = item(canvas, 'domains')
+		const domainsTrigger = trigger(canvas, 'Domains')
+		if (!backups || !domains || !domainsTrigger) throw new Error('Multiple accordion did not render expected items')
 
-		returnsTrigger.click()
+		domainsTrigger.click()
 		await frame()
 
-		if (!shipping.open || !returns.open) throw new Error('Multiple accordion did not keep both items open')
+		if (!backups.open || !domains.open) throw new Error('Multiple accordion did not keep both items open')
 	},
 }
 
@@ -117,17 +117,19 @@ export const NonCollapsible: Story<typeof Accordion> = {
 		</Accordion>
 	),
 	play: async ({ canvas }) => {
-		const shipping = item(canvas, 'shipping')
-		const shippingTrigger = trigger(canvas, 'Shipping')
-		if (!shipping || !shippingTrigger) throw new Error('Non-collapsible accordion did not render expected item')
-		if (shippingTrigger.getAttribute('aria-disabled') !== 'true') {
+		const backups = item(canvas, 'backups')
+		const backupsTrigger = trigger(canvas, 'Backups')
+		if (!backups || !backupsTrigger) throw new Error('Non-collapsible accordion did not render expected item')
+		if (backupsTrigger.getAttribute('aria-disabled') !== 'true') {
 			throw new Error('Open non-collapsible trigger did not expose aria-disabled')
 		}
 
-		shippingTrigger.click()
+		backupsTrigger.click()
 		await frame()
 
-		if (!shipping.open) throw new Error('Non-collapsible accordion closed its required open item')
+		if (!backups.open) throw new Error('Non-collapsible accordion closed its required open item')
+		// Locked open is not disabled: the open item keeps its full strength.
+		if (getComputedStyle(backupsTrigger).opacity !== '1') throw new Error('Open non-collapsible trigger is dimmed as if disabled')
 	},
 }
 
@@ -160,6 +162,7 @@ export const Disabled: Story<typeof Accordion> = {
 
 		if (disabled.open) throw new Error('Disabled accordion item opened after click')
 		if (disabledTrigger.getAttribute('aria-disabled') !== 'true') throw new Error('Disabled trigger did not expose aria-disabled')
+		if (getComputedStyle(disabledTrigger).opacity === '1') throw new Error('Disabled trigger is not dimmed')
 	},
 }
 
@@ -182,20 +185,20 @@ export const Keyboard: Story<typeof Accordion> = {
 		</Accordion>
 	),
 	play: async ({ canvas }) => {
-		const shipping = trigger(canvas, 'Shipping')
-		const returns = trigger(canvas, 'Returns')
-		const support = trigger(canvas, 'Support')
-		if (!shipping || !returns || !support) throw new Error('Keyboard accordion triggers were not rendered')
+		const backups = trigger(canvas, 'Backups')
+		const domains = trigger(canvas, 'Domains')
+		const secrets = trigger(canvas, 'Secrets')
+		if (!backups || !domains || !secrets) throw new Error('Keyboard accordion triggers were not rendered')
 
-		shipping.focus()
-		shipping.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+		backups.focus()
+		backups.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
 		await frame()
 
-		if (document.activeElement !== returns) throw new Error('Accordion ArrowDown did not move focus to next trigger')
+		if (document.activeElement !== domains) throw new Error('Accordion ArrowDown did not move focus to next trigger')
 
-		returns.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+		domains.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
 		await frame()
 
-		if (document.activeElement !== support) throw new Error('Accordion End did not move focus to last trigger')
+		if (document.activeElement !== secrets) throw new Error('Accordion End did not move focus to last trigger')
 	},
 }

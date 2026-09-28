@@ -21,14 +21,14 @@ export default {
 
 export const Default: Story = {
 	args: {
-		title: 'No Projects Yet',
-		description: 'You have not created any projects yet. Get started by creating your first project.',
+		title: 'No apps yet',
+		description: 'Deploy an app and it shows up here with its versions, domains and logs.',
 	},
 	render: args => (
 		<Empty class="w-[32rem]">
 			<EmptyHeader>
 				<EmptyMedia variant="icon">
-					<span class="i-lucide-folder-code" />
+					<span aria-hidden="true" class="i-lucide-rocket" />
 				</EmptyMedia>
 				<EmptyTitle>{args.title}</EmptyTitle>
 				<EmptyDescription>
@@ -37,14 +37,13 @@ export const Default: Story = {
 			</EmptyHeader>
 			<EmptyContent>
 				<div class="flex flex-wrap justify-center gap-2">
-					<Button>Create Project</Button>
-					<Button variant="outline">Import Project</Button>
+					<Button>Deploy your first app</Button>
+					<Button variant="outline">Import from Git</Button>
 				</div>
 			</EmptyContent>
-			<a class="inline-flex items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:underline" href="#learn-empty">
-				Learn More
-				<span class="i-lucide-arrow-up-right size-4" aria-hidden="true" />
-			</a>
+			<EmptyDescription>
+				<a href="#learn-empty">How deploys work</a>
+			</EmptyDescription>
 		</Empty>
 	),
 	play: async ({ canvas }) => {
@@ -67,6 +66,13 @@ export const Default: Story = {
 		const media = canvas.querySelector('[data-slot="empty-media"]')
 		if (description?.tagName !== 'P') throw new Error('EmptyDescription should render a paragraph')
 		if (media?.getAttribute('data-variant') !== 'icon') throw new Error('EmptyMedia did not expose icon variant')
+		// Designed states: the icon sits in a 40 px disc at a readable 20 px.
+		const disc = media.getBoundingClientRect()
+		const icon = media.firstElementChild?.getBoundingClientRect()
+		const radius = Number.parseFloat(getComputedStyle(media).borderTopLeftRadius)
+		if (disc.width !== 40 || radius < 20 || icon?.width !== 20) {
+			throw new Error(`EmptyMedia icon is not a 40 px disc with a 20 px icon: ${disc.width} ${radius} ${icon?.width}`)
+		}
 	},
 }
 
@@ -75,15 +81,15 @@ export const Outline: Story = {
 		<Empty class="w-[32rem] border border-dashed">
 			<EmptyHeader>
 				<EmptyMedia variant="icon">
-					<span class="i-lucide-cloud" />
+					<span aria-hidden="true" class="i-lucide-hard-drive" />
 				</EmptyMedia>
-				<EmptyTitle>Cloud Storage Empty</EmptyTitle>
+				<EmptyTitle>No backups yet</EmptyTitle>
 				<EmptyDescription>
-					Upload files to your cloud storage to access them anywhere.
+					The first backup runs tonight at 03:00. Run one now to have it sooner.
 				</EmptyDescription>
 			</EmptyHeader>
 			<EmptyContent>
-				<Button variant="outline" size="sm">Upload Files</Button>
+				<Button variant="outline" size="sm">Back up now</Button>
 			</EmptyContent>
 		</Empty>
 	),
@@ -98,16 +104,16 @@ export const Background: Story = {
 		<Empty class="h-80 w-[32rem] bg-muted/30">
 			<EmptyHeader>
 				<EmptyMedia variant="icon">
-					<span class="i-lucide-bell" />
+					<span aria-hidden="true" class="i-lucide-bell" />
 				</EmptyMedia>
-				<EmptyTitle>No Notifications</EmptyTitle>
+				<EmptyTitle>No notifications</EmptyTitle>
 				<EmptyDescription class="max-w-xs">
-					You are all caught up. New notifications will appear here.
+					Deploys, failed checks and new sign-ins show up here.
 				</EmptyDescription>
 			</EmptyHeader>
 			<EmptyContent>
 				<Button variant="outline" size="sm">
-					<span class="i-lucide-refresh-cw" />
+					<span aria-hidden="true" class="i-lucide-refresh-cw" />
 					Refresh
 				</Button>
 			</EmptyContent>
@@ -121,21 +127,21 @@ export const MediaVariants: Story = {
 			<Empty class="w-72 border border-dashed">
 				<EmptyHeader>
 					<EmptyMedia variant="icon">
-						<span class="i-lucide-inbox" />
+						<span aria-hidden="true" class="i-lucide-inbox" />
 					</EmptyMedia>
-					<EmptyTitle>No messages</EmptyTitle>
-					<EmptyDescription>New messages will appear here.</EmptyDescription>
+					<EmptyTitle>No invitations</EmptyTitle>
+					<EmptyDescription>Invite someone and their invitation waits here until they join.</EmptyDescription>
 				</EmptyHeader>
 			</Empty>
 			<Empty class="w-72 border border-dashed">
 				<EmptyHeader>
 					<EmptyMedia>
-						<div class="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-medium">
-							CN
+						<div class="flex size-10 items-center justify-center rounded-full bg-secondary edge text-sm font-medium">
+							GH
 						</div>
 					</EmptyMedia>
-					<EmptyTitle>User Offline</EmptyTitle>
-					<EmptyDescription>You can leave a message to notify them.</EmptyDescription>
+					<EmptyTitle>Grace has not joined yet</EmptyTitle>
+					<EmptyDescription>Resend the invitation if it did not arrive.</EmptyDescription>
 				</EmptyHeader>
 			</Empty>
 		</div>
@@ -152,9 +158,9 @@ export const DescriptionLink: Story = {
 	render: () => (
 		<Empty class="w-[32rem] border border-dashed">
 			<EmptyHeader>
-				<EmptyTitle>404 - Not Found</EmptyTitle>
+				<EmptyTitle>This page does not exist</EmptyTitle>
 				<EmptyDescription>
-					The page you are looking for does not exist. <a href="/dashboard">Go back home</a>.
+					Check the address, or go back to the <a href="/dashboard">dashboard</a>.
 				</EmptyDescription>
 			</EmptyHeader>
 		</Empty>
@@ -163,6 +169,11 @@ export const DescriptionLink: Story = {
 		const link = canvas.querySelector<HTMLAnchorElement>('[data-slot="empty-description"] a')
 		if (!link || link.getAttribute('href') !== '/dashboard') {
 			throw new Error('EmptyDescription should allow inline links')
+		}
+		// An inline link is underlined and its focus ring stands off its first and last letters.
+		const style = getComputedStyle(link)
+		if (style.textDecorationLine !== 'underline' || Number.parseFloat(style.outlineOffset) < 2) {
+			throw new Error(`EmptyDescription link is not underlined or its ring touches the text: ${style.textDecorationLine} ${style.outlineOffset}`)
 		}
 	},
 }

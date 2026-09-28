@@ -80,15 +80,15 @@ export type AttachmentGroupArgs = WithChildren<IntrinsicElements['div'] & {
 }>
 
 const rootBase = [
-	'group/attachment relative flex w-fit max-w-full min-w-0 shrink-0 flex-wrap rounded-xl glass edge shadow-xs transition-colors',
-	'focus-within:ring-1 focus-within:ring-ring/50 has-[>a,>button]:hover:bg-muted/50',
+	'group/attachment relative flex w-fit max-w-full min-w-0 shrink-0 flex-wrap rounded-lg panel transition-colors',
+	'has-[>a,>button]:hover:bg-muted/50',
 	'data-[state=error]:inset-ring-danger/25 data-[state=idle]:inset-ring-transparent data-[state=idle]:border data-[state=idle]:border-dashed',
 ].join(' ')
 
 const rootSizes: Record<AttachmentSize, string> = {
-	default: 'gap-2 text-sm has-data-[slot=attachment-content]:px-2.5 has-data-[slot=attachment-content]:py-2 has-data-[slot=attachment-media]:p-2',
-	sm: 'gap-2 text-xs has-data-[slot=attachment-content]:px-2 has-data-[slot=attachment-content]:py-1.5 has-data-[slot=attachment-media]:p-1.5',
-	xs: 'gap-1.5 rounded-lg text-xs has-data-[slot=attachment-content]:px-1.5 has-data-[slot=attachment-content]:py-1 has-data-[slot=attachment-media]:p-1',
+	default: 'gap-2 text-sm has-data-[slot=attachment-content]:px-3 has-data-[slot=attachment-content]:py-2 has-data-[slot=attachment-media]:p-2',
+	sm: 'gap-2 text-xs has-data-[slot=attachment-content]:px-2 has-data-[slot=attachment-content]:py-1 has-data-[slot=attachment-media]:p-1',
+	xs: 'gap-1 rounded-md text-xs has-data-[slot=attachment-content]:px-2 has-data-[slot=attachment-content]:py-1 has-data-[slot=attachment-media]:p-1',
 }
 
 const rootOrientations: Record<AttachmentOrientation, string> = {
@@ -111,12 +111,13 @@ const mediaVariants: Record<AttachmentMediaVariant, string> = {
 	image: 'opacity-60 group-data-[state=done]/attachment:opacity-100 group-data-[state=idle]/attachment:opacity-100 [&>img]:aspect-square [&>img]:size-full [&>img]:object-cover',
 }
 
-const contentBase = 'max-w-full min-w-0 flex-1 leading-tight group-data-[orientation=vertical]/attachment:px-1'
+const contentBase = 'max-w-full min-w-0 flex-1 group-data-[orientation=vertical]/attachment:px-1'
 // Uploading and processing titles get a shimmering sweep; the preset holds the motion back under reduced motion.
 const titleBase = 'block max-w-full min-w-0 truncate font-medium group-data-[state=uploading]/attachment:shimmer group-data-[state=processing]/attachment:shimmer'
-const descriptionBase = 'mt-0.5 block max-w-full min-w-0 truncate text-xs text-muted-foreground group-data-[state=error]/attachment:text-danger/80'
-const actionsBase = 'relative z-20 flex shrink-0 items-center group-data-[orientation=vertical]/attachment:absolute group-data-[orientation=vertical]/attachment:right-3 group-data-[orientation=vertical]/attachment:top-3 group-data-[orientation=vertical]/attachment:gap-1'
-const triggerBase = 'absolute inset-0 z-10 outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
+const descriptionBase = 'block max-w-full min-w-0 truncate text-xs text-muted-foreground group-data-[state=error]/attachment:text-danger'
+const actionsBase = 'relative z-20 flex shrink-0 items-center group-data-[orientation=vertical]/attachment:absolute group-data-[orientation=vertical]/attachment:end-3 group-data-[orientation=vertical]/attachment:top-3 group-data-[orientation=vertical]/attachment:gap-1'
+// The whole tile is the trigger, so its ring lies on the tile's hairline.
+const triggerBase = 'absolute inset-0 z-10 rounded-[inherit] playa-focus [--focus-offset:calc(var(--focus-width)/-2)]'
 // `items-start` keeps mixed-orientation tiles at their natural heights; the
 // horizontal padding matches the 1rem scroll-fade mask so resting first/last
 // items sit fully outside the faded edges.
@@ -154,7 +155,7 @@ const AttachmentTitle = part<AttachmentTextArgs>('span', 'attachment-title', { c
 /** Secondary metadata such as type, size, upload status, or error reason. */
 const AttachmentDescription = part<AttachmentTextArgs>('span', 'attachment-description', { class: descriptionBase })
 
-/** Action container aligned to the edge of the attachment. */
+/** Action container aligned to the end of the attachment. */
 const AttachmentActions = part<AttachmentSlotArgs>('div', 'attachment-actions', { class: actionsBase })
 
 /** Icon-sized action button for attachment operations. */
@@ -177,7 +178,7 @@ const AttachmentTrigger: Stateless<AttachmentTriggerArgs> = ({
 	/>
 )
 
-/** Horizontally scrollable attachment row with snap points and edge fade. */
+/** Horizontally scrollable attachment row with snap points and faded ends. */
 const AttachmentGroup = part<AttachmentGroupArgs>('div', 'attachment-group', { class: groupBase })
 
 export {

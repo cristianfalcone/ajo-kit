@@ -73,7 +73,8 @@ export type ItemDescriptionArgs = WithChildren<IntrinsicElements['p'] & {
 	class?: string
 }>
 
-const itemBase = 'group/item flex w-full flex-wrap items-center rounded-md text-sm transition-colors duration-100 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 hover:bg-accent hover:text-accent-foreground'
+// Only a link or button row takes the hover tint: a static row is not a target.
+const itemBase = 'group/item flex w-full flex-wrap items-center rounded-md text-sm transition-colors duration-100 playa-focus [&:is(a,button)]:hover:bg-accent [&:is(a,button)]:hover:text-accent-foreground'
 const variantClasses: Record<ItemVariant, string> = {
 	default: 'bg-transparent',
 	muted: 'bg-muted/50',
@@ -81,8 +82,8 @@ const variantClasses: Record<ItemVariant, string> = {
 }
 const itemSizes: Record<ItemSize, string> = {
 	default: 'gap-4 p-4',
-	sm: 'gap-2.5 px-4 py-3',
-	xs: 'gap-2 px-2.5 py-2 text-xs',
+	sm: 'gap-3 px-4 py-3',
+	xs: 'gap-2 px-3 py-2 text-xs',
 }
 const mediaBase = 'flex shrink-0 items-center justify-center gap-2 group-has-[[data-slot=item-description]]/item:translate-y-0.5 group-has-[[data-slot=item-description]]/item:self-start [&_svg]:pointer-events-none'
 const mediaVariants: Record<ItemMediaVariant, string> = {
@@ -91,9 +92,15 @@ const mediaVariants: Record<ItemMediaVariant, string> = {
 	image: 'size-10 overflow-hidden rounded-sm [&_img]:size-full [&_img]:object-cover',
 }
 
-/** Container for grouping related items. */
-const ItemGroup: Stateless<ItemGroupArgs> = ({ class: classes, role = 'list', ...attrs }) => (
-	<div {...attrs} class={clx('group/item-group flex flex-col', classes)} data-slot="item-group" role={role} />
+/**
+ * Container for grouping related items, a `group` by default. Outline items in
+ * a group share one surface with a hairline between rows and no gap; spaced
+ * cards are outline Items in a plain grid, not an ItemGroup. For list
+ * semantics pass `role="list"` and give each row `role="listitem"` (a link row
+ * goes inside one).
+ */
+const ItemGroup: Stateless<ItemGroupArgs> = ({ class: classes, role = 'group', ...attrs }) => (
+	<div {...attrs} class={clx('group/item-group playa-item-group flex flex-col', classes)} data-slot="item-group" role={role} />
 )
 
 /** Horizontal separator between items in an item group. */
@@ -125,10 +132,10 @@ const ItemMedia: Stateless<ItemMediaArgs> = ({ class: classes, variant = 'defaul
 const ItemContent = part<ItemContentArgs>('div', 'item-content', { class: 'flex flex-1 flex-col gap-1 [&+[data-slot=item-content]]:flex-none' })
 
 /** Item title text. */
-const ItemTitle = part<ItemTitleArgs>('div', 'item-title', { class: 'flex w-fit items-center gap-2 text-sm font-medium leading-snug' })
+const ItemTitle = part<ItemTitleArgs>('div', 'item-title', { class: 'flex w-fit items-center gap-2 text-sm font-medium' })
 
 /** Item descriptive text. */
-const ItemDescription = part<ItemDescriptionArgs>('p', 'item-description', { class: 'line-clamp-2 text-balance text-sm font-normal leading-normal text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-link' })
+const ItemDescription = part<ItemDescriptionArgs>('p', 'item-description', { class: 'playa-inline-links line-clamp-2 text-balance text-sm font-normal text-muted-foreground' })
 
 /** Action slot for buttons, menus, or status controls. */
 const ItemActions = part<ItemActionsArgs>('div', 'item-actions', { class: 'flex items-center gap-2' })

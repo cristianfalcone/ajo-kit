@@ -6,7 +6,9 @@ export type SkeletonArgs = OmitArg<IntrinsicElements['div'], 'aria-hidden'> & Fi
 	decorative?: boolean
 }
 
-const base = 'animate-pulse rounded-md bg-muted motion-reduce:animate-none'
+// A tint of the text colour, so a placeholder shows on the page, a card or
+// a muted fill alike, in both themes.
+const base = 'animate-pulse rounded-md bg-foreground/10 motion-reduce:animate-none'
 
 /** Visual placeholder for content that is still loading. */
 const Skeleton: Stateless<SkeletonArgs> = ({

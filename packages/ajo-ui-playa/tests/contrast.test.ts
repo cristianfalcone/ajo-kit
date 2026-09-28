@@ -71,10 +71,8 @@ const pairs: Pair[] = [
 	...on(4.5, ['muted-foreground', 'faint-foreground', 'link', 'gold-text'],
 		[...surfaces.map(token => [{ token }]), [{ token: 'muted' }], ...tinted]),
 	...on(4.5, statuses, surfaces.map(token => [{ token }])),
-	// Status text on its own 10% tint, as Alert paints it: the title at full
-	// strength, the description at 85%.
-	...statuses.flatMap(status => [1, 0.85].flatMap(alpha => on(4.5, [status],
-		['background', 'card'].map(token => [{ token }, { token: status, alpha: 0.1 }]), alpha === 1 ? undefined : alpha))),
+	// Status text on its own 10% tint, as a status Chip paints it.
+	...statuses.flatMap(status => on(4.5, [status], ['background', 'card'].map(token => [{ token }, { token: status, alpha: 0.1 }]))),
 	...['primary', 'secondary', ...statuses].flatMap(fill => on(4.5, [`${fill}-foreground`], [[{ token: fill }]])),
 	// The filled destructive action carries white text in both schemes.
 	...on(4.5, ['danger-fill-foreground'], [[{ token: 'danger-fill' }]]),
@@ -94,18 +92,11 @@ const failing: Record<string, string> = {
 	'light primary on background': 'p5-kit-12',
 	'light primary on card': 'p5-kit-12',
 	'light primary on popover': 'p5-kit-12',
-	// Painted alphas: p5-kit-02 does not reach these. The halo goes as the W3
-	// lanes empty the focus-halo list in rules.test.ts; Alert moves its body
-	// text to foreground.
+	// A painted alpha p5-kit-02 does not reach: the halo goes as the W3
+	// lanes empty the focus-halo list in rules.test.ts.
 	'light ring 50% on background': 'W3 lanes, focus-halo list',
 	'light ring 50% on card': 'W3 lanes, focus-halo list',
 	'light ring 50% on popover': 'W3 lanes, focus-halo list',
-	'light danger 85% on danger 10% over background': 'p5-kit-16',
-	'light danger 85% on danger 10% over card': 'p5-kit-16',
-	'light success 85% on success 10% over background': 'p5-kit-16',
-	'light success 85% on success 10% over card': 'p5-kit-16',
-	'light warning 85% on warning 10% over background': 'p5-kit-16',
-	'light warning 85% on warning 10% over card': 'p5-kit-16',
 }
 
 const layer = ({ token, alpha }: Layer) => alpha === undefined ? token : `${token} ${alpha * 100}%`

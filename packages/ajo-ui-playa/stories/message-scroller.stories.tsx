@@ -30,14 +30,14 @@ type TranscriptArgs = {
 }
 
 const notes = [
-	'I checked the failing job and the error is in the install step.',
-	'Can you compare the lockfile with the previous commit?',
-	'Yes. The workspace package is resolving to the local path correctly.',
-	'Then the next suspect is the Vite plugin guard.',
-	'I will add a targeted smoke test before changing it.',
-	'Good. Keep the patch narrow and preserve the current API.',
-	'The repro is stable now.',
-	'Ship the smallest fix and rerun the story smoke.',
+	'The deploy of shop-web 1.4.2 failed in the install step.',
+	'Can you compare its lockfile with the one in 1.4.1?',
+	'Yes. The payments package moved to a version the registry no longer serves.',
+	'Then pin it back to the version 1.4.1 used.',
+	'I will deploy it to host-02 first and check its health.',
+	'Good. Keep 1.4.1 running on host-01 until it passes.',
+	'It passes the health check now.',
+	'Deploy it to host-01 and remove 1.4.0.',
 ]
 
 const viewport = (canvas: HTMLElement) => {
@@ -194,12 +194,12 @@ const Transcript = ({ anchorEvery = 0, count = 18, offset = 0 }: TranscriptArgs)
 					<Message align={mine ? 'end' : 'start'}>
 						{mine ? null : (
 							<MessageAvatar>
-								<AvatarInitial>{position % 2 === 0 ? 'AI' : 'CN'}</AvatarInitial>
+								<AvatarInitial>{position % 2 === 0 ? 'GH' : 'AT'}</AvatarInitial>
 							</MessageAvatar>
 						)}
 						<MessageContent>
-							<MessageHeader>{mine ? 'You' : position % 2 === 0 ? 'Ajo' : 'Cristian'}</MessageHeader>
-							<Bubble variant={mine ? 'default' : 'muted'}>
+							<MessageHeader>{mine ? 'You' : position % 2 === 0 ? 'Grace Hopper' : 'Alan Turing'}</MessageHeader>
+							<Bubble variant={mine ? 'default' : 'secondary'}>
 								<BubbleContent>{notes[position % notes.length]}</BubbleContent>
 							</Bubble>
 							<MessageFooter>{new Intl.DateTimeFormat('en', { minute: '2-digit', second: '2-digit' }).format(new Date(0, 0, 0, 0, position + 1))}</MessageFooter>
@@ -613,7 +613,7 @@ export const PreserveOnPrepend: Story<typeof MessageScroller> = {
 			await frame(5)
 			const afterTop = target.getBoundingClientRect().top - view.getBoundingClientRect().top
 			if (preserve) {
-				ensure(Math.abs(afterTop - beforeTop) <= 2, `Prepend shifted ${target.dataset.messageId} by ${afterTop - beforeTop}px (top ${beforeTop}→${afterTop}, scroll ${beforeScroll}→${view.scrollTop})`)
+				ensure(Math.abs(afterTop - beforeTop) <= 2, `Prepend shifted ${target.dataset.messageId} by ${afterTop - beforeTop}px (top ${beforeTop} to ${afterTop}, scroll ${beforeScroll} to ${view.scrollTop})`)
 				ensure(view.scrollTop > beforeScroll, 'Preserved prepend must compensate scrollTop')
 			} else {
 				ensure(Math.abs(view.scrollTop - beforeScroll) <= 2, 'Non-preserved prepend must not compensate scrollTop')

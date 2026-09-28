@@ -43,17 +43,17 @@ export const AvatarRows: Story<typeof Message> = {
 		<div class="grid w-[34rem] gap-3">
 			<Message>
 				<MessageAvatar>
-					<AvatarInitial>R</AvatarInitial>
+					<AvatarInitial>GH</AvatarInitial>
 				</MessageAvatar>
 				<MessageContent>
-					<Bubble variant="muted">
-						<BubbleContent>The build failed during dependency installation.</BubbleContent>
+					<Bubble variant="secondary">
+						<BubbleContent>The deploy of shop-web 1.4.2 failed while installing dependencies.</BubbleContent>
 					</Bubble>
 				</MessageContent>
 			</Message>
 			<Message align="end">
 				<MessageAvatar>
-					<AvatarInitial>ME</AvatarInitial>
+					<AvatarInitial>AL</AvatarInitial>
 				</MessageAvatar>
 				<MessageContent>
 					<Bubble variant="default">
@@ -77,18 +77,18 @@ export const Group: Story<typeof Message> = {
 			<Message>
 				<MessageAvatar />
 				<MessageContent>
-					<Bubble variant="muted">
-						<BubbleContent>I checked the registry addresses.</BubbleContent>
+					<Bubble variant="secondary">
+						<BubbleContent>I checked the DNS records for shop.example.com.</BubbleContent>
 					</Bubble>
 				</MessageContent>
 			</Message>
 			<Message>
 				<MessageAvatar>
-					<AvatarInitial>CN</AvatarInitial>
+					<AvatarInitial>GH</AvatarInitial>
 				</MessageAvatar>
 				<MessageContent>
-					<Bubble variant="muted">
-						<BubbleContent>The component and example JSON now live under the UI registry.</BubbleContent>
+					<Bubble variant="secondary">
+						<BubbleContent>They point at host-01, so the certificate can renew tonight.</BubbleContent>
 					</Bubble>
 				</MessageContent>
 			</Message>
@@ -107,25 +107,25 @@ export const HeaderAndFooter: Story<typeof Message> = {
 	render: args => (
 		<Message align={args.align} class="w-[34rem]">
 			<MessageAvatar>
-				<AvatarInitial>O</AvatarInitial>
+				<AvatarInitial>GH</AvatarInitial>
 			</MessageAvatar>
 			<MessageContent>
-				<MessageHeader>Olivia</MessageHeader>
-				<Bubble variant="muted">
+				<MessageHeader>Grace Hopper</MessageHeader>
+				<Bubble variant="secondary">
 					<BubbleContent>
-						I already checked the logs.
+						I checked the logs of shop-web.
 						<br />
-						Send the report to the team. Ping @ajo if you need help.
+						The restart at 03:10 cleared the memory warning.
 					</BubbleContent>
 				</Bubble>
-				<MessageFooter>Read Yesterday</MessageFooter>
+				<MessageFooter>Read yesterday</MessageFooter>
 			</MessageContent>
 		</Message>
 	),
 	play: async ({ canvas }) => {
 		const header = canvas.querySelector('[data-slot="message-header"]')
 		const footer = canvas.querySelector('[data-slot="message-footer"]')
-		if (!header?.textContent?.includes('Olivia') || !footer?.textContent?.includes('Read Yesterday')) {
+		if (!header?.textContent?.includes('Grace Hopper') || !footer?.textContent?.includes('Read yesterday')) {
 			throw new Error('Message header/footer did not render metadata')
 		}
 	},
@@ -136,8 +136,8 @@ export const Actions: Story<typeof Message> = {
 		<div class="grid w-[34rem] gap-3">
 			<Message>
 				<MessageContent>
-					<Bubble variant="muted">
-						<BubbleContent>The install failure is coming from the workspace package.</BubbleContent>
+					<Bubble variant="secondary">
+						<BubbleContent>The install fails because blog has no lockfile.</BubbleContent>
 					</Bubble>
 					<MessageFooter class="gap-1">
 						<Button variant="ghost" size="icon-xs" aria-label="Copy">
@@ -152,9 +152,9 @@ export const Actions: Story<typeof Message> = {
 			<Message align="end">
 				<MessageContent>
 					<Bubble>
-						<BubbleContent>Okay drop me a link. Taking a look...</BubbleContent>
+						<BubbleContent>Send me the version id and I will roll it back.</BubbleContent>
 					</Bubble>
-					<MessageFooter>Failed to send</MessageFooter>
+					<MessageFooter>Not sent. Check your connection and retry.</MessageFooter>
 				</MessageContent>
 			</Message>
 		</div>
@@ -172,28 +172,28 @@ export const WithAttachment: Story<typeof Message> = {
 			<Message align="end">
 				<MessageContent>
 					<Bubble>
-						<BubbleContent>Here's the image. Can you add it to the PDF?</BubbleContent>
+						<BubbleContent>Can you send me the build log of the failed deploy?</BubbleContent>
 					</Bubble>
 				</MessageContent>
 			</Message>
 			<Message>
 				<MessageAvatar>
-					<AvatarInitial>AI</AvatarInitial>
+					<AvatarInitial>GH</AvatarInitial>
 				</MessageAvatar>
 				<MessageContent>
-					<Bubble variant="muted">
-						<BubbleContent>Done. Here's the PDF with the image added as the cover page.</BubbleContent>
+					<Bubble variant="secondary">
+						<BubbleContent>Here it is. The failure starts at line 214.</BubbleContent>
 					</Bubble>
 					<UiAttachment class="max-w-xs">
 						<AttachmentMedia>
 							<span class="i-lucide-file-text size-5" />
 						</AttachmentMedia>
 						<AttachmentContent>
-							<AttachmentTitle>sales-dashboard.pdf</AttachmentTitle>
-							<AttachmentDescription>PDF · 2.4 MB</AttachmentDescription>
+							<AttachmentTitle>deploy-1.4.2.log</AttachmentTitle>
+							<AttachmentDescription>Log file, 48 KB</AttachmentDescription>
 						</AttachmentContent>
 						<AttachmentActions>
-							<AttachmentAction aria-label="Download">
+							<AttachmentAction aria-label="Download deploy-1.4.2.log">
 								<span class="i-lucide-download size-4" />
 							</AttachmentAction>
 						</AttachmentActions>
@@ -204,7 +204,7 @@ export const WithAttachment: Story<typeof Message> = {
 	),
 	play: async ({ canvas }) => {
 		const attachment = canvas.querySelector('[data-slot="attachment"]')
-		if (!attachment?.textContent?.includes('sales-dashboard.pdf')) {
+		if (!attachment?.textContent?.includes('deploy-1.4.2.log')) {
 			throw new Error('Message attachment story did not render attachment content')
 		}
 	},

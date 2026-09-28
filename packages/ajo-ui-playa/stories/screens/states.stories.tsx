@@ -148,11 +148,6 @@ export const NoResults: Story = {
 
 export const Failed: Story = {
 	args: { state: 'failed' },
-	parameters: {
-		known: [
-			{ check: 'axe', slice: 'p5-kit-16', variants: ['light-1280', 'light-390'], targets: ['color-contrast'] },
-		],
-	},
 }
 
 export const Denied: Story = {

@@ -10,67 +10,43 @@ import { playa } from 'ajo-ui-playa'
 // Spacing off the scale: a spacing step other than 4, 8, 12, 16, 24, 32 or
 // 48 px, an arbitrary value, or a negative margin.
 const offScaleAllowed: Record<string, string> = {
-	'alert.tsx': 'gap-y-0.5',
-	'attachment.tsx': 'gap-1.5 mt-0.5 p-1.5 px-1.5 px-2.5 py-1.5',
-	'avatar.tsx': '-space-x-2',
-	'bubble.tsx': 'px-1.5 px-3.5 py-0.5',
-	'card.tsx': 'gap-[var(--card-spacing)] pb-[var(--card-spacing)] pt-[var(--card-spacing)] px-[var(--card-spacing)] py-[var(--card-spacing)]',
+	'avatar.tsx': '-space-x-1.5',
 	'carousel.tsx': '-ms-4 -mt-4',
 	'chart.tsx': 'gap-1.5 px-2.5 py-1.5',
-	'chip.tsx': '-mr-1 py-0.5',
 	'drawer.tsx': 'mb-24 mt-24',
-	'item.tsx': 'gap-2.5 px-2.5',
-	'message.tsx': 'px-3.5',
 	'pagination.tsx': 'pl-2.5 pr-2.5 px-2.5',
 	'preset/data.ts': '-mx-2 gap-1.5 my-0.5 px-1.5 py-0.5',
 	'preset/floating.ts': '-mx-1 py-1.5',
 	'preset/modal.ts': 'pr-10',
 	'switch.tsx': 'px-px',
 	'tooltip.tsx': 'py-1.5',
-	'typography.tsx': 'px-[0.3rem] py-[0.2rem] scroll-m-20',
 }
 
 // Physical sides where a logical utility exists (ps, me, start, end,
 // text-start, rounded-s, border-e...). Centring with left-1/2 is not one.
 const physicalAllowed: Record<string, string> = {
-	'accordion.tsx': 'text-left',
 	'alert-dialog.tsx': 'text-left',
-	'attachment.tsx': 'right-3',
-	'avatar.tsx': 'right-0',
-	'bubble.tsx': 'left-3 right-3 rounded-bl-2xl rounded-bl-md rounded-br-2xl rounded-br-md text-left',
-	'chip.tsx': '-mr-1',
 	'dialog.tsx': 'right-4 text-left',
 	'drawer.tsx': 'border-l border-r left-0 left-auto right-0 right-auto text-left',
 	'internal/recipes.tsx': 'slide-in-from-left-2 slide-in-from-right-2',
-	'marker.tsx': 'ml-1 mr-1 text-left',
-	'message.tsx': 'rounded-bl-2xl rounded-br-2xl',
 	'navigation-menu.tsx': 'ml-1',
 	'pagination.tsx': 'pl-2.5 pr-2.5',
 	'preset/data.ts': 'pr-0 text-left text-right',
 	'preset/floating.ts': 'left-2 ml-auto pl-8 pr-2',
 	'preset/modal.ts': 'pr-10 right-2',
-	'resizable.tsx': 'left-0',
 	'sidebar.tsx': 'border-l border-r left-0 right-0',
 	'tabs.tsx': 'left-0',
-	'typography.tsx': 'border-l-2 ml-6 pl-6',
 }
 
 // Focus halos: a translucent ring-shadow beside or instead of the one focus
 // ring, which forced colours drop and which misses 3:1 in the light theme.
 const haloAllowed: Record<string, string> = {
-	'accordion.tsx': 'ring-3 ring-ring/50',
-	'attachment.tsx': 'ring-3 ring-ring/50',
-	'bubble.tsx': 'ring-3 ring-ring/50',
-	'chip.tsx': 'ring-3 ring-danger/25 ring-danger/40 ring-ring/50',
-	'collapsible.tsx': 'ring-3 ring-ring/50',
 	'dialog.tsx': 'ring-ring/50',
-	'item.tsx': 'ring-3 ring-ring/50',
 	'navigation-menu.tsx': 'ring-3 ring-ring/50',
 	'preset/choices.ts': 'ring-3 ring-danger/20 ring-ring/50',
 	'preset/data.ts': 'ring-3 ring-ring/25 ring-ring/50',
 	'preset/modal.ts': 'ring-3 ring-ring/50',
 	'radio-group.tsx': 'ring-3 ring-danger/20 ring-ring/50',
-	'resizable.tsx': 'ring-3 ring-ring/50',
 	'slider.tsx': 'ring-3 ring-4 ring-ring/50',
 	'switch.tsx': 'ring-3 ring-ring/50',
 }

@@ -54,17 +54,20 @@ export type AvatarGroupCountArgs = BaseAvatarGroupCountArgs & {
 
 const avatarBase = 'group/avatar relative flex size-8 shrink-0 rounded-full select-none data-[size=lg]:size-10 data-[size=sm]:size-6'
 const imageBase = 'absolute inset-0 aspect-square size-full rounded-full object-cover'
-const fallbackBase = 'flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs group-data-[size=lg]/avatar:text-base'
+// Initials are a label, not an action: the raised surface with a hairline.
+// Caption size keeps two letters clear of a grouped neighbour's overlap.
+const fallbackBase = 'flex size-full items-center justify-center rounded-full bg-secondary edge text-xs text-secondary-foreground group-data-[size=lg]/avatar:text-sm'
 const badgeBase = [
-	'absolute bottom-0 right-0 z-10 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background select-none',
+	'absolute bottom-0 end-0 z-10 inline-flex items-center justify-center rounded-full bg-foreground text-background ring-2 ring-background select-none',
 	// Empty badge renders as a status dot sized to the avatar.
 	'[&:not(:has(>*))]:size-2.5 group-data-[size=sm]/avatar:[&:not(:has(>*))]:size-2 group-data-[size=lg]/avatar:[&:not(:has(>*))]:size-3',
 	// A badge with content (icon span or svg) grows to fit it; too small on sm.
 	'[&:has(>*)]:size-4 group-data-[size=lg]/avatar:[&:has(>*)]:size-5 group-data-[size=sm]/avatar:[&:has(>*)]:hidden',
 	'[&>*]:size-2.5 group-data-[size=lg]/avatar:[&>*]:size-3',
 ].join(' ')
-const groupBase = 'group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background'
-const groupCountBase = 'relative flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm text-muted-foreground ring-2 ring-background [[data-slot=avatar-group]:has([data-size=lg])_&]:size-10 [[data-slot=avatar-group]:has([data-size=sm])_&]:size-6 [&>svg]:size-4 [[data-slot=avatar-group]:has([data-size=lg])_&>svg]:size-5 [[data-slot=avatar-group]:has([data-size=sm])_&>svg]:size-3'
+// Grouped avatars overlap by 6 px inside a page-coloured ring that separates them.
+const groupBase = 'group/avatar-group flex -space-x-1.5 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background'
+const groupCountBase = 'relative flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary edge text-xs text-muted-foreground ring-2 ring-background [[data-slot=avatar-group]:has([data-size=lg])_&]:size-10 [[data-slot=avatar-group]:has([data-size=lg])_&]:text-sm [[data-slot=avatar-group]:has([data-size=sm])_&]:size-6 [&>svg]:size-4 [[data-slot=avatar-group]:has([data-size=lg])_&>svg]:size-5 [[data-slot=avatar-group]:has([data-size=sm])_&>svg]:size-3'
 
 /** Avatar root that wraps image, fallback, and optional badge. */
 const Avatar: Stateless<AvatarArgs> = ({
@@ -100,7 +103,7 @@ const AvatarFallback: Stateless<AvatarFallbackArgs> = ({ children, class: classe
 	</BaseAvatarFallback>
 )
 
-/** Small status badge positioned at the bottom-right of an avatar. */
+/** Small status badge at the bottom end corner of an avatar. */
 const AvatarBadge: Stateless<AvatarBadgeArgs> = ({ children, class: classes, ...attrs }) => (
 	<BaseAvatarBadge {...attrs} class={clx(badgeBase, classes)}>
 		{children}

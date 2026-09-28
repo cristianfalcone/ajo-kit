@@ -46,11 +46,11 @@ export type MarkerIconArgs = WithChildren<IntrinsicElements['span'] & {
 
 export type MarkerContentArgs = MarkerIconArgs
 
-const base = 'group/marker relative flex min-h-4 w-full items-center gap-2 text-left text-sm text-muted-foreground [&_svg:not([class*=size-])]:size-4 [&_a]:underline [&_a]:underline-offset-3 [&_a:hover]:text-foreground'
+const base = 'group/marker relative flex min-h-4 w-full items-center gap-2 text-start text-sm text-muted-foreground [&_svg:not([class*=size-])]:size-4 [&_a]:underline [&_a]:underline-offset-3 [&_a:hover]:text-foreground'
 const variants: Record<MarkerVariant, string> = {
 	default: '',
 	border: 'border-b border-border pb-2',
-	separator: 'before:mr-1 before:h-px before:min-w-0 before:flex-1 before:bg-border after:ml-1 after:h-px after:min-w-0 after:flex-1 after:bg-border',
+	separator: 'before:me-1 before:h-px before:min-w-0 before:flex-1 before:bg-border after:ms-1 after:h-px after:min-w-0 after:flex-1 after:bg-border',
 }
 
 /** Inline conversation marker for status updates, notes, separators, and bordered rows. */

@@ -46,21 +46,25 @@ type ChipVariantOptions = {
 	variant?: ChipVariant
 }
 
-const base = 'inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:inset-ring aria-invalid:inset-ring-danger aria-invalid:ring-danger/25 [&>svg]:pointer-events-none [&>svg]:size-3'
+const base = 'inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full px-2 text-xs font-medium whitespace-nowrap transition-[color,box-shadow] playa-focus playa-invalid has-[>[data-slot=chip-remove]]:pe-1 [&>svg]:pointer-events-none [&>svg]:size-3'
 
-const removeBase = '-mr-1 inline-flex size-4 shrink-0 items-center justify-center rounded-full opacity-50 hover:opacity-100'
+const removeBase = 'inline-flex size-4 shrink-0 items-center justify-center rounded-full opacity-50 hover:opacity-100'
 
 const removeIconBase = 'i-lucide-x pointer-events-none size-3'
 
+// Status tones are quiet: the hue as text on its own 10% tint, never a
+// saturated fill. The default chip is ink, so gold stays on the one primary
+// action; danger keeps a fill for counts. Only an anchor chip takes a hover
+// tint: a static chip is not a target.
 const variants: Record<ChipVariant, string> = {
-	default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-	secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-	danger: 'bg-danger text-danger-foreground hover:bg-danger/90 focus-visible:ring-danger/40',
-	success: 'bg-success text-success-foreground hover:bg-success/90',
-	warning: 'bg-warning text-warning-foreground hover:bg-warning/90',
-	info: 'bg-info text-info-foreground hover:bg-info/90',
-	outline: 'edge text-foreground hover:bg-accent hover:text-accent-foreground',
-	ghost: 'hover:bg-accent hover:text-accent-foreground',
+	default: 'bg-foreground text-background [&:is(a)]:hover:bg-foreground/90',
+	secondary: 'bg-muted text-foreground [&:is(a)]:hover:bg-muted/80',
+	danger: 'bg-danger text-danger-foreground [&:is(a)]:hover:bg-danger/90',
+	success: 'bg-success/10 text-success',
+	warning: 'bg-warning/10 text-warning',
+	info: 'bg-info/10 text-info',
+	outline: 'edge text-foreground [&:is(a)]:hover:bg-accent [&:is(a)]:hover:text-accent-foreground',
+	ghost: '[&:is(a)]:hover:bg-accent [&:is(a)]:hover:text-accent-foreground',
 	link: 'text-link underline-offset-4 hover:underline',
 }
 

@@ -14,7 +14,7 @@ export type CollapsibleArgs = BaseCollapsibleArgs & { class?: string }
 export type CollapsibleTriggerArgs = BaseCollapsibleTriggerArgs & { class?: string }
 export type CollapsibleContentArgs = BaseCollapsibleContentArgs & { class?: string }
 
-const triggerBase = 'inline-flex cursor-pointer list-none items-center justify-center gap-2 rounded-md text-sm font-medium transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&::-webkit-details-marker]:hidden [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4'
+const triggerBase = 'flex cursor-pointer list-none items-center gap-2 rounded-md text-sm font-medium transition-all playa-focus playa-disabled [&::-webkit-details-marker]:hidden [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4'
 const contentBase = 'overflow-hidden'
 
 /** Collapsible disclosure rendered as a native details element. */
@@ -27,7 +27,11 @@ const CollapsibleTrigger: Stateless<CollapsibleTriggerArgs> = ({ class: classes,
 	<BaseCollapsibleTrigger {...attrs} class={clx(triggerBase, classes)} />
 )
 
-/** Content region natively shown or hidden by a parent Collapsible. */
+/**
+ * Content region natively shown or hidden by a parent Collapsible. Space it
+ * from the trigger with a margin on the content, not a gap or space-y on the
+ * root: closed content collapses to nothing, but the root's spacing stays.
+ */
 const CollapsibleContent: Stateless<CollapsibleContentArgs> = ({ class: classes, ...attrs }) => (
 	<BaseCollapsibleContent {...attrs} class={clx(contentBase, classes)} />
 )

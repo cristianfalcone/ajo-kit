@@ -232,10 +232,7 @@ const selected = (dialog: HTMLElement) => dialog.querySelector('[data-slot="comm
 export const Default: Story = {
 	parameters: {
 		known: [
-			{ check: 'axe', slice: 'p5-kit-16', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['aria-required-children'] },
-			{ check: 'focus', slice: 'p5-kit-16', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['a[data-slot=item]'] },
 			{ check: 'focus', slice: 'p5-kit-18', variants: ['light-1280', 'rtl-light-1280'], targets: ['a[data-slot=sidebar-menu-button]', 'button[data-slot=sidebar-menu-button]'] },
-			{ check: 'forced-colors', slice: 'p5-kit-16', variants: ['light-1280'], targets: ['a[data-slot=item]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-18', variants: ['light-1280'], targets: ['a[data-slot=sidebar-menu-button]', 'button[data-slot=sidebar-menu-button]'] },
 			{ check: 'motion', slice: 'p5-kit-15', variants: ['light-1280 command'], targets: ['dialog[data-slot=command-dialog]'] },
 		],

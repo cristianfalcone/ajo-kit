@@ -24,16 +24,16 @@ export type AlertDescriptionArgs = AlertTitleArgs
 
 export type AlertActionArgs = AlertTitleArgs
 
-// Alerts live in the content layer, often inside frosted cards, so the surface
-// is a plain tint: translucent color without its own backdrop-filter.
-const base = 'relative grid w-full grid-cols-[0_1fr_auto] items-start gap-y-0.5 rounded-lg edge px-4 py-3 text-sm has-[>svg]:grid-cols-[1rem_1fr_auto] has-[>svg]:gap-x-3 has-[>[data-slot=alert-icon]]:grid-cols-[1rem_1fr_auto] has-[>[data-slot=alert-icon]]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current [&>[data-slot=alert-icon]]:size-4 [&>[data-slot=alert-icon]]:translate-y-0.5 [&>[data-slot=alert-icon]]:text-current'
+// Alerts sit on enamel like cards. The tone marks only the icon and the
+// title; the description stays in the text colour, readable on any surface.
+const base = 'relative grid w-full grid-cols-[0_1fr_auto] items-start gap-y-1 rounded-lg panel px-4 py-3 text-sm has-[>svg]:grid-cols-[1rem_1fr_auto] has-[>svg]:gap-x-3 has-[>[data-slot=alert-icon]]:grid-cols-[1rem_1fr_auto] has-[>[data-slot=alert-icon]]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:[color:var(--alert-tone,currentColor)] [&>[data-slot=alert-icon]]:size-4 [&>[data-slot=alert-icon]]:translate-y-0.5 [&>[data-slot=alert-icon]]:[color:var(--alert-tone,currentColor)]'
 
 const variants: Record<AlertVariant, string> = {
-	default: 'bg-card/80 text-card-foreground shadow-xs',
-	danger: 'bg-danger/10 text-danger inset-ring-danger/25 [&_[data-slot=alert-description]]:text-danger/85',
-	success: 'bg-success/10 text-success inset-ring-success/25 [&_[data-slot=alert-description]]:text-success/85',
-	warning: 'bg-warning/10 text-warning inset-ring-warning/25 [&_[data-slot=alert-description]]:text-warning/85',
-	info: 'bg-info/10 text-info inset-ring-info/25 [&_[data-slot=alert-description]]:text-info/85',
+	default: '',
+	danger: '[--alert-tone:var(--danger)]',
+	success: '[--alert-tone:var(--success)]',
+	warning: '[--alert-tone:var(--warning)]',
+	info: '[--alert-tone:var(--info)]',
 }
 
 /** Callout for important user attention. */
@@ -53,10 +53,10 @@ const Alert: Stateless<AlertArgs> = ({
 )
 
 /** Title slot for `Alert`. */
-const AlertTitle = part<AlertTitleArgs>('div', 'alert-title', { class: 'col-start-2 line-clamp-1 min-h-4 font-medium tracking-tight' })
+const AlertTitle = part<AlertTitleArgs>('div', 'alert-title', { class: 'col-start-2 line-clamp-1 font-medium [color:var(--alert-tone,currentColor)]' })
 
 /** Description/content slot for `Alert`. */
-const AlertDescription = part<AlertDescriptionArgs>('div', 'alert-description', { class: 'col-start-2 grid justify-items-start gap-1 text-sm text-muted-foreground [&_p]:leading-relaxed' })
+const AlertDescription = part<AlertDescriptionArgs>('div', 'alert-description', { class: 'col-start-2 grid justify-items-start gap-1 text-pretty' })
 
 /** Action slot for `Alert`, aligned to the end on wider screens. */
 const AlertAction = part<AlertActionArgs>('div', 'alert-action', { class: 'col-start-2 mt-3 flex flex-wrap gap-2 sm:col-start-3 sm:row-span-2 sm:row-start-1 sm:mt-0 sm:justify-self-end sm:ps-3' })

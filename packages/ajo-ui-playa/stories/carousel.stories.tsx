@@ -319,7 +319,7 @@ export const RightToLeft: Story = {
 		if (previous.getBoundingClientRect().left <= next.getBoundingClientRect().left) {
 			throw new Error('RTL carousel did not place previous on the inline start side')
 		}
-		if (getComputedStyle(previous.querySelector('[aria-hidden]')!).rotate !== '180deg') {
+		if (getComputedStyle(previous.querySelector('[aria-hidden]')!).scale !== '-1 1') {
 			throw new Error('RTL carousel did not flip the previous arrow')
 		}
 

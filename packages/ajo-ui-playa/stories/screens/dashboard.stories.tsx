@@ -131,8 +131,6 @@ export default {
 export const Default: Story = {
 	parameters: {
 		known: [
-			{ check: 'axe', slice: 'p5-kit-16', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['aria-required-children'] },
-			{ check: 'axe', slice: 'p5-kit-16', variants: ['light-1280', 'light-390'], targets: ['color-contrast'] },
 			{ check: 'axe', slice: 'p5-kit-17', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['aria-prohibited-attr'] },
 			{ check: 'focus', slice: 'p5-kit-17', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['circle "'] },
 			{ check: 'focus', slice: 'p5-kit-19', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['pre "'] },

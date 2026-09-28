@@ -28,10 +28,10 @@ export default {
 export const Headings: Story = {
 	render: () => (
 		<div class="grid gap-6">
-			<TypographyH1>Taxing Laughter: The Joke Tax Chronicles</TypographyH1>
-			<TypographyH2>The People of the Kingdom</TypographyH2>
-			<TypographyH3>The Joke Tax</TypographyH3>
-			<TypographyH4>People stopped telling jokes</TypographyH4>
+			<TypographyH1>Deploy an app</TypographyH1>
+			<TypographyH2>Before you start</TypographyH2>
+			<TypographyH3>Point the domain at the host</TypographyH3>
+			<TypographyH4>Check the certificate</TypographyH4>
 		</div>
 	),
 	play: async ({ canvas }) => {
@@ -45,8 +45,17 @@ export const Headings: Story = {
 			throw new Error('Typography headings did not use semantic heading elements')
 		}
 
-		if (h1.className.includes('tracking-tight')) {
-			throw new Error('Typography should not introduce negative letter-spacing')
+		// The page title is the one Fraunces line: light, start-aligned, no negative tracking.
+		const title = getComputedStyle(h1)
+		if (!title.fontFamily.includes('Fraunces') || title.fontWeight !== '360' || title.textAlign !== 'start' || title.letterSpacing !== 'normal') {
+			throw new Error(`TypographyH1 is not the page title: ${title.fontFamily} ${title.fontWeight} ${title.textAlign} ${title.letterSpacing}`)
+		}
+		// Headings below it stay in the interface face, with no rule under them.
+		for (const heading of [h2, h3, h4]) {
+			const style = getComputedStyle(heading)
+			if (style.fontFamily.includes('Fraunces') || style.borderBottomWidth !== '0px') {
+				throw new Error(`${heading.tagName} is not a plain section heading: ${style.fontFamily} ${style.borderBottomWidth}`)
+			}
 		}
 	},
 }
@@ -54,18 +63,18 @@ export const Headings: Story = {
 export const Article: Story = {
 	render: () => (
 		<article class="mx-auto max-w-2xl">
-			<TypographyH1>Taxing Laughter: The Joke Tax Chronicles</TypographyH1>
+			<TypographyH1>Deploying to your host</TypographyH1>
 			<TypographyLead>
-				A story about a lazy king, an overreaching tax, and a court jester.
+				Push a version and the host builds it, starts it and routes its domain to it.
 			</TypographyLead>
 			<TypographyP>
-				Once upon a time, in a far-off land, there was a very lazy king who spent all day lounging on his throne.
+				Each version runs beside the last one until it passes its health check. Read <a href="#domains">how domains reach an app</a> before you add one.
 			</TypographyP>
 			<TypographyBlockquote>
-				"After all," he said, "everyone enjoys a good joke."
+				A version that fails its health check never takes traffic.
 			</TypographyBlockquote>
 			<TypographyP>
-				The people started to tell jokes again, and soon the entire kingdom was in on the joke.
+				Old versions stay on the host until you remove them, so a rollback takes seconds.
 			</TypographyP>
 		</article>
 	),
@@ -73,24 +82,36 @@ export const Article: Story = {
 		const article = canvas.querySelector('article')
 		const quote = canvas.querySelector<HTMLElement>('[data-slot="typography-blockquote"]')
 		const paragraphs = canvas.querySelectorAll('[data-slot="typography-p"]')
-		if (!article || !quote || paragraphs.length !== 2) {
+		const link = canvas.querySelector<HTMLAnchorElement>('[data-slot="typography-p"] a')
+		if (!article || !quote || paragraphs.length !== 2 || !link) {
 			throw new Error('Typography article composition was not rendered')
+		}
+
+		// A quote is set in and muted, with no stripe on its start side.
+		const style = getComputedStyle(quote)
+		if (style.borderInlineStartWidth !== '0px' || Number.parseFloat(style.paddingInlineStart) <= 0) {
+			throw new Error(`Typography blockquote kept a stripe or lost its indent: ${style.borderInlineStartWidth} ${style.paddingInlineStart}`)
+		}
+		// An inline link is underlined and its focus ring stands off its first and last letters.
+		const anchor = getComputedStyle(link)
+		if (anchor.textDecorationLine !== 'underline' || Number.parseFloat(anchor.outlineOffset) < 2) {
+			throw new Error(`Typography inline link is not underlined or its ring touches the text: ${anchor.textDecorationLine} ${anchor.outlineOffset}`)
 		}
 	},
 }
 
 export const List: Story = {
 	render: () => (
-		<div class="grid gap-4">
+		<div>
 			<TypographyList>
-				<TypographyListItem>1st level of puns: 5 gold coins</TypographyListItem>
-				<TypographyListItem>2nd level of jokes: 10 gold coins</TypographyListItem>
-				<TypographyListItem>3rd level of one-liners: 20 gold coins</TypographyListItem>
+				<TypographyListItem>Apps: 6, and 5 of them running</TypographyListItem>
+				<TypographyListItem>Domains: 6, each with a valid certificate</TypographyListItem>
+				<TypographyListItem>Secrets: 12, none shown after they are saved</TypographyListItem>
 			</TypographyList>
 			<TypographyList ordered>
-				<TypographyListItem>Draft the joke tax.</TypographyListItem>
-				<TypographyListItem>Publish the decree.</TypographyListItem>
-				<TypographyListItem>Repeal it immediately.</TypographyListItem>
+				<TypographyListItem>Add the domain.</TypographyListItem>
+				<TypographyListItem>Point its DNS at the host.</TypographyListItem>
+				<TypographyListItem>Wait for the certificate.</TypographyListItem>
 			</TypographyList>
 		</div>
 	),
@@ -101,6 +122,9 @@ export const List: Story = {
 		if (!unordered || !ordered || items.length !== 6) {
 			throw new Error('Typography lists were not rendered with semantic list elements')
 		}
+		// A list follows the block before it by one rhythm step, as a paragraph does.
+		const step = ordered.getBoundingClientRect().top - unordered.getBoundingClientRect().bottom
+		if (Math.abs(step - 16) > 0.5) throw new Error(`Typography lists are ${step} px apart, not one 16 px step`)
 	},
 }
 
@@ -108,11 +132,11 @@ export const Inline: Story = {
 	render: () => (
 		<div class="grid gap-4">
 			<TypographyP>
-				Install <TypographyInlineCode>@radix-ui/react-alert-dialog</TypographyInlineCode> only in React projects.
+				Install <TypographyInlineCode>ajo-ui-playa</TypographyInlineCode> and import one family at a time.
 			</TypographyP>
-			<TypographyLarge>Are you absolutely sure?</TypographyLarge>
+			<TypographyLarge>Delete this host?</TypographyLarge>
 			<TypographySmall>Email address</TypographySmall>
-			<TypographyMuted>Enter your email address.</TypographyMuted>
+			<TypographyMuted>Sign-in links and notices go here.</TypographyMuted>
 		</div>
 	),
 	play: async ({ canvas }) => {

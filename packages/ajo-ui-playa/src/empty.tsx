@@ -30,7 +30,8 @@ export type EmptyDescriptionArgs = WithChildren<IntrinsicElements['p'] & {
 const mediaBase = 'mb-2 flex shrink-0 items-center justify-center [&_svg]:pointer-events-none [&_svg]:shrink-0'
 const mediaVariants: Record<EmptyMediaVariant, string> = {
 	default: 'bg-transparent',
-	icon: 'flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground [&_svg:not([class*=size-])]:size-6',
+	// A 40 px enamel disc; the icon inside reads at 20 px.
+	icon: 'size-10 rounded-full panel text-xl [&_svg:not([class*=size-])]:size-5',
 }
 
 /** Empty-state wrapper for placeholder content and actions. */
@@ -45,10 +46,10 @@ const EmptyMedia: Stateless<EmptyMediaArgs> = ({ class: classes, variant = 'defa
 )
 
 /** Title slot for empty-state copy. */
-const EmptyTitle = part<EmptyTitleArgs>('div', 'empty-title', { class: 'text-lg font-medium tracking-tight' })
+const EmptyTitle = part<EmptyTitleArgs>('div', 'empty-title', { class: 'text-base font-medium' })
 
 /** Description slot for empty-state explanatory copy. */
-const EmptyDescription = part<EmptyDescriptionArgs>('p', 'empty-description', { class: 'text-sm/relaxed text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-link' })
+const EmptyDescription = part<EmptyDescriptionArgs>('p', 'empty-description', { class: 'playa-inline-links text-sm text-muted-foreground text-pretty' })
 
 /** Content slot for empty-state actions, inputs, or links. */
 const EmptyContent = part<EmptyContentArgs>('div', 'empty-content', { class: 'flex w-full max-w-sm min-w-0 flex-col items-center gap-4 text-sm text-balance' })

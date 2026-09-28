@@ -9,13 +9,23 @@ import {
 } from 'ajo-ui-playa/alert'
 
 const examples = {
-	default: ['i-lucide-check-circle', 'Account updated successfully', 'Your profile information has been saved. Changes will be reflected immediately.'],
-	danger: ['i-lucide-alert-circle', 'Payment failed', 'Your payment could not be processed. Please check your payment method and try again.'],
-	success: ['i-lucide-circle-check', 'Backup completed', 'Your data was backed up successfully. No further action is required.'],
-	warning: ['i-lucide-alert-triangle', 'Storage almost full', 'You are using 90% of your storage. Remove unused files to avoid interruptions.'],
-	info: ['i-lucide-circle-help', 'Scheduled maintenance', 'The service will be briefly unavailable on Sunday at 02:00 UTC.'],
+	default: ['i-lucide-circle-check', 'Profile saved', 'The people you invite now see your new name.'],
+	danger: ['i-lucide-octagon-x', 'The deploy failed', 'shop-api v143 did not pass its health check, so v142 keeps serving. Open the log to see the failing step.'],
+	success: ['i-lucide-circle-check', 'Backup finished', 'Every app, domain and secret on host-01 was saved at 03:00.'],
+	warning: ['i-lucide-triangle-alert', 'The disk is 90% full', 'Deploys stop at 95%. Remove old versions or grow the volume.'],
+	info: ['i-lucide-info', 'Maintenance on Sunday', 'The host restarts at 02:00 UTC and is back within five minutes.'],
 } as const
 const variants = Object.keys(examples) as Array<keyof typeof examples>
+
+// A computed colour as 0-255 channels, whether the engine wrote rgb() or color(srgb).
+const channels = (value: string) => {
+	const numbers = (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
+	return (value.startsWith('color(') ? numbers.map(number => number * 255) : numbers).map(Math.round).join(',')
+}
+
+// Whether a surface casts a shadow: an outer box-shadow that is not transparent.
+const casts = (style: CSSStyleDeclaration) => style.boxShadow.split(/,(?![^(]*\))/)
+	.some(shadow => !shadow.includes('inset') && !shadow.trim().startsWith('rgba(0, 0, 0, 0)') && shadow.trim() !== 'none')
 
 export default {
 	title: 'UI/Alert',
@@ -34,10 +44,10 @@ export default {
 export const Default: Story<typeof Alert> = {
 	render: args => (
 		<Alert {...args}>
-			<span data-slot="alert-icon" class="i-lucide-check-circle" />
-			<AlertTitle>Account updated successfully</AlertTitle>
+			<span data-slot="alert-icon" class="i-lucide-circle-check" />
+			<AlertTitle>Profile saved</AlertTitle>
 			<AlertDescription>
-				Your profile information has been saved. Changes will be reflected immediately.
+				The people you invite now see your new name.
 			</AlertDescription>
 		</Alert>
 	),
@@ -58,18 +68,41 @@ export const Variants: Story<typeof Alert> = {
 			})}
 		</div>
 	),
+	// Every tone sits on enamel with no resting shadow; the tone colours the
+	// icon and the title, and the description keeps the text colour.
+	play: async ({ canvas }) => {
+		const probe = canvas.appendChild(document.createElement('div'))
+		probe.style.backgroundColor = 'var(--card)'
+		const card = getComputedStyle(probe).backgroundColor
+		probe.remove()
+		for (const alert of canvas.querySelectorAll<HTMLElement>('[data-slot="alert"]')) {
+			const variant = alert.dataset.variant
+			const root = getComputedStyle(alert)
+			const icon = alert.querySelector<HTMLElement>('[data-slot="alert-icon"]')
+			const title = alert.querySelector<HTMLElement>('[data-slot="alert-title"]')
+			const description = alert.querySelector<HTMLElement>('[data-slot="alert-description"]')
+			if (!icon || !title || !description) throw new Error(`Alert ${variant} parts were not rendered`)
+			if (channels(root.backgroundColor) !== channels(card) || casts(root)) {
+				throw new Error(`Alert ${variant} is not flat enamel: ${root.backgroundColor} ${root.boxShadow}`)
+			}
+			const tone = getComputedStyle(title).color
+			if (getComputedStyle(description).color !== root.color || getComputedStyle(icon).color !== tone || (variant === 'default') !== (tone === root.color)) {
+				throw new Error(`Alert ${variant} does not keep its tone to the icon and title`)
+			}
+		}
+	},
 }
 
 export const Action: Story<typeof Alert> = {
 	render: args => (
 		<Alert {...args}>
-			<span data-slot="alert-icon" class="i-lucide-mail" />
-			<AlertTitle>Dark mode is now available</AlertTitle>
+			<span data-slot="alert-icon" class="i-lucide-info" />
+			<AlertTitle>Backups run every night</AlertTitle>
 			<AlertDescription>
-				Enable it under your profile settings to get started.
+				Turn on off-site copies to keep one outside this host.
 			</AlertDescription>
 			<AlertAction>
-				<Button variant="outline" size="sm">Enable</Button>
+				<Button variant="outline" size="sm">Turn on</Button>
 			</AlertAction>
 		</Alert>
 	),
@@ -79,13 +112,13 @@ export const LongContent: Story<typeof Alert> = {
 	render: args => (
 		<Alert {...args}>
 			<span data-slot="alert-icon" class="i-lucide-shield-check" />
-			<AlertTitle>Several account sessions were refreshed</AlertTitle>
+			<AlertTitle>Your other sessions were signed out</AlertTitle>
 			<AlertDescription>
 				<p>
-					Older sessions and API tokens were revoked automatically after your password changed.
+					Changing your password signed out every other session and revoked your access tokens.
 				</p>
 				<p>
-					Only the current browser remains active, and any new API tokens must be created again.
+					Only this browser stays signed in. Create new access tokens for the scripts that deploy as you.
 				</p>
 			</AlertDescription>
 		</Alert>

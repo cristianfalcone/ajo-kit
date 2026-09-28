@@ -27,15 +27,15 @@ export type MessageFooterArgs = MessageGroupArgs
 // tail so the run reads as one set (mirrors BubbleGroup one level up).
 const groupBase = [
 	'flex min-w-0 flex-col gap-1',
-	'[&>[data-slot=message]:not(:last-child)_[data-slot=bubble-content]]:rounded-bl-2xl',
-	'[&>[data-slot=message]:not(:last-child)_[data-slot=bubble-content]]:rounded-br-2xl',
+	'[&>[data-slot=message]:not(:last-child)_[data-slot=bubble-content]]:rounded-es-2xl',
+	'[&>[data-slot=message]:not(:last-child)_[data-slot=bubble-content]]:rounded-ee-2xl',
 ].join(' ')
 const messageBase = 'group/message relative flex w-full min-w-0 gap-2 text-sm data-[align=end]:flex-row-reverse'
 // Top-aligned avatar: robust regardless of header/footer presence or height.
 const avatarBase = 'flex w-fit min-w-8 shrink-0 items-center justify-center self-start overflow-hidden rounded-full bg-muted'
 const contentBase = 'flex w-full min-w-0 flex-col gap-1 break-words [[data-slot=message][data-align=end]_&>*[data-slot]]:self-end'
-const headerBase = 'flex max-w-full min-w-0 items-center gap-2 px-3.5 text-xs font-medium text-muted-foreground [[data-slot=message]:has([data-variant=ghost])_&]:px-0'
-const footerBase = 'flex max-w-full min-w-0 items-center gap-2 px-3.5 text-xs text-muted-foreground [[data-slot=message]:has([data-variant=ghost])_&]:px-0 [[data-slot=message][data-align=end]_&]:justify-end'
+const headerBase = 'flex max-w-full min-w-0 items-center gap-2 px-3 text-xs font-medium text-muted-foreground [[data-slot=message]:has([data-variant=ghost])_&]:px-0'
+const footerBase = 'flex max-w-full min-w-0 items-center gap-2 px-3 text-xs text-muted-foreground [[data-slot=message]:has([data-variant=ghost])_&]:px-0 [[data-slot=message][data-align=end]_&]:justify-end'
 
 /** Groups consecutive messages from the same sender. */
 const MessageGroup = part<MessageGroupArgs>('div', 'message-group', { class: groupBase })

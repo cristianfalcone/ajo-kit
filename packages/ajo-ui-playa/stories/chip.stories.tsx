@@ -11,7 +11,7 @@ export default {
 	component: Chip,
 	args: {
 		variant: 'default',
-		children: 'Chip',
+		children: 'Running',
 	},
 	argTypes: {
 		variant: { control: 'select', options: variants },
@@ -35,6 +35,16 @@ export const Variants: Story<typeof Chip> = {
 			{variants.map(variant => <Chip key={variant} {...args} variant={variant}>{variant}</Chip>)}
 		</div>
 	),
+	// Status chips are quiet: their hue as text on a 10% tint of it, not a fill.
+	play: async ({ canvas }) => {
+		for (const variant of ['success', 'warning', 'info']) {
+			const chip = canvas.querySelector<HTMLElement>(`[data-slot="chip"][data-variant="${variant}"]`)
+			if (!chip) throw new Error(`Chip ${variant} was not rendered`)
+			const fill = getComputedStyle(chip).backgroundColor
+			const alpha = Number(/\/\s*([\d.]+)\)$/.exec(fill)?.[1] ?? /^rgba\(.*,\s*([\d.]+)\)$/.exec(fill)?.[1] ?? 1)
+			if (alpha > 0.2) throw new Error(`Chip ${variant} is a saturated fill, not a tint: ${fill}`)
+		}
+	},
 }
 
 export const WithIcon: Story<typeof Chip> = {
@@ -45,12 +55,12 @@ export const WithIcon: Story<typeof Chip> = {
 	render: args => (
 		<div class="flex flex-wrap items-center gap-2">
 			<Chip {...args}>
-				<span class="i-lucide-check-circle" data-icon="inline-start" />
+				<span aria-hidden="true" class="i-lucide-circle-check" data-icon="inline-start" />
 				Verified
 			</Chip>
 			<Chip {...args} variant="outline">
 				Bookmark
-				<span class="i-lucide-bookmark" data-icon="inline-end" />
+				<span aria-hidden="true" class="i-lucide-bookmark" data-icon="inline-end" />
 			</Chip>
 		</div>
 	),
@@ -63,15 +73,15 @@ export const Counts: Story<typeof Chip> = {
 	},
 	render: args => (
 		<div class="flex items-center gap-3">
-			<Chip {...args} class="min-w-5 h-5 px-1.5 text-[10px] font-bold">3</Chip>
-			<Chip {...args} class="min-w-5 h-5 px-1.5 text-[10px] font-bold">42</Chip>
-			<Chip {...args} class="min-w-5 h-5 px-1.5 text-[10px] font-bold">999</Chip>
+			<Chip {...args} class="min-w-5 px-1 tabular-nums">3</Chip>
+			<Chip {...args} class="min-w-5 px-1 tabular-nums">42</Chip>
+			<Chip {...args} class="min-w-5 px-1 tabular-nums">999</Chip>
 		</div>
 	),
 }
 
 const RemovableExample: Stateful = function* () {
-	let tags = ['Ajo', 'UnoCSS', 'Vite']
+	let tags = ['production', 'staging', 'preview']
 	const remove = (tag: string) => this.next(() => tags = tags.filter(item => item !== tag))
 
 	while (true) yield (
@@ -104,14 +114,14 @@ export const Anchor: Story<typeof Chip> = {
 		as: 'a',
 		href: '/dashboard',
 		variant: 'outline',
-		children: 'Open link',
+		children: 'Open the app',
 	},
 }
 
 export const VariantsHelper: Story = {
 	render: () => (
 		<a href="/dashboard" class={chipVariants({ variant: 'outline' })}>
-			Link styled with chipVariants
+			Styled with chipVariants
 		</a>
 	),
 }

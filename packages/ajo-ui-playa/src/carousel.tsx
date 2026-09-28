@@ -86,7 +86,7 @@ const carouselButton = (step: 'previous' | 'next'): Stateless<CarouselButtonArgs
 					classes,
 				)}
 			>
-				<span aria-hidden="true" class={clx(next ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left', 'size-4', inline && 'rtl:rotate-180')} />
+				<span aria-hidden="true" class={clx(next ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left', 'size-4', inline && 'rtl:-scale-x-100')} />
 			</Base>
 		)
 	}

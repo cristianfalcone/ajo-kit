@@ -33,7 +33,7 @@ export default {
 } satisfies Meta<typeof Item>
 
 export const Basic: Story = {
-	args: { title: 'Basic Item', description: 'A simple item with title and description.' },
+	args: { title: 'Nightly backup', description: 'Saves every app, domain and secret at 03:00.' },
 	render: args => (
 		<div class="w-full max-w-md">
 			<Item {...args}>
@@ -42,7 +42,7 @@ export const Basic: Story = {
 					<ItemDescription>{args.description}</ItemDescription>
 				</ItemContent>
 				<ItemActions>
-					<Button variant="outline" size="sm">Action</Button>
+					<Button variant="outline" size="sm">Edit</Button>
 				</ItemActions>
 			</Item>
 		</div>
@@ -67,8 +67,8 @@ export const WithIcon: Story = {
 					<span aria-hidden="true" class="i-lucide-shield-alert size-4" />
 				</ItemMedia>
 				<ItemContent>
-					<ItemTitle>Security Alert</ItemTitle>
-					<ItemDescription>New login detected from unknown device.</ItemDescription>
+					<ItemTitle>New sign-in</ItemTitle>
+					<ItemDescription>Firefox on Linux signed in from 203.0.113.24.</ItemDescription>
 				</ItemContent>
 				<ItemActions>
 					<Button size="sm" variant="outline">Review</Button>
@@ -90,16 +90,16 @@ export const WithAvatar: Story = {
 			<Item {...args}>
 				<ItemMedia>
 					<Avatar class="size-10">
-						<AvatarImage src={image} alt="@evilrabbit" />
-						<AvatarFallback>ER</AvatarFallback>
+						<AvatarImage src={image} alt="Grace Hopper" />
+						<AvatarFallback>GH</AvatarFallback>
 					</Avatar>
 				</ItemMedia>
 				<ItemContent>
-					<ItemTitle>Evil Rabbit</ItemTitle>
-					<ItemDescription>Last seen 5 months ago</ItemDescription>
+					<ItemTitle>Grace Hopper</ItemTitle>
+					<ItemDescription>Invited 2 days ago, not joined yet</ItemDescription>
 				</ItemContent>
 				<ItemActions>
-					<Button size="none" variant="outline" class="size-8 rounded-full" aria-label="Invite">
+					<Button size="none" variant="outline" class="size-8 rounded-full" aria-label="Resend invitation">
 						<span aria-hidden="true" class="i-lucide-plus size-4" />
 					</Button>
 				</ItemActions>
@@ -109,7 +109,7 @@ export const WithAvatar: Story = {
 	play: async ({ canvas }) => {
 		const avatar = canvas.querySelector<HTMLElement>('[data-slot="avatar"]')
 		const action = canvas.querySelector<HTMLButtonElement>('[data-slot="item-actions"] button')
-		if (!avatar || !action || !canvas.textContent?.includes('Evil Rabbit')) {
+		if (!avatar || !action || !canvas.textContent?.includes('Grace Hopper')) {
 			throw new Error('Item avatar content was not rendered')
 		}
 		const bounds = action.getBoundingClientRect()
@@ -130,20 +130,20 @@ export const Variants: Story = {
 		<div class="grid w-full max-w-md gap-3">
 			<Item>
 				<ItemContent>
-					<ItemTitle>Default Variant</ItemTitle>
-					<ItemDescription>Transparent background with no border.</ItemDescription>
+					<ItemTitle>Default variant</ItemTitle>
+					<ItemDescription>Transparent, with no border.</ItemDescription>
 				</ItemContent>
 			</Item>
 			<Item variant="outline">
 				<ItemContent>
-					<ItemTitle>Outline Variant</ItemTitle>
-					<ItemDescription>Outlined style with a visible border.</ItemDescription>
+					<ItemTitle>Outline variant</ItemTitle>
+					<ItemDescription>A hairline around the row.</ItemDescription>
 				</ItemContent>
 			</Item>
 			<Item variant="muted">
 				<ItemContent>
-					<ItemTitle>Muted Variant</ItemTitle>
-					<ItemDescription>Muted background for secondary content.</ItemDescription>
+					<ItemTitle>Muted variant</ItemTitle>
+					<ItemDescription>A muted fill for secondary content.</ItemDescription>
 				</ItemContent>
 			</Item>
 		</div>
@@ -165,7 +165,7 @@ export const Sizes: Story = {
 						<span aria-hidden="true" class="i-lucide-inbox size-4" />
 					</ItemMedia>
 					<ItemContent>
-						<ItemTitle>{size === 'xs' ? 'Extra Small' : size === 'sm' ? 'Small' : 'Default'} Size</ItemTitle>
+						<ItemTitle>{size === 'xs' ? 'Extra small' : size === 'sm' ? 'Small' : 'Default'} size</ItemTitle>
 						<ItemDescription>The {size} item size.</ItemDescription>
 					</ItemContent>
 				</Item>
@@ -180,32 +180,94 @@ export const Sizes: Story = {
 	},
 }
 
+const people = [
+	['AL', 'Ada Lovelace', 'ada@example.com'],
+	['GH', 'Grace Hopper', 'grace@example.com'],
+	['AT', 'Alan Turing', 'alan@example.com'],
+]
+
+// Every row's title starts on one column, whatever the width of its initials.
+const aligned = (canvas: HTMLElement) => {
+	const rtl = getComputedStyle(canvas).direction === 'rtl'
+	const starts = [...canvas.querySelectorAll<HTMLElement>('[data-slot="item-title"]')]
+		.map(title => rtl ? title.getBoundingClientRect().right : title.getBoundingClientRect().left)
+	if (Math.max(...starts) - Math.min(...starts) > 0.5) throw new Error(`Item titles start at ${starts.join(', ')}, not on one column`)
+}
+
 export const Group: Story = {
 	render: () => (
-		<ItemGroup class="w-full max-w-md rounded-md edge">
-			<Item>
-				<ItemMedia><span class="font-medium">s</span></ItemMedia>
-				<ItemContent>
-					<ItemTitle>Ajo Kit</ItemTitle>
-					<ItemDescription>team@ajo.dev</ItemDescription>
-				</ItemContent>
-			</Item>
-			<ItemSeparator />
-			<Item>
-				<ItemMedia><span class="font-medium">m</span></ItemMedia>
-				<ItemContent>
-					<ItemTitle>maxleiter</ItemTitle>
-					<ItemDescription>maxleiter@vercel.com</ItemDescription>
-				</ItemContent>
-			</Item>
+		<ItemGroup class="w-full max-w-md" role="list">
+			{people.map(([initials, name, email]) => (
+				<Item key={email} role="listitem" variant="outline">
+					<ItemMedia>
+						<Avatar>
+							<AvatarFallback>{initials}</AvatarFallback>
+						</Avatar>
+					</ItemMedia>
+					<ItemContent>
+						<ItemTitle>{name}</ItemTitle>
+						<ItemDescription>{email}</ItemDescription>
+					</ItemContent>
+				</Item>
+			))}
+		</ItemGroup>
+	),
+	// Outline items in a group are one panel with a hairline between rows,
+	// never cards stacked edge to edge.
+	play: async ({ canvas }) => {
+		const group = canvas.querySelector<HTMLElement>('[data-slot="item-group"]')
+		const rows = [...canvas.querySelectorAll<HTMLElement>('[data-slot="item"]')]
+		if (!group || rows.length !== 3 || group.getAttribute('role') !== 'list') {
+			throw new Error('Item group was not rendered')
+		}
+
+		const panel = getComputedStyle(group)
+		if (panel.borderTopWidth !== '1px' || panel.borderTopLeftRadius === '0px') {
+			throw new Error(`Item group is not one panel: ${panel.borderTopWidth} ${panel.borderTopLeftRadius}`)
+		}
+		rows.forEach((row, index) => {
+			const style = getComputedStyle(row)
+			const framed = style.borderTopLeftRadius !== '0px' || (style.boxShadow !== 'none' && style.boxShadow.includes('inset'))
+			const separated = index === 0 ? style.borderTopWidth === '0px' : style.borderTopWidth === '1px'
+			if (framed || !separated) throw new Error(`Item row ${index + 1} is a card of its own, not a row of the panel: ${style.borderTopLeftRadius} ${style.boxShadow} ${style.borderTopWidth}`)
+		})
+		aligned(canvas)
+
+		// A gap the author sets on the group does not open blank bands inside the panel.
+		group.classList.add('gap-4')
+		try {
+			rows.slice(1).forEach((row, index) => {
+				const band = row.getBoundingClientRect().top - rows[index]!.getBoundingClientRect().bottom
+				if (Math.abs(band) > 0.5) throw new Error(`Item panel rows ${index + 1} and ${index + 2} are ${band} px apart`)
+			})
+		} finally {
+			group.classList.remove('gap-4')
+		}
+	},
+}
+
+export const Separated: Story = {
+	render: () => (
+		<ItemGroup class="w-full max-w-md">
+			{people.flatMap(([initials, name, email], index) => [
+				index > 0 && <ItemSeparator key={`separator-${email}`} />,
+				<Item key={email}>
+					<ItemMedia>
+						<Avatar>
+							<AvatarFallback>{initials}</AvatarFallback>
+						</Avatar>
+					</ItemMedia>
+					<ItemContent>
+						<ItemTitle>{name}</ItemTitle>
+						<ItemDescription>{email}</ItemDescription>
+					</ItemContent>
+				</Item>,
+			])}
 		</ItemGroup>
 	),
 	play: async ({ canvas }) => {
-		const group = canvas.querySelector<HTMLElement>('[data-slot="item-group"]')
-		const separator = canvas.querySelector<HTMLElement>('[data-slot="item-separator"]')
-		if (!group || !separator || group.getAttribute('role') !== 'list') {
-			throw new Error('Item group or separator was not rendered')
-		}
+		if (canvas.querySelectorAll('[data-slot="item-separator"]').length !== 2) throw new Error('Item separators were not rendered')
+		aligned(canvas)
 	},
 }
 
@@ -218,10 +280,10 @@ export const Link: Story = {
 				</ItemMedia>
 				<ItemContent>
 					<ItemTitle>Dashboard</ItemTitle>
-					<ItemDescription>Overview of your account and activity.</ItemDescription>
+					<ItemDescription>Host health, recent deploys and logs.</ItemDescription>
 				</ItemContent>
 				<ItemActions>
-					<span aria-hidden="true" class="i-lucide-chevron-right size-4" />
+					<span aria-hidden="true" class="i-lucide-chevron-right size-4 rtl:-scale-x-100" />
 				</ItemActions>
 			</Item>
 		</div>

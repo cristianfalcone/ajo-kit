@@ -68,18 +68,20 @@ export type BubbleGroupArgs = WithChildren<IntrinsicElements['div'] & {
 // as one speaker's set.
 const groupBase = [
 	'flex min-w-0 flex-col gap-1',
-	'[&>[data-slot=bubble]:not(:last-child)>[data-slot=bubble-content]]:rounded-bl-2xl',
-	'[&>[data-slot=bubble]:not(:last-child)>[data-slot=bubble-content]]:rounded-br-2xl',
+	'[&>[data-slot=bubble]:not(:last-child)>[data-slot=bubble-content]]:rounded-es-2xl',
+	'[&>[data-slot=bubble]:not(:last-child)>[data-slot=bubble-content]]:rounded-ee-2xl',
 ].join(' ')
 
 const rootBase = [
 	'group/bubble relative flex w-fit max-w-[80%] min-w-0 flex-col gap-1',
-	'group-data-[align=end]/message:self-end data-[align=end]:self-end data-[variant=ghost]:max-w-full',
+	'group-data-[align=end]/message:self-end data-[align=end]:ms-auto data-[variant=ghost]:max-w-full',
 ].join(' ')
 
+// The own bubble is muted and the other speaker's is the raised surface with
+// a hairline: a message is not an action, so neither wears the plate.
 const rootVariants: Record<BubbleVariant, string> = {
-	default: '*:data-[slot=bubble-content]:bg-primary *:data-[slot=bubble-content]:text-primary-foreground [&>[data-slot=bubble-content]:is(button,a):hover]:bg-primary/90',
-	secondary: '*:data-[slot=bubble-content]:bg-secondary *:data-[slot=bubble-content]:text-secondary-foreground [&>[data-slot=bubble-content]:is(button,a):hover]:bg-secondary/80',
+	default: '*:data-[slot=bubble-content]:bg-muted *:data-[slot=bubble-content]:text-foreground [&>[data-slot=bubble-content]:is(button,a):hover]:bg-muted/80',
+	secondary: '*:data-[slot=bubble-content]:bg-secondary *:data-[slot=bubble-content]:text-secondary-foreground *:data-[slot=bubble-content]:inset-ring *:data-[slot=bubble-content]:inset-ring-border [&>[data-slot=bubble-content]:is(button,a):hover]:bg-muted',
 	muted: '*:data-[slot=bubble-content]:bg-muted [&>[data-slot=bubble-content]:is(button,a):hover]:bg-muted/80',
 	tinted: '*:data-[slot=bubble-content]:bg-primary/10 *:data-[slot=bubble-content]:text-foreground [&>[data-slot=bubble-content]:is(button,a):hover]:bg-primary/15',
 	// Tint without backdrop-filter: bubbles repeat per message, and per-bubble
@@ -90,20 +92,20 @@ const rootVariants: Record<BubbleVariant, string> = {
 }
 
 const contentBase = [
-	'w-fit max-w-full min-w-0 overflow-hidden px-3.5 py-2 text-sm leading-relaxed [overflow-wrap:anywhere]',
+	'w-fit max-w-full min-w-0 overflow-hidden px-3 py-2 text-sm [overflow-wrap:anywhere]',
 	// Bubble shape: fully rounded with a flatter tail corner on the speaker
 	// side; alignment comes from the bubble itself or its message row.
-	'rounded-2xl rounded-bl-md',
-	'[[data-slot=bubble][data-align=end]_&]:rounded-bl-2xl [[data-slot=bubble][data-align=end]_&]:rounded-br-md',
-	'[[data-slot=message][data-align=end]_&]:rounded-bl-2xl [[data-slot=message][data-align=end]_&]:rounded-br-md',
+	'rounded-2xl rounded-es-md',
+	'[[data-slot=bubble][data-align=end]_&]:rounded-es-2xl [[data-slot=bubble][data-align=end]_&]:rounded-ee-md',
+	'[[data-slot=message][data-align=end]_&]:rounded-es-2xl [[data-slot=message][data-align=end]_&]:rounded-ee-md',
 	'[[data-slot=bubble][data-variant=ghost]_&]:rounded-none',
 	'group-data-[align=end]/bubble:self-end',
-	'[&:is(button)]:text-left [&:is(button,a)]:transition-colors [&:is(button,a)]:outline-none [&:is(button,a)]:focus-visible:ring-3 [&:is(button,a)]:focus-visible:ring-ring/50',
+	'playa-focus [&:is(button)]:text-start [&:is(button,a)]:transition-colors',
 ].join(' ')
 
 // Solid popover fill: reaction pills repeat per message, so they skip the
 // frosted overlay's backdrop-filter for the same reason outline bubbles do.
-const reactionsBase = 'absolute z-10 flex w-fit shrink-0 items-center justify-center gap-1 rounded-full bg-popover text-popover-foreground edge px-1.5 py-0.5 text-sm has-[button]:p-0'
+const reactionsBase = 'absolute z-10 flex min-h-6 w-fit shrink-0 items-center justify-center gap-1 rounded-full bg-popover text-popover-foreground edge px-2 text-sm has-[button]:p-0'
 
 const reactionSides: Record<BubbleReactionSide, string> = {
 	bottom: 'bottom-0 translate-y-3/4',
@@ -111,8 +113,8 @@ const reactionSides: Record<BubbleReactionSide, string> = {
 }
 
 const reactionAligns: Record<BubbleAlign, string> = {
-	end: 'right-3',
-	start: 'left-3',
+	end: 'end-3',
+	start: 'start-3',
 }
 
 /** Groups consecutive bubbles from one speaker. */

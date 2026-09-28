@@ -46,11 +46,11 @@ const BasicAttachment = () => (
 			<FileIcon />
 		</AttachmentMedia>
 		<AttachmentContent>
-			<AttachmentTitle>sales-dashboard.pdf</AttachmentTitle>
-			<AttachmentDescription>PDF · 2.4 MB</AttachmentDescription>
+			<AttachmentTitle>shop-web.log</AttachmentTitle>
+			<AttachmentDescription>Log file, 2.4 MB</AttachmentDescription>
 		</AttachmentContent>
 		<AttachmentActions>
-			<AttachmentAction aria-label="Remove sales-dashboard.pdf">
+			<AttachmentAction aria-label="Remove shop-web.log">
 				<span aria-hidden="true" class="i-lucide-x size-3" />
 			</AttachmentAction>
 		</AttachmentActions>
@@ -71,17 +71,17 @@ const TriggerExample: Stateful = function* () {
 					<FileIcon name="file-search" />
 				</AttachmentMedia>
 				<AttachmentContent>
-					<AttachmentTitle>research-summary.pdf</AttachmentTitle>
-					<AttachmentDescription>Open preview dialog</AttachmentDescription>
+					<AttachmentTitle>deploy-1.4.2.log</AttachmentTitle>
+					<AttachmentDescription>Opens the build log</AttachmentDescription>
 				</AttachmentContent>
 				<AttachmentActions>
-					<AttachmentAction aria-label="Remove research-summary.pdf" set:onclick={remove}>
+					<AttachmentAction aria-label="Remove deploy-1.4.2.log" set:onclick={remove}>
 						<span aria-hidden="true" class="i-lucide-x size-3" />
 					</AttachmentAction>
 				</AttachmentActions>
-				<AttachmentTrigger aria-label="Preview research-summary.pdf" set:onclick={open} />
+				<AttachmentTrigger aria-label="Open deploy-1.4.2.log" set:onclick={open} />
 			</Attachment>
-			<p class="text-sm text-muted-foreground">Opened: {opened} · Removed: {removed}</p>
+			<p class="text-sm text-muted-foreground">Opened {opened}, removed {removed}</p>
 		</div>
 	)
 }
@@ -101,14 +101,14 @@ export const Basic: Story = {
 export const Image: Story = {
 	render: () => (
 		<div class="flex gap-3">
-			{['workspace.png', 'desk-reference.jpg', 'office-reference.jpg'].map(name => (
+			{['dashboard.png', 'deploys.png', 'logs.png'].map(name => (
 				<Attachment key={name} orientation="vertical">
 					<AttachmentMedia variant="image">
-						<img src={image} alt={`Image: ${name}`} loading="lazy" decoding="async" />
+						<img src={image} alt={`Screenshot: ${name}`} loading="lazy" decoding="async" />
 					</AttachmentMedia>
 					<AttachmentContent>
 						<AttachmentTitle>{name}</AttachmentTitle>
-						<AttachmentDescription>PNG · 820 KB</AttachmentDescription>
+						<AttachmentDescription>PNG, 820 KB</AttachmentDescription>
 					</AttachmentContent>
 				</Attachment>
 			))}
@@ -132,36 +132,36 @@ export const States: Story = {
 			<Attachment state="idle">
 				<AttachmentMedia><FileIcon /></AttachmentMedia>
 				<AttachmentContent>
-					<AttachmentTitle>selected-file.pdf</AttachmentTitle>
+					<AttachmentTitle>shop-web-1.4.2.tar.gz</AttachmentTitle>
 					<AttachmentDescription>Ready to upload</AttachmentDescription>
 				</AttachmentContent>
 			</Attachment>
 			<Attachment state="uploading">
 				<AttachmentMedia><FileIcon name="upload" /></AttachmentMedia>
 				<AttachmentContent>
-					<AttachmentTitle>design-system.zip</AttachmentTitle>
-					<AttachmentDescription>Uploading · 64%</AttachmentDescription>
+					<AttachmentTitle>blog-2.0.0.tar.gz</AttachmentTitle>
+					<AttachmentDescription>Uploading, 64%</AttachmentDescription>
 				</AttachmentContent>
 			</Attachment>
 			<Attachment state="processing">
 				<AttachmentMedia><FileIcon name="clock" /></AttachmentMedia>
 				<AttachmentContent>
-					<AttachmentTitle>market-research.pdf</AttachmentTitle>
-					<AttachmentDescription>Processing document</AttachmentDescription>
+					<AttachmentTitle>api-3.1.0.tar.gz</AttachmentTitle>
+					<AttachmentDescription>Unpacking the version</AttachmentDescription>
 				</AttachmentContent>
 			</Attachment>
 			<Attachment state="error">
 				<AttachmentMedia><FileIcon name="alert-triangle" /></AttachmentMedia>
 				<AttachmentContent>
-					<AttachmentTitle>financial-model.xlsx</AttachmentTitle>
-					<AttachmentDescription>Upload failed. Try again.</AttachmentDescription>
+					<AttachmentTitle>docs-0.9.0.tar.gz</AttachmentTitle>
+					<AttachmentDescription>Upload failed. Check the connection and try again.</AttachmentDescription>
 				</AttachmentContent>
 			</Attachment>
 			<Attachment state="done">
 				<AttachmentMedia><FileIcon name="circle-check" /></AttachmentMedia>
 				<AttachmentContent>
-					<AttachmentTitle>uploaded-report.pdf</AttachmentTitle>
-					<AttachmentDescription>Uploaded · 1.8 MB</AttachmentDescription>
+					<AttachmentTitle>admin-0.3.0.tar.gz</AttachmentTitle>
+					<AttachmentDescription>Uploaded, 1.8 MB</AttachmentDescription>
 				</AttachmentContent>
 			</Attachment>
 		</div>
@@ -183,8 +183,8 @@ export const Sizes: Story = {
 						<FileIcon />
 					</AttachmentMedia>
 					<AttachmentContent>
-						<AttachmentTitle>{size === 'default' ? 'Default attachment' : size === 'sm' ? 'Small attachment' : 'Extra small attachment'}</AttachmentTitle>
-						{size !== 'xs' && <AttachmentDescription>PDF · 2.4 MB</AttachmentDescription>}
+						<AttachmentTitle>{size === 'default' ? 'shop-web.log' : size === 'sm' ? 'blog.log' : 'api.log'}</AttachmentTitle>
+						{size !== 'xs' && <AttachmentDescription>Log file, 2.4 MB</AttachmentDescription>}
 					</AttachmentContent>
 				</Attachment>
 			))}
@@ -202,25 +202,25 @@ export const Group: Story = {
 			<BasicAttachment />
 			<Attachment orientation="vertical">
 				<AttachmentMedia variant="image">
-					<img src={image} alt="Image: workspace.png" loading="lazy" decoding="async" />
+					<img src={image} alt="Screenshot: dashboard.png" loading="lazy" decoding="async" />
 				</AttachmentMedia>
 				<AttachmentContent>
-					<AttachmentTitle>workspace.png</AttachmentTitle>
-					<AttachmentDescription>PNG · 820 KB</AttachmentDescription>
+					<AttachmentTitle>dashboard.png</AttachmentTitle>
+					<AttachmentDescription>PNG, 820 KB</AttachmentDescription>
 				</AttachmentContent>
 			</Attachment>
 			<Attachment>
 				<AttachmentMedia><FileIcon name="file-spreadsheet" /></AttachmentMedia>
 				<AttachmentContent>
-					<AttachmentTitle>customers.csv</AttachmentTitle>
-					<AttachmentDescription>CSV · 18 KB</AttachmentDescription>
+					<AttachmentTitle>people.csv</AttachmentTitle>
+					<AttachmentDescription>CSV, 18 KB</AttachmentDescription>
 				</AttachmentContent>
 			</Attachment>
 			<Attachment>
 				<AttachmentMedia><FileIcon name="file-code" /></AttachmentMedia>
 				<AttachmentContent>
-					<AttachmentTitle>renderer.tsx</AttachmentTitle>
-					<AttachmentDescription>TSX · 12 KB</AttachmentDescription>
+					<AttachmentTitle>handler.ts</AttachmentTitle>
+					<AttachmentDescription>TypeScript, 12 KB</AttachmentDescription>
 				</AttachmentContent>
 			</Attachment>
 		</AttachmentGroup>
@@ -245,13 +245,13 @@ export const Trigger: Story = {
 
 		action.click()
 		await frame()
-		if (!canvas.textContent?.includes('Opened: 0 · Removed: 1')) {
+		if (!canvas.textContent?.includes('Opened 0, removed 1')) {
 			throw new Error('Attachment action should stay independently clickable')
 		}
 
 		trigger.click()
 		await frame()
-		if (!canvas.textContent?.includes('Opened: 1 · Removed: 1')) {
+		if (!canvas.textContent?.includes('Opened 1, removed 1')) {
 			throw new Error('Attachment trigger did not activate independently')
 		}
 	},

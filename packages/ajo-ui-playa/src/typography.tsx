@@ -26,43 +26,43 @@ export type TypographyListArgs = WithChildren<(IntrinsicElements['ul'] | Intrins
 	class?: string
 }>
 
-/** Page-level heading text. */
-const TypographyH1 = part<TypographyH1Args>('h1', 'typography-h1', { class: 'scroll-m-20 text-center text-4xl font-extrabold text-balance' })
+/** The page title: the one Fraunces line on a page, light and start-aligned. */
+const TypographyH1 = part<TypographyH1Args>('h1', 'typography-h1', { class: 'font-title text-2xl font-[360] text-balance sm:text-title' })
 
 /** Section heading text. */
-const TypographyH2 = part<TypographyH2Args>('h2', 'typography-h2', { class: 'scroll-m-20 border-b pb-2 text-3xl font-semibold first:mt-0' })
+const TypographyH2 = part<TypographyH2Args>('h2', 'typography-h2', { class: 'text-xl font-medium text-balance' })
 
 /** Subsection heading text. */
-const TypographyH3 = part<TypographyH3Args>('h3', 'typography-h3', { class: 'scroll-m-20 text-2xl font-semibold' })
+const TypographyH3 = part<TypographyH3Args>('h3', 'typography-h3', { class: 'text-base font-medium' })
 
 /** Minor heading text. */
-const TypographyH4 = part<TypographyH4Args>('h4', 'typography-h4', { class: 'scroll-m-20 text-xl font-semibold' })
+const TypographyH4 = part<TypographyH4Args>('h4', 'typography-h4', { class: 'text-sm font-medium' })
 
 /** Paragraph text. */
-const TypographyP = part<TypographyPArgs>('p', 'typography-p', { class: 'leading-7 [&:not(:first-child)]:mt-6' })
+const TypographyP = part<TypographyPArgs>('p', 'typography-p', { class: 'playa-inline-links text-base [&:not(:first-child)]:mt-4' })
 
-/** Block quote text. */
-const TypographyBlockquote = part<TypographyBlockquoteArgs>('blockquote', 'typography-blockquote', { class: 'mt-6 border-l-2 pl-6 italic' })
+/** Block quote text: indented from the start and muted, without a stripe. */
+const TypographyBlockquote = part<TypographyBlockquoteArgs>('blockquote', 'typography-blockquote', { class: 'mt-6 ps-6 text-base text-muted-foreground' })
 
 /** Inline code text. */
-const TypographyInlineCode = part<TypographyInlineCodeArgs>('code', 'typography-inline-code', { class: 'relative rounded-xs bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold' })
+const TypographyInlineCode = part<TypographyInlineCodeArgs>('code', 'typography-inline-code', { class: 'rounded-xs bg-muted px-1 font-mono text-[0.875em]' })
 
 /** Lead paragraph text. */
-const TypographyLead = part<TypographyLeadArgs>('p', 'typography-lead', { class: 'text-xl text-muted-foreground' })
+const TypographyLead = part<TypographyLeadArgs>('p', 'typography-lead', { class: 'text-base text-muted-foreground' })
 
 /** Large text. */
-const TypographyLarge = part<TypographyLargeArgs>('div', 'typography-large', { class: 'text-lg font-semibold' })
+const TypographyLarge = part<TypographyLargeArgs>('div', 'typography-large', { class: 'text-base font-medium' })
 
 /** Small text. */
-const TypographySmall = part<TypographySmallArgs>('small', 'typography-small', { class: 'text-sm font-medium leading-none' })
+const TypographySmall = part<TypographySmallArgs>('small', 'typography-small', { class: 'text-xs font-medium' })
 
 /** Muted helper text. */
 const TypographyMuted = part<TypographyMutedArgs>('p', 'typography-muted', { class: 'text-sm text-muted-foreground' })
 
-/** Typography list wrapper. */
+/** Typography list wrapper, one rhythm step below the block before it, as a paragraph. */
 const TypographyList: Stateless<TypographyListArgs> = ({ class: classes, ordered = false, ...attrs }) => {
 	const Tag = ordered ? 'ol' : 'ul'
-	return <Tag {...(attrs as Args)} class={clx('my-6 ml-6 [&>li]:mt-2', ordered ? 'list-decimal' : 'list-disc', classes)} data-slot="typography-list" />
+	return <Tag {...(attrs as Args)} class={clx('ms-6 [&:not(:first-child)]:mt-4 [&>li]:mt-2', ordered ? 'list-decimal' : 'list-disc', classes)} data-slot="typography-list" />
 }
 
 /** List item slot for typography lists. */

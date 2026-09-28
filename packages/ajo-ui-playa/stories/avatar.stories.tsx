@@ -18,8 +18,8 @@ export default {
 	args: {
 		size: 'default',
 		src: image,
-		alt: '@ajo',
-		fallback: 'CN',
+		alt: 'Grace Hopper',
+		fallback: 'GH',
 	},
 	argTypes: {
 		size: { control: 'select', options: ['sm', 'default', 'lg'] },
@@ -46,7 +46,7 @@ export const Basic: Story<typeof Avatar> = {
 		const fallback = canvas.querySelector<HTMLElement>('[data-slot="avatar-fallback"]')
 		if (!root || !img || !fallback) throw new Error('Avatar composition was not rendered')
 
-		if (root.getAttribute('data-size') !== 'default' || img.alt !== '@ajo' || img.loading !== 'lazy') {
+		if (root.getAttribute('data-size') !== 'default' || img.alt !== 'Grace Hopper' || img.loading !== 'lazy') {
 			throw new Error('Avatar did not expose default size or image attributes')
 		}
 	},
@@ -65,7 +65,7 @@ export const Fallback: Story<typeof Avatar> = {
 		img.dispatchEvent(new Event('error'))
 		await frame()
 
-		if (!img.hidden || fallback.textContent !== 'CN') {
+		if (!img.hidden || fallback.textContent !== 'GH') {
 			throw new Error('Avatar image error did not reveal fallback')
 		}
 	},
@@ -96,8 +96,8 @@ export const Badge: Story<typeof Avatar> = {
 export const WithIconBadge: Story<typeof Avatar> = {
 	args: {
 		size: 'lg',
-		fallback: 'PP',
-		label: 'Add user',
+		fallback: 'AT',
+		label: 'Invite a member',
 	},
 	argTypes: {
 		label: { control: 'text', label: 'Badge label' },
@@ -122,7 +122,7 @@ export const WithIconBadge: Story<typeof Avatar> = {
 
 export const Group: Story<typeof Avatar> = {
 	args: {
-		members: ['CN', 'LR', 'ER'],
+		members: ['GH', 'AL', 'AT'],
 		count: '+3',
 	},
 	argTypes: {
@@ -146,6 +146,22 @@ export const Group: Story<typeof Avatar> = {
 		if (!group || !count || count.textContent !== '+3') {
 			throw new Error('Avatar group count was not rendered')
 		}
+
+		// The next avatar and its separating ring overlap an avatar's edge, never its initials.
+		const rtl = getComputedStyle(group).direction === 'rtl'
+		for (const avatar of group.querySelectorAll<HTMLElement>(':scope > [data-slot="avatar"]:not(:has([data-slot="avatar-image"]))')) {
+			const text = avatar.querySelector('[data-slot="avatar-fallback"]')?.firstChild
+			const next = avatar.nextElementSibling
+			if (!text || !next) throw new Error('Avatar group fallback was not rendered')
+			const range = document.createRange()
+			range.selectNodeContents(text)
+			const initials = range.getBoundingClientRect()
+			const ring = 2 // the ring-2 that separates grouped avatars
+			const edge = rtl ? next.getBoundingClientRect().right + ring : next.getBoundingClientRect().left - ring
+			if (rtl ? initials.left < edge : initials.right > edge) {
+				throw new Error(`Avatar group cuts the initials ${text.textContent}: they end at ${rtl ? initials.left : initials.right}, the next avatar's ring starts at ${edge}`)
+			}
+		}
 	},
 }
 
@@ -159,13 +175,13 @@ export const Sizes: Story<typeof Avatar> = {
 	render: ({ alt: _alt, fallback: _fallback, size: _size, src: _src, ...args }) => (
 		<div class="flex items-center gap-4">
 			<Avatar {...args} size="sm">
-				<AvatarFallback>SM</AvatarFallback>
+				<AvatarFallback>AL</AvatarFallback>
 			</Avatar>
 			<Avatar {...args}>
-				<AvatarFallback>DF</AvatarFallback>
+				<AvatarFallback>GH</AvatarFallback>
 			</Avatar>
 			<Avatar {...args} size="lg">
-				<AvatarFallback>LG</AvatarFallback>
+				<AvatarFallback>AT</AvatarFallback>
 			</Avatar>
 		</div>
 	),
