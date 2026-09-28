@@ -222,7 +222,7 @@ const publish = async ({ directory, name, version }: Package, tarballs: string, 
 	assert(!JSON.stringify(manifest).includes('workspace:'), `${name} published a workspace protocol`)
 
 	const packlist = packed.files.map(file => file.path)
-	for (const expected of ['LICENSE', 'package.json', 'README.md']) {
+	for (const expected of ['LICENSE', 'package.json', 'README.md', ...name === 'ajo-kit' ? ['LLMs.md'] : []]) {
 		assert(packlist.includes(expected), `${name} packlist omitted ${expected}`)
 	}
 	assert(packlist.every(path =>

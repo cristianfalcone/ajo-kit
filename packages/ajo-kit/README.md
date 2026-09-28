@@ -2,6 +2,9 @@
 
 Full-stack metaframework for [Ajo](https://github.com/cristianfalcone/ajo) with file-based routing, server handlers, form actions, middleware, migrations, and SSE route payload updates.
 
+[LLMs.md](./LLMs.md) holds the rules for building an App with ajo-kit. It ships
+with the package.
+
 ## Install
 
 ```bash
