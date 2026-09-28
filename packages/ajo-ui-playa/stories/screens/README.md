@@ -34,8 +34,9 @@ or a play, never on pixels; it lists captures that differ from the reviewed refe
 
 - Compose Playa families only; layout (grids, gaps, widths) is the screen's own. When a
   family cannot do something yet, compose it by hand and say what it waits for in a
-  comment (the ad hoc field row until FieldRow, the busy button until Button takes
-  `loading`).
+  comment (the busy button until Button takes `loading`). Fields side by side go in a
+  `FieldRow` inside a `FieldGroup`, and a field that can show an error passes `invalid`
+  even while it is valid, so its message line is kept.
 - `Page` and `Section` in `page.tsx` give every screen the same header and sections.
 - Copy goes through `t(english, arabic)`: the RTL variant reads Arabic, so bidi defects
   show and full stops stay at the end. Values a person copies (ids, domains, addresses,
@@ -98,9 +99,9 @@ completes its task by keyboard alone.
 - Table's frosted header when scrolled: no story scrolls the table (p5-kit-17).
 - Navigation's sidebar ends with the page content, not the viewport: SidebarProvider
   takes its content's height (p5-kit-18).
-- Form's "Start on boot" switch stretches across its column, because a vertical Field
-  makes every child full width, so its checked thumb sits at the start and reads as off
-  (at the other end in RTL). p5-kit-08's field zones centre it in the control row.
+- Form's "Start on boot" switch sits in its control row beside "First deploy", but its
+  checked track is still champagne with a dark thumb, and in RTL the thumb leaves the
+  track (p5-kit-12).
 - Table Loading holds each row's top and height, but the columns move 4 to 14 px
   sideways when the data lands: the skeleton widths drive the table's automatic layout,
   and `assertHeld` compares only top and height (p5-kit-17, DataTable's loading state).

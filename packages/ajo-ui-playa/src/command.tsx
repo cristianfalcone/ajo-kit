@@ -62,7 +62,7 @@ const dialogBase = clx(
 	'max-h-[85vh] w-[min(92vw,32rem)] overflow-hidden rounded-xl edge p-0',
 )
 const dialogCommandBase = '**:data-[slot=command-input-wrapper]:h-12 [&_[data-slot=command-input-wrapper]_svg]:size-5 [&_[data-slot=command-input]]:h-12 [&_[data-slot=command-item]]:px-2 [&_[data-slot=command-item]]:py-3 [&_[data-slot=command-item]_svg]:size-5'
-const inputBase = 'flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50'
+const inputBase = 'flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50'
 // The input's wrapper and search icon, and a group's heading, are base-owned
 // nodes themed through their slots from the Command root.
 const slotBase = [

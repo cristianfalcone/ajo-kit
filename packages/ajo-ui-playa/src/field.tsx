@@ -34,7 +34,18 @@ export type FieldGroupArgs = WithChildren<IntrinsicElements['div'] & {
 	class?: string
 }>
 
+export type FieldRowArgs = WithChildren<IntrinsicElements['div'] & {
+	/** Additional UnoCSS classes. */
+	class?: string
+}>
+
 export type FieldArgs = BaseFieldArgs & {
+	/**
+	 * Whether the field's value is invalid. Pass it, even as `false`, on every
+	 * field that can show an error: a vertical field then keeps its message
+	 * line while valid, so the error appears without moving anything.
+	 */
+	invalid?: boolean
 	/** Layout direction for the field content. */
 	orientation?: FieldOrientation
 	/** Marks the whole field as disabled for composed slot styling. */
@@ -73,11 +84,17 @@ export type FieldErrorArgs = BaseFieldErrorArgs & {
 	class?: string
 }
 
-const fieldBase = 'group/field flex w-full gap-3 data-[invalid=true]:text-danger'
+// One invalid treatment: the control's boundary and the message take the
+// danger hue; the label, the value and the help keep theirs.
+const fieldBase = 'group/field w-full'
 const fieldOrientation: Record<FieldOrientation, string> = {
-	vertical: 'flex-col [&>*]:w-full [&>.sr-only]:w-auto',
-	horizontal: 'flex-row items-center [&>[data-slot=field-label]]:flex-auto has-[>[data-slot=field-content]]:items-start has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mt-px',
-	responsive: 'flex-col @md/field-group:flex-row @md/field-group:items-center [&>*]:w-full @md/field-group:[&>*]:w-auto [&>.sr-only]:w-auto @md/field-group:[&>[data-slot=field-label]]:flex-auto @md/field-group:has-[>[data-slot=field-content]]:items-start @md/field-group:has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mt-px',
+	// Label, control and message rows (the preset's field zones).
+	vertical: 'playa-field-zones',
+	// As tall as its content, so a list of choices keeps its options close; in
+	// a FieldRow the control row's height centres it beside the inputs.
+	horizontal: 'flex flex-row items-center gap-3 [&>[data-slot=field-label]]:flex-auto has-[>[data-slot=field-content]]:items-start',
+	// The vertical zones, and one row from the field group's `md` width.
+	responsive: 'playa-field-zones [&>*]:w-full [&>.sr-only]:w-auto @md/field-group:flex @md/field-group:flex-row @md/field-group:items-center @md/field-group:gap-3 @md/field-group:after:hidden @md/field-group:[&>*]:m-0 @md/field-group:[&>*]:w-auto @md/field-group:[&>[data-slot=field-label]]:flex-auto @md/field-group:has-[>[data-slot=field-content]]:items-start',
 }
 
 /** Semantic group for related form fields. */
@@ -108,7 +125,7 @@ const FieldLegend: Stateless<FieldLegendArgs> = ({
 	<legend
 		{...attrs}
 		class={clx(
-			'mb-3 font-medium data-[variant=legend]:text-base data-[variant=label]:text-sm',
+			'mb-2 font-medium data-[variant=legend]:text-base data-[variant=label]:text-sm',
 			classes,
 		)}
 		data-slot="field-legend"
@@ -127,11 +144,25 @@ const FieldGroup: Stateless<FieldGroupArgs> = ({
 	<div
 		{...attrs}
 		class={clx(
-			'group/field-group @container/field-group flex w-full flex-col gap-7 data-[slot=checkbox-group]:gap-3 [&>[data-slot=field-group]]:gap-4',
+			'group/field-group @container/field-group flex w-full flex-col gap-6 [&>[data-slot=field-group]]:gap-4',
 			classes,
 		)}
 		data-slot="field-group"
 	>
+		{children}
+	</div>
+)
+
+/**
+ * Fields side by side inside a `FieldGroup`: their label, control and message
+ * rows line up across the row, and the row stacks when the group is narrow.
+ */
+const FieldRow: Stateless<FieldRowArgs> = ({
+	class: classes,
+	children,
+	...attrs
+}) => (
+	<div {...attrs} class={clx('playa-field-row', classes)} data-slot="field-row">
 		{children}
 	</div>
 )
@@ -151,7 +182,7 @@ const Field: Stateless<FieldArgs> = ({
 		{...attrs}
 		class={clx(fieldBase, fieldOrientation[orientation], classes)}
 		data-disabled={disabled ? 'true' : undefined}
-		data-invalid={invalid ? 'true' : undefined}
+		data-invalid={invalid === undefined ? undefined : String(invalid)}
 		data-orientation={orientation}
 		invalid={invalid}
 		name={name}
@@ -169,7 +200,7 @@ const FieldContent: Stateless<FieldContentArgs> = ({
 }) => (
 	<div
 		{...attrs}
-		class={clx('group/field-content flex flex-1 flex-col gap-1.5 leading-snug', classes)}
+		class={clx('group/field-content flex flex-1 flex-col gap-1', classes)}
 		data-slot="field-content"
 	>
 		{children}
@@ -186,7 +217,7 @@ const FieldLabel: Stateless<FieldLabelArgs> = ({
 		{...attrs}
 		class={clx(
 			labelBase,
-			'group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:edge [&>*]:data-[slot=field]:p-4 has-[:checked]:inset-ring-primary has-[:checked]:bg-primary/5',
+			'group/field-label peer/field-label flex w-fit gap-2 group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:edge [&>*]:data-[slot=field]:p-4 has-[:checked]:inset-ring-primary has-[:checked]:bg-primary/5',
 			classes,
 		)}
 	>
@@ -202,7 +233,7 @@ const FieldTitle: Stateless<FieldTitleArgs> = ({
 }) => (
 	<div
 		{...attrs}
-		class={clx('flex w-fit items-center gap-2 text-sm font-medium leading-snug group-data-[disabled=true]/field:opacity-50', classes)}
+		class={clx('flex w-fit items-center gap-2 text-sm font-medium group-data-[disabled=true]/field:opacity-50', classes)}
 		data-slot="field-label"
 	>
 		{children}
@@ -218,7 +249,7 @@ const FieldDescription: Stateless<FieldDescriptionArgs> = ({
 	<BaseFieldDescription
 		{...attrs}
 		class={clx(
-			'text-sm font-normal leading-normal text-muted-foreground group-has-[[data-orientation=horizontal]]/field:text-balance last:mt-0 nth-last-2:-mt-1 [[data-variant=legend]+&]:-mt-1.5 [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-link',
+			'text-sm font-normal text-muted-foreground group-has-[[data-orientation=horizontal]]/field:text-balance [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-link',
 			classes,
 		)}
 	>
@@ -236,7 +267,7 @@ const FieldSeparator: Stateless<FieldSeparatorArgs> = ({
 	<div
 		{...attrs}
 		aria-orientation="horizontal"
-		class={clx('relative -my-2 flex h-5 items-center text-sm group-data-[variant=outline]/field-group:-mb-2', classes)}
+		class={clx('relative flex h-5 items-center text-sm', classes)}
 		data-content={children ? 'true' : undefined}
 		data-slot="field-separator"
 		role={role}
@@ -250,7 +281,11 @@ const FieldSeparator: Stateless<FieldSeparatorArgs> = ({
 	</div>
 )
 
-/** Validation message for a field. */
+/**
+ * Validation message for a field, after an alert icon centred on its first
+ * line; the text keeps block flow, so a link inside it wraps with the
+ * sentence. In a vertical field it takes the help text's line.
+ */
 const FieldError: Stateless<FieldErrorArgs> = ({
 	class: classes,
 	children,
@@ -258,7 +293,7 @@ const FieldError: Stateless<FieldErrorArgs> = ({
 }) => (
 	<BaseFieldError
 		{...attrs}
-		class={clx('text-sm font-normal text-danger [&>[data-slot=field-error-list]]:ml-4 [&>[data-slot=field-error-list]]:flex [&>[data-slot=field-error-list]]:list-disc [&>[data-slot=field-error-list]]:flex-col [&>[data-slot=field-error-list]]:gap-1', classes)}
+		class={clx('relative ps-6 text-sm font-normal text-danger before:absolute before:start-0 before:top-0 before:i-lucide-circle-alert before:h-5 before:w-4 before:mask-contain before:mask-center before:content-empty', classes)}
 	>
 		{children}
 	</BaseFieldError>
@@ -272,6 +307,7 @@ export {
 	FieldGroup,
 	FieldLabel,
 	FieldLegend,
+	FieldRow,
 	FieldSeparator,
 	FieldSet,
 	FieldTitle,

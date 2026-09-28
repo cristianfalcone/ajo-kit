@@ -56,7 +56,7 @@ const classNames: Record<InputDateClassName, string> = {
 	control: 'flex h-full min-w-0 flex-1 cursor-text items-center overflow-hidden px-3 py-1 text-base whitespace-nowrap md:text-sm',
 	field: fieldBase,
 	literal: 'whitespace-pre text-muted-foreground',
-	segment: 'rounded-sm px-0.5 py-0.5 tabular-nums outline-none focus:bg-accent focus:text-accent-foreground data-[placeholder=true]:text-muted-foreground',
+	segment: 'rounded-sm px-0.5 py-0.5 tabular-nums outline-none focus:bg-accent focus:text-accent-foreground data-[placeholder=true]:text-faint-foreground',
 	separator: 'px-1 text-muted-foreground',
 	trigger: addonButtonBase,
 	trigger_icon: 'i-lucide-calendar pointer-events-none size-4',

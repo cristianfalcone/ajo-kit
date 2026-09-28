@@ -2,7 +2,7 @@
 import type { Meta, Story } from '../app'
 import { assertRowAligned, assertStill, press, until } from '../play'
 import { Button } from 'ajo-ui-playa/button'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from 'ajo-ui-playa/field'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldRow } from 'ajo-ui-playa/field'
 import { Input } from 'ajo-ui-playa/input'
 import { InputDate } from 'ajo-ui-playa/input-date'
 import { Select, SelectContent, SelectItem, SelectList, SelectTrigger, SelectValue } from 'ajo-ui-playa/select'
@@ -18,9 +18,6 @@ type FormArgs = {
 	/** Called when the form submits; the story turns it into `submitting`. */
 	onSubmit: () => void
 }
-
-// An ad hoc row until Playa ships FieldRow: two columns that stack on a phone.
-const row = 'grid gap-6 sm:grid-cols-2'
 
 const Choice = ({ id, items, placeholder, value }: { id: string; items: [string, string][]; placeholder: string; value?: string }) => (
 	<Select defaultValue={value} name={id}>
@@ -48,7 +45,7 @@ const NewApp = ({ filled, invalid, onSubmit, submitting }: FormArgs) => (
 			}}
 		>
 			<FieldGroup>
-				<div data-slot="field-row" class={row}>
+				<FieldRow>
 					<Field invalid={invalid} name="app-name">
 						<FieldLabel>{t('App name', 'اسم التطبيق')}</FieldLabel>
 						<Input dir="ltr" name="name" placeholder="shop-api" value={filled ? (invalid ? 'Shop API' : 'shop-api') : undefined} readOnly={submitting} />
@@ -60,8 +57,8 @@ const NewApp = ({ filled, invalid, onSubmit, submitting }: FormArgs) => (
 						<FieldDescription>{t('Point its DNS here before the first deploy.', 'وجّه نطاقه إلى هنا قبل أول نشر.')}</FieldDescription>
 						{invalid && <FieldError>{t('Another app already uses this domain.', 'تطبيق آخر يستخدم هذا النطاق.')}</FieldError>}
 					</Field>
-				</div>
-				<div data-slot="field-row" class={row}>
+				</FieldRow>
+				<FieldRow>
 					<Field name="app-environment">
 						<FieldLabel for="app-environment">{t('Environment', 'البيئة')}</FieldLabel>
 						<Choice
@@ -81,8 +78,8 @@ const NewApp = ({ filled, invalid, onSubmit, submitting }: FormArgs) => (
 						/>
 						<FieldDescription>{t('The app restarts if it uses more.', 'يُعاد تشغيل التطبيق إذا تجاوزه.')}</FieldDescription>
 					</Field>
-				</div>
-				<div data-slot="field-row" class={row}>
+				</FieldRow>
+				<FieldRow>
 					<Field name="app-first-deploy">
 						<FieldLabel>{t('First deploy', 'أول نشر')}</FieldLabel>
 						<InputDate calendar name="first-deploy" defaultValue={filled ? '2026-10-05' : undefined} />
@@ -92,7 +89,7 @@ const NewApp = ({ filled, invalid, onSubmit, submitting }: FormArgs) => (
 						<Switch id="app-boot" name="boot" defaultChecked />
 						<FieldDescription>{t('Starts the app again after the host restarts.', 'يشغّل التطبيق من جديد بعد إعادة تشغيل المضيف.')}</FieldDescription>
 					</Field>
-				</div>
+				</FieldRow>
 				<Field name="app-description">
 					<FieldLabel>{t('Description', 'الوصف')}</FieldLabel>
 					<Textarea name="description" placeholder={t('What the app does, for the people you invite.', 'ما يفعله التطبيق، لمن تدعوهم.')} readOnly={submitting} />
@@ -133,9 +130,6 @@ export const Blank: Story = {
 			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=switch-input]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-13', variants: ['light-1280'], targets: ['span[data-slot=input-date-segment]'] },
 			{ check: 'motion', slice: 'p5-kit-13', variants: ['light-1280 environment'], targets: ['div[data-slot=select-content]'] },
-			{ check: 'row', slice: 'p5-kit-08', variants: ['light-1280', 'dark-1280', 'rtl-light-1280'], targets: ['div[data-slot=input-date]'] },
-			{ check: 'still', slice: 'p5-kit-08', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['button[data-slot=button]', 'button[data-slot=input-date-trigger]', 'button[data-slot=select-trigger]', 'span[data-slot=input-date-segment]', 'textarea[data-slot=textarea]'] },
-			{ check: 'still', slice: 'p5-kit-08', variants: ['light-390', 'dark-390'], targets: ['input[data-slot=input]'] },
 		],
 	},
 	play: async ({ canvas, setArg }) => {
@@ -155,7 +149,6 @@ export const Invalid: Story = {
 			{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=switch-input]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=switch-input]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-13', variants: ['light-1280'], targets: ['span[data-slot=input-date-segment]'] },
-			{ check: 'row', slice: 'p5-kit-08', variants: ['light-1280', 'dark-1280', 'rtl-light-1280'], targets: ['div[data-slot=input-date]'] },
 			{ check: 'target-size', slice: 'p5-kit-13', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['span[data-slot=input-date-segment]'] },
 		],
 	},
@@ -177,7 +170,6 @@ export const Submitting: Story = {
 			{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=switch-input]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=switch-input]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-13', variants: ['light-1280'], targets: ['span[data-slot=input-date-segment]'] },
-			{ check: 'row', slice: 'p5-kit-08', variants: ['light-1280', 'dark-1280', 'rtl-light-1280'], targets: ['div[data-slot=input-date]'] },
 			{ check: 'target-size', slice: 'p5-kit-13', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['span[data-slot=input-date-segment]'] },
 		],
 	},

@@ -8,6 +8,13 @@ describe('playa preset', () => {
 		expect(playa()).toMatchObject({ name: 'ajo-ui-playa' })
 	})
 
+	it('colours every placeholder with the faint text level, after Wind4 colours it', async () => {
+		const uno = await createGenerator({ presets: [playa()] })
+		const { css } = await uno.generate('')
+		const colours = [...css.matchAll(/::placeholder\s*\{\s*color:\s*([^;}]+)/g)].map(match => match[1].trim())
+		expect(colours.at(-1)).toBe('var(--faint-foreground)')
+	})
+
 	it('generates the complete themed contract through its public interface', async () => {
 		const uno = await createGenerator({ presets: [playa()] })
 		const { css } = await uno.generate([

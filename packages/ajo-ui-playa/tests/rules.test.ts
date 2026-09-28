@@ -22,7 +22,6 @@ const offScaleAllowed: Record<string, string> = {
 	'chip.tsx': '-mr-1 py-0.5',
 	'command.tsx': '-mx-1 py-1.5',
 	'drawer.tsx': 'mb-24 mt-24',
-	'field.tsx': '-mb-2 -mt-1 -mt-1.5 -my-2 gap-1.5 gap-7 mt-px',
 	'input-date.tsx': 'px-0.5 py-0.5',
 	'input-group.tsx': 'gap-1.5 px-2.5',
 	'internal/input-group.tsx': 'ml-[-0.35rem] ml-[-0.45rem] mr-[-0.35rem] mr-[-0.45rem] pb-2.5 pt-2.5 py-1.5',
@@ -55,7 +54,6 @@ const physicalAllowed: Record<string, string> = {
 	'chip.tsx': '-mr-1',
 	'dialog.tsx': 'right-4 text-left',
 	'drawer.tsx': 'border-l border-r left-0 left-auto right-0 right-auto text-left',
-	'field.tsx': 'ml-4',
 	'input-otp.tsx': 'border-l border-l-0 rounded-l-md rounded-r-md',
 	'internal/input-group.tsx': 'ml-[-0.35rem] ml-[-0.45rem] mr-[-0.35rem] mr-[-0.45rem] pl-2 pl-3 pr-2 pr-3',
 	'internal/recipes.tsx': 'slide-in-from-left-2 slide-in-from-right-2',
@@ -128,13 +126,16 @@ const utility = (token: string) => {
 
 // Every utility each source file uses, as UnoCSS matches it: shortcut
 // bodies in the preset modules count, words in prose that match nothing do not.
+// `used` drops the variants and `tokens` keeps them.
 const used: Record<string, string[]> = {}
+const tokens: Record<string, string[]> = {}
 
 beforeAll(async () => {
 	const src = new URL('../src/', import.meta.url)
 	const uno = await createGenerator({ presets: [playa()] })
 	for (const file of readdirSync(src, { recursive: true, encoding: 'utf8' }).filter(file => /\.tsx?$/.test(file)).sort()) {
 		const { matched } = await uno.generate(readFileSync(new URL(file, src), 'utf8'), { preflights: false })
+		tokens[file.replaceAll('\\', '/')] = [...matched].sort()
 		used[file.replaceAll('\\', '/')] = [...new Set([...matched].map(utility))].sort()
 	}
 }, 60_000)
@@ -155,3 +156,14 @@ test('spacing stays on the 4 px scale', () => check(offScale, offScaleAllowed))
 test('direction is logical', () => check(physical, physicalAllowed))
 
 test('focus shows one ring, never a halo', () => check(halo, haloAllowed))
+
+// A placeholder never reads as a value: it takes the third text level (D27),
+// not the value colour and not the muted help colour.
+test('placeholders take the faint text colour', () => {
+	const placeholder = /(?:^|:)(?:placeholder|data-\[placeholder(?:=true)?\]):/
+	const colours = Object.entries(tokens).flatMap(([file, names]) => names
+		.filter(name => placeholder.test(name) && /^text-(?!xs$|sm$|base$|lg$|xl$|\d)/.test(utility(name)))
+		.map(name => `${file}: ${name}`))
+	expect(colours.length, 'no placeholder colour found').toBeGreaterThan(0)
+	expect(colours.filter(name => !name.endsWith(':text-faint-foreground'))).toEqual([])
+})

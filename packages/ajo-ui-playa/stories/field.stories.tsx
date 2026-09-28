@@ -1,5 +1,6 @@
 /** @jsxImportSource ajo */
 import type { Meta, Story } from './app'
+import { assertRowAligned } from './play'
 import { Button } from 'ajo-ui-playa/button'
 import { Checkbox } from 'ajo-ui-playa/checkbox'
 import {
@@ -10,11 +11,13 @@ import {
 	FieldGroup,
 	FieldLabel,
 	FieldLegend,
+	FieldRow,
 	FieldSeparator,
 	FieldSet,
 	FieldTitle,
 } from 'ajo-ui-playa/field'
 import { Input as TextInput } from 'ajo-ui-playa/input'
+import { Switch } from 'ajo-ui-playa/switch'
 import { Textarea } from 'ajo-ui-playa/textarea'
 
 export default {
@@ -125,6 +128,84 @@ export const Fieldset: Story<typeof Field> = {
 			</FieldGroup>
 		</FieldSet>
 	),
+	// A horizontal field outside a FieldRow is as tall as its content, so a
+	// list of choices keeps its options closer to each other than to the question.
+	play: ({ canvas }) => {
+		const field = canvas.querySelector<HTMLElement>('[data-slot="field"][data-orientation="horizontal"]')
+		if (!field) throw new Error('The horizontal field did not render')
+		const content = Math.max(...[...field.children].map(child => child.getBoundingClientRect().height))
+		const height = field.getBoundingClientRect().height
+		if (Math.abs(height - content) > 0.5) throw new Error(`The horizontal field is ${height} px tall around ${content} px of content`)
+	},
+}
+
+// Fields side by side share their rows: the control without help keeps the
+// top of the one with it, a switch beside an input shares its centre, and
+// both keep them when the group stacks them.
+export const RowWithHelp: Story<typeof Field> = {
+	name: 'Row with help',
+	render: () => (
+		<FieldGroup class="w-full max-w-2xl">
+			<FieldRow>
+				<Field name="row-help-name">
+					<FieldLabel>App name</FieldLabel>
+					<TextInput placeholder="shop-api" />
+				</Field>
+				<Field name="row-help-domain">
+					<FieldLabel>Domain</FieldLabel>
+					<TextInput placeholder="shop.example.com" />
+					<FieldDescription>Point its DNS here before the first deploy.</FieldDescription>
+				</Field>
+			</FieldRow>
+			<FieldRow>
+				<Field name="row-help-memory">
+					<FieldLabel>Memory limit</FieldLabel>
+					<TextInput placeholder="512 MB" />
+					<FieldDescription>The app restarts when it goes over.</FieldDescription>
+				</Field>
+				<Field orientation="horizontal" name="row-help-boot">
+					<Switch id="row-help-boot" defaultChecked />
+					<FieldLabel for="row-help-boot">Start on boot</FieldLabel>
+				</Field>
+			</FieldRow>
+		</FieldGroup>
+	),
+	play: ({ canvas }) => assertRowAligned(canvas),
+}
+
+// The error takes the help's line and only the boundary and the message turn
+// to the danger hue; the label and the value keep their colours.
+export const RowWithError: Story<typeof Field> = {
+	name: 'Row with error',
+	render: () => (
+		<FieldGroup class="w-full max-w-2xl">
+			<FieldRow>
+				<Field invalid name="row-error-name">
+					<FieldLabel>App name</FieldLabel>
+					<TextInput value="Shop API" />
+					<FieldError>Use lowercase letters, numbers and dashes.</FieldError>
+				</Field>
+				<Field invalid name="row-error-domain">
+					<FieldLabel>Domain</FieldLabel>
+					<TextInput name="domain" value="shop.example.com" />
+					<FieldDescription>Point its DNS here before the first deploy.</FieldDescription>
+					<FieldError>Another app already uses this domain.</FieldError>
+				</Field>
+			</FieldRow>
+		</FieldGroup>
+	),
+	play: ({ canvas }) => {
+		assertRowAligned(canvas)
+		const domain = canvas.querySelector<HTMLElement>('[data-slot="field"]:has(input[name="domain"])')
+		const [label, input, help, error] = ['field-label', 'input', 'field-description', 'field-error']
+			.map(slot => domain?.querySelector<HTMLElement>(`[data-slot="${slot}"]`))
+		if (!label || !input || !help || !error) throw new Error('The invalid domain field did not render its parts')
+		if (help.getBoundingClientRect().top !== error.getBoundingClientRect().top) throw new Error('The error does not take the help text line')
+		if (getComputedStyle(help).visibility !== 'hidden') throw new Error('The help still shows beside the error')
+		if (!input.getAttribute('aria-describedby')?.split(' ').includes(help.id)) throw new Error('The hidden help left aria-describedby')
+		const colour = (element: HTMLElement) => getComputedStyle(element).color
+		if (colour(error) === colour(label) || colour(input) !== colour(label)) throw new Error('Only the message may take the danger hue')
+	},
 }
 
 export const Sections: Story<typeof Field> = {

@@ -200,6 +200,8 @@ export const playa = definePreset(() => ({
         '@keyframes enter{from{opacity:var(--un-enter-opacity,1);transform:translate3d(var(--un-enter-translate-x,0),var(--un-enter-translate-y,0),0) scale3d(var(--un-enter-scale,1),var(--un-enter-scale,1),var(--un-enter-scale,1))}}',
         '@keyframes exit{to{opacity:var(--un-exit-opacity,1);transform:translate3d(var(--un-exit-translate-x,0),var(--un-exit-translate-y,0),0) scale3d(var(--un-exit-scale,1),var(--un-exit-scale,1),var(--un-exit-scale,1))}}',
         '*,::before,::after{border-color:var(--border)}',
+        // A placeholder takes the faint text level, so it never reads as a value.
+        '::placeholder{color:var(--faint-foreground)}',
         // Edge fades pair with ajo-cloves overflow stamps. They activate only
         // while content overflows, so a resting edge never stays dimmed.
         overflowFades,

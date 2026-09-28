@@ -13,7 +13,7 @@ export const emptyChildren = (children: unknown) =>
 	(Array.isArray(children) && children.every(child => child == null || child === false))
 
 /** Label text shared by Label and FieldLabel. */
-export const labelBase = 'flex items-center gap-2 text-sm font-medium leading-none select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50'
+export const labelBase = 'flex items-center gap-2 text-sm font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50'
 
 /** Shared open/closed motion for popup surfaces, disabled for reduced motion. */
 export const popupAnimation = 'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 motion-reduce:animate-none'

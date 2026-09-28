@@ -13,7 +13,7 @@ import {
 } from 'ajo-ui-playa/alert-dialog'
 import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import { Checkbox } from 'ajo-ui-playa/checkbox'
-import { Field, FieldContent, FieldDescription, FieldLabel, FieldLegend, FieldSet } from 'ajo-ui-playa/field'
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldRow, FieldSet } from 'ajo-ui-playa/field'
 import { Input } from 'ajo-ui-playa/input'
 import { RadioGroup, RadioGroupItem } from 'ajo-ui-playa/radio-group'
 import { Select, SelectContent, SelectItem, SelectList, SelectTrigger, SelectValue } from 'ajo-ui-playa/select'
@@ -61,19 +61,20 @@ const General = () => (
 	<div class="flex flex-col gap-8">
 		<Section title={t('Profile', 'الملف الشخصي')} lead={t('Shown to the people you invite.', 'يظهر لمن تدعوهم.')}>
 			<form class="flex flex-col gap-6" set:onsubmit={(event: Event) => event.preventDefault()}>
-				<div data-slot="field-row" class="grid gap-6 sm:grid-cols-2">
-					<Field name="profile-name">
-						<FieldLabel>{t('Name', 'الاسم')}</FieldLabel>
-						<Input name="name" value={t('Ada Lovelace', 'آدا لوفليس')} autocomplete="name" />
-					</Field>
-					<Field name="profile-email">
-						<FieldLabel>{t('Email', 'البريد الإلكتروني')}</FieldLabel>
-						<Input dir="ltr" name="email" type="email" value="ada@example.com" autocomplete="email" />
-						<FieldDescription>{t('Sign-in links and notices go here.', 'تصل إليه روابط تسجيل الدخول والإشعارات.')}</FieldDescription>
-					</Field>
-				</div>
-				<div data-slot="field-row" class="grid gap-6 sm:grid-cols-2">
-					<Field name="profile-zone">
+				<FieldGroup>
+					<FieldRow>
+						<Field name="profile-name">
+							<FieldLabel>{t('Name', 'الاسم')}</FieldLabel>
+							<Input name="name" value={t('Ada Lovelace', 'آدا لوفليس')} autocomplete="name" />
+						</Field>
+						<Field name="profile-email">
+							<FieldLabel>{t('Email', 'البريد الإلكتروني')}</FieldLabel>
+							<Input dir="ltr" name="email" type="email" value="ada@example.com" autocomplete="email" />
+							<FieldDescription>{t('Sign-in links and notices go here.', 'تصل إليه روابط تسجيل الدخول والإشعارات.')}</FieldDescription>
+						</Field>
+					</FieldRow>
+					{/* The time zone keeps the width of the name above it. */}
+					<Field class="@md/field-group:max-w-[calc(50%-0.75rem)]" name="profile-zone">
 						<FieldLabel for="profile-zone">{t('Time zone', 'المنطقة الزمنية')}</FieldLabel>
 						<Select defaultValue="europe-lisbon" name="zone">
 							<SelectTrigger id="profile-zone" class="w-full">
@@ -88,11 +89,11 @@ const General = () => (
 							</SelectContent>
 						</Select>
 					</Field>
-				</div>
-				<Field orientation="horizontal" name="profile-directory">
-					<Checkbox id="profile-directory" name="directory" defaultChecked />
-					<FieldLabel for="profile-directory">{t('Show my email to the people I invite', 'أظهر بريدي الإلكتروني لمن أدعوهم')}</FieldLabel>
-				</Field>
+					<Field orientation="horizontal" name="profile-directory">
+						<Checkbox id="profile-directory" name="directory" defaultChecked />
+						<FieldLabel for="profile-directory">{t('Show my email to the people I invite', 'أظهر بريدي الإلكتروني لمن أدعوهم')}</FieldLabel>
+					</Field>
+				</FieldGroup>
 				<div class="flex justify-end">
 					<Button type="submit">{t('Save changes', 'حفظ التغييرات')}</Button>
 				</div>

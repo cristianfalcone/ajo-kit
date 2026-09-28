@@ -186,8 +186,6 @@ export const Default: Story = {
 		known: [
 			{ check: 'motion', slice: 'p5-kit-15', variants: ['light-1280 remove-domain'], targets: ['dialog[data-slot=alert-dialog-content]'] },
 			{ check: 'motion', slice: 'p5-kit-15', variants: ['light-1280 add-domain'], targets: ['dialog[data-slot=dialog-content]'] },
-			{ check: 'still', slice: 'p5-kit-08', variants: ['light-1280', 'dark-1280', 'rtl-light-1280'], targets: ['button[data-slot=button]', 'button[data-slot=dialog-close]'] },
-			{ check: 'still', slice: 'p5-kit-08', variants: ['light-1280', 'dark-1280', 'rtl-light-1280', 'light-390', 'dark-390'], targets: ['input[data-slot=input]'] },
 		],
 	},
 	// Enter on the trigger and Escape in the dialog are native, which a play's untrusted keys
