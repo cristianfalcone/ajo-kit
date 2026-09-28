@@ -77,7 +77,7 @@ const pairs: Pair[] = [
 		['background', 'card'].map(token => [{ token }, { token: status, alpha: 0.1 }]), alpha === 1 ? undefined : alpha))),
 	...['primary', 'secondary', ...statuses].flatMap(fill => on(4.5, [`${fill}-foreground`], [[{ token: fill }]])),
 	...on(3, ['input', 'ring', 'gold-4', 'primary'], surfaces.map(token => [{ token }])),
-	// The focus halo as the families paint it today (ring-ring/50).
+	// The focus halo the families still paint (ring-ring/50).
 	...on(3, ['ring'], surfaces.map(token => [{ token }]), 0.5),
 	// Hairlines are decorative, so no WCAG floor applies; they stay visible,
 	// over the accent tint too, where hovered and selected rows sit.
@@ -92,11 +92,12 @@ const failing: Record<string, string> = {
 	'light primary on background': 'p5-kit-12',
 	'light primary on card': 'p5-kit-12',
 	'light primary on popover': 'p5-kit-12',
-	// Painted alphas: p5-kit-02 does not reach these. The focus-ring shortcut
-	// replaces the ring-ring/50 halo; Alert moves its body text to foreground.
-	'light ring 50% on background': 'p5-kit-07',
-	'light ring 50% on card': 'p5-kit-07',
-	'light ring 50% on popover': 'p5-kit-07',
+	// Painted alphas: p5-kit-02 does not reach these. The halo goes as the W3
+	// lanes empty the focus-halo list in rules.test.ts; Alert moves its body
+	// text to foreground.
+	'light ring 50% on background': 'W3 lanes, focus-halo list',
+	'light ring 50% on card': 'W3 lanes, focus-halo list',
+	'light ring 50% on popover': 'W3 lanes, focus-halo list',
 	'light danger 85% on danger 10% over background': 'p5-kit-16',
 	'light danger 85% on danger 10% over card': 'p5-kit-16',
 	'light success 85% on success 10% over background': 'p5-kit-16',

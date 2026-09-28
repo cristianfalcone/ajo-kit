@@ -76,6 +76,10 @@ export const assertScrollFrame = (viewport: HTMLElement, owner: string) => {
 	}
 }
 
+/**
+ * Asserts that a focused scroll viewport shows the one focus ring inside its
+ * box, where the frame's clip keeps it, and that the frame adds no halo.
+ */
 export const assertScrollFrameFocus = async (viewport: HTMLElement, owner: string) => {
 	const scrollFrame = frameOf(viewport, owner)
 	const restingShadow = getComputedStyle(scrollFrame).boxShadow
@@ -84,9 +88,12 @@ export const assertScrollFrameFocus = async (viewport: HTMLElement, owner: strin
 	if (document.activeElement !== viewport || !viewport.matches(':focus-visible')) {
 		throw new Error(`${owner} viewport did not retain visible focus`)
 	}
-	if (!scrollFrame.matches(':has(>:focus-visible)') || getComputedStyle(scrollFrame).boxShadow === restingShadow) {
-		throw new Error(`${owner} frame did not paint viewport focus`)
+	const { outlineOffset, outlineStyle, outlineWidth } = getComputedStyle(viewport)
+	const width = Number.parseFloat(outlineWidth)
+	if (outlineStyle === 'none' || !width || Number.parseFloat(outlineOffset) !== -width) {
+		throw new Error(`${owner} viewport does not ring inside its box: ${outlineStyle} ${outlineWidth} at ${outlineOffset}`)
 	}
+	if (getComputedStyle(scrollFrame).boxShadow !== restingShadow) throw new Error(`${owner} frame adds a focus halo`)
 	viewport.blur()
 }
 
@@ -355,6 +362,36 @@ export const assertReflow = (root: HTMLElement) => {
 			throw new Error(`${describe(node)} scrolls horizontally at ${innerWidth} px: ${node.scrollWidth} > ${node.clientWidth}`)
 		}
 	}
+}
+
+const bounded = 'input:not([type="checkbox"], [type="radio"], [type="range"]), textarea, select, [role="combobox"], [data-slot="button"][data-variant="default"]'
+
+/**
+ * Whether an element draws a border on all four sides or an outline that
+ * forced colours repaint: a transparent one counts only because they do, so
+ * `forced-color-adjust: none` does not.
+ */
+const outlined = (element: Element) => {
+	const style = getComputedStyle(element)
+	if (style.forcedColorAdjust === 'none') return false
+	const border = (['Top', 'Right', 'Bottom', 'Left'] as const)
+		.every(side => style[`border${side}Style`] !== 'none' && Number.parseFloat(style[`border${side}Width`]) > 0)
+	return border || (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0)
+}
+
+/**
+ * Asserts, under forced colours, that every text control, select and
+ * combobox in `root`, and the primary button, keeps a boundary the system
+ * colours paint: a border or an outline, since forced colours drop the shadows
+ * Playa draws boundaries with. A control inside an InputGroup is bounded by
+ * the group. Throws a `forced-colors` failure with one line per control.
+ */
+export const assertForcedBoundaries = (root: HTMLElement) => {
+	if (!matchMedia('(forced-colors: active)').matches) throw new Error('Forced colours are not active')
+	const lines = shown(root)
+		.filter(element => element.matches(bounded) && !outlined(element.closest('[data-slot="input-group"]') ?? element))
+		.map(element => `${describe(element)} has no boundary without shadows`)
+	if (lines.length) throw new CheckError('forced-colors', lines)
 }
 
 const moving = /^(?:transform|translate|scale|rotate)$/

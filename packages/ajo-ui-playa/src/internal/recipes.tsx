@@ -38,8 +38,10 @@ export const scrollAreaVariants = ({
 	class: classes,
 }: ScrollAreaVariantOptions = {}) => clx(scrollOverflow[axis], 'overscroll-contain scrollbar-soft', classes)
 
-const scrollAreaFrame = 'relative min-h-0 min-w-0 rounded-[inherit] transition-[color,box-shadow] has-[>:focus-visible]:ring-3 has-[>:focus-visible]:ring-ring/50'
-const scrollAreaViewport = 'scrollbar-framed relative h-full w-full min-h-0 min-w-0 rounded-[inherit] outline-none [scrollbar-gutter:stable]'
+const scrollAreaFrame = 'relative min-h-0 min-w-0 rounded-[inherit]'
+// The viewport wears the one focus ring within its box: the frame clips
+// anything outside it.
+const scrollAreaViewport = 'scrollbar-framed relative h-full w-full min-h-0 min-w-0 rounded-[inherit] focus-visible:outline-offset-[calc(-1*var(--focus-width))] [scrollbar-gutter:stable]'
 
 export const scrollAreaFrameVariants = ({ class: classes }: Pick<ScrollAreaVariantOptions, 'class'> = {}) =>
 	clx(scrollAreaFrame, classes)

@@ -21,14 +21,25 @@ describe('button theme composition', () => {
 		expect(classes).not.toContain('shadow-xs')
 	})
 
-	it('gives every variant exactly one focus-ring color owner', () => {
-		const regular = tokens(buttonVariants({ variant: 'default' }))
-		const danger = tokens(buttonVariants({ variant: 'danger' }))
-		const dangerGhost = tokens(buttonVariants({ variant: 'danger-ghost' }))
+	it('gives every variant the one focus ring and the control heights', () => {
+		const variants = ['default', 'danger', 'danger-ghost', 'ghost', 'link', 'muted-ghost', 'outline', 'secondary'] as const
 
-		expect(regular.filter(token => token.startsWith('focus-visible:ring-') && token !== 'focus-visible:ring-3')).toEqual(['focus-visible:ring-ring/50'])
-		expect(danger.filter(token => token.startsWith('focus-visible:ring-') && token !== 'focus-visible:ring-3')).toEqual(['focus-visible:ring-danger/40'])
-		expect(dangerGhost.filter(token => token.startsWith('focus-visible:ring-') && token !== 'focus-visible:ring-3')).toEqual(['focus-visible:ring-danger/40'])
+		for (const variant of variants) {
+			const classes = tokens(buttonVariants({ variant }))
+			expect(classes).toContain('playa-focus')
+			expect(classes).toContain('playa-invalid')
+			expect(classes).toContain('playa-disabled')
+			expect(classes.filter(token => /(?:^|:)(?:ring|outline)-|ring-\d/.test(token))).toEqual([])
+		}
+		// Only a variant with a 1 px boundary moves the ring onto its edge;
+		// the filled ones keep all of it outside the fill.
+		expect(variants.filter(variant => tokens(buttonVariants({ variant })).includes('edge'))).toEqual(['outline'])
+		expect(tokens(buttonVariants({ size: 'sm' }))).toContain('h-control-sm')
+		expect(tokens(buttonVariants())).toContain('h-control')
+		expect(tokens(buttonVariants({ size: 'lg' }))).toContain('h-control-lg')
+		expect(tokens(buttonVariants({ size: 'icon-sm' }))).toContain('size-control-sm')
+		expect(tokens(buttonVariants({ size: 'icon' }))).toContain('size-control')
+		expect(tokens(buttonVariants({ size: 'icon-lg' }))).toContain('size-control-lg')
 	})
 
 	it('provides one muted ghost color recipe to composed addon buttons', () => {
@@ -65,5 +76,8 @@ describe('button theme composition', () => {
 		expect(inputGroupClasses).not.toContain('shadow-none')
 		expect(calendarClasses).toContain('transition-[color,box-shadow,background-color]')
 		expect(calendarClasses).not.toContain('transition-all')
+		// A day is a Button: it keeps the one ring and adds no halo of its own.
+		expect(calendarClasses).toContain('playa-focus')
+		expect(calendarClasses.filter(token => token.startsWith('focus-visible:') || token === 'outline-none')).toEqual([])
 	})
 })

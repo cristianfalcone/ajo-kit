@@ -788,7 +788,10 @@ async function screens(options: Options) {
 				const forced = await visit(browser, url, story, first, { forcedColors: 'active' })
 				try {
 					if (forced.errors.length) fail('play', `${first.name} forced-colors`, forced.errors)
-					else await guard('forced-colors', first.name, () => tab(forced.page))
+					else {
+						await guard('forced-colors', first.name, () => assert(forced.page, (play, root) => play.assertForcedBoundaries(root)))
+						await guard('forced-colors', first.name, () => tab(forced.page))
+					}
 				} finally {
 					await forced.page.close()
 				}

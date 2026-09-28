@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { definePreset, presetIcons, presetWind4 } from 'unocss'
+import { definePreset, presetIcons, presetWind4, symbols } from 'unocss'
 import { icons as lucide } from '@iconify-json/lucide'
 import { actions } from './preset/actions'
 import { choices } from './preset/choices'
@@ -24,6 +24,15 @@ const tokens = readFileSync(new URL(/* @vite-ignore */ './tokens.css', import.me
 // Wind4's box-shadow slots, with fallbacks for pages where no shadow utility
 // registered them: a material fills its own slots and rings still stack.
 const shadowSlots = 'var(--un-inset-shadow,0 0 #0000),var(--un-inset-ring-shadow,0 0 #0000),var(--un-ring-offset-shadow,0 0 #0000),var(--un-ring-shadow,0 0 #0000),var(--un-shadow,0 0 #0000)'
+
+// One focus ring: --focus-width of --ring as an outline, which forced colours
+// keep while they drop the shadows that draw Playa's boundaries and rings. It
+// sits flush outside a control, with no gap and no halo, at --focus-offset.
+// A 1 px boundary (edge, edge-input) moves it onto the edge, so it covers the
+// boundary and adds 1 px outside; a filled control keeps the whole 2 px
+// outside its fill, where the ring contrasts with the page.
+const focusRing = 'var(--focus-width) solid var(--ring)'
+const straddle = '[--focus-offset:calc(var(--focus-width)/-2)]'
 
 // Edge fades for scroll-fade-x and the [data-overflow-*] stamps: one gradient per faded edge set.
 const fadeStops = {
@@ -117,6 +126,14 @@ export const playa = definePreset(() => ({
       '-webkit-backdrop-filter': 'var(--glass-filter)',
       'backdrop-filter': 'var(--glass-filter)',
     }],
+    // The focus ring on a control. At rest the outline is a 1 px transparent
+    // boundary, which forced colours paint. An invalid control keeps its
+    // danger hue while focused: the ring is danger, not a second ring.
+    ['playa-focus', [
+      { outline: '1px solid transparent', 'outline-offset': 'var(--focus-offset)' },
+      { [symbols.selector]: selector => `${selector}:focus-visible`, outline: focusRing, 'outline-offset': 'var(--focus-offset)' },
+      { [symbols.selector]: selector => `${selector}[aria-invalid="true"]:focus-visible`, 'outline-color': 'var(--danger)' },
+    ]],
     ['scrollbar-gutter-stable', { 'scrollbar-gutter': 'stable' }],
     ['scrollbar-none', { 'scrollbar-width': 'none' }],
     // Working text that sweeps; it carries its own keyframes, and without
@@ -164,7 +181,11 @@ export const playa = definePreset(() => ({
         // Selection in gold, readable over both suits.
         '::selection{background-color:color-mix(in oklab,var(--gold-4) 35%,transparent)}',
         // The default focus ring, for anything a family does not ring itself.
-        ':where(:focus-visible){outline:var(--focus-width) solid var(--ring);outline-offset:0}',
+        `:where(:focus-visible){outline:${focusRing};outline-offset:0}`,
+        // Where playa-focus sits: 0 unless the element's own boundary moves
+        // it. It does not inherit, so a filled button inside a bounded group
+        // or card keeps its ring outside.
+        '@property --focus-offset{syntax:"<length>";inherits:false;initial-value:0px}',
         // Opt in to animating block-size to `auto`: details-backed disclosures
         // (Collapsible, Accordion) transition ::details-content open/close in
         // engines that support keyword interpolation; others keep the snap.
@@ -203,8 +224,9 @@ export const playa = definePreset(() => ({
   shortcuts: {
     // Hairline inner border drawn with an inset ring: crisper than `border`
     // over stacked translucent surfaces and composes with ring/shadow slots.
-    edge: 'inset-ring inset-ring-border',
-    'edge-input': 'inset-ring inset-ring-input',
+    // Both carry the focus ring onto the boundary they draw.
+    edge: `inset-ring inset-ring-border ${straddle}`,
+    'edge-input': `inset-ring inset-ring-input ${straddle}`,
     // Enamel: a flat surface fill with a hairline, never a bevel.
     panel: 'bg-card text-card-foreground edge',
     // Resting translucent panels; frost for bars and floating layers is the
@@ -215,13 +237,17 @@ export const playa = definePreset(() => ({
     navy: [{ 'background-color': 'var(--navy)', color: 'var(--foreground)', 'color-scheme': 'dark' }, 'edge'],
     // Behind modal layers: a tinted, blurred page.
     scrim: 'backdrop:bg-[var(--scrim)] backdrop:[backdrop-filter:var(--scrim-filter)]',
+    // Designed states, one each. Invalid turns the boundary to the danger hue
+    // and adds no ring; disabled dims and takes no pointer, so no hover.
+    'playa-invalid': 'aria-invalid:inset-ring aria-invalid:inset-ring-danger',
+    'playa-disabled': 'disabled:pointer-events-none disabled:opacity-[var(--disabled-opacity)] aria-disabled:pointer-events-none aria-disabled:opacity-[var(--disabled-opacity)]',
     // Form-field chrome shared by inputs, textareas, select triggers and grouped fields.
-    'playa-field': 'rounded-md edge-input bg-transparent transition-[color,box-shadow] outline-none focus-visible:inset-ring-ring focus-visible:ring-3 focus-visible:ring-ring/25 aria-invalid:inset-ring-danger aria-invalid:ring-danger/20',
+    'playa-field': 'rounded-md edge-input bg-transparent transition-[color,box-shadow] playa-focus playa-invalid',
   },
   // Wind4's theme merges after this preset's own `theme`, so every key Wind4
-  // also defines (radius, shadow, font) is set here instead.
+  // also defines (radius, shadow, font, spacing, text) is set here instead.
   extendTheme: base => {
-    const theme = base as Record<string, Record<string, string>>
+    const theme = base as Record<string, Record<string, unknown>>
     // Single-knob radius scale: every rounded-* token derives from --radius
     // (0.75rem), so controls land at 12px, panels at 16px, cards and dialogs
     // at 20px, and chat bubbles at 24px. Nested rows stay concentric: an 8px
@@ -241,6 +267,15 @@ export const playa = definePreset(() => ({
     // DM Sans is the interface, JetBrains Mono is data, and `font-title` is
     // the one Fraunces line on a page.
     theme.font = { ...theme.font, sans: 'var(--font-body)', mono: 'var(--font-data)', title: 'var(--font-display)' }
+    // Control heights for h-, min-h- and size-: control-sm, control, control-lg.
+    theme.spacing = { ...theme.spacing, control: 'var(--control)', 'control-sm': 'var(--control-sm)', 'control-lg': 'var(--control-lg)' }
+    // The text scale, one line height per size on the 4 px grid: text-xs
+    // caption 12/16, text-sm body and controls 14/20, text-base reading and
+    // phone inputs 16/24, text-xl section 20/28, text-2xl the page title at
+    // 390 px 24/32, text-title the page title 28/36. Wind4's defaults already
+    // are the first five, so only title is added; text-lg (18/28) and the
+    // sizes above 2xl stay available but are off the scale.
+    theme.text = { ...theme.text, title: { fontSize: '1.75rem', lineHeight: '2.25rem' } }
   },
   theme: {
     colors: {

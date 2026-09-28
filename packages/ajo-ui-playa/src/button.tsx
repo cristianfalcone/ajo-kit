@@ -57,17 +57,17 @@ type ButtonVariantOptions = {
 	variant?: ButtonVariant
 }
 
-const base = 'inline-flex shrink-0 items-center justify-center text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-3 active:scale-[0.98] motion-reduce:active:scale-100 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:inset-ring aria-invalid:inset-ring-danger aria-invalid:ring-danger/25 [&_svg]:pointer-events-none [&_svg]:shrink-0'
+const base = 'inline-flex shrink-0 items-center justify-center text-sm font-medium whitespace-nowrap playa-focus playa-invalid playa-disabled active:scale-[0.98] motion-reduce:active:scale-100 [&_svg]:pointer-events-none [&_svg]:shrink-0'
 
 const variants: Record<ButtonVariant, string> = {
-	default: 'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/50',
-	danger: 'bg-danger text-danger-foreground hover:bg-danger/90 focus-visible:ring-danger/40',
-	'danger-ghost': 'text-danger hover:bg-danger/10 hover:text-danger focus-visible:ring-danger/40',
-	outline: 'edge bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50',
-	secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring/50',
-	ghost: 'text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50',
-	link: 'text-link underline-offset-4 hover:underline focus-visible:ring-ring/50',
-	'muted-ghost': 'text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50',
+	default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+	danger: 'bg-danger text-danger-foreground hover:bg-danger/90',
+	'danger-ghost': 'text-danger hover:bg-danger/10 hover:text-danger',
+	outline: 'edge bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground',
+	secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+	ghost: 'text-foreground hover:bg-accent hover:text-accent-foreground',
+	link: 'text-link underline-offset-4 hover:underline',
+	'muted-ghost': 'text-muted-foreground hover:bg-accent hover:text-foreground',
 }
 
 // Geometry single-owner rule: base emits no geometry, so every size recipe
@@ -75,14 +75,14 @@ const variants: Record<ButtonVariant, string> = {
 // h/px/py/gap/rounded/svg sizing; clx cannot resolve conflicting
 // utilities and the alphabetically-last rule wins in the stylesheet.
 const sizes: Record<ButtonSize, string> = {
-	default: 'h-9 gap-2 rounded-md px-4 py-2 has-[>svg]:px-3 [&_svg:not([class*=size-])]:size-4',
+	default: 'h-control gap-2 rounded-md px-4 py-2 has-[>svg]:px-3 [&_svg:not([class*=size-])]:size-4',
 	xs: 'h-6 gap-1 rounded-sm px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*=size-])]:size-3',
-	sm: 'h-8 gap-2 rounded-md px-3 has-[>svg]:px-2.5 [&_svg:not([class*=size-])]:size-4',
-	lg: 'h-10 gap-2 rounded-md px-6 has-[>svg]:px-4 [&_svg:not([class*=size-])]:size-4',
-	icon: 'size-9 gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
+	sm: 'h-control-sm gap-2 rounded-md px-3 has-[>svg]:px-2.5 [&_svg:not([class*=size-])]:size-4',
+	lg: 'h-control-lg gap-2 rounded-md px-6 has-[>svg]:px-4 [&_svg:not([class*=size-])]:size-4',
+	icon: 'size-control gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
 	'icon-xs': 'size-6 gap-2 rounded-sm [&_svg:not([class*=size-])]:size-3',
-	'icon-sm': 'size-8 gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
-	'icon-lg': 'size-10 gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
+	'icon-sm': 'size-control-sm gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
+	'icon-lg': 'size-control-lg gap-2 rounded-md [&_svg:not([class*=size-])]:size-4',
 	none: '',
 }
 

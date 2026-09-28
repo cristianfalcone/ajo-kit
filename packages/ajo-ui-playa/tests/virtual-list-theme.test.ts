@@ -1,5 +1,6 @@
 import type { Stateless, VNode } from 'ajo'
 import { expect, test } from 'vitest'
+import { MessageScroller, MessageScrollerViewport } from 'ajo-ui-playa/message-scroller'
 import { ScrollArea } from 'ajo-ui-playa/scroll-area'
 import { VirtualList } from 'ajo-ui-playa/virtual-list'
 
@@ -27,10 +28,10 @@ test('VirtualList composes the shared clip frame around one vertical viewport', 
 		'min-h-0',
 		'min-w-0',
 		'rounded-[inherit]',
-		'has-[>:focus-visible]:ring-3',
-		'has-[>:focus-visible]:ring-ring/50',
 		'consumer-list',
 	]) expect(tokens(frame.class)).toContain(expected)
+	// One focus ring: the viewport's, inside the clip; the frame adds no halo.
+	expect(tokens(frame.class).filter(token => token.includes('ring'))).toEqual([])
 	expect(frame.style).toBe('height:20rem;overflow:hidden')
 
 	for (const expected of [
@@ -44,7 +45,9 @@ test('VirtualList composes the shared clip frame around one vertical viewport', 
 		'w-full',
 		'rounded-[inherit]',
 		'[scrollbar-gutter:stable]',
+		'focus-visible:outline-offset-[calc(-1*var(--focus-width))]',
 	]) expect(tokens(viewport.class)).toContain(expected)
+	expect(tokens(viewport.class)).not.toContain('outline-none')
 	expect(tokens(viewport.class)).not.toContain('overflow-auto')
 	expect(tokens(viewport.class)).not.toContain('consumer-list')
 	expect(viewport['aria-label']).toBe('Releases')
@@ -63,10 +66,9 @@ test('ScrollArea uses the same frame and keeps native attrs on its viewport', ()
 
 	for (const expected of [
 		'rounded-[inherit]',
-		'has-[>:focus-visible]:ring-3',
-		'has-[>:focus-visible]:ring-ring/50',
 		'consumer-area',
 	]) expect(tokens(frame.class)).toContain(expected)
+	expect(tokens(frame.class).filter(token => token.includes('ring'))).toEqual([])
 	expect(frame.style).toBe('height:20rem;overflow:hidden')
 
 	for (const expected of [
@@ -79,8 +81,20 @@ test('ScrollArea uses the same frame and keeps native attrs on its viewport', ()
 		'w-full',
 		'rounded-[inherit]',
 		'[scrollbar-gutter:stable]',
+		'focus-visible:outline-offset-[calc(-1*var(--focus-width))]',
 	]) expect(tokens(viewport.class)).toContain(expected)
 	expect(tokens(viewport.class)).not.toContain('consumer-area')
 	expect(viewport['aria-label']).toBe('Tags')
 	expect(viewport.tabindex).toBe(0)
+})
+
+test('MessageScroller rings its viewport on the root, which neither clips nor fades it', () => {
+	const root = MessageScroller({ children: null }) as StyledNode
+	const viewport = MessageScrollerViewport({ children: null }) as StyledNode
+	const focused = 'has-[[data-slot=message-scroller-viewport]:focus-visible]:'
+
+	expect(tokens(root.class)).toContain(`${focused}[outline:var(--focus-width)_solid_var(--ring)]`)
+	expect(tokens(root.class)).toContain(`${focused}outline-offset-[calc(-1*var(--focus-width))]`)
+	expect(tokens(viewport.class)).toContain('outline-none')
+	expect(tokens(`${root.class} ${viewport.class}`).filter(token => /(?:^|:)ring-/.test(token))).toEqual([])
 })

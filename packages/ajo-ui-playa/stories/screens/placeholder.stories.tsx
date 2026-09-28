@@ -22,17 +22,6 @@ export default {
 		docs: { description: 'Holds the screens runner to its checks until the composition screens land: a page title, a row of fields and a dialog.' },
 		known: [
 			{ check: 'still', slice: 'p5-kit-08', targets: ['"Cancel"', '"Create app"'] },
-			{
-				check: 'focus',
-				slice: 'p5-kit-07',
-				variants: ['light-1280', 'light-390', 'rtl-light-1280'],
-				targets: ['"Add domain"', '"Cancel"', '"Create app"'],
-			},
-			{
-				check: 'forced-colors',
-				slice: 'p5-kit-07',
-				targets: ['"Add domain"', 'input[data-slot=input]', '"Cancel"', '"Create app"'],
-			},
 			{ check: 'motion', slice: 'p5-kit-15', variants: ['light-1280 add-domain'], targets: ['dialog[data-slot=dialog-content]'] },
 		],
 		layers: { 'add-domain': '[data-screen-layer="add-domain"]' },

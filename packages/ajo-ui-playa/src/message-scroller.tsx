@@ -30,8 +30,11 @@ export type MessageScrollerButtonArgs = BaseMessageScrollerButtonArgs & {
 	variant?: ButtonVariant
 }
 
-const rootBase = 'group/message-scroller relative flex size-full min-h-0 flex-col overflow-hidden'
-const viewportBase = 'size-full min-h-0 min-w-0 scrollbar-soft scrollbar-gutter-stable overflow-y-auto overscroll-contain contain-content [&[data-autoscrolling]]:scrollbar-none [&[data-autoscrolling]::-webkit-scrollbar]:hidden'
+// The root wears the viewport's one focus ring within its box: the root
+// clips anything outside the viewport, and the overflow fades mask the
+// viewport's own sides.
+const rootBase = 'group/message-scroller relative flex size-full min-h-0 flex-col overflow-hidden has-[[data-slot=message-scroller-viewport]:focus-visible]:[outline:var(--focus-width)_solid_var(--ring)] has-[[data-slot=message-scroller-viewport]:focus-visible]:outline-offset-[calc(-1*var(--focus-width))]'
+const viewportBase = 'size-full min-h-0 min-w-0 outline-none scrollbar-soft scrollbar-gutter-stable overflow-y-auto overscroll-contain contain-content [&[data-autoscrolling]]:scrollbar-none [&[data-autoscrolling]::-webkit-scrollbar]:hidden'
 const contentBase = 'flex h-max min-h-full flex-col gap-4'
 const itemBase = 'min-w-0 shrink-0 [contain-intrinsic-size:auto_10rem] [content-visibility:auto]'
 const buttonBase = 'absolute inset-s-1/2 z-10 -translate-x-1/2 transition-[transform,opacity] duration-200 data-[active=false]:pointer-events-none data-[active=false]:scale-95 data-[active=false]:opacity-0 data-[active=false]:duration-400 data-[active=false]:ease-[cubic-bezier(0.7,0,0.84,0)] data-[active=true]:translate-y-0 data-[active=true]:scale-100 data-[active=true]:opacity-100 data-[active=true]:ease-[cubic-bezier(0.23,1,0.32,1)] data-[direction=end]:bottom-4 data-[direction=end]:data-[active=false]:translate-y-full data-[direction=start]:top-4 data-[direction=start]:data-[active=false]:-translate-y-full rtl:translate-x-1/2'

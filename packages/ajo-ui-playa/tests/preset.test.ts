@@ -65,6 +65,52 @@ describe('playa preset', () => {
 		expect(css).toContain('--font-title: var(--font-display);')
 	})
 
+	it('sizes controls and text from the tokens on one scale', async () => {
+		const uno = await createGenerator({ presets: [playa()] })
+		const { css } = await uno.generate('h-control min-h-control size-control h-control-sm h-control-lg text-xs text-sm text-base text-xl text-2xl text-title')
+
+		expect(css).toContain('--spacing-control: var(--control);')
+		expect(css).toContain('--spacing-control-sm: var(--control-sm);')
+		expect(css).toContain('--spacing-control-lg: var(--control-lg);')
+		expect(css).toContain('.h-control{height:var(--spacing-control);}')
+		expect(css).toContain('.min-h-control{min-height:var(--spacing-control);}')
+		expect(css).toContain('.size-control{width:var(--spacing-control);height:var(--spacing-control);}')
+		const sizes = Object.fromEntries([...css.matchAll(/--text-([\w]+)-fontSize: ([\d.]+)rem; --text-\1-lineHeight: ([\d.]+)rem;/g)]
+			.map(([, name, size, line]) => [name, [Number(size) * 16, Number(line) * 16]]))
+		expect(sizes).toEqual({ xs: [12, 16], sm: [14, 20], base: [16, 24], xl: [20, 28], '2xl': [24, 32], title: [28, 36] })
+	})
+
+	it('draws each designed state once: one flush focus ring, a danger boundary, a dimmed disabled', async () => {
+		const uno = await createGenerator({ presets: [playa()] })
+		const { css } = await uno.generate('playa-focus playa-invalid playa-disabled playa-field', { preflights: false })
+		const ring = 'outline:var(--focus-width) solid var(--ring);outline-offset:var(--focus-offset);'
+
+		expect(css).toContain('.playa-focus{outline:1px solid transparent;outline-offset:var(--focus-offset);}')
+		expect(css).toContain(`.playa-focus:focus-visible{${ring}}`)
+		// An invalid control keeps its hue while focused, in the same one ring.
+		expect(css).toContain('.playa-focus[aria-invalid="true"]:focus-visible{outline-color:var(--danger);}')
+		expect(css).toMatch(/\.playa-invalid\[aria-invalid="true"\]\{--un-inset-ring-shadow:inset 0 0 0 1px [^}]*var\(--danger\)/)
+		expect(css).toContain('.playa-disabled:disabled{opacity:var(--disabled-opacity);pointer-events:none;}')
+		expect(css).toContain('.playa-disabled[aria-disabled="true"]{opacity:var(--disabled-opacity);pointer-events:none;}')
+		// The field boundary rings on focus with the same outline and adds no halo.
+		expect(css).toContain(`.playa-field:focus-visible{${ring}}`)
+		expect(css).toContain('.playa-field[aria-invalid="true"]:focus-visible{outline-color:var(--danger);}')
+		expect(css).not.toMatch(/--un-ring-shadow:|--un-ring-color:/)
+	})
+
+	it('puts the focus ring flush outside a fill and on a 1 px boundary', async () => {
+		const uno = await createGenerator({ presets: [playa()] })
+		const { css } = await uno.generate('edge edge-input playa-field panel')
+		const rule = (selector: string) => new RegExp(`(?:^|\\n)${selector.replace(/[.[\]]/g, '\\$&')}\\{([^}]*)\\}`).exec(css)?.[1] ?? ''
+		const straddle = '--focus-offset:calc(var(--focus-width) / -2);'
+
+		// A filled control: offset 0, and it does not inherit, so a button
+		// inside a bounded card or group keeps its ring outside its fill.
+		expect(css).toContain('@property --focus-offset{syntax:"<length>";inherits:false;initial-value:0px}')
+		// A boundary moves the 2 px ring onto it: 1 px over it, 1 px outside.
+		for (const selector of ['.edge', '.edge-input', '.playa-field', '.panel']) expect(rule(selector)).toContain(straddle)
+	})
+
 	it('paints the materials through Wind4 shadow slots so rings still stack', async () => {
 		const uno = await createGenerator({ presets: [playa()] })
 		const { css } = await uno.generate('gilt-plate panel navy scrim glass-chrome glass-overlay ring-3')
