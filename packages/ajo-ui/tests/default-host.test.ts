@@ -1,32 +1,25 @@
 // @vitest-environment happy-dom
-import { defaults, render, type Stateless } from 'ajo'
-import { defaults as htmlDefaults, render as ssr } from 'ajo/html'
+import { render, type Stateless } from 'ajo'
+import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
 import { afterEach, expect, test } from 'vitest'
 import { DirectionContext, DirectionProvider } from '../src/direction'
-
-const defaultDomTag = defaults.tag
-const defaultHtmlTag = htmlDefaults.tag
 
 const DirectionReadout: Stateless = () => jsx('output', {
 	'data-direction': DirectionContext(),
 })
 
 afterEach(() => {
-	defaults.tag = defaultDomTag
-	htmlDefaults.tag = defaultHtmlTag
 	render(null, document.body)
 })
 
-test('default-host roots follow the configured Ajo DOM tag', () => {
-	defaults.tag = 'section'
+test('default-host roots render the Ajo div host in the DOM', () => {
 	render(jsx(DirectionProvider, { children: 'Content', dir: 'rtl' }), document.body)
 
-	expect(document.querySelector('[data-slot="direction-provider"]')?.tagName).toBe('SECTION')
+	expect(document.querySelector('[data-slot="direction-provider"]')?.tagName).toBe('DIV')
 })
 
-test('default-host roots follow the configured Ajo SSR tag', () => {
-	htmlDefaults.tag = 'section'
+test('default-host roots render the Ajo div host in SSR', () => {
 	const html = ssr(jsx(DirectionProvider, {
 		children: jsx(DirectionReadout, {}),
 		class: 'scope',
@@ -34,8 +27,8 @@ test('default-host roots follow the configured Ajo SSR tag', () => {
 		id: 'direction-scope',
 	}))
 
-	expect(html).toMatch(/^<section\b/)
-	expect(html.match(/<section\b/g)).toHaveLength(1)
+	expect(html).toMatch(/^<div\b/)
+	expect(html.match(/<div\b/g)).toHaveLength(1)
 	expect(html).toContain('class="scope"')
 	expect(html).toContain('id="direction-scope"')
 	expect(html).toContain('data-slot="direction-provider"')

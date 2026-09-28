@@ -1,6 +1,6 @@
 {
   "name": "ajo-ui-playa",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Playa themed UI components and UnoCSS preset for Ajo",
   "type": "module",
   "sideEffects": false,
@@ -276,11 +276,11 @@
     "ajo-ui": "workspace:^"
   },
   "peerDependencies": {
-    "ajo": "^0.1.35",
+    "ajo": "^0.2.0",
     "unocss": "66.10.5"
   },
   "devDependencies": {
-    "ajo": "0.1.35",
+    "ajo": "0.2.0",
     "ajo-cloves": "workspace:*",
     "playwright": "1.63.0",
     "sade": "1.8.1",

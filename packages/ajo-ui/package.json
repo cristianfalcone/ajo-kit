@@ -1,6 +1,6 @@
 {
   "name": "ajo-ui",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Unstyled accessible UI components for Ajo",
   "type": "module",
   "sideEffects": false,
@@ -175,10 +175,10 @@
     "ajo-cloves": "workspace:^"
   },
   "peerDependencies": {
-    "ajo": "^0.1.35"
+    "ajo": "^0.2.0"
   },
   "devDependencies": {
-    "ajo": "0.1.35"
+    "ajo": "0.2.0"
   },
   "engines": {
     "node": ">=22.18.0"

@@ -15,7 +15,7 @@ guide for the component pattern.
 pnpm add ajo-cloves ajo
 ```
 
-`ajo-cloves` requires `ajo ^0.1.35`.
+`ajo-cloves` requires `ajo ^0.2.0`.
 
 ```tsx
 import type { Host } from 'ajo'

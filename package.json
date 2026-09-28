@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "26.6.3",
-    "ajo": "0.1.35",
+    "ajo": "0.2.0",
     "ajo-ui-playa": "workspace:*",
     "happy-dom": "20.14.5",
     "tsx": "4.23.15",

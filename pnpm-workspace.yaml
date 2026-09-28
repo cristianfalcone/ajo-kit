@@ -11,6 +11,7 @@ minimumReleaseAgeExclude:
   - ajo-kit-auth@0.6.1
   - ajo-kit-server@0.1.1
   - ajo@0.1.35
+  - ajo@0.2.0
   - ajo-kit-mail@0.3.0
   - ajo-cloves@0.1.2
   - ajo-ui@0.1.2

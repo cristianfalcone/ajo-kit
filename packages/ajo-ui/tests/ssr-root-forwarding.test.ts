@@ -1,4 +1,4 @@
-import { defaults, render as ssr } from 'ajo/html'
+import { render as ssr } from 'ajo/html'
 import { jsx } from 'ajo/jsx-runtime'
 import { expect, test } from 'vitest'
 import { Accordion } from '../src/accordion'
@@ -13,7 +13,7 @@ import { Tabs } from '../src/tabs'
 import { VirtualList } from '../src/virtual-list'
 
 const openingTag = (html: string) => html.match(/^<[^>]+>/)?.[0] ?? ''
-const defaultHost = new RegExp(`^<${defaults.tag}\\b`)
+const defaultHost = /^<div\b/
 
 test('Field forwards DOM attrs to its public Stateful host without leaking behavior args', () => {
 	const html = ssr(jsx(Field, {
@@ -34,7 +34,7 @@ test('Field forwards DOM attrs to its public Stateful host without leaking behav
 	expect(root).toContain('id="email-field"')
 	expect(root).toContain('data-slot="field"')
 	expect(root).not.toMatch(/\s(?:invalid|name)=/)
-	expect(html).toContain(`>Content</${defaults.tag}>`)
+	expect(html).toContain('>Content</div>')
 })
 
 test('DataTable forwards DOM attrs to its single public Stateful host', () => {

@@ -2,6 +2,10 @@ ajo-cloves@0.1.2:
   dir: packages/ajo-cloves
   intents:
     - wise-beds-knock
+ajo-cloves@0.2.0:
+  dir: packages/ajo-cloves
+  intents:
+    - quick-dryers-tap
 ajo-kit-auth@0.5.0:
   dir: packages/ajo-kit-auth
   intents:
@@ -14,6 +18,10 @@ ajo-kit-auth@0.6.1:
   dir: packages/ajo-kit-auth
   intents:
     - fuzzy-lilies-grab
+ajo-kit-auth@0.7.0:
+  dir: packages/ajo-kit-auth
+  intents:
+    - quick-dryers-tap
 ajo-kit-mail@0.2.0:
   dir: packages/ajo-kit-mail
   intents:
@@ -22,6 +30,10 @@ ajo-kit-mail@0.3.0:
   dir: packages/ajo-kit-mail
   intents:
     - puny-bikes-remain
+ajo-kit-mail@0.4.0:
+  dir: packages/ajo-kit-mail
+  intents:
+    - quick-dryers-tap
 ajo-kit@0.2.0:
   dir: packages/ajo-kit
   intents:
@@ -42,11 +54,23 @@ ajo-kit@0.3.2:
   dir: packages/ajo-kit
   intents:
     - modern-hounds-hunt
+ajo-kit@0.4.0:
+  dir: packages/ajo-kit
+  intents:
+    - quick-dryers-tap
 ajo-ui-playa@0.1.2:
   dir: packages/ajo-ui-playa
   intents:
     - dark-rules-double
+ajo-ui-playa@0.2.0:
+  dir: packages/ajo-ui-playa
+  intents:
+    - quick-dryers-tap
 ajo-ui@0.1.2:
   dir: packages/ajo-ui
   intents:
     - sharp-shirts-attend
+ajo-ui@0.2.0:
+  dir: packages/ajo-ui
+  intents:
+    - quick-dryers-tap

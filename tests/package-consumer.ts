@@ -407,19 +407,9 @@ const buildPlaya = async (consumer: string) => {
 	assert.match(html, /Published SSR checkbox/)
 }
 
+// Strictly checks ajo-ui's emitted .d.ts graph, with the published ajo peer,
+// under NodeNext resolution.
 const verifyNodeNextDeclarations = async (consumer: string) => {
-	// ajo@0.1.35 publishes an ambient types.ts that NodeNext rejects. Stub only
-	// that peer so this strictly checks ajo-ui's emitted .d.ts graph.
-	await write(join(consumer, 'ajo.d.ts'), [
-		'export type Args = Record<string, unknown>',
-		'export type Children = unknown',
-		'export type Host<E extends object = object, A = object> = E & { signal: AbortSignal }',
-		'export type IntrinsicElements = Record<string, Record<string, unknown>>',
-		'export type Stateful<A = object> = (args: A) => Iterator<Children>',
-		'export type Stateless<A = object> = (args: A) => Children',
-		'export type WithChildren<A = object> = A & { children?: Children }',
-		'',
-	].join('\n'))
 	await write(join(consumer, 'node-next.ts'), [
 		"import type { AccordionArgs } from 'ajo-ui/accordion'",
 		"import type { ChartConfig } from 'ajo-ui/chart'",
@@ -434,7 +424,7 @@ const verifyNodeNextDeclarations = async (consumer: string) => {
 	await writeJson(join(consumer, 'tsconfig.node-next.json'), {
 		compilerOptions: {
 			module: 'NodeNext', moduleResolution: 'NodeNext', noEmit: true,
-			paths: { ajo: ['./ajo.d.ts'] }, skipLibCheck: false, strict: true, target: 'ESNext',
+			skipLibCheck: false, strict: true, target: 'ESNext',
 		},
 		files: ['node-next.ts'],
 	})

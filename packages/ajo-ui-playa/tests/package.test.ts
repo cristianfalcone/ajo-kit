@@ -89,7 +89,7 @@ test('the manifest keeps build-time peers and runtime ownership explicit', () =>
 		'ajo-ui': 'workspace:^',
 	})
 	expect(metadata.peerDependencies).toEqual({
-		ajo: '^0.1.35',
+		ajo: '^0.2.0',
 		unocss: '66.10.5',
 	})
 })

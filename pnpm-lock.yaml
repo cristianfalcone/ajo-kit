@@ -14,8 +14,8 @@ importers:
         specifier: 26.6.3
         version: 26.6.3
       ajo:
-        specifier: 0.1.35
-        version: 0.1.35
+        specifier: 0.2.0
+        version: 0.2.0
       ajo-ui-playa:
         specifier: workspace:*
         version: link:packages/ajo-ui-playa
@@ -44,8 +44,8 @@ importers:
   packages/ajo-cloves:
     devDependencies:
       ajo:
-        specifier: 0.1.35
-        version: 0.1.35
+        specifier: 0.2.0
+        version: 0.2.0
 
   packages/ajo-kit:
     dependencies:
@@ -72,8 +72,8 @@ importers:
         specifier: 9.6.0
         version: 9.6.0
       ajo:
-        specifier: 0.1.35
-        version: 0.1.35
+        specifier: 0.2.0
+        version: 0.2.0
       vite:
         specifier: 8.3.1
         version: 8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)
@@ -110,8 +110,8 @@ importers:
         version: link:../ajo-cloves
     devDependencies:
       ajo:
-        specifier: 0.1.35
-        version: 0.1.35
+        specifier: 0.2.0
+        version: 0.2.0
 
   packages/ajo-ui-playa:
     dependencies:
@@ -123,8 +123,8 @@ importers:
         version: link:../ajo-ui
     devDependencies:
       ajo:
-        specifier: 0.1.35
-        version: 0.1.35
+        specifier: 0.2.0
+        version: 0.2.0
       ajo-cloves:
         specifier: workspace:*
         version: link:../ajo-cloves
@@ -147,8 +147,8 @@ importers:
   packages/demo:
     dependencies:
       ajo:
-        specifier: 0.1.35
-        version: 0.1.35
+        specifier: 0.2.0
+        version: 0.2.0
       ajo-cloves:
         specifier: workspace:*
         version: link:../ajo-cloves
@@ -1190,6 +1190,9 @@ packages:
 
   ajo@0.1.35:
     resolution: {integrity: sha512-v6zoXJ8ejitoSNKzb5QPLfBbs4jHzGEihaokuZtLZQs2uP0vQI3hvgzANzQQVNX1SbdoCMrb87oymA6J/c/YzQ==}
+
+  ajo@0.2.0:
+    resolution: {integrity: sha512-f9berynUedfSVXPRyEs+ymlSx6mN3KE1OvXHC8INCBcIfvDELB/iVl7pqa9AY5sFh8rnU/Sb38GSgVY/JJ285w==}
 
   ajv@8.20.0:
     resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
@@ -3860,6 +3863,8 @@ snapshots:
       ajo-cloves: 0.1.2(ajo@0.1.35)
 
   ajo@0.1.35: {}
+
+  ajo@0.2.0: {}
 
   ajv@8.20.0:
     dependencies:

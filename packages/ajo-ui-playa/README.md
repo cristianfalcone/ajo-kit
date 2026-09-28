@@ -9,7 +9,7 @@ pnpm add ajo ajo-ui-playa
 pnpm add -D unocss@66.10.5
 ```
 
-`ajo-ui-playa` requires `ajo ^0.1.35` and `unocss 66.10.5`.
+`ajo-ui-playa` requires `ajo ^0.2.0` and `unocss 66.10.5`.
 
 ## UnoCSS Setup
 

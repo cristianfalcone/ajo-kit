@@ -9,7 +9,7 @@ pnpm add ajo ajo-kit
 pnpm add -D vite typescript @types/node
 ```
 
-`ajo-kit` requires `ajo ^0.1.35`, `vite ^8.3.1`, and Node 22.18 or newer as
+`ajo-kit` requires `ajo ^0.2.0`, `vite ^8.3.1`, and Node 22.18 or newer as
 its development, build, test, and CLI host. Production applications execute
 only on the ajo engine. TypeScript migrations run through Node's built-in type
 stripping for CLI operations and use erasable TypeScript syntax.

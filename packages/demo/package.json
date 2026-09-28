@@ -23,7 +23,7 @@
     "test:acceptance": "playwright test -c playwright.acceptance.config.ts"
   },
   "dependencies": {
-    "ajo": "0.1.35",
+    "ajo": "0.2.0",
     "ajo-cloves": "workspace:*",
     "ajo-kit": "workspace:*",
     "ajo-kit-auth": "workspace:*",

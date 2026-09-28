@@ -12,7 +12,7 @@ to build an application UI or a reusable theme.
 pnpm add ajo ajo-ui
 ```
 
-`ajo-ui` requires `ajo ^0.1.35`.
+`ajo-ui` requires `ajo ^0.2.0`.
 
 The package is authored in TypeScript and ships generated `.d.ts`
 declarations for every component-family subpath and `ajo-ui/utils`. Published
