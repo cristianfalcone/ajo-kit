@@ -1,4 +1,6 @@
 /** @jsxImportSource ajo */
+import type { Stateful } from 'ajo'
+import { overflow } from 'ajo-cloves'
 import type { Meta, Story } from '../app'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from 'ajo-ui-playa/alert'
 import { Button } from 'ajo-ui-playa/button'
@@ -54,6 +56,35 @@ const log = [
 	'14:32:04 shop-api  GET /orders/8813 404 9ms',
 	'14:32:05 mailer    exited with code 1 (SMTP connection refused)',
 ]
+
+/**
+ * The log tail on the navy carpet. Long lines scroll inside the frame, and the
+ * lines fade toward the edge there is more to read (a mask on the lines, from
+ * the overflow stamps), so the frame and its focus ring stay whole.
+ */
+const Log: Stateful<{ label: string }, 'div'> = function* () {
+	let lines: HTMLPreElement | null = null
+	const edges = overflow(this, { target: () => lines })
+
+	for (const { label } of this) {
+		yield (
+			<pre
+				ref={element => {
+					lines = element
+					edges.sync()
+				}}
+				dir="ltr"
+				tabindex={0}
+				aria-label={label}
+				class="overflow-x-auto p-4 font-mono text-xs leading-5 outline-none"
+			>
+				{log.join('\n')}
+			</pre>
+		)
+	}
+}
+
+Log.attrs = { class: 'navy rounded-lg has-[>pre:focus-visible]:[outline:var(--focus-width)_solid_var(--page-ring)]' }
 
 const Dashboard = () => (
 	<Page title={t('Host health', 'صحة المضيف')} lead={t('host-01, as of 14:32. Numbers refresh every minute.', 'host-01، حتى الساعة 14:32. تتحدث الأرقام كل دقيقة.')}>
@@ -113,9 +144,7 @@ const Dashboard = () => (
 		</div>
 
 		<Section title={t('Latest log lines', 'أحدث أسطر السجل')}>
-			<pre dir="ltr" tabindex={0} aria-label={t('Latest log lines', 'أحدث أسطر السجل')} class="navy overflow-x-auto rounded-lg p-4 font-mono text-xs leading-5">
-				{log.join('\n')}
-			</pre>
+			<Log label={t('Latest log lines', 'أحدث أسطر السجل')} />
 		</Section>
 	</Page>
 )

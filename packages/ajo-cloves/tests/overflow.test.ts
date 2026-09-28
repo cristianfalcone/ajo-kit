@@ -84,6 +84,34 @@ test('scroll, resize and re-render share one measure per frame', () => {
 	expect(raf.flush()).toBe(1)
 })
 
+test('holds the sideways scroll offset from the inline start while content overflows sideways', () => {
+	const raf = frames()
+	const ctx = setup()
+
+	ctx.target = ctx.a
+	ctx.view.sync()
+	raf.flush()
+	expect(ctx.a.style.getPropertyValue('--overflow-x-offset')).toBe('50px')
+
+	// A right-to-left scroller reports a negative position.
+	Object.defineProperty(ctx.a, 'scrollLeft', { configurable: true, value: -120 })
+	ctx.a.dispatchEvent(new Event('scroll'))
+	raf.flush()
+	expect(ctx.a.style.getPropertyValue('--overflow-x-offset')).toBe('120px')
+
+	Object.defineProperty(ctx.a, 'scrollWidth', { configurable: true, value: 100 })
+	ctx.a.dispatchEvent(new Event('scroll'))
+	raf.flush()
+	expect(ctx.a.style.getPropertyValue('--overflow-x-offset')).toBe('')
+
+	Object.defineProperty(ctx.a, 'scrollWidth', { configurable: true, value: 300 })
+	ctx.a.dispatchEvent(new Event('scroll'))
+	raf.flush()
+	ctx.target = null
+	ctx.view.sync()
+	expect(ctx.a.style.getPropertyValue('--overflow-x-offset')).toBe('')
+})
+
 test('SSR sync is inert and does not resolve the target', () => {
 	expect(serve(host => overflow(host, {
 		target: () => {

@@ -544,12 +544,13 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 		'set:onblur': blurred(chart),
 		'set:onfocus': focus,
 	})
-	// Category labels that fit: the first, every `every`th after it, and the
-	// last when it clears the one before.
+	// Category labels that fit: the last (the newest point on a time axis) and
+	// every `every`th before it, one even step, so the axis never reads a gap
+	// in the data.
 	const labels = chart.data.map((row, index) => text(labelFor(chart, row, index)).slice(0, 12))
 	const every = Math.ceil((Math.max(...labels.map(label => label.length)) * LABEL_CHAR + LABEL_GAP) / ((type === 'bar' ? groupWidth : xStep) || Infinity)) || 1
 	const last = labels.length - 1
-	const shown = (index: number) => !index || (index === last ? last >= every : index % every === 0 && last - index >= every)
+	const shown = (index: number) => (last - index) % every === 0
 
 	const activate = (index: number, svg: SVGSVGElement) => {
 		if (showing(chart, index, svg, seriesKeys)) return

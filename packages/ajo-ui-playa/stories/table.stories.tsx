@@ -217,11 +217,21 @@ export const Wide: Story<typeof Table> = {
 		if (container.scrollWidth <= container.clientWidth) {
 			throw new Error('Wide table should overflow inside the responsive container')
 		}
-		// The side with more to see fades inside the frame: a band over the cells,
-		// never a mask, which would fade the border, the corners and the ring too.
+		// The side with more to see fades inside the frame: a mask on the table,
+		// pinned to the frame's view, never on the frame, whose border, corners and
+		// ring stay whole (and whose card shows through the fade, even under a tinted row).
 		await until(() => container.getAttribute('data-overflow-x') === 'end', 'A wide table at rest does not stamp its end as overflowing')
 		if (getComputedStyle(container).maskImage !== 'none') throw new Error('The table frame is masked')
-		if (getComputedStyle(container, '::after').content === 'none') throw new Error('The overflowing end shows no fade')
-		if (getComputedStyle(container, '::before').content !== 'none') throw new Error('The start fades while the table rests at its start')
+		const fades = () => ['--fade-start', '--fade-end'].map(name => getComputedStyle(container).getPropertyValue(name).trim() || '0')
+		if (getComputedStyle(table).maskImage === 'none') throw new Error('The overflowing end shows no fade')
+		if (fades().join() !== '0,1rem') throw new Error(`The table at rest fades ${fades().join(' and ')}, not only its end`)
+		container.scrollLeft = 40
+		try {
+			await until(() => container.getAttribute('data-overflow-x') === 'both', 'A scrolled table does not stamp both ends')
+			await until(() => getComputedStyle(table).maskPosition.startsWith('40px'), `The fade does not follow the scroll: ${getComputedStyle(table).maskPosition}`)
+			if (fades().join() !== '1rem,1rem') throw new Error(`The scrolled table fades ${fades().join(' and ')}, not both ends`)
+		} finally {
+			container.scrollLeft = 0
+		}
 	},
 }

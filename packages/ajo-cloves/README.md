@@ -110,7 +110,7 @@ keyed reconciliation reuses an element.
 | `storage` | Reactive `localStorage` string with cross-tab sync; the fallback on the server or when storage throws. Compare the value with known literals. | `key` (string), `fallback`; getter `value`, method `set`. |
 | `scrolling` | Frame-coalesced scroll tracking for a live element. | `target`, `onScroll`, `onEnd`; method `sync`. |
 | `resize` | Shared `ResizeObserver` notifications for a live element. | `target`, `onResize`; method `sync`. |
-| `overflow` | Stamps `data-overflow-x`/`-y` (`start`/`end`/`both`) while content overflows a live scrollable element. | `target`; method `sync`. |
+| `overflow` | Stamps `data-overflow-x`/`-y` (`start`/`end`/`both`) while content overflows a live scrollable element, and `--overflow-x-offset` (px scrolled from the inline start) while it overflows sideways. | `target`; method `sync`. |
 | `visibility` | Reactive document visibility. | No options. |
 
 ### Infrastructure

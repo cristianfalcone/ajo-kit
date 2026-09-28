@@ -142,9 +142,9 @@ const hidden = (label: string) => <span class="invisible">{label}</span>
 
 const LoadingTable = () => (
 	<div class="flex w-full flex-col gap-4" aria-busy="true">
-		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-			<div class="flex flex-1 flex-wrap items-center gap-2">
-				<Skeleton class="h-8 w-[180px] lg:w-[260px]" />
+		<div class="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-between">
+			<div class="flex flex-1 flex-wrap items-center gap-2 max-sm:contents">
+				<Skeleton class="h-8 max-sm:-order-1 max-sm:min-w-0 max-sm:flex-[1_1_calc(100%-8rem)] sm:w-[180px] lg:w-[260px]" />
 				{columns().flatMap(column => 'facet' in column && column.facet ? [(
 					<Skeleton key={column.label} class="inline-flex h-8 items-center gap-2 border border-transparent px-3 text-sm font-medium">
 						<span class="size-4" />
@@ -152,7 +152,7 @@ const LoadingTable = () => (
 					</Skeleton>
 				)] : [])}
 			</div>
-			<Skeleton class="inline-flex h-8 items-center gap-2 self-start px-3 text-sm font-medium sm:self-auto">
+			<Skeleton class="inline-flex h-8 items-center gap-2 px-3 text-sm font-medium max-sm:-order-1">
 				{hidden(t('Columns', 'الأعمدة'))}
 				<span class="size-4" />
 			</Skeleton>
@@ -253,6 +253,21 @@ const key = (name: string) => {
 	press(target, name)
 }
 
+/** Asserts the bar takes at most two rows and the search shows its whole placeholder, with or without Reset. */
+const assertBar = (canvas: HTMLElement) => {
+	const controls = [...canvas.querySelectorAll<HTMLElement>('[data-slot="data-table-toolbar"] :is(input, button)')].filter(control => control.checkVisibility())
+	const tops = new Set(controls.map(control => Math.round(control.getBoundingClientRect().top)))
+	if (tops.size > 2) throw new Error(`The table bar takes ${tops.size} rows`)
+	const input = canvas.querySelector<HTMLInputElement>('[data-slot="data-table-search"]')
+	if (!input) throw new Error('The table has no search')
+	const style = getComputedStyle(input)
+	const context = document.createElement('canvas').getContext('2d')!
+	context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+	const room = input.clientWidth - Number.parseFloat(style.paddingInlineStart) - Number.parseFloat(style.paddingInlineEnd)
+	const text = context.measureText(input.placeholder).width
+	if (text > room) throw new Error(`The search placeholder needs ${Math.ceil(text)} px and has ${Math.floor(room)}`)
+}
+
 /** Waits until focus sits on an element that matches `selector`. */
 const focused = (selector: string, message: string) => until(() => !!document.activeElement?.matches(selector), message)
 
@@ -266,6 +281,7 @@ export default {
 
 export const Default: Story = {
 	render: () => <Deployments selected={['v89-9d4a7b6', 'v311-b52f8a3']} />,
+	play: async ({ canvas }) => assertBar(canvas),
 	parameters: {
 		layers: {
 			'row-actions': '[data-screen-layer="row-actions"]',
@@ -314,6 +330,7 @@ export const Filtered: Story = {
 		const edge = container.getBoundingClientRect()
 		const cell = canvas.querySelector('tbody td')?.getBoundingClientRect()
 		if (!cell || cell.left < edge.left || cell.right > edge.right) throw new Error('The filtered table does not rest at its start')
+		assertBar(canvas)
 	},
 }
 
@@ -345,5 +362,6 @@ export const NoResults: Story = {
 		search(canvas, 'v400')
 		await until(() => !!canvas.querySelector('[data-slot="data-table-empty"]'), 'Searching "v400" did not empty the table')
 		;(document.activeElement as HTMLElement | null)?.blur()
+		assertBar(canvas)
 	},
 }

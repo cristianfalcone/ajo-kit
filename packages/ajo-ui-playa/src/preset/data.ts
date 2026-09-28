@@ -23,17 +23,24 @@ const focus = [
   '.playa-data-table :where([data-slot=data-table-container]:has(>[data-slot=table]:focus-visible)){outline:var(--focus-width) solid var(--ring);outline-offset:calc(var(--focus-width)/-2)}',
 ].join('')
 
-// A wide table fades the edge it scrolls toward inside its frame: a sticky
-// band of the card colour over the cells, so the border, the corners and the
-// focus ring stay whole (a mask would fade them too). The table and the bands
-// share the one grid cell; the bands stick to the scroller's ends.
+// A wide table fades the edge it scrolls toward inside its frame: a mask on
+// the table itself, pinned to the frame's visible box by the scroll offset
+// the container stamps, so rows and their tints fade into the card while the
+// border, the corners and the focus ring (all the frame's) stay whole. The
+// frame measures the mask only while it overflows, when its width comes from
+// its parent, not from the table. Three costs come with it: an overflowing
+// frame no longer lends the table's width to a fit-content ancestor (a popover
+// or card holding a table narrows once it overflows); the inherited offset
+// restyles the table's subtree on every scroll frame (not measured, cheap for
+// a page of rows, less so for a long list); and on touch, where the compositor
+// scrolls before the main thread, the mask trails the scroll by a frame.
 const table = ':is([data-slot=table-container],[data-slot=data-table-container])'
+const fade = 'linear-gradient(to var(--fade-x,right),transparent,#000 var(--fade-start,0),#000 calc(100% - var(--fade-end,0)),transparent)'
 const edges = [
-  `${table}>*{grid-area:1/1}`,
-  `${table}[data-overflow-x]{-webkit-mask-image:none;mask-image:none}`,
-  `${table}:is([data-overflow-x=start],[data-overflow-x=both])::before,${table}:is([data-overflow-x=end],[data-overflow-x=both])::after{content:"";position:sticky;z-index:1;grid-area:1/1;width:1rem;pointer-events:none}`,
-  `${table}::before{justify-self:start;inset-inline-start:0;background:linear-gradient(to var(--fade-x,right),var(--card),transparent)}`,
-  `${table}::after{justify-self:end;inset-inline-end:0;background:linear-gradient(to var(--fade-x,right),transparent,var(--card))}`,
+  `${table}[data-overflow-x]{container-type:inline-size;-webkit-mask-image:none;mask-image:none}`,
+  `${table}:is([data-overflow-x=start],[data-overflow-x=both]){--fade-start:1rem}${table}:is([data-overflow-x=end],[data-overflow-x=both]){--fade-end:1rem}`,
+  `${table}[data-overflow-x]>[data-slot=table]{mask:${fade} var(--overflow-x-offset,0) 0/100cqi 100% no-repeat}`,
+  `${table}[data-overflow-x]:dir(rtl)>[data-slot=table]{mask-position:right var(--overflow-x-offset,0) top 0}`,
 ].join('')
 
 /** Shortcuts and rules of Table, DataTable, Pagination, VirtualList and Chart. */
@@ -51,7 +58,7 @@ export const data: Preset = {
     // Enamel: the flat card fill inside a real border. A border paints
     // outside the padding box the rows scroll in, so no opaque row fill
     // covers it.
-    'playa-table-container': 'playa-table-edges relative grid w-full overflow-x-auto rounded-lg border bg-card text-card-foreground',
+    'playa-table-container': 'playa-table-edges relative w-full overflow-x-auto rounded-lg border bg-card text-card-foreground',
     // One slot recipe owns the whole table family. The manual Table wrapper
     // and the DataTable root both carry `playa-table`, so header/cell
     // geometry, typography, and row states have a single source and render
@@ -72,9 +79,11 @@ export const data: Preset = {
       '[&_:where([data-slot=table]):not(:has([data-slot=table-caption]))_:where([data-slot=table-body],[data-slot=table-footer]):last-child_tr:last-child>*]:border-b-0',
       '[&_:where([data-slot=table-footer])]:bg-muted/50 [&_:where([data-slot=table-footer])]:font-medium',
       // Hover only means something on data rows; header and footer stay
-      // quiet. Selection is the gold tint, hover and an open row menu half of
-      // it; the translucent hairline keeps its weight over both.
-      '[&_:where([data-slot=table-row])>*]:border-b [&_:where([data-slot=table-row])>*]:transition-colors [&_:where([data-slot=table-row])]:transition-colors [&_:where([data-slot=table-body])_:where([data-slot=table-row]):is(:hover,:has([aria-expanded=true]))]:bg-accent/50 [&_:where([data-slot=table-row])[data-state=selected]]:bg-accent',
+      // quiet. Selection is the gold tint; hover and an open row menu take
+      // half of it by day and the muted fill at night, where half the night
+      // gold reads as selected. The translucent hairline keeps its weight
+      // over both.
+      '[&_:where([data-slot=table-row])>*]:border-b [&_:where([data-slot=table-row])>*]:transition-colors [&_:where([data-slot=table-row])]:transition-colors [&_:where([data-slot=table-body])_:where([data-slot=table-row]):is(:hover,:has([aria-expanded=true]))]:bg-[light-dark(color-mix(in_srgb,var(--accent)_50%,transparent),var(--muted))] [&_:where([data-slot=table-row])[data-state=selected]]:bg-accent',
       // Headers are sentence case at the body size, start-aligned like their
       // cells in either direction.
       '[&_:where([data-slot=table-head])]:h-10 [&_:where([data-slot=table-head])]:px-4 [&_:where([data-slot=table-head])]:text-start [&_:where([data-slot=table-head])]:align-middle [&_:where([data-slot=table-head])]:font-medium [&_:where([data-slot=table-head])]:whitespace-nowrap [&_:where([data-slot=table-head])]:text-muted-foreground',
@@ -118,13 +127,20 @@ export const data: Preset = {
     'playa-data-table': [
       'playa-data-table-focus flex w-full flex-col gap-4',
       // The bar: one control height, search then facets, the column menu at the end.
-      '[&_:where([data-slot=data-table-toolbar])]:flex [&_:where([data-slot=data-table-toolbar])]:flex-col [&_:where([data-slot=data-table-toolbar])]:gap-2 sm:[&_:where([data-slot=data-table-toolbar])]:flex-row sm:[&_:where([data-slot=data-table-toolbar])]:items-center sm:[&_:where([data-slot=data-table-toolbar])]:justify-between',
-      '[&_:where([data-slot=data-table-toolbar-controls])]:flex [&_:where([data-slot=data-table-toolbar-controls])]:flex-1 [&_:where([data-slot=data-table-toolbar-controls])]:flex-wrap [&_:where([data-slot=data-table-toolbar-controls])]:items-center [&_:where([data-slot=data-table-toolbar-controls])]:gap-2',
-      '[&_:where([data-slot=data-table-search])]:h-control-sm [&_:where([data-slot=data-table-search])]:w-45 [&_:where([data-slot=data-table-search])]:rounded-md [&_:where([data-slot=data-table-search])]:edge-input [&_:where([data-slot=data-table-search])]:bg-transparent [&_:where([data-slot=data-table-search])]:px-3 [&_:where([data-slot=data-table-search])]:text-base sm:[&_:where([data-slot=data-table-search])]:text-sm lg:[&_:where([data-slot=data-table-search])]:w-65',
+      // On a phone the controls group steps aside so the bar holds two rows: the
+      // search and the column menu first, the facets and reset under them. The
+      // search leaves 8rem, room for the column menu and none for a facet, so its
+      // placeholder is never cut. Tab still follows the source (search, facets,
+      // reset, columns), which ends on the column menu as the wide bar does.
+      '[&_:where([data-slot=data-table-toolbar])]:flex [&_:where([data-slot=data-table-toolbar])]:flex-wrap [&_:where([data-slot=data-table-toolbar])]:items-center [&_:where([data-slot=data-table-toolbar])]:gap-2 sm:[&_:where([data-slot=data-table-toolbar])]:flex-nowrap sm:[&_:where([data-slot=data-table-toolbar])]:justify-between',
+      'max-sm:[&_:where([data-slot=data-table-toolbar-controls])]:contents [&_:where([data-slot=data-table-toolbar-controls])]:flex [&_:where([data-slot=data-table-toolbar-controls])]:flex-1 [&_:where([data-slot=data-table-toolbar-controls])]:flex-wrap [&_:where([data-slot=data-table-toolbar-controls])]:items-center [&_:where([data-slot=data-table-toolbar-controls])]:gap-2',
+      'max-sm:[&_:where([data-slot=data-table-search])]:-order-1 max-sm:[&_:where([data-slot=data-table-search])]:min-w-0 max-sm:[&_:where([data-slot=data-table-search])]:flex-[1_1_calc(100%-8rem)] max-sm:[&_:where([data-slot=data-table-toolbar])>:has(>[data-slot=data-table-columns])]:-order-1 [&_:where([data-slot=data-table-search])]:h-control-sm sm:[&_:where([data-slot=data-table-search])]:w-45 [&_:where([data-slot=data-table-search])]:rounded-md [&_:where([data-slot=data-table-search])]:edge-input [&_:where([data-slot=data-table-search])]:bg-transparent [&_:where([data-slot=data-table-search])]:px-3 [&_:where([data-slot=data-table-search])]:text-base sm:[&_:where([data-slot=data-table-search])]:text-sm lg:[&_:where([data-slot=data-table-search])]:w-65',
       // Facets, reset and the column menu are Button's outline and ghost at
       // its sm size (base-owned parts take no classes, so the tokens are restated).
       '[&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset])]:inline-flex [&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset])]:h-control-sm [&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset])]:items-center [&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset])]:gap-2 [&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset])]:rounded-md [&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset])]:px-3 [&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset])]:text-sm [&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset])]:font-medium [&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset])]:whitespace-nowrap [&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset])]:text-foreground',
-      '[&_:where([data-slot=data-table-facet],[data-slot=data-table-columns])]:edge hover:[&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset])]:bg-accent',
+      // Gold is for selection: an open menu's trigger takes the raised fill,
+      // hovered or not.
+      '[&_:where([data-slot=data-table-facet],[data-slot=data-table-columns])]:edge hover:[&_:where([data-slot=data-table-facet],[data-slot=data-table-columns],[data-slot=data-table-reset]):not([aria-expanded=true])]:bg-accent [&_:where([data-slot=data-table-facet],[data-slot=data-table-columns])[aria-expanded=true]]:bg-secondary',
       '[&_:where([data-slot=data-table-facet-icon])]:i-lucide-list-filter [&_:where([data-slot=data-table-facet-icon])]:size-4 [&_:where([data-slot=data-table-facet-icon],[data-slot=data-table-columns-icon])]:text-muted-foreground',
       '[&_:where([data-slot=data-table-facet-count])]:min-w-5 [&_:where([data-slot=data-table-facet-count])]:rounded-sm [&_:where([data-slot=data-table-facet-count])]:bg-accent [&_:where([data-slot=data-table-facet-count])]:px-1 [&_:where([data-slot=data-table-facet-count])]:text-center [&_:where([data-slot=data-table-facet-count])]:text-xs [&_:where([data-slot=data-table-facet-count])]:tabular-nums',
       '[&_:where([data-slot=data-table-columns-icon])]:i-lucide-chevron-down [&_:where([data-slot=data-table-columns-icon])]:size-4 [&_:where([data-slot=data-table-reset-icon])]:i-lucide-x [&_:where([data-slot=data-table-reset-icon])]:size-4',

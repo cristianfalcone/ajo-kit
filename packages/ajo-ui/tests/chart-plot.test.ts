@@ -78,7 +78,7 @@ test('Chart paints the largest area first, so a series below another keeps its o
 		.toEqual(['data-chart-series="errors"', 'data-chart-series="total"'])
 })
 
-test('Chart x axis keeps the first and last labels and thins the ones between to fit', () => {
+test('Chart x axis keeps the last label and thins the ones before it to fit at one even step', () => {
 	const labels = (width: number) => group(ssr(jsx(ChartContainer, {
 		children: jsx(ChartArea, { grid: false }),
 		config: { api: { label: 'API' } },
@@ -89,10 +89,10 @@ test('Chart x axis keeps the first and last labels and thins the ones between to
 	})), 'chart-axis')?.match(/>\d\d:00</g)
 
 	// 12 labels of 5 characters need 43 units each; the plot is 584 units wide at 640, 302 at
-	// 358 (every second label) and 184 at 240 (every third, the last clear of the tenth).
+	// 358 (every second label) and 184 at 240 (every third). The step counts back from the newest.
 	expect(labels(640)).toHaveLength(12)
-	expect(labels(358)).toEqual(['>03:00<', '>05:00<', '>07:00<', '>09:00<', '>11:00<', '>14:00<'])
-	expect(labels(240)).toEqual(['>03:00<', '>06:00<', '>09:00<', '>14:00<'])
+	expect(labels(358)).toEqual(['>04:00<', '>06:00<', '>08:00<', '>10:00<', '>12:00<', '>14:00<'])
+	expect(labels(240)).toEqual(['>05:00<', '>08:00<', '>11:00<', '>14:00<'])
 })
 
 test('ChartPie keeps a ring on a plot too small for its inner radius', () => {

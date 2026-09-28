@@ -122,7 +122,9 @@ const Apps = ({ state }: { state: State }) => (
 	<Page
 		title={t('Apps', 'التطبيقات')}
 		lead={t('Everything deployed to host-01.', 'كل ما نُشر على host-01.')}
-		action={state === 'loaded' || state === 'loading' || state === 'unmatched' ? <Button>{t('Deploy an app', 'انشر تطبيقًا')}</Button> : undefined}
+		// The header keeps its action whatever the list does; an empty host offers
+		// its first deploy in place, and a person without access has none.
+		action={state === 'empty' || state === 'denied' ? undefined : <Button>{t('Deploy an app', 'انشر تطبيقًا')}</Button>}
 	>
 		{content(state)}
 	</Page>
@@ -148,6 +150,10 @@ export const NoResults: Story = {
 
 export const Failed: Story = {
 	args: { state: 'failed' },
+	// A failed load keeps the header the loading page showed.
+	play: ({ canvas }) => {
+		if (!canvas.querySelector('header [data-slot="button"]')) throw new Error('The header lost Deploy an app when the load failed')
+	},
 }
 
 export const Denied: Story = {

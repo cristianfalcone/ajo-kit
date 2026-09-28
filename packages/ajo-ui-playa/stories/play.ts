@@ -324,21 +324,61 @@ export const assertFocusVisible = (root: HTMLElement) => {
 }
 
 /**
+ * The box a pointer can hit, for each of `elements` in tree order: its own,
+ * grown to the hit box a small target draws as an absolutely positioned
+ * `::before` centred on it (the date segments, whose digits sit together), less
+ * the strip a later target's grown box covers on the same line: the later one
+ * paints over it and takes the pointer there.
+ */
+const hitBoxes = (elements: HTMLElement[]) => {
+	const boxes = elements.map(element => {
+		const rect = element.getBoundingClientRect()
+		const before = getComputedStyle(element, '::before')
+		if (before.content === 'none' || before.position !== 'absolute' || before.pointerEvents === 'none') return { grown: false, rect }
+		const width = Math.max(rect.width, Number.parseFloat(before.width) || 0)
+		const height = Math.max(rect.height, Number.parseFloat(before.height) || 0)
+		return { grown: true, rect: new DOMRect(rect.left - (width - rect.width) / 2, rect.top - (height - rect.height) / 2, width, height) }
+	})
+	return boxes.map(({ rect }, index) => {
+		let { left, right } = rect
+		for (const [later, { grown, rect: cover }] of boxes.entries()) {
+			if (later <= index || !grown || elements[index].contains(elements[later])) continue
+			if (cover.top > rect.top || cover.bottom < rect.bottom || cover.right <= left || cover.left >= right) continue
+			if (cover.left > left) right = Math.min(right, cover.left)
+			else left = Math.max(left, cover.right)
+		}
+		return new DOMRect(left, rect.top, Math.max(right - left, 0), rect.height)
+	})
+}
+
+/**
+ * The control that makes a target equivalent under SC 2.5.8, by name: a date
+ * segment (day, month or year) has its field's calendar button, which sets the
+ * same date. Time segments have none.
+ */
+const equivalent = (element: Element) =>
+	element.matches('[data-segment=day], [data-segment=month], [data-segment=year]')
+		? element.closest('[data-slot=input-date]')?.querySelector('[data-slot=input-date-trigger]')
+		: null
+
+/**
  * Asserts WCAG 2.2 SC 2.5.8: every visible target in `root` is at least 24 by
  * 24 CSS px, or a 24 px circle on its centre touches no other target nor the
- * circle of another small target. Links inside a line of text are exempt.
+ * circle of another small target. Links inside a line of text are exempt, and
+ * so is a target whose `equivalent` control passes itself (the criterion's
+ * equivalent exception: a date segment beside its calendar button).
  * Throws a `target-size` failure with one line per undersized target.
  */
 export const assertTargetSize = (root: HTMLElement) => {
-	const targets = shown(root)
-		.filter(element => !(element.localName === 'a' && getComputedStyle(element).display === 'inline'))
-		.map(element => ({ element, rect: element.getBoundingClientRect() }))
+	const elements = shown(root).filter(element => !(element.localName === 'a' && getComputedStyle(element).display === 'inline'))
+	const boxes = hitBoxes(elements)
+	const targets = elements.map((element, index) => ({ element, rect: boxes[index] }))
 	const small = (rect: DOMRect) => rect.width < 24 || rect.height < 24
 	const centre = (rect: DOMRect) => [rect.left + rect.width / 2, rect.top + rect.height / 2]
 	const gap = (x: number, y: number, rect: DOMRect) =>
 		Math.hypot(Math.max(rect.left - x, 0, x - rect.right), Math.max(rect.top - y, 0, y - rect.bottom))
 
-	const failures = targets.filter(({ element, rect }) => {
+	const undersized = targets.filter(({ element, rect }) => {
 		if (!small(rect)) return false
 		const [x, y] = centre(rect)
 		return targets.some(other => {
@@ -350,6 +390,9 @@ export const assertTargetSize = (root: HTMLElement) => {
 			return gap(x, y, other.rect) < 12
 		})
 	})
+	const passes = (control: Element | null | undefined) =>
+		!!control && elements.includes(control as HTMLElement) && !undersized.some(({ element }) => element === control)
+	const failures = undersized.filter(({ element }) => !passes(equivalent(element)))
 	if (failures.length) {
 		throw new CheckError('target-size', failures.map(({ element, rect }) => `${describe(element)} is ${rect.width}x${rect.height}, under 24 px without spacing`))
 	}

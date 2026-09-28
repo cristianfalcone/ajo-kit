@@ -24,8 +24,10 @@ pnpm stories:test:screens --match screens-form # one screen
 ```
 
 Captures land in `.tmp/screens/<run>/` with a `summary.json`, each at the screen's full
-height, open layers included. The run fails on a check or a play, never on pixels; it
-lists captures that differ from the reviewed references in `stories/visual/`.
+height, open menus and popovers included; a modal layer is captured at the window's
+height (900 px), over the page scrolled to its trigger. The run fails on a check or a
+play, never on pixels; it lists captures that differ from the reviewed references in
+`stories/visual/`.
 
 ## Writing a screen
 
@@ -102,14 +104,6 @@ trusted keys through the runner's keyboard is still open (see "Open items" below
 What the screen pass (p5-kit-19) left open, each with its owner. An item closes when its
 owner lands it or Cristian drops it.
 
-- **Date segment spacing (Cristian).** Segments are 24 px wide (`min-w-6`) with centred
-  digits, so the date reads "10 / 5 /2026" and its first digit sits about 5 px past the
-  text of every other control in a form column; in a right-to-left group the time units
-  stay inline and lose the 24 px. Two ways out, his to choose before the Form reference
-  is accepted: (a) keep `min-w-6`, zero-pad day and month, give every segment and
-  separator the same inset and pull the control's start padding in by it; (b) keep the
-  digits tight ("10/5/2026", on the column) and give each segment a centred 24 px hit
-  box as a `::before`, which also covers inline time segments in RTL.
 - **Plays that press real keys (the W4 pass).** The runner gives plays the page's trusted
   keyboard, so Dialog's play finishes its task by keyboard (Tab, Enter on native
   buttons, Escape on the native dialog).
@@ -127,6 +121,25 @@ owner lands it or Cristian drops it.
   below `sm` fades both ends statically (`scroll-fade-x`) and indents its first item
   16 px; an `overflow()` stamp on the list in ajo-ui, as Tabs has, fades only the side
   with more to see.
+- **Button's open ghost trigger (the actions lane in W4).** A table row's open actions
+  trigger wears the gold tint, while the open facet and Columns triggers beside it take
+  the raised fill, so one open state reads two ways on the Table screen; the proposal is
+  the raised fill for any open ghost trigger, as for NavigationMenu.
+- **Time segments and SC 2.5.8 (Cristian).** A time segment reaches less than 24 px
+  where the next one's target covers it (the hour in "9:30" reaches 20 to 22 px) and has
+  no equivalent control, so the target-size check fails it on any screen that composes
+  an InputTime (the admin in W5). The way out is his: wider time segments, or a known
+  item he accepts on the family story; the screens gate never hides it.
+
+Closed by the reference pass: date segments keep their digits together ("10/5/2026", on
+the text column of the other controls) and each keeps a 24 px target as a centred
+`::before`, so the time units stay inline in RTL too. Where two targets overlap (a
+one-digit day beside a two-digit month) the later segment takes the shared strip, a few
+pixels of the month's last digit included. The target-size check measures what a pointer
+reaches, each `::before` box less the strip a later target covers, so in "10/5/2026" the
+month is about 19 px wide; a date field meets 2.5.8 through its calendar button, under the
+criterion's equivalent exception (`equivalent` in `play.ts`: day, month and year segments
+pass while their field's calendar button passes), and a time field does not.
 
 Closed by the screen pass: `--glass-overlay` is 75 % (70 % let a Select's help line ghost
 through at 390 px; 75 % sits in the direction mock's 74 to 76 % and at the floating

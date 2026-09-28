@@ -19,12 +19,19 @@ const stamp = (el: HTMLElement, name: string, value: string | null) => {
 	else if (el.getAttribute(name) !== value) el.setAttribute(name, value)
 }
 
+const offset = (el: HTMLElement, value: string | null) => {
+	if (!value) el.style.removeProperty('--overflow-x-offset')
+	else el.style.setProperty('--overflow-x-offset', value)
+}
+
 /**
  * Stamps `data-overflow-x` / `data-overflow-y` ("start" | "end" | "both") on
  * a live scrollable element while content overflows it, tracking scroll,
  * element resize, and re-renders. Themes pair the attrs with edge fades (the
  * `[data-overflow-*]` mask preflight); the attrs are absent while everything
- * fits.
+ * fits. While content overflows sideways, `--overflow-x-offset` holds how far
+ * it is scrolled from the inline start, so a fade drawn on the content can
+ * stay on the visible edges.
  *
  * @example
  * ```ts
@@ -50,8 +57,10 @@ export const overflow = (host: Host, opts: {
 	const view = live(host, {
 		target: opts.target,
 		onChange: el => {
-			stamp(el, 'data-overflow-x', edge(el.scrollLeft, el.clientWidth, el.scrollWidth))
+			const x = edge(el.scrollLeft, el.clientWidth, el.scrollWidth)
+			stamp(el, 'data-overflow-x', x)
 			stamp(el, 'data-overflow-y', edge(el.scrollTop, el.clientHeight, el.scrollHeight))
+			offset(el, x && `${Math.abs(el.scrollLeft)}px`)
 		},
 		bind: (el, notify, signal) => {
 			el.addEventListener('scroll', notify, { passive: true, signal })
@@ -59,6 +68,7 @@ export const overflow = (host: Host, opts: {
 			signal.addEventListener('abort', () => {
 				stamp(el, 'data-overflow-x', null)
 				stamp(el, 'data-overflow-y', null)
+				offset(el, null)
 			}, { once: true })
 		},
 	})

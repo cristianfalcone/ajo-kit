@@ -637,6 +637,18 @@ async function fit(page: Page, variant: Variant) {
 	await page.setViewportSize({ width: variant.width, height: Math.max(900, height) })
 }
 
+/**
+ * A modal layer is captured as a person sees it: at the window's height, over
+ * the page scrolled to its trigger, not in the middle of the whole screen.
+ */
+async function windowed(page: Page, variant: Variant, trigger: string) {
+	const modal = await page.evaluate(() => [...document.querySelectorAll('dialog:modal, [aria-modal="true"]')].some(element => element.checkVisibility()))
+	if (!modal) return
+	await page.setViewportSize({ width: variant.width, height: 900 })
+	await page.locator(trigger).filter({ visible: true }).first().evaluate(element => element.scrollIntoView({ block: 'center' }))
+	await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+}
+
 /** Violations axe-core rates serious or critical, one line per rule and element. */
 async function audit(page: Page) {
 	await page.addScriptTag({ path: axe })
@@ -785,6 +797,7 @@ async function screens(options: Options) {
 							}
 							await fit(page, variant)
 							await open(page, layer.layer, layer.trigger)
+							await windowed(page, variant, layer.trigger)
 							await capture(page, `${story.id}--${layer.layer}.${variant.name}.png`)
 							await guard('axe', label, () => audit(page))
 							fail('play', label, errors)

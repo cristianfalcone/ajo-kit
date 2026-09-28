@@ -92,9 +92,11 @@
   /* Focus: bronze on ivory, champagne on the night. */
   --ring: light-dark(#6c5430, #e4d1b1);
   --page-ring: var(--ring);
-  /* Chart series from the palette: the ink, gold (bronze at night, apart
-     from the ivory ink), then the status hues. No blue at night. */
-  --chart-1: var(--foreground);
+  /* Chart series from the palette: navy by day (bluer than the ink, so its
+     translucent area reads navy, not grey) and the ivory ink at night, gold
+     (bronze at night, apart from the ivory), then the status hues. No blue
+     at night. */
+  --chart-1: light-dark(#294780, var(--foreground));
   --chart-2: light-dark(var(--gold-4), var(--gold-5));
   --chart-3: var(--success);
   --chart-4: var(--warning);

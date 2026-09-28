@@ -104,6 +104,10 @@ const Remove = ({ domain }: { domain: string }) => (
 	</AlertDialog>
 )
 
+const State = ({ class: classes, state }: { class?: string; state: Domain['state'] }) => state === 'serving'
+	? <Chip variant="success" class={classes}>{t('Serving', 'يعمل')}</Chip>
+	: <Chip variant="secondary" class={classes}>{t('Waiting for DNS', 'في انتظار DNS')}</Chip>
+
 const Domains = ({ error }: Args) => (
 	<Page
 		title={t('Domains', 'النطاقات')}
@@ -135,26 +139,28 @@ const Domains = ({ error }: Args) => (
 			<TableHeader>
 				<TableRow>
 					<TableHead>{t('Domain', 'النطاق')}</TableHead>
-					<TableHead>{t('State', 'الحالة')}</TableHead>
+					<TableHead class="max-sm:hidden">{t('State', 'الحالة')}</TableHead>
 					<TableHead><span class="sr-only">{t('Actions', 'الإجراءات')}</span></TableHead>
 				</TableRow>
 			</TableHeader>
 			<TableBody>
 				{domains().map(domain => (
 					<TableRow key={domain.name}>
-						<TableCell>
+						{/* On a phone the state goes under the name and the text wraps, so Remove stays in view;
+						   the actions cell drops its start padding (Remove's own keeps the gap), so the detail
+						   has the room for its one line. */}
+						<TableCell class="max-sm:py-2 max-sm:whitespace-normal max-sm:text-pretty">
 							{/* items-start keeps the Latin name at the cell's start in either direction. */}
 							<div class="flex flex-col items-start">
 								<bdi class="font-medium">{domain.name}</bdi>
 								<span class="text-muted-foreground">{domain.detail}</span>
+								<State state={domain.state} class="mt-1 sm:hidden" />
 							</div>
 						</TableCell>
-						<TableCell>
-							{domain.state === 'serving'
-								? <Chip variant="success">{t('Serving', 'يعمل')}</Chip>
-								: <Chip variant="secondary">{t('Waiting for DNS', 'في انتظار DNS')}</Chip>}
+						<TableCell class="max-sm:hidden">
+							<State state={domain.state} />
 						</TableCell>
-						<TableCell class="text-end">
+						<TableCell class="text-end max-sm:ps-0">
 							<Remove domain={domain.name} />
 						</TableCell>
 					</TableRow>
@@ -186,6 +192,14 @@ export const Default: Story = {
 	// Enter on the trigger and Escape in the dialog are native, which a play's untrusted keys
 	// cannot do: it clicks the trigger and fires the cancel event Escape fires (README, Keyboard).
 	play: async ({ canvas, setArg }) => {
+		// Remove, the task of the screen, stays in the table's view at every width.
+		const view = canvas.querySelector('[data-slot="table-container"]')?.getBoundingClientRect()
+		if (!view) throw new Error('The domains have no table')
+		for (const remove of canvas.querySelectorAll('[data-screen-layer="remove-domain"]')) {
+			const box = remove.getBoundingClientRect()
+			if (box.left < view.left || box.right > view.right) throw new Error(`Remove sits outside the table's view: ${box.left}..${box.right} in ${view.left}..${view.right}`)
+		}
+
 		const trigger = visible(canvas, '[data-screen-layer="add-domain"]')
 		const dialog = trigger?.parentElement?.querySelector<HTMLDialogElement>('dialog')
 		if (!trigger || !dialog) throw new Error('Add domain has no visible trigger and dialog')

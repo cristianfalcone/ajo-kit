@@ -59,14 +59,18 @@ const classNames: Record<InputDateClassName, string> = {
 	// Control text is Input's: 16 px below sm, so a phone does not zoom, and 14 px from sm.
 	control: 'flex h-full min-w-0 flex-1 cursor-text items-center overflow-hidden px-3 text-base whitespace-nowrap sm:text-sm',
 	field: fieldBase,
-	literal: 'whitespace-pre text-muted-foreground',
-	// A segment is a 24 px target at least (WCAG 2.5.8), its digits centred:
-	// a block in the line, which bidi orders as one neutral unit, so a
-	// right-to-left group keeps its time units inline, where "9:30" stays one
+	// A literal sits over the segments' focus tint and targets (so a focused
+	// digit never hides the "/" or ":" beside it) and lets a click through to them.
+	literal: 'pointer-events-none relative z-1 whitespace-pre text-muted-foreground',
+	// Digits sit together on the control's text column ("10/5/2026"), and each
+	// segment keeps a 24 px target (WCAG 2.5.8) as an invisible `::before`
+	// centred on it. Where two targets overlap, the later segment takes the
+	// shared strip, so every point of the field reaches a segment. Inline
+	// segments are text to bidi, so a right-to-left group keeps "9:30" one
 	// number run. The focused segment's tint reaches 2 px past it as a spread,
-	// so it takes no room. Forced colours drop both, so there the focus is an
+	// so it takes no room; forced colours drop it, so there the focus is an
 	// outline.
-	segment: 'inline-block min-w-6 rounded-xs text-center leading-6 tabular-nums outline-none [[dir=rtl]>&:not([data-segment=day],[data-segment=month],[data-segment=year])]:inline focus:bg-accent focus:text-accent-foreground focus:shadow-[0_0_0_2px_var(--accent)] forced-colors:focus:[outline:var(--focus-width)_solid_Highlight] data-[placeholder=true]:text-faint-foreground',
+	segment: 'relative rounded-xs tabular-nums outline-none before:absolute before:top-1/2 before:left-1/2 before:h-6 before:w-[max(100%,1.5rem)] before:-translate-x-1/2 before:-translate-y-1/2 before:content-empty focus:bg-accent focus:text-accent-foreground focus:shadow-[0_0_0_2px_var(--accent)] forced-colors:focus:[outline:var(--focus-width)_solid_Highlight] data-[placeholder=true]:text-faint-foreground',
 	separator: 'px-1 text-muted-foreground',
 	trigger: addonButtonBase,
 	trigger_icon: 'i-lucide-calendar pointer-events-none size-4',
