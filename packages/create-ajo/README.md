@@ -19,7 +19,8 @@ or empty. It then:
    `.env` with a random `APP_SECRET` and applies the migrations.
 
 The starter is a private notebook with registration, sessions and CSRF, SQLite
-migrations, owner-scoped notes, live updates, verified email and Playa. Its
+migrations, owner-scoped notes, live updates, verified email and Playa, and
+carries `ajo-kit-server`, so `pnpm kit deploy` deploys it once it has a host. Its
 README covers the application, tests, sealing and the first deploy. Every Ajo
 package in it is pinned to the release this version of `create-ajo` was
 published with.

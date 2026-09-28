@@ -85,6 +85,7 @@ test('creates the starter, names it, initializes Git, installs and runs the setu
 	const manifest = JSON.parse(await readFile(join(target, 'package.json'), 'utf8'))
 	expect(manifest.name).toBe('notes')
 	expect(manifest.dependencies['ajo-kit']).toMatch(/^\d+\.\d+\.\d+$/)
+	expect(manifest.devDependencies['ajo-kit-server']).toMatch(/^\d+\.\d+\.\d+$/)
 	expect(await exists(join(target, '.gitignore'))).toBe(true)
 	expect(await exists(join(target, 'gitignore'))).toBe(false)
 	expect(await readFile(join(target, '.git/HEAD'), 'utf8')).toBe('ref: refs/heads/main\n')

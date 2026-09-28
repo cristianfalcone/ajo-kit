@@ -528,11 +528,15 @@ const kitCssProbe = async (directory: string, registry: string) => {
 	assert.equal(await readFile(join(directory, 'dist/sibling.txt'), 'utf8'), 'preserved')
 }
 
-// create-ajo ships the tracked starter, pinned to this release set, and
-// `pnpm create ajo <dir> --json` passes --json through to it. The starter
-// installs from the local registry with pnpm's default release-age policy
-// and passes its own type check and unit tests against the published set,
-// all on a Node without type stripping, as distributions build it without amaro.
+// create-ajo ships the tracked starter, pinned to this release set with
+// ajo-kit-server, and `pnpm create ajo <dir> --json` passes --json through
+// to it. The starter installs from the local registry with pnpm's default
+// release-age policy; the same-day versions are exempted in pnpm's global
+// config, as on a newcomer's machine on release day, so the install writes
+// nothing into the starter's own pnpm-workspace.yaml. It passes its own type
+// check and unit tests against the published set, and kit deploy reaches the
+// plugin, all on a Node without type stripping, as distributions build it
+// without amaro.
 const createProbe = async (directory: string, registry: string, published: Record<string, Awaited<ReturnType<typeof publish>>>) => {
 	const { manifest, packlist } = published['create-ajo']
 	assert.deepEqual(manifest.bin, { 'create-ajo': './dist/index.js' })
@@ -542,21 +546,30 @@ const createProbe = async (directory: string, registry: string, published: Recor
 	assert.deepEqual(packlist.filter(path => path.startsWith('template/')).map(path => path.slice('template/'.length)).sort(), tracked.sort(),
 		'create-ajo did not pack exactly the tracked starter')
 
-	const pinned = JSON.parse(await readFile(join(starter, 'package.json'), 'utf8')) as { dependencies: Record<string, string> }
-	const excluded = await readFile(join(starter, 'pnpm-workspace.yaml'), 'utf8')
-	for (const { name, version } of packages.filter(({ name }) => name !== 'create-ajo')) {
+	const pinned = JSON.parse(await readFile(join(starter, 'package.json'), 'utf8')) as Record<
+		'dependencies' | 'devDependencies' | 'optionalDependencies', Record<string, string>>
+	const policy = await readFile(join(starter, 'pnpm-workspace.yaml'), 'utf8')
+	assert(!policy.includes('minimumReleaseAgeExclude'), 'the starter exempts versions from the release age in its own pnpm-workspace.yaml')
+	for (const { name, version } of packages) {
 		if (name in pinned.dependencies) assert.equal(pinned.dependencies[name], version, `the starter pins ${name} outside this release`)
-		assert(excluded.includes(`  - ${name}@${version}\n`), `the starter does not exempt ${name}@${version} from the release age`)
 	}
+	const server = pinned.devDependencies['ajo-kit-server']
+	assert.match(server ?? '', /^\d+\.\d+\.\d+$/, 'the starter does not pin ajo-kit-server exactly')
 
 	await mkdir(directory)
-	await write(join(directory, 'pnpm-workspace.yaml'), `minimumReleaseAgeExclude:\n  - create-ajo@${versions['create-ajo']}\n`)
+	// Every Ajo package of the release: this repo's, and the ajo, engine and ajo-kit-server pins.
+	const release = new Set(packages.map(({ name, version }) => `${name}@${version}`))
+	for (const [name, version] of Object.entries({ ...pinned.dependencies, ...pinned.devDependencies, ...pinned.optionalDependencies })) {
+		if (/^ajo(?:-|$)/.test(name)) release.add(`${name}@${version}`)
+	}
+	await write(join(directory, '.config/pnpm/config.yaml'), ['minimumReleaseAgeExclude:', ...[...release].map(entry => `  - ${entry}`), ''].join('\n'))
 	const node = { NODE_OPTIONS: '--no-experimental-strip-types' }
 	// The starter installs as its own project, so the registry reaches it through the environment.
 	const created = await pnpm(['create', 'ajo', 'notes', '--json'], directory, {
 		...node,
 		pnpm_config_registry: `${registry}/`,
 		XDG_CACHE_HOME: join(directory, '.cache'),
+		XDG_CONFIG_HOME: join(directory, '.config'),
 	})
 	assert.deepEqual(JSON.parse(created.stdout), {
 		ok: true, result: { directory: 'notes', name: 'notes' }, next: 'cd notes && pnpm kit dev',
@@ -567,12 +580,16 @@ const createProbe = async (directory: string, registry: string, published: Recor
 	await access(join(project, '.gitignore'))
 	assert.equal((await stat(join(project, '.env'))).mode & 0o777, 0o600)
 	await access(join(project, 'database.sqlite'))
+	assert.equal(await readFile(join(project, 'pnpm-workspace.yaml'), 'utf8'), policy, 'the install rewrote the starter\'s pnpm-workspace.yaml')
 	const lock = await readFile(join(project, 'pnpm-lock.yaml'), 'utf8')
 	for (const name of Object.keys(pinned.dependencies).filter(name => name in published)) {
 		assert(lock.includes(published[name].manifest.dist.integrity), `the starter did not install the published ${name}`)
 	}
 	await pnpm(['typecheck'], project, node)
 	await pnpm(['test'], project, node)
+	// A fresh starter has no host yet: kit deploy is the plugin's command and asks for one.
+	await assert.rejects(pnpm(['exec', 'kit', 'deploy', '--json'], project, node), (error: unknown) =>
+		error instanceof CommandFailure && JSON.parse(error.stdout).error.code === 'host_unknown')
 }
 
 const main = async () => {

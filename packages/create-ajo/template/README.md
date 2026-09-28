@@ -137,11 +137,26 @@ supported platforms and what the pair contains. Keep both at the same version.
 The production artifact requires `/ajo/data` in its filesystem authority.
 Create that writable directory **inside your disposable runtime/container**,
 set `AJO_DATA=/ajo/data`, and use a relative `DATABASE_PATH`.
-Setting `AJO_DATA` alone does not grant access. Compiled auth/app migrations run
-before the engine starts listening. With production environment variables set
-in that runtime, `ajo-engine dist/ajo` runs the app; no Node process serves it.
+Setting `AJO_DATA` alone does not grant access. `ajo-kit-server` adds
+`/ajo/origin`, a read-only directory an ajo-server host mounts for every App;
+provide it too when you run the artifact yourself. Compiled auth/app
+migrations run before the engine starts listening. With production environment
+variables set in that runtime, `ajo-engine dist/ajo` runs the app; no Node
+process serves it.
 
 ## First deploy
+
+The starter carries `ajo-kit-server` as an exact devDependency, which adds the
+`kit host` and `kit deploy` commands. `pnpm kit host create` records the host
+in `package.json#kit.host`; from then on one command builds, seals and deploys
+this App, named after `package.json#name`:
+
+```sh
+pnpm kit deploy
+```
+
+The [ajo-kit-server](https://www.npmjs.com/package/ajo-kit-server) README covers
+hosts, credentials and the deploy output.
 
 The platform supplies `NODE_ENV`, `APP_URL` and `APP_SECRET`; the sealed artifact
 requires nothing else, so the first deploy of this starter needs no secrets of
