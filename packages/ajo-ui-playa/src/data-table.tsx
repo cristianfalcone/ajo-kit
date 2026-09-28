@@ -9,6 +9,11 @@ import { checkboxIndicator, checkboxState, choiceInput } from './internal/choice
 import { menuCheckIndicator, menuContent } from './internal/menu'
 export type { DataTableArgs, DataTableColumn } from 'ajo-ui/data-table'
 
+// Rows per page stays a native select, so DataTable never loads the Select
+// family; it wears Select's trigger at the bar's size, and the chevron is the
+// page-size wrapper's.
+const pageSize = 'h-control-sm cursor-pointer appearance-none playa-field ps-3 pe-8 text-base text-foreground sm:text-sm tabular-nums [&>option]:bg-popover [&>option]:text-popover-foreground'
+
 /**
  * Playa-styled DataTable; state, semantics, and structure remain base-owned.
  * `playa-table` is the same slot recipe the manual Table wrapper carries, so
@@ -32,7 +37,7 @@ const DataTable = <T extends DataTableData, Key extends DataTableKey = DataTable
 			menu_item: clx('playa-menu-choice-row', menuCheckIndicator, classNames?.menu_item),
 			menu_label: clx('playa-menu-label', classNames?.menu_label),
 			menu_separator: clx('playa-menu-separator', classNames?.menu_separator),
-			page_size: clx('playa-select-trigger h-8 [&>option]:bg-popover [&>option]:text-popover-foreground', classNames?.page_size),
+			page_size: clx(pageSize, classNames?.page_size),
 		}}
 	/>
 )

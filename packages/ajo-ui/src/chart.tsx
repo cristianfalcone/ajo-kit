@@ -251,11 +251,25 @@ const showing = (chart: ChartState, index: number, plot: SVGSVGElement, keys: st
 	&& chart.plot === plot
 	&& chart.active.items.every(item => keys.includes(item.key))
 
-const extent = (chart: ChartState) => {
+/**
+ * The value axis from zero through the data, on the smallest round step (1, 2
+ * or 5 times a power of ten) that spans it in at most five intervals; the scale
+ * ends on the outer ticks.
+ */
+const axis = (chart: ChartState) => {
 	const values = chart.data.flatMap(row => chart.series.map(entry => number(row[entry.key])).filter(value => value != null))
-	const min = Math.min(0, ...values)
-	const max = Math.max(0, ...values)
-	return min === max ? { max: max + 1, min: min - 1 } : { max, min }
+	let min = Math.min(0, ...values)
+	let max = Math.max(0, ...values)
+	if (min === max) {
+		min -= 1
+		max += 1
+	}
+	const power = 10 ** Math.floor(Math.log10((max - min) / 5))
+	// A step of twenty times the power always fits: it spans the range in under three intervals.
+	const step = [1, 2, 5, 10, 20].map(factor => factor * power).find(step => Math.ceil(max / step) - Math.floor(min / step) <= 5)!
+	const first = Math.floor(min / step)
+	const ticks = Array.from({ length: Math.ceil(max / step) - first + 1 }, (_, index) => Number(((first + index) * step).toPrecision(12)))
+	return { max: ticks[ticks.length - 1]!, min: ticks[0]!, ticks }
 }
 
 const scaled = (value: number, min: number, max: number, top: number, bottom: number) =>
@@ -298,19 +312,29 @@ const focused = (event: FocusEvent) => {
 	return [Number(mark.getAttribute('data-chart-index')), mark.ownerSVGElement!] as const
 }
 
+/**
+ * Clears the active mark once focus has left the chart's marks, so the tooltip
+ * closes with focus. It checks after the focus change settles: focus may move
+ * to a mark in another plot, and a mark can lose focus while a render removes it.
+ */
+const blurred = (chart: ChartState) => () => queueMicrotask(() => {
+	const next = chart.root?.ownerDocument.activeElement
+	if (!(next?.hasAttribute('data-chart-index') && chart.root!.contains(next))) chart.clearActive()
+})
+
 const plotRef = (chart: ChartState, ref: unknown) => (element: SVGSVGElement | null) => {
 	if (!element) chart.release()
 	callRef(ref, element)
 }
 
-/** Shared SVG root attributes for every native plot. */
+/** Shared SVG root attributes for every native plot: a named group of focusable, named marks. */
 const plotAttrs = (chart: ChartState, slot: string, ref: unknown) => ({
 	'aria-describedby': chart.description ? `${chart.id}-description` : undefined,
 	'aria-label': chart.label,
 	'data-slot': slot,
 	height: chart.height,
 	ref: plotRef(chart, ref),
-	role: 'img',
+	role: 'group',
 	width: '100%',
 	xmlns: 'http://www.w3.org/2000/svg',
 	'set:onpointerleave': chart.clearActive,
@@ -435,8 +459,7 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 	if (!chart || !chart.data.length || !chart.series.length) return null
 
 	const box = plotBox(chart)
-	const { max, min } = extent(chart)
-	const yTicks = Array.from({ length: 4 }, (_, index) => min + ((max - min) / 3) * index)
+	const { max, min, ticks: yTicks } = axis(chart)
 	const groupWidth = (box.right - box.left) / chart.data.length
 	const xStep = chart.data.length > 1 ? (box.right - box.left) / (chart.data.length - 1) : 0
 	const baseline = scaled(0, min, max, box.top, box.bottom)
@@ -445,13 +468,20 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 		? box.left + groupWidth * index + groupWidth / 2
 		: chart.data.length > 1 ? box.left + xStep * index : (box.left + box.right) / 2
 	const seriesKeys = chart.series.map(entry => entry.key)
+	const lines = type === 'bar' ? [] : chart.series.map(entry => ({
+		entry,
+		points: chart.data.map((row, index) => ({ x: rowCenter(index), y: y(number(row[entry.key]) ?? 0) })),
+	}))
+	const area = (points: { y: number }[]) => points.reduce((sum, point) => sum + Math.abs(point.y - baseline), 0)
 	const mark = (row: ChartDatum, index: number, entry: Series, value: number) => ({
 		'aria-label': `${text(labelFor(chart, row, index))} ${text(entry.label)} ${chart.formatValue(value, entry.key, row, index)}`,
 		'data-active': chart.active?.index === index ? 'true' : undefined,
 		'data-chart-index': index,
 		focusable: 'true',
+		role: 'img',
 		style: `--chart-index:${index}`,
 		tabindex: '0',
+		'set:onblur': blurred(chart),
 		'set:onfocus': focus,
 	})
 
@@ -534,13 +564,19 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 						/>
 					)
 				})
-			}) : chart.series.map(entry => {
-				const points = chart.data.map((row, index) => ({ x: rowCenter(index), y: y(number(row[entry.key]) ?? 0) }))
-				return (
+			}) : <>
+				{type === 'area' ? (
+					// Opaque fills under one translucent layer, so every fill is its series
+					// colour, never a blend. The largest area is painted first: a series that
+					// sits below another keeps its own band instead of being covered.
+					<g data-slot="chart-fill" opacity="0.18">
+						{[...lines].sort((a, b) => area(b.points) - area(a.points)).map(({ entry, points }) => (
+							<path key={entry.key} d={areaPath(points, baseline)} data-chart-series={entry.key} fill={entry.color} />
+						))}
+					</g>
+				) : null}
+				{lines.map(({ entry, points }) => (
 					<g key={entry.key} data-chart-series={entry.key}>
-						{type === 'area' ? (
-							<path d={areaPath(points, baseline)} fill={entry.color} fill-opacity="0.18" />
-						) : null}
 						<path d={linePath(points)} fill="none" pathLength={1} stroke={entry.color} stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
 						{points.map((point, index) => (
 							<circle
@@ -554,8 +590,8 @@ const ChartPlot: Stateless<ChartPlotArgs & { type: Exclude<ChartType, 'pie'> }> 
 							/>
 						))}
 					</g>
-				)
-			})}
+				))}
+			</>}
 		</svg>
 	)
 }
@@ -637,9 +673,11 @@ const ChartPie: Stateless<ChartPieArgs> = ({
 					data-chart-index={index}
 					fill={slice.color}
 					focusable="true"
+					role="img"
 					style={`--chart-index:${index}`}
 					stroke-width="2"
 					tabindex="0"
+					set:onblur={blurred(chart)}
 					set:onfocus={focus}
 				/>
 			))}

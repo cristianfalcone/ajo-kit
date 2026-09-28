@@ -36,6 +36,23 @@ const assertTable = (canvas: HTMLElement) => {
 	if (container.firstElementChild !== table) throw new Error('Table must be wrapped by the responsive container')
 	if (!table.querySelector('[data-slot="table-header"]')) throw new Error('TableHeader was not rendered')
 	if (!table.querySelector('[data-slot="table-body"]')) throw new Error('TableBody was not rendered')
+	if (container.getAttribute('role') !== 'region' || container.tabIndex !== 0 || !container.getAttribute('aria-label')) {
+		throw new Error('A named Table should make its container a focusable, named region')
+	}
+	if (table.hasAttribute('aria-label')) throw new Error('The table name belongs to the region only, so it is announced once')
+	const caption = table.querySelector<HTMLElement>('[data-slot="table-caption"]')
+	const cell = table.querySelector<HTMLElement>('[data-slot="table-cell"]')
+	if (caption && cell && getComputedStyle(caption).paddingInlineStart !== getComputedStyle(cell).paddingInlineStart) {
+		throw new Error('The caption starts where the cell text starts, clear of the border')
+	}
+	const numbers = [...table.querySelectorAll<HTMLElement>('.text-end')]
+	if (!numbers.length) throw new Error('Each Table story shows a number column')
+	for (const number of numbers) {
+		const style = getComputedStyle(number)
+		if (style.textAlign !== 'end' || style.fontVariantNumeric !== 'tabular-nums') {
+			throw new Error('Number heads and cells sit at the logical end with tabular figures')
+		}
+	}
 }
 
 export const Default: Story<typeof Table> = {
@@ -43,6 +60,7 @@ export const Default: Story<typeof Table> = {
 		caption: 'A list of your recent invoices.',
 		total: '$2,500.00',
 		invoices,
+		'aria-label': 'Invoices',
 	},
 	render: ({ caption, invoices, total, ...args }) => (
 		<Table {...args}>
@@ -52,7 +70,7 @@ export const Default: Story<typeof Table> = {
 					<TableHead class="w-[100px]">Invoice</TableHead>
 					<TableHead>Status</TableHead>
 					<TableHead>Method</TableHead>
-					<TableHead class="text-right">Amount</TableHead>
+					<TableHead class="text-end tabular-nums">Amount</TableHead>
 				</TableRow>
 			</TableHeader>
 			<TableBody>
@@ -61,14 +79,14 @@ export const Default: Story<typeof Table> = {
 						<TableCell class="font-medium">{invoice.invoice}</TableCell>
 						<TableCell>{invoice.status}</TableCell>
 						<TableCell>{invoice.method}</TableCell>
-						<TableCell class="text-right">{invoice.amount}</TableCell>
+						<TableCell class="text-end tabular-nums">{invoice.amount}</TableCell>
 					</TableRow>
 				))}
 			</TableBody>
 			<TableFooter>
 				<TableRow>
 					<TableCell colspan={3}>Total</TableCell>
-					<TableCell class="text-right">{total}</TableCell>
+					<TableCell class="text-end tabular-nums">{total}</TableCell>
 				</TableRow>
 			</TableFooter>
 		</Table>
@@ -92,6 +110,7 @@ export const SelectableRows: Story<typeof Table> = {
 			{ token: 'seed-api-token', owner: 'Admin', days: 90, selected: true },
 			{ token: 'support-token', owner: 'Support', days: 14, selected: false },
 		],
+		'aria-label': 'API tokens',
 	},
 	render: ({ tokens, ...args }) => (
 		<Table {...args}>
@@ -99,7 +118,7 @@ export const SelectableRows: Story<typeof Table> = {
 				<TableRow>
 					<TableHead>Token</TableHead>
 					<TableHead>Owner</TableHead>
-					<TableHead class="text-right">Days left</TableHead>
+					<TableHead class="text-end tabular-nums">Days left</TableHead>
 				</TableRow>
 			</TableHeader>
 			<TableBody>
@@ -107,7 +126,7 @@ export const SelectableRows: Story<typeof Table> = {
 					<TableRow key={row.token} data-state={row.selected ? 'selected' : undefined}>
 						<TableCell class="font-medium">{row.token}</TableCell>
 						<TableCell>{row.owner}</TableCell>
-						<TableCell class="text-right">{row.days}</TableCell>
+						<TableCell class="text-end tabular-nums">{row.days}</TableCell>
 					</TableRow>
 				))}
 			</TableBody>
@@ -127,6 +146,7 @@ export const Dense: Story<typeof Table> = {
 			{ route: '/account/chats', topics: 'chat:list, unread', version: 42 },
 			{ route: '/account/profile', topics: 'account:self', version: 7 },
 		],
+		'aria-label': 'Route versions',
 	},
 	render: ({ routes, ...args }) => (
 		<Table {...args}>
@@ -134,7 +154,7 @@ export const Dense: Story<typeof Table> = {
 				<TableRow>
 					<TableHead class="h-8 py-1">Route</TableHead>
 					<TableHead class="h-8 py-1">Topics</TableHead>
-					<TableHead class="h-8 py-1 text-right">Version</TableHead>
+					<TableHead class="h-8 py-1 text-end tabular-nums">Version</TableHead>
 				</TableRow>
 			</TableHeader>
 			<TableBody>
@@ -142,7 +162,7 @@ export const Dense: Story<typeof Table> = {
 					<TableRow key={row.route}>
 						<TableCell class="py-1 font-mono text-xs">{row.route}</TableCell>
 						<TableCell class="py-1">{row.topics}</TableCell>
-						<TableCell class="py-1 text-right font-mono text-xs">{row.version}</TableCell>
+						<TableCell class="py-1 text-end tabular-nums font-mono text-xs">{row.version}</TableCell>
 					</TableRow>
 				))}
 			</TableBody>
@@ -159,6 +179,7 @@ export const Wide: Story<typeof Table> = {
 			{ component: 'Menu', status: 'Done', coverage: 'Default, checkbox, radio, submenu', interaction: 'Popover, keyboard, pointer', stories: 7 },
 			{ component: 'Command', status: 'Done', coverage: 'Filtering, groups, empty state', interaction: 'Input, selection, dialog', stories: 5 },
 		],
+		'aria-label': 'Component coverage',
 	},
 	render: ({ caption, components, ...args }) => (
 		<div class="w-80 p-6">
@@ -170,7 +191,7 @@ export const Wide: Story<typeof Table> = {
 						<TableHead>Status</TableHead>
 						<TableHead>Story coverage</TableHead>
 						<TableHead>Interaction</TableHead>
-						<TableHead class="text-right">Stories</TableHead>
+						<TableHead class="text-end tabular-nums">Stories</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -180,7 +201,7 @@ export const Wide: Story<typeof Table> = {
 							<TableCell>{row.status}</TableCell>
 							<TableCell>{row.coverage}</TableCell>
 							<TableCell>{row.interaction}</TableCell>
-							<TableCell class="text-right">{row.stories}</TableCell>
+							<TableCell class="text-end tabular-nums">{row.stories}</TableCell>
 						</TableRow>
 					))}
 				</TableBody>
@@ -191,6 +212,7 @@ export const Wide: Story<typeof Table> = {
 		const container = canvas.querySelector<HTMLElement>('[data-slot="table-container"]')
 		const table = canvas.querySelector<HTMLTableElement>('[data-slot="table"]')
 		if (!container || !table) throw new Error('Wide table did not render')
+		assertTable(canvas)
 		if (container.scrollWidth <= container.clientWidth) {
 			throw new Error('Wide table should overflow inside the responsive container')
 		}

@@ -32,7 +32,7 @@ const bars = (children: unknown[]) => {
 	render(jsx(ChartContainer, {
 		children,
 		config: { sales: { label: 'Sales' } },
-		data: [{ month: 'Jan', sales: 12 }],
+		data: [{ month: 'Jan', sales: 10 }],
 		palette: ['blue'],
 		series: ['sales'],
 		xKey: 'month',
@@ -81,6 +81,26 @@ test('ChartTooltip sits beside the active point, flips at the root edge, clamps 
 	expect(document.querySelector('[data-slot="chart-tooltip"]')).toBe(tooltip)
 })
 
+test('ChartTooltip closes when focus leaves the marks, and stays while it moves between them', async () => {
+	render(jsx(ChartContainer, {
+		children: [jsx(ChartBar, {}), jsx(ChartTooltip, {})],
+		config: { sales: { label: 'Sales' } },
+		data: [{ month: 'Jan', sales: 12 }, { month: 'Feb', sales: 8 }],
+		palette: ['blue'],
+		xKey: 'month',
+	}), document.body)
+	const [jan, feb] = document.querySelectorAll<SVGElement>('[data-chart-index]')
+	const tooltip = () => document.querySelector('[data-slot="chart-tooltip"]')
+
+	jan!.focus()
+	feb!.focus()
+	await Promise.resolve()
+	expect(tooltip()?.textContent).toContain('Feb')
+
+	feb!.blur()
+	await vi.waitFor(() => expect(tooltip()).toBeNull())
+})
+
 test('ChartTooltip clears when its active plot is removed', async () => {
 	const { mark } = bars([jsx(ChartBar, { key: 'bar' }), jsx(ChartTooltip, {})])
 	mark!.dispatchEvent(new FocusEvent('focus'))
@@ -105,7 +125,7 @@ test('ChartTooltipContent stamps its indicator and nesting as attributes on each
 	expect(content.querySelector(':scope > [data-slot="chart-tooltip-label"]')).toBeNull()
 	expect(item.querySelector('[data-slot="chart-tooltip-names"] > [data-slot="chart-tooltip-label"]')?.textContent).toBe('Jan')
 	expect(item.querySelector('[data-slot="chart-tooltip-name"]')?.textContent).toBe('Sales')
-	expect(item.querySelector('[data-slot="chart-tooltip-value"]')?.textContent).toBe('12')
+	expect(item.querySelector('[data-slot="chart-tooltip-value"]')?.textContent).toBe('10')
 	expect(item.querySelector('[data-slot="chart-tooltip-indicator"]')?.getAttribute('style')).toBe('--chart-indicator:blue')
 })
 

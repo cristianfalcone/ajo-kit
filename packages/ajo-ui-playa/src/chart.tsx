@@ -38,8 +38,9 @@ const palette = [
 ]
 
 const svgBase = 'h-full min-h-[180px] w-full overflow-visible'
-const tooltipBase = 'pointer-events-none absolute z-20 min-w-[8rem] rounded-lg glass-overlay edge px-2.5 py-1.5 text-xs shadow-lg'
-const legendBase = 'flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground'
+// The tooltip is dense data, so it sits on the navy carpet; the legend starts where the plot does.
+const tooltipBase = 'pointer-events-none absolute z-20 min-w-32 rounded-lg navy px-3 py-2 text-xs shadow-lg'
+const legendBase = 'flex flex-wrap items-center gap-4 text-xs text-muted-foreground'
 
 /** Root provider for chart config, data, tooltip, and legend state; without children it renders the `type` plot, tooltip, and legend. */
 const ChartContainer: Stateless<ChartContainerArgs> = ({
@@ -89,7 +90,7 @@ const ChartTooltip: Stateless<ChartTooltipArgs> = ({ children, class: classes, .
 
 /** Tooltip body for native chart payloads. */
 const ChartTooltipContent: Stateless<ChartTooltipContentArgs> = ({ class: classes, ...attrs }) =>
-	<BaseChartTooltipContent {...attrs} class={clx('grid gap-1.5', classes)} />
+	<BaseChartTooltipContent {...attrs} class={clx('grid gap-2', classes)} />
 
 /** Legend for native chart primitives. */
 const ChartLegend: Stateless<ChartLegendArgs> = ({

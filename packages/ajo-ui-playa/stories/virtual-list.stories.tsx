@@ -109,7 +109,7 @@ export const Variable: Story<typeof VirtualList> = {
 				const height = 40 + item % 3 * 24
 				return (
 					<div class="flex items-center border-b border-border px-4 text-sm" style={`height:${height}px`}>
-						Activity #{item + 1} · {height}px
+						Activity #{item + 1}, {height} px tall
 					</div>
 				)
 			}}

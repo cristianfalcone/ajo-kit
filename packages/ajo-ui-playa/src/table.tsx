@@ -13,13 +13,26 @@ export type TableCaptionArgs = WithChildren<IntrinsicElements['caption'] & { cla
 /**
  * Responsive wrapper and native table element. The wrapper carries the shared
  * `playa-table` slot recipe, so every part below is styled through its
- * `data-slot` marker — the same rules the Playa DataTable consumes.
+ * `data-slot` marker, the same rules the Playa DataTable consumes. A named
+ * table makes the wrapper its scroll region: a keyboard stop that carries the
+ * name, so it is announced once.
  */
-const Table: Stateless<TableArgs> = attrs => (
-	<div class="playa-table-container playa-table" data-slot="table-container">
-		<table {...attrs} data-slot="table" />
-	</div>
-)
+const Table: Stateless<TableArgs> = ({ 'aria-label': label, 'aria-labelledby': labelledby, ...attrs }) => {
+	const named = !!(label || labelledby)
+
+	return (
+		<div
+			aria-label={label}
+			aria-labelledby={labelledby}
+			class="playa-table-container playa-table playa-focus [--focus-offset:calc(var(--focus-width)/-2)]"
+			data-slot="table-container"
+			role={named ? 'region' : undefined}
+			tabindex={named ? 0 : undefined}
+		>
+			<table {...attrs} data-slot="table" />
+		</div>
+	)
+}
 
 /** Native table header group. */
 const TableHeader = part<TableHeaderArgs>('thead', 'table-header')

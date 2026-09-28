@@ -806,6 +806,29 @@ export const SelectionAcrossTransforms: Story<typeof DataTable> = {
 		if (!checkbox('monserrat44@example.com')?.checked || !header()?.checked || !summary()?.includes('3 of 6')) {
 			throw new Error('DataTable selection did not persist across filtering or preserve source totals')
 		}
+
+		// Playa's chrome: sentence-case headers at the start of their column in
+		// either direction, the selected row in the gold tint, facets with a solid
+		// edge, and rows per page as a field with Playa's chevron, not the native one.
+		const head = canvas.querySelector<HTMLElement>('thead [data-column-id="status"]')
+		const sort = head?.querySelector<HTMLElement>('[data-slot="data-table-sort-trigger"]')
+		if (!head || !sort || [head, sort].some(element => getComputedStyle(element).textTransform !== 'none') || getComputedStyle(head).textAlign !== 'start') {
+			throw new Error('DataTable headers are not sentence case at the start of their column')
+		}
+		const tint = document.createElement('i')
+		tint.className = 'bg-accent'
+		canvas.append(tint)
+		const accent = getComputedStyle(tint).backgroundColor
+		tint.remove()
+		if (getComputedStyle(checkbox('monserrat44@example.com')!.closest('tr')!).backgroundColor !== accent) {
+			throw new Error('A selected DataTable row does not wear the gold tint')
+		}
+		const facet = canvas.querySelector<HTMLElement>('[data-slot="data-table-facet"]')
+		if (!facet || getComputedStyle(facet).borderTopStyle === 'dashed') throw new Error('A DataTable facet is dashed')
+		const size = canvas.querySelector<HTMLSelectElement>('[data-slot="data-table-page-size-select"]')
+		if (!size || getComputedStyle(size).appearance !== 'none' || getComputedStyle(size.parentElement!, '::after').maskImage === 'none') {
+			throw new Error('DataTable rows per page is the native select, not a Playa field')
+		}
 	},
 }
 
@@ -898,6 +921,17 @@ export const Unpaginated: Story<typeof DataTable> = {
 		if (!header()?.indeterminate || header()?.checked) {
 			throw new Error('Unpaginated DataTable did not preserve a filtered selection as partial source selection')
 		}
+
+		// An empty result keeps the columns where the rows left them, and lets them go once rows return.
+		const heads = () => [...canvas.querySelectorAll<HTMLElement>('thead [data-slot="table-head"]')]
+		const edges = () => heads().map(head => Math.round(head.getBoundingClientRect().left))
+		const filled = edges()
+		type(search, 'no such payment')
+		await until(() => !!canvas.querySelector('[data-slot="data-table-empty"]'))
+		if (edges().join() !== filled.join()) throw new Error(`DataTable columns moved when the result emptied: ${filled} to ${edges()}`)
+		type(search, '')
+		await until(() => dataRows(canvas).length === payments.length)
+		if (heads().some(head => head.style.width)) throw new Error('DataTable kept held column widths once rows returned')
 	},
 }
 

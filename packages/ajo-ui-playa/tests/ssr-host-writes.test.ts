@@ -6,6 +6,7 @@ import { Card, CardHeader } from 'ajo-ui-playa/card'
 import { ItemSeparator } from 'ajo-ui-playa/item'
 import { PaginationLink } from 'ajo-ui-playa/pagination'
 import { Spinner } from 'ajo-ui-playa/spinner'
+import { Table } from 'ajo-ui-playa/table'
 import { ToggleGroup, ToggleGroupItem } from 'ajo-ui-playa/toggle-group'
 
 test('Spinner is named once by its label text and a bare boolean aria-hidden hides it', () => {
@@ -37,8 +38,18 @@ test('a disabled PaginationLink is a Button link without href or tab stop', () =
 	const current = ssr(jsx(PaginationLink, { href: '?page=2', isActive: true, children: '2' }))
 	const disabled = ssr(jsx(PaginationLink, { disabled: true, href: '?page=0', children: '0' }))
 
-	expect(current).toMatch(/^<a\b(?=[^>]*href="\?page=2")(?=[^>]*aria-current="page")(?=[^>]*data-slot="pagination-link")(?=[^>]*data-variant="outline")[^>]*>2<\/a>$/)
+	expect(current).toMatch(/^<a\b(?=[^>]*href="\?page=2")(?=[^>]*aria-current="page")(?=[^>]*data-slot="pagination-link")(?=[^>]*data-variant="secondary")(?=[^>]*\bedge\b)[^>]*>2<\/a>$/)
 	expect(disabled).toMatch(/^<a\b(?=[^>]*aria-disabled="true")(?=[^>]*tabindex="-1")(?![^>]*href=)(?=[^>]*data-slot="pagination-link")[^>]*>0<\/a>$/i)
+})
+
+test('only a named Table makes its wrapper a tab stop, and the name sits on the region once', () => {
+	const plain = ssr(jsx(Table, {}))
+	const named = ssr(jsx(Table, { 'aria-label': 'Invoices' }))
+	const labelled = ssr(jsx(Table, { 'aria-labelledby': 'invoices-title' }))
+
+	expect(plain).toMatch(/^<div\b(?![^>]*tabindex=)(?![^>]*role=)(?=[^>]*data-slot="table-container")[^>]*><table\b/)
+	expect(named).toMatch(/^<div\b(?=[^>]*role="region")(?=[^>]*tabindex="0")(?=[^>]*aria-label="Invoices")[^>]*><table\b(?![^>]*aria-label)[^>]*>/)
+	expect(labelled).toMatch(/^<div\b(?=[^>]*role="region")(?=[^>]*tabindex="0")(?=[^>]*aria-labelledby="invoices-title")[^>]*><table\b(?![^>]*aria-labelledby)[^>]*>/)
 })
 
 test('ToggleGroup items take the group size and variant, and spacing 0 seams them at the group', () => {

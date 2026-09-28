@@ -81,15 +81,15 @@ const themed = {
 	desktop: {
 		label: 'Desktop',
 		theme: {
-			dark: '#6cc3d5',
-			light: '#234c6a',
+			dark: '#7fb58f',
+			light: '#3a6e46',
 		},
 	},
 	mobile: {
 		label: 'Mobile',
 		theme: {
-			dark: '#d2c1b6',
-			light: '#3596ac',
+			dark: '#e39a5a',
+			light: '#9a4f0f',
 		},
 	},
 } satisfies ChartConfig
@@ -652,8 +652,11 @@ export const Area: Story = {
 		</ChartContainer>
 	),
 	play: async ({ canvas }) => {
-		const areas = canvas.querySelectorAll('[data-slot="chart-area"] path[fill-opacity]')
-		if (areas.length !== 2) throw new Error('Area chart did not render area fills')
+		// The fills share one translucent layer under the lines, so an overlap shows one series colour, not a blend.
+		const areas = canvas.querySelectorAll('[data-slot="chart-area"] > [data-slot="chart-fill"] > path')
+		if (areas.length !== 2) throw new Error('Area chart did not render its fills in one layer')
+		const line = canvas.querySelector('[data-slot="chart-area"] path[fill="none"]')
+		if (!line || !(areas[1]!.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING)) throw new Error('An area fill covers a line')
 
 		const svg = canvas.querySelector<SVGSVGElement>('[data-slot="chart-area"]')
 		const source = svg?.querySelector<SVGCircleElement>('[data-chart-series="desktop"] circle[data-chart-index="1"]')

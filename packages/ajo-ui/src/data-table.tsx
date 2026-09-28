@@ -249,6 +249,11 @@ const findCoordinate = (host: HTMLElement, target: FocusTarget) => {
 const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* () {
 	const model = createDataTableModel<any, DataTableKey>(this)
 	let table: HTMLTableElement | null = null
+	// Data column widths from the last rows shown, held while a result is empty so the columns stay put.
+	let held: Map<string, number> | undefined
+	const measure = () => table?.querySelector('[data-row-id]')
+		? new Map([...table.querySelectorAll<HTMLElement>('thead th[data-column-id]')].map(head => [head.dataset.columnId!, head.getBoundingClientRect().width]))
+		: undefined
 	let searchElement: HTMLInputElement | null = null
 	let composing = false
 	let announceAfterRender: 'deferred' | 'immediate' | undefined
@@ -295,6 +300,8 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 	for (const args of this) {
 		preserveFocus()
 		const view = model.sync(args)
+		held = view.rows.length ? undefined : held ?? measure()
+		const width = (id: string) => held?.get(id) ? `width:${held.get(id)}px` : undefined
 		const labels = { ...defaultLabels, ...args.labels }
 		const classNames = args.classNames ?? {}
 		const visibleColumns = view.columns.filter(column => column.visible)
@@ -462,6 +469,7 @@ const DataTableRoot: Stateful<DataTableRootArgs<any, DataTableKey>> = function* 
 											data-column-id={column.id}
 											data-slot="table-head"
 											scope="col"
+											style={width(column.id)}
 										>
 											{sortable ? (
 												<button

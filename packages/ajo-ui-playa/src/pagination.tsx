@@ -61,33 +61,38 @@ const PaginationContent = part<PaginationContentArgs>('ul', 'pagination-content'
 /** Single pagination list item. */
 const PaginationItem = part<PaginationItemArgs>('li', 'pagination-item')
 
-/** Numbered or custom pagination link; a disabled link is a Button link without `href`. */
-const PaginationLink: Stateless<PaginationLinkArgs> = ({ isActive, size = 'icon', ...attrs }) => (
+/**
+ * Numbered or custom pagination link; a disabled link is a Button link without
+ * `href`. The current page sits on enamel: the raised fill with its hairline.
+ */
+const PaginationLink: Stateless<PaginationLinkArgs> = ({ class: classes, isActive, size = 'icon', ...attrs }) => (
 	<Button
 		{...attrs}
 		aria-current={isActive ? 'page' : undefined}
 		as="a"
+		class={clx(isActive && 'edge', classes)}
 		data-active={isActive ? 'true' : undefined}
 		data-slot="pagination-link"
 		size={size}
-		variant={isActive ? 'outline' : 'ghost'}
+		variant={isActive ? 'secondary' : 'ghost'}
 	/>
 )
 
-// size 'none': the link owns its geometry, so the compact gap-1/px-2.5 here
-// render instead of losing to a sized recipe's gap-2/px-4.
+// size 'none': the link owns its geometry, so the compact gap-1 and the
+// tighter padding on the chevron's side render instead of losing to a sized
+// recipe's gap-2/px-4. The chevron points where the pages go, in either direction.
 const direction = (step: 'previous' | 'next'): Stateless<PaginationDirectionArgs> => {
 	const next = step === 'next'
 
 	return ({ children, class: classes, size: _size, text = next ? 'Next' : 'Previous', ...attrs }) => {
-		const icon = <span aria-hidden="true" class={clx(next ? 'i-lucide-chevron-right' : 'i-lucide-chevron-left', 'inline-block size-4 shrink-0')} />
+		const icon = <span aria-hidden="true" class={clx(next ? 'i-lucide-chevron-right' : 'i-lucide-chevron-left', 'inline-block size-4 shrink-0 rtl:-scale-x-100')} />
 		const label = <span class="hidden sm:block">{text}</span>
 
 		return (
 			<PaginationLink
 				{...attrs}
 				aria-label={attrs['aria-label'] ?? (next ? 'Go to next page' : 'Go to previous page')}
-				class={clx('h-9 gap-1 rounded-md px-2.5 py-2 [&_svg:not([class*=size-])]:size-4', next ? 'sm:pr-2.5' : 'sm:pl-2.5', classes)}
+				class={clx('h-control gap-1 rounded-md px-2 [&_svg:not([class*=size-])]:size-4', next ? 'sm:ps-3' : 'sm:pe-3', classes)}
 				size="none"
 			>
 				{emptyChildren(children) ? (next ? <>{label}{icon}</> : <>{icon}{label}</>) : children}
@@ -104,8 +109,8 @@ const PaginationNext = direction('next')
 
 /** Collapsed pagination range indicator. */
 const PaginationEllipsis: Stateless<PaginationEllipsisArgs> = ({ class: classes, ...attrs }) => (
-	<span {...attrs} class={clx('flex size-9 items-center justify-center', classes)} data-slot="pagination-ellipsis">
-		<span aria-hidden="true" class="text-muted-foreground">...</span>
+	<span {...attrs} class={clx('flex size-control items-center justify-center', classes)} data-slot="pagination-ellipsis">
+		<span aria-hidden="true" class="i-lucide-ellipsis size-4 text-muted-foreground" />
 		<span class="sr-only">More pages</span>
 	</span>
 )

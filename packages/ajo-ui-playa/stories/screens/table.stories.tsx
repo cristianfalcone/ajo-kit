@@ -269,9 +269,7 @@ export const Default: Story = {
 	parameters: {
 		known: [
 			{ check: 'focus', slice: 'p5-kit-12', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['input[data-slot=checkbox-input]'] },
-			{ check: 'focus', slice: 'p5-kit-17', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['button[data-slot=data-table-pagination-action]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=checkbox-input]'] },
-			{ check: 'forced-colors', slice: 'p5-kit-17', variants: ['light-1280'], targets: ['button[data-slot=data-table-pagination-action]', 'input[data-slot=data-table-search]'] },
 		],
 		layers: {
 			'row-actions': '[data-screen-layer="row-actions"]',
@@ -284,9 +282,7 @@ export const Default: Story = {
 export const Filtered: Story = {
 	parameters: {
 		known: [
-			{ check: 'focus', slice: 'p5-kit-17', variants: ['light-1280', 'rtl-light-1280', 'light-390'], targets: ['button[data-slot=data-table-facet]'] },
 			{ check: 'forced-colors', slice: 'p5-kit-12', variants: ['light-1280'], targets: ['input[data-slot=checkbox-input]'] },
-			{ check: 'forced-colors', slice: 'p5-kit-17', variants: ['light-1280'], targets: ['button[data-slot=data-table-facet]', 'input[data-slot=data-table-search]'] },
 		],
 	},
 	render: () => <Deployments />,
@@ -337,12 +333,6 @@ const geometry = (canvas: HTMLElement) => new Map([
 
 export const Loading: Story = {
 	args: { loading: true },
-	parameters: {
-		known: [
-			{ check: 'axe', slice: 'p5-kit-17', variants: ['light-390', 'dark-390'], targets: ['scrollable-region-focusable'] },
-			{ check: 'focus', slice: 'p5-kit-17', variants: ['light-390', 'dark-390'], targets: ['div[data-slot=table-container]'] },
-		],
-	},
 	render: args => <Deployments loading={args.loading} />,
 	play: async ({ canvas, setArg }) => {
 		// The skeleton holds the loaded table's rows and footer, so nothing jumps when data arrives.
@@ -359,11 +349,6 @@ export const Loading: Story = {
 }
 
 export const NoResults: Story = {
-	parameters: {
-		known: [
-			{ check: 'forced-colors', slice: 'p5-kit-17', variants: ['light-1280'], targets: ['input[data-slot=data-table-search]'] },
-		],
-	},
 	render: () => <Deployments />,
 	play: async ({ canvas }) => {
 		search(canvas, 'v400')
