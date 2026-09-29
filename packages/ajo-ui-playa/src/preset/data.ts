@@ -37,7 +37,7 @@ const focus = [
 const table = ':is([data-slot=table-container],[data-slot=data-table-container])'
 const fade = 'linear-gradient(to var(--fade-x,right),transparent,#000 var(--fade-start,0),#000 calc(100% - var(--fade-end,0)),transparent)'
 const edges = [
-  `${table}[data-overflow-x]{container-type:inline-size;-webkit-mask-image:none;mask-image:none}`,
+  `${table}[data-overflow-x]{container-type:inline-size;mask-image:none}`,
   `${table}:is([data-overflow-x=start],[data-overflow-x=both]){--fade-start:1rem}${table}:is([data-overflow-x=end],[data-overflow-x=both]){--fade-end:1rem}`,
   `${table}[data-overflow-x]>[data-slot=table]{mask:${fade} var(--overflow-x-offset,0) 0/100cqi 100% no-repeat}`,
   `${table}[data-overflow-x]:dir(rtl)>[data-slot=table]{mask-position:right var(--overflow-x-offset,0) top 0}`,

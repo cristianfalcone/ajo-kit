@@ -35,7 +35,9 @@ const focusRing = 'var(--focus-width) solid var(--ring)'
 const straddle = '[--focus-offset:calc(var(--focus-width)/-2)]'
 
 // Edge fades for scroll-fade-x and the [data-overflow-*] stamps: one gradient per faded edge set.
-// The stamps are logical, so a right-to-left scroller fades toward the left.
+// The stamps are logical, so a right-to-left scroller fades toward the left. mask-image is
+// unprefixed: every browser that reads the tokens' light-dark() reads it, and a build that
+// lowers them for older targets adds -webkit-mask-image itself.
 const fadeStops = {
   start: 'transparent,black 1rem',
   end: 'black calc(100% - 1rem),transparent',
@@ -44,7 +46,7 @@ const fadeStops = {
 const fade = (side: string, edges: keyof typeof fadeStops) => `linear-gradient(to ${side},${fadeStops[edges]})`
 const overflowFades = ([['x', 'var(--fade-x,right)'], ['y', 'bottom']] as const).flatMap(([axis, side]) =>
   (['start', 'end', 'both'] as const).map(edges =>
-    `[data-overflow-${axis}=${edges}]{-webkit-mask-image:${fade(side, edges)};mask-image:${fade(side, edges)}}`)).join('') +
+    `[data-overflow-${axis}=${edges}]{mask-image:${fade(side, edges)}}`)).join('') +
   '[data-overflow-x]:dir(rtl){--fade-x:left}'
 
 /**
@@ -100,10 +102,7 @@ export const playa = definePreset(() => ({
     [/^@container(?:\/(.+))?$/, ([, name]) => name
       ? { 'container-name': name, 'container-type': 'inline-size' }
       : { 'container-type': 'inline-size' }],
-    ['scroll-fade-x', {
-      '-webkit-mask-image': fade('right', 'both'),
-      'mask-image': fade('right', 'both'),
-    }],
+    ['scroll-fade-x', { 'mask-image': fade('right', 'both') }],
     // The one metal: brushed champagne under a specular top and a bronze
     // hairline, with a small tight shadow, all in Wind4's shadow slots.
     ['gilt-plate', {
