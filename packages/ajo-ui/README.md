@@ -129,6 +129,10 @@ When Select closes itself while focus is in its list, focus returns to the
 trigger or the field input. A close from a controlled parent leaves focus to
 the browser's native popover handling.
 
+When a Dialog or a Drawer closes itself, focus returns to its `DialogTrigger`:
+with the focus ring after a keyboard close (Escape, or Enter or Space on a close
+control), without it after a pointer close.
+
 `MessageScroller` is the root of its family and takes `autoScroll`,
 `defaultScrollPosition`, `preserveScrollOnPrepend`, `scrollPreviousItemPeek` and
 `onVisibilityChange(visibility)`, called when the visible message ids or the

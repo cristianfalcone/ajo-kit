@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Args, Meta, Story } from './app'
-import { frame } from './play'
+import { assertFocusReturn, frame } from './play'
 import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import { DialogClose, DialogTrigger } from 'ajo-ui-playa/dialog'
 import {
@@ -314,6 +314,8 @@ export const Basic: Story<typeof Drawer> = {
 		if (drawer.open || trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Drawer did not close')
 		}
+
+		await assertFocusReturn(trigger, drawer, () => closeButton(drawer))
 	},
 }
 

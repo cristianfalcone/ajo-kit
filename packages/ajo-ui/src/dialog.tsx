@@ -97,6 +97,16 @@ const outside = (element: HTMLDialogElement, event: MouseEvent) => {
 		event.clientY > rect.bottom
 }
 
+/**
+ * Whether the event that closed a dialog came from the keyboard: Escape's
+ * cancel, a key press, or a click without a pointer (Enter or Space on a
+ * button); false for a pointer, undefined when the event cannot tell.
+ */
+const keyboard = (event?: Event): boolean | undefined => {
+	if (event?.type === 'cancel' || event instanceof KeyboardEvent) return true
+	if (event instanceof MouseEvent) return !event.detail && !(event as PointerEvent).pointerType
+}
+
 const DialogRoot: Stateful<DialogArgs> = function* ({ defaultOpen, open }) {
 	const dialogId = id('dialog')
 	let content: HTMLDialogElement | null = null
@@ -110,7 +120,20 @@ const DialogRoot: Stateful<DialogArgs> = function* ({ defaultOpen, open }) {
 	})
 	let current = state.value
 
-	const focusTrigger = () => queueMicrotask(() => trigger?.focus())
+	// The trigger shows the focus ring after a keyboard close and none after a
+	// pointer close, whatever the browser's own heuristic guesses. A modal's
+	// native close has already restored focus to it by then, and focusing the
+	// focused element changes nothing, so a wrong ring is blurred first.
+	const focusTrigger = (event?: Event) => {
+		const focusVisible = keyboard(event)
+		queueMicrotask(() => {
+			if (!trigger) return
+			if (focusVisible !== undefined && trigger === document.activeElement && trigger.matches(':focus-visible') !== focusVisible) {
+				trigger.blur()
+			}
+			trigger.focus({ focusVisible })
+		})
+	}
 
 	const sync = () => queueMicrotask(() => {
 		if (!content) return
@@ -133,14 +156,14 @@ const DialogRoot: Stateful<DialogArgs> = function* ({ defaultOpen, open }) {
 		state.set(next, event)
 		current = state.value
 		sync()
-		if (!next) focusTrigger()
+		if (!next) focusTrigger(event)
 	}
 
 	const closed = (event: Event) => {
 		if (syncing || current === false) return
 		state.set(false, event)
 		current = state.value
-		focusTrigger()
+		focusTrigger(event)
 	}
 
 	for (const args of this) {

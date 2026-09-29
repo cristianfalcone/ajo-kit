@@ -21,6 +21,39 @@ export const until = async (check: () => boolean, message = `Timed out waiting f
 export const press = (element: HTMLElement, key: string, init: KeyboardEventInit = {}) =>
 	element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key, ...init }))
 
+/** Dispatches the click a mouse makes, which a keyboard activation (`click()`) is not. */
+const pointerClick = (element: HTMLElement) =>
+	element.dispatchEvent(new PointerEvent('click', { bubbles: true, cancelable: true, detail: 1, pointerType: 'mouse' }))
+
+/**
+ * Asserts that closing a modal returns focus to its trigger with the focus
+ * ring after the keyboard (Escape, or Enter on `close`) and without it after a
+ * pointer on `close`. Each case opens the modal from the other modality, where
+ * a browser's own focus-visible heuristic carries the wrong one over.
+ */
+export const assertFocusReturn = async (trigger: HTMLElement, dialog: HTMLDialogElement, close: () => HTMLElement | null) => {
+	const cases: Array<[string, boolean, () => void]> = [
+		['Escape', true, () => dialog.dispatchEvent(new Event('cancel', { cancelable: true }))],
+		['Enter on the close control', true, () => close()?.click()],
+		['a pointer on the close control', false, () => {
+			const control = close()
+			if (control) pointerClick(control)
+		}],
+	]
+	for (const [name, keyboard, run] of cases) {
+		trigger.focus({ focusVisible: !keyboard })
+		if (keyboard) pointerClick(trigger)
+		else trigger.click()
+		await until(() => dialog.open, `${describe(trigger)} did not open its modal before ${name}`)
+		run()
+		await until(() => !dialog.open, `The modal did not close on ${name}`)
+		await frame(2)
+		if (document.activeElement !== trigger) throw new Error(`Focus did not return to ${describe(trigger)} after ${name}`)
+		const ring = trigger.matches(':focus-visible')
+		if (ring !== keyboard) throw new Error(`Focus returned to ${describe(trigger)} ${ring ? 'with' : 'without'} a ring after ${name}`)
+	}
+}
+
 const tokens = (value: string | null) => new Set((value ?? '').split(/\s+/).filter(Boolean))
 
 /** Asserts the Field wiring of the control with `data-slot={slot}` inside `[data-story-field={name}]`. */

@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Args, Meta, Story } from './app'
-import { frame } from './play'
+import { assertFocusReturn, frame } from './play'
 import { buttonVariants } from 'ajo-ui-playa/button'
 import {
 	AlertDialog,
@@ -187,6 +187,8 @@ export const Basic: Story<typeof AlertDialog> = {
 		if (dialog.open || trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('AlertDialog did not close from Escape cancel event')
 		}
+
+		await assertFocusReturn(trigger, dialog, () => dialog.querySelector('[data-slot="alert-dialog-cancel"]'))
 	},
 }
 

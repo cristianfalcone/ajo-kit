@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { assertFocusVisible, frame, press, restFocus } from './play'
+import { assertFocusReturn, assertFocusVisible, frame, press, restFocus } from './play'
 import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Command,
@@ -631,6 +631,8 @@ export const DialogTriggerFocusReturn: Story<typeof Command> = {
 		if (document.activeElement !== trigger) {
 			throw new Error('Triggered Command dialog did not return focus to DialogTrigger')
 		}
+
+		await assertFocusReturn(trigger, dialog, () => dialog.querySelector('[data-slot="dialog-close"]'))
 	},
 }
 

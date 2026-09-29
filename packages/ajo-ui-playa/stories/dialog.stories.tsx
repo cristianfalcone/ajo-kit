@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Args, Meta, Story } from './app'
-import { frame } from './play'
+import { assertFocusReturn, frame } from './play'
 import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Dialog,
@@ -171,6 +171,8 @@ export const Basic: Story<typeof Dialog> = {
 		if (dialog.open || trigger.getAttribute('aria-expanded') !== 'false') {
 			throw new Error('Dialog did not close from DialogClose')
 		}
+
+		await assertFocusReturn(trigger, dialog, () => dialog.querySelector('[data-slot="dialog-close"][aria-label="Close"]'))
 	},
 }
 
