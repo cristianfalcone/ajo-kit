@@ -1,6 +1,6 @@
 {
   "name": "ajo-ui-playa",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Playa themed UI components and UnoCSS preset for Ajo",
   "type": "module",
   "sideEffects": [
