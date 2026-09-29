@@ -57,6 +57,12 @@ const dependencies = {
 	'ajo-ui-playa': versions['ajo-ui-playa'],
 }
 const devDependencies = { typescript: pins.typescript, unocss: pins.unocss, vite: pins.vite }
+// Ajo packages of the release that another repo packs and npm does not have
+// yet: the workspace names each as a file:.tarballs override, and the local
+// registry serves that tarball in its place.
+const unpublished = [...(await readFile(join(root, 'pnpm-workspace.yaml'), 'utf8'))
+	.matchAll(/^[ \t]+['"]?([A-Za-z0-9@/._-]+?)['"]?:[ \t]*file:(\.tarballs\/\S+\.tgz)[ \t]*$/gm)]
+	.map(([, name, path]) => ({ name, tarball: join(root, path) }))
 const delay = (milliseconds: number) => new Promise(resolveDelay => setTimeout(resolveDelay, milliseconds))
 
 const run = (
@@ -149,8 +155,8 @@ const stop = async (child: ChildProcess | undefined) => {
 const startRegistry = async (directory: string, port: number) => {
 	const config = join(directory, 'verdaccio.yaml')
 	const posix = (path: string) => path.replaceAll('\\', '/')
-	// The public packages resolve only from this registry; everything else
-	// proxies npm.
+	// The public packages and the unpublished tarballs resolve only from this
+	// registry; everything else proxies npm.
 	await write(config, [
 		`storage: ${posix(join(directory, 'storage'))}`,
 		'auth:',
@@ -160,7 +166,7 @@ const startRegistry = async (directory: string, port: number) => {
 		'  npmjs:',
 		'    url: https://registry.npmjs.org/',
 		'packages:',
-		...packages.flatMap(({ name }) => [
+		...[...packages, ...unpublished].flatMap(({ name }) => [
 			`  '${name}':`,
 			'    access: $all',
 			'    publish: $all',
@@ -537,7 +543,12 @@ const kitCssProbe = async (directory: string, registry: string) => {
 // check and unit tests against the published set, and kit deploy reaches the
 // plugin, all on a Node without type stripping, as distributions build it
 // without amaro.
-const createProbe = async (directory: string, registry: string, published: Record<string, Awaited<ReturnType<typeof publish>>>) => {
+const createProbe = async (
+	directory: string,
+	registry: string,
+	published: Record<string, Awaited<ReturnType<typeof publish>>>,
+	integrities: Record<string, string>,
+) => {
 	const { manifest, packlist } = published['create-ajo']
 	assert.deepEqual(manifest.bin, { 'create-ajo': './dist/index.js' })
 	assert(packlist.includes('dist/index.js'), 'create-ajo packlist omitted its compiled bin')
@@ -585,6 +596,9 @@ const createProbe = async (directory: string, registry: string, published: Recor
 	for (const name of Object.keys(pinned.dependencies).filter(name => name in published)) {
 		assert(lock.includes(published[name].manifest.dist.integrity), `the starter did not install the published ${name}`)
 	}
+	for (const [name, integrity] of Object.entries(integrities)) {
+		assert(lock.includes(integrity), `the starter did not install the ${name} tarball`)
+	}
 	await pnpm(['typecheck'], project, node)
 	await pnpm(['test'], project, node)
 	// A fresh starter has no host yet: kit deploy is the plugin's command and asks for one.
@@ -601,6 +615,19 @@ const main = async () => {
 		await mkdir(tarballs)
 		const published: Record<string, Awaited<ReturnType<typeof publish>>> = {}
 		for (const entry of packages) published[entry.name] = await publish(entry, tarballs, registry.url)
+		const integrities: Record<string, string> = {}
+		for (const { name, tarball } of unpublished) {
+			await access(tarball).catch(() => {
+				throw new Error(`${name} is not on npm yet: pack it from its repo into ${tarball}`)
+			})
+			await pnpm(['publish', tarball, '--registry', registry.url, '--no-git-checks'], temporary)
+			const response = await fetch(`${registry.url}/${name}`)
+			const metadata = await response.json() as { versions: Record<string, PublishedManifest> }
+			const served = Object.values(metadata.versions)
+			assert.equal(served.length, 1, `registry served more than the ${name} tarball`)
+			integrities[name] = served[0].dist.integrity
+			console.log(`package consumer: published ${basename(tarball)} from .tarballs`)
+		}
 
 		const manifest = (name: string) => published[name].manifest
 		for (const name of ['ajo-cloves', 'ajo-ui', 'ajo-ui-playa']) {
@@ -672,7 +699,7 @@ const main = async () => {
 		console.log('package consumer: Playa client, SSR and CSS, ajo-ui NodeNext declarations passed')
 		await kitCssProbe(join(temporary, 'kit-css-consumer'), registry.url)
 		console.log('package consumer: kit build stylesheet and sealing contract passed')
-		await createProbe(join(temporary, 'create-consumer'), registry.url, published)
+		await createProbe(join(temporary, 'create-consumer'), registry.url, published, integrities)
 		console.log('package consumer: pnpm create ajo, the starter install, type check and tests passed')
 	} catch (error) {
 		const logs = registry?.logs().trim()

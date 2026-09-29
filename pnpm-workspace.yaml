@@ -14,3 +14,5 @@ versioning:
     - ajo-kit-demo
   changelog:
     storage: repository
+overrides:
+  ajo-kit-server: file:.tarballs/ajo-kit-server-0.3.0.tgz

@@ -10,6 +10,7 @@ drive.json
 .env
 .tmp
 test-results
+.tarballs/
 
 # Local AI tooling
 .claude
