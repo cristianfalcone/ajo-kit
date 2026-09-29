@@ -29,7 +29,7 @@ import {
 } from 'ajo-ui/dialog'
 import { clx, type OmitArg } from 'ajo-ui/utils'
 import { DialogClose } from './dialog'
-import { modalCentered, modalClosed, modalEnter, modalSurface } from './internal/modal'
+import { modalClosed, modalEnter, modalSurface } from './internal/modal'
 import { scrollAreaVariants } from './internal/recipes'
 
 export type { CommandArgs, CommandEmptyArgs, CommandFilter, CommandGroupArgs, CommandInputArgs, CommandItemArgs, CommandListArgs, CommandSeparatorArgs, CommandShortcutArgs }
@@ -54,26 +54,31 @@ export type CommandDialogArgs = WithChildren<OmitArg<IntrinsicElements['dialog']
 }>
 
 const base = 'flex h-full w-full flex-col overflow-hidden rounded-md text-popover-foreground'
+// Centred across (the native dialog's inline insets and mx-auto), a palette
+// keeps its top near the top of the window, so the search does not move while
+// the results shrink and grow under it.
 const dialogBase = clx(
 	modalClosed,
 	modalSurface,
-	modalCentered,
 	modalEnter,
-	'max-h-[85vh] w-[min(92vw,32rem)] overflow-hidden rounded-xl edge p-0',
+	'top-[12vh] bottom-auto mx-auto max-h-[85vh] w-[min(92vw,32rem)] overflow-hidden rounded-xl edge p-0',
 )
 // The search row is as tall as the dialog's close button is deep (top-4 plus
 // size-8), so the close sits centred on it, and the row keeps the close's
-// inline end free, so neither the icon nor typed text runs under it. Items
-// keep the menu row, so every list of choices shares one height.
-const dialogCommandBase = '**:data-[slot=command-input-wrapper]:h-16 **:data-[slot=command-input-wrapper]:pe-12 [&_[data-slot=command-input-wrapper]_svg]:size-5 [&_[data-slot=command-input]]:h-full'
+// inline end free, so neither the icon nor the search's focus ring runs under
+// it. Items keep the menu row, so every list of choices shares one height.
+const dialogCommandBase = '**:data-[slot=command-input-wrapper]:h-16 **:data-[slot=command-input-wrapper]:pe-12 [&_[data-slot=command-input]]:h-control'
 // Control text is Input's: 16 px below sm, so a phone does not zoom, and 14 px
-// from sm. Escape clears the search, so the browser's own blue clear button goes.
-const inputBase = 'flex h-control w-full rounded-md bg-transparent text-base outline-none disabled:cursor-not-allowed disabled:opacity-[var(--disabled-opacity)] sm:text-sm [&::-webkit-search-cancel-button]:appearance-none'
+// from sm. The search takes Playa's one focus ring and, at rest, the outline
+// forced colours paint as its boundary; it is shorter than its row, so the
+// ring shows inside the Command's clipped edge. Escape clears the search, so
+// the browser's own blue clear button goes.
+const inputBase = 'flex h-control-sm w-full me-2 rounded-md bg-transparent px-2 text-base playa-focus disabled:cursor-not-allowed disabled:opacity-[var(--disabled-opacity)] sm:text-sm [&::-webkit-search-cancel-button]:appearance-none'
 // The input's wrapper and search icon, and a group's heading, are base-owned
 // nodes themed through their slots from the Command root; a heading looks
 // like a menu's group label (playa-menu-label).
 const slotBase = [
-	'[&_:where([data-slot=command-input-wrapper])]:flex [&_:where([data-slot=command-input-wrapper])]:h-control [&_:where([data-slot=command-input-wrapper])]:items-center [&_:where([data-slot=command-input-wrapper])]:gap-2 [&_:where([data-slot=command-input-wrapper])]:border-b [&_:where([data-slot=command-input-wrapper])]:px-3',
+	'[&_:where([data-slot=command-input-wrapper])]:flex [&_:where([data-slot=command-input-wrapper])]:h-control-lg [&_:where([data-slot=command-input-wrapper])]:items-center [&_:where([data-slot=command-input-wrapper])]:gap-2 [&_:where([data-slot=command-input-wrapper])]:border-b [&_:where([data-slot=command-input-wrapper])]:px-3',
 	'[&_:where([data-slot=command-input-icon])]:i-lucide-search [&_:where([data-slot=command-input-icon])]:size-4 [&_:where([data-slot=command-input-icon])]:shrink-0 [&_:where([data-slot=command-input-icon])]:opacity-50',
 	'[&_:where([data-slot=command-group-heading])]:px-2 [&_:where([data-slot=command-group-heading])]:py-1 [&_:where([data-slot=command-group-heading])]:text-xs [&_:where([data-slot=command-group-heading])]:font-medium [&_:where([data-slot=command-group-heading])]:text-faint-foreground',
 ].join(' ')

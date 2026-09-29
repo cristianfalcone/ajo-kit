@@ -1,7 +1,7 @@
 /** @jsxImportSource ajo */
 import type { Stateful } from 'ajo'
 import type { Meta, Story } from './app'
-import { frame, press } from './play'
+import { assertFocusVisible, frame, press, restFocus } from './play'
 import { Button, buttonVariants } from 'ajo-ui-playa/button'
 import {
 	Command,
@@ -425,6 +425,7 @@ export const Dialog: Story<typeof Command> = {
 			throw new Error('CommandDialog did not start closed and hidden')
 		}
 
+		restFocus(canvas)
 		trigger.click()
 		await frame(2)
 
@@ -438,14 +439,22 @@ export const Dialog: Story<typeof Command> = {
 			throw new Error(`CommandDialog animation was ${style.animationName} ${style.animationDuration}; expected enter ${duration}s`)
 		}
 		await Promise.all(dialog.getAnimations().map(animation => animation.finished.catch(() => undefined)))
-		const centered = getComputedStyle(dialog)
+		// The search shows the one focus ring, at 3:1 against the panel.
+		assertFocusVisible(canvas)
+		const ring = getComputedStyle(input)
+		if (ring.outlineOffset !== '0px' || ring.boxShadow !== 'none') {
+			throw new Error(`CommandDialog search ring must sit flush with no halo, got offset ${ring.outlineOffset} and shadow ${ring.boxShadow}`)
+		}
+
+		// The palette sits centred across and near the top, without translation.
+		const anchored = getComputedStyle(dialog)
 		const rect = dialog.getBoundingClientRect()
 		if (
-			centered.translate !== 'none'
+			anchored.translate !== 'none'
 			|| Math.abs(rect.left + rect.width / 2 - innerWidth / 2) > 2
-			|| Math.abs(rect.top + rect.height / 2 - innerHeight / 2) > 2
+			|| rect.top > innerHeight / 4
 		) {
-			throw new Error(`CommandDialog must center without translation, got ${centered.translate}`)
+			throw new Error(`CommandDialog must sit centred across and near the top without translation, got top ${rect.top} and ${anchored.translate}`)
 		}
 
 		const title = dialog.ownerDocument.getElementById(dialog.getAttribute('aria-labelledby') ?? '')
@@ -460,6 +469,12 @@ export const Dialog: Story<typeof Command> = {
 
 		const save = canvas.querySelector<HTMLElement>('[data-slot="command-item"][data-value="save"]')
 		if (!save || save.hidden) throw new Error('CommandDialog did not filter command items')
+		// Fewer results shorten the palette from its bottom: the search stays where it was.
+		const filtered = dialog.getBoundingClientRect()
+		if (filtered.height >= rect.height) throw new Error('CommandDialog did not shrink with its results')
+		if (Math.abs(filtered.top - rect.top) > 0.5) {
+			throw new Error(`CommandDialog moved from ${rect.top} to ${filtered.top} as its results shrank`)
+		}
 
 		const firstEscape = escape(input)
 		await frame(2)
@@ -503,6 +518,13 @@ export const Dialog: Story<typeof Command> = {
 		}
 		if (Math.abs(closeRect.top + closeRect.height / 2 - (row.top + row.height / 2)) > 1) {
 			throw new Error('CommandDialog close button is not centred on the search row')
+		}
+		// Forced colours drop the shadows Playa draws boundaries with: at rest the
+		// search keeps the transparent outline they paint, as every Playa input does.
+		close.focus()
+		const rest = getComputedStyle(input)
+		if (rest.outlineStyle === 'none' || Number.parseFloat(rest.outlineWidth) === 0 || rest.forcedColorAdjust === 'none') {
+			throw new Error('CommandDialog search has no boundary forced colours paint')
 		}
 		close.click()
 		await frame(2)
