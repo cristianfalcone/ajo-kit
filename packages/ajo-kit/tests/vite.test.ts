@@ -16,11 +16,14 @@ describe('ajo-kit vite plugin', () => {
 		expect(config.resolve.alias).toEqual([{ find: '/src/client', replacement: 'ajo-kit/client' }])
 	})
 
-	test('the client entry stays out of dependency pre-bundling', () => {
+	test('the client entry stays out of dependency pre-bundling; its route modules are scanned', () => {
 		const plugin = kit().find(plugin => plugin.name === 'ajo-kit')!
 		const config = (plugin.config as () => { optimizeDeps: unknown })()
 
-		expect(config.optimizeDeps).toEqual({ exclude: ['ajo-kit/client'] })
+		expect(config.optimizeDeps).toEqual({
+			exclude: ['ajo-kit/client'],
+			entries: ['index.html', 'src/**/{layout,page}.{js,jsx,ts,tsx}'],
+		})
 	})
 
 	test('css entries load before the kit client entry only, from the workspace or npm', () => {

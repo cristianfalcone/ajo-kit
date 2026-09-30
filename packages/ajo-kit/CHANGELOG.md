@@ -43,6 +43,9 @@
 - A live route revalidates each time its stream opens, not only when it
   reopens, so a change made between the page's load and its subscription (by
   another tab, say) arrives instead of waiting for the next one.
+- The Vite plugin scans the route modules for dependencies when the dev server
+  starts, so the first visit to a page no longer finds new dependencies and
+  reloads the tab.
 
 ### Upgrade Steps
 

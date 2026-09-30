@@ -134,7 +134,12 @@ export function kit(options?: Options): Plugin[] {
 			config() {
 				return {
 					// The client entry owns a virtual route graph; keep it in Vite's plugin pipeline.
-					optimizeDeps: { exclude: ['ajo-kit/client'] },
+					// Its route modules are scanned from the start instead, so the first visit to a
+					// page does not find new dependencies and reload the tab mid-interaction.
+					optimizeDeps: {
+						exclude: ['ajo-kit/client'],
+						entries: ['index.html', 'src/**/{layout,page}.{js,jsx,ts,tsx}'],
+					},
 					ssr: { noExternal: [/^ajo-/] },
 					resolve: { alias: [{ find: '/src/client', replacement: 'ajo-kit/client' }] },
 				}

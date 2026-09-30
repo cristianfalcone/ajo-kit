@@ -555,7 +555,7 @@ const kitCssProbe = async (directory: string, registry: string) => {
 // nothing into the starter's own pnpm-workspace.yaml. It passes its own type
 // check and unit tests against the published set, and kit deploy reaches the
 // plugin, all on a Node without type stripping, as distributions build it
-// without amaro.
+// without amaro. Then its browser journey passes.
 const createProbe = async (
 	directory: string,
 	registry: string,
@@ -618,6 +618,17 @@ const createProbe = async (
 	// A fresh starter has no host yet: kit deploy is the plugin's command and asks for one.
 	await assert.rejects(pnpm(['exec', 'kit', 'deploy', '--json'], project, node), (error: unknown) =>
 		error instanceof CommandFailure && JSON.parse(error.stdout).error.code === 'host_unknown')
+	// The browser journey runs on the fresh project, so its dev server starts with
+	// a cold Vite cache, as a newcomer's first `pnpm kit dev` does. Its server
+	// script is TypeScript run by Node, so this step keeps type stripping; it needs
+	// Playwright's Chromium (PLAYWRIGHT_BROWSERS_PATH reaches it from this
+	// environment) and the free ports 5217 and 24678. Its server's temporary
+	// database is gone once the journey ends.
+	const temporary = join(directory, 'tmp')
+	await mkdir(temporary)
+	await pnpm(['test:e2e'], project, { TMPDIR: temporary })
+	assert.deepEqual((await readdir(temporary)).filter(name => name.startsWith('ajo-notes-test-')), [],
+		'the browser journey left its server\'s temporary database behind')
 }
 
 // An app without UnoCSS takes Playa's stylesheets only: it installs under
@@ -750,7 +761,7 @@ const main = async () => {
 		await stylesheetProbe(join(temporary, 'stylesheet-consumer'), registry.url)
 		console.log('package consumer: Playa tokens and fonts without UnoCSS passed')
 		await createProbe(join(temporary, 'create-consumer'), registry.url, published, integrities)
-		console.log('package consumer: pnpm create ajo, the starter install, type check and tests passed')
+		console.log('package consumer: pnpm create ajo, the starter install, type check, tests and browser journey passed')
 	} catch (error) {
 		const logs = registry?.logs().trim()
 		if (logs) console.error(`Verdaccio tail:\n${logs.slice(-6_000)}`)

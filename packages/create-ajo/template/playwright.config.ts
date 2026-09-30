@@ -11,5 +11,7 @@ export default defineConfig({
 		url: 'http://127.0.0.1:5217',
 		reuseExistingServer: false,
 		timeout: 60_000,
+		// SIGTERM lets the server script remove its temporary database; the default SIGKILL leaks it.
+		gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 },
 	},
 })
