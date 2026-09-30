@@ -40,6 +40,9 @@
 - `kit` loads TypeScript migrations and seeds through Vite, so it runs on a
   Node built without type stripping, such as the apt Node of Ubuntu 26.04.
 - The package ships `LLMs.md`, the rules for building an App with ajo-kit.
+- A live route revalidates each time its stream opens, not only when it
+  reopens, so a change made between the page's load and its subscription (by
+  another tab, say) arrives instead of waiting for the next one.
 
 ### Upgrade Steps
 

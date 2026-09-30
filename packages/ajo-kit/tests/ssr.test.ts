@@ -396,6 +396,20 @@ describe('ajo-kit client navigation', () => {
 		expect(scrollY).toBe(400)
 	})
 
+	test('an emit before the stream first opens shows once it opens', async () => {
+		const { server, root } = await start('/notes/7')
+		const article = root.querySelector('article')!
+
+		// Another tab changes the route after this page's data was rendered and
+		// before its stream subscribed, so no subscriber heard the emit.
+		titles.set('7', 'Earlier')
+		server.emit('notes')
+
+		client = await import('../src/client')
+		await vi.waitFor(() => expect(sources.map(source => source.open)).toEqual([true]))
+		await vi.waitFor(() => expect(article.textContent).toBe('note 7: Earlier'))
+	})
+
 	test('an emit while the stream was down shows after it reconnects', async () => {
 		const { server, root } = await start('/notes/7')
 		const article = root.querySelector('article')!

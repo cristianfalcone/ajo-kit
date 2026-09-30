@@ -332,16 +332,14 @@ function stream(update: (message: Message) => void, notify?: (status: Status) =>
 
 		status('connecting')
 
-		let opened = false
-
 		source = new EventSource(url)
 
-		// The server keeps the fresh hash of a reopened stream without sending it,
-		// so what changed while the stream was down arrives through the owner.
+		// The server keeps the fresh hash of an opened stream without sending it,
+		// so what changed before the stream first opened, or while it was down,
+		// arrives through the owner.
 		source.onopen = () => {
 			status('open')
-			if (opened) stale?.()
-			opened = true
+			stale?.()
 		}
 
 		source.onmessage = event => {
@@ -443,10 +441,10 @@ const App: Stateful<{ page: Component; state?: State }> = function* ({ page, sta
 		if (message.head) apply(message.head)
 
 		this.next()
-	// On expiry or reconnect the loaders re-run for the current URL: the
+	// On expiry and on every open the loaders re-run for the current URL: the
 	// server answers a dead session with its redirect envelope and refresh()
 	// follows it, so the screen walks itself to login instead of waiting for a
-	// click, and a reopened stream catches up (a 304 when nothing changed).
+	// click, and an opened stream catches up (a 304 when nothing changed).
 	}, status => phase = status, () => void refresh())
 
 	const go = async (target: Page, options: { scroll?: boolean } = {}) => {

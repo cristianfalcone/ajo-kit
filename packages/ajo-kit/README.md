@@ -373,9 +373,11 @@ export const actions = {
 
 The runtime opens SSE only when the resolved route tracked at least one topic,
 revalidates affected routes, and replaces the active route payload when tracked
-topics change. One process accepts at most 128 live streams and at most 8 per
-session, bearer token, attached user, or anonymous client address; excess
-connections receive `503` or `429` without an SSE upgrade.
+topics change. Each time the stream opens or reopens, the route revalidates once
+(a 304 when nothing changed), so a change made between the page's load and its
+subscription still arrives. One process accepts at most 128 live streams and at
+most 8 per session, bearer token, attached user, or anonymous client address;
+excess connections receive `503` or `429` without an SSE upgrade.
 
 ## Request timing
 
