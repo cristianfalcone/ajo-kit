@@ -1,5 +1,61 @@
 # ajo-kit
 
+## 0.5.0
+
+### Breaking Changes
+
+- `kit build` seals the `.ajo/` staging tree into `dist/ajo` with the
+  project's own installed `ajo-engine-compiler`. The `--compiler` option is
+  removed. Without the compiler the build still stages `.ajo/`, succeeds and
+  reports `sealed: false`.
+- Every command, plugin commands included, follows one output contract:
+  progress and results go to stderr as `✓`, `✗` and `○` lines with a `next:`
+  line, and with `--json` stdout carries exactly one document,
+  `{ ok, result | error: { code, message }, next }`. The exit status is 0 on
+  success and 1 on any failure. Failures carry stable codes: `usage`,
+  `not_a_project`, `plugin_failed`, `build_failed`, `seal_failed`,
+  `migrate_failed`, `seed_failed` and `internal`. While a command runs, writes
+  to `process.stdout` go to stderr.
+- Arguments are parsed with `node:util` `parseArgs` instead of sade (no longer
+  a dependency): an unknown command or option, or a missing or extra argument,
+  fails with `usage`.
+- Plugins add commands with `cli.command(usage, { describe, options, action })`
+  from `register(cli)`. An action returns `{ result, next }` or throws an
+  `Error` with a snake_case `code` and a `next` step, and reports progress
+  through `report(line)`. A plugin written for the 0.4.0 runner, such as
+  `ajo-kit-server` 0.2.0, fails to register with `plugin_failed`.
+- Migrations are ES modules (`.ts`, `.mts`, `.js` or `.mjs`); a numbered
+  `.cjs` or `.cts` file is an error that names the files.
+- `ajo-kit/node`: `listen()` no longer prints the server address, `build()`
+  runs Vite at the warn level, and `dev()` writes its route reload lines to
+  stderr without hard-coded colours.
+- `Strict-Transport-Security` is `max-age=31536000`, without
+  `includeSubDomains`, so a visit to a host's own name no longer forces HTTPS
+  on every App subdomain before its certificate exists.
+
+### What Is New
+
+- `kit --version` prints the package version, and every command takes
+  `--json` and `--help`. The README documents each command's result.
+- `kit` loads TypeScript migrations and seeds through Vite, so it runs on a
+  Node built without type stripping, such as the apt Node of Ubuntu 26.04.
+- The package ships `LLMs.md`, the rules for building an App with ajo-kit.
+
+### Upgrade Steps
+
+1. Install `ajo-kit@0.5.0`, with `ajo-kit-auth@0.7.1` and `ajo-kit-mail@0.4.1`
+   when you use them, and `ajo-kit-server@0.3.0` if you deploy with it (0.2.0
+   cannot register its commands with this runner).
+2. Install the engine pair as exact optional dependencies, which pnpm skips
+   outside Linux x64:
+   `pnpm add --save-optional --save-exact ajo-engine ajo-engine-compiler`.
+   Replace `kit build --compiler <path>` with `kit build`.
+3. Port plugin commands to `cli.command(usage, { describe, options, action })`
+   and throw coded errors instead of exiting.
+4. Convert CommonJS migrations to ES modules.
+5. Read `kit` results from the `--json` document on stdout instead of parsing
+   its human lines.
+
 ## 0.4.0
 
 ### Breaking Changes

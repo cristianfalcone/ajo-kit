@@ -6,6 +6,10 @@ ajo-cloves@0.2.0:
   dir: packages/ajo-cloves
   intents:
     - quick-dryers-tap
+ajo-cloves@0.2.1:
+  dir: packages/ajo-cloves
+  intents:
+    - calm-tides-meet
 ajo-kit-auth@0.5.0:
   dir: packages/ajo-kit-auth
   intents:
@@ -22,6 +26,10 @@ ajo-kit-auth@0.7.0:
   dir: packages/ajo-kit-auth
   intents:
     - quick-dryers-tap
+ajo-kit-auth@0.7.1:
+  dir: packages/ajo-kit-auth
+  intents:
+    - calm-tides-meet
 ajo-kit-mail@0.2.0:
   dir: packages/ajo-kit-mail
   intents:
@@ -34,6 +42,10 @@ ajo-kit-mail@0.4.0:
   dir: packages/ajo-kit-mail
   intents:
     - quick-dryers-tap
+ajo-kit-mail@0.4.1:
+  dir: packages/ajo-kit-mail
+  intents:
+    - calm-tides-meet
 ajo-kit@0.2.0:
   dir: packages/ajo-kit
   intents:
@@ -58,6 +70,10 @@ ajo-kit@0.4.0:
   dir: packages/ajo-kit
   intents:
     - quick-dryers-tap
+ajo-kit@0.5.0:
+  dir: packages/ajo-kit
+  intents:
+    - calm-tides-meet
 ajo-ui-playa@0.1.2:
   dir: packages/ajo-ui-playa
   intents:
@@ -66,6 +82,10 @@ ajo-ui-playa@0.2.0:
   dir: packages/ajo-ui-playa
   intents:
     - quick-dryers-tap
+ajo-ui-playa@0.3.0:
+  dir: packages/ajo-ui-playa
+  intents:
+    - calm-tides-meet
 ajo-ui@0.1.2:
   dir: packages/ajo-ui
   intents:
@@ -74,3 +94,11 @@ ajo-ui@0.2.0:
   dir: packages/ajo-ui
   intents:
     - quick-dryers-tap
+ajo-ui@0.3.0:
+  dir: packages/ajo-ui
+  intents:
+    - calm-tides-meet
+create-ajo@0.1.0:
+  dir: packages/create-ajo
+  intents:
+    - calm-tides-meet

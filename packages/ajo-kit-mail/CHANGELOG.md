@@ -1,5 +1,11 @@
 # ajo-kit-mail
 
+## 0.4.1
+
+### Patch Changes
+
+- Accepts `ajo-kit ^0.5.0` as its peer (was `^0.4.0`). Nothing else changes.
+
 ## 0.4.0
 
 ### Breaking Changes

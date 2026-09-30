@@ -1,5 +1,58 @@
 # ajo-ui
 
+## 0.3.0
+
+### Breaking Changes
+
+- Requires `ajo-cloves ^0.2.1`.
+- `DirectionContext` is removed from `ajo-ui/direction`. Direction-aware
+  components (Tabs, Toolbar, ToggleGroup, Calendar, Carousel, Menubar,
+  NavigationMenu, submenus, Select chips and popup origins) read their
+  element's computed direction when a key arrives, so a `dir` on `<html>`
+  mirrors them without a provider. `DirectionProvider` only writes `dir` on its
+  host, and a component writes `dir` on its root only for an explicit `dir`
+  arg.
+- A submenu opens toward the inline end: `left-start` (falling back to
+  `right-start`) in a right-to-left menu.
+- DataTable's facet and column menus no longer repeat their trigger as a label:
+  the `menu_label` and `menu_separator` keys of `classNames` are removed.
+- Chart: the plot is a group of named marks with one Tab stop. Arrow keys move
+  right and left along a series and up and down across series, Home and End
+  jump to the ends, and the tooltip closes once focus leaves the marks.
+  Without `width` or `height` it draws at the plot's laid-out size and stamps
+  `data-measured` once it has drawn at that size. The value axis steps on
+  round numbers from zero, the x axis keeps its first and last labels and thins
+  the ones between, area fills are painted from the largest area to the
+  smallest, and a donut hole takes at most 60 % of the radius.
+- Select and InputDate popups open 8 px from their trigger (was 6 px).
+
+### What Is New
+
+- Dialog, and AlertDialog, Drawer and CommandDialog on top of it, return focus
+  to their trigger with the focus ring after a keyboard close (Escape, or Enter
+  or Space on a close control) and without it after a pointer close.
+- CommandList stamps `data-overflow-y` and the DataTable container
+  `data-overflow-x` through the `overflow` clove, so a theme can fade the edge
+  a long list or a wide table scrolls toward.
+- DataTable holds its data columns' header widths while a result is empty, so
+  the columns do not jump.
+- SidebarTrigger reports `aria-expanded` for the sidebar and for the phone
+  drawer.
+- InputDate segment groups take their direction from the locale's formatted
+  pattern, so `en-US`, `he` and `fa` read left to right on a right-to-left page
+  and Arabic keeps its day on the right. Arrow keys move between segments in
+  on-screen order; Tab order stays logical.
+- NavigationMenu scrolls a list trigger or link into view when it takes
+  keyboard focus; focus from a press does not scroll.
+
+### Upgrade Steps
+
+1. Install `ajo-ui@0.3.0` with `ajo-cloves@0.2.1`.
+2. Set `dir` and `lang` on `<html>` and keep `DirectionProvider` only for a
+   subtree that differs. Replace reads of `DirectionContext` with the element's
+   computed `direction`.
+3. Remove `menu_label` and `menu_separator` from DataTable `classNames`.
+
 ## 0.2.0
 
 ### Breaking Changes

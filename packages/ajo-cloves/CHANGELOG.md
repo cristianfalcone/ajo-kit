@@ -1,5 +1,14 @@
 # ajo-cloves
 
+## 0.2.1
+
+### Patch Changes
+
+- `overflow` also sets `--overflow-x-offset` on the element while its content
+  overflows sideways: how far it is scrolled from the inline start, so a fade
+  drawn on the content can stay on the visible edges. The property is removed
+  when nothing overflows sideways and when the host goes away.
+
 ## 0.2.0
 
 ### Breaking Changes
