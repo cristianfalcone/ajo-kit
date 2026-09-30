@@ -51,7 +51,7 @@ production.
 | `src/notes` | Protected loader, owner-scoped actions, live data and mailbox |
 | `src/verify/[signature]` | Validate the auth package's address-bound, expiring link |
 | `src/mail.ts` | Capture in development; explicit HTTP provider in production, or mail off |
-| `vite.config.ts`, `uno.config.ts` | Ajo/kit build and Playa styling |
+| `vite.config.ts`, `uno.config.ts`, `src/app.css` | Ajo/kit build, Playa styling and its fonts |
 | `tests` | Real HTTP auth/data/mail checks, migration checks and browser journey |
 
 `/` is a public welcome page and returns 200 for deployment readiness. `/notes`

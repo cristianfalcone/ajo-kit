@@ -3,6 +3,7 @@ import type { PageArgs } from 'ajo-kit'
 import { action } from 'ajo-kit/client'
 import { Button } from 'ajo-ui-playa/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'ajo-ui-playa/card'
+import { Input } from 'ajo-ui-playa/input'
 import type { Note } from '../database'
 
 type Data = {
@@ -40,7 +41,7 @@ const Notes: Stateful<PageArgs<Data>> = function* () {
 						<form class="space-y-2" method="post" action="?/add" set:onsubmit={add.submit}>
 							<label for="note">New note</label>
 							<div class="flex gap-2">
-								<input id="note" name="text" class="h-9 min-w-0 flex-1 rounded-md border bg-transparent px-3 outline-none focus-visible:ring-3 focus-visible:ring-ring/50" maxlength={160} required disabled={add.loading} />
+								<Input id="note" name="text" class="flex-1" maxlength={160} required disabled={add.loading} />
 								<Button type="submit" disabled={add.loading}>{add.loading ? 'Adding…' : 'Add'}</Button>
 							</div>
 						</form>

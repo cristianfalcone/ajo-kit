@@ -30,7 +30,7 @@
     "ajo-kit": "0.5.0",
     "ajo-kit-auth": "0.7.1",
     "ajo-kit-mail": "0.4.1",
-    "ajo-ui-playa": "0.2.0"
+    "ajo-ui-playa": "0.3.0"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

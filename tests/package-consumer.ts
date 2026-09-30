@@ -606,8 +606,9 @@ const createProbe = async (
 	await access(join(project, 'database.sqlite'))
 	assert.equal(await readFile(join(project, 'pnpm-workspace.yaml'), 'utf8'), policy, 'the install rewrote the starter\'s pnpm-workspace.yaml')
 	const lock = await readFile(join(project, 'pnpm-lock.yaml'), 'utf8')
-	for (const name of Object.keys(pinned.dependencies).filter(name => name in published)) {
-		assert(lock.includes(published[name].manifest.dist.integrity), `the starter did not install the published ${name}`)
+	// Every package of this release but create-ajo reaches the starter: Playa brings ajo-ui and ajo-cloves.
+	for (const { name } of packages) {
+		if (name !== 'create-ajo') assert(lock.includes(published[name].manifest.dist.integrity), `the starter did not install the published ${name}`)
 	}
 	for (const [name, integrity] of Object.entries(integrities)) {
 		assert(lock.includes(integrity), `the starter did not install the ${name} tarball`)

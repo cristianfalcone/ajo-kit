@@ -1,0 +1,3 @@
+/* Playa's faces (DM Sans, JetBrains Mono, Fraunces): the browser fetches
+   only the faces and unicode subsets a page's text uses. */
+@import 'ajo-ui-playa/fonts.css';
