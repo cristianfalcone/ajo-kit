@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: false
   excludeLinksFromLockfile: false
 
-overrides:
-  ajo-kit-server: file:.tarballs/ajo-kit-server-0.3.0.tgz
-
 pnpmfileChecksum: sha256-w9Ei/BAayhxKEhxZt8ePaxmkkbDM/AdZc3vPiwDc134=
 
 importers:
