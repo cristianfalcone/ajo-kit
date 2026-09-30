@@ -1,6 +1,6 @@
 {
   "name": "create-ajo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Creates an Ajo App from the ajo-kit starter: pnpm create ajo <dir>",
   "type": "module",
   "bin": {

@@ -1,5 +1,13 @@
 # create-ajo
 
+## 0.1.1
+
+### Patch Changes
+
+- The starter pins `ajo-kit-server` 0.3.1, whose `kit host create` deletes a
+  DigitalOcean host's custom image once its Droplet is active, so the image
+  stops costing storage. Nothing else changes.
+
 ## 0.1.0
 
 ### What Is New

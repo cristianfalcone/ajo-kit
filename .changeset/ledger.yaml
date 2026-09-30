@@ -102,3 +102,7 @@ create-ajo@0.1.0:
   dir: packages/create-ajo
   intents:
     - calm-tides-meet
+create-ajo@0.1.1:
+  dir: packages/create-ajo
+  intents:
+    - tidy-gulls-wait
